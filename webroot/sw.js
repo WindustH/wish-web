@@ -9,7 +9,7 @@ const SHELL = [
   '/styles/layout.css', '/styles/features.css',
   '/vendor/preact/preact.module.js', '/vendor/preact/hooks.module.js',
   '/vendor/htm/htm.module.js',
-  '/app-icons/icon-192.png', '/icons.svg',
+  '/app-icons/icon-192.png',
 ];
 
 self.addEventListener('install', (e) => {
