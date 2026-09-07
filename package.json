@@ -1,0 +1,14 @@
+{
+  "name": "wish-web",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "wish webui v2 — self-contained, PWA-ready web client for wishd",
+  "scripts": {
+    "start": "node serve.mjs",
+    "icons": "node tools/fetch-icons.mjs",
+    "appicons": "python3 tools/make-app-icons.py",
+    "selftest:api": "node tools/selftest-api.mjs"
+  },
+  "engines": { "node": ">=18" }
+}
