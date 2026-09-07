@@ -24,8 +24,12 @@ const ALIASES = {
   'circle-dot': ['dot'], 'list-tree': ['list-tree'],
 };
 
-const inner = (svg) => svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '').trim();
-const attrs = (svg) => (svg.match(/^<svg[^>]*>/) || [''])[0];
+const inner = (svg) =>
+  svg.replace(/<!--[\s\S]*?-->\s*/g, '')      // strip license comments
+     .replace(/^\s*<svg[^>]*>/, '')            // strip wrapper tag
+     .replace(/<\/svg>\s*$/, '')
+     .trim();
+const attrs = (svg) => (svg.replace(/<!--[\s\S]*?-->\s*/g, '').match(/^\s*<svg[^>]*>/) || [''])[0];
 
 const out = {};
 for (const name of NAMES) {

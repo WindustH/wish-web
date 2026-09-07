@@ -7,24 +7,27 @@ export const theme = (() => {
   const mode = signal(cfg.theme.defaultMode);      // auto | light | dark
   const resolved = signal('light');                // light | dark (after system)
   let storage = null;                              // platform adapter
-  let systemWatcher = null;
+  let watchSystem = null;                          // (cb) => void
+  let readSystem = null;                           // () => 'light' | 'dark'
 
   function computeResolved() {
-    const sys = systemWatcher ? systemWatcher() : 'light';
-    resolved.value = mode.peek() === 'auto' ? sys : mode.peek();
+    const sys = readSystem ? readSystem() : 'light';
+    const next = mode.peek() === 'auto' ? sys : mode.peek();
+    if (next === 'light' || next === 'dark') resolved.value = next;
   }
 
   return {
     mode,
     resolved,
-    init({ storageAdapter, watchSystem }) {
+    init({ storageAdapter, watchSystem: ws, readSystem: rs }) {
       storage = storageAdapter || null;
       if (storage) {
         const saved = storage.get(cfg.theme.storageKey);
         if (cfg.theme.modes.includes(saved)) mode.value = saved;
       }
-      systemWatcher = watchSystem || null;
-      if (systemWatcher) systemWatcher(computeResolved);
+      watchSystem = ws || null;
+      readSystem = rs || null;
+      if (watchSystem) watchSystem(computeResolved);
       computeResolved();
     },
     setMode(next) {
