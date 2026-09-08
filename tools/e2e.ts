@@ -84,7 +84,7 @@ await send('Emulation.setDeviceMetricsOverride', MOBILE
   ? { width: 390, height: 844, deviceScaleFactor: 2, mobile: true }
   : { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
 
-async function evalJs<T>(expr: string): Promise<T> {
+async function evalJs<T = unknown>(expr: string): Promise<T> {
   const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
   if (r.exceptionDetails) throw new Error('eval: ' + JSON.stringify(r.exceptionDetails));
   return r.result.value as T;
@@ -104,10 +104,40 @@ const count = (sel: string) => evalJs<number>(`document.querySelectorAll(${JSON.
 const attr = (sel: string, name: string) => evalJs<string | null>(`document.querySelector(${JSON.stringify(sel)})?.getAttribute(${JSON.stringify(name)}) ?? null`);
 const exists = (sel: string) => evalJs<boolean>(`!!document.querySelector(${JSON.stringify(sel)})`);
 
+// ── cleanup registry (round-5): every session this run creates, plus the
+// browser profile, is released in a top-level finally — a mid-flow crash
+// must not leak test sessions on the daemon. ─────────────────────────────
+const API = `${BASE}/wishd-api`;
+const cleanupLog: string[] = [];
+const createdSids: string[] = [];
+async function cleanupSession(id: string) {
+  if (!id) return;
+  try {
+    await fetch(`${API}/sessions/${id}/interrupt`, { method: 'POST', headers: { 'idempotency-key': 'e2e-cleanup-' + id } });
+  } catch (e) { cleanupLog.push(`interrupt ${id} failed: ${e}`); }
+  for (let i = 0; i < 30; i++) {
+    try {
+      const s = await (await fetch(`${API}/sessions/${id}`)).json();
+      if (s.phase === 'idle' && !(s.queue > 0)) break;
+    } catch { /* transient — keep waiting */ }
+    await wait(500);
+  }
+  try {
+    const r = await fetch(`${API}/sessions/${id}`, { method: 'DELETE', headers: { 'idempotency-key': 'e2e-cleanup-del-' + id } });
+    if (r.status !== 200) cleanupLog.push(`DELETE ${id} -> HTTP ${r.status}`);
+    else {
+      const after = await fetch(`${API}/sessions/${id}`);
+      if (after.status !== 404) cleanupLog.push(`DELETE ${id} reported 200 but session still reachable (${after.status})`);
+    }
+  } catch (e) { cleanupLog.push(`DELETE ${id} failed: ${e}`); }
+}
+
+try {
+
 // ── 1. load + console/network capture ───────────────────────────────────
 await send('Page.navigate', { url: BASE + '/' });   // bare load: no hash
 await wait(900);
-ok('bare load auto-opens sessions (router default)', (await evalJs('location.hash')).startsWith('#/sessions'),
+ok('bare load auto-opens sessions (router default)', String(await evalJs('location.hash')).startsWith('#/sessions'),
   await evalJs('location.hash'));
 await wait(400);
 ok('app renders shell', await exists('.shell'));
@@ -116,13 +146,13 @@ ok('theme attr present', (await evalJs('document.documentElement.dataset.theme')
 ok(`layout=${MOBILE ? 'mobile' : 'desktop'}`, await exists(MOBILE ? '.bbar' : '.vbar'));
 {
   const badges = (await evalJs<string>(`[...document.querySelectorAll('.sl-row .badge')].map(b=>b.textContent).join(',')`)) || '';
-  ok('list hides transitional storage states (warming/cooling)',
-    !/升温|转存|warming|cooling/.test(badges), badges.slice(0, 60));
+  ok('list hides storage-state badges entirely (cold/warm/hot tiers)',
+    !/冷存|升温|转存|cold|warming|cooling/.test(badges), badges.slice(0, 60));
 }
 if (!MOBILE) ok('desktop: sessions pane + chat pane', (await exists('.sessions-pane')) && (await exists('.content-pane')));
 else {
   const vbarHidden = await evalJs(`getComputedStyle(document.querySelector('.vbar')).display === 'none'`);
-  ok('mobile: vbar hidden, bottom bar has all icons', vbarHidden && (await count('.bbar .nav-btn')) >= 3);
+  ok('mobile: vbar hidden, bottom bar has all icons', Boolean(vbarHidden && (await count('.bbar .nav-btn')) >= 3));
 }
 
 // ── 2. selftest all green ────────────────────────────────────────────────
@@ -148,13 +178,14 @@ const providers = await evalJs<any[]>(`[...document.querySelectorAll('.modal sel
 await evalJs(`(() => { const sel = document.querySelectorAll('.modal select')[0]; sel.value = sel.options[0].value; sel.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
 await wait(600);
 const modelOk = await evalJs(`(() => { const sel = document.querySelectorAll('.modal select')[1]; if (!sel || sel.options.length < 2) return false; sel.value = sel.options[1].value; sel.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
-ok('model selectable', modelOk, 'provider=' + (providers[0] || '?'));
+ok('model selectable', Boolean(modelOk), 'provider=' + (providers[0] || '?'));
 await type('.modal input.input', 'webui-v2-e2e' + (MOBILE ? '-mobile' : '-desktop'));
 await click('.modal .modal-foot .btn.primary');
 await wait(1200);
-const chatPath = await evalJs('location.hash');
+const chatPath = String(await evalJs('location.hash'));
 ok('navigated into new session', chatPath.startsWith('#/s/'), chatPath);
 const sid = chatPath.replace('#/s/', '').split('/')[0];
+createdSids.push(sid);
 ok('session name shown in topbar', ((await text('.chatbar .title')) || '').includes('webui-v2'));
 
 // ── 4. send message + SSE reply ──────────────────────────────────────────
@@ -177,7 +208,7 @@ ok('assistant reply rendered (SSE complete → history reconcile)', replied);
 // component; expanding reveals the full sequence (audit ⑤)
 {
   const hasGroup = await exists('.proc-group');
-  ok('process group chip present', hasGroup, await text('.proc-head'));
+  ok('process group chip present', hasGroup, (await text('.proc-head')) ?? undefined);
   if (hasGroup) {
     await click('.proc-head');
     await wait(300);
@@ -234,8 +265,8 @@ await goto('/sessions');
 await wait(600);
 const rowCount = await count('.sl-row');
 ok('session list shows sessions', rowCount > 0, `rows=${rowCount}`);
-const rowName = await text('.sl-row .sl-name');
-ok('list contains webui-v2 session', (rowName || '').includes('webui-v2'));
+const rowHit = await evalJs(`[...document.querySelectorAll('.sl-row .sl-name')].some((n) => n.textContent.includes('webui-v2'))`);
+ok('list contains webui-v2 session', Boolean(rowHit));
 
 // ── 8. theme + i18n toggles still healthy in running app ─────────────────
 await goto('/settings');
@@ -309,5 +340,14 @@ ok('zero external requests', externalRequests.length === 0, externalRequests.sli
 sleepLog('\n════ E2E ' + (MOBILE ? '(mobile viewport)' : '(desktop viewport)') + ' ════');
 sleepLog(RESULTS.join('\n'));
 sleepLog(`\n${RESULTS.filter(r=>r.startsWith('PASS')).length} passed, ${FAILS.length} failed${RESULTS.filter(r=>r.startsWith('SKIP')).length ? ', ' + RESULTS.filter(r=>r.startsWith('SKIP')).length + ' skipped' : ''}`);
-chrome.kill();
-Deno.exit(FAILS.length ? 1 : 0);
+} finally {
+  for (const id of createdSids) await cleanupSession(id);
+  sleepLog(cleanupLog.length
+    ? `CLEANUP FAILED:\n` + cleanupLog.join('\n')
+    : `cleaned up test sessions: ${createdSids.join(', ') || '(none created)'}`);
+  if (cleanupLog.length) FAILS.push('cleanup failed');
+  chrome.kill();
+  try { await Deno.remove(profile, { recursive: true }); }
+  catch (e) { FAILS.push('profile cleanup failed: ' + e); }
+  Deno.exit(FAILS.length ? 1 : 0);
+}
