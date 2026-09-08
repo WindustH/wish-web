@@ -4,7 +4,8 @@
 import { signal } from '../core/state/reactive.js';
 import { cfg } from '../core/config.js';
 
-const routes = [];          // { pattern, regex, keys, feature, view }
+const routes = [];          // { pattern, regex, keys, view }
+let fallback = { path: '/sessions', view: null };   // default landing
 export const current = signal({ path: '/', params: {}, query: {} });
 export const isMobile = signal(false);
 
@@ -40,8 +41,18 @@ function resolve() {
       return;
     }
   }
-  current.value = { path, params: {}, query, view: null };
+  // No feature claimed the path (bare load, typo, or '/'): land on the
+  // default view without polluting history.
+  if (fallback.view && (path === '/' || !routes.length)) {
+    if (path !== fallback.path) navigate(fallback.path, { replace: true });
+    current.value = { path: fallback.path, params: {}, query, view: fallback.view };
+    return;
+  }
+  current.value = { path, params: {}, query, view: fallback.view };
 }
+
+// Fallback view: what renders when nothing matches (default landing).
+export function setFallback(path, view) { fallback = { path, view }; }
 
 export function navigate(path, { replace = false } = {}) {
   const target = `#${path}`;
