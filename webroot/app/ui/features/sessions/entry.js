@@ -44,7 +44,9 @@ function PendingImage({ blob }) {
 
 function AssistantEntry({ entry }) {
   const [detail, setDetail] = useState(null);
-  const blocks = entry.payload?.content || [];
+  const blocks = entry.__skipProcessBlocks
+    ? dropLeadingProcessBlocks(entry.payload?.content || [])
+    : (entry.payload?.content || []);
   const texts = blocks.filter((b) => b.type === 'text');
   const reasoning = blocks.filter((b) => b.type === 'reasoning');
   const toolCalls = blocks.filter((b) => b.type === 'tool_call');
@@ -75,6 +77,12 @@ function AssistantEntry({ entry }) {
       ${detail && html`<${DetailModal} detail=${detail} onClose=${() => setDetail(null)} />`}
     </div>
   </div>`;
+}
+
+function dropLeadingProcessBlocks(blocks) {
+  let i = 0;
+  while (i < blocks.length && (blocks[i].type === 'reasoning' || blocks[i].type === 'tool_call')) i++;
+  return blocks.slice(i);
 }
 
 function ToolResultEntry({ entry }) {
@@ -154,4 +162,114 @@ function fmtK(n) {
   if (n == null) return '0';
   if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
   return String(n);
+}
+
+// ─── process grouping ──────────────────────────────────────────────────
+// Consecutive "pure" thinking/tool entries (assistant messages with no
+// text, tool results) collapse into ONE group component. If the final
+// assistant message of the same run leads with reasoning/tool_call blocks
+// before its text, those blocks join the group too — the message body then
+// renders text only. (audit item ⑤: group the sequence, don't just hide it)
+
+function isProcessOnly(entry) {
+  if (entry.kind === 'tool_result') return true;
+  if (entry.kind === 'assistant_message') {
+    const blocks = entry.payload?.content || [];
+    const hasText = blocks.some((b) => b.type === 'text' && (b.text || '').trim());
+    const hasProcess = blocks.some((b) => b.type === 'reasoning' || b.type === 'tool_call');
+    return !hasText && hasProcess;
+  }
+  return false;
+}
+
+function leadingProcessBlocks(entry) {
+  const blocks = entry.payload?.content || [];
+  const out = [];
+  for (const b of blocks) {
+    if (b.type === 'reasoning' || b.type === 'tool_call') out.push(b);
+    else break;
+  }
+  return out;
+}
+
+/** entries (asc) → render items: {type:'entry', entry} | {type:'process', steps} */
+export function groupEntries(entries) {
+  const items = [];
+  let group = null;
+  const flush = () => { if (group && group.steps.length) items.push(group); group = null; };
+
+  for (const entry of entries) {
+    if (isProcessOnly(entry)) {
+      group ||= { type: 'process', key: `proc-${entry.seq ?? entry.localId}`, steps: [] };
+      group.steps.push({ kind: 'entry', entry });
+      continue;
+    }
+    if (group && entry.kind === 'assistant_message') {
+      const lead = leadingProcessBlocks(entry);
+      const sameRun = entry.run_id == null || group.steps.every((s) => s.entry.run_id == null || s.entry.run_id === entry.run_id);
+      if (lead.length && sameRun) {
+        for (const b of lead) group.steps.push({ kind: 'block', block: b, fromSeq: entry.seq });
+        entry.__skipProcessBlocks = true;   // don't render those chips twice
+      }
+      flush();
+      items.push({ type: 'entry', entry });
+      continue;
+    }
+    flush();
+    items.push({ type: 'entry', entry });
+  }
+  flush();
+  return items;
+}
+
+export function ProcessGroup({ item }) {
+  const [open, setOpen] = useState(false);
+  const steps = item.steps;
+  const kinds = new Set(steps.map((s) => s.kind === 'entry' ? s.entry.kind : 'block'));
+  return html`<div class="proc-group">
+    <button class="proc-head" onClick=${() => setOpen(!open)} aria-expanded=${open}>
+      <${Icon} name=${open ? 'chevron-down' : 'layers'} />
+      ${i18n.t('proc.title')} · ${steps.length} ${i18n.t('proc.stepsUnit')}
+      ${kinds.has('tool_result') || steps.some((s) => s.block?.type === 'tool_call') ? ` · ${i18n.t('proc.hasTools')}` : ''}
+    </button>
+    ${open && html`<div class="proc-steps">
+      ${steps.map((s, i) => renderStep(s, i))}
+    </div>`}
+  </div>`;
+}
+
+function renderStep(step, i) {
+  if (step.kind === 'block') {
+    const b = step.block;
+    if (b.type === 'reasoning') {
+      return html`<div class="proc-step" key=${i}>
+        <div class="proc-step-label"><${Icon} name="brain" />${i18n.t('entry.thinking')} · #${step.fromSeq}</div>
+        <pre>${b.text || ''}</pre>
+      </div>`;
+    }
+    return html`<div class="proc-step" key=${i}>
+      <div class="proc-step-label"><${Icon} name="terminal" />${i18n.t('entry.toolCall')}: ${b.name || '—'} · #${step.fromSeq}</div>
+      <pre>${JSON.stringify(b.arguments ?? {}, null, 2)}</pre>
+    </div>`;
+  }
+  const e = step.entry;
+  if (e.kind === 'tool_result') {
+    const text = (e.payload?.content || []).map((b) => b.text || '').join('\n');
+    return html`<div class="proc-step" key=${i}>
+      <div class="proc-step-label"><${Icon} name="wrench" />${i18n.t('entry.toolResult')}: ${e.payload?.tool_name || '—'} · #${e.seq}</div>
+      <pre>${truncate(text, 200_000)}</pre>
+    </div>`;
+  }
+  const blocks = e.payload?.content || [];
+  return html`<div class="proc-step" key=${i}>
+    ${blocks.map((b, j) => b.type === 'reasoning'
+      ? html`<div key=${'r' + j}>
+          <div class="proc-step-label"><${Icon} name="brain" />${i18n.t('entry.thinking')} · #${e.seq}</div>
+          <pre>${b.text || ''}</pre>
+        </div>`
+      : html`<div key=${'t' + j}>
+          <div class="proc-step-label"><${Icon} name="terminal" />${i18n.t('entry.toolCall')}: ${b.name || '—'} · #${e.seq}</div>
+          <pre>${JSON.stringify(b.arguments ?? {}, null, 2)}</pre>
+        </div>`)}
+  </div>`;
 }
