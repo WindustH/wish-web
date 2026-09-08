@@ -5,20 +5,20 @@ import { get, post, patch, api, getBaseUrl } from './client.js';
 
 // ── sessions ────────────────────────────────────────────────────────────
 export const sessionsList = (params) => get('/sessions', { query: params });
-export const sessionGet = (id) => get(`/sessions/${id}`);
+export const sessionGet = (id, opts) => get(`/sessions/${id}`, opts);
 export const sessionCreate = (body) => post('/sessions', body);
 export const sessionRename = (id, name) => patch(`/sessions/${id}`, { name });
 
 // ── history (canonical chat timeline) ──────────────────────────────────
-export const historyPage = (id, params) => get(`/sessions/${id}/history`, { query: params });
+export const historyPage = (id, params, opts) => get(`/sessions/${id}/history`, { query: params, ...opts });
 
 // ── messages / deliveries / streaming ──────────────────────────────────
-export const messageSend = (id, body) =>
+export const messageSend = (id, body, opts) =>
   post(`/sessions/${id}/messages`, {
     role: 'user', trigger_agent_loop: true, ...body,
-  });
-export const deliveriesList = (id, params) => get(`/sessions/${id}/deliveries`, { query: params });
-export const deliveryGet = (id) => get(`/deliveries/${id}`);
+  }, opts);
+export const deliveriesList = (id, params, opts) => get(`/sessions/${id}/deliveries`, { query: params, ...opts });
+export const deliveryGet = (id, opts) => get(`/deliveries/${id}`, opts);
 export const deliveryCancel = (id) => post(`/deliveries/${id}/cancel`);
 
 // ── lifecycle ───────────────────────────────────────────────────────────
@@ -33,8 +33,8 @@ export const compactionHistory = (id) => get(`/sessions/${id}/compaction-history
 export const sessionContext = (id) => get(`/sessions/${id}/context`);
 export const sessionContextBudget = (id) => get(`/sessions/${id}/context/budget`);
 export const sessionUsage = (id) => get(`/sessions/${id}/metrics/usage`);
-export const sessionRuns = (id, params) => get(`/sessions/${id}/runs`, { query: params });
-export const runGet = (id) => get(`/runs/${id}`);
+export const sessionRuns = (id, params, opts) => get(`/sessions/${id}/runs`, { query: params, ...opts });
+export const runGet = (id, opts) => get(`/runs/${id}`, opts);
 export const runCancel = (id) => post(`/runs/${id}/cancel`, {});
 
 export const daemonStatus = () => get('/status');
@@ -49,8 +49,8 @@ export const configEffective = () => get('/config/effective');
 export const configReload = () => post('/config/reload', {});
 
 // ── blobs / images ──────────────────────────────────────────────────────
-export const uploadSessionImage = (sid, bytes, mime) =>
+export const uploadSessionImage = (sid, bytes, mime, opts) =>
   api('POST', `/sessions/${sid}/blobs/images`, {
-    body: bytes, raw: true, headers: { 'content-type': mime },
+    body: bytes, raw: true, headers: { 'content-type': mime }, ...opts,
   });
 export const blobUrl = (sha256) => `${getBaseUrl()}/blobs/${sha256}`;

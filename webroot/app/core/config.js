@@ -23,6 +23,7 @@ export const cfg = Object.freeze({
   sse: {
     reconnectBaseMs: 500,
     reconnectMaxMs: 15_000,
+    connectTimeoutMs: 10_000,       // abort + retry if headers take longer
     heartbeatTimeoutMs: 60_000,       // reconnect when silent this long
     firstFrameTimeoutMs: 12_000,      // selftest: first frame must arrive
     maxBufferedChars: 400_000,        // cap in-memory draft of one streamed turn
@@ -38,6 +39,7 @@ export const cfg = Object.freeze({
   history: {
     pageSize: 40,                     // /history page (also the DOM chunk size)
     reconcileDelayMs: 250,            // wait after response_complete before fetch
+    maxDrainPages: 8,                // fetchNewer(): pages per drain burst (safety cap)
     searchPageSize: 200,              // pages fetched when searching in-session
     maxSearchPages: 20,               // search depth bound (see from-llm/10)
     prefetchOlderTriggerPx: 120,      // load older when scroll within this of top

@@ -1,26 +1,39 @@
 // SSE client over fetch (EventSource cannot send Last-Event-ID reliably
 // across proxies and gives no status codes). Features: automatic reconnect
-// with exponential backoff + jitter, heartbeat timeout detection,
-// Last-Event-ID resume, frame callback {event, id, data, retry}.
-// DOM-free: uses fetch/AbortController only.
+// with exponential backoff + jitter, heartbeat timeout detection (ANY
+// received bytes — frames, partial frames or comment keepalives — count as
+// liveness), Last-Event-ID resume, connect timeout, and terminal handling
+// of 401/403/404/410 (auth failure / resource gone) which must NOT loop.
+// DOM-free: fetch/AbortController only; callers pass an absolute URL in
+// non-browser hosts (see client.js absUrl()).
 import { cfg } from '../config.js';
 
-export function createSse({ url, onFrame, onState, firstTimeoutMs }) {
+const TERMINAL_STATUSES = new Set([401, 403, 404, 410]);
+
+export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extraHeaders }) {
   const stateListeners = new Set();
+  if (onState) stateListeners.add(onState);   // constructor-level listener
   let lastEventId = '';
   let attempt = 0;
-  let aborted = false;
+  let aborted = false;        // user-initiated close
+  let terminal = false;       // 401/403/404/410 — never reconnect
   let controller = null;
   let reconnectTimer = null;
   let heartbeatTimer = null;
-  let closed = false;
+  let connectTimer = null;
 
   const emitState = (s, err) => {
     for (const fn of stateListeners) fn({ state: s, attempt, err, lastEventId });
   };
 
+  function clearTimers() {
+    clearTimeout(reconnectTimer); reconnectTimer = null;
+    clearTimeout(heartbeatTimer); heartbeatTimer = null;
+    clearTimeout(connectTimer); connectTimer = null;
+  }
+
   function scheduleReconnect(err) {
-    if (aborted || closed) return;
+    if (aborted || terminal) return;
     const base = Math.min(cfg.sse.reconnectBaseMs * 2 ** attempt, cfg.sse.reconnectMaxMs);
     const delay = base / 2 + Math.random() * (base / 2);
     attempt += 1;
@@ -28,22 +41,37 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs }) {
     reconnectTimer = setTimeout(connect, delay);
   }
 
+  // Liveness = any bytes within heartbeatTimeoutMs. Comment keepalives
+  // (": ping") parse to no frame but DO reset this timer (task 3).
   function armHeartbeat() {
+    if (aborted || terminal) return;
     clearTimeout(heartbeatTimer);
-    heartbeatTimer = setTimeout(() => {
-      // Silent for too long — treat as dead connection.
-      controller?.abort();
-    }, cfg.sse.heartbeatTimeoutMs);
+    heartbeatTimer = setTimeout(() => controller?.abort(new Error('heartbeat timeout')), cfg.sse.heartbeatTimeoutMs);
   }
 
   async function connect() {
-    if (aborted || closed) return;
+    if (aborted || terminal) return;
     controller = new AbortController();
-    const headers = { accept: 'text/event-stream' };
+    const headers = { accept: 'text/event-stream', ...(extraHeaders || {}) };
     if (lastEventId) headers['last-event-id'] = lastEventId;
     emitState(attempt ? 'reconnecting' : 'connecting');
+    // Connect timeout: headers must arrive within this window or we abort
+    // and retry (covers black-holed connections, not just refused ones).
+    const connectDeadline = firstTimeoutMs ?? cfg.sse.connectTimeoutMs;
+    connectTimer = setTimeout(
+      () => controller.abort(new Error('connect timeout')),
+      connectDeadline,
+    );
     try {
       const res = await fetch(url, { headers, signal: controller.signal });
+      clearTimeout(connectTimer);
+      if (TERMINAL_STATUSES.has(res.status)) {
+        // Delivery/run no longer exists (or auth failed). Reconnecting
+        // forever would be dishonest — surface 'gone' and stop.
+        terminal = true;
+        emitState('gone', Object.assign(new Error(`SSE ${res.status}`), { status: res.status }));
+        return;
+      }
       if (!res.ok || !res.body) throw Object.assign(new Error(`SSE ${res.status}`), { status: res.status });
       attempt = 0;
       emitState('open');
@@ -52,30 +80,34 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs }) {
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       let buf = '';
-      let firstFrameSeen = !firstTimeoutMs;
 
-      pump: while (true) {
+      while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        buf += dec.decode(value, { stream: true });
+        armHeartbeat();                        // bytes = alive (frames, partials, comments)
+        // Normalize CRLF (and stray CR) so cross-chunk "\r\n\r\n" separators
+        // split exactly like "\n\n". buf persists across chunks, so a CR at
+        // a chunk boundary is completed by the LF in the next chunk.
+        buf = (buf + dec.decode(value, { stream: true })).replace(/\r\n?/g, '\n');
         let idx;
         while ((idx = buf.indexOf('\n\n')) >= 0) {
           const chunk = buf.slice(0, idx);
           buf = buf.slice(idx + 2);
           const frame = parseFrame(chunk);
-          if (!frame) continue;
-          firstFrameSeen = true;
+          if (!frame) continue;                // keepalive comment / blank
           if (frame.id) lastEventId = frame.id;
           if (frame.retry) { /* advisory only */ }
-          armHeartbeat();
-          onFrame?.(frame);
+          if (!aborted && !terminal) onFrame?.(frame);
         }
-        void firstFrameSeen;
+        if (aborted || terminal) { reader.cancel().catch(() => {}); return; }
       }
+      if (aborted || terminal) return;
       // Server closed the stream cleanly: reconnect (durable tails end).
       scheduleReconnect(new Error('stream ended'));
     } catch (err) {
-      if (err?.name === 'AbortError' && aborted) return;
+      clearTimeout(connectTimer);
+      if (aborted) return;                     // close(): zero callbacks after
+      if (terminal) return;
       scheduleReconnect(err);
     }
   }
@@ -85,21 +117,20 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs }) {
   return {
     onState(fn) { stateListeners.add(fn); return () => stateListeners.delete(fn); },
     close() {
-      closed = true;
       aborted = true;
-      clearTimeout(reconnectTimer);
-      clearTimeout(heartbeatTimer);
-      controller?.abort();
+      clearTimers();
+      controller?.abort(new Error('closed'));
       emitState('closed');
     },
     getLastEventId: () => lastEventId,
+    isTerminal: () => terminal,
   };
 }
 
 function parseFrame(chunk) {
   let event = 'message', dataLines = [], id = '', retry = 0, sawData = false;
   for (const rawLine of chunk.split('\n')) {
-    const line = rawLine.replace(/\r$/, '');
+    const line = rawLine;
     if (!line || line.startsWith(':')) continue;
     const colon = line.indexOf(':');
     const field = colon < 0 ? line : line.slice(0, colon);

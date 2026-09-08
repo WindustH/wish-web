@@ -157,6 +157,7 @@ export const zh = {
   'common.loading': '加载中…',
   'common.error': '加载失败',
   'common.retry': '重试',
+  'common.remove': '移除',
   'common.close': '关闭',
   'common.confirm': '确认',
   'common.cancel': '取消',

@@ -2,6 +2,13 @@
 // large initial area, image top-left + send bottom-right. Grows with
 // content up to a cap, then scrolls. Send button morphs send↔stop
 // (morphicons element) while a run is active.
+//
+// Correctness rules (task 1):
+//  · IME-safe Enter — composition strokes never send (isComposing / 229);
+//  · in-flight guard — double-click cannot double-send (chat.sending);
+//  · failures keep the draft AND every attachment (chat.send throws);
+//  · drafts are per-session and restored when switching back;
+//  · object URLs are revoked on remove / successful send / switch / unmount.
 import { html } from '../../h.js';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSignal } from '../../hooks.js';
@@ -12,19 +19,30 @@ import { prefs } from '../../../core/state/prefsSlice.js';
 import { platform } from '../../../platform/index.js';
 import { Icon } from '../../components/icon.js';
 import { toast } from '../../components/toast.js';
-import { sendD, stopD, ensureMorphicons } from './morph.js';
+import { ensureMorphicons } from './morph.js';
+
+const revokeAll = (imgs) => { for (const i of imgs) if (i?.localUrl) URL.revokeObjectURL(i.localUrl); };
 
 export function Composer({ sessionId, mobile }) {
   const stream = useSignal(chat.stream);
+  const sending = useSignal(chat.sending);
   const sendOnEnter = useSignal(prefs.sendOnEnter);
-  const [text, setText] = useState(() => chat.getDraft());
+  const [text, setText] = useState(() => chat.getDraft(sessionId));
   const [images, setImages] = useState([]);   // {name,mime,bytes,localUrl}
   const taRef = useRef(null);
+  const imagesRef = useRef(images);
+  imagesRef.current = images;
   const running = stream?.active;
 
   useEffect(() => { chat.setDraft(text); }, [text]);
+
+  // Session switch: restore THAT session's draft, drop attachments.
+  // (Old code always cleared to '' — drafts were saved but never restored,
+  // and a stale non-empty text could leak into the next session's draft.)
   useEffect(() => {
-    if (chat.sessionId.peek() !== sessionId) { setText(''); setImages([]); }
+    setText(chat.getDraft(sessionId));
+    setImages((prev) => { revokeAll(prev); return []; });
+    return () => revokeAll(imagesRef.current);   // unmount / next switch
   }, [sessionId]);
 
   // auto-grow: cap by rows, then by viewport fraction, then scroll
@@ -41,7 +59,8 @@ export function Composer({ sessionId, mobile }) {
 
   useEffect(() => { ensureMorphicons(); }, []);
 
-  const canSend = (text.trim().length > 0 || images.length > 0) && !running;
+  const busy = running || sending;
+  const canSend = (text.trim().length > 0 || images.length > 0) && !busy;
 
   async function attach() {
     const fs = platform('fs');
@@ -55,22 +74,32 @@ export function Composer({ sessionId, mobile }) {
     setImages(next);
   }
 
+  function removeImage(i) {
+    const img = images[i];
+    if (img?.localUrl) URL.revokeObjectURL(img.localUrl);
+    setImages(images.filter((_, j) => j !== i));
+  }
+
   async function submit() {
+    if (sending) return;                       // in-flight guard
     if (!canSend) {
-      if (running) chat.interrupt();
+      if (running) chat.interrupt();           // stop button role
       return;
     }
     const payload = text, imgs = images;
     setText(''); setImages([]);
     try {
       await chat.send(payload, imgs);
+      revokeAll(imgs);                         // sent: thumbnails no longer needed
     } catch (e) {
       toast(String(e?.detail || e?.message || e));
-      setText(payload); setImages(imgs); // restore on failure
+      setText(payload); setImages(imgs);       // keep draft AND attachments
     }
   }
 
   function onKeyDown(e) {
+    // IME composition: Enter confirms the candidate window — never sends.
+    if (e.nativeEvent?.isComposing || e.isComposing || e.keyCode === 229) return;
     const enterSends = sendOnEnter;
     if (e.key === 'Enter') {
       const plainEnter = !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
@@ -88,7 +117,7 @@ export function Composer({ sessionId, mobile }) {
         ${images.length > 0 && html`<div class="attach-strip">
           ${images.map((img, i) => html`<div class="attach-thumb" key=${i}>
             <img src=${img.localUrl} alt=${img.name} />
-            <button class="rm" aria-label="remove" onClick=${() => setImages(images.filter((_, j) => j !== i))}>
+            <button class="rm" aria-label=${i18n.t('common.remove')} onClick=${() => removeImage(i)}>
               <${Icon} name="x" class="sm" />
             </button>
           </div>`)}
@@ -109,11 +138,11 @@ export function Composer({ sessionId, mobile }) {
             aria-label=${i18n.t('chat.image')} onClick=${attach}><${Icon} name="image" /></button>`}
           <div class="grow" />
           <button class="send-btn ${running ? 'stop' : ''}" onClick=${submit}
-            disabled=${!running && !canSend}
+            disabled=${sending || (!running && !canSend)}
             aria-label=${running ? i18n.t('chat.stop') : i18n.t('chat.send')}
             title=${running ? i18n.t('chat.stop') : i18n.t('chat.send')}>
-            ${running
-              ? html`<${Icon} name="square" />`
+            ${(running || sending)
+              ? html`<${Icon} name=${sending ? 'loader-circle' : 'square'} class=${sending ? 'spin' : ''} />`
               : html`<${Icon} name="send" />`}
           </button>
         </div>

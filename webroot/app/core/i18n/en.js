@@ -157,6 +157,7 @@ export const en = {
   'common.loading': 'Loading…',
   'common.error': 'Failed to load',
   'common.retry': 'Retry',
+  'common.remove': 'Remove',
   'common.close': 'Close',
   'common.confirm': 'Confirm',
   'common.cancel': 'Cancel',

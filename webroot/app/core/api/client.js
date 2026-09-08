@@ -15,9 +15,34 @@ export class ApiError extends Error {
   }
 }
 
+// Base URL handling must stay DOM-free so shells (Node / Tauri / Capacitor)
+// can import and use core. Root-relative bases are resolved against the
+// browser origin lazily (never at import time); non-browser hosts must inject
+// an absolute base via setBaseUrl() before the first call.
 let baseUrl = cfg.api.baseUrl;
-export function setBaseUrl(url) { baseUrl = url; }
+let resolvedBase = null;
+
+export function setBaseUrl(url) { baseUrl = url; resolvedBase = null; }
 export function getBaseUrl() { return baseUrl; }
+
+function absoluteBase() {
+  if (resolvedBase) return resolvedBase;
+  if (/^https?:\/\//i.test(baseUrl)) {
+    resolvedBase = baseUrl.replace(/\/+$/, '');
+  } else {
+    const loc = typeof globalThis !== 'undefined' ? globalThis.location : null;
+    if (loc && loc.origin) {
+      resolvedBase = new URL(baseUrl, loc.origin).href.replace(/\/+$/, '');
+    } else {
+      throw new ApiError(0, 'base-url-missing', 'base-url-missing',
+        `core used outside a browser must call setBaseUrl() with an absolute URL (got ${JSON.stringify(baseUrl)})`, false);
+    }
+  }
+  return resolvedBase;
+}
+
+// Absolute URL for a given API path (fetch/SSE both need this in shells).
+export const absUrl = (path) => absoluteBase() + path;
 
 async function problemFromBody(body, status) {
   try {
@@ -27,7 +52,7 @@ async function problemFromBody(body, status) {
 }
 
 export async function api(method, path, { body, query, signal, headers, raw } = {}) {
-  const url = new URL(baseUrl + path, location.href);
+  const url = new URL(absUrl(path));
   if (query) {
     for (const [k, v] of Object.entries(query)) {
       if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
