@@ -1,6 +1,12 @@
 // Browser app-shell adapter: PWA install prompt, standalone display
 // detection, wake-lock. Native shells override with their own adapter.
 export const browserApp = {
+  // Background notifications must only fire while the page is hidden —
+  // the visible UI is the primary channel (round-4 #2).
+  isHidden() {
+    return typeof document !== 'undefined' &&
+      (document.visibilityState === 'hidden' || document.hidden === true);
+  },
   isStandalone() {
     return typeof matchMedia !== 'undefined' &&
       (matchMedia('(display-mode: standalone)').matches ||

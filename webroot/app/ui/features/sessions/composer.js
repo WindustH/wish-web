@@ -48,10 +48,11 @@ export function Composer({ sessionId, mobile }) {
   // chat.sessionId (which may already point at the NEXT session). Text
   // captured under session A must never be written into session B's draft
   // during a switch render (review round-2).
-  useEffect(() => {
-    if (textOwner.current === sidRef.current) chat.setDraft(text, sidRef.current);
-  }, [text]);
-  const setTextOwned = (v) => { textOwner.current = sessionId; setText(v); };
+  const setTextOwned = (v) => {
+    textOwner.current = sidRef.current;
+    setText(v);
+    chat.setDraft(v, sidRef.current);   // persisted at the input event itself
+  };
 
   // Session switch: restore THAT session's draft, drop attachments.
   // (Old code always cleared to '' — drafts were saved but never restored,
@@ -85,6 +86,7 @@ export function Composer({ sessionId, mobile }) {
   //    the server validates on send (an API failure is NOT "unsupported");
   //  · data.input_modalities === null — genuinely unknown → permissive.
   // Only an explicit modality list without "image" disables image input.
+  const capsFailed = caps?.status === 'error';
   const capsData = caps?.status === 'ok' ? caps.data : null;
   const imageAllowed = !capsData
     || capsData.input_modalities == null
@@ -100,14 +102,16 @@ export function Composer({ sessionId, mobile }) {
     const fs = platform('fs');
     const picked = await fs.pickImages({ multiple: true });
     if (sidRef.current !== owner) return;   // switched away while picking
-    const next = [...images];
-    for (const p of picked) {
-      if (allowedMimes && !allowedMimes.includes(p.mime)) { toast(i18n.t('chat.imageMime')); continue; }
-      if (p.bytes.byteLength > maxImageBytes) { toast(i18n.t('chat.imageTooLarge')); continue; }
-      if (next.length >= maxImages) break;
-      next.push({ ...p, localUrl: URL.createObjectURL(new Blob([p.bytes], { type: p.mime })) });
-    }
-    setImages(next);
+    setImages((cur) => {                    // functional: never resurrect removed attachments
+      const next = [...cur];
+      for (const p of picked) {
+        if (allowedMimes && !allowedMimes.includes(p.mime)) { toast(i18n.t('chat.imageMime')); continue; }
+        if (p.bytes.byteLength > maxImageBytes) { toast(i18n.t('chat.imageTooLarge')); continue; }
+        if (next.length >= maxImages) break;
+        next.push({ ...p, localUrl: URL.createObjectURL(new Blob([p.bytes], { type: p.mime })) });
+      }
+      return next;
+    });
   }
 
   function removeImage(i) {
@@ -122,8 +126,10 @@ export function Composer({ sessionId, mobile }) {
     const owner = sessionId;
     const payload = text, imgs = images;
     try {
-      await chat.send(payload, imgs);
-      // Sent. If the user switched sessions mid-flight, settle the OLD
+      const receipt = await chat.send(payload, imgs);
+      if (!receipt) return;   // stale (session switched): never accepted —
+                              // draft/attachments must survive untouched
+      // Accepted. If the user switched sessions mid-flight, settle the OLD
       // session's draft explicitly and never touch the new one (review r2).
       if (sidRef.current !== owner) {
         chat.setDraft('', owner);
@@ -175,6 +181,10 @@ export function Composer({ sessionId, mobile }) {
               <${Icon} name="x" class="sm" />
             </button>
           </div>`)}
+        </div>`}
+        ${capsFailed && html`<div class="caps-error">
+          <span>${i18n.t('chat.capError')}</span>
+          <button class="btn ghost sm" onClick=${() => chat.reloadCapabilities()}>${i18n.t('common.retry')}</button>
         </div>`}
         ${!mobile && html`<div class="row">
           <button class="btn ghost icon-only" title=${i18n.t('chat.image')} aria-label=${i18n.t('chat.image')}

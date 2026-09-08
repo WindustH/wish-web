@@ -21,6 +21,7 @@ import { signal, derive } from './reactive.js';
 import { createSse } from '../api/sse.js';
 import { absUrl } from '../api/client.js';
 import { debounce } from '../util/fmt.js';
+import { platform } from '../../platform/index.js';
 import * as api from '../api/endpoints.js';
 
 const EMPTY_STREAM = () => ({
@@ -47,6 +48,7 @@ export const chat = (() => {
   const oldestSeq = signal(null);
   const newestSeq = signal(null);
   const hasMoreBefore = signal(false);
+  const hasMoreAfter = signal(false);    // resident tail is behind the live head
   const loadingOlder = signal(false);
   const loadingInitial = signal(false);
   const error = signal(null);
@@ -60,7 +62,6 @@ export const chat = (() => {
   const capabilities = signal(null);
   const pendingSeq = signal(null);     // locate() target: chat log scrolls to [data-seq] once resident
   const deliveries = signal([]);
-  const drafts = new Map();
 
   let sse = null;
   let attached = null;                  // {kind:'delivery'|'run', id}
@@ -101,8 +102,16 @@ export const chat = (() => {
   }
 
   async function open(id) {
+    // Idempotent: mounting the same session again (route key remounts when
+    // the sheet path changes, e.g. search → chat after a hit jump) must
+    // NEVER discard the resident window. The explicit reload path is
+    // reload() — used by the error Retry button (round-3 #4 + round-4 C2).
     if (sessionId.peek() === id) return;
     teardown();                       // bumps epoch (invalidates all old paths)
+    await openInner(id);
+  }
+
+  async function openInner(id) {
     const myEpoch = epoch;
     epochCtrl = new AbortController();
     const sig = epochCtrl.signal;
@@ -110,7 +119,7 @@ export const chat = (() => {
     sessionId.value = id;
     snapshot.value = null; entries.value = [];
     oldestSeq.value = null; newestSeq.value = null;
-    hasMoreBefore.value = false; error.value = null;
+    hasMoreBefore.value = false; hasMoreAfter.value = false; error.value = null;
     stream.value = EMPTY_STREAM();
     capabilities.value = null;
     pendingSeq.value = null;
@@ -120,12 +129,8 @@ export const chat = (() => {
     sending.value = false;
     loadingOlder.value = false;
     loadingInitial.value = true;
-    // Capabilities are read-only context for the composer (image gating).
-    // Single contract read; failures surface as an error state distinct from
-    // unknown capabilities (no legacy-endpoint fallback).
-    api.sessionCapabilities(id, { signal: epochCtrl?.signal })
-      .then((data) => { if (!stale()) capabilities.value = { status: 'ok', data }; })
-      .catch(() => { if (!stale()) capabilities.value = { status: 'error' }; });
+    // Capabilities: read-only context for the composer (image gating).
+    reloadCapabilities();
     try {
       const [snap, page] = await Promise.all([
         api.sessionGet(id, { signal: sig }),
@@ -133,6 +138,7 @@ export const chat = (() => {
       ]);
       if (stale()) return;
       snapshot.value = snap;
+      noteGeneration(snap, { silent: true });   // baseline, no toast
       const tail = (page.items ?? []).slice().reverse();
       applyPage(tail, page.has_more ?? false);
       offSessionSync = (await import('./syncSlice.js')).sync.subscribeSession(id, onSessionSync);
@@ -144,13 +150,41 @@ export const chat = (() => {
       if (!stale()) loadingInitial.value = false;
     }
   }
+  // (end of openInner)
 
   function close() { teardown(); sessionId.value = null; }
 
+  // Capabilities (contract): one loader, one retry entry point. Failures
+  // keep the ApiError for the UI; unknown comes ONLY from a successful
+  // response with input_modalities === null (round-3 #4).
+  async function reloadCapabilities() {
+    const id = sessionId.peek();
+    if (!id) return;
+    const myEpoch = epoch;
+    capabilities.value = null;
+    try {
+      const data = await api.sessionCapabilities(id, { signal: epochCtrl?.signal });
+      if (myEpoch === epoch) capabilities.value = { status: 'ok', data };
+    } catch (err) {
+      if (myEpoch === epoch) capabilities.value = { status: 'error', error: err };
+    }
+  }
+
+  // Explicit retry for the chat error state: re-run the FULL open path for
+  // the current session (open() early-returns on the same id).
+  async function reload() {
+    const id = sessionId.peek();
+    if (!id) return;
+    teardown();
+    await openInner(id);
+  }
+
   // Bring a target seq into the resident window and flag it for one
-  // scroll-into-view. Bounded: ONE keyset read ending at the target
-  // (before = exclusive bound), not a page-by-page crawl whose cap would
-  // silently pretend deep targets were located (review round-2).
+  // scroll-into-view. The resident window is ONE CONTIGUOUS seq range:
+  // extending it always pages from the current boundary (loadOlder /
+  // fetchNewer), so jumping to an old hit can never strand the history
+  // between the hit and the previous tail (round-3 #1). Depth-bounded;
+  // beyond the bound is an honest failure, never a fake locate.
   async function locate(targetId, seq) {
     if (sessionId.peek() !== targetId) await open(targetId);
     const myEpoch = epoch;
@@ -158,29 +192,67 @@ export const chat = (() => {
       pendingSeq.value = seq;
       return true;
     }
-    let page;
-    try {
-      page = await api.historyPage(targetId, {
-        order: 'desc', before: seq + 1, limit: cfg.history.pageSize,
-      }, { signal: epochCtrl?.signal });
-    } catch (err) {
-      if (myEpoch === epoch) error.value = err;
-      return false;
+    if (oldestSeq.peek() != null && seq < oldestSeq.peek()) {
+      let pages = 0;
+      while (oldestSeq.peek() > seq && pages < cfg.history.maxLocatePages) {
+        const extended = await loadOlder();
+        if (myEpoch !== epoch) return false;
+        if (!extended) break;            // reached the true beginning
+        pages += 1;
+      }
+      if (myEpoch !== epoch) return false;
+      if (oldestSeq.peek() > seq) {
+        error.value = new Error(`locate failed: seq ${seq} is deeper than the backfill bound (${cfg.history.maxLocatePages} pages)`);
+        return false;
+      }
+      pendingSeq.value = seq;
+      return true;
     }
+    // Newer than the resident tail — drain upward.
+    const r = await fetchNewer();
     if (myEpoch !== epoch) return false;
-    const items = page.items ?? [];
-    if (!items.some((e) => e.seq === seq)) return false;   // pruned/absent
-    applyPage(items.slice().reverse(), page.has_more ?? false);
+    if (!r.ok || newestSeq.peek() == null || newestSeq.peek() < seq) return false;
     pendingSeq.value = seq;
     return true;
   }
 
   function clearPendingSeq() { pendingSeq.value = null; }
 
+  // After a deep locate the window tail is far behind the live head; this
+  // drains upward until caught up (bounded) so "back to latest" is real.
+  async function jumpToLatest() {
+    const myEpoch = epoch;
+    for (let i = 0; i < 100; i++) {
+      const r = await fetchNewer();
+      if (myEpoch !== epoch) return false;
+      if (!r.ok) return false;
+      if (r.drained) return true;
+      if (r.added === 0) return false;              // no progress — stop
+    }
+    return false;
+  }
+
+  let lastGenerationId = null;
+
+  // A generation cutover (compaction switch) invalidates older context:
+  // surface it ONCE per change — never on first open (round-4 #3).
+  function noteGeneration(snap, { silent = false } = {}) {
+    const gid = snap?.generation_id ?? null;
+    if (silent || lastGenerationId == null) {
+      lastGenerationId = gid;
+      return;
+    }
+    if (gid != null && gid !== lastGenerationId) {
+      lastGenerationId = gid;
+      bus.emit('chat.generationChanged', snap.id);
+    }
+  }
+
   function onSessionSync(evt) {
     const id = sessionId.peek();
     if (!id) return;
     if (evt.kind === 'upsert' && evt.body?.id === id) {
+      noteGeneration(evt.body);
       snapshot.value = evt.body;
       debouncedInvalidate();
     } else if (evt.kind === 'invalidate' || evt.kind === 'snapshot') {
@@ -202,6 +274,7 @@ export const chat = (() => {
       const snap = await api.sessionGet(id, { signal: sig });
       if (myEpoch !== epoch) return;
       snapshot.value = snap;
+      noteGeneration(snap);
     } catch (err) {
       if (myEpoch === epoch) error.value = err;
     }
@@ -280,13 +353,15 @@ export const chat = (() => {
         }, { signal: sig });
         if (myEpoch !== epoch) return { ok: false, drained: false, added };
         const fresh = page.items ?? [];
-        if (!fresh.length) return { ok: true, drained: true, added };
+        if (!fresh.length) { hasMoreAfter.value = false; return { ok: true, drained: true, added }; }
         added += mergeItems(fresh);
-        if (!page.has_more) return { ok: true, drained: true, added };
-        if (newestSeq.peek() === after) return { ok: true, drained: false, added };
+        if (!page.has_more) { hasMoreAfter.value = false; return { ok: true, drained: true, added }; }
+        if (newestSeq.peek() === after) { hasMoreAfter.value = true; return { ok: true, drained: false, added }; }
       }
-      return { ok: true, drained: false, added };   // page-cap burst exhausted
+      hasMoreAfter.value = true;                    // page-cap burst exhausted
+      return { ok: true, drained: false, added };
     } catch (err) {
+      hasMoreAfter.value = true;                    // unknown — assume behind
       return { ok: false, drained: false, added };
     }
   }
@@ -485,6 +560,7 @@ export const chat = (() => {
       const snap = await api.sessionGet(id, { signal: epochCtrl?.signal });
       if (myEpoch !== epoch) return;
       snapshot.value = snap;
+      noteGeneration(snap);
     } catch (err) {
       if (myEpoch === epoch) error.value = err;
     }
@@ -622,15 +698,27 @@ export const chat = (() => {
     }
   }
 
-  // ── drafts (explicit ownership — the composer passes its session id) ──
-  function setDraft(text, id = sessionId.peek()) { if (id) drafts.set(id, text); }
-  function getDraft(id = sessionId.peek()) { return id ? (drafts.get(id) ?? '') : ''; }
+  // ── drafts: per-device, per-session. The storage adapter IS the draft
+  //    source (no second cache); an empty draft deletes the stored key.
+  //    Attachment object URLs are not persisted (round-4 #1 / round-5). ──
+  const draftKey = (id) => `draft.${id}`;
+  function setDraft(text, id = sessionId.peek()) {
+    if (!id) return;
+    const store = platform('storage');
+    if (text) store.set(draftKey(id), text);
+    else store.remove(draftKey(id));
+  }
+  function getDraft(id = sessionId.peek()) {
+    if (!id) return '';
+    return platform('storage').get(draftKey(id)) ?? '';
+  }
 
   return {
-    sessionId, snapshot, entries, oldestSeq, newestSeq, hasMoreBefore,
+    sessionId, snapshot, entries, oldestSeq, newestSeq, hasMoreBefore, hasMoreAfter,
     loadingOlder, loadingInitial, error, stream, sending, capabilities,
     pendingSeq, deliveries, phase, isActive,
-    open, close, loadOlder, fetchNewer, send, interrupt, refreshDeliveries,
+    open, close, reload, reloadCapabilities, jumpToLatest, loadOlder, fetchNewer,
+    send, interrupt, refreshDeliveries,
     setDraft, getDraft, locate, clearPendingSeq,
   };
 })();
