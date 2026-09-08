@@ -10,18 +10,20 @@ import { Markdown } from '../../components/markdown.js';
 import { i18n } from '../../../core/i18n/index.js';
 import { truncate, firstLine } from '../../../core/util/fmt.js';
 
-export function HistoryEntry({ entry }) {
+export { groupEntries } from './grouping.js';
+
+export function HistoryEntry({ entry, blocks }) {
   const kind = entry.kind;
-  const inner = HistoryEntryInner(entry, kind);
+  const inner = HistoryEntryInner(entry, kind, blocks);
   if (entry.seq != null) {
     return html`<div class="entry-anchor" data-seq=${entry.seq}>${inner}</div>`;
   }
   return inner;
 }
 
-function HistoryEntryInner(entry, kind) {
+function HistoryEntryInner(entry, kind, blocks) {
   if (kind === 'user_message') return html`<${UserEntry} entry=${entry} />`;
-  if (kind === 'assistant_message') return html`<${AssistantEntry} entry=${entry} />`;
+  if (kind === 'assistant_message') return html`<${AssistantEntry} entry=${entry} blocks=${blocks} />`;
   if (kind === 'tool_result') return html`<${ToolResultEntry} entry=${entry} />`;
   if (kind === 'interruption' || kind === 'background_terminal' || kind === 'system_message') {
     return html`<${SystemEntry} entry=${entry} kind=${kind} />`;
@@ -50,11 +52,11 @@ function PendingImage({ blob }) {
   return html`<img src=${src} alt="" loading="lazy" />`;
 }
 
-function AssistantEntry({ entry }) {
+function AssistantEntry({ entry, blocks: visible }) {
   const [detail, setDetail] = useState(null);
-  const blocks = entry.__skipProcessBlocks
-    ? dropLeadingProcessBlocks(entry.payload?.content || [])
-    : (entry.payload?.content || []);
+  // Pure transform: `blocks` are exactly the text blocks this item renders;
+  // process blocks already live in adjacent process groups.
+  const blocks = visible ?? [];
   const texts = blocks.filter((b) => b.type === 'text');
   const reasoning = blocks.filter((b) => b.type === 'reasoning');
   const toolCalls = blocks.filter((b) => b.type === 'tool_call');
@@ -87,11 +89,6 @@ function AssistantEntry({ entry }) {
   </div>`;
 }
 
-function dropLeadingProcessBlocks(blocks) {
-  let i = 0;
-  while (i < blocks.length && (blocks[i].type === 'reasoning' || blocks[i].type === 'tool_call')) i++;
-  return blocks.slice(i);
-}
 
 function ToolResultEntry({ entry }) {
   const [open, setOpen] = useState(false);
@@ -178,57 +175,6 @@ function fmtK(n) {
 // assistant message of the same run leads with reasoning/tool_call blocks
 // before its text, those blocks join the group too — the message body then
 // renders text only. (audit item ⑤: group the sequence, don't just hide it)
-
-function isProcessOnly(entry) {
-  if (entry.kind === 'tool_result') return true;
-  if (entry.kind === 'assistant_message') {
-    const blocks = entry.payload?.content || [];
-    const hasText = blocks.some((b) => b.type === 'text' && (b.text || '').trim());
-    const hasProcess = blocks.some((b) => b.type === 'reasoning' || b.type === 'tool_call');
-    return !hasText && hasProcess;
-  }
-  return false;
-}
-
-function leadingProcessBlocks(entry) {
-  const blocks = entry.payload?.content || [];
-  const out = [];
-  for (const b of blocks) {
-    if (b.type === 'reasoning' || b.type === 'tool_call') out.push(b);
-    else break;
-  }
-  return out;
-}
-
-/** entries (asc) → render items: {type:'entry', entry} | {type:'process', steps} */
-export function groupEntries(entries) {
-  const items = [];
-  let group = null;
-  const flush = () => { if (group && group.steps.length) items.push(group); group = null; };
-
-  for (const entry of entries) {
-    if (isProcessOnly(entry)) {
-      group ||= { type: 'process', key: `proc-${entry.seq ?? entry.localId}`, steps: [] };
-      group.steps.push({ kind: 'entry', entry });
-      continue;
-    }
-    if (group && entry.kind === 'assistant_message') {
-      const lead = leadingProcessBlocks(entry);
-      const sameRun = entry.run_id == null || group.steps.every((s) => s.entry.run_id == null || s.entry.run_id === entry.run_id);
-      if (lead.length && sameRun) {
-        for (const b of lead) group.steps.push({ kind: 'block', block: b, fromSeq: entry.seq });
-        entry.__skipProcessBlocks = true;   // don't render those chips twice
-      }
-      flush();
-      items.push({ type: 'entry', entry });
-      continue;
-    }
-    flush();
-    items.push({ type: 'entry', entry });
-  }
-  flush();
-  return items;
-}
 
 export function ProcessGroup({ item }) {
   const [open, setOpen] = useState(false);
