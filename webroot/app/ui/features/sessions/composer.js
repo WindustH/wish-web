@@ -1,7 +1,7 @@
 // Composer: mobile = single-line start, image left + send right; desktop =
 // large initial area, image top-left + send bottom-right. Grows with
 // content up to a cap, then scrolls. Send button morphs send↔stop
-// (morphicons element) while a run is active.
+// while a run is active.
 //
 // Correctness rules (task 1 + review round 1):
 //  · IME-safe Enter — composition strokes never send (isComposing / 229);
@@ -23,7 +23,6 @@ import { prefs } from '../../../core/state/prefsSlice.js';
 import { platform } from '../../../platform/index.js';
 import { Icon } from '../../components/icon.js';
 import { toast } from '../../components/toast.js';
-import { ensureMorphicons } from './morph.js';
 
 const revokeAll = (imgs) => { for (const i of imgs) if (i?.localUrl) URL.revokeObjectURL(i.localUrl); };
 
@@ -75,7 +74,6 @@ export function Composer({ sessionId, mobile }) {
     ta.style.overflowY = ta.scrollHeight > maxPx ? 'auto' : 'hidden';
   }, [text, mobile]);
 
-  useEffect(() => { ensureMorphicons(); }, []);
 
   const busy = running || sending;
   const canSend = (text.trim().length > 0 || images.length > 0) && !busy;

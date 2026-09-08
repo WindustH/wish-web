@@ -101,7 +101,7 @@ const CHECKS = [
     key: 'selftest.vendor', run: async () => {
       const assets = [
         '/vendor/preact/preact.module.js', '/vendor/preact/hooks.module.js',
-        '/vendor/htm/htm.module.js', '/vendor/morphicons/element.js',
+        '/vendor/htm/htm.module.js',
       ];
       for (const a of assets) {
         const r = await fetch(a);

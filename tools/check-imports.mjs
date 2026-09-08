@@ -19,7 +19,7 @@ const files = [];
   }
 })(root);
 
-const IMPORT_RE = /(?:^|\n)\s*(?:import|export)\s[^'"]*?from\s*['"]([^'"]+)['"]|(?:^|\n)\s*import\s*['"]([^'"]+)['"]/g;
+const IMPORT_RE = /(?:^|\n)\s*(?:import|export)\s[^'"]*?from\s*['"]([^'"]+)['"]|(?:^|\n)\s*import\s*['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]/g;
 const NAMED_IMPORT_RE = /(?:^|\n)\s*(?:import|export)\s+(?:type\s+)?\{([^}]+)\}\s*from\s*['"]([^'"]+)['"]/g;
 const exportOf = (src, name) =>
   new RegExp(`(?:export(?:\\s+async)?\\s+(?:function|const|let|class)\\s+${name}\\b|export\\s*\\{[^}]*\\b${name}\\b|export\\s+default\\b)`).test(src);
@@ -27,7 +27,7 @@ const exportOf = (src, name) =>
 for (const file of files) {
   const src = readFileSync(file, 'utf8');
   for (const m of src.matchAll(IMPORT_RE)) {
-    const spec = m[1] || m[2];
+    const spec = m[1] || m[2] || m[3];
     if (!spec.startsWith('.')) continue;          // bare: import map / vendor
     const target = resolve(dirname(file), spec);
     let ok = false;

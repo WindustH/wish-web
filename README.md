@@ -26,7 +26,7 @@ webroot/
   index.html            import map + 样式 + 挂载点
   manifest.webmanifest  PWA
   sw.js                 壳缓存(不缓存 /wishd-api)
-  vendor/               preact / preact-hooks / htm / morphicons(全部本地)
+  vendor/               preact / preact-hooks / htm(全部本地)
   app/
     core/               ← 零 DOM,壳/测试可直接复用
       config.js         所有尺寸/时长/阈值/分页/断点(唯一参数源)
