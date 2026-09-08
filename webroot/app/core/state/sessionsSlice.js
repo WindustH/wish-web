@@ -70,6 +70,32 @@ export const sessions = (() => {
   function setPhaseFilter(p) { phaseFilter.value = p; clear(); loadFirst(); }
   function refresh() { clear(); return loadFirst(); }
 
+  // Background re-sync of page 1: patches rows / prepends new sessions
+  // WITHOUT the loading state (no list blink — flicker root cause was the
+  // loading spinner swap triggered by every unknown-row upsert).
+  async function silentRefresh() {
+    try {
+      const page = await api.sessionsList({
+        limit: cfg.sessions.pageSize, order: 'desc',
+        query: query.peek() || undefined,
+        phase: phaseFilter.peek() || undefined,
+      });
+      if (page.items == null) return;
+      const byId = new Map(items.peek().map((s) => [s.id, s]));
+      let next = items.peek().slice();
+      let touched = false;
+      for (const row of page.items) {
+        const cur = byId.get(row.id);
+        if (!cur) { next.unshift(row); touched = true; }
+        else if (JSON.stringify(cur) !== JSON.stringify(row)) {
+          next = next.map((s) => (s.id === row.id ? row : s));
+          touched = true;
+        }
+      }
+      if (touched) items.value = next.slice(0, cfg.sessions.maxListItems);
+    } catch { /* transient */ }
+  }
+
   async function create({ name, provider, model, reasoningEffort, agentCustom }) {
     const body = { provider, model };
     if (name) body.name = name;
@@ -101,13 +127,14 @@ export const sessions = (() => {
   function getById(id) { return items.peek().find((s) => s.id === id) || null; }
 
   // Live patching from the control-plane stream.
+  const debouncedSilent = debounce(() => silentRefresh(), cfg.sessions.searchDebounceMs * 2);
   bus.on('upsert.session', (u) => {
     const body = u.body ?? u;
     if (!body?.id) return;
     if (!patchRow(body.id, sessionRowFromSync(body))) {
-      // A session not in the resident list appeared: refresh lazily only if
-      // we are not searching (keep search results stable).
-      if (!query.peek() && !phaseFilter.peek() && !loading.peek()) refresh();
+      // A session not in the resident list changed: resync page 1 quietly
+      // (only when not searching, to keep search results stable).
+      if (!query.peek() && !phaseFilter.peek() && !loading.peek()) debouncedSilent();
     }
   });
   bus.on('tombstone.session', (t) => {
@@ -119,7 +146,7 @@ export const sessions = (() => {
   return {
     items: list, cursor, hasMore, loading, loadingMore, error, query, phaseFilter,
     totalKnown, loadFirst, loadMore, setQuery, setPhaseFilter, refresh,
-    create, rename, patchRow, getById,
+    create, rename, patchRow, getById, silentRefresh,
   };
 })();
 

@@ -61,9 +61,16 @@ export const sync = (() => {
 
   function applyStorageList(list) {
     if (!Array.isArray(list)) return;
-    const map = { ...storageStates.peek() };
-    for (const s of list) if (s?.id) map[s.id] = s.storage_state;
-    storageStates.value = map;
+    const prev = storageStates.peek();
+    const map = { ...prev };
+    let changed = false;
+    for (const s of list) {
+      if (!s?.id) continue;
+      if (map[s.id] !== s.storage_state) { map[s.id] = s.storage_state; changed = true; }
+    }
+    // sync.runtime frames arrive constantly; only publish real transitions so
+    // subscribers (every list row) don't re-render each frame.
+    if (changed) storageStates.value = map;
   }
 
   function startPollFallback() {
