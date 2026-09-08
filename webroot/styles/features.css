@@ -280,3 +280,17 @@ html.resizing .chatlog, html.resizing .sl-list { pointer-events: none; }
   white-space: pre-wrap; overflow-wrap: anywhere;
   font-family: var(--mono);
 }
+
+/* Session list filter row (archive segmented / pinned-first / tag chip) */
+.sl-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 10px 8px; }
+.seg-item {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: none; background: transparent; color: var(--fg-muted);
+  font: inherit; font-size: 12px; padding: 4px 10px; border-radius: var(--radius);
+  cursor: pointer;
+}
+.seg-item:hover { background: var(--bg-sunken); color: var(--fg); }
+.seg-item.on { background: var(--bg-raised); color: var(--fg); box-shadow: var(--shadow-card); }
+.seg-item .icon { width: 13px; height: 13px; }
+.sl-row .icon.pinned { width: 12px; height: 12px; color: var(--fg-faint); flex: none; }
+.sl-empty.subtle { color: var(--fg-faint); font-size: 12px; padding: 8px 0 12px; }

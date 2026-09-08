@@ -8,9 +8,14 @@ export const sessionsList = (params) => get('/sessions', { query: params });
 export const sessionGet = (id, opts) => get(`/sessions/${id}`, opts);
 export const sessionCreate = (body) => post('/sessions', body);
 export const sessionRename = (id, name) => patch(`/sessions/${id}`, { name });
+// Contract: metadata writes (pinned / archived / tags). Response = snapshot.
+export const sessionUpdateMeta = (id, patchBody, opts) => patch(`/sessions/${id}`, patchBody, opts);
+export const sessionDelete = (id, opts) => del(`/sessions/${id}`, opts);
 
 // ── history (canonical chat timeline) ──────────────────────────────────
 export const historyPage = (id, params, opts) => get(`/sessions/${id}/history`, { query: params, ...opts });
+// Contract: server-side transcript search (bounded snippets, seq keyset).
+export const historySearch = (id, params, opts) => get(`/sessions/${id}/history/search`, { query: params, ...opts });
 
 // ── messages / deliveries / streaming ──────────────────────────────────
 export const messageSend = (id, body, opts) =>
@@ -47,10 +52,16 @@ export const providerConfigs = () => get('/provider/configs');
 export const providerModels = (id) => get(`/providers/${id}/models`);
 export const configEffective = () => get('/config/effective');
 export const configReload = () => post('/config/reload', {});
+// Contract: streaming read/write surface (strict {enabled} body).
+export const streamingGet = (opts) => get('/config/streaming', opts);
+export const streamingPut = (enabled, opts) => put('/config/streaming', { enabled }, opts);
 
 // ── blobs / images ──────────────────────────────────────────────────────
 export const uploadSessionImage = (sid, bytes, mime, opts) =>
   api('POST', `/sessions/${sid}/blobs/images`, {
     body: bytes, raw: true, headers: { 'content-type': mime }, ...opts,
   });
+// Contract: per-session model capabilities (same resolution as sending).
+export const sessionCapabilities = (id, opts) => get(`/sessions/${id}/capabilities`, opts);
+
 export const blobUrl = (sha256) => `${getBaseUrl()}/blobs/${sha256}`;

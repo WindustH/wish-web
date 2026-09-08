@@ -9,7 +9,7 @@ const NAMES = [
   'sun','moon','x','chevron-down','chevron-left','chevron-right','chevron-up',
   'loader-circle','circle-alert','circle-check','check','terminal','brain','wrench',
   'copy','refresh-cw','trash-2','pencil','languages','sparkles','paperclip',
-  'panel-left','message-square-plus','database','gauge','bell','bell-ring','keyboard',
+  'panel-left','pin','message-square-plus','database','gauge','bell','bell-ring','keyboard',
   'accessibility','wifi-off','circle-dot','list','list-tree','external-link','download',
   'clock','bot','user','corner-down-left','split','archive','layers','key-round',
   'shield','plug','cpu','file-json','file-down','search-code','settings-2','monitor',
