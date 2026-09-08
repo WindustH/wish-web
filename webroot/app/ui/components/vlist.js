@@ -172,9 +172,8 @@ export function Vlist({
       // the old viewport before the caller gets to scroll to the target).
       const rc = revealChunkRef.current;
       if (rc != null) {
-        lo = Math.min(lo, rc);
-        hi = Math.max(hi, rc);
-        if (first <= rc && rc <= last) revealChunkRef.current = null;   // released
+        if (first <= rc && rc <= last) revealChunkRef.current = null;
+        else return; // keep only the bounded reveal window until the caller scrolls to it
       }
       applyWin([lo, hi]);
     });

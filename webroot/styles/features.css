@@ -53,7 +53,7 @@
   max-width: 85%;
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
-.entry.user .bubble img { max-width: 100%; border-radius: var(--radius); margin-top: var(--space-s); display: block; }
+.entry.user .bubble img, .entry.assistant .body > img, .proc-step > img { max-width: 100%; border-radius: var(--radius); margin-top: var(--space-s); display: block; }
 .entry.assistant { display: flex; gap: var(--space-m); }
 .entry.avatar-col { flex: none; width: 26px; }
 .entry.avatar {

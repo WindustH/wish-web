@@ -1,7 +1,7 @@
 // Session info & stats sheet: snapshot, context/usage stats, recent runs.
 // Desktop: right drawer. Mobile: second-level page. (see components/sheet)
 import { html } from '../../h.js';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSignal } from '../../hooks.js';
 import { Button } from '../../components/button.js';
 import { Spinner } from '../../components/spinner.js';
@@ -26,8 +26,10 @@ function InfoBody({ id }) {
   const [runs, setRuns] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const requestVersion = useRef(0);
 
   async function refresh() {
+    const version = ++requestVersion.current;
     setBusy(true);
     setErr(null);
     try {
@@ -36,20 +38,23 @@ function InfoBody({ id }) {
         api.sessionUsage(id),
         api.sessionRuns(id, { limit: 10 }),
       ]);
+      if (version !== requestVersion.current) return;
       setUsage(usagePage);
       setRuns(runsPage);
       if (chat.sessionId.peek() === id) chat.snapshot.value = snap;
     } catch (e) {
-      setErr(e);   // visible + retryable — never fake-empty sections (round-4)
-    } finally { setBusy(false); }
+      if (version === requestVersion.current) setErr(e);
+    } finally { if (version === requestVersion.current) setBusy(false); }
   }
 
   useEffect(() => {
     if (chat.sessionId.peek() !== id) chat.open(id);
+    setUsage(null); setRuns(null);
     refresh();
+    return () => { requestVersion.current++; };
   }, [id]);
 
-  const total = usage?.statistics?.by_provider_model?.[0]?.totals;
+  const total = usage?.statistics?.totals;
   const tokens = total?.tokens;
 
   return html`
@@ -80,7 +85,7 @@ function InfoBody({ id }) {
       <dt>${i18n.t('stats.tokensIn')}</dt><dd>${fmtTokens(tokens?.input_tokens)}</dd>
       <dt>${i18n.t('stats.tokensOut')}</dt><dd>${fmtTokens(tokens?.output_tokens)}</dd>
       <dt>${i18n.t('stats.tokensTotal')}</dt><dd>${fmtTokens(tokens?.total_tokens)}</dd>
-      <dt>${i18n.t('stats.cacheHit')}</dt><dd>${total?.cache ? Math.round((total.cache.request_hit_ratio || 0) * 100) + '%' : '—'}</dd>
+      <dt>${i18n.t('stats.cacheHit')}</dt><dd>${total?.cache?.request_hit_ratio != null ? Math.round(total.cache.request_hit_ratio * 100) + '%' : '—'}</dd>
     </dl>`}
     ${busy && html`<div style="margin-top:8px"><${Spinner} /></div>`}
     ${err && html`<div class="load-error" role="alert">
@@ -89,8 +94,8 @@ function InfoBody({ id }) {
     </div>`}
     <div class="section-title">${i18n.t('info.runs')}</div>
     ${runs && (runs.items || []).map((r) => html`<div key=${r.id} class="search-result">
-      <div class="sr-meta">${fmtDateTime(r.started_at_ms)} · ${r.state} ${r.id.slice(0, 8)}</div>
-      <div class="sr-text">${r.kind || 'run'}${r.error ? ` — ${r.error}` : ''}</div>
+      <div class="sr-meta">${fmtDateTime(r.started_at_ms)} · ${i18n.t(`runState.${r.state}`)} ${r.id.slice(0, 8)}</div>
+      <div class="sr-text">${i18n.t('info.run')} · ${r.provider} / ${r.model}</div>
     </div>`)}
     ${runs && !(runs.items || []).length && html`<div class="hint" style="color:var(--fg-subtle);font-size:13px">${i18n.t('common.empty')}</div>`}
   `;

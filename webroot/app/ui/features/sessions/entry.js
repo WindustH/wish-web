@@ -2,29 +2,29 @@
 // tool calls and tool results are folded chips (spec: no-body entries are
 // collapsed by default; click opens a detail modal).
 import { html } from '../../h.js';
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { Icon } from '../../components/icon.js';
 import { Modal } from '../../components/modal.js';
 import { CopyButton } from '../../components/copyable.js';
 import { Markdown } from '../../components/markdown.js';
 import { i18n } from '../../../core/i18n/index.js';
-import { truncate, firstLine } from '../../../core/util/fmt.js';
+import { blobUrl } from '../../../core/api/endpoints.js';
+import { fmtTokens } from '../../../core/util/fmt.js';
 
 export { groupEntries } from './grouping.js';
 
-export function HistoryEntry({ entry, blocks }) {
+export function HistoryEntry({ entry, blocks, usage }) {
   const kind = entry.kind;
-  const inner = HistoryEntryInner(entry, kind, blocks);
+  const inner = HistoryEntryInner(entry, kind, blocks, usage);
   if (entry.seq != null) {
     return html`<div class="entry-anchor" data-seq=${entry.seq}>${inner}</div>`;
   }
   return inner;
 }
 
-function HistoryEntryInner(entry, kind, blocks) {
+function HistoryEntryInner(entry, kind, blocks, usage) {
   if (kind === 'user_message') return html`<${UserEntry} entry=${entry} />`;
-  if (kind === 'assistant_message') return html`<${AssistantEntry} entry=${entry} blocks=${blocks} />`;
-  if (kind === 'tool_result') return html`<${ToolResultEntry} entry=${entry} />`;
+  if (kind === 'assistant_message') return html`<${AssistantEntry} blocks=${blocks} usage=${usage} />`;
   if (kind === 'interruption' || kind === 'background_terminal' || kind === 'system_message') {
     return html`<${SystemEntry} entry=${entry} kind=${kind} />`;
   }
@@ -47,63 +47,26 @@ function PendingImage({ blob }) {
   // Durable history carries base64 image data; show a small lazy thumbnail.
   const src = blob.data_base64
     ? `data:${blob.mime_type || 'image/png'};base64,${blob.data_base64}`
-    : blob.sha256 ? `/wishd-api/blobs/${blob.sha256}` : null;
+    : blob.sha256 ? blobUrl(blob.sha256) : null;
   if (!src) return null;
   return html`<img src=${src} alt="" loading="lazy" />`;
 }
 
-function AssistantEntry({ entry, blocks: visible }) {
-  const [detail, setDetail] = useState(null);
-  // Pure transform: `blocks` are exactly the text blocks this item renders;
-  // process blocks already live in adjacent process groups.
-  const blocks = visible ?? [];
-  const texts = blocks.filter((b) => b.type === 'text');
-  const reasoning = blocks.filter((b) => b.type === 'reasoning');
-  const toolCalls = blocks.filter((b) => b.type === 'tool_call');
-  const usage = entry.payload?.usage;
+// Only body segments reach this component. Thinking and tool activity
+// belongs to ProcessGroup; usage appears once on the last body segment.
+function AssistantEntry({ blocks, usage }) {
   return html`<div class="entry assistant">
     <div class="avatar-col"><div class="avatar"><${Icon} name="bot" class="sm" /></div></div>
     <div class="body">
-      ${reasoning.length > 0 && html`<div class="fold">
-        <button class="fold-chip" onClick=${() => setDetail({ type: 'reasoning', items: reasoning })}>
-          <${Icon} name="brain" />${i18n.t('entry.thinking')}${reasoning.length > 1 ? ` ×${reasoning.length}` : ''}
-        </button>
-      </div>`}
-      ${toolCalls.length > 0 && html`<div class="fold">
-        ${toolCalls.map((tc, i) => html`<button key=${i} class="fold-chip"
-          onClick=${() => setDetail({ type: 'tool_call', items: [tc] })}>
-          <${Icon} name="terminal" />${i18n.t('entry.toolCall')}: ${tc.name || tc.tool_name || '—'}
-        </button>`)}
-      </div>`}
-      ${texts.map((b, i) => html`<${Markdown} key=${i} text=${b.text} />`)}
-      ${(texts.length === 0 && reasoning.length + toolCalls.length > 0) && html`
-        <div class="hint" style="color:var(--fg-subtle);font-size:13px">—</div>`}
+      ${blocks.map((b, i) => b.type === 'image'
+        ? html`<${PendingImage} key=${i} blob=${b} />`
+        : html`<${Markdown} key=${i} text=${b.text} />`)}
       <div class="meta">
         ${usage && html`<span>${i18n.t('entry.usage', {
-          in: fmtK(usage.input_tokens), out: fmtK(usage.output_tokens), total: fmtK(usage.total_tokens),
+          in: fmtTokens(usage.input_tokens), out: fmtTokens(usage.output_tokens), total: fmtTokens(usage.total_tokens),
         })}</span>`}
-        ${texts.length > 0 && html`<${CopyButton} text=${texts.map((b) => b.text).join('\n\n')} />`}
+        ${blocks.some(b => b.type === 'text') && html`<${CopyButton} text=${blocks.filter(b=>b.type === 'text').map(b => b.text).join('\n\n')} />`}
       </div>
-      ${detail && html`<${DetailModal} detail=${detail} onClose=${() => setDetail(null)} />`}
-    </div>
-  </div>`;
-}
-
-
-function ToolResultEntry({ entry }) {
-  const [open, setOpen] = useState(false);
-  const text = (entry.payload?.content || []).map((b) => b.text || '').join('\n');
-  const name = entry.payload?.tool_name || 'tool';
-  return html`<div class="entry assistant">
-    <div class="avatar-col"><div class="avatar" style="font-size:11px">⌘</div></div>
-    <div class="body">
-      <div class="fold">
-        <button class="fold-chip" onClick=${() => setOpen(true)}>
-          <${Icon} name="wrench" />${i18n.t('entry.toolResult')}: ${name}
-          <span style="color:var(--fg-faint)">· ${firstLine(text, 60) || i18n.t('common.empty')}</span>
-        </button>
-      </div>
-      ${open && html`<${DetailModal} detail=${{ type: 'tool_result', items: [entry.payload] }} onClose=${() => setOpen(false)} />`}
     </div>
   </div>`;
 }
@@ -122,51 +85,12 @@ function SystemEntry({ entry, kind }) {
           <${Icon} name="circle-dot" />${label}
         </button>
       </div>
-      ${open && html`<${DetailModal} detail=${{ type: kind, text }} onClose=${() => setOpen(false)} />`}
+      ${open && html`<${Modal} title=${label} onClose=${() => setOpen(false)} wide>
+        <pre class="raw">${text}</pre>
+        <${CopyButton} text=${text} label=${i18n.t('common.copy')} />
+      <//>`}
     </div>
   </div>`;
-}
-
-export function DetailModal({ detail, onClose }) {
-  let title = '', body = null, copyText = '';
-  if (detail.type === 'reasoning') {
-    title = i18n.t('entry.thinking');
-    copyText = detail.items.map((r) => r.text || '').join('\n\n');
-    body = html`<div class="md" style="color:var(--fg-muted)">${detail.items.map((r, i) =>
-      html`<p key=${i} style="white-space:pre-wrap">${r.text || ''}</p>`)}</div>`;
-  } else if (detail.type === 'tool_call') {
-    const tc = detail.items[0] || {};
-    title = `${i18n.t('entry.toolCall')}: ${tc.name || tc.tool_name || '—'}`;
-    copyText = JSON.stringify(tc.arguments ?? tc, null, 2);
-    body = html`<div>
-      <dl class="kv">
-        <dt>id</dt><dd>${tc.id || '—'}</dd>
-      </dl>
-      <pre class="raw">${JSON.stringify(tc.arguments ?? {}, null, 2)}</pre>
-    </div>`;
-  } else if (detail.type === 'tool_result') {
-    const p = detail.items[0] || {};
-    title = `${i18n.t('entry.toolResult')}: ${p.tool_name || '—'}`;
-    const text = (p.content || []).map((b) => b.text || '').join('\n');
-    copyText = text;
-    body = html`<pre class="raw">${truncate(text, 200_000)}</pre>`;
-  } else {
-    title = detail.type;
-    copyText = detail.text || '';
-    body = html`<pre class="raw">${detail.text || ''}</pre>`;
-  }
-  return html`<${Modal} title=${title} onClose=${onClose} wide>
-    ${body}
-    <div style="margin-top:16px;display:flex;justify-content:flex-end">
-      <${CopyButton} text=${copyText} label=${i18n.t('common.copy')} />
-    </div>
-  <//>`;
-}
-
-function fmtK(n) {
-  if (n == null) return '0';
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
-  return String(n);
 }
 
 // ─── process grouping ──────────────────────────────────────────────────
@@ -176,11 +100,13 @@ function fmtK(n) {
 // before its text, those blocks join the group too — the message body then
 // renders text only. (audit item ⑤: group the sequence, don't just hide it)
 
-export function ProcessGroup({ item }) {
+export function ProcessGroup({ item, revealSeq }) {
   const [open, setOpen] = useState(false);
   const steps = item.steps;
+  const seqs = [...new Set(steps.map(s => s.fromSeq ?? s.entry?.seq).filter(seq => seq != null))];
+  useEffect(() => { if (revealSeq != null && seqs.includes(revealSeq)) setOpen(true); }, [revealSeq]);
   const kinds = new Set(steps.map((s) => s.kind === 'entry' ? s.entry.kind : 'block'));
-  return html`<div class="proc-group">
+  return html`<div class="proc-group" data-seq=${seqs[0]} data-seqs=${seqs.join(' ')}>
     <button class="proc-head" onClick=${() => setOpen(!open)} aria-expanded=${open}>
       <${Icon} name=${open ? 'chevron-down' : 'layers'} />
       ${i18n.t('proc.title')} · ${steps.length} ${i18n.t('proc.stepsUnit')}
@@ -196,12 +122,12 @@ function renderStep(step, i) {
   if (step.kind === 'block') {
     const b = step.block;
     if (b.type === 'reasoning') {
-      return html`<div class="proc-step" key=${i}>
+      return html`<div class="proc-step" key=${i} data-seq=${step.fromSeq ?? step.entry?.seq}>
         <div class="proc-step-label"><${Icon} name="brain" />${i18n.t('entry.thinking')} · #${step.fromSeq}</div>
         <pre>${b.text || ''}</pre>
       </div>`;
     }
-    return html`<div class="proc-step" key=${i}>
+    return html`<div class="proc-step" key=${i} data-seq=${step.fromSeq ?? step.entry?.seq}>
       <div class="proc-step-label"><${Icon} name="terminal" />${i18n.t('entry.toolCall')}: ${b.name || '—'} · #${step.fromSeq}</div>
       <pre>${JSON.stringify(b.arguments ?? {}, null, 2)}</pre>
     </div>`;
@@ -209,13 +135,14 @@ function renderStep(step, i) {
   const e = step.entry;
   if (e.kind === 'tool_result') {
     const text = (e.payload?.content || []).map((b) => b.text || '').join('\n');
-    return html`<div class="proc-step" key=${i}>
+    return html`<div class="proc-step" key=${i} data-seq=${step.fromSeq ?? step.entry?.seq}>
       <div class="proc-step-label"><${Icon} name="wrench" />${i18n.t('entry.toolResult')}: ${e.payload?.tool_name || '—'} · #${e.seq}</div>
-      <pre>${truncate(text, 200_000)}</pre>
+      <pre>${text}</pre>
+      ${(e.payload?.content || []).filter(b=>b.type === 'image').map((b,j)=>html`<${PendingImage} key=${j} blob=${b} />`)}
     </div>`;
   }
   const blocks = e.payload?.content || [];
-  return html`<div class="proc-step" key=${i}>
+  return html`<div class="proc-step" key=${i} data-seq=${step.fromSeq ?? step.entry?.seq}>
     ${blocks.map((b, j) => b.type === 'reasoning'
       ? html`<div key=${'r' + j}>
           <div class="proc-step-label"><${Icon} name="brain" />${i18n.t('entry.thinking')} · #${e.seq}</div>

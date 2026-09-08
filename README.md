@@ -47,7 +47,6 @@ webroot/
 tools/
   fetch-icons.mjs       构建时抓 Lucide 子集 → ui/icons.js(81 枚,已入库)
   make-app-icons.py     PWA 图标
-  e2e.ts                CDP 真实 E2E(deno)
   selftest-api.mjs      无浏览器 API 自检
 serve.mjs               静态 + /wishd-api 反代(SSE 透传不缓冲)
 ```
@@ -55,23 +54,24 @@ serve.mjs               静态 + /wishd-api 反代(SSE 透传不缓冲)
 ## 验证
 
 ```bash
-node serve.mjs &                       # 起服务
-node tools/selftest-api.mjs            # API 面 3 项
-# 浏览器打开 http://127.0.0.1:8790/#/selftest 或:
-deno run --allow-net --allow-run --allow-read --allow-write tools/e2e.ts          # 桌面 E2E
-deno run --allow-net --allow-run --allow-read --allow-write tools/e2e.ts --mobile # 移动 E2E
+node tools/check-imports.mjs
+node tools/sw-manifest.mjs
+cd ../wish-test
+python3 run_tests.py
+python3 web/launch.py --check   # 隔离真实后端，桌面与移动端验收
+bash web/run-scale.sh           # 大列表与长会话验收
 ```
 
-自检页覆盖:模块加载 / 图标 / i18n 切换 / 主题切换 / 平台存储 / API / SSE / vendor 完整性 / SW。
-E2E 覆盖:建 webui-v2 前缀会话 → 发消息 → SSE 回复 → 折叠详情 → 搜索 → 新建 → 主题/语言切换 → (移动)bottom bar 全流程 → 断言零控制台错误、零外网请求。
+测试统一放在 `wish-test`，使用本地假模型和临时数据目录，成功或失败都会清理测试会话、浏览器和守护进程。应用内自检页仍可检查模块、图标、语言、主题、存储和 API。
 
-## 流式说明(重要)
+## 响应流
 
-守护 `config.toml [streaming] enabled = false` 时,SSE 只有 `resource`+`response_complete`,无逐字增量。
-客户端双模式兼容:有增量实时渲染;无增量显示思考态并在完成事件后从持久历史对账。开启守护 streaming 后前端零改动即获得逐字体验(详见 wish-plan/from-llm/13)。
+设置页通过 `GET/PUT /config/streaming` 控制响应流，新启动的运行采用新值，已启动的运行保持原决定。没有响应流时，客户端根据持久资源轮询并更新对话。工具调用、结果和思考按原始顺序归入工作过程；不单独展示这些步骤的 Token 用量。正文用量采用“输入、输出、总计”。
+
+会话组织字段存在 JSON `metadata` 中；编辑置顶、归档或标签会保留其他扩展键，并使用快照 revision 检测并发修改。
 
 ## 约束备忘
 
-- 不改 wish 后端仓库;缺的接口一律记录在 `~/Downloads/wish-plan/from-llm/`(00-index.md 有索引)。
+- 前后端遵循同一接口契约，不保留旧版本兼容分支。
 - 所有第三方资源 vendor 于 `webroot/vendor/`,来源与版本见 THIRD_PARTY.md。
 - 参数一律走 `core/config.js` + CSS custom properties,组件内无魔法数字。

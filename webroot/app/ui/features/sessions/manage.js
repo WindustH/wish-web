@@ -32,14 +32,30 @@ function ManageBody({ id }) {
   const [tagInput, setTagInput] = useState('');
 
   useEffect(() => {
-    if (chat.sessionId.peek() !== id) chat.open(id);
-    else api.sessionGet(id).then((s) => { chat.snapshot.value = s; }).catch(() => {});
-    setRenaming(chat.snapshot.peek()?.name || sessions.getById(id)?.name || '');
+    let current = true;
+    const refresh = async () => {
+      try {
+        if (chat.sessionId.peek() !== id) await chat.open(id);
+        const next = await api.sessionGet(id);
+        if (current && chat.sessionId.peek() === id) {
+          chat.snapshot.value = next;
+          setRenaming(next.name);
+        }
+      } catch (error) {
+        if (current) toast(String(error.detail || error.message));
+      }
+    };
+    refresh();
+    return () => { current = false; };
   }, [id]);
 
   async function refreshSnapshot() {
-    const s = await api.sessionGet(id).catch(() => null);
-    if (s && chat.sessionId.peek() === id) chat.snapshot.value = s;
+    try {
+      const next = await api.sessionGet(id);
+      if (chat.sessionId.peek() === id) chat.snapshot.value = next;
+    } catch (error) {
+      if (chat.sessionId.peek() === id) toast(String(error.detail || error.message));
+    }
   }
 
   async function run(action) {
@@ -50,33 +66,39 @@ function ManageBody({ id }) {
       return res;
     } catch (e) {
       // busy 409: NEVER auto-interrupt — tell the user and let them decide.
-      if (e?.status === 409 || e?.code === 'busy' || /busy/i.test(String(e?.code ?? ''))) {
+      // revision 409 (If-Match): metadata changed concurrently — refresh and
+      // surface the conflict; a blind retry would overwrite the other edit.
+      if (e?.code === 'state_conflict') {
         toast(i18n.t('manage.busy'));
+      } else if (e?.code === 'revision_conflict') {
+        toast(i18n.t('manage.metaConflict'));
       } else {
         toast(String(e?.detail || e?.message || e));
       }
     } finally {
       setBusy(false);
       setConfirming(null);
-      refreshSnapshot();
+      await refreshSnapshot();
     }
   }
 
   const meta = {
-    pinned: Boolean(snapshot?.pinned),
-    archived: Boolean(snapshot?.archived),
-    tags: Array.isArray(snapshot?.tags) ? snapshot.tags : [],
+    // metadata is one generic JSON object; the three defined keys drive the
+    // switches, every other key rides along untouched in the PATCH body.
+    pinned: snapshot?.metadata?.pinned === true,
+    archived: snapshot?.metadata?.archived === true,
+    tags: snapshot?.metadata?.tags ?? [],
   };
 
   function patchMeta(patch) {
-    return run(() => sessions.updateMeta(id, patch));
+    return run(() => sessions.updateMeta(snapshot, patch));
   }
 
   function addTag() {
     const t = tagInput.trim();
     if (!t) return;
     if (meta.tags.includes(t)) { setTagInput(''); return; }
-    if (meta.tags.length >= 16 || t.length > 64) { toast(i18n.t('manage.tagsLimit')); return; }
+    if (meta.tags.length >= 16 || [...t].length > 64) { toast(i18n.t('manage.tagsLimit')); return; }
     setTagInput('');
     patchMeta({ tags: [...meta.tags, t] });
   }

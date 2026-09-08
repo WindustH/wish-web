@@ -8,8 +8,15 @@ export const sessionsList = (params) => get('/sessions', { query: params });
 export const sessionGet = (id, opts) => get(`/sessions/${id}`, opts);
 export const sessionCreate = (body) => post('/sessions', body);
 export const sessionRename = (id, name) => patch(`/sessions/${id}`, { name });
-// Contract: metadata writes (pinned / archived / tags). Response = snapshot.
-export const sessionUpdateMeta = (id, patchBody, opts) => patch(`/sessions/${id}`, patchBody, opts);
+// Metadata is ONE generic JSON object; PATCH replaces it atomically. The
+// caller sends If-Match with the revision it read the object at, so a
+// concurrent change surfaces as 409 instead of silently overwriting the
+// user's extension keys (decision-json-metadata).
+export const sessionUpdateMeta = (id, metadata, ifMatchRevision, opts) =>
+  patch(`/sessions/${id}`, { metadata }, {
+    ...(opts || {}),
+    headers: { ...((opts || {}).headers || {}), ...(ifMatchRevision != null ? { 'if-match': String(ifMatchRevision) } : {}) },
+  });
 export const sessionDelete = (id, opts) => del(`/sessions/${id}`, opts);
 
 // ── history (canonical chat timeline) ──────────────────────────────────

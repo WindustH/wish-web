@@ -11,7 +11,7 @@ import { Spinner } from '../../components/spinner.js';
 import { Vlist } from '../../components/vlist.js';
 import { navigate, isMobile, current } from '../../router.js';
 import { i18n } from '../../../core/i18n/index.js';
-import { sessions } from '../../../core/state/sessionsSlice.js';
+import { sessions , metaBool } from '../../../core/state/sessionsSlice.js';
 import { sync } from '../../../core/state/syncSlice.js';
 import { relTime } from '../../../core/util/fmt.js';
 import { NewSessionModal } from './newsession.js';
@@ -89,8 +89,8 @@ function SessionRow({ s, active }) {
       <div class="sl-row-top">
         <span class="sl-dot ${s.phase || ''}" title=${i18n.t(`phase.${s.phase || 'unknown'}`)} />
         <span class="sl-name">${s.name}</span>
-        ${s.pinned && html`<${Icon} name="pin" class="sm pinned" />`}
-        ${s.archived && html`<span class="badge">${i18n.t('sessions.archivedBadge')}</span>`}
+        ${metaBool(s, 'pinned') && html`<${Icon} name="pin" class="sm pinned" />`}
+        ${metaBool(s, 'archived') && html`<span class="badge">${i18n.t('sessions.archivedBadge')}</span>`}
       </div>
       <div class="sl-sub">
         <span>${i18n.t(`phase.${s.phase || 'unknown'}`)}</span>

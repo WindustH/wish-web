@@ -284,7 +284,11 @@ export const chat = (() => {
   }
 
   // ── history paging & merge ─────────────────────────────────────────────
-  const entryKey = (e) => e.seq != null ? `s${e.seq}` : e.localId ? `o${e.localId}` : `x${e.delivery_id ?? e.id ?? Math.random()}`;
+  const entryKey = (e) => {
+    if (e.seq != null) return `s${e.seq}`;
+    if (e.localId) return `o${e.localId}`;
+    throw new Error('chat entry has no canonical seq or optimistic id');
+  };
 
   function mergeItems(fresh) {
     if (!fresh.length) return 0;
@@ -477,9 +481,15 @@ export const chat = (() => {
   }
 
   function onStreamState(kind, id, st, err, url) {
-    if (st !== GONE && st !== DENIED) return;
+    if (st !== GONE && st !== DENIED && st !== 'disabled') return;
     const s = stream.peek();
     if (url) deadStreams.add(url);
+    if (st === 'disabled') {
+      stopStream();
+      stream.value = { ...s, phase: 'pending' };
+      scheduleReconcile();
+      return;
+    }
     if (st === DENIED) {
       // Auth failure: never retried, surfaced honestly.
       stopStream();
@@ -503,6 +513,11 @@ export const chat = (() => {
     const s = stream.peek();
     if (s.gap && frame.event !== 'stream_gap') stream.value = { ...s, gap: false };
     switch (frame.event) {
+      case 'stream_disabled': {
+        const source = attached;
+        if (source) onStreamState(source.kind, source.id, 'disabled', null, streamUrl(source.kind, source.id));
+        break;
+      }
       case 'resource':
         if (data.run_id && !s.runId) stream.value = { ...s, runId: data.run_id };
         break;

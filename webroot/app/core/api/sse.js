@@ -75,6 +75,14 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
         emitState(state, Object.assign(new Error(`SSE ${res.status}`), { status: res.status }));
         return;
       }
+      if (res.status === 409) {
+        const problem = await res.json();
+        if (problem.title === 'run_not_streaming') {
+          terminal = true;
+          emitState('disabled');
+          return;
+        }
+      }
       if (!res.ok || !res.body) throw Object.assign(new Error(`SSE ${res.status}`), { status: res.status });
       attempt = 0;
       emitState('open');

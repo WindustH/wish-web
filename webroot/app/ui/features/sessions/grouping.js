@@ -1,62 +1,80 @@
-// Conversation grouping — a PURE transform (round-5): entries in, render
-// items out; canonical entries are never annotated or mutated, so history
-// windows can be regrouped freely. Order rules:
-//   · text blocks render as entry items at their position;
-//   · reasoning / tool_call / tool_result blocks form process groups in
-//     content order — a group closes when a text item is emitted and a new
-//     one opens for process blocks that follow;
-//   · a trailing tool call whose result has not arrived yet still forms a
-//     process group immediately (the result joins later) — never falls back
-//     to scattered chips.
-// Nothing is hidden via CSS; no block is dropped or duplicated.
+// Conversation grouping — a PURE transform (round-5 + grouping-final):
+// frozen inputs in, render items out; canonical entries are never annotated
+// or mutated. Scanning rules, verified by external tests:
+//   · content order is sacred — text SEGMENTS are emitted as entry items at
+//     their exact position (an interleaved [think, text, tool, text] entry
+//     yields process, entry, process, entry);
+//   · consecutive process blocks (reasoning / tool_call) after a text
+//     segment accumulate into ONE group — including a still-pending call
+//     whose result has not arrived;
+//   · an assistant entry with only process blocks produces NO empty body
+//     item (no stray bubble/usage row) — its blocks simply join the group;
+//   · every item carries a STABLE key derived from its source identity
+//     (entry seq/local id + segment ordinal, or the first group step), so
+//     prepending older history never re-keys existing items (Vlist anchors,
+//     expansion state).
 const PROCESS_BLOCK = (b) => b.type === 'reasoning' || b.type === 'tool_call';
+const entryId = (e) => {
+  if (e.seq != null) return `s${e.seq}`;
+  if (e.localId) return `o${e.localId}`;
+  throw new Error('history entry has no canonical seq or optimistic id');
+};
 
 export function groupEntries(entries) {
   const items = [];
   let group = null;
-  let groupSeq = 0;
 
-  const openGroup = () => {
-    group ||= { type: 'process', key: `proc-${++groupSeq}`, steps: [] };
+  const sameRun = (a, b) => a == null || b == null || a === b;
+  // A group is BORN with its first step (which also names the key); later
+  // steps append. Never seed-and-push the same step twice.
+  const openGroup = (firstStep, runId) => {
+    group = { type: 'process', key: firstStep.key, steps: [firstStep], runId: runId ?? null };
     return group;
+  };
+  const pushGroupStep = (step, runId) => {
+    if (group && !sameRun(group.runId, runId)) flushGroup();
+    if (!group) openGroup(step, runId);
+    else group.steps.push(step);
   };
   const flushGroup = () => {
     if (group && group.steps.length) items.push(group);
     group = null;
   };
-  const sameRun = (a, b) => a == null || b == null || a === b;
 
   for (const entry of entries) {
     if (entry.kind === 'tool_result') {
-      if (group && !sameRun(group.runId, entry.run_id)) flushGroup();
-      openGroup().runId ??= entry.run_id;
-      openGroup().steps.push({ kind: 'entry', entry });
+      pushGroupStep({ kind: 'entry', entry, key: `${entryId(entry)}result` }, entry.run_id);
       continue;
     }
     if (entry.kind === 'assistant_message') {
       const blocks = entry.payload?.content || [];
-      // split this entry's blocks into ordered segments; text becomes the
-      // entry's render payload, process blocks join groups around it
-      const texts = [];
-      let sawText = false;
-      for (const b of blocks) {
+      const id = entryId(entry);
+      let segment = [];         // pending text segment for THIS entry
+      let lastBody = null;
+      let segmentOrdinal = 0;   // how many text items this entry emitted
+      const emitSegment = () => {
+        if (!segment.length) return;
+        flushGroup();           // a group never spans a text item
+        lastBody = { type: 'entry', entry, blocks: segment, key: `${id}t${segmentOrdinal++}`, usage: null };
+        items.push(lastBody);
+        segment = [];
+      };
+      for (let bi = 0; bi < blocks.length; bi++) {
+        const b = blocks[bi];
         if (PROCESS_BLOCK(b)) {
-          if (sawText) flushGroup();          // process after text → new group
-          if (group && !sameRun(group.runId, entry.run_id)) flushGroup();
-          openGroup().runId ??= entry.run_id;
-          openGroup().steps.push({ kind: 'block', block: b, fromSeq: entry.seq });
-        } else if (b.type === 'text' && (b.text || '').trim()) {
-          sawText = true;
-          flushGroup();                        // group never spans a text item
-          texts.push(b);
+          emitSegment();        // text before this block renders first
+          pushGroupStep({ kind: 'block', block: b, fromSeq: entry.seq, key: `${id}b${bi}` }, entry.run_id);
+        } else if (b.type === 'image' || (b.type === 'text' && (b.text || '').trim())) {
+          segment.push(b);
         }
       }
-      items.push({ type: 'entry', entry, blocks: texts });
-      continue;
+      emitSegment();            // trailing text segment (if any)
+      if (lastBody) lastBody.usage = entry.payload?.usage;
+      continue;                 // process-only entry: no body item at all
     }
-    // user message / system entry: plain render, closes any open group
+    // user message / system entry — plain render, closes any open group
     flushGroup();
-    items.push({ type: 'entry', entry, blocks: entry.payload?.content || [] });
+    items.push({ type: 'entry', entry, blocks: entry.payload?.content || [], key: `${entryId(entry)}t0` });
   }
   flushGroup();
   return items;

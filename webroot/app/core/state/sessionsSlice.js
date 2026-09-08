@@ -27,7 +27,12 @@ import * as api from '../api/endpoints.js';
 
 // Fields whose change alters a row's position or membership in the current
 // collection → authoritative rebuild. Everything else patches in place.
-const IDENTITY_FIELDS = new Set(['name', 'updated_at_ms', 'pinned', 'archived', 'tags']);
+const IDENTITY_FIELDS = new Set(['name', 'updated_at_ms', 'metadata']);
+// metadata accessors — the defined keys only; everything else is the
+// user's own JSON, carried untouched (decision-json-metadata).
+export const metaOf = (row) => row == null ? {} : row.metadata;
+export const metaBool = (row, key) => metaOf(row)[key] === true;
+export const metaTags = (row) => metaOf(row).tags ?? [];
 
 export const sessions = (() => {
   const items = signal([]);            // newest first (order=desc)
@@ -158,11 +163,16 @@ export const sessions = (() => {
     return snap;
   }
 
-  // Contract metadata write: pinned / archived / tags via session PATCH.
-  // Rebuild: the row's membership (filters) and position (pinned_first)
-  // are decided by the server — never patched locally.
-  async function updateMeta(id, patch) {
-    const snap = await api.sessionUpdateMeta(id, patch);
+  // Metadata write (decision-json-metadata): `changes` touches only the
+  // defined keys (pinned/archived/tags); the rest of the object is carried
+  // from the row we read, and the PATCH carries If-Match at that revision.
+  // A 409 propagates to the caller (conflict toast + refresh) — no blind
+  // retry that would overwrite concurrent extension keys.
+  async function updateMeta(row, changes) {
+    if (!row?.id || row.revision == null) throw new Error('metadata update requires a session snapshot and revision');
+    const id = row.id;
+    const next = { ...metaOf(row), ...changes };
+    const snap = await api.sessionUpdateMeta(id, next, row.revision);
     await rebuild();
     return snap;
   }
@@ -223,17 +233,16 @@ function snapToListRow(snap) {
     updated_at_ms: Date.parse(snap.updated_at) || null,
     pending_items: snap.queue ?? 0,
     revision: snap.revision, resume_requires_user: snap.resume_requires_user,
-    pinned: Boolean(snap.pinned), archived: Boolean(snap.archived),
-    tags: Array.isArray(snap.tags) ? snap.tags : [],
+    metadata: snap.metadata,
   };
 }
 
 function sessionRowFromSync(body) {
   const row = {};
-  for (const k of ['name', 'phase', 'revision', 'resume_requires_user', 'pending_items', 'pinned', 'archived']) {
+  for (const k of ['name', 'phase', 'revision', 'resume_requires_user', 'pending_items']) {
     if (body[k] !== undefined) row[k] = body[k];
   }
-  if (body.tags !== undefined) row.tags = body.tags;
+  if (body.metadata !== undefined) row.metadata = body.metadata;
   if (body.updated_at) row.updated_at_ms = Date.parse(body.updated_at) || null;
   if (body.updated_at_ms) row.updated_at_ms = body.updated_at_ms;
   if (body.queue !== undefined) row.pending_items = body.queue;

@@ -162,11 +162,12 @@ function ChatLog({ id, loading, snapshot }) {
   // locate() target resident → mount its chunk (Vlist revealIndex), then
   // one scroll-into-view, then clear the flag.
   const groupsIdx = pendingSeq == null ? null : groups.findIndex((g) =>
-    g.entry?.seq === pendingSeq || g.steps?.some((s) => s.entry?.seq === pendingSeq));
+    g.entry?.seq === pendingSeq || g.steps?.some((s) => s.entry?.seq === pendingSeq || s.fromSeq === pendingSeq));
   useEffect(() => {
     if (pendingSeq == null || groupsIdx == null || groupsIdx < 0) return;
     const raf = requestAnimationFrame(() => {
-      const el = logRef.current?.querySelector(`[data-seq="${pendingSeq}"]`);
+      const el = logRef.current?.querySelector(`[data-seq="${pendingSeq}"]`)
+        || logRef.current?.querySelector(`.proc-group[data-seqs~="${pendingSeq}"]`);
       if (el) {
         stickBottom.current = false;
         setFarUp(true);
@@ -208,10 +209,10 @@ function ChatLog({ id, loading, snapshot }) {
           }}>↓ ${i18n.t('chat.jumpLatest')}<//>`}
         <${Vlist} items=${groups} datasetKey=${id} initialWindow="bottom" estimate=${110}
           revealIndex=${groupsIdx}
-          keyOf=${(g) => (g.type === 'process' ? g.key : (g.entry.seq != null ? `s${g.entry.seq}` : `o${g.entry.localId}`))}
+          keyOf=${(g) => g.key}
           render=${(g) => (g.type === 'process'
-            ? html`<${ProcessGroup} key=${g.key} item=${g} />`
-            : html`<${HistoryEntry} key=${g.key} entry=${g.entry} blocks=${g.blocks} />`)} />
+            ? html`<${ProcessGroup} key=${g.key} item=${g} revealSeq=${pendingSeq} />`
+            : html`<${HistoryEntry} key=${g.key} entry=${g.entry} blocks=${g.blocks} usage=${g.usage} />`)} />
         <${LiveStream} stream=${streamState} />
       </div>
     </div>`;
