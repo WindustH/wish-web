@@ -179,3 +179,14 @@
 .md table { border-collapse: collapse; margin: 0 0 var(--space-m); font-size: 13px; }
 .md th,.md td { border: 1px solid var(--line); padding: var(--space-xs) var(--space-s); }
 .md img { max-width: 100%; border-radius: var(--radius); }
+
+/* PWA update banner (created from main.js bootstrap) */
+.pwa-update {
+  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 8px 8px 14px; border-radius: 10px;
+  background: var(--bg-raised, #2a2a2c); color: var(--fg, #eee);
+  border: 1px solid var(--border, #3a3a3c);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  font-size: 13px; z-index: 300;
+}

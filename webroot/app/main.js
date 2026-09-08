@@ -76,6 +76,39 @@ installShortcuts({
 });
 
 // PWA registration (structure reserved; offline strategy is cache-shell)
+// PWA shell: precached module graph, updates activate ONLY after the user
+// confirms (no mixed versions — see sw.js / decisions 21).
 if (cfg.pwa.register && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register(cfg.pwa.swPath).catch(() => {});
+  const { i18n } = await import('./core/i18n/index.js');
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!reloading) { reloading = true; location.reload(); }
+  });
+  const showUpdateBanner = (worker) => {
+    if (document.getElementById('pwa-update')) return;
+    const bar = document.createElement('div');
+    bar.id = 'pwa-update';
+    bar.className = 'pwa-update';
+    const label = document.createElement('span');
+    label.textContent = i18n.t('pwa.updateAvailable');
+    const now = document.createElement('button');
+    now.className = 'btn';
+    now.textContent = i18n.t('pwa.reload');
+    const later = document.createElement('button');
+    later.className = 'btn ghost';
+    later.textContent = i18n.t('pwa.later');
+    now.onclick = () => { worker.postMessage({ type: 'SKIP_WAITING' }); bar.remove(); };
+    later.onclick = () => bar.remove();
+    bar.append(label, now, later);
+    document.body.append(bar);
+  };
+  navigator.serviceWorker.register(cfg.pwa.swPath).then((reg) => {
+    if (reg.waiting && navigator.serviceWorker.controller) showUpdateBanner(reg.waiting);
+    reg.addEventListener('updatefound', () => {
+      const w = reg.installing;
+      w?.addEventListener('statechange', () => {
+        if (w.state === 'installed' && navigator.serviceWorker.controller) showUpdateBanner(w);
+      });
+    });
+  }).catch((err) => console.warn('[pwa] service worker registration failed:', err));
 }
