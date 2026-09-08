@@ -18,10 +18,7 @@ export const stats = (() => {
     loading.value = true; error.value = null;
     try {
       const [st, us, sg, ver] = await Promise.all([
-        api.daemonStatus().catch(() => null),
-        api.usageTotals().catch(() => null),
-        api.storageStatus().catch(() => null),
-        api.daemonVersion().catch(() => null),
+        api.daemonStatus(), api.usageTotals(), api.storageStatus(), api.daemonVersion(),
       ]);
       status.value = st; usage.value = us; storage.value = sg; version.value = ver;
       updatedAt.value = Date.now();

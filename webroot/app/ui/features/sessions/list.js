@@ -22,7 +22,6 @@ export function SessionsListPane() {
   const loading = useSignal(sessions.loading);
   const loadingMore = useSignal(sessions.loadingMore);
   const hasMore = useSignal(sessions.hasMore);
-  const capped = useSignal(sessions.residentCapped);
   const err = useSignal(sessions.error);
   const query = useSignal(sessions.query);
   const archivedFilter = useSignal(sessions.archivedFilter);
@@ -73,11 +72,10 @@ export function SessionsListPane() {
         ${!loading && !err && items.length > 0 && html`
           <${Vlist} items=${items} keyOf=${(s) => s.id} estimate=${64}
             render=${(s) => html`<${SessionRow} key=${s.id} s=${s} active=${s.id === activeId} />`} />`}
-        ${hasMore && !capped && html`<button class="btn ghost sl-more" disabled=${loadingMore}
+        ${hasMore && html`<button class="btn ghost sl-more" disabled=${loadingMore}
           onClick=${() => sessions.loadMore()}>
           ${loadingMore ? i18n.t('sessions.loading') : i18n.t('sessions.loadMore')}
         </button>`}
-        ${capped && html`<div class="sl-empty subtle">${i18n.t('sessions.residentCapped')}</div>`}
       </div>
     </div>
   `;

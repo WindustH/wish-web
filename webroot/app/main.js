@@ -11,6 +11,7 @@ import { startRouter } from './ui/router.js';
 import { installFeatures } from './ui/features/registry.js';
 import { App } from './ui/index.js';
 import { render, html } from './ui/h.js';
+import { installShortcuts } from './ui/shortcuts.js';
 
 registerBrowserPlatform();
 applyTokens();
@@ -48,6 +49,13 @@ const { applySavedListWidth } = await import('./ui/features/sessions/resize.js')
 applySavedListWidth();
 startRouter();
 sync.start();
+// A malformed control-plane frame is a protocol violation — surface it once
+// per occurrence instead of silently treating it as an empty payload.
+{
+  const { toast } = await import('./ui/components/toast.js');
+  const { i18n } = await import('./core/i18n/index.js');
+  sync.protocolError.subscribe((err) => { if (err) toast(i18n.t('sync.protocolError')); });
+}
 
 // keep-awake while a run is active (mobile setting)
 {
@@ -60,6 +68,12 @@ sync.start();
 }
 
 render(html`<${App} />`, document.getElementById('app'));
+installShortcuts({
+  openNewSession: async () => {
+    const { NewSessionModal } = await import('./ui/features/sessions/newsession.js');
+    NewSessionModal.open();
+  },
+});
 
 // PWA registration (structure reserved; offline strategy is cache-shell)
 if (cfg.pwa.register && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {

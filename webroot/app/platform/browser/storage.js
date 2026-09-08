@@ -21,7 +21,7 @@ export const browserStorage = {
     catch { return null; }
   },
   set(k, v) {
-    try { backend ? backend.setItem(key(k), String(v)) : mem.set(key(k), String(v)); } catch {}
+    try { backend ? backend.setItem(key(k), String(v)) : mem.set(key(k), String(v)); } catch (err) { console.warn('[storage] persist failed:', err); }
   },
   remove(k) {
     try { backend ? backend.removeItem(key(k)) : mem.delete(key(k)); } catch {}

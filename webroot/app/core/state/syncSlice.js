@@ -7,7 +7,7 @@ import { cfg } from '../config.js';
 import { bus } from '../bus.js';
 import { signal } from './reactive.js';
 import { createSse } from '../api/sse.js';
-import { get } from '../api/client.js';
+import { get, absUrl } from '../api/client.js';
 
 export const sync = (() => {
   const state = signal('closed');        // closed|connecting|open|reconnecting
@@ -21,15 +21,22 @@ export const sync = (() => {
   let pollTimer = null;
   let curSessionSubs = new Set();
 
+  const protocolError = signal(null);
+
   function handleFrame(frame) {
     if (frame.id) sseId.value = frame.id;
     let payload = null;
-    try { payload = frame.data ? JSON.parse(frame.data) : null; } catch { payload = null; }
+    if (frame.data) {
+      try { payload = JSON.parse(frame.data); }
+      catch (err) { protocolError.value = err; }
+    }
     switch (frame.event) {
       case 'sync.snapshot':
         if (payload?.reset_reason) resetReason.value = payload.reset_reason;
         snapshotRevision.value += 1;
-        applyStorageList(payload?.sessions);
+        // snapshot.sessions is a Page envelope {items,has_more,next_cursor};
+        // sync.runtime.sessions is a bare array. Handle both.
+        applyStorageList(payload?.sessions?.items ?? payload?.sessions);
         online.value = true;
         bus.emit('sync.snapshot', payload);
         break;
@@ -86,11 +93,11 @@ export const sync = (() => {
   }
 
   return {
-    state, sseId, storageStates, online, snapshotRevision, resetReason,
+    state, sseId, storageStates, online, snapshotRevision, resetReason, protocolError,
     start() {
       if (sse) return;
       sse = createSse({
-        url: `${cfg.api.baseUrl}/sync/events`,
+        url: absUrl('/sync/events'),   // honors setBaseUrl (shells/Node)
         onFrame: handleFrame,
       });
       sse.onState(({ state: s }) => { state.value = s; });
@@ -107,6 +114,10 @@ export const sync = (() => {
         bus.on('upsert.session', (u) => { if (u.id === id) fn({ kind: 'upsert', body: u.body ?? u }); }),
         bus.on('invalidate.session', (i) => { if (!i.id || i.id === id) fn({ kind: 'invalidate' }); }),
         bus.on('tombstone.session', (t) => { if (t.id === id) fn({ kind: 'tombstone' }); }),
+        // Authoritative reset (reconnect, cursor_gap/ahead) or poll-fallback
+        // recovery: linked views must re-read from the source of truth.
+        bus.on('sync.snapshot', () => fn({ kind: 'snapshot' })),
+        bus.on('poll.status', () => fn({ kind: 'invalidate' })),
       ];
       const off = () => { offs.forEach((o) => o()); curSessionSubs.delete(off); };
       curSessionSubs.add(off);

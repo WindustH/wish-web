@@ -33,7 +33,7 @@ export const browserApp = {
         await browserApp._wakeLock.release();
         browserApp._wakeLock = null;
       }
-    } catch {}
+    } catch (err) { console.warn('[app] wakeLock:', err); }
     return Boolean(browserApp._wakeLock);
   },
 };
