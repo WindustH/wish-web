@@ -12,6 +12,7 @@ import { sessions } from '../../../core/state/sessionsSlice.js';
 import { sync } from '../../../core/state/syncSlice.js';
 import { relTime } from '../../../core/util/fmt.js';
 import { NewSessionModal } from './newsession.js';
+import { ListResizeHandle } from './resize.js';
 
 export function SessionsListPane() {
   const items = useSignal(sessions.items);
@@ -51,6 +52,8 @@ export function SessionsListPane() {
 }
 
 function SessionRow({ s, active }) {
+  // storage_state: only 'cold' matters to users (slower first open);
+  // transient cooling/warming states are intentionally not shown here.
   const storage = useSignal(sync.storageStates);
   const st = storage[s.id] || s.storage_state || 'hot';
   return html`
@@ -61,8 +64,6 @@ function SessionRow({ s, active }) {
         <span class="sl-dot ${s.phase || ''}" title=${i18n.t(`phase.${s.phase || 'unknown'}`)} />
         <span class="sl-name">${s.name}</span>
         ${st === 'cold' && html`<span class="badge">${i18n.t('sessions.storage.cold')}</span>`}
-        ${st === 'warming' && html`<span class="badge accent">${i18n.t('sessions.storage.warming')}</span>`}
-        ${st === 'cooling' && html`<span class="badge">${i18n.t('sessions.storage.cooling')}</span>`}
       </div>
       <div class="sl-sub">
         <span>${i18n.t(`phase.${s.phase || 'unknown'}`)}</span>
@@ -80,6 +81,7 @@ export function SessionsView() {
   return html`
     <${Fragment}>
       <${SessionsListPane} />
+      <${ListResizeHandle} />
       <div class="content-pane">
         <div class="chat chat-empty">${i18n.t('chat.selectSession')}</div>
       </div>

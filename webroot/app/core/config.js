@@ -93,7 +93,9 @@ export const cfg = Object.freeze({
     maxContentWidth: '48rem',         // chat column readability cap
     iconSize: 18,                     // default icon px
     sidebarWidth: 56,                 // desktop vertical bar px
-    sessionListWidth: 300,            // desktop list pane px
+    sessionListWidth: 300,            // desktop list pane px (default; user-resizable)
+    sessionListWidthMin: 200,
+    sessionListWidthMax: 520,
     topbarHeight: 48,
     bottombarHeight: 52,
     space: { xs: 4, s: 8, m: 12, l: 16, xl: 24, xxl: 32 },

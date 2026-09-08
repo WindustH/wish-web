@@ -44,6 +44,8 @@ applyTheme();
 }
 
 installFeatures();
+const { applySavedListWidth } = await import('./ui/features/sessions/resize.js');
+applySavedListWidth();
 startRouter();
 sync.start();
 
