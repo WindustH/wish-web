@@ -15,6 +15,10 @@ import { chat } from '../../../core/state/chatSlice.js';
 import { sessions } from '../../../core/state/sessionsSlice.js';
 import { Markdown } from '../../components/markdown.js';
 import { HistoryEntry, groupEntries, ProcessGroup } from './entry.js';
+import { Vlist } from '../../components/vlist.js';
+import { announce } from '../../live.js';
+import { platform } from '../../../platform/index.js';
+import { prefs } from '../../../core/state/prefsSlice.js';
 import { Composer } from './composer.js';
 import { SessionsListPane } from './list.js';
 import { NewSessionModal } from './newsession.js';
@@ -76,6 +80,7 @@ function ChatTopBar({ id, name, mobile, phase }) {
       </button>`}
       <div class="title">${name}</div>
       ${phase === 'running' && html`<span class="badge accent">${i18n.t('phase.running')}</span>`}
+      ${(snapshot?.queue ?? 0) > 0 && html`<span class="badge">${i18n.t('chat.queuedN', { n: snapshot.queue })}</span>`}
       ${phase === 'compacting' && html`<span class="badge">${i18n.t('phase.compacting')}</span>`}
       ${!mobile
         ? actions.map((a) => html`<button key=${a.icon} class="btn ghost icon-only" title=${a.label}
@@ -92,8 +97,13 @@ function ChatLog({ id, loading, snapshot }) {
   const hasMore = useSignal(chat.hasMoreBefore);
   const loadingOlder = useSignal(chat.loadingOlder);
   const streamState = useSignal(chat.stream);
+  const pendingSeq = useSignal(chat.pendingSeq);
   const logRef = useRef(null);
   const stickBottom = useRef(true);
+  const wasActive = useRef(false);
+  const notifiedRun = useRef(null);
+
+  const groups = groupEntries(entries);
 
   // Track whether the user is pinned to the bottom; auto-scroll only then.
   useEffect(() => {
@@ -106,7 +116,9 @@ function ChatLog({ id, loading, snapshot }) {
         const prevHeight = el.scrollHeight;
         chat.loadOlder().then((got) => {
           if (got) requestAnimationFrame(() => {
-            el.scrollTop = el.scrollHeight - prevHeight; // keep viewport stable
+            // Keep the viewport stable: the Vlist shifts its render window
+            // for prepends, this compensates the container scroll offset.
+            el.scrollTop = el.scrollHeight - prevHeight;
           });
         });
       }
@@ -121,6 +133,32 @@ function ChatLog({ id, loading, snapshot }) {
     if (el && stickBottom.current) el.scrollTop = el.scrollHeight;
   }, [entries.length, streamState.text, streamState.reasoning, loading]);
 
+  // locate() target resident → one scroll-into-view, then clear the flag.
+  useEffect(() => {
+    if (pendingSeq == null) return;
+    const el = logRef.current?.querySelector(`[data-seq="${pendingSeq}"]`);
+    if (el) {
+      stickBottom.current = false;
+      el.scrollIntoView({ block: 'center' });
+      chat.clearPendingSeq();
+    }
+  }, [pendingSeq, entries.length]);
+
+  // Completion: one polite screen-reader announcement; optional OS
+  // notification for failures only (dedup per run) — decisions 22/24.
+  useEffect(() => {
+    const s = streamState;
+    if (wasActive.current && !s?.active) announce(i18n.t('a11y.runDone'));
+    wasActive.current = Boolean(s?.active);
+    if (s?.error && s.runId && notifiedRun.current !== s.runId) {
+      notifiedRun.current = s.runId;
+      const notify = platform('notify');
+      if (prefs.notifyOnFailure.value && notify?.isSupported && notify.permission() === 'granted') {
+        notify.show({ title: i18n.t('chat.notifyFailed'), tag: `wish-run-${s.runId}` });
+      }
+    }
+  }, [streamState?.active, streamState?.error]);
+
   return html`
     <div class="chatlog" ref=${logRef}>
       <div class="chatlog-inner">
@@ -134,9 +172,11 @@ function ChatLog({ id, loading, snapshot }) {
         </div>`}
         ${loading && html`<div class="chat-empty"><${Spinner} label=${i18n.t('common.loading')} /></div>`}
         ${!loading && entries.length === 0 && html`<div class="chat-empty">${i18n.t('chat.empty')}</div>`}
-        ${groupEntries(entries).map((item) => item.type === 'process'
-          ? html`<${ProcessGroup} key=${item.key} item=${item} />`
-          : html`<${HistoryEntry} key=${item.entry.seq ?? item.entry.localId} entry=${item.entry} />`)}
+        <${Vlist} items=${groups} datasetKey=${id} initialWindow="bottom" estimate=${110}
+          keyOf=${(g) => (g.type === 'process' ? g.key : (g.entry.seq != null ? `s${g.entry.seq}` : `o${g.entry.localId}`))}
+          render=${(g) => (g.type === 'process'
+            ? html`<${ProcessGroup} key=${g.key} item=${g} />`
+            : html`<${HistoryEntry} key=${g.key} entry=${g.entry} />`)} />
         <${LiveStream} stream=${streamState} />
       </div>
     </div>`;

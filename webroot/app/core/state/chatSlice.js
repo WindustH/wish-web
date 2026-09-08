@@ -30,8 +30,13 @@ const EMPTY_STREAM = () => ({
   gap: false, error: null, startedAt: 0,
 });
 
-const RUN_TERMINAL = ['completed', 'failed', 'canceled', 'cancelled', 'interrupted'];
-const DELIVERY_TERMINAL = ['completed', 'failed', 'canceled', 'cancelled', 'delivered'];
+// Terminal vocabularies VERIFIED against wish source (no guessing):
+//  · DeliveryState (crates/wish-domain/src/state.rs, snake_case):
+//      queued | batch_reserved | processing | consumed | cancelled | failed
+//  · RunRecord.state writers (crates/wish-store/src/{queue,recovery,interrupt}.rs):
+//      running | canceling | aborted | completed (+ finish_run_tx terminal_state)
+const RUN_ACTIVE = ['running', 'canceling', 'queued'];
+const DELIVERY_ACTIVE = ['queued', 'batch_reserved', 'processing'];
 const GONE = 'gone';      // SSE 404/410 — resource no longer exists
 const DENIED = 'denied';  // SSE 401/403 — auth failure, never retried
 
@@ -47,11 +52,20 @@ export const chat = (() => {
   const error = signal(null);
   const stream = signal(EMPTY_STREAM());
   const sending = signal(false);
+  // Session capabilities (contract). null = not loaded yet.
+  // {status:'ok', data} | {status:'error'} — API failure is NEVER presented as
+  // "model cannot do X"; only an explicit modality list may gate the UI.
+  // data.input_modalities === null means genuinely unknown → let the server
+  // validate on send (unknown ≠ unsupported).
+  const capabilities = signal(null);
+  const pendingSeq = signal(null);     // locate() target: chat log scrolls to [data-seq] once resident
   const deliveries = signal([]);
   const drafts = new Map();
 
   let sse = null;
   let attached = null;                  // {kind:'delivery'|'run', id}
+  const deadStreams = new Set();        // URLs that returned 404/410/401/403 —
+                                        // never re-attached within this lifecycle
   let offSessionSync = null;
   let reconcileTimer = null;
   let pollTimer = null;
@@ -69,8 +83,13 @@ export const chat = (() => {
   });
 
   function teardown() {
+    // Bumping the epoch invalidates EVERY in-flight path at once — late
+    // responses (even ones abort could not cancel) find a stale epoch and
+    // are discarded (review round-2 #2).
+    epoch += 1;
     epochCtrl?.abort(new Error('session closed')); epochCtrl = null;
     stopStream();
+    deadStreams.clear();
     offSessionSync?.(); offSessionSync = null;
     clearTimeout(reconcileTimer); reconcileTimer = null;
     clearInterval(pollTimer); pollTimer = null;
@@ -83,8 +102,8 @@ export const chat = (() => {
 
   async function open(id) {
     if (sessionId.peek() === id) return;
-    teardown();
-    const myEpoch = ++epoch;
+    teardown();                       // bumps epoch (invalidates all old paths)
+    const myEpoch = epoch;
     epochCtrl = new AbortController();
     const sig = epochCtrl.signal;
     const stale = () => myEpoch !== epoch;
@@ -93,8 +112,20 @@ export const chat = (() => {
     oldestSeq.value = null; newestSeq.value = null;
     hasMoreBefore.value = false; error.value = null;
     stream.value = EMPTY_STREAM();
+    capabilities.value = null;
+    pendingSeq.value = null;
     deliveries.value = [];
+    // Full self-reset: a stale `sending`/`loadingOlder` from the previous
+    // session must never leak into the new one (review round-2 #1).
+    sending.value = false;
+    loadingOlder.value = false;
     loadingInitial.value = true;
+    // Capabilities are read-only context for the composer (image gating).
+    // Single contract read; failures surface as an error state distinct from
+    // unknown capabilities (no legacy-endpoint fallback).
+    api.sessionCapabilities(id, { signal: epochCtrl?.signal })
+      .then((data) => { if (!stale()) capabilities.value = { status: 'ok', data }; })
+      .catch(() => { if (!stale()) capabilities.value = { status: 'error' }; });
     try {
       const [snap, page] = await Promise.all([
         api.sessionGet(id, { signal: sig }),
@@ -116,13 +147,45 @@ export const chat = (() => {
 
   function close() { teardown(); sessionId.value = null; }
 
+  // Bring a target seq into the resident window and flag it for one
+  // scroll-into-view. Bounded: ONE keyset read ending at the target
+  // (before = exclusive bound), not a page-by-page crawl whose cap would
+  // silently pretend deep targets were located (review round-2).
+  async function locate(targetId, seq) {
+    if (sessionId.peek() !== targetId) await open(targetId);
+    const myEpoch = epoch;
+    if (entries.peek().some((e) => e.seq === seq)) {
+      pendingSeq.value = seq;
+      return true;
+    }
+    let page;
+    try {
+      page = await api.historyPage(targetId, {
+        order: 'desc', before: seq + 1, limit: cfg.history.pageSize,
+      }, { signal: epochCtrl?.signal });
+    } catch (err) {
+      if (myEpoch === epoch) error.value = err;
+      return false;
+    }
+    if (myEpoch !== epoch) return false;
+    const items = page.items ?? [];
+    if (!items.some((e) => e.seq === seq)) return false;   // pruned/absent
+    applyPage(items.slice().reverse(), page.has_more ?? false);
+    pendingSeq.value = seq;
+    return true;
+  }
+
+  function clearPendingSeq() { pendingSeq.value = null; }
+
   function onSessionSync(evt) {
     const id = sessionId.peek();
     if (!id) return;
     if (evt.kind === 'upsert' && evt.body?.id === id) {
       snapshot.value = evt.body;
       debouncedInvalidate();
-    } else if (evt.kind === 'invalidate') {
+    } else if (evt.kind === 'invalidate' || evt.kind === 'snapshot') {
+      // 'snapshot' = authoritative reset (reconnect / cursor reset): re-read
+      // snapshot + history + live run from the source of truth.
       debouncedInvalidate();
     } else if (evt.kind === 'tombstone') {
       bus.emit('chat.sessionGone', id);
@@ -138,8 +201,10 @@ export const chat = (() => {
     try {
       const snap = await api.sessionGet(id, { signal: sig });
       if (myEpoch !== epoch) return;
-      if (snap) snapshot.value = snap;
-    } catch { /* transient */ }
+      snapshot.value = snap;
+    } catch (err) {
+      if (myEpoch === epoch) error.value = err;
+    }
     await fetchNewer();
     if (myEpoch !== epoch) return;
     await reattachIfRunning(id);
@@ -228,6 +293,17 @@ export const chat = (() => {
 
   function sortKey(e) { return e.seq != null ? e.seq : Number.MAX_SAFE_INTEGER - (e.localKey || 0); }
 
+  // Remove optimistic shadows whose durable echo (same delivery_id) is
+  // already resident — this can happen when sync/history lands the durable
+  // row BEFORE the POST /messages receipt arrives (review round-2 #4).
+  function settleOptimistic() {
+    const cur = entries.peek();
+    const durableIds = new Set(cur.filter((e) => !e.__optimistic && e.delivery_id).map((e) => e.delivery_id));
+    if (!durableIds.size) return;
+    const kept = cur.filter((e) => !(e.__optimistic && e.deliveryId && durableIds.has(e.deliveryId)));
+    if (kept.length !== cur.length) entries.value = kept;
+  }
+
   // ── sending & streaming ────────────────────────────────────────────────
   async function send(text, images = []) {
     const id = sessionId.peek();
@@ -272,7 +348,7 @@ export const chat = (() => {
       if (myEpoch !== epoch) return null;
       const deliveryId = d.resource_id ?? d.id;
       optimistic.deliveryId = deliveryId;
-      entries.value = entries.peek().slice();
+      settleOptimistic();               // durable echo may already be resident
       stream.value = { ...stream.peek(), deliveryId };
       attachDelivery(deliveryId);
       refreshDeliveries(id);
@@ -302,24 +378,33 @@ export const chat = (() => {
   }
 
   function attachRun(runId, afterId = '') {
-    startStream('run', runId, streamUrl('run', runId, afterId),
+    const ok = startStream('run', runId, streamUrl('run', runId, afterId),
       (f) => handleStreamFrame(null, f));
-    stream.value = { ...stream.peek(), runId, active: true, phase: 'streaming' };
+    stream.value = { ...stream.peek(), runId, active: true, ...(ok ? { phase: 'streaming' } : {}) };
+    return ok;
   }
 
   function startStream(kind, id, url, onFrame) {
     stopStream();
+    if (deadStreams.has(url)) {
+      // This exact stream already proved terminal (404/410/401/403). Settle
+      // from durable state via poll safety instead of looping (review r2).
+      attached = null;
+      return false;
+    }
     attached = { kind, id };
     sse = createSse({
       url,
       onFrame,
-      onState: ({ state: st, err }) => onStreamState(kind, id, st, err),
+      onState: ({ state: st, err }) => onStreamState(kind, id, st, err, url),
     });
+    return true;
   }
 
-  function onStreamState(kind, id, st, err) {
+  function onStreamState(kind, id, st, err, url) {
     if (st !== GONE && st !== DENIED) return;
     const s = stream.peek();
+    if (url) deadStreams.add(url);
     if (st === DENIED) {
       // Auth failure: never retried, surfaced honestly.
       stopStream();
@@ -339,8 +424,7 @@ export const chat = (() => {
   }
 
   function handleStreamFrame(deliveryId, frame) {
-    let data = null;
-    try { data = frame.data ? JSON.parse(frame.data) : {}; } catch { data = {}; }
+    let data = frame.data ? JSON.parse(frame.data) : {};
     const s = stream.peek();
     if (s.gap && frame.event !== 'stream_gap') stream.value = { ...s, gap: false };
     switch (frame.event) {
@@ -400,8 +484,10 @@ export const chat = (() => {
     try {
       const snap = await api.sessionGet(id, { signal: epochCtrl?.signal });
       if (myEpoch !== epoch) return;
-      if (snap) snapshot.value = snap;
-    } catch { /* transient */ }
+      snapshot.value = snap;
+    } catch (err) {
+      if (myEpoch === epoch) error.value = err;
+    }
     refreshDeliveries(id);
 
     const s = stream.peek();
@@ -415,6 +501,7 @@ export const chat = (() => {
       return;
     }
 
+    settleOptimistic();
     const pendingEcho = entries.peek().some((e) => e.__optimistic);
     const stillActive = await turnStillActive(id, s);
     if (myEpoch !== epoch) return;
@@ -443,24 +530,22 @@ export const chat = (() => {
     const snap = snapshot.peek();
     if (snap && (snap.phase === 'running' || (snap.queue ?? 0) > 0)) return true;
     if (s.runId) {
-      const r = await resourceState(api.runGet, s.runId, RUN_TERMINAL);
-      if (r === 'active') return true;
-      if (r === 'unknown') return true;
+      const r = await resourceState(api.runGet, s.runId, RUN_ACTIVE);
+      if (r !== 'terminal') return true;   // active or unknown → keep watching
     }
     if (s.deliveryId) {
-      const d = await resourceState(api.deliveryGet, s.deliveryId, DELIVERY_TERMINAL);
-      if (d === 'active') return true;
-      if (d === 'unknown') return true;
+      const d = await resourceState(api.deliveryGet, s.deliveryId, DELIVERY_ACTIVE);
+      if (d !== 'terminal') return true;
     }
     return false;
   }
 
-  async function resourceState(getFn, id, terminalSet) {
+  async function resourceState(getFn, id, activeSet) {
     try {
       const body = await getFn(id, { signal: epochCtrl?.signal });
-      const st = body?.state ?? body?.status ?? body?.outcome ?? '';
+      const st = String(body?.state ?? body?.status ?? body?.outcome ?? '').toLowerCase();
       if (!st) return 'unknown';
-      return terminalSet.includes(st) ? 'terminal' : 'active';
+      return activeSet.includes(st) ? 'active' : 'terminal';
     } catch (err) {
       if (err?.status === 404 || err?.status === 410) return 'terminal';
       return 'unknown';   // network/5xx: cannot confirm — never fake terminal
@@ -485,31 +570,18 @@ export const chat = (() => {
     try { await reconcile(); } finally { pollTickBusy = false; }
   }
 
-  // Attach to the session's live run. Preferred source: the contract's
+  // Attach to the session's live run. Sole authoritative source: the
   // snapshot field `active_run_id` (backend-derived from the running/
-  // canceling run). Fallback for old daemons: newest non-terminal run in
-  // the runs list (bounded to the earliest 200 by the backend — if the live
-  // run is not there we simply show the running phase and let the control
-  // plane refresh us; we never guess that the first run is the current one).
+  // canceling run). The runs list is fixed to the earliest 200 and ignores
+  // ordering queries, so scanning it can never identify the live run — we
+  // do not scan it at all.
   async function reattachIfRunning(id, { force = false } = {}) {
     const myEpoch = epoch;
     try {
       const snap = snapshot.peek();
       if (!force && (!snap || (snap.phase !== 'running' && (snap.queue ?? 0) === 0))) return;
       if (!force && stream.peek().active) return;
-      let runId = typeof snap?.active_run_id === 'string' && snap.active_run_id ? snap.active_run_id : null;
-      if (!runId) {
-        const page = await api.sessionRuns(id, {}, { signal: epochCtrl?.signal });
-        if (myEpoch !== epoch) return;
-        const runs = page.items ?? (Array.isArray(page) ? page : []);
-        const live = runs
-          .filter((r) => {
-            const st = r.state ?? r.status ?? '';
-            return st && !RUN_TERMINAL.includes(st);
-          })
-          .sort((a, b) => String(b.started_at ?? '').localeCompare(String(a.started_at ?? '')));
-        runId = live[0]?.id ?? null;
-      }
+      const runId = typeof snap?.active_run_id === 'string' && snap.active_run_id ? snap.active_run_id : null;
       if (!runId) {
         // Unknown which run is live: show the running phase honestly and
         // keep waiting on the control plane (poll safety still reconciles).
@@ -520,18 +592,22 @@ export const chat = (() => {
         return;
       }
       if (stream.peek().active && attached?.id === runId) return;
-      stream.value = { ...EMPTY_STREAM(), active: true, phase: 'streaming', runId, startedAt: Date.now() };
-      attachRun(runId);
+      const alive = attachRun(runId);   // false → poll-only observation
+      if (!alive) { startPollSafety(); return; }   // known-dead URL: poll only
       startPollSafety();
-    } catch { /* best effort */ }
+    } catch (err) {
+      if (myEpoch === epoch) error.value = err;
+    }
   }
 
   async function refreshDeliveries(id) {
     const myEpoch = epoch;
     try {
       const page = await api.deliveriesList(id, { limit: 20 }, { signal: epochCtrl?.signal });
-      if (myEpoch === epoch) deliveries.value = page.items ?? [];
-    } catch {}
+      if (myEpoch === epoch) deliveries.value = page.items;
+    } catch (err) {
+      if (myEpoch === epoch) error.value = err;
+    }
   }
 
   async function interrupt() {
@@ -546,54 +622,19 @@ export const chat = (() => {
     }
   }
 
-  // ── in-session history search (server-side pending contract wiring in
-  //    the search feature; client fallback kept for old daemons) ─────────
-  async function searchAll(query, { pages = 1 } = {}) {
-    const id = sessionId.peek();
-    if (!id || !query.trim()) return { results: [], pages: 0, entriesScanned: 0, hasMore: false };
-    const q = query.trim().toLowerCase();
-    const results = [];
-    let before = null, pagesDone = 0, entriesScanned = 0, hasMore = false;
-    for (let i = 0; i < Math.min(pages, cfg.history.maxSearchPages); i++) {
-      const page = await api.historyPage(id, {
-        limit: cfg.history.searchPageSize, order: 'desc', ...(before != null ? { before } : {}),
-      });
-      const items = page.items ?? [];
-      entriesScanned += items.length;
-      for (const e of items) { if (matchesEntry(e, q)) results.push(e); }
-      pagesDone += 1;
-      hasMore = Boolean(page.has_more);
-      if (!hasMore) break;
-      before = items.length ? items[items.length - 1].seq : null;
-      if (before == null) break;
-    }
-    results.sort((a, b) => b.seq - a.seq);
-    return { results, pages: pagesDone, entriesScanned, hasMore };
-  }
-
   // ── drafts (explicit ownership — the composer passes its session id) ──
   function setDraft(text, id = sessionId.peek()) { if (id) drafts.set(id, text); }
   function getDraft(id = sessionId.peek()) { return id ? (drafts.get(id) ?? '') : ''; }
 
   return {
     sessionId, snapshot, entries, oldestSeq, newestSeq, hasMoreBefore,
-    loadingOlder, loadingInitial, error, stream, sending, deliveries, phase, isActive,
+    loadingOlder, loadingInitial, error, stream, sending, capabilities,
+    pendingSeq, deliveries, phase, isActive,
     open, close, loadOlder, fetchNewer, send, interrupt, refreshDeliveries,
-    searchAll, setDraft, getDraft,
+    setDraft, getDraft, locate, clearPendingSeq,
   };
 })();
 
 function cap(text) { return text.length > cfg.sse.maxBufferedChars ? text.slice(0, cfg.sse.maxBufferedChars) : text; }
 
-function matchesEntry(e, q) {
-  const blocks = e?.payload?.content;
-  if (Array.isArray(blocks)) {
-    for (const b of blocks) {
-      if (typeof b?.text === 'string' && b.text.toLowerCase().includes(q)) return true;
-      if (typeof b?.arguments === 'object') {
-        try { if (JSON.stringify(b.arguments).toLowerCase().includes(q)) return true; } catch {}
-      }
-    }
-  }
-  return false;
-}
+

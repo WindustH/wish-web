@@ -1,7 +1,7 @@
 // Typed endpoint surface — the ONLY place URL shapes appear. UI/state call
 // these functions, never build URLs themselves. Mirrors
 // doc/en/reference/wishd-api.md; shapes verified against openapi.json.
-import { get, post, patch, api, getBaseUrl } from './client.js';
+import { get, post, patch, put, del, api, getBaseUrl } from './client.js';
 
 // ── sessions ────────────────────────────────────────────────────────────
 export const sessionsList = (params) => get('/sessions', { query: params });

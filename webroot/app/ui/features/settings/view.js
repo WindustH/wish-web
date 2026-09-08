@@ -27,6 +27,8 @@ export function SettingsView() {
   const isDesktop = useMedia(`(min-width: ${cfg.breakpoints.desktop}px)`);
   const [daemonCfg, setDaemonCfg] = useState(null);
   const [reloadMsg, setReloadMsg] = useState(null);
+  const [streaming, setStreaming] = useState(null);   // null=loading | {enabled,generation} | 'error'
+  const notifyOnFailure = useSignal(prefs.notifyOnFailure);
 
   useEffect(() => { stats.refresh(); }, []);
 
@@ -34,7 +36,29 @@ export function SettingsView() {
     try { setDaemonCfg(JSON.stringify(await api.configEffective(), null, 2)); }
     catch (e) { setDaemonCfg(String(e?.detail || e)); }
   }
-  useEffect(() => { if (advanced) loadDaemonCfg(); }, [advanced]);
+  useEffect(() => { if (advanced) { loadDaemonCfg(); loadStreaming(); } }, [advanced]);
+
+  async function loadStreaming() {
+    try {
+      const st = await api.streamingGet();
+      setStreaming({ enabled: Boolean(st.enabled), generation: st.config_generation });
+    } catch {
+      setStreaming('error');
+    }
+  }
+
+  async function putStreaming(next) {
+    const prev = streaming;
+    setStreaming({ ...prev, enabled: next });       // optimistic
+    try {
+      const st = await api.streamingPut(next);       // strict {enabled} body
+      setStreaming({ enabled: Boolean(st.enabled), generation: st.config_generation });
+      toast(i18nCore.t('settings.streamingApplied'));
+    } catch (e) {
+      setStreaming(prev);
+      toast(String(e?.detail || e?.message || e));
+    }
+  }
 
   async function reloadConfig() {
     try {
@@ -71,6 +95,25 @@ export function SettingsView() {
               class=${locale === l ? 'active' : ''}
               onClick=${() => i18nCore.setLocale(l)}>${l === 'zh' ? '中文' : 'English'}</button>`)}
           </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">${i18nCore.t('settings.notifications')}</div>
+        <div class="setting-row">
+          <div>
+            <div class="label">${i18nCore.t('settings.notifyOnFailure')}</div>
+            <div class="hint">${i18nCore.t('settings.notifyOnFailureHint')}</div>
+          </div>
+          <button class="switch ${notifyOnFailure ? 'on' : ''}" role="switch" aria-checked=${notifyOnFailure}
+            onClick=${async () => {
+              if (!notifyOnFailure) {
+                const notify = platform('notify');
+                const perm = notify?.isSupported ? await notify.request() : 'unsupported';
+                if (perm !== 'granted') { toast(i18nCore.t('settings.notifyDenied')); return; }
+              }
+              prefs.setNotifyOnFailure(!notifyOnFailure);
+            }} />
         </div>
       </div>
 
@@ -119,6 +162,18 @@ export function SettingsView() {
           <//>
         </div>
         ${advanced && html`
+          <div class="section-title">${i18nCore.t('settings.streaming')}</div>
+          ${streaming === 'error' && html`<div class="hint">${i18nCore.t('common.error')}</div>`}
+          ${streaming && streaming !== 'error' && html`
+            <div class="setting-row">
+              <div>
+                <div class="label">${i18nCore.t('settings.streamingToggle')}</div>
+                <div class="hint">${i18nCore.t('settings.streamingBoundary')}</div>
+              </div>
+              <button class="switch ${streaming.enabled ? 'on' : ''}" role="switch"
+                aria-checked=${streaming.enabled}
+                onClick=${() => putStreaming(!streaming.enabled)} />
+            </div>`}
           <div class="section-title">${i18nCore.t('settings.daemonConfig')}</div>
           <pre class="config-view">${daemonCfg ?? i18nCore.t('common.loading')}</pre>
           <div style="display:flex;gap:8px;margin-top:8px">

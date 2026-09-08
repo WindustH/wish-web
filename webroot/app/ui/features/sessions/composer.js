@@ -30,25 +30,34 @@ const revokeAll = (imgs) => { for (const i of imgs) if (i?.localUrl) URL.revokeO
 export function Composer({ sessionId, mobile }) {
   const stream = useSignal(chat.stream);
   const sending = useSignal(chat.sending);
+  const caps = useSignal(chat.capabilities);
   const sendOnEnter = useSignal(prefs.sendOnEnter);
   const [text, setText] = useState(() => chat.getDraft(sessionId));
   const [images, setImages] = useState([]);   // {name,mime,bytes,localUrl}
   const taRef = useRef(null);
   const imagesRef = useRef(images);
   imagesRef.current = images;
+  const textRef = useRef(text);
+  textRef.current = text;
   const running = stream?.active;
 
   const sidRef = useRef(sessionId);
   sidRef.current = sessionId;
+  const textOwner = useRef(sessionId);   // session the CURRENT text belongs to
   // Draft ownership is explicit: this component's session id, never
-  // chat.sessionId (which may already point at the NEXT session).
-  useEffect(() => { chat.setDraft(text, sidRef.current); }, [text]);
+  // chat.sessionId (which may already point at the NEXT session). Text
+  // captured under session A must never be written into session B's draft
+  // during a switch render (review round-2).
+  useEffect(() => {
+    if (textOwner.current === sidRef.current) chat.setDraft(text, sidRef.current);
+  }, [text]);
+  const setTextOwned = (v) => { textOwner.current = sessionId; setText(v); };
 
   // Session switch: restore THAT session's draft, drop attachments.
   // (Old code always cleared to '' — drafts were saved but never restored,
   // and a stale non-empty text could leak into the next session's draft.)
   useEffect(() => {
-    setText(chat.getDraft(sessionId));
+    setTextOwned(chat.getDraft(sessionId));   // restored text belongs to THIS session
     setImages((prev) => { revokeAll(prev); return []; });
     return () => revokeAll(imagesRef.current);   // unmount / next switch
   }, [sessionId]);
@@ -70,13 +79,32 @@ export function Composer({ sessionId, mobile }) {
   const busy = running || sending;
   const canSend = (text.trim().length > 0 || images.length > 0) && !busy;
 
+  // Capability gating (contract #4). caps is tri-state:
+  //  · {status:'ok', data} — gate on data.input_modalities;
+  //  · null (loading) or {status:'error'} (API failure) — permissive defaults,
+  //    the server validates on send (an API failure is NOT "unsupported");
+  //  · data.input_modalities === null — genuinely unknown → permissive.
+  // Only an explicit modality list without "image" disables image input.
+  const capsData = caps?.status === 'ok' ? caps.data : null;
+  const imageAllowed = !capsData
+    || capsData.input_modalities == null
+    || (Array.isArray(capsData.input_modalities) && capsData.input_modalities.includes('image'));
+  const maxImages = capsData?.images?.max_images_per_message ?? cfg.composer.maxImages;
+  const maxImageBytes = capsData?.images?.max_image_bytes ?? cfg.composer.maxImageBytes;
+  const allowedMimes = Array.isArray(capsData?.images?.allowed_mime_types) && capsData.images.allowed_mime_types.length
+    ? capsData.images.allowed_mime_types : null;
+
   async function attach() {
+    if (!imageAllowed) { toast(i18n.t('chat.imageUnsupported')); return; }
+    const owner = sessionId;
     const fs = platform('fs');
     const picked = await fs.pickImages({ multiple: true });
+    if (sidRef.current !== owner) return;   // switched away while picking
     const next = [...images];
     for (const p of picked) {
-      if (p.bytes.byteLength > cfg.composer.maxImageBytes) { toast(i18n.t('chat.imageTooLarge')); continue; }
-      if (next.length >= cfg.composer.maxImages) break;
+      if (allowedMimes && !allowedMimes.includes(p.mime)) { toast(i18n.t('chat.imageMime')); continue; }
+      if (p.bytes.byteLength > maxImageBytes) { toast(i18n.t('chat.imageTooLarge')); continue; }
+      if (next.length >= maxImages) break;
       next.push({ ...p, localUrl: URL.createObjectURL(new Blob([p.bytes], { type: p.mime })) });
     }
     setImages(next);
@@ -91,24 +119,35 @@ export function Composer({ sessionId, mobile }) {
   async function submit() {
     if (sending || running) return;            // in-flight guard; no implicit stop
     if (!canSend) return;
+    const owner = sessionId;
     const payload = text, imgs = images;
     try {
       await chat.send(payload, imgs);
-      // Success: clear only what was sent. Edits made during the in-flight
-      // send (new text / newly attached images) survive.
-      setText((cur) => (cur === payload ? '' : cur));
-      if (sameSet(images, imgs)) setImages([]);
-      else setImages(images.filter((i) => !imgs.includes(i)));
+      // Sent. If the user switched sessions mid-flight, settle the OLD
+      // session's draft explicitly and never touch the new one (review r2).
+      if (sidRef.current !== owner) {
+        chat.setDraft('', owner);
+        revokeAll(imgs);
+        return;
+      }
+      // Success: clear only what was sent, via FUNCTIONAL updates — reading
+      // the closed-over `images` array would discard attachments added
+      // during the in-flight send (review round-2). The draft is cleared
+      // ONLY if the text is still the sent payload (newer edits keep theirs,
+      // already saved per-keystroke by the [text] effect).
+      if (textRef.current === payload) {
+        setText('');
+        chat.setDraft('', owner);
+      }
+      setImages((cur) => cur.filter((i) => !imgs.includes(i)));
       revokeAll(imgs);
     } catch (e) {
-      toast(String(e?.detail || e?.message || e));
+      if (sidRef.current === owner) toast(String(e?.detail || e?.message || e));
       // Draft and attachments stay exactly as they are.
     }
   }
 
   function onStop() { if (running && !sending) chat.interrupt(); }
-
-  const sameSet = (cur, sent) => cur.length === sent.length && cur.every((x, i) => x === sent[i]);
 
   function onKeyDown(e) {
     // IME composition: Enter confirms the candidate window — never sends.
@@ -139,18 +178,18 @@ export function Composer({ sessionId, mobile }) {
         </div>`}
         ${!mobile && html`<div class="row">
           <button class="btn ghost icon-only" title=${i18n.t('chat.image')} aria-label=${i18n.t('chat.image')}
-            onClick=${attach}><${Icon} name="image" /></button>
+            disabled=${!imageAllowed} onClick=${attach}><${Icon} name="image" /></button>
           <div class="grow" />
         </div>`}
         <textarea ref=${taRef} rows=${mobile ? cfg.composer.mobileMinRows : cfg.composer.desktopMinRows}
           placeholder=${running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')}
           value=${text}
-          onInput=${(e) => setText(e.target.value)}
+          onInput=${(e) => setTextOwned(e.target.value)}
           onKeyDown=${onKeyDown}
           aria-label=${i18n.t('chat.placeholder')} />
         <div class="row">
           ${mobile && html`<button class="btn ghost icon-only" title=${i18n.t('chat.image')}
-            aria-label=${i18n.t('chat.image')} onClick=${attach}><${Icon} name="image" /></button>`}
+            aria-label=${i18n.t('chat.image')} disabled=${!imageAllowed} onClick=${attach}><${Icon} name="image" /></button>`}
           <div class="grow" />
           <button class="send-btn ${running ? 'stop' : ''}" onClick=${running ? onStop : submit}
             disabled=${sending || (!running && !canSend)}

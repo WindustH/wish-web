@@ -32,7 +32,7 @@ export const cfg = Object.freeze({
   sessions: {
     pageSize: 30,                     // sessions list page
     searchDebounceMs: 250,
-    maxListItems: 600,                // hard cap of resident list rows
+    rebuildMaxPages: 80,              // authoritative rebuild depth bound (80 × pageSize)
     phases: ['idle', 'running', 'queued', 'compacting'],
   },
 
@@ -40,8 +40,9 @@ export const cfg = Object.freeze({
     pageSize: 40,                     // /history page (also the DOM chunk size)
     reconcileDelayMs: 250,            // wait after response_complete before fetch
     maxDrainPages: 8,                // fetchNewer(): pages per drain burst (safety cap)
-    searchPageSize: 200,              // pages fetched when searching in-session
-    maxSearchPages: 20,               // search depth bound (see from-llm/10)
+    maxLocatePages: 25,              // locate(seq): max pages of backfill to reach a target
+    searchPageSize: 50,               // /history/search page size (contract default)
+    maxSearchPages: 40,               // fetch-older bound while paging search hits
     prefetchOlderTriggerPx: 120,      // load older when scroll within this of top
   },
 

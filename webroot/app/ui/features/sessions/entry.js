@@ -12,6 +12,14 @@ import { truncate, firstLine } from '../../../core/util/fmt.js';
 
 export function HistoryEntry({ entry }) {
   const kind = entry.kind;
+  const inner = HistoryEntryInner(entry, kind);
+  if (entry.seq != null) {
+    return html`<div class="entry-anchor" data-seq=${entry.seq}>${inner}</div>`;
+  }
+  return inner;
+}
+
+function HistoryEntryInner(entry, kind) {
   if (kind === 'user_message') return html`<${UserEntry} entry=${entry} />`;
   if (kind === 'assistant_message') return html`<${AssistantEntry} entry=${entry} />`;
   if (kind === 'tool_result') return html`<${ToolResultEntry} entry=${entry} />`;
