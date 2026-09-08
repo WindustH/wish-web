@@ -1,22 +1,20 @@
 // Conversation slice. Owns: session snapshot, windowed canonical history
 // (/history keyset pages), delivery/run streaming state, optimistic user
 // entries, and the reconcile loop that makes durable history authoritative
-// after every turn (per ui-integration.md "Loading a conversation").
+// after every turn.
 //
 // Lifecycle: one EPOCH per open(id). Every async path captures the epoch and
 // discards results when stale; teardown aborts the epoch's AbortController,
-// cancelling all in-flight fetches. No scattered boolean guards — "stale()"
-// is the only cross-session check (task 1).
+// cancelling all in-flight fetches. "stale()" is the only cross-session check.
 //
-// Streaming model (dual-mode):
-//  · daemon streaming enabled → per-token deltas appended into `stream`;
-//  · daemon streaming disabled (observed default: [streaming].enabled=false)
-//    → only `resource` + `response_complete` arrive; the UI shows a live
-//    "thinking" phase and the turn appears once history reconciles.
-// Both modes converge on the same reconcile path. response_complete is NOT
-// trusted as a terminal state by itself: reconcile consults the run /
-// delivery / snapshot phase via API, so tool-call rounds and retries never
-// truncate a still-running turn (task 2).
+// Streaming honesty rules (review round 1):
+//  · response_complete is a HINT — the turn is finalized only when history
+//    drained (has_more exhausted), no optimistic echo is pending, AND the
+//    run/delivery/snapshot confirm terminal state via API;
+//  · tool rounds and retries therefore continue streaming;
+//  · a gone (404/410) delivery stream may hop ONCE to its run stream; a gone
+//    run stream is settled from durable state, never re-attached blindly;
+//  · denied (401/403) surfaces an error and stops — never retried.
 import { cfg } from '../config.js';
 import { bus } from '../bus.js';
 import { signal, derive } from './reactive.js';
@@ -34,29 +32,31 @@ const EMPTY_STREAM = () => ({
 
 const RUN_TERMINAL = ['completed', 'failed', 'canceled', 'cancelled', 'interrupted'];
 const DELIVERY_TERMINAL = ['completed', 'failed', 'canceled', 'cancelled', 'delivered'];
+const GONE = 'gone';      // SSE 404/410 — resource no longer exists
+const DENIED = 'denied';  // SSE 401/403 — auth failure, never retried
 
 export const chat = (() => {
   const sessionId = signal(null);
   const snapshot = signal(null);
-  const entries = signal([]);            // ascending seq; windowed resident
-  const oldestSeq = signal(null);        // smallest resident seq
-  const newestSeq = signal(null);        // largest resident seq (incl. optimistic)
+  const entries = signal([]);
+  const oldestSeq = signal(null);
+  const newestSeq = signal(null);
   const hasMoreBefore = signal(false);
   const loadingOlder = signal(false);
   const loadingInitial = signal(false);
   const error = signal(null);
   const stream = signal(EMPTY_STREAM());
-  const sending = signal(false);         // send() in flight (upload+POST)
-  const deliveries = signal([]);         // recent delivery states
-  const drafts = new Map();              // per-session composer draft (not reactive)
+  const sending = signal(false);
+  const deliveries = signal([]);
+  const drafts = new Map();
 
   let sse = null;
+  let attached = null;                  // {kind:'delivery'|'run', id}
   let offSessionSync = null;
   let reconcileTimer = null;
   let pollTimer = null;
   let pollTickBusy = false;
 
-  // ── lifecycle epoch ────────────────────────────────────────────────────
   let epoch = 0;
   let epochCtrl = null;
 
@@ -70,11 +70,15 @@ export const chat = (() => {
 
   function teardown() {
     epochCtrl?.abort(new Error('session closed')); epochCtrl = null;
-    sse?.close(); sse = null;
+    stopStream();
     offSessionSync?.(); offSessionSync = null;
     clearTimeout(reconcileTimer); reconcileTimer = null;
     clearInterval(pollTimer); pollTimer = null;
     pollTickBusy = false;
+  }
+
+  function stopStream() {
+    sse?.close(); sse = null; attached = null;
   }
 
   async function open(id) {
@@ -98,7 +102,7 @@ export const chat = (() => {
       ]);
       if (stale()) return;
       snapshot.value = snap;
-      const tail = (page.items ?? []).slice().reverse(); // → ascending
+      const tail = (page.items ?? []).slice().reverse();
       applyPage(tail, page.has_more ?? false);
       offSessionSync = (await import('./syncSlice.js')).sync.subscribeSession(id, onSessionSync);
       await reattachIfRunning(id);
@@ -117,8 +121,6 @@ export const chat = (() => {
     if (!id) return;
     if (evt.kind === 'upsert' && evt.body?.id === id) {
       snapshot.value = evt.body;
-      // The session state changed (phase/queue). If another device drove a
-      // turn, our history may be behind — refresh it (task 2).
       debouncedInvalidate();
     } else if (evt.kind === 'invalidate') {
       debouncedInvalidate();
@@ -127,9 +129,6 @@ export const chat = (() => {
     }
   }
 
-  // Another device / process changed this session: snapshot + history + a
-  // possible live run all need attention (task 2: sync invalidation used to
-  // only refresh the snapshot).
   const debouncedInvalidate = debounce(() => { invalidateLocal(); }, 400);
   async function invalidateLocal() {
     const myEpoch = epoch;
@@ -147,17 +146,12 @@ export const chat = (() => {
   }
 
   // ── history paging & merge ─────────────────────────────────────────────
-  // Stable identity for resident entries: durable by seq, optimistic by
-  // localId. Null-seq entries must NEVER collide (task 2: "historyPage merges
-  // keeping all optimistic items, no mutual overwrite on null seq").
   const entryKey = (e) => e.seq != null ? `s${e.seq}` : e.localId ? `o${e.localId}` : `x${e.delivery_id ?? e.id ?? Math.random()}`;
 
   function mergeItems(fresh) {
     if (!fresh.length) return 0;
     const cur = entries.peek();
     const byKey = new Map(cur.map((e) => [entryKey(e), e]));
-    // Durable echo of a pending optimistic send: same delivery_id → drop
-    // the optimistic copy, keep the canonical item.
     const freshDeliveryIds = new Set(fresh.map((e) => e.delivery_id).filter(Boolean));
     for (const [k, e] of byKey) {
       if (e.__optimistic && e.deliveryId && freshDeliveryIds.has(e.deliveryId)) byKey.delete(k);
@@ -203,9 +197,10 @@ export const chat = (() => {
     finally { if (myEpoch === epoch) loadingOlder.value = false; }
   }
 
-  // Drain newer pages until the cursor stops advancing or has_more ends.
-  // Returns {ok, added} so reconcile can refuse to finalize on failure
-  // (task 2: "reconcile must succeed before removing optimistic bubbles").
+  // Drain newer pages. "drained" means the cursor reached the live head
+  // (has_more exhausted) — hitting the page cap or a stalled cursor means
+  // there may STILL be more durable entries, which must not be reported as
+  // an up-to-date read (review #5).
   async function fetchNewer() {
     const myEpoch = epoch;
     const sig = epochCtrl?.signal;
@@ -213,22 +208,21 @@ export const chat = (() => {
     try {
       for (let i = 0; i < cfg.history.maxDrainPages; i++) {
         const id = sessionId.peek();
-        if (!id) return { ok: false, added };
+        if (!id) return { ok: false, drained: false, added };
         const after = newestSeq.peek();
         const page = await api.historyPage(id, {
           limit: cfg.history.pageSize, order: 'asc', ...(after != null ? { after } : {}),
         }, { signal: sig });
-        if (myEpoch !== epoch) return { ok: false, added };
+        if (myEpoch !== epoch) return { ok: false, drained: false, added };
         const fresh = page.items ?? [];
-        if (!fresh.length) return { ok: true, added };
+        if (!fresh.length) return { ok: true, drained: true, added };
         added += mergeItems(fresh);
-        if (!page.has_more) return { ok: true, added };
-        if (newestSeq.peek() === after) return { ok: true, added }; // cursor stalled
+        if (!page.has_more) return { ok: true, drained: true, added };
+        if (newestSeq.peek() === after) return { ok: true, drained: false, added };
       }
-      return { ok: true, added };   // drain cap reached; poll safety continues
+      return { ok: true, drained: false, added };   // page-cap burst exhausted
     } catch (err) {
-      if (err?.name === 'AbortError' || myEpoch !== epoch) return { ok: false, added };
-      return { ok: false, added };
+      return { ok: false, drained: false, added };
     }
   }
 
@@ -245,8 +239,8 @@ export const chat = (() => {
     sending.value = true;
     let optimistic = null;
     try {
-      // Upload images first (session-partitioned blob tree). Failures THROW
-      // so the composer can keep the draft and every attachment (task 1).
+      // Upload images first; failures THROW so the composer keeps the draft
+      // and every attachment. Blob upload is per-session by design.
       const blocks = [];
       const uploaded = [];
       for (const img of images.slice(0, cfg.composer.maxImages)) {
@@ -255,7 +249,7 @@ export const chat = (() => {
         }
         const blob = await api.uploadSessionImage(id, img.bytes, img.mime, { signal: sig });
         uploaded.push({ blobId: blob.id ?? blob.sha256, localUrl: img.localUrl, name: img.name });
-        blocks = [...blocks, { type: 'image', blob_id: blob.id ?? blob.sha256 }];
+        blocks.push({ type: 'image', blob_id: blob.id ?? blob.sha256 });
       }
 
       const localKey = Date.now();
@@ -277,15 +271,14 @@ export const chat = (() => {
       }, { signal: sig });
       if (myEpoch !== epoch) return null;
       const deliveryId = d.resource_id ?? d.id;
-      optimistic.deliveryId = deliveryId;   // reconcile key
+      optimistic.deliveryId = deliveryId;
       entries.value = entries.peek().slice();
       stream.value = { ...stream.peek(), deliveryId };
       attachDelivery(deliveryId);
       refreshDeliveries(id);
       return deliveryId;
     } catch (err) {
-      if (myEpoch !== epoch) return null;   // switched away: new state untouched
-      // Failed before/at queueing: remove the optimistic bubble and surface.
+      if (myEpoch !== epoch) return null;
       if (optimistic) entries.value = entries.peek().filter((e) => e !== optimistic);
       stream.value = { ...stream.peek(), active: false, phase: 'idle', error: String(err?.detail || err?.message || err) };
       stopPollSafety();
@@ -295,36 +288,54 @@ export const chat = (() => {
     }
   }
 
-  function sseFor(path, deliveryId, onFrame) {
-    sse?.close();
-    const url = new URL(absUrl(path));
-    sse = createSse({
-      url: url.href,
-      onFrame,
-      onState: ({ state: st, err }) => {
-        if (st === 'gone') {
-          // Resource disappeared: if the run is still live, follow the run;
-          // otherwise settle from durable state.
-          sse = null;
-          const s = stream.peek();
-          if (s.active && s.runId && !sse?.isTerminal) attachRun(s.runId);
-          else scheduleReconcile();
-        }
-      },
-    });
+  // One URL construction site: absUrl() is applied EXACTLY ONCE here (review
+  // #2 — double concat produced http://host/apihttp://host/api/...).
+  function streamUrl(kind, id, afterId = '') {
+    const u = new URL(absUrl(`/${kind === 'run' ? 'runs' : 'deliveries'}/${id}/events`));
+    if (afterId) u.searchParams.set('after', afterId);
+    return u.href;
   }
 
   function attachDelivery(deliveryId, afterId = '') {
-    const url = new URL(absUrl(`/deliveries/${deliveryId}/events`));
-    if (afterId) url.searchParams.set('after', afterId);
-    sseFor(url, deliveryId, (f) => handleStreamFrame(deliveryId, f));
+    startStream('delivery', deliveryId, streamUrl('delivery', deliveryId, afterId),
+      (f) => handleStreamFrame(deliveryId, f));
   }
 
   function attachRun(runId, afterId = '') {
-    const url = new URL(absUrl(`/runs/${runId}/events`));
-    if (afterId) url.searchParams.set('after', afterId);
-    sseFor(url, null, (f) => handleStreamFrame(null, f));
+    startStream('run', runId, streamUrl('run', runId, afterId),
+      (f) => handleStreamFrame(null, f));
     stream.value = { ...stream.peek(), runId, active: true, phase: 'streaming' };
+  }
+
+  function startStream(kind, id, url, onFrame) {
+    stopStream();
+    attached = { kind, id };
+    sse = createSse({
+      url,
+      onFrame,
+      onState: ({ state: st, err }) => onStreamState(kind, id, st, err),
+    });
+  }
+
+  function onStreamState(kind, id, st, err) {
+    if (st !== GONE && st !== DENIED) return;
+    const s = stream.peek();
+    if (st === DENIED) {
+      // Auth failure: never retried, surfaced honestly.
+      stopStream();
+      stream.value = { ...s, active: false, phase: 'idle',
+        error: `stream denied: ${err?.status ?? ''} ${err?.message ?? ''}`.trim() };
+      stopPollSafety();
+      return;
+    }
+    // GONE (404/410): hop delivery→run at most once; a gone run is settled
+    // from durable state via reconcile — never re-attach a dead URL (review #4).
+    sse = null; attached = null;
+    if (kind === 'delivery' && s.runId) {
+      attachRun(s.runId);
+      return;
+    }
+    scheduleReconcile();
   }
 
   function handleStreamFrame(deliveryId, frame) {
@@ -363,15 +374,10 @@ export const chat = (() => {
         scheduleReconcile();
         break;
       case 'stream_gap':
-        // Some deltas were lost: recover from durable history but KEEP the
-        // stream attached (it resumes with Last-Event-ID) — do not tear the
-        // connection down for a recoverable gap (task 2).
         stream.value = { ...s, gap: true };
         fetchNewer();
         break;
       case 'response_complete':
-        // NOT trusted as terminal on its own: reconcile verifies the real
-        // run/delivery state, so agent tool rounds and retries continue.
         stream.value = { ...s, phase: 'finalizing' };
         scheduleReconcile();
         break;
@@ -391,7 +397,6 @@ export const chat = (() => {
     if (!id) return;
     const res = await fetchNewer();
     if (myEpoch !== epoch) return;
-    // Snapshot is authoritative for phase/queue.
     try {
       const snap = await api.sessionGet(id, { signal: epochCtrl?.signal });
       if (myEpoch !== epoch) return;
@@ -402,10 +407,11 @@ export const chat = (() => {
     const s = stream.peek();
     if (!s.active) { finalize(); return; }
 
-    if (!res.ok) {
-      // Reconcile FAILED — never pretend the turn is durable (task 2).
-      // Poll safety keeps retrying; stream stays as-is.
+    // Failed read, or a read that provably hasn't reached the live head:
+    // NEVER finalize (review #5) — keep observing via poll safety.
+    if (!res.ok || !res.drained) {
       if (s.phase === 'finalizing') stream.value = { ...s, phase: 'streaming' };
+      ensureObserving();
       return;
     }
 
@@ -414,47 +420,59 @@ export const chat = (() => {
     if (myEpoch !== epoch) return;
 
     if (pendingEcho || stillActive) {
-      // Turn continues (tool round, retry, or history not yet durable).
-      // Keep observing; reattach if the stream died mid-run.
       if (s.phase === 'finalizing') stream.value = { ...s, phase: 'streaming' };
-      if (!sse && s.runId) attachRun(s.runId);
+      ensureObserving();
       return;
     }
     finalize();
   }
 
-  // Real liveness of the observed turn, from durable API state.
+  // If the turn is still live but the stream died (server end, gone hop
+  // exhausted), re-attach to the newest live run reported by the API.
+  async function ensureObserving() {
+    if (sse) return;
+    const id = sessionId.peek();
+    if (!id || !stream.peek().active) return;
+    await reattachIfRunning(id, { force: true });
+  }
+
+  // Real liveness of the observed turn from durable API state. Only
+  // definitive "resource gone" (404/410) counts as terminal; network/5xx
+  // errors mean UNKNOWN → keep observing (review #5).
   async function turnStillActive(id, s) {
-    try {
-      const snap = snapshot.peek();
-      if (snap && (snap.phase === 'running' || (snap.queue ?? 0) > 0)) return true;
-    } catch { /* fallthrough */ }
+    const snap = snapshot.peek();
+    if (snap && (snap.phase === 'running' || (snap.queue ?? 0) > 0)) return true;
     if (s.runId) {
-      try {
-        const run = await api.runGet(s.runId, { signal: epochCtrl?.signal });
-        const st = run?.state ?? run?.status ?? '';
-        if (st && !RUN_TERMINAL.includes(st)) return true;
-      } catch { /* gone → terminal */ }
+      const r = await resourceState(api.runGet, s.runId, RUN_TERMINAL);
+      if (r === 'active') return true;
+      if (r === 'unknown') return true;
     }
     if (s.deliveryId) {
-      try {
-        const d = await api.deliveryGet(s.deliveryId, { signal: epochCtrl?.signal });
-        const st = d?.state ?? d?.status ?? '';
-        if (st && !DELIVERY_TERMINAL.includes(st)) return true;
-      } catch { /* gone → terminal */ }
+      const d = await resourceState(api.deliveryGet, s.deliveryId, DELIVERY_TERMINAL);
+      if (d === 'active') return true;
+      if (d === 'unknown') return true;
     }
     return false;
+  }
+
+  async function resourceState(getFn, id, terminalSet) {
+    try {
+      const body = await getFn(id, { signal: epochCtrl?.signal });
+      const st = body?.state ?? body?.status ?? body?.outcome ?? '';
+      if (!st) return 'unknown';
+      return terminalSet.includes(st) ? 'terminal' : 'active';
+    } catch (err) {
+      if (err?.status === 404 || err?.status === 410) return 'terminal';
+      return 'unknown';   // network/5xx: cannot confirm — never fake terminal
+    }
   }
 
   function finalize() {
     stream.value = EMPTY_STREAM();
     stopPollSafety();
-    sse?.close(); sse = null;
+    stopStream();
   }
 
-  // Poll safety: while a turn is active, periodically drain history and, if
-  // everything is durable + terminal, finalize (also the fallback when SSE
-  // is unavailable). One mechanism; no ad-hoc retry timers.
   function startPollSafety() {
     clearInterval(pollTimer);
     pollTimer = setInterval(pollTick, Math.max(2_000, cfg.sync.pollFallbackMs));
@@ -467,21 +485,43 @@ export const chat = (() => {
     try { await reconcile(); } finally { pollTickBusy = false; }
   }
 
-  async function reattachIfRunning(id) {
+  // Attach to the session's live run. Preferred source: the contract's
+  // snapshot field `active_run_id` (backend-derived from the running/
+  // canceling run). Fallback for old daemons: newest non-terminal run in
+  // the runs list (bounded to the earliest 200 by the backend — if the live
+  // run is not there we simply show the running phase and let the control
+  // plane refresh us; we never guess that the first run is the current one).
+  async function reattachIfRunning(id, { force = false } = {}) {
     const myEpoch = epoch;
     try {
       const snap = snapshot.peek();
-      if (!snap || (snap.phase !== 'running' && (snap.queue ?? 0) === 0)) return;
-      if (stream.peek().active) return;
-      const runs = await api.sessionRuns(id, { limit: 1 }, { signal: epochCtrl?.signal });
-      if (myEpoch !== epoch) return;
-      const run = (runs.items ?? [])[0];
-      if (!run) return;
-      const state = run.state ?? run.status ?? '';
-      if (RUN_TERMINAL.includes(state)) return;
-      // There is a live run: show streaming shell and attach to its events.
-      stream.value = { ...EMPTY_STREAM(), active: true, phase: 'streaming', runId: run.id, startedAt: Date.now() };
-      attachRun(run.id);
+      if (!force && (!snap || (snap.phase !== 'running' && (snap.queue ?? 0) === 0))) return;
+      if (!force && stream.peek().active) return;
+      let runId = typeof snap?.active_run_id === 'string' && snap.active_run_id ? snap.active_run_id : null;
+      if (!runId) {
+        const page = await api.sessionRuns(id, {}, { signal: epochCtrl?.signal });
+        if (myEpoch !== epoch) return;
+        const runs = page.items ?? (Array.isArray(page) ? page : []);
+        const live = runs
+          .filter((r) => {
+            const st = r.state ?? r.status ?? '';
+            return st && !RUN_TERMINAL.includes(st);
+          })
+          .sort((a, b) => String(b.started_at ?? '').localeCompare(String(a.started_at ?? '')));
+        runId = live[0]?.id ?? null;
+      }
+      if (!runId) {
+        // Unknown which run is live: show the running phase honestly and
+        // keep waiting on the control plane (poll safety still reconciles).
+        if (!stream.peek().active) {
+          stream.value = { ...EMPTY_STREAM(), active: true, phase: 'streaming', startedAt: Date.now() };
+          startPollSafety();
+        }
+        return;
+      }
+      if (stream.peek().active && attached?.id === runId) return;
+      stream.value = { ...EMPTY_STREAM(), active: true, phase: 'streaming', runId, startedAt: Date.now() };
+      attachRun(runId);
       startPollSafety();
     } catch { /* best effort */ }
   }
@@ -506,8 +546,8 @@ export const chat = (() => {
     }
   }
 
-  // ── in-session history search (client-side; backend search pending
-  //    contract-backend.md — will switch to /history/search, task 5) ──────
+  // ── in-session history search (server-side pending contract wiring in
+  //    the search feature; client fallback kept for old daemons) ─────────
   async function searchAll(query, { pages = 1 } = {}) {
     const id = sessionId.peek();
     if (!id || !query.trim()) return { results: [], pages: 0, entriesScanned: 0, hasMore: false };
@@ -520,9 +560,7 @@ export const chat = (() => {
       });
       const items = page.items ?? [];
       entriesScanned += items.length;
-      for (const e of items) {
-        if (matchesEntry(e, q)) results.push(e);
-      }
+      for (const e of items) { if (matchesEntry(e, q)) results.push(e); }
       pagesDone += 1;
       hasMore = Boolean(page.has_more);
       if (!hasMore) break;
@@ -533,8 +571,8 @@ export const chat = (() => {
     return { results, pages: pagesDone, entriesScanned, hasMore };
   }
 
-  // ── drafts ────────────────────────────────────────────────────────────
-  function setDraft(text) { const id = sessionId.peek(); if (id) drafts.set(id, text); }
+  // ── drafts (explicit ownership — the composer passes its session id) ──
+  function setDraft(text, id = sessionId.peek()) { if (id) drafts.set(id, text); }
   function getDraft(id = sessionId.peek()) { return id ? (drafts.get(id) ?? '') : ''; }
 
   return {

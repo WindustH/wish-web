@@ -3,11 +3,15 @@
 // content up to a cap, then scrolls. Send button morphs send↔stop
 // (morphicons element) while a run is active.
 //
-// Correctness rules (task 1):
+// Correctness rules (task 1 + review round 1):
 //  · IME-safe Enter — composition strokes never send (isComposing / 229);
 //  · in-flight guard — double-click cannot double-send (chat.sending);
-//  · failures keep the draft AND every attachment (chat.send throws);
-//  · drafts are per-session and restored when switching back;
+//  · the input is NOT cleared while the send is in flight — on success only
+//    the exact sent payload is cleared (if the user typed more meanwhile,
+//    those edits survive); on failure everything stays (review #6);
+//  · Enter never interrupts a running turn — stop must be an explicit
+//    button action (review #7);
+//  · drafts are per-session (explicit id) and restored when switching back;
 //  · object URLs are revoked on remove / successful send / switch / unmount.
 import { html } from '../../h.js';
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -34,7 +38,11 @@ export function Composer({ sessionId, mobile }) {
   imagesRef.current = images;
   const running = stream?.active;
 
-  useEffect(() => { chat.setDraft(text); }, [text]);
+  const sidRef = useRef(sessionId);
+  sidRef.current = sessionId;
+  // Draft ownership is explicit: this component's session id, never
+  // chat.sessionId (which may already point at the NEXT session).
+  useEffect(() => { chat.setDraft(text, sidRef.current); }, [text]);
 
   // Session switch: restore THAT session's draft, drop attachments.
   // (Old code always cleared to '' — drafts were saved but never restored,
@@ -81,21 +89,26 @@ export function Composer({ sessionId, mobile }) {
   }
 
   async function submit() {
-    if (sending) return;                       // in-flight guard
-    if (!canSend) {
-      if (running) chat.interrupt();           // stop button role
-      return;
-    }
+    if (sending || running) return;            // in-flight guard; no implicit stop
+    if (!canSend) return;
     const payload = text, imgs = images;
-    setText(''); setImages([]);
     try {
       await chat.send(payload, imgs);
-      revokeAll(imgs);                         // sent: thumbnails no longer needed
+      // Success: clear only what was sent. Edits made during the in-flight
+      // send (new text / newly attached images) survive.
+      setText((cur) => (cur === payload ? '' : cur));
+      if (sameSet(images, imgs)) setImages([]);
+      else setImages(images.filter((i) => !imgs.includes(i)));
+      revokeAll(imgs);
     } catch (e) {
       toast(String(e?.detail || e?.message || e));
-      setText(payload); setImages(imgs);       // keep draft AND attachments
+      // Draft and attachments stay exactly as they are.
     }
   }
+
+  function onStop() { if (running && !sending) chat.interrupt(); }
+
+  const sameSet = (cur, sent) => cur.length === sent.length && cur.every((x, i) => x === sent[i]);
 
   function onKeyDown(e) {
     // IME composition: Enter confirms the candidate window — never sends.
@@ -105,8 +118,10 @@ export function Composer({ sessionId, mobile }) {
       const plainEnter = !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
       const modEnter = e.ctrlKey || e.metaKey;
       if ((enterSends && plainEnter) || (!enterSends && modEnter)) {
-        e.preventDefault();
-        submit();
+        if (!running && !sending) {            // keyboard never interrupts
+          e.preventDefault();
+          submit();
+        }
       }
     }
   }
@@ -137,7 +152,7 @@ export function Composer({ sessionId, mobile }) {
           ${mobile && html`<button class="btn ghost icon-only" title=${i18n.t('chat.image')}
             aria-label=${i18n.t('chat.image')} onClick=${attach}><${Icon} name="image" /></button>`}
           <div class="grow" />
-          <button class="send-btn ${running ? 'stop' : ''}" onClick=${submit}
+          <button class="send-btn ${running ? 'stop' : ''}" onClick=${running ? onStop : submit}
             disabled=${sending || (!running && !canSend)}
             aria-label=${running ? i18n.t('chat.stop') : i18n.t('chat.send')}
             title=${running ? i18n.t('chat.stop') : i18n.t('chat.send')}>

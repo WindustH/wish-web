@@ -8,7 +8,8 @@
 // non-browser hosts (see client.js absUrl()).
 import { cfg } from '../config.js';
 
-const TERMINAL_STATUSES = new Set([401, 403, 404, 410]);
+const GONE_STATUSES = new Set([404, 410]);      // resource no longer exists
+const DENIED_STATUSES = new Set([401, 403]);    // auth failure — never retried
 
 export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extraHeaders }) {
   const stateListeners = new Set();
@@ -16,7 +17,7 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
   let lastEventId = '';
   let attempt = 0;
   let aborted = false;        // user-initiated close
-  let terminal = false;       // 401/403/404/410 — never reconnect
+  let terminal = false;       // gone/denied — never reconnect
   let controller = null;
   let reconnectTimer = null;
   let heartbeatTimer = null;
@@ -65,11 +66,13 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
     try {
       const res = await fetch(url, { headers, signal: controller.signal });
       clearTimeout(connectTimer);
-      if (TERMINAL_STATUSES.has(res.status)) {
-        // Delivery/run no longer exists (or auth failed). Reconnecting
-        // forever would be dishonest — surface 'gone' and stop.
+      if (GONE_STATUSES.has(res.status) || DENIED_STATUSES.has(res.status)) {
+        // The stream resource is gone (404/410) or auth failed (401/403).
+        // Reconnecting forever would be dishonest — surface the terminal
+        // state ('gone' vs 'denied') and stop.
         terminal = true;
-        emitState('gone', Object.assign(new Error(`SSE ${res.status}`), { status: res.status }));
+        const state = DENIED_STATUSES.has(res.status) ? 'denied' : 'gone';
+        emitState(state, Object.assign(new Error(`SSE ${res.status}`), { status: res.status }));
         return;
       }
       if (!res.ok || !res.body) throw Object.assign(new Error(`SSE ${res.status}`), { status: res.status });
@@ -85,10 +88,14 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
         const { done, value } = await reader.read();
         if (done) break;
         armHeartbeat();                        // bytes = alive (frames, partials, comments)
-        // Normalize CRLF (and stray CR) so cross-chunk "\r\n\r\n" separators
-        // split exactly like "\n\n". buf persists across chunks, so a CR at
-        // a chunk boundary is completed by the LF in the next chunk.
-        buf = (buf + dec.decode(value, { stream: true })).replace(/\r\n?/g, '\n');
+        buf += dec.decode(value, { stream: true });
+        // Incremental CRLF handling: a lone trailing CR is AMBIGUOUS — it
+        // may be the first half of a CRLF split across network chunks. Only
+        // complete CR sequences are normalized; the trailing CR is held
+        // back until the next chunk disambiguates it (review #3).
+        let heldCr = false;
+        if (buf.endsWith('\r')) { buf = buf.slice(0, -1); heldCr = true; }
+        buf = buf.replace(/\r\n?/g, '\n');
         let idx;
         while ((idx = buf.indexOf('\n\n')) >= 0) {
           const chunk = buf.slice(0, idx);
@@ -99,6 +106,7 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
           if (frame.retry) { /* advisory only */ }
           if (!aborted && !terminal) onFrame?.(frame);
         }
+        if (heldCr) buf += '\r';
         if (aborted || terminal) { reader.cancel().catch(() => {}); return; }
       }
       if (aborted || terminal) return;
