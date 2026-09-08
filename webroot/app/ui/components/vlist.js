@@ -26,6 +26,7 @@ export function Vlist({
   className = '',
   datasetKey = '',  // identity of the dataset (session id / query); change → reset
   initialWindow = 'top',
+  onLayout,         // caller may restore a content anchor before paint
   revealIndex = null,  // item index to reveal: extends the window to its chunk
   ...rest
 }) {
@@ -82,11 +83,14 @@ export function Vlist({
       applyWin(defaultWindow(initialWindow, count, keep));
     } else if (items.length > meta.len && firstKey !== meta.firstKey) {
       // Prepend (older pages): shift the window by the chunks added so the
-      // viewport's chunks stay mounted — the scroll compensation happens in
-      // the caller (scrollTop = scrollHeight − prevHeight).
-      const chunksAdded = Math.ceil((items.length - meta.len) / chunkSize);
+      // viewport's chunks stay mounted; the caller restores its content anchor.
+      const added = items.findIndex((item, index) => keyOf(item, index) === meta.firstKey);
+      const shift = added < 0 ? items.length - meta.len : added;
       const [lo, hi] = winRef.current;
-      applyWin([lo + chunksAdded, Math.min(count - 1, hi + chunksAdded)]);
+      // A partial chunk prepend can move the visible range into TWO chunks.
+      // Rounding the whole range up would unmount its first visible item.
+      applyWin([Math.floor((lo * chunkSize + shift) / chunkSize),
+        Math.min(count - 1, Math.floor((Math.min(meta.len - 1, (hi + 1) * chunkSize - 1) + shift) / chunkSize))]);
     } else if (items.length > meta.len && winRef.current[1] === Math.max(0, Math.ceil(meta.len / chunkSize) - 1)) {
       // Append while pinned at the tail: follow the new last chunk.
       applyWin([winRef.current[0], count - 1]);
@@ -117,6 +121,12 @@ export function Vlist({
     revealChunkRef.current = c;
     applyWin([Math.max(0, c - keep), Math.min(chunkCount - 1, c + keep)]);
   }, [revealIndex, chunkCount, items.length]);
+
+  useLayoutEffect(() => {
+    // A preceding layout effect may have scheduled a different window.
+    // Notify only once THAT window's DOM has actually committed.
+    if (win === winRef.current) onLayout?.();
+  }, [items, win, revealIndex, onLayout]);
 
   // ── scroll host wiring (stable: reads refs only) ──────────────────────
   useLayoutEffect(() => {

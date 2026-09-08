@@ -1,5 +1,8 @@
 // English dictionary (en).
 export const en = {
+  'composer.resize': 'Drag to resize the message editor',
+  'composer.enterSends': 'Enter to send, Shift + Enter for a new line',
+  'composer.modEnterSends': 'Ctrl / ⌘ + Enter to send, Enter for a new line',
   'phase.recovering': 'Recovering',
   'phase.stopping': 'Stopping',
   'phase.faulted': 'Failed',
@@ -61,7 +64,10 @@ export const en = {
   'chat.jumpLatest': 'Jump to latest',
   'chat.generationChanged': 'Context compacted to a new generation; history is unchanged',
   'chat.capError': 'Failed to read model capabilities',
-  'chat.loadOlder': 'Load earlier messages',
+  'chat.loadingOlder': 'Loading earlier messages…',
+  'chat.loadingNewer': 'Loading later messages…',
+  'search.jumping': 'Locating message…',
+  'search.jumpFailed': 'Could not locate this message. Please retry',
   'chat.beginning': 'Beginning of history',
   'chat.empty': 'Send the first message to start',
   'chat.selectSession': 'Select a session',

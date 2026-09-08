@@ -190,3 +190,17 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
   font-size: 13px; z-index: 300;
 }
+
+/* Short feedback for deliberate actions, without animating page geometry. */
+.btn, .nav-btn, .sl-row, .proc-head { transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast); }
+.btn:active:not(:disabled), .nav-btn:active, .send-btn:active:not(:disabled) { transform: scale(.96); }
+@media (hover: hover) {
+  .send-btn:hover:not(:disabled) { filter: brightness(1.08); }
+  .nav-btn:hover .icon { transform: translateY(-1px); }
+}
+.nav-btn .icon { transition: transform var(--dur-fast); }
+.modal { animation: modal-enter var(--dur) ease-out; }
+.attach-thumb { animation: message-enter var(--dur) ease-out; }
+.entry-anchor.recent, .proc-group.recent { animation: message-enter var(--dur) ease-out; }
+@keyframes modal-enter { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes message-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

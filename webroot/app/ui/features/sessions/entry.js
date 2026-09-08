@@ -2,7 +2,7 @@
 // tool calls and tool results are folded chips (spec: no-body entries are
 // collapsed by default; click opens a detail modal).
 import { html } from '../../h.js';
-import { useEffect, useState } from 'preact/hooks';
+import { useLayoutEffect, useState } from 'preact/hooks';
 import { Icon } from '../../components/icon.js';
 import { Modal } from '../../components/modal.js';
 import { CopyButton } from '../../components/copyable.js';
@@ -13,13 +13,13 @@ import { fmtTokens } from '../../../core/util/fmt.js';
 
 export { groupEntries } from './grouping.js';
 
-export function HistoryEntry({ entry, blocks, usage }) {
+export function HistoryEntry({ entry, blocks, usage, recent }) {
   const kind = entry.kind;
   const inner = HistoryEntryInner(entry, kind, blocks, usage);
   if (entry.seq != null) {
-    return html`<div class="entry-anchor" data-seq=${entry.seq}>${inner}</div>`;
+    return html`<div class="entry-anchor ${recent ? 'recent' : ''}" data-seq=${entry.seq}>${inner}</div>`;
   }
-  return inner;
+  return html`<div class="entry-anchor recent">${inner}</div>`;
 }
 
 function HistoryEntryInner(entry, kind, blocks, usage) {
@@ -100,19 +100,22 @@ function SystemEntry({ entry, kind }) {
 // before its text, those blocks join the group too — the message body then
 // renders text only. (audit item ⑤: group the sequence, don't just hide it)
 
-export function ProcessGroup({ item, revealSeq }) {
+export function ProcessGroup({ item, revealSeq, recent }) {
   const [open, setOpen] = useState(false);
   const steps = item.steps;
   const seqs = [...new Set(steps.map(s => s.fromSeq ?? s.entry?.seq).filter(seq => seq != null))];
-  useEffect(() => { if (revealSeq != null && seqs.includes(revealSeq)) setOpen(true); }, [revealSeq]);
+  const revealing = revealSeq != null && seqs.includes(revealSeq);
+  const expanded = open || revealing;
+  // Mount the target step in this render, before the log measures it.
+  useLayoutEffect(() => { if (revealing) setOpen(true); }, [revealing]);
   const kinds = new Set(steps.map((s) => s.kind === 'entry' ? s.entry.kind : 'block'));
-  return html`<div class="proc-group" data-seq=${seqs[0]} data-seqs=${seqs.join(' ')}>
-    <button class="proc-head" onClick=${() => setOpen(!open)} aria-expanded=${open}>
-      <${Icon} name=${open ? 'chevron-down' : 'layers'} />
+  return html`<div class="proc-group ${recent ? 'recent' : ''}" data-seq=${seqs[0]} data-seqs=${seqs.join(' ')}>
+    <button class="proc-head" onClick=${() => setOpen(!expanded)} aria-expanded=${expanded}>
+      <${Icon} name=${expanded ? 'chevron-down' : 'layers'} />
       ${i18n.t('proc.title')} · ${steps.length} ${i18n.t('proc.stepsUnit')}
       ${kinds.has('tool_result') || steps.some((s) => s.block?.type === 'tool_call') ? ` · ${i18n.t('proc.hasTools')}` : ''}
     </button>
-    ${open && html`<div class="proc-steps">
+    ${expanded && html`<div class="proc-steps">
       ${steps.map((s, i) => renderStep(s, i))}
     </div>`}
   </div>`;

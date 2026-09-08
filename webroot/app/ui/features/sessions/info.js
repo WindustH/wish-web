@@ -5,22 +5,12 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSignal } from '../../hooks.js';
 import { Button } from '../../components/button.js';
 import { Spinner } from '../../components/spinner.js';
-import { Sheet } from '../../components/sheet.js';
 import { i18n } from '../../../core/i18n/index.js';
 import { chat } from '../../../core/state/chatSlice.js';
 import * as api from '../../../core/api/endpoints.js';
-import { ChatShell } from './chat.js';
 import { fmtTokens, fmtDateTime } from '../../../core/util/fmt.js';
 
-export function SessionInfoView({ route }) {
-  const id = route.params.id;
-  return html`<${ChatShell} id=${id} tab="info"
-    sheet=${html`<${Sheet} title=${i18n.t('info.title')}>
-      <${InfoBody} id=${id} />
-    <//>`} />`;
-}
-
-function InfoBody({ id }) {
+export function InfoBody({ id }) {
   const snapshot = useSignal(chat.snapshot);
   const [usage, setUsage] = useState(null);
   const [runs, setRuns] = useState(null);

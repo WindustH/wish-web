@@ -51,6 +51,9 @@ export const chat = (() => {
   const hasMoreAfter = signal(false);    // resident tail is behind the live head
   const loadingOlder = signal(false);
   const loadingInitial = signal(false);
+  const locating = signal(false);
+  const loadingNewer = signal(false);
+  const historyVersion = signal(0);
   const error = signal(null);
   const stream = signal(EMPTY_STREAM());
   const sending = signal(false);
@@ -88,6 +91,7 @@ export const chat = (() => {
     // responses (even ones abort could not cancel) find a stale epoch and
     // are discarded (review round-2 #2).
     epoch += 1;
+    resetHistoryWork();
     epochCtrl?.abort(new Error('session closed')); epochCtrl = null;
     stopStream();
     deadStreams.clear();
@@ -115,6 +119,7 @@ export const chat = (() => {
     const myEpoch = epoch;
     epochCtrl = new AbortController();
     const sig = epochCtrl.signal;
+    const version = historyVersion.peek();
     const stale = () => myEpoch !== epoch;
     sessionId.value = id;
     snapshot.value = null; entries.value = [];
@@ -140,7 +145,7 @@ export const chat = (() => {
       snapshot.value = snap;
       noteGeneration(snap, { silent: true });   // baseline, no toast
       const tail = (page.items ?? []).slice().reverse();
-      applyPage(tail, page.has_more ?? false);
+      if (version === historyVersion.peek()) applyPage(tail, page.has_more ?? false);
       offSessionSync = (await import('./syncSlice.js')).sync.subscribeSession(id, onSessionSync);
       await reattachIfRunning(id);
     } catch (err) {
@@ -179,57 +184,79 @@ export const chat = (() => {
     await openInner(id);
   }
 
-  // Bring a target seq into the resident window and flag it for one
-  // scroll-into-view. The resident window is ONE CONTIGUOUS seq range:
-  // extending it always pages from the current boundary (loadOlder /
-  // fetchNewer), so jumping to an old hit can never strand the history
-  // between the hit and the previous tail (round-3 #1). Depth-bounded;
-  // beyond the bound is an honest failure, never a fake locate.
+  // One contiguous resident window. Search replaces it with the target's
+  // neighborhood directly; paging extends either boundary without gaps.
+  // Versioning rejects responses from a displaced window, even in one session.
+  function resetHistoryWork() {
+    historyVersion.value += 1;
+    loadingOlder.value = false;
+    loadingNewer.value = false;
+    locating.value = false;
+    pendingSeq.value = null;
+    return historyVersion.peek();
+  }
+
+  function replaceHistory(items, moreBefore, moreAfter) {
+    entries.value = entries.peek().filter(e => e.__optimistic);
+    oldestSeq.value = null; newestSeq.value = null;
+    mergeItems(items);
+    hasMoreBefore.value = moreBefore;
+    hasMoreAfter.value = moreAfter;
+  }
+
   async function locate(targetId, seq) {
     if (sessionId.peek() !== targetId) await open(targetId);
+    if (sessionId.peek() !== targetId) return false;
     const myEpoch = epoch;
-    if (entries.peek().some((e) => e.seq === seq)) {
+    const version = resetHistoryWork();
+    error.value = null;
+    if (entries.peek().some(e => e.seq === seq)) {
       pendingSeq.value = seq;
       return true;
     }
-    if (oldestSeq.peek() != null && seq < oldestSeq.peek()) {
-      let pages = 0;
-      while (oldestSeq.peek() > seq && pages < cfg.history.maxLocatePages) {
-        const extended = await loadOlder();
-        if (myEpoch !== epoch) return false;
-        if (!extended) break;            // reached the true beginning
-        pages += 1;
-      }
-      if (myEpoch !== epoch) return false;
-      if (oldestSeq.peek() > seq) {
-        error.value = new Error(`locate failed: seq ${seq} is deeper than the backfill bound (${cfg.history.maxLocatePages} pages)`);
-        return false;
-      }
+    locating.value = true;
+    try {
+      const options = { signal: epochCtrl?.signal };
+      const [before, after] = await Promise.all([
+        api.historyPage(targetId, {before: seq, order: 'desc', limit: cfg.history.pageSize}, options),
+        api.historyPage(targetId, {after: seq - 1, order: 'asc', limit: cfg.history.pageSize}, options),
+      ]);
+      if (myEpoch !== epoch || version !== historyVersion.peek()) return false;
+      if (!after.items.some(e => e.seq === seq)) throw new Error(`History entry #${seq} was not found`);
       pendingSeq.value = seq;
+      replaceHistory([...before.items].reverse().concat(after.items), before.has_more, after.has_more);
       return true;
+    } catch (err) {
+      if (myEpoch === epoch && version === historyVersion.peek()) error.value = err;
+      return false;
+    } finally {
+      if (myEpoch === epoch && version === historyVersion.peek()) locating.value = false;
     }
-    // Newer than the resident tail — drain upward.
-    const r = await fetchNewer();
-    if (myEpoch !== epoch) return false;
-    if (!r.ok || newestSeq.peek() == null || newestSeq.peek() < seq) return false;
-    pendingSeq.value = seq;
-    return true;
   }
+
+  function cancelLocate() { if (locating.peek()) resetHistoryWork(); }
 
   function clearPendingSeq() { pendingSeq.value = null; }
 
-  // After a deep locate the window tail is far behind the live head; this
-  // drains upward until caught up (bounded) so "back to latest" is real.
   async function jumpToLatest() {
+    const id = sessionId.peek();
+    if (!id) return false;
     const myEpoch = epoch;
-    for (let i = 0; i < 100; i++) {
-      const r = await fetchNewer();
-      if (myEpoch !== epoch) return false;
-      if (!r.ok) return false;
-      if (r.drained) return true;
-      if (r.added === 0) return false;              // no progress — stop
+    const version = resetHistoryWork();
+    locating.value = true;
+    error.value = null;
+    try {
+      const page = await api.historyPage(id, {order: 'desc', limit: cfg.history.pageSize}, {signal: epochCtrl?.signal});
+      if (myEpoch !== epoch || version !== historyVersion.peek()) return false;
+      replaceHistory([...page.items].reverse(), page.has_more, false);
+      pendingSeq.value = newestSeq.peek();
+      return true;
+    } catch (err) {
+      if (myEpoch === epoch && version === historyVersion.peek()) error.value = err;
+      return false;
+    } finally {
+      if (myEpoch === epoch && version === historyVersion.peek()) locating.value = false;
     }
-    return false;
   }
 
   let lastGenerationId = null;
@@ -312,50 +339,57 @@ export const chat = (() => {
 
   function applyPage(ascItems, moreBefore) {
     if (!ascItems.length) {
-      hasMoreBefore.value = hasMoreBefore.peek() || moreBefore;
+      hasMoreBefore.value = moreBefore;
       return;
     }
     mergeItems(ascItems);
     hasMoreBefore.value = moreBefore;
   }
 
-  async function loadOlder() {
+  async function loadOlder({ beforeMerge } = {}) {
     const id = sessionId.peek();
     const myEpoch = epoch;
-    if (!id || loadingOlder.peek() || oldestSeq.peek() == null || !hasMoreBefore.peek()) return false;
+    const version = historyVersion.peek();
+    const current = () => myEpoch === epoch && version === historyVersion.peek();
+    if (!id || locating.peek() || loadingOlder.peek() || oldestSeq.peek() == null || !hasMoreBefore.peek()) return false;
     loadingOlder.value = true;
     try {
       const page = await api.historyPage(id, {
         limit: cfg.history.pageSize, order: 'desc', before: oldestSeq.peek(),
       }, { signal: epochCtrl?.signal });
-      if (myEpoch !== epoch) return false;
+      if (!current()) return false;
       const older = (page.items ?? []).slice().reverse();
+      if (older.length) beforeMerge?.();
       applyPage(older, page.has_more ?? false);
       return older.length > 0;
     } catch (err) {
-      if (myEpoch === epoch && err?.name !== 'AbortError') error.value = err;
+      if (current() && err?.name !== 'AbortError') error.value = err;
       return false;
     }
-    finally { if (myEpoch === epoch) loadingOlder.value = false; }
+    finally { if (current()) loadingOlder.value = false; }
   }
 
   // Drain newer pages. "drained" means the cursor reached the live head
   // (has_more exhausted) — hitting the page cap or a stalled cursor means
   // there may STILL be more durable entries, which must not be reported as
   // an up-to-date read (review #5).
-  async function fetchNewer() {
+  async function fetchNewer({pages = cfg.history.maxDrainPages} = {}) {
     const myEpoch = epoch;
     const sig = epochCtrl?.signal;
+    const version = historyVersion.peek();
+    const current = () => myEpoch === epoch && version === historyVersion.peek();
+    if (locating.peek() || loadingNewer.peek()) return {ok: false, drained: false, added: 0};
+    loadingNewer.value = true;
     let added = 0;
     try {
-      for (let i = 0; i < cfg.history.maxDrainPages; i++) {
+      for (let i = 0; i < pages; i++) {
         const id = sessionId.peek();
         if (!id) return { ok: false, drained: false, added };
         const after = newestSeq.peek();
         const page = await api.historyPage(id, {
           limit: cfg.history.pageSize, order: 'asc', ...(after != null ? { after } : {}),
         }, { signal: sig });
-        if (myEpoch !== epoch) return { ok: false, drained: false, added };
+        if (!current()) return { ok: false, drained: false, added };
         const fresh = page.items ?? [];
         if (!fresh.length) { hasMoreAfter.value = false; return { ok: true, drained: true, added }; }
         added += mergeItems(fresh);
@@ -365,9 +399,9 @@ export const chat = (() => {
       hasMoreAfter.value = true;                    // page-cap burst exhausted
       return { ok: true, drained: false, added };
     } catch (err) {
-      hasMoreAfter.value = true;                    // unknown — assume behind
+      if (current()) { hasMoreAfter.value = true; error.value = err; }
       return { ok: false, drained: false, added };
-    }
+    } finally { if (current()) loadingNewer.value = false; }
   }
 
   function sortKey(e) { return e.seq != null ? e.seq : Number.MAX_SAFE_INTEGER - (e.localKey || 0); }
@@ -407,6 +441,13 @@ export const chat = (() => {
         blocks.push({ type: 'image', blob_id: blob.id ?? blob.sha256 });
       }
 
+      // A new message belongs at the live tail, even when the reader came
+      // here through an old search result. Keep that history range contiguous.
+      if (hasMoreAfter.peek() || locating.peek()) {
+        const ready = await jumpToLatest();
+        if (myEpoch !== epoch) return null;
+        if (!ready) throw error.peek() || new Error('Could not load latest history');
+      }
       const localKey = Date.now();
       optimistic = {
         __optimistic: true, localId: `opt-${localKey}`, localKey,
@@ -730,11 +771,11 @@ export const chat = (() => {
 
   return {
     sessionId, snapshot, entries, oldestSeq, newestSeq, hasMoreBefore, hasMoreAfter,
-    loadingOlder, loadingInitial, error, stream, sending, capabilities,
+    loadingOlder, loadingNewer, loadingInitial, locating, historyVersion, error, stream, sending, capabilities,
     pendingSeq, deliveries, phase, isActive,
     open, close, reload, reloadCapabilities, jumpToLatest, loadOlder, fetchNewer,
     send, interrupt, refreshDeliveries,
-    setDraft, getDraft, locate, clearPendingSeq,
+    setDraft, getDraft, locate, cancelLocate, clearPendingSeq,
   };
 })();
 

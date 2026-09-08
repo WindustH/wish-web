@@ -1,7 +1,5 @@
-// Composer: mobile = single-line start, image left + send right; desktop =
-// large initial area, image top-left + send bottom-right. Grows with
-// content up to a cap, then scrolls. Send button morphs send↔stop
-// while a run is active.
+// Desktop: full-width rectangle, user-resized height, internal text scrolling.
+// Mobile: compact input row that grows from one line with its content.
 //
 // Correctness rules (task 1 + review round 1):
 //  · IME-safe Enter — composition strokes never send (isComposing / 229);
@@ -14,7 +12,7 @@
 //  · drafts are per-session (explicit id) and restored when switching back;
 //  · object URLs are revoked on remove / successful send / switch / unmount.
 import { html } from '../../h.js';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useSignal } from '../../hooks.js';
 import { cfg } from '../../../core/config.js';
 import { i18n } from '../../../core/i18n/index.js';
@@ -23,10 +21,11 @@ import { prefs } from '../../../core/state/prefsSlice.js';
 import { platform } from '../../../platform/index.js';
 import { Icon } from '../../components/icon.js';
 import { toast } from '../../components/toast.js';
+import { ComposerResizeHandle, useComposerHeight } from './resize.js';
 
 const revokeAll = (imgs) => { for (const i of imgs) if (i?.localUrl) URL.revokeObjectURL(i.localUrl); };
 
-export function Composer({ sessionId, mobile }) {
+export function Composer({ sessionId, mobile, onSearch }) {
   const stream = useSignal(chat.stream);
   const sending = useSignal(chat.sending);
   const caps = useSignal(chat.capabilities);
@@ -34,6 +33,8 @@ export function Composer({ sessionId, mobile }) {
   const [text, setText] = useState(() => chat.getDraft(sessionId));
   const [images, setImages] = useState([]);   // {name,mime,bytes,localUrl}
   const taRef = useRef(null);
+  const composerRef = useRef(null);
+  const sizing = useComposerHeight(composerRef, mobile);
   const imagesRef = useRef(images);
   imagesRef.current = images;
   const textRef = useRef(text);
@@ -62,14 +63,14 @@ export function Composer({ sessionId, mobile }) {
     return () => revokeAll(imagesRef.current);   // unmount / next switch
   }, [sessionId]);
 
-  // auto-grow: cap by rows, then by viewport fraction, then scroll
-  useEffect(() => {
+  // Desktop never grows when typing. Only the mobile textarea sizes itself.
+  useLayoutEffect(() => {
     const ta = taRef.current;
-    if (!ta) return;
+    if (!mobile) { ta.style.height = ''; ta.style.overflowY = 'auto'; return; }
     ta.style.height = 'auto';
-    const maxRows = mobile ? cfg.composer.mobileMaxRows : cfg.composer.desktopMaxRows;
-    const lineH = parseFloat(getComputedStyle(ta).lineHeight) || 23;
-    const maxPx = Math.min(lineH * maxRows, window.innerHeight * cfg.composer.maxHeightVh);
+    const lineH = parseFloat(getComputedStyle(ta).lineHeight);
+    const padding = parseFloat(getComputedStyle(ta).paddingTop) + parseFloat(getComputedStyle(ta).paddingBottom);
+    const maxPx = Math.min(lineH * cfg.composer.mobileMaxRows + padding, window.innerHeight * cfg.composer.mobileMaxHeightVh);
     ta.style.height = Math.min(ta.scrollHeight, maxPx) + 'px';
     ta.style.overflowY = ta.scrollHeight > maxPx ? 'auto' : 'hidden';
   }, [text, mobile]);
@@ -156,6 +157,7 @@ export function Composer({ sessionId, mobile }) {
   function onKeyDown(e) {
     // IME composition: Enter confirms the candidate window — never sends.
     if (e.nativeEvent?.isComposing || e.isComposing || e.keyCode === 229) return;
+    if (mobile) return; // The phone keyboard inserts a newline; tap Send to send.
     const enterSends = sendOnEnter;
     if (e.key === 'Enter') {
       const plainEnter = !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
@@ -169,46 +171,48 @@ export function Composer({ sessionId, mobile }) {
     }
   }
 
-  return html`<div class="composer ${mobile ? 'mobile' : 'desktop'}">
-    <div class="composer-inner">
-      <div class="composer-box">
-        ${images.length > 0 && html`<div class="attach-strip">
-          ${images.map((img, i) => html`<div class="attach-thumb" key=${i}>
-            <img src=${img.localUrl} alt=${img.name} />
-            <button class="rm" aria-label=${i18n.t('common.remove')} onClick=${() => removeImage(i)}>
-              <${Icon} name="x" class="sm" />
-            </button>
-          </div>`)}
-        </div>`}
-        ${capsFailed && html`<div class="caps-error">
-          <span>${i18n.t('chat.capError')}</span>
-          <button class="btn ghost sm" onClick=${() => chat.reloadCapabilities()}>${i18n.t('common.retry')}</button>
-        </div>`}
-        ${!mobile && html`<div class="row">
-          <button class="btn ghost icon-only" title=${i18n.t('chat.image')} aria-label=${i18n.t('chat.image')}
-            disabled=${!imageAllowed} onClick=${attach}><${Icon} name="image" /></button>
-          <div class="grow" />
-        </div>`}
-        <textarea ref=${taRef} rows=${mobile ? cfg.composer.mobileMinRows : cfg.composer.desktopMinRows}
-          placeholder=${running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')}
-          value=${text}
-          onInput=${(e) => setTextOwned(e.target.value)}
-          onKeyDown=${onKeyDown}
-          aria-label=${i18n.t('chat.placeholder')} />
-        <div class="row">
-          ${mobile && html`<button class="btn ghost icon-only" title=${i18n.t('chat.image')}
-            aria-label=${i18n.t('chat.image')} disabled=${!imageAllowed} onClick=${attach}><${Icon} name="image" /></button>`}
-          <div class="grow" />
-          <button class="send-btn ${running ? 'stop' : ''}" onClick=${running ? onStop : submit}
-            disabled=${sending || (!running && !canSend)}
-            aria-label=${running ? i18n.t('chat.stop') : i18n.t('chat.send')}
-            title=${running ? i18n.t('chat.stop') : i18n.t('chat.send')}>
-            ${(running || sending)
-              ? html`<${Icon} name=${sending ? 'loader-circle' : 'square'} class=${sending ? 'spin' : ''} />`
-              : html`<${Icon} name="send" />`}
-          </button>
-        </div>
-      </div>
+  const sendButton = html`<button class="send-btn ${running ? 'stop' : ''}" onClick=${running ? onStop : submit}
+    disabled=${sending || (!running && !canSend)}
+    aria-label=${running ? i18n.t('chat.stop') : i18n.t('chat.send')}
+    title=${running ? i18n.t('chat.stop') : i18n.t('chat.send')}>
+    ${sending && html`<${Icon} name="loader-circle" class="spin" />`}
+    ${i18n.t(running ? 'chat.stop' : 'chat.send')}
+  </button>`;
+  const imageButton = html`<button class="btn ghost icon-only" title=${i18n.t('chat.image')} aria-label=${i18n.t('chat.image')}
+    disabled=${!imageAllowed} onClick=${attach}><${Icon} name="image" /></button>`;
+
+  return html`<div ref=${composerRef} class="composer ${mobile ? 'mobile' : 'desktop'}"
+    style=${mobile ? undefined : { height: `${sizing.height}px` }}>
+    ${!mobile && html`<${ComposerResizeHandle} ...${sizing} />`}
+    ${!mobile && html`<div class="composer-toolbar">
+      ${imageButton}
+      <div class="grow" />
+      <button class="btn ghost icon-only" title=${i18n.t('chatbar.search')} aria-label=${i18n.t('chatbar.search')}
+        onClick=${onSearch}><${Icon} name="history" /></button>
+    </div>`}
+    ${images.length > 0 && html`<div class="attach-strip">
+      ${images.map((img, i) => html`<div class="attach-thumb" key=${i}>
+        <img src=${img.localUrl} alt=${img.name} />
+        <button class="rm" aria-label=${i18n.t('common.remove')} onClick=${() => removeImage(i)}>
+          <${Icon} name="x" class="sm" />
+        </button>
+      </div>`)}
+    </div>`}
+    ${capsFailed && html`<div class="caps-error">
+      <span>${i18n.t('chat.capError')}</span>
+      <button class="btn ghost sm" onClick=${() => chat.reloadCapabilities()}>${i18n.t('common.retry')}</button>
+    </div>`}
+    <div class="composer-editor">
+      ${mobile && imageButton}
+      <textarea ref=${taRef} rows=${cfg.composer.mobileMinRows}
+        placeholder=${running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')}
+        value=${text} onInput=${(e) => setTextOwned(e.target.value)} onKeyDown=${onKeyDown}
+        aria-label=${i18n.t('chat.placeholder')} />
+      ${mobile && sendButton}
     </div>
+    ${!mobile && html`<div class="composer-footer">
+      <span class="composer-hint">${i18n.t(sendOnEnter ? 'composer.enterSends' : 'composer.modEnterSends')}</span>
+      ${sendButton}
+    </div>`}
   </div>`;
 }

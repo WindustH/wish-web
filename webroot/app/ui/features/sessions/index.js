@@ -2,9 +2,6 @@
 import { i18n } from '../../../core/i18n/index.js';
 import { SessionsView } from './list.js';
 import { ChatView } from './chat.js';
-import { SessionInfoView } from './info.js';
-import { SessionSearchView } from './search.js';
-import { SessionManageView } from './manage.js';
 
 export default {
   id: 'sessions',
@@ -12,8 +9,8 @@ export default {
   routes: [
     { pattern: '/sessions', view: SessionsView },
     { pattern: '/s/:id', view: ChatView },          // chat (desktop two-pane / mobile page)
-    { pattern: '/s/:id/info', view: SessionInfoView },
-    { pattern: '/s/:id/search', view: SessionSearchView },
-    { pattern: '/s/:id/manage', view: SessionManageView },
+    { pattern: '/s/:id/info', view: ChatView },
+    { pattern: '/s/:id/search', view: ChatView },
+    { pattern: '/s/:id/manage', view: ChatView },
   ],
 };

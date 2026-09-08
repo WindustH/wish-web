@@ -29,17 +29,24 @@
   background: var(--bg-raised);
   min-height: 0;
 }
-.content-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.content-pane { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 
-/* Chat and a route's detail sheet share the available height, side by side. */
-.content-pane.has-drawer { flex-direction: row; min-height: 0; }
+/* Detail sheets cover the chat; they never take space from its flex row. */
 .content-pane > .chat { min-width: 0; overflow: hidden; }
-.drawer {
-  width: min(calc(var(--max-content) / 2), 45%); flex: none;
+.session-sheet {
+  position: absolute; inset: 0 0 0 auto; z-index: 30;
   display: flex; flex-direction: column; min-width: 0; min-height: 0;
   border-left: 1px solid var(--line); background: var(--bg-raised);
-  overflow: hidden;
+  overflow: hidden; box-shadow: -12px 0 28px #0002;
+  animation: sheet-in var(--dur) ease-out both;
 }
+.drawer { width: min(var(--w-drawer), 90%); }
+.session-sheet.sheet-page { width: 100%; border: 0; }
+.session-sheet.closing { animation: sheet-out var(--dur) ease-in both; pointer-events: none; }
+@keyframes sheet-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes sheet-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
+.sheet-actions { display: flex; align-items: center; gap: var(--space-xs); margin-left: auto; }
+.session-sheet .page-head h2 { margin: 0; font-size: inherit; }
 .drawer-head {
   height: var(--h-topbar); flex: none;
   display: flex; align-items: center; justify-content: space-between;
@@ -59,7 +66,7 @@
 .shell.mobile { flex-direction: column; }
 .shell.mobile .vbar { display: none; }
 .shell.mobile .sessions-pane { width: 100%; flex: 1; border-right: 0; }
-.shell.mobile .content-pane { flex: 1; }
+.shell.mobile .content-pane { position: relative; flex: 1; }
 .bbar {
   display: none;
   height: var(--h-bottombar); flex: none;

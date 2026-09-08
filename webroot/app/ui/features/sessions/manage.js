@@ -7,24 +7,14 @@ import { useEffect, useState } from 'preact/hooks';
 import { useSignal } from '../../hooks.js';
 import { Button } from '../../components/button.js';
 import { Icon } from '../../components/icon.js';
-import { Sheet } from '../../components/sheet.js';
 import { i18n } from '../../../core/i18n/index.js';
 import { chat } from '../../../core/state/chatSlice.js';
 import { sessions } from '../../../core/state/sessionsSlice.js';
 import * as api from '../../../core/api/endpoints.js';
 import { toast } from '../../components/toast.js';
 import { navigate } from '../../router.js';
-import { ChatShell } from './chat.js';
 
-export function SessionManageView({ route }) {
-  const id = route.params.id;
-  return html`<${ChatShell} id=${id} tab="manage"
-    sheet=${html`<${Sheet} title=${i18n.t('manage.title')}>
-      <${ManageBody} id=${id} />
-    <//>`} />`;
-}
-
-function ManageBody({ id }) {
+export function ManageBody({ id }) {
   const snapshot = useSignal(chat.snapshot);
   const [renaming, setRenaming] = useState('');
   const [confirming, setConfirming] = useState(null); // {action, run}

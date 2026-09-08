@@ -1,5 +1,8 @@
 // Chinese dictionary (zh). Keys are flat dot-namespaced for grep-ability.
 export const zh = {
+  'composer.resize': '拖动调整输入区高度',
+  'composer.enterSends': 'Enter 发送，Shift + Enter 换行',
+  'composer.modEnterSends': 'Ctrl / ⌘ + Enter 发送，Enter 换行',
   'phase.recovering': '恢复中',
   'phase.stopping': '正在停止',
   'phase.faulted': '运行失败',
@@ -61,7 +64,10 @@ export const zh = {
   'chat.jumpLatest': '回到最新',
   'chat.generationChanged': '上下文已压缩切换到新版本,历史保持完整',
   'chat.capError': '模型能力读取失败',
-  'chat.loadOlder': '加载更早的消息',
+  'chat.loadingOlder': '正在加载更早的消息…',
+  'chat.loadingNewer': '正在加载后续消息…',
+  'search.jumping': '正在定位消息…',
+  'search.jumpFailed': '无法跳转到这条消息，请重试',
   'chat.beginning': '已到最早消息',
   'chat.empty': '发送第一条消息开始对话',
   'chat.selectSession': '选择一个会话',

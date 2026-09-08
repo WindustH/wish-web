@@ -9,7 +9,7 @@ export function App() {
   const View = route.view;
   return html`
     <${AppShell}>
-      ${View ? html`<${View} key=${route.path} route=${route} />`
+      ${View ? html`<${View} key=${route.params.id ?? route.path} route=${route} />`
              : html`<div class="page"><div class="page-head"><h1>404</h1></div></div>`}
     <//>
   `;

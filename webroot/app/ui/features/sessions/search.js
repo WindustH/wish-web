@@ -1,33 +1,23 @@
-// In-session history search sheet — SERVER-SIDE (contract: GET
-// /sessions/{id}/history/search, bounded snippets, seq keyset). Old daemons
-// without the endpoint show an explicit "capability unavailable" notice;
-// there is deliberately NO silent client-side full-history fallback.
-// Hit click → chat.locate(id, seq) backfills the window and scrolls to the
-// exact entry (never "back to bottom").
+// Server-side history search; jumps read the target neighborhood directly.
 import { html } from '../../h.js';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Button } from '../../components/button.js';
 import { Spinner } from '../../components/spinner.js';
-import { Sheet } from '../../components/sheet.js';
 import { i18n } from '../../../core/i18n/index.js';
 import { fmtDateTime } from '../../../core/util/fmt.js';
 import { chat } from '../../../core/state/chatSlice.js';
 import * as api from '../../../core/api/endpoints.js';
 import { navigate } from '../../router.js';
 import { cfg } from '../../../core/config.js';
-import { ChatShell } from './chat.js';
 
-export function SessionSearchView({ route }) {
-  const id = route.params.id;
-  return html`<${ChatShell} id=${id} tab="search"
-    sheet=${html`<${Sheet} title=${i18n.t('search.title')}>
-      <${SearchBody} id=${id} />
-    <//>`} />`;
-}
-
-function SearchBody({ id }) {
+export function SearchBody({ id }) {
   const [q, setQ] = useState('');
   const [state, setState] = useState({ status: 'idle' }); // idle|busy|done|error
+  const [jumping, setJumping] = useState(null);
+  const [jumpError, setJumpError] = useState(null);
+  const alive = useRef(true);
+  const jumpInFlight = useRef(false);
+  useEffect(() => () => { alive.current = false; gen.current += 1; if (jumpInFlight.current) chat.cancelLocate(); }, []);
   const timer = useRef(null);
   const gen = useRef(0);
 
@@ -60,7 +50,6 @@ function SearchBody({ id }) {
             ...(cursor != null ? { before: cursor } : {}),
           });
           if (myGen !== gen.current) return null;
-          if (page.items == null) return null;
           out.push(...page.items);
           hasMore = Boolean(page.has_more);
           if (!hasMore) break;
@@ -85,26 +74,35 @@ function SearchBody({ id }) {
     setState((s) => ({ ...s, loadingMore: true }));
     const res = await runSearch(id, state.q.trim(), myGen, state.endSeq);
     if (!res || myGen !== gen.current) return;
+    if (res.status === 'error') { setState(res); return; }
     const page = res.page;
     setState((s) => ({
       ...s,
       status: 'done',
-      results: [...s.results, ...(page?.items ?? [])],
-      hasMore: Boolean(page?.has_more),
-      endSeq: page?.items?.length ? page.items[page.items.length - 1].seq : null,
+      results: [...s.results, ...page.items],
+      hasMore: Boolean(page.has_more),
+      endSeq: page.items.length ? page.items[page.items.length - 1].seq : null,
       loadingMore: false,
     }));
   }
 
   async function jump(seq) {
-    await chat.locate(id, seq);
-    navigate(`/s/${id}`);
+    jumpInFlight.current = true;
+    setJumping(seq); setJumpError(null);
+    const found = await chat.locate(id, seq);
+    jumpInFlight.current = false;
+    if (!alive.current) return;
+    setJumping(null);
+    if (found) navigate(`/s/${id}`, {replace: true});
+    else setJumpError(chat.error.peek()?.detail || chat.error.peek()?.message || i18n.t('search.jumpFailed'));
   }
 
   return html`
     <input class="input" type="search" autofocus placeholder=${i18n.t('search.placeholder')}
-      value=${q} onInput=${(e) => setQ(e.target.value)} />
+      value=${q} disabled=${jumping != null} onInput=${(e) => setQ(e.target.value)} />
     <div style="height:12px" />
+    ${jumping != null && html`<div class="hint" role="status">${i18n.t('search.jumping')}</div>`}
+    ${jumpError && html`<div class="hint" role="alert">${i18n.t('search.jumpFailed')} — ${jumpError}</div>`}
     ${state.status === 'busy' && html`<${Spinner} label=${i18n.t('common.loading')} />`}
     ${state.status === 'error' && html`
       <div class="hint" style="color:var(--danger,var(--fg-subtle))">${i18n.t('common.error')} — ${state.detail}</div>`}
@@ -113,11 +111,11 @@ function SearchBody({ id }) {
         ${i18n.t('search.results', { n: state.results.length })}${state.hasMore ? ' +' : ''}
       </div>
       ${state.results.length === 0 && html`<div class="hint" style="color:var(--fg-subtle)">${i18n.t('search.noResults')}</div>`}
-      ${state.results.map((r) => html`<div key=${r.seq ?? r.entry_id} class="search-result"
+      ${state.results.map((r) => html`<button type="button" key=${r.seq ?? r.entry_id} class="search-result" disabled=${jumping != null}
         onClick=${() => jump(r.seq)}>
         <div class="sr-meta">#${r.seq} · ${r.kind} · ${fmtDateTime(r.created_at)}</div>
         <div class="sr-text">${highlight(r.snippet ?? '', state.q)}</div>
-      </div>`)}
+      </button>`)}
       ${state.hasMore && html`<div style="margin-top:12px">
         <${Button} disabled=${state.loadingMore} onClick=${more}>${i18n.t('search.more')}<//>
       </div>`}

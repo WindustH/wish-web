@@ -40,10 +40,9 @@ export const cfg = Object.freeze({
     pageSize: 40,                     // /history page (also the DOM chunk size)
     reconcileDelayMs: 250,            // wait after response_complete before fetch
     maxDrainPages: 8,                // fetchNewer(): pages per drain burst (safety cap)
-    maxLocatePages: 25,              // locate(seq): max pages of backfill to reach a target
     searchPageSize: 50,               // /history/search page size (contract default)
     maxSearchPages: 40,               // fetch-older bound while paging search hits
-    prefetchOlderTriggerPx: 120,      // load older when scroll within this of top
+    prefetchOlderTriggerPx: 320,      // load older when scroll within this of top
   },
 
   windowing: {                        // long-list DOM cap (chunked windowing)
@@ -56,9 +55,11 @@ export const cfg = Object.freeze({
   composer: {
     mobileMinRows: 1,
     mobileMaxRows: 6,
-    desktopMinRows: 4,
-    desktopMaxRows: 14,
-    maxHeightVh: 0.38,                // never exceed this fraction of viewport
+    desktopHeightRatio: 0.3,
+    desktopMinHeight: 160,
+    desktopMaxHeightRatio: 0.6,
+    resizeStep: 24,
+    mobileMaxHeightVh: 0.3,
     maxImages: 4,
     maxImageBytes: 10 * 1024 * 1024,
     sendOnEnter: true,                // desktop default; user preference
@@ -99,6 +100,7 @@ export const cfg = Object.freeze({
     sessionListWidth: 300,            // desktop list pane px (default; user-resizable)
     sessionListWidthMin: 200,
     sessionListWidthMax: 520,
+    drawerWidth: 420,
     topbarHeight: 48,
     bottombarHeight: 52,
     space: { xs: 4, s: 8, m: 12, l: 16, xl: 24, xxl: 32 },

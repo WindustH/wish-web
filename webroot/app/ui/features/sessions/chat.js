@@ -1,8 +1,8 @@
 // Conversation view: top bar (desktop: name + 3 actions; mobile: back +
 // name + overflow menu), windowed message log, composer.
 import { html, Fragment } from '../../h.js';
-import { useEffect, useRef, useState } from 'preact/hooks';
-import { useSignal, useMedia } from '../../hooks.js';
+import { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'preact/hooks';
+import { useSignal } from '../../hooks.js';
 import { Icon } from '../../components/icon.js';
 import { Button } from '../../components/button.js';
 import { Spinner } from '../../components/spinner.js';
@@ -17,55 +17,60 @@ import { Markdown } from '../../components/markdown.js';
 import { HistoryEntry, groupEntries, ProcessGroup } from './entry.js';
 import { Vlist } from '../../components/vlist.js';
 import { announce } from '../../live.js';
-import { prefs } from '../../../core/state/prefsSlice.js';
 import { Composer } from './composer.js';
 import { SessionsListPane } from './list.js';
 import { NewSessionModal } from './newsession.js';
+import { Sheet } from '../../components/sheet.js';
+import { InfoBody } from './info.js';
+import { SearchBody } from './search.js';
+import { ManageBody } from './manage.js';
 
+const SESSION_SHEETS = {
+  info: { title: 'info.title', body: InfoBody },
+  search: { title: 'search.title', body: SearchBody },
+  manage: { title: 'manage.title', body: ManageBody },
+};
+
+// All routes for one session share this component and the same chat DOM.
+// Opening a sheet must preserve scroll, drafts and unsent image attachments.
 export function ChatView({ route }) {
-  return html`<${ChatShell} id=${route.params.id} />`;
-}
-
-// Shared shell for the chat route and its tab routes (info/search/manage):
-// desktop = list + chat + right drawer for the tab; mobile = tab becomes a
-// second-level full page (chat hidden beneath, back returns to it).
-export function ChatShell({ id, tab, sheet }) {
+  const id = route.params.id;
+  const tab = route.path.split('/')[3];
   const mobile = useSignal(isMobile);
+  const closeSheet = useCallback(() => navigate(`/s/${id}`, { replace: true }), [id]);
+  const openSheet = useCallback((name) => navigate(`/s/${id}/${name}`, { replace: Boolean(tab) }), [id, tab]);
   useEffect(() => { chat.open(id); }, [id]);
-
-  if (mobile && tab && sheet) return sheet;
-  if (mobile) return html`
-    <div class="content-pane"><${ChatPane} id=${id} mobile=${true} /></div>`;
-
+  const sheet = SESSION_SHEETS[tab];
+  const Body = sheet?.body;
   return html`<${Fragment}>
-    <${SessionsListPane} />
-    <${ListResizeHandle} />
-    <div class="content-pane has-drawer">
-      <${ChatPane} id=${id} mobile=${false} />
-      ${tab && sheet}
+    ${!mobile && html`<${SessionsListPane} /><${ListResizeHandle} />`}
+    <div class="content-pane">
+      <${ChatPane} id=${id} mobile=${mobile} openSheet=${openSheet} covered=${mobile && !!sheet} />
+      ${sheet && html`<${Sheet} key=${tab} title=${i18n.t(sheet.title)} mobile=${mobile} onClose=${closeSheet}>
+        <${Body} id=${id} />
+      <//>`}
     </div>
-    <${NewSessionModal} />
+    ${!mobile && html`<${NewSessionModal} />`}
   <//>`;
 }
 
-function ChatPane({ id, mobile }) {
+function ChatPane({ id, mobile, openSheet, covered }) {
   const snapshot = useSignal(chat.snapshot);
   const error = useSignal(chat.error);
   const loading = useSignal(chat.loadingInitial);
   const name = snapshot?.name || sessions.getById(id)?.name || '…';
 
   return html`
-    <div class="chat">
-      <${ChatTopBar} id=${id} name=${name} mobile=${mobile} phase=${snapshot?.phase} queue=${snapshot?.queue ?? 0} />
+    <div class="chat" inert=${covered || undefined}>
+      <${ChatTopBar} id=${id} openSheet=${openSheet} name=${name} mobile=${mobile} phase=${snapshot?.phase} queue=${snapshot?.queue ?? 0} />
       ${error && html`<div class="sl-empty">${i18n.t('common.error')} — ${String(error.detail || error.message)}
         <div><${Button} onClick=${() => chat.reload()}>${i18n.t('common.retry')}<//></div></div>`}
       <${ChatLog} id=${id} loading=${loading} snapshot=${snapshot} />
-      <${Composer} sessionId=${id} mobile=${mobile} />
+      <${Composer} sessionId=${id} mobile=${mobile} onSearch=${() => openSheet('search')} />
     </div>`;
 }
 
-function ChatTopBar({ id, name, mobile, phase, queue = 0 }) {
-  const go = (tab) => navigate(`/s/${id}/${tab}`);
+function ChatTopBar({ id, name, mobile, phase, queue = 0, openSheet: go }) {
   const actions = [
     { icon: 'info', label: i18n.t('chatbar.info'), onClick: () => go('info') },
     { icon: 'search', label: i18n.t('chatbar.search'), onClick: () => go('search') },
@@ -102,6 +107,9 @@ function ChatLog({ id, loading, snapshot }) {
   const entries = useSignal(chat.entries);
   const hasMore = useSignal(chat.hasMoreBefore);
   const loadingOlder = useSignal(chat.loadingOlder);
+  const loadingNewer = useSignal(chat.loadingNewer);
+  const locating = useSignal(chat.locating);
+  const historyVersion = useSignal(chat.historyVersion);
   const streamState = useSignal(chat.stream);
   const pendingSeq = useSignal(chat.pendingSeq);
   const hasMoreAfter = useSignal(chat.hasMoreAfter);
@@ -111,72 +119,99 @@ function ChatLog({ id, loading, snapshot }) {
   const wasActive = useRef(false);
 
   const groups = groupEntries(entries);
-
-  // Track whether the user is pinned to the bottom; auto-scroll only then.
+  const shownThrough = useRef(null);
+  const latestSeq = entries.reduce((max, e) => Math.max(max, e.seq ?? 0), 0);
+  const animateAfter = shownThrough.current;
   useEffect(() => {
+    if (!loading) shownThrough.current = Math.max(shownThrough.current ?? 0, latestSeq);
+  }, [latestSeq, loading]);
+
+  const prependAnchor = useRef(null);
+  const anchorVersion = useRef(historyVersion);
+  if (anchorVersion.current !== historyVersion) {
+    prependAnchor.current = null;
+    anchorVersion.current = historyVersion;
+  }
+  const restoreAnchor = useCallback(() => {
+    const anchor = prependAnchor.current;
     const el = logRef.current;
     if (!el) return;
-    const onScroll = () => {
-      stickBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-      setFarUp(el.scrollHeight - el.scrollTop - el.clientHeight > 2000);
-      // Prefetch older pages when the user scrolls near the top.
-      if (el.scrollTop < cfg.history.prefetchOlderTriggerPx && hasMore && !loadingOlder) {
-        // DATA-anchored restore: remember the pre-load top entry's SEQ and
-        // screen offset; after the prepend re-render, re-locate that entry
-        // (its DOM node may have been unmounted and re-created by the
-        // window shift) and restore its position. Tolerates spacer
-        // estimate→measurement drift that broke height-math compensation
-        // (round-3 B4).
+    const target = chat.pendingSeq.peek();
+    if (target != null) {
+      const node = el.querySelector(`.entry-anchor[data-seq="${target}"], .proc-step[data-seq="${target}"]`)
+        || el.querySelector(`.proc-group[data-seqs~="${target}"]`);
+      if (!node) return;
+      stickBottom.current = !chat.hasMoreAfter.peek() && target === chat.newestSeq.peek();
+      setFarUp(!stickBottom.current);
+      el.scrollTop += node.getBoundingClientRect().top - el.getBoundingClientRect().top
+        - (el.clientHeight - Math.min(node.offsetHeight, el.clientHeight)) / 2;
+      node.classList.remove('history-target');
+      void node.offsetWidth;
+      node.classList.add('history-target');
+      chat.clearPendingSeq();
+      return;
+    }
+    if (!anchor) return;
+    const node = el.querySelector(`[data-seq="${anchor.seq}"]`)
+      || el.querySelector(`[data-seqs~="${anchor.seq}"]`);
+    if (!node) return; // the Vlist's next layout may mount this chunk
+    const offset = node.getBoundingClientRect().top - el.getBoundingClientRect().top;
+    el.scrollTop += offset - anchor.offset;
+    prependAnchor.current = null;
+  }, []);
+
+  useEffect(() => {
+    const el = logRef.current;
+    const load = () => {
+      if (loading || chat.locating.peek() || chat.pendingSeq.peek() != null || chat.loadingOlder.peek() || !chat.hasMoreBefore.peek() || chat.error.peek()) return;
+      if (el.scrollTop > cfg.history.prefetchOlderTriggerPx) return;
+      chat.loadOlder({ beforeMerge: () => {
+        // Capture at response time: the user may have kept scrolling during
+        // the fetch. Restore before paint, not after two visible frames.
         const first = firstVisibleChild(el);
-        const anchorSeq = first?.dataset?.seq ?? null;
-        const prevOffset = first
-          ? first.getBoundingClientRect().top - el.getBoundingClientRect().top
-          : 0;
-        chat.loadOlder().then((got) => {
-          if (!got || anchorSeq == null) return;
-          // Native scroll anchoring (overflow-anchor, on by default in
-          // Chromium/Firefox) keeps the visible node stable across the
-          // prepend; the second frame re-asserts the exact offset only if
-          // the browser's anchor estimate drifted (measurements settling).
-          requestAnimationFrame(() => requestAnimationFrame(() => {
-            const el2 = logRef.current;
-            if (!el2) return;
-            const node = el2.querySelector(`[data-seq="${anchorSeq}"]`);
-            if (!node) return;
-            const cur = node.getBoundingClientRect().top - el2.getBoundingClientRect().top;
-            if (Math.abs(cur - prevOffset) > 2) el2.scrollTop += cur - prevOffset;
-          }));
-        });
+        if (first) prependAnchor.current = {
+          seq: first.dataset.seq,
+          offset: first.getBoundingClientRect().top - el.getBoundingClientRect().top,
+        };
+      }});
+    };
+    const onScroll = () => {
+      stickBottom.current = !chat.hasMoreAfter.peek() && el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      setFarUp(el.scrollHeight - el.scrollTop - el.clientHeight > 2000);
+      load();
+      if (!loading && !chat.locating.peek() && chat.pendingSeq.peek() == null
+          && chat.hasMoreAfter.peek() && !chat.error.peek()
+          && el.scrollHeight - el.scrollTop - el.clientHeight < cfg.history.prefetchOlderTriggerPx) {
+        chat.fetchNewer({pages: 1});
       }
     };
     el.addEventListener('scroll', onScroll, { passive: true });
+    // Fill a viewport containing a short first page as well as prefetching
+    // while scrolling. Each completed page rechecks the actual geometry.
+    load();
     return () => el.removeEventListener('scroll', onScroll);
-  }, [hasMore, loadingOlder]);
+  }, [loading, hasMore, loadingOlder, loadingNewer, locating, entries.length]);
 
-  // Follow new content while pinned to bottom.
+  // New messages follow the bottom; a prepended page never drags the reader
+  // away from their current anchor. Resizing the composer keeps tail readers
+  // at the tail, without disturbing someone reading older history.
+  useLayoutEffect(() => {
+    const el = logRef.current;
+    if (el && stickBottom.current && !prependAnchor.current && chat.pendingSeq.peek() == null && !chat.locating.peek()) el.scrollTop = el.scrollHeight;
+  }, [latestSeq, streamState.text, streamState.reasoning, loading]);
   useEffect(() => {
     const el = logRef.current;
-    if (el && stickBottom.current) el.scrollTop = el.scrollHeight;
-  }, [entries.length, streamState.text, streamState.reasoning, loading]);
+    const observer = new ResizeObserver(() => {
+      if (stickBottom.current && !prependAnchor.current && chat.pendingSeq.peek() == null && !chat.locating.peek()) el.scrollTop = el.scrollHeight;
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
-  // locate() target resident → mount its chunk (Vlist revealIndex), then
-  // one scroll-into-view, then clear the flag.
+  // Vlist calls restoreAnchor only after the requested chunk has committed.
+  // There is no timer racing against asynchronous chunk mounting.
   const groupsIdx = pendingSeq == null ? null : groups.findIndex((g) =>
     g.entry?.seq === pendingSeq || g.steps?.some((s) => s.entry?.seq === pendingSeq || s.fromSeq === pendingSeq));
-  useEffect(() => {
-    if (pendingSeq == null || groupsIdx == null || groupsIdx < 0) return;
-    const raf = requestAnimationFrame(() => {
-      const el = logRef.current?.querySelector(`[data-seq="${pendingSeq}"]`)
-        || logRef.current?.querySelector(`.proc-group[data-seqs~="${pendingSeq}"]`);
-      if (el) {
-        stickBottom.current = false;
-        setFarUp(true);
-        el.scrollIntoView({ block: 'center' });
-        chat.clearPendingSeq();
-      }
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [pendingSeq, groupsIdx, entries.length]);
 
   // Completion: one polite screen-reader announcement; optional OS
   // notification for failures only (dedup per run) — decisions 22/24.
@@ -191,29 +226,25 @@ function ChatLog({ id, loading, snapshot }) {
   return html`
     <div class="chatlog" ref=${logRef}>
       <div class="chatlog-inner">
-        ${hasMore && html`<div class="load-older">
-          <${Button} variant="ghost" disabled=${loadingOlder} onClick=${() => chat.loadOlder().then(() => {})}>
-            ${loadingOlder ? i18n.t('common.loading') : i18n.t('chat.loadOlder')}
-          <//>
-        </div>`}
-        ${!hasMore && entries.length > 0 && html`<div class="load-older">
-          <span style="font-size:12px;color:var(--fg-faint)">${i18n.t('chat.beginning')}</span>
-        </div>`}
+        <div class="history-boundary" role="status">
+          ${loadingOlder ? i18n.t('chat.loadingOlder') : !hasMore && entries.length > 0 ? i18n.t('chat.beginning') : ''}
+        </div>
         ${loading && html`<div class="chat-empty"><${Spinner} label=${i18n.t('common.loading')} /></div>`}
         ${!loading && entries.length === 0 && html`<div class="chat-empty">${i18n.t('chat.empty')}</div>`}
         ${(farUp || hasMoreAfter) && !streamState?.active && html`<button class="btn ghost jump-latest"
           onClick=${async () => {
-            if (hasMoreAfter) await chat.jumpToLatest();
+            if (hasMoreAfter && !await chat.jumpToLatest()) return;
             const el = logRef.current;
             if (el) { stickBottom.current = true; el.scrollTop = el.scrollHeight; }
           }}>↓ ${i18n.t('chat.jumpLatest')}<//>`}
         <${Vlist} items=${groups} datasetKey=${id} initialWindow="bottom" estimate=${110}
-          revealIndex=${groupsIdx}
+          revealIndex=${groupsIdx} onLayout=${restoreAnchor}
           keyOf=${(g) => g.key}
           render=${(g) => (g.type === 'process'
-            ? html`<${ProcessGroup} key=${g.key} item=${g} revealSeq=${pendingSeq} />`
-            : html`<${HistoryEntry} key=${g.key} entry=${g.entry} blocks=${g.blocks} usage=${g.usage} />`)} />
-        <${LiveStream} stream=${streamState} />
+            ? html`<${ProcessGroup} key=${g.key} item=${g} revealSeq=${pendingSeq} recent=${animateAfter != null && g.steps.some(s => (s.fromSeq ?? s.entry?.seq) > animateAfter)} />`
+            : html`<${HistoryEntry} key=${g.key} entry=${g.entry} blocks=${g.blocks} usage=${g.usage} recent=${animateAfter != null && g.entry.seq > animateAfter} />`)} />
+        ${hasMoreAfter && html`<div class="history-boundary" role="status">${loadingNewer ? i18n.t('chat.loadingNewer') : ''}</div>`}
+        ${!hasMoreAfter && html`<${LiveStream} stream=${streamState} />`}
       </div>
     </div>`;
 }
