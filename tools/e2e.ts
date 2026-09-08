@@ -105,12 +105,20 @@ const attr = (sel: string, name: string) => evalJs<string | null>(`document.quer
 const exists = (sel: string) => evalJs<boolean>(`!!document.querySelector(${JSON.stringify(sel)})`);
 
 // ── 1. load + console/network capture ───────────────────────────────────
-await goto('/sessions');
-await wait(600);
+await send('Page.navigate', { url: BASE + '/' });   // bare load: no hash
+await wait(900);
+ok('bare load auto-opens sessions (router default)', (await evalJs('location.hash')).startsWith('#/sessions'),
+  await evalJs('location.hash'));
+await wait(400);
 ok('app renders shell', await exists('.shell'));
 ok('i18n zh active (html.lang=zh)', (await evalJs('document.documentElement.lang')) === 'zh');
 ok('theme attr present', (await evalJs('document.documentElement.dataset.theme')) != null);
 ok(`layout=${MOBILE ? 'mobile' : 'desktop'}`, await exists(MOBILE ? '.bbar' : '.vbar'));
+{
+  const badges = (await evalJs<string>(`[...document.querySelectorAll('.sl-row .badge')].map(b=>b.textContent).join(',')`)) || '';
+  ok('list hides transitional storage states (warming/cooling)',
+    !/升温|转存|warming|cooling/.test(badges), badges.slice(0, 60));
+}
 if (!MOBILE) ok('desktop: sessions pane + chat pane', (await exists('.sessions-pane')) && (await exists('.content-pane')));
 else {
   const vbarHidden = await evalJs(`getComputedStyle(document.querySelector('.vbar')).display === 'none'`);
@@ -150,31 +158,45 @@ const sid = chatPath.replace('#/s/', '').split('/')[0];
 ok('session name shown in topbar', ((await text('.chatbar .title')) || '').includes('webui-v2'));
 
 // ── 4. send message + SSE reply ──────────────────────────────────────────
-await type('.composer textarea', '请只回答两个词:你好世界');
+await type('.composer textarea', '先用 shell 工具运行命令 echo webui-v2-probe,然后只回复命令的输出,不要多余内容。');
 await click('.composer .send-btn');
 await wait(1000);
-ok('optimistic user bubble appears', (await text('.entry.user .bubble'))?.includes('你好世界') ?? false);
+ok('optimistic user bubble appears', ((await text('.entry.user .bubble')) || '').includes('webui-v2-probe'),
+  ((await text('.entry.user .bubble')) || '').slice(0, 50));
 ok('stream indicator or reply starts', await exists('.stream-banner') || await exists('.entry.assistant'));
 // wait for reply to reconcile from history (streaming disabled on daemon → completes via fetch)
 let replied = false;
 for (let i = 0; i < 60; i++) {
   const assistantText = (await evalJs<string>(`[...document.querySelectorAll('.entry.assistant .md')].map(e=>e.textContent).join('')`)) || '';
-  if (assistantText.includes('你好') || assistantText.includes('世界')) { replied = true; break; }
+  if (assistantText.includes('webui-v2-probe')) { replied = true; break; }
   await wait(1000);
 }
 ok('assistant reply rendered (SSE complete → history reconcile)', replied);
 
-// ── 5. fold block expand (reasoning/tool chip → detail modal) ────────────
-// reasoning chip may or may not exist on this turn; check detail modal works on any fold-chip
-const hasFold = (await count('.fold-chip')) > 0;
-if (hasFold) {
-  await click('.fold-chip');
-  await wait(300);
-  ok('fold detail modal opens', await exists('.modal'));
-  await click('.modal-head .btn');
-  ok('fold detail modal closes', !(await exists('.modal')));
-} else {
-  RESULTS.push('SKIP  fold-chip detail (no folded block on this turn — glm reasoning suppressed)');
+// ── 5. process group: consecutive thinking/tool blocks collapse into ONE
+// component; expanding reveals the full sequence (audit ⑤)
+{
+  const hasGroup = await exists('.proc-group');
+  ok('process group chip present', hasGroup, await text('.proc-head'));
+  if (hasGroup) {
+    await click('.proc-head');
+    await wait(300);
+    const steps = await count('.proc-steps .proc-step');
+    ok('group expands to full sequence', steps >= 2, `steps=${steps}`);
+    const stepTypes = (await evalJs<string>(`[...document.querySelectorAll('.proc-step-label')].map(e=>e.textContent).join(' | ')`)) || '';
+    ok('sequence contains tool call + result', /工具调用|Tool call/.test(stepTypes) && /工具结果|Tool result/.test(stepTypes), stepTypes.slice(0, 120));
+    await click('.proc-head');
+    await wait(200);
+    ok('group collapses back', !(await exists('.proc-steps')));
+  }
+  // detail modal still works for standalone chips (trailing tool_call after text)
+  if (await exists('.fold-chip')) {
+    await click('.fold-chip');
+    await wait(300);
+    ok('standalone chip detail modal opens', await exists('.modal'));
+    await click('.modal-head .btn');
+    ok('standalone chip detail modal closes', !(await exists('.modal')));
+  }
 }
 
 // ── 6. history search ────────────────────────────────────────────────────
@@ -192,14 +214,20 @@ if (!searchOpened) {
 }
 ok('search entry reachable', searchOpened);
 await wait(500);
-await wait(400);
-ok('search panel opens', await exists('.panel'));
-await type('.panel input[type=search]', '世界');
+await wait(500);
+const sheetOpen = (await exists('.drawer')) || (await exists('.sheet-page'));
+ok('search sheet opens (drawer on desktop / page on mobile)', sheetOpen);
+if (!MOBILE) {
+  ok('search drawer keeps chat visible, no scrim',
+    (await exists('.chatlog')) && !(await exists('.scrim')));
+}
+await type('.drawer input[type=search], .sheet-page input[type=search]', 'echo');
 await wait(2500);
 const srCount = await count('.search-result');
 ok('search finds the sent message', srCount > 0, `results=${srCount}`);
 await evalJs('history.back()');
 await wait(500);
+ok('closing search returns to chat', await exists('.chatbar'));
 
 // ── 7. new session again (list flow) ─────────────────────────────────────
 await goto('/sessions');
@@ -221,6 +249,35 @@ await wait(200);
 ok('locale switches to en (html.lang=en)', (await evalJs('document.documentElement.lang')) === 'en');
 await evalJs(`(() => { const b=[...document.querySelectorAll('.seg button')].find(x=>x.textContent.includes('中文')); if(b){b.click();return true;} return false; })()`);
 await wait(150);
+
+// ── 8b. desktop-only: resize handle + info drawer ───────────────────────
+if (!MOBILE) {
+  await goto('/sessions');
+  await wait(500);
+  const wBefore = Number.parseFloat(await evalJs(`getComputedStyle(document.documentElement).getPropertyValue('--w-list')`));
+  void wBefore;
+  const wAfter = Number.parseFloat(await evalJs(`(() => {
+    const h = document.querySelector('.list-resize');
+    if (!h) return getComputedStyle(document.documentElement).getPropertyValue('--w-list');
+    h.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true, button:0, pointerId:1, clientX:356, clientY:400}));
+    h.dispatchEvent(new PointerEvent('pointermove', {bubbles:true, pointerId:1, clientX:416, clientY:400}));
+    h.dispatchEvent(new PointerEvent('pointerup', {bubbles:true, pointerId:1, clientX:416, clientY:400}));
+    return getComputedStyle(document.documentElement).getPropertyValue('--w-list');
+  })()`));
+  ok('drag handle resizes list pane', wAfter > wBefore, `${wBefore}px → ${wAfter}px`);
+  const persisted = await evalJs(`localStorage.getItem(Object.keys(localStorage).find(k=>k.includes('listWidth'))||'')`);
+  ok('resized width persisted', Boolean(persisted), String(persisted));
+  // open info from the chat toolbar (real flow), then close back to chat
+  await goto(`/s/${sid}`);
+  await wait(700);
+  await evalJs(`[...document.querySelectorAll('.chatbar button')].find(b => (b.title||'').includes('会话信息'))?.click()`);
+  await wait(700);
+  ok('info opens as right drawer (chat visible, no scrim)',
+    (await exists('.drawer')) && (await exists('.chatlog')) && !(await exists('.scrim')));
+  await evalJs(`[...document.querySelectorAll('.drawer-head button')].pop()?.click()`);
+  await wait(500);
+  ok('drawer close returns to chat', await exists('.chatbar'));
+}
 
 // ── 9. mobile-only: bottom bar flow ──────────────────────────────────────
 if (MOBILE) {
