@@ -1,17 +1,26 @@
-// In-session history search. wishd has no server-side message search, so
-// this pages /history client-side with an explicit depth budget (see
+// In-session history search sheet. wishd has no server-side message search,
+// so this pages /history client-side with an explicit depth budget (see
 // from-llm/10 for the proposed backend API).
 import { html } from '../../h.js';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Button } from '../../components/button.js';
 import { Spinner } from '../../components/spinner.js';
+import { Sheet } from '../../components/sheet.js';
 import { i18n } from '../../../core/i18n/index.js';
 import { chat } from '../../../core/state/chatSlice.js';
 import { navigate } from '../../router.js';
 import { cfg } from '../../../core/config.js';
+import { ChatShell } from './chat.js';
 
 export function SessionSearchView({ route }) {
   const id = route.params.id;
+  return html`<${ChatShell} id=${id} tab="search"
+    sheet=${html`<${Sheet} title=${i18n.t('search.title')}>
+      <${SearchBody} id=${id} />
+    <//>`} />`;
+}
+
+function SearchBody({ id }) {
   const [q, setQ] = useState('');
   const [state, setState] = useState({ status: 'idle' }); // idle|busy|done
   const timer = useRef(null);
@@ -22,7 +31,7 @@ export function SessionSearchView({ route }) {
 
   useEffect(() => {
     clearTimeout(timer.current);
-    if (!q.trim()) { setState({ status: 'idle' }); return null; }
+    if (!q.trim()) { setState({ status: 'idle' }); return undefined; }
     setState({ status: 'busy' });
     timer.current = setTimeout(async () => {
       const res = await chat.searchAll(q, { pages: 3 });
@@ -37,37 +46,29 @@ export function SessionSearchView({ route }) {
     setState({ status: 'done', q, ...res });
   }
 
-  return html`<div class="panel-scrim" onMouseDown=${(e) => { if (e.target === e.currentTarget) history.back(); }}>
-    <div class="panel" role="dialog" aria-label=${i18n.t('search.title')}>
-      <div class="panel-head">
-        <h2>${i18n.t('search.title')}</h2>
-        <${Button} icon="x" variant="ghost" aria-label=${i18n.t('common.close')} onClick=${() => history.back()} />
+  return html`
+    <input class="input" type="search" autofocus placeholder=${i18n.t('search.placeholder')}
+      value=${q} onInput=${(e) => setQ(e.target.value)} />
+    <div style="height:12px" />
+    ${state.status === 'busy' && html`<${Spinner} label=${i18n.t('common.loading')} />`}
+    ${state.status === 'done' && html`
+      <div class="hint" style="font-size:12px;color:var(--fg-subtle);margin-bottom:8px">
+        ${i18n.t('search.results', { n: state.results.length })}
+        · ${i18n.t('search.depth', { pages: state.pages, n: state.entriesScanned })}
       </div>
-      <div class="panel-body">
-        <input class="input" type="search" autoFocus placeholder=${i18n.t('search.placeholder')}
-          value=${q} onInput=${(e) => setQ(e.target.value)} />
-        <div style="height:12px" />
-        ${state.status === 'busy' && html`<${Spinner} label=${i18n.t('common.loading')} />`}
-        ${state.status === 'done' && html`
-          <div class="hint" style="font-size:12px;color:var(--fg-subtle);margin-bottom:8px">
-            ${i18n.t('search.results', { n: state.results.length })}
-            · ${i18n.t('search.depth', { pages: state.pages, n: state.entriesScanned })}
-          </div>
-          ${state.results.length === 0 && html`<div class="hint" style="color:var(--fg-subtle)">${i18n.t('search.noResults')}</div>`}
-          ${state.results.map((r) => html`<div key=${r.seq ?? r.id} class="search-result"
-            onClick=${() => navigate(`/s/${id}`)}>
-            <div class="sr-meta">#${r.seq} · ${r.kind} · ${new Date(r.created_at).toLocaleString()}</div>
-            <div class="sr-text">${highlight(entryText(r), state.q)}</div>
-          </div>`)}
-          ${state.hasMore && html`<div style="margin-top:12px">
-            <${Button} onClick=${deeper}>${i18n.t('search.searchAll')}<//>
-          </div>`}
-        `}
-        ${state.status === 'idle' && html`<div class="hint" style="color:var(--fg-subtle);font-size:13px">
-          ${i18n.t('search.placeholder')} (max ${cfg.history.maxSearchPages} × ${cfg.history.searchPageSize})</div>`}
-      </div>
-    </div>
-  </div>`;
+      ${state.results.length === 0 && html`<div class="hint" style="color:var(--fg-subtle)">${i18n.t('search.noResults')}</div>`}
+      ${state.results.map((r) => html`<div key=${r.seq ?? r.id} class="search-result"
+        onClick=${() => navigate(`/s/${id}`)}>
+        <div class="sr-meta">#${r.seq} · ${r.kind} · ${new Date(r.created_at).toLocaleString()}</div>
+        <div class="sr-text">${highlight(entryText(r), state.q)}</div>
+      </div>`)}
+      ${state.hasMore && html`<div style="margin-top:12px">
+        <${Button} onClick=${deeper}>${i18n.t('search.searchAll')}<//>
+      </div>`}
+    `}
+    ${state.status === 'idle' && html`<div class="hint" style="color:var(--fg-subtle);font-size:13px">
+      ${i18n.t('search.placeholder')} (max ${cfg.history.maxSearchPages} × ${cfg.history.searchPageSize})</div>`}
+  `;
 }
 
 function entryText(e) {

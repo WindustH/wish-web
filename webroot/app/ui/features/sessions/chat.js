@@ -7,33 +7,42 @@ import { Icon } from '../../components/icon.js';
 import { Button } from '../../components/button.js';
 import { Spinner } from '../../components/spinner.js';
 import { Menu } from '../../components/menu.js';
+import { ListResizeHandle } from './resize.js';
 import { navigate, isMobile } from '../../router.js';
 import { i18n } from '../../../core/i18n/index.js';
 import { cfg } from '../../../core/config.js';
 import { chat } from '../../../core/state/chatSlice.js';
 import { sessions } from '../../../core/state/sessionsSlice.js';
 import { Markdown } from '../../components/markdown.js';
-import { HistoryEntry } from './entry.js';
+import { HistoryEntry, groupEntries, ProcessGroup } from './entry.js';
 import { Composer } from './composer.js';
 import { SessionsListPane } from './list.js';
 import { NewSessionModal } from './newsession.js';
 
 export function ChatView({ route }) {
-  const id = route.params.id;
-  const mobile = useSignal(isMobile);
+  return html`<${ChatShell} id=${route.params.id} />`;
+}
 
+// Shared shell for the chat route and its tab routes (info/search/manage):
+// desktop = list + chat + right drawer for the tab; mobile = tab becomes a
+// second-level full page (chat hidden beneath, back returns to it).
+export function ChatShell({ id, tab, sheet }) {
+  const mobile = useSignal(isMobile);
   useEffect(() => { chat.open(id); }, [id]);
 
-  const pane = html`
-    <div class="content-pane">
-      <${ChatPane} id=${id} mobile=${mobile} />
-    </div>`;
-  if (mobile) return pane;
+  if (mobile && tab && sheet) return sheet;
+  if (mobile) return html`
+    <div class="content-pane"><${ChatPane} id=${id} mobile=${true} /></div>`;
+
   return html`<${Fragment}>
     <${SessionsListPane} />
-    ${pane}
+    <${ListResizeHandle} />
+    <div class="content-pane has-drawer">
+      <${ChatPane} id=${id} mobile=${false} />
+      ${tab && sheet}
+    </div>
     <${NewSessionModal} />
-  </>`;
+  <//>`;
 }
 
 function ChatPane({ id, mobile }) {
@@ -125,7 +134,9 @@ function ChatLog({ id, loading, snapshot }) {
         </div>`}
         ${loading && html`<div class="chat-empty"><${Spinner} label=${i18n.t('common.loading')} /></div>`}
         ${!loading && entries.length === 0 && html`<div class="chat-empty">${i18n.t('chat.empty')}</div>`}
-        ${entries.map((e) => html`<${HistoryEntry} key=${e.seq ?? e.localId} entry=${e} />`)}
+        ${groupEntries(entries).map((item) => item.type === 'process'
+          ? html`<${ProcessGroup} key=${item.key} item=${item} />`
+          : html`<${HistoryEntry} key=${item.entry.seq ?? item.entry.localId} entry=${item.entry} />`)}
         <${LiveStream} stream=${streamState} />
       </div>
     </div>`;
