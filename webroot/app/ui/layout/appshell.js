@@ -39,7 +39,10 @@ export function AppShell({ children }) {
             <${Icon} name=${item.icon} />
           </button>`)}
       </nav>
-      <div class="main">${children}</div>
+      <div class="main">
+        <${OfflineBanner} />
+        <div class="main-content">${children}</div>
+      </div>
       <nav class="bbar" aria-label=${i18n.t('app.name')}>
         ${navItems.map((item) => html`
           <button key=${item.id} class="nav-btn ${isActive(item) ? 'active' : ''}"
@@ -51,7 +54,7 @@ export function AppShell({ children }) {
   `;
 }
 
-export function OfflineBanner() {
+function OfflineBanner() {
   const state = useSignal(sync.state);
   const online = useSignal(sync.online);
   if (online && state !== 'closed') return null;

@@ -11,8 +11,15 @@ export {
 /** Re-render whenever a core signal changes. */
 export function useSignal(sig) {
   const [, force] = useState(0);
-  useEffect(() => sig.subscribe(() => force((n) => n + 1)), [sig]);
-  return sig.peek();
+  const value = sig.peek();
+  useLayoutEffect(() => {
+    const refresh = () => force((n) => n + 1);
+    const unsubscribe = sig.subscribe(refresh);
+    // A signal may change after render but before this subscription exists.
+    if (!Object.is(value, sig.peek())) refresh();
+    return unsubscribe;
+  }, [sig]);
+  return value;
 }
 
 /** Re-render on every bus event of `topic`. */
