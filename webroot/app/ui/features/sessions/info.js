@@ -9,8 +9,8 @@ import { Sheet } from '../../components/sheet.js';
 import { i18n } from '../../../core/i18n/index.js';
 import { chat } from '../../../core/state/chatSlice.js';
 import * as api from '../../../core/api/endpoints.js';
-import { fmtTokens } from '../../../core/util/fmt.js';
 import { ChatShell } from './chat.js';
+import { fmtTokens, fmtDateTime } from '../../../core/util/fmt.js';
 
 export function SessionInfoView({ route }) {
   const id = route.params.id;
@@ -25,16 +25,22 @@ function InfoBody({ id }) {
   const [usage, setUsage] = useState(null);
   const [runs, setRuns] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
 
   async function refresh() {
     setBusy(true);
+    setErr(null);
     try {
-      const [snap] = await Promise.all([
-        api.sessionGet(id).catch(() => null),
-        api.sessionUsage(id).then(setUsage).catch(() => {}),
-        api.sessionRuns(id, { limit: 10 }).then(setRuns).catch(() => {}),
+      const [snap, usagePage, runsPage] = await Promise.all([
+        api.sessionGet(id),
+        api.sessionUsage(id),
+        api.sessionRuns(id, { limit: 10 }),
       ]);
-      if (snap && chat.sessionId.peek() === id) chat.snapshot.value = snap;
+      setUsage(usagePage);
+      setRuns(runsPage);
+      if (chat.sessionId.peek() === id) chat.snapshot.value = snap;
+    } catch (e) {
+      setErr(e);   // visible + retryable — never fake-empty sections (round-4)
     } finally { setBusy(false); }
   }
 
@@ -60,10 +66,9 @@ function InfoBody({ id }) {
         <dt>${i18n.t('info.model')}</dt><dd>${snapshot.model || '—'}</dd>
         <dt>${i18n.t('info.phase')}</dt><dd>${i18n.t(`phase.${snapshot.phase || 'unknown'}`)}</dd>
         <dt>${i18n.t('info.queue')}</dt><dd>${snapshot.queue ?? 0}</dd>
-        <dt>${i18n.t('info.generation')}</dt><dd>#${snapshot.generation ?? '—'}${snapshot.standby_generation ? ` (standby #${snapshot.standby_generation})` : ''}</dd>
-        <dt>${i18n.t('info.storage')}</dt><dd>${snapshot.storage_state || 'hot'}</dd>
-        <dt>${i18n.t('info.createdAt')}</dt><dd>${new Date(snapshot.created_at).toLocaleString()}</dd>
-        <dt>${i18n.t('info.updatedAt')}</dt><dd>${new Date(snapshot.updated_at).toLocaleString()}</dd>
+        <dt>${i18n.t('info.generation')}</dt><dd>#${snapshot.generation ?? '—'} · ${shortId(snapshot.generation_id)}${snapshot.standby_generation ? ` · ${i18n.t('info.standby')} #${snapshot.standby_generation} ${shortId(snapshot.standby_generation_id)}` : ''}</dd>
+        <dt>${i18n.t('info.createdAt')}</dt><dd>${fmtDateTime(snapshot.created_at)}</dd>
+        <dt>${i18n.t('info.updatedAt')}</dt><dd>${fmtDateTime(snapshot.updated_at)}</dd>
       </dl>
       ${snapshot.agent_custom != null && html`
         <div class="section-title">${i18n.t('info.agentCustom')}</div>
@@ -78,11 +83,17 @@ function InfoBody({ id }) {
       <dt>${i18n.t('stats.cacheHit')}</dt><dd>${total?.cache ? Math.round((total.cache.request_hit_ratio || 0) * 100) + '%' : '—'}</dd>
     </dl>`}
     ${busy && html`<div style="margin-top:8px"><${Spinner} /></div>`}
+    ${err && html`<div class="load-error" role="alert">
+      ${i18n.t('common.loadFailed')} — ${err.message ?? err}
+      <button class="btn btn-ghost btn-sm" onClick=${() => refresh()}>${i18n.t('common.retry')}</button>
+    </div>`}
     <div class="section-title">${i18n.t('info.runs')}</div>
     ${runs && (runs.items || []).map((r) => html`<div key=${r.id} class="search-result">
-      <div class="sr-meta">${new Date(r.created_at).toLocaleString()} · ${r.state || r.status || ''} ${r.id.slice(0, 8)}</div>
+      <div class="sr-meta">${fmtDateTime(r.started_at_ms)} · ${r.state} ${r.id.slice(0, 8)}</div>
       <div class="sr-text">${r.kind || 'run'}${r.error ? ` — ${r.error}` : ''}</div>
     </div>`)}
     ${runs && !(runs.items || []).length && html`<div class="hint" style="color:var(--fg-subtle);font-size:13px">${i18n.t('common.empty')}</div>`}
   `;
 }
+
+function shortId(id) { return id ? `…${String(id).slice(-6)}` : ''; }

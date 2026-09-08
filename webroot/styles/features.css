@@ -294,3 +294,15 @@ html.resizing .chatlog, html.resizing .sl-list { pointer-events: none; }
 .seg-item .icon { width: 13px; height: 13px; }
 .sl-row .icon.pinned { width: 12px; height: 12px; color: var(--fg-faint); flex: none; }
 .sl-empty.subtle { color: var(--fg-faint); font-size: 12px; padding: 8px 0 12px; }
+
+/* capability read failure: visible + explicit retry (never fake-unknown) */
+.caps-error {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--fg-subtle); padding: 2px 0;
+}
+.caps-error .btn.sm { padding: 2px 8px; font-size: 12px; }
+
+/* jump-to-latest chip after a deep search locate */
+.jump-latest {
+  display: block; margin: 0 auto 8px; font-size: 12px;
+}

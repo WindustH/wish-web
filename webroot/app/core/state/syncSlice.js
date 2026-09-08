@@ -13,7 +13,6 @@ export const sync = (() => {
   const state = signal('closed');        // closed|connecting|open|reconnecting
   const sseId = signal('');              // durable replay cursor
   const snapshotRevision = signal(0);
-  const storageStates = signal({});      // session id → storage_state
   const online = signal(true);
   const resetReason = signal(null);      // cursor_ahead | cursor_gap | null
 
@@ -28,15 +27,20 @@ export const sync = (() => {
     let payload = null;
     if (frame.data) {
       try { payload = JSON.parse(frame.data); }
-      catch (err) { protocolError.value = err; }
+      catch (err) {
+        // Malformed control-plane frame: record it and STOP processing the
+        // frame — never guess at a partial payload (round-4 #6).
+        protocolError.value = err;
+        return;
+      }
     }
     switch (frame.event) {
       case 'sync.snapshot':
         if (payload?.reset_reason) resetReason.value = payload.reset_reason;
         snapshotRevision.value += 1;
         // snapshot.sessions is a Page envelope {items,has_more,next_cursor};
-        // sync.runtime.sessions is a bare array. Handle both.
-        applyStorageList(payload?.sessions?.items ?? payload?.sessions);
+        // only .items is ever read — a bare array here is a protocol
+        // violation, not something to guess around (round-4 #6).
         online.value = true;
         bus.emit('sync.snapshot', payload);
         break;
@@ -52,7 +56,6 @@ export const sync = (() => {
         break;
       }
       case 'sync.runtime':
-        applyStorageList(payload?.sessions);
         bus.emit('sync.runtime', payload);
         break;
       case 'sync.heartbeat':
@@ -64,20 +67,6 @@ export const sync = (() => {
       default:
         break;
     }
-  }
-
-  function applyStorageList(list) {
-    if (!Array.isArray(list)) return;
-    const prev = storageStates.peek();
-    const map = { ...prev };
-    let changed = false;
-    for (const s of list) {
-      if (!s?.id) continue;
-      if (map[s.id] !== s.storage_state) { map[s.id] = s.storage_state; changed = true; }
-    }
-    // sync.runtime frames arrive constantly; only publish real transitions so
-    // subscribers (every list row) don't re-render each frame.
-    if (changed) storageStates.value = map;
   }
 
   function startPollFallback() {
@@ -93,7 +82,7 @@ export const sync = (() => {
   }
 
   return {
-    state, sseId, storageStates, online, snapshotRevision, resetReason, protocolError,
+    state, sseId, online, snapshotRevision, resetReason, protocolError,
     start() {
       if (sse) return;
       sse = createSse({

@@ -82,10 +82,6 @@ export function SessionsListPane() {
 }
 
 function SessionRow({ s, active }) {
-  // storage_state: only 'cold' matters to users (slower first open);
-  // transient cooling/warming states are intentionally not shown here.
-  const storage = useSignal(sync.storageStates);
-  const st = storage[s.id] || s.storage_state || 'hot';
   return html`
     <div class="sl-row ${active ? 'active' : ''}" role="listitem" tabIndex="0"
       onClick=${() => navigate(`/s/${s.id}`)}
@@ -95,7 +91,6 @@ function SessionRow({ s, active }) {
         <span class="sl-name">${s.name}</span>
         ${s.pinned && html`<${Icon} name="pin" class="sm pinned" />`}
         ${s.archived && html`<span class="badge">${i18n.t('sessions.archivedBadge')}</span>`}
-        ${st === 'cold' && html`<span class="badge">${i18n.t('sessions.storage.cold')}</span>`}
       </div>
       <div class="sl-sub">
         <span>${i18n.t(`phase.${s.phase || 'unknown'}`)}</span>

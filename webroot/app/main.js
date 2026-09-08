@@ -48,13 +48,23 @@ installFeatures();
 const { applySavedListWidth } = await import('./ui/features/sessions/resize.js');
 applySavedListWidth();
 startRouter();
+// Background notifier FIRST: its sync.snapshot baseline must be established
+// before the control plane starts streaming (round-5).
+{
+  const { installBackgroundNotify } = await import('./ui/notify.js');
+  installBackgroundNotify();
+}
 sync.start();
 // A malformed control-plane frame is a protocol violation — surface it once
 // per occurrence instead of silently treating it as an empty payload.
+// A generation cutover (compaction switch) invalidates older context —
+// one clear message per change (round-4 #3).
 {
   const { toast } = await import('./ui/components/toast.js');
   const { i18n } = await import('./core/i18n/index.js');
   sync.protocolError.subscribe((err) => { if (err) toast(i18n.t('sync.protocolError')); });
+  const { bus } = await import('./core/bus.js');
+  bus.on('chat.generationChanged', () => toast(i18n.t('chat.generationChanged')));
 }
 
 // keep-awake while a run is active (mobile setting)
@@ -78,6 +88,7 @@ installShortcuts({
 // PWA registration (structure reserved; offline strategy is cache-shell)
 // PWA shell: precached module graph, updates activate ONLY after the user
 // confirms (no mixed versions — see sw.js / decisions 21).
+
 if (cfg.pwa.register && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {
   const { i18n } = await import('./core/i18n/index.js');
   let reloading = false;

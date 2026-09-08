@@ -6,7 +6,7 @@
 //     the update prompt) — no mixed versions;
 //   · /wishd-api/* and every non-GET: always live, never cached;
 //   · only caches in THIS app's namespace (wish-web-shell-*) are managed.
-const VERSION = 'wish-web-shell-de4ff0389951f611';
+const VERSION = 'wish-web-shell-bc9c5e07f05c5809';
 const SHELL = [
   "/",
   "/app-icons/icon-192.png",
@@ -53,6 +53,7 @@ const SHELL = [
   "/app/ui/features/sessions/chat.js",
   "/app/ui/features/sessions/composer.js",
   "/app/ui/features/sessions/entry.js",
+  "/app/ui/features/sessions/grouping.js",
   "/app/ui/features/sessions/index.js",
   "/app/ui/features/sessions/info.js",
   "/app/ui/features/sessions/list.js",
@@ -71,6 +72,7 @@ const SHELL = [
   "/app/ui/index.js",
   "/app/ui/layout/appshell.js",
   "/app/ui/live.js",
+  "/app/ui/notify.js",
   "/app/ui/router.js",
   "/app/ui/shortcuts.js",
   "/index.html",

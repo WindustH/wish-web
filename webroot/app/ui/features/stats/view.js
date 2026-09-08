@@ -16,7 +16,6 @@ export function StatsView() {
   const version = useSignal(stats.version);
   const loading = useSignal(stats.loading);
   const updatedAt = useSignal(stats.updatedAt);
-  const [open, setOpen] = useState(true);
 
   useEffect(() => {
     stats.startAuto();
@@ -79,15 +78,9 @@ export function StatsView() {
       <div class="card">
         <div class="section-title">${i18n.t('stats.storage')}</div>
         <dl class="kv">
-          <dt>cold storage</dt><dd>${storage?.cold_storage?.enabled ? i18n.t('common.yes') : i18n.t('common.no')}</dd>
-          <dt>cold sessions</dt><dd>${storage?.cold_storage?.sessions ?? '—'}</dd>
           <dt>executions</dt><dd>${fmtBytes(storage?.counters?.executions?.total_bytes) || '—'}</dd>
           <dt>blobs</dt><dd>${storage?.counters?.blobs?.count ?? '—'}</dd>
         </dl>
-        <div class="section-title" style="cursor:pointer" onClick=${() => setOpen(!open)}>
-          <${Icon} name=${open ? 'chevron-down' : 'chevron-right'} class="sm" /> raw /storage/status
-        </div>
-        ${open && html`<pre class="config-view">${JSON.stringify(storage ?? {}, null, 2)}</pre>`}
       </div>
       ${loading && html`<div style="text-align:center"><span class="spinner" /></div>`}
     </div>

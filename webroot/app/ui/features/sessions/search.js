@@ -10,6 +10,7 @@ import { Button } from '../../components/button.js';
 import { Spinner } from '../../components/spinner.js';
 import { Sheet } from '../../components/sheet.js';
 import { i18n } from '../../../core/i18n/index.js';
+import { fmtDateTime } from '../../../core/util/fmt.js';
 import { chat } from '../../../core/state/chatSlice.js';
 import * as api from '../../../core/api/endpoints.js';
 import { navigate } from '../../router.js';
@@ -114,7 +115,7 @@ function SearchBody({ id }) {
       ${state.results.length === 0 && html`<div class="hint" style="color:var(--fg-subtle)">${i18n.t('search.noResults')}</div>`}
       ${state.results.map((r) => html`<div key=${r.seq ?? r.entry_id} class="search-result"
         onClick=${() => jump(r.seq)}>
-        <div class="sr-meta">#${r.seq} · ${r.kind} · ${new Date(r.created_at).toLocaleString(i18n.locale.value)}</div>
+        <div class="sr-meta">#${r.seq} · ${r.kind} · ${fmtDateTime(r.created_at)}</div>
         <div class="sr-text">${highlight(r.snippet ?? '', state.q)}</div>
       </div>`)}
       ${state.hasMore && html`<div style="margin-top:12px">

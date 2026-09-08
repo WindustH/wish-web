@@ -221,7 +221,7 @@ function snapToListRow(snap) {
     id: snap.id, name: snap.name, phase: snap.phase,
     created_at_ms: Date.parse(snap.created_at) || null,
     updated_at_ms: Date.parse(snap.updated_at) || null,
-    pending_items: snap.queue ?? 0, storage_state: snap.storage_state ?? 'hot',
+    pending_items: snap.queue ?? 0,
     revision: snap.revision, resume_requires_user: snap.resume_requires_user,
     pinned: Boolean(snap.pinned), archived: Boolean(snap.archived),
     tags: Array.isArray(snap.tags) ? snap.tags : [],
@@ -230,7 +230,7 @@ function snapToListRow(snap) {
 
 function sessionRowFromSync(body) {
   const row = {};
-  for (const k of ['name', 'phase', 'storage_state', 'revision', 'resume_requires_user', 'pending_items', 'pinned', 'archived']) {
+  for (const k of ['name', 'phase', 'revision', 'resume_requires_user', 'pending_items', 'pinned', 'archived']) {
     if (body[k] !== undefined) row[k] = body[k];
   }
   if (body.tags !== undefined) row.tags = body.tags;

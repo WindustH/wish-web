@@ -109,7 +109,10 @@ export function SettingsView() {
             onClick=${async () => {
               if (!notifyOnFailure) {
                 const notify = platform('notify');
-                const perm = notify?.isSupported ? await notify.request() : 'unsupported';
+                if (!notify.isSupported) { toast(i18nCore.t('settings.notifyDenied')); return; }
+                let perm;
+                try { perm = await notify.request(); }
+                catch (err) { toast(i18nCore.t('common.loadFailed') + ': ' + (err?.message ?? err)); return; }
                 if (perm !== 'granted') { toast(i18nCore.t('settings.notifyDenied')); return; }
               }
               prefs.setNotifyOnFailure(!notifyOnFailure);

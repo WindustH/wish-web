@@ -1,11 +1,19 @@
 // Formatting helpers shared by core and UI (DOM-free).
+import { i18n } from '../i18n/index.js';
+
+const compactFmt = { zh: undefined, en: undefined };
+function compactNumber(n) {
+  // Intl compact notation follows the UI language (round-4 #4).
+  const loc = i18n.locale.value;
+  compactFmt[loc] ??= new Intl.NumberFormat(loc === 'zh' ? 'zh-Hans' : 'en', {
+    notation: 'compact', maximumFractionDigits: 1,
+  });
+  return compactFmt[loc].format(n);
+}
 
 export function fmtTokens(n) {
   if (n == null) return '—';
-  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
-  return String(n);
+  return compactNumber(n);
 }
 
 export function relTime(tsMs, t) {
@@ -71,3 +79,13 @@ export function truncate(s, n) {
 }
 
 export function firstLine(s, n = 120) { return truncate((s || '').split('\n', 1)[0].trim(), n); }
+
+/** Locale-aware date-time for user-facing surfaces; follows the UI language
+ *  (round-4 #4: Intl formatting must track i18n.locale, not the OS). */
+export function fmtDateTime(ts) {
+  if (ts == null) return '—';
+  return new Intl.DateTimeFormat(i18n.locale.value, {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  }).format(new Date(ts));
+}
