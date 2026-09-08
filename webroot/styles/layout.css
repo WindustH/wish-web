@@ -31,6 +31,31 @@
 }
 .content-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 
+/* Chat and a route's detail sheet share the available height, side by side. */
+.content-pane.has-drawer { flex-direction: row; min-height: 0; }
+.content-pane > .chat { min-width: 0; overflow: hidden; }
+.drawer {
+  width: min(calc(var(--max-content) / 2), 45%); flex: none;
+  display: flex; flex-direction: column; min-width: 0; min-height: 0;
+  border-left: 1px solid var(--line); background: var(--bg-raised);
+  overflow: hidden;
+}
+.drawer-head {
+  height: var(--h-topbar); flex: none;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-s); padding: 0 var(--space-l);
+  border-bottom: 1px solid var(--line);
+}
+.drawer-head h2 {
+  margin: 0; min-width: 0; font-size: inherit; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sheet-body {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-wrap: anywhere;
+  padding: var(--space-l);
+}
+.sheet-page { min-width: 0; min-height: 0; overflow: hidden; }
+
 .shell.mobile { flex-direction: column; }
 .shell.mobile .vbar { display: none; }
 .shell.mobile .sessions-pane { width: 100%; flex: 1; border-right: 0; }
