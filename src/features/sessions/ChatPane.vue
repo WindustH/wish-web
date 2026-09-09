@@ -1,0 +1,69 @@
+<script setup lang="ts">
+// Chat surface: top bar (desktop three actions / mobile back+menu), log,
+// composer, and the right-side tabs (info/search/manage) rendered as Sheet
+// overlays through CHILD routes — switching them never rebuilds this pane.
+import { computed, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useMedia } from '../../ui/composables/useMedia.js';
+import { i18n } from '../../core/i18n/index.js';
+import { chat } from '../../core/state/chatSlice.js';
+import Icon from '../../ui/components/Icon.vue';
+import Menu from '../../ui/components/Menu.vue';
+import ChatLog from './ChatLog.vue';
+import Composer from './Composer.vue';
+import ModelSettings from './ModelSettings.vue';
+
+const route = useRoute();
+const router = useRouter();
+const isMobile = useMedia('(max-width: 899px)');
+
+const id = computed(() => route.params.id as string);
+const tab = computed(() => {
+  const n = route.name as string;
+  return n === 'chat-info' ? 'info' : n === 'chat-search' ? 'search' : n === 'chat-manage' ? 'manage' : null;
+});
+
+watch(id, (next) => { if (next) chat.open(next); }, { immediate: true });
+
+const snapshot = computed(() => chat.snapshot.value);
+const queue = computed(() => snapshot.value?.queue ?? 0);
+const modelOpen = ref(false);
+
+const closeTab = () => router.push({ name: 'chat', params: { id: id.value } });
+const goTab = (t: string) => router.push({ name: `chat-${t}`, params: { id: id.value } });
+</script>
+
+<template>
+  <div class="chat-pane" :class="{ 'has-drawer': !!tab }">
+    <div class="chatbar">
+      <button v-if="isMobile" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')"
+        @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
+      <div class="chat-title">
+        <span class="name">{{ snapshot?.name || id.slice(0, 8) }}</span>
+        <span v-if="queue > 0" class="queue-badge">{{ i18n.t('chat.queuedN', { n: queue }) }}</span>
+        <button class="model-chip" :title="i18n.t('model.chipTitle')" @click="modelOpen = true">
+          {{ snapshot?.model || '—' }}
+        </button>
+      </div>
+      <template v-if="!isMobile">
+        <button class="btn ghost icon-only" :title="i18n.t('chatbar.info')" :aria-label="i18n.t('chatbar.info')"
+          @click="goTab('info')"><Icon name="info" /></button>
+        <button class="btn ghost icon-only" :title="i18n.t('chatbar.search')" :aria-label="i18n.t('chatbar.search')"
+          @click="goTab('search')"><Icon name="history" /></button>
+        <button class="btn ghost icon-only" :title="i18n.t('chatbar.manage')" :aria-label="i18n.t('chatbar.manage')"
+          @click="goTab('manage')"><Icon name="settings-2" /></button>
+      </template>
+      <Menu v-else :items="[
+        { key: 'info', label: i18n.t('chatbar.info') },
+        { key: 'search', label: i18n.t('chatbar.search') },
+        { key: 'manage', label: i18n.t('chatbar.manage') },
+      ]" @select="goTab">
+        <Icon name="ellipsis-vertical" />
+      </Menu>
+    </div>
+    <ChatLog :session-id="id" :mobile="isMobile" />
+    <Composer :session-id="id" :mobile="isMobile" :on-search="() => goTab('search')" />
+    <RouterView @close="closeTab" />
+    <ModelSettings :open="modelOpen" :session-id="id" @close="modelOpen = false" />
+  </div>
+</template>
