@@ -1,0 +1,43 @@
+// Stats slice: daemon status + usage + storage. Refreshed on demand and on
+// sync invalidation while a stats view is on screen.
+import { cfg } from '../config.js';
+import { bus } from '../bus.js';
+import { shallowRef } from 'vue';
+import * as api from '../api/endpoints.js';
+
+export const stats = (() => {
+  const status = shallowRef(null);
+  const usage = shallowRef(null);
+  const storage = shallowRef(null);
+  const version = shallowRef(null);
+  const loading = shallowRef(false);
+  const error = shallowRef(null);
+  const updatedAt = shallowRef(null);
+
+  async function refresh() {
+    loading.value = true; error.value = null;
+    try {
+      const [st, us, sg, ver] = await Promise.all([
+        api.daemonStatus(), api.usageTotals(), api.storageStatus(), api.daemonVersion(),
+      ]);
+      status.value = st; usage.value = us; storage.value = sg; version.value = ver;
+      updatedAt.value = Date.now();
+    } catch (err) {
+      error.value = err;
+    } finally { loading.value = false; }
+  }
+
+  let autoTimer = null;
+  function startAuto() {
+    stopAuto();
+    refresh();
+    autoTimer = setInterval(refresh, cfg.stats.refreshMs);
+  }
+  function stopAuto() { clearInterval(autoTimer); autoTimer = null; }
+
+  bus.on('invalidate.daemon', () => {
+    if (autoTimer) api.daemonStatus().then((st) => { status.value = st; }).catch(() => {});
+  });
+
+  return { status, usage, storage, version, loading, error, updatedAt, refresh, startAuto, stopAuto };
+})();
