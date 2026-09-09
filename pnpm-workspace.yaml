@@ -1,0 +1,10 @@
+packages:
+  - .
+storeDir: .cache/pnpm/store
+cacheDir: .cache/pnpm/cache
+saveExact: true
+allowBuilds:
+  esbuild: true
+  vue-demi: true
+minimumReleaseAgeExclude:
+  - '@types/node@22.20.2'

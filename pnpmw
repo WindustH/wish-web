@@ -1,0 +1,13 @@
+#!/bin/sh
+# Keep the package manager, dependencies and caches inside this checkout.
+set -eu
+WISH_WEB_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$WISH_WEB_ROOT"
+export COREPACK_HOME="$WISH_WEB_ROOT/.cache/corepack"
+export COREPACK_DEFAULT_TO_LATEST=0
+export COREPACK_ENABLE_AUTO_PIN=0
+export PNPM_HOME="$WISH_WEB_ROOT/.cache/pnpm/home"
+export XDG_CACHE_HOME="$WISH_WEB_ROOT/.cache"
+export XDG_DATA_HOME="$WISH_WEB_ROOT/.cache/data"
+export XDG_STATE_HOME="$WISH_WEB_ROOT/.cache/state"
+exec corepack pnpm "$@"

@@ -1,5 +1,5 @@
-// Stats slice: daemon status + usage + storage. Refreshed on demand and on
-// sync invalidation while a stats view is on screen.
+// One authoritative statistics snapshot. Refresh only while the page is open;
+// leaving it invalidates pending responses and releases the interval.
 import { cfg } from '../config.js';
 import { bus } from '../bus.js';
 import { shallowRef } from 'vue';
@@ -13,31 +13,46 @@ export const stats = (() => {
   const loading = shallowRef(false);
   const error = shallowRef(null);
   const updatedAt = shallowRef(null);
+  let epoch = 0;
+  let pending = null;
+  let autoTimer = null;
 
-  async function refresh() {
-    loading.value = true; error.value = null;
-    try {
-      const [st, us, sg, ver] = await Promise.all([
-        api.daemonStatus(), api.usageTotals(), api.storageStatus(), api.daemonVersion(),
-      ]);
-      status.value = st; usage.value = us; storage.value = sg; version.value = ver;
+  function refresh() {
+    if (pending) return pending;
+    const own = epoch;
+    loading.value = true;
+    error.value = null;
+    pending = Promise.all([
+      api.daemonStatus(), api.usageTotals(), api.storageStatus(), api.daemonVersion(),
+    ]).then(([st, us, sg, ver]) => {
+      if (own !== epoch) return;
+      status.value = st;
+      usage.value = us;
+      storage.value = sg;
+      version.value = ver;
       updatedAt.value = Date.now();
-    } catch (err) {
-      error.value = err;
-    } finally { loading.value = false; }
+    }).catch(cause => {
+      if (own === epoch) error.value = cause;
+    }).finally(() => {
+      if (own !== epoch) return;
+      loading.value = false;
+      pending = null;
+    });
+    return pending;
   }
 
-  let autoTimer = null;
+  function stopAuto() {
+    clearInterval(autoTimer);
+    autoTimer = null;
+    epoch++;
+    pending = null;
+    loading.value = false;
+  }
   function startAuto() {
     stopAuto();
-    refresh();
+    void refresh();
     autoTimer = setInterval(refresh, cfg.stats.refreshMs);
   }
-  function stopAuto() { clearInterval(autoTimer); autoTimer = null; }
-
-  bus.on('invalidate.daemon', () => {
-    if (autoTimer) api.daemonStatus().then((st) => { status.value = st; }).catch(() => {});
-  });
-
+  bus.on('invalidate.daemon', () => { if (autoTimer !== null) void refresh(); });
   return { status, usage, storage, version, loading, error, updatedAt, refresh, startAuto, stopAuto };
 })();

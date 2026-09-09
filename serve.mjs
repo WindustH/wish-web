@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Static + API-proxy server for wish-web (hardened per decisions 23 / task 7).
-//   · static files from ./webroot (the app itself is build-free)
+//   · compiled static files from ./dist (build with ./pnpmw build)
 //   · /wishd-api/* → wishd (default http://127.0.0.1:9780), streamed so SSE works
 //   · /providerd-api/* → wish-providerd (default http://127.0.0.1:9781)
 //   · independent bearer injection: WISHD_TOKEN and PROVIDERD_TOKEN
@@ -20,7 +20,9 @@ import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.env.PORT || 8790);
 const LISTEN_HOST = process.env.LISTEN_HOST || '127.0.0.1';
-const ROOT = fileURLToPath(new URL('./webroot', import.meta.url));
+const ROOT = fileURLToPath(new URL('./dist', import.meta.url));
+// Missing builds are a startup error, not an apparently healthy empty server.
+await stat(join(ROOT, 'index.html'));
 
 const BACKENDS = [
   { prefix: '/wishd-api', base: process.env.WISHD_UPSTREAM || 'http://127.0.0.1:9780', token: process.env.WISHD_TOKEN || '' },
@@ -89,7 +91,7 @@ const server = createServer(async (req, res) => {
       const data = await readFile(file);
       res.writeHead(200, {
         'content-type': MIME[extname(file)] || 'application/octet-stream',
-        'cache-control': 'no-cache',
+        'cache-control': url.pathname.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache',
         'x-content-type-options': 'nosniff',
       });
       return res.end(req.method === 'HEAD' ? undefined : data);

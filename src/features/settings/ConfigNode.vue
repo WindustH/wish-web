@@ -1,0 +1,111 @@
+<script setup lang="ts">
+import { computed, ref } from 'vue';
+import { SwitchRoot, SwitchThumb } from 'reka-ui';
+import { ChevronDown, Plus, Trash2 } from '@lucide/vue';
+import { isObject, pointer } from '../../core/config-editor';
+import type { ConfigCatalog, ConfigEditor, Json } from '../../core/config-editor';
+import { fieldHint, isMap, isSecret, label, newArrayEntry, optionalFields, optionLabel, optionsFor, tr, unit } from './fields';
+
+const props = defineProps<{
+  value: Json;
+  path: string[];
+  editor: ConfigEditor;
+  catalog?: ConfigCatalog;
+  title?: string;
+}>();
+const key = computed(() => props.path.at(-1)!);
+const name = computed(() => props.title || label(key.value));
+const object = computed(() => isObject(props.value) ? props.value : undefined);
+const optional = computed(() => optionalFields(props.path));
+const available = computed(() => Object.keys(optional.value).filter(k => !object.value || !(k in object.value)));
+const secret = computed(() => isSecret(props.path, props.value));
+const selectOptions = computed(() => optionsFor(props.path, props.editor.draft.value!, props.catalog));
+const inputValue = computed(() => props.value === '<redacted>' ? '' : String(props.value ?? ''));
+const addKey = ref('');
+const mapValueType = ref('string');
+const addError = ref('');
+const inputType = computed(() => secret.value ? 'password' : typeof props.value === 'number' ? 'number' : 'text');
+const floatField = computed(() => /ratio$|multiplier|bytes_per_token/.test(key.value));
+
+function setInput(event: Event) {
+  const input = event.target as HTMLInputElement;
+  if (!input.checkValidity()) return;
+  const value = typeof props.value === 'number' ? input.valueAsNumber : input.value;
+  // Focusing and leaving a masked field does not clear the existing credential.
+  if (secret.value && props.value === '<redacted>' && value === '') return;
+  props.editor.set(props.path, value);
+}
+function addField() {
+  const field = addKey.value.trim();
+  if (!field) return;
+  if (object.value && Object.hasOwn(object.value, field)) {
+    addError.value = tr('这个名称已经存在。', 'This name already exists.');
+    return;
+  }
+  const value = isMap(props.path)
+    ? key.value === 'models' ? {} : key.value === 'reasoning_efforts' && mapValueType.value === 'number' ? 0 : ''
+    : structuredClone(optional.value[field]);
+  props.editor.set([...props.path, field], value);
+  addKey.value = '';
+  addError.value = '';
+}
+function itemTitle(item: Json, index: number) {
+  return isObject(item) && item.id ? String(item.id) : `${tr('项目', 'Item')} ${index + 1}`;
+}
+</script>
+
+<template>
+  <div v-if="Array.isArray(value)" class="cfg-array" :data-config-path="pointer(path)">
+    <p v-if="!value.length" class="cfg-hint">{{ tr('尚未添加项目。', 'No items yet.') }}</p>
+    <div v-for="(item, index) in value" :key="index" class="cfg-array-item">
+      <details v-if="isObject(item)" :open="!item.id">
+        <summary><ChevronDown :size="16" /><span>{{ itemTitle(item, index) }}</span></summary>
+        <ConfigNode :value="item" :path="[...path, String(index)]" :editor="editor" :catalog="catalog" />
+      </details>
+      <ConfigNode v-else :value="item" :path="[...path, String(index)]" :title="`${name} ${index + 1}`" :editor="editor" :catalog="catalog" />
+      <button type="button" class="btn ghost cfg-remove" :aria-label="`${tr('删除', 'Remove')} ${itemTitle(item, index)}`" @click="editor.remove([...path, String(index)])"><Trash2 :size="16" />{{ tr('删除', 'Remove') }}</button>
+    </div>
+    <button type="button" class="btn" @click="editor.append(path, newArrayEntry(path))"><Plus :size="16" />{{ tr('添加', 'Add') }}{{ name }}</button>
+  </div>
+  <div v-else-if="object" class="cfg-object" :data-config-path="pointer(path)">
+    <template v-for="(child, field) in object" :key="field">
+      <div class="cfg-property">
+        <details v-if="child !== null && typeof child === 'object'" class="cfg-nested" :open="isMap(path)">
+          <summary><ChevronDown :size="16" /><span>{{ isMap(path) ? field : label(field) }}</span><small v-if="Array.isArray(child)">{{ child.length }}</small></summary>
+          <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
+        </details>
+        <ConfigNode v-else :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
+        <button v-if="isMap(path) || field in optional" type="button" class="btn ghost cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : label(field)}`" @click="editor.remove([...path, field])"><Trash2 :size="15" /><span>{{ tr('移除设置', 'Remove override') }}</span></button>
+      </div>
+    </template>
+    <div v-if="available.length || isMap(path)" class="cfg-add-field">
+      <label :for="`add-${pointer(path)}`">{{ isMap(path) ? tr('添加项目', 'Add entry') : tr('添加可选设置', 'Add optional setting') }}</label>
+      <div class="cfg-inline">
+        <input v-if="isMap(path)" :id="`add-${pointer(path)}`" v-model="addKey" :placeholder="key === 'models' ? tr('模型名称，例如 model-name', 'Model ID, e.g. model-name') : tr('名称', 'Name')" @keydown.enter.prevent="addField" />
+        <select v-else :id="`add-${pointer(path)}`" v-model="addKey"><option value="" disabled>{{ tr('选择设置', 'Choose setting') }}</option><option v-for="field in available" :key="field" :value="field">{{ label(field) }}</option></select>
+        <select v-if="key === 'reasoning_efforts'" v-model="mapValueType" :aria-label="tr('值的类型', 'Value type')"><option value="string">{{ tr('强度名称', 'Effort name') }}</option><option value="number">{{ tr('Token 数量', 'Token budget') }}</option></select>
+        <button type="button" class="btn" :disabled="!addKey.trim()" @click="addField"><Plus :size="16" />{{ tr('添加', 'Add') }}</button>
+      </div>
+      <p v-if="addError" class="cfg-error" role="alert">{{ addError }}</p>
+    </div>
+  </div>
+  <div v-else class="cfg-field" :data-config-path="pointer(path)">
+    <div class="cfg-field-label">
+      <label :for="pointer(path)">{{ name }}</label>
+      <small v-if="unit(key)">{{ unit(key) }}</small>
+      <p v-if="fieldHint(path)" class="cfg-hint">{{ fieldHint(path) }}</p>
+    </div>
+    <SwitchRoot v-if="typeof value === 'boolean'" :id="pointer(path)" :model-value="value" class="cfg-switch" @update:model-value="editor.set(path, $event)"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot>
+    <select v-else-if="selectOptions" :id="pointer(path)" :value="value" @change="setInput">
+      <option v-if="!selectOptions.includes(String(value))" :value="String(value)">{{ value }}</option>
+      <option v-for="option in selectOptions" :key="option" :value="option">{{ option === '' ? tr('未选择', 'Not selected') : optionLabel(option) }}</option>
+    </select>
+    <div v-else class="cfg-input-wrap">
+      <input :id="pointer(path)" :type="inputType" :value="inputValue" :autocomplete="secret ? 'new-password' : 'off'" :spellcheck="false"
+        :required="typeof value === 'number' || ['id', 'base_url', 'provider', 'model', 'program'].includes(key)"
+        :min="typeof value === 'number' ? 0 : undefined" :step="typeof value === 'number' ? floatField ? 'any' : '1' : undefined"
+        :placeholder="value === '<redacted>' ? tr('已设置；输入新值以更换', 'Set; enter a new value to replace') : ''" @input="setInput" />
+      <button v-if="secret && value !== ''" type="button" class="btn ghost" @click="editor.set(path, '')">{{ tr('清空', 'Clear') }}</button>
+    </div>
+  </div>
+</template>

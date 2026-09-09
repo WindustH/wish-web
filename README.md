@@ -1,91 +1,91 @@
-# wish-web (webui v2)
+# Wish Web
 
-本地自包含的 wishd Web 客户端。零构建、零运行时外网依赖,同时是未来桌面(Tauri)/移动(Capacitor)壳的基座。
+基于 Vue 3 的 Wish 客户端，分别连接 wishd 和 wish-providerd。桌面与移动端共用业务逻辑，布局和输入交互按设备适配。
 
-## 运行
+## 开发和构建
 
-```bash
-node serve.mjs            # http://127.0.0.1:8790
+需要 Node.js 22.19 或更高版本与 Corepack。使用仓库内的入口运行 pnpm：
+
+```sh
+./pnpmw install --frozen-lockfile
+./pnpmw typecheck
+./pnpmw build
+node serve.mjs
 ```
 
-网页通过两个独立入口访问后端：`/wishd-api` → `127.0.0.1:9780`，`/providerd-api` → `127.0.0.1:9781`。wishd 不代转 providerd 的公开 API。
+浏览器打开 `http://127.0.0.1:8790`。开发时可运行 `./pnpmw dev`，由 Vite 提供模块热更新。
 
-可选环境变量：`PORT`、`WISHD_UPSTREAM`、`PROVIDERD_UPSTREAM`。使用 bearer 认证时，分别设置 `WISHD_TOKEN`、`PROVIDERD_TOKEN`，凭据只由服务端注入对应入口。两个上游均支持带路径前缀的 HTTP/HTTPS 地址。
-无 node?任何静态服务器 + 自己的同源反代也可,页面不挑宿主(hash 路由)。
+`package.json` 固定包管理器与直接依赖版本，`pnpm-lock.yaml` 固定完整依赖图。依赖和工具缓存均留在这个开发目录：
 
-局域网调试时显式设置监听地址和允许访问的 Host（下面的 IP 换成本机局域网地址）：
+| 内容 | 位置 |
+| --- | --- |
+| 项目依赖 | `node_modules/` |
+| pnpm 包存储和下载缓存 | `.cache/pnpm/` |
+| Corepack 下载的包管理器 | `.cache/corepack/` |
+| 构建缓存 | `.cache/vite/` |
+| 可部署静态文件 | `dist/` |
 
-```bash
+请使用 `./pnpmw`，它会为本次命令设置项目内的缓存路径。安装不需要全局安装应用依赖。`node_modules`、`.cache`、`dist` 不纳入 Git。
+
+## 部署和后端连接
+
+先构建，再把 `dist/` 和 `serve.mjs` 放到发布目录；发布目录不需要 `node_modules`。也可以用其他静态服务器托管 `dist/`，并配置下面两个同源反向代理。
+
+| 浏览器入口 | 默认上游 | 上游地址变量 | 可选服务令牌 |
+| --- | --- | --- | --- |
+| `/wishd-api` | `http://127.0.0.1:9780` | `WISHD_UPSTREAM` | `WISHD_TOKEN` |
+| `/providerd-api` | `http://127.0.0.1:9781` | `PROVIDERD_UPSTREAM` | `PROVIDERD_TOKEN` |
+
+wishd 不代转 providerd 的公开 API。两个地址均支持带路径前缀的 HTTP/HTTPS URL。反向代理只向对应上游注入其令牌，SSE 流直接转发；浏览器断开会释放上游连接。上游认证或监听地址改变后，也需要相应调整客户端连接设置。
+
+默认仅本机可访问。局域网调试可显式开放监听与访问地址：
+
+```sh
 LISTEN_HOST=0.0.0.0 ALLOWED_HOSTS=192.168.31.161:8790 node serve.mjs
 ```
 
-其他设备打开 `http://192.168.31.161:8790`。`ALLOWED_HOSTS` 可用逗号分隔多个 `主机:端口`；默认仅允许本机访问。Web 分别连接两个后端，wishd 和 providerd 可继续监听回环地址。
+`PORT` 默认为 `8790`；`ALLOWED_HOSTS` 支持逗号分隔的多个 `主机:端口`。健康检查为 `/healthz`。页面与 JavaScript 均来自本地构建，不依赖运行时 CDN。PWA 只缓存静态页面资源，不缓存两个 API；有更新时由用户决定何时应用。
 
-## 布局(来自 wish-plan/webui/01.md)
+## 代码结构
 
-- **桌面**(≥900px):左侧 vertical bar(上:会话/统计;下:设置)+ 会话页两栏(窄列表 + 对话)
-- **移动**(<900px):无 vertical bar;bottom bar 所有图标不分组;会话列表独占,点入二级对话页(顶栏返回 + 单按钮弹菜单)
-- 对话顶栏三入口:会话信息与统计 / 历史搜索 / 会话管理
-- 桌面输入区是完整矩形，可拖动上边缘调整并记住高度；输入内容不会改变高度，超出时内部滚动。移动端从固定单行高度起，随内容增高，达到上限后内部滚动。
-- 信息、搜索和管理面板从右侧滑出覆盖对话，保留对话 DOM、滚动位置、草稿和待发送图片。动效遵循系统减少动态效果设置。
-- 接近历史顶部自动加载更早消息，以响应到达时的可见消息为锚点保持连续滚动。搜索直接读取目标附近历史，不受消息年龄限制；虚拟列表挂载目标后定位并高亮，工作过程中的目标步骤自动展开。之后可双向滚动补页，或直接返回最新消息。
-- 思考/工具调用/工具结果默认折叠 chip,点击弹小窗看详情
-
-## 架构
-
+```text
+src/
+  main.ts             Vue 启动、平台注册、全局订阅
+  router.ts           Vue Router，hash 路由与页面懒加载
+  core/               无 DOM 的 API、SSE、会话与历史业务逻辑
+    config.js         尺寸、时间、分页与连接参数
+    config-editor.ts  独立后端配置草稿、有序字段补丁与保存状态
+    state/            Vue 原生浅引用与计算状态
+  platform/           存储、文件、通知与应用宿主能力
+  features/           会话、设置、统计与连接诊断页面
+  ui/                 共享 Vue 组件与浏览器交互
+  styles/             主题与布局
+public/               PWA 图标与应用描述
+vite.config.ts        构建、开发代理与 PWA 静态缓存
+serve.mjs             静态服务器与两个独立的 API 代理
 ```
-webroot/
-  index.html            import map + 样式 + 挂载点
-  manifest.webmanifest  PWA
-  sw.js                 壳缓存(两个 API 入口均不缓存)
-  vendor/               preact / preact-hooks / htm(全部本地)
-  app/
-    core/               ← 零 DOM,壳/测试可直接复用
-      config.js         所有尺寸/时长/阈值/分页/断点(唯一参数源)
-      api/              client(fetch 封装+幂等键) endpoints(唯一 URL 面) sse(Last-Event-ID 重连)
-      state/            reactive(自研 signal) sessions/chat/sync/stats/prefs 切片
-      i18n/             zh/en 字典 + html lang 同步
-      theme/            auto/light/dark,记忆选择
-    platform/           平台适配层:storage/notify/fs/share/app;browser/ 为默认实现,壳注入替换
-    ui/
-      h.js              渲染绑定(换渲染器只改这里)
-      router.js         hash 路由 + 移动断点
-      components/       icon/button/modal/menu/toast/markdown/spinner/copyable
-      layout/           appshell(vbar/bbar)
-      features/         ★ 扩展点:新增界面 = 加一个 feature 目录并注册
-        sessions/ list·chat·composer·entry(折叠块)·info·search·manage·newsession
-        stats/ settings/ selftest/
-  styles/               tokens(色彩)/base/components/layout/features,尺寸 token 由 config 写入
-tools/
-  fetch-icons.mjs       构建时抓 Lucide 子集 → ui/icons.js(81 枚,已入库)
-  make-app-icons.py     PWA 图标
-  selftest-api.mjs      无浏览器 API 自检
-serve.mjs               静态 + 两个独立 API 入口(SSE 透传不缓冲)
-```
+
+通用交互采用 Reka UI，长列表采用 TanStack Virtual，图标采用 Lucide Vue 按需导入。Markdown 使用 markdown-it 与 DOMPurify。第三方版本和许可证见 [THIRD_PARTY.md](THIRD_PARTY.md)。
+
+## 会话和设置
+
+桌面输入区为完整矩形，拖动上边缘或用键盘调整高度；输入内容不会使它自动增高。移动端从固定单行高度开始，随内容增长，到上限后内部滚动。
+
+信息、历史搜索和管理面板从右侧滑出覆盖对话，打开与关闭保留阅读位置、草稿和待发图片。到达历史顶部会自动加载更早的消息；搜索通过目标附近的有限分页定位旧消息。工作过程统一折叠，不为每个思考或工具调用显示 Token 用量。
+
+会话元数据使用 JSON 对象。编辑标签时保留其他扩展字段，并用 revision 防止并发覆盖。列表不提供归档、置顶或冷存标签。标题旁可修改会话模型，新选择从下一次运行开始采用。清理旧数据支持 7/30/90 天和自定义天数，先预览，再按同一个截止时间执行。
+
+设置分为界面、wishd 和 wish-providerd 三个 Tab。后端配置使用开关、下拉框、数字和密钥输入控件，支持提供方、端点与模型配置的增删。保存时仅提交实际修改的字段；未修改的密钥和环境变量引用保留。并发冲突、验证失败和重新读取均明确反馈，放弃未保存的修改需要确认。配置草稿仅在页面内存中保留，密钥不写入浏览器本地存储。
 
 ## 验证
 
-```bash
-node tools/check-imports.mjs
-node tools/sw-manifest.mjs
+所有回归测试放在相邻的 `wish-test` 仓库。先构建前端，然后执行：
+
+```sh
 cd ../wish-test
 python3 run_tests.py
-python3 web/launch.py --check   # 隔离真实后端，桌面与移动端验收
-bash web/run-scale.sh           # 大列表与长会话验收
+python3 web/launch.py --check
+bash web/run-scale.sh
 ```
 
-测试统一放在 `wish-test`，使用本地假模型和临时数据目录，成功或失败都会清理测试会话、浏览器和守护进程。应用内自检页仍可检查模块、图标、语言、主题、存储和 API。
-
-## 响应流
-
-设置页通过 `GET/PUT /config/streaming` 控制响应流，新启动的运行采用新值，已启动的运行保持原决定。没有响应流时，客户端根据持久资源轮询并更新对话。工具调用、结果和思考按原始顺序归入工作过程；不单独展示这些步骤的 Token 用量。正文用量采用“输入、输出、总计”。
-
-会话元数据使用 JSON 对象 `metadata`；编辑标签会保留其他扩展键，并使用快照 revision 检测并发修改。列表按最近更新排序，不提供归档或置顶。
-
-设置页分为界面设置、wishd 配置、wish-providerd 配置。界面偏好保存在本机；两个后端分别读取生效的脱敏配置、重载并显示各自错误。标题旁可切换会话模型，新选择从下一次运行生效。清理弹窗支持 7/30/90 天前及自定义天数，先预览，再按同一个明确截止时间清理可回收数据。
-
-## 约束备忘
-
-- 前后端遵循同一接口契约，不保留旧版本兼容分支。
-- 所有第三方资源 vendor 于 `webroot/vendor/`,来源与版本见 THIRD_PARTY.md。
-- 参数一律走 `core/config.js` + CSS custom properties,组件内无魔法数字。
+Rust 使用真实二进制的外部 API/CLI 测试，不在生产代码内嵌测试。浏览器测试使用隔离双后端和本地假模型；每次测试负责清理自己的会话、浏览器、进程与临时数据，包括失败路径。
