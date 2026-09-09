@@ -5,10 +5,12 @@
 ## 运行
 
 ```bash
-node serve.mjs            # http://127.0.0.1:8790  (API 反代 → 127.0.0.1:9780)
+node serve.mjs            # http://127.0.0.1:8790
 ```
 
-可选环境变量:`PORT`、`WISHD_UPSTREAM`、`WISHD_TOKEN`(守护 bearer 模式时注入)。
+网页通过两个独立入口访问后端：`/wishd-api` → `127.0.0.1:9780`，`/providerd-api` → `127.0.0.1:9781`。wishd 不代转 providerd 的公开 API。
+
+可选环境变量：`PORT`、`WISHD_UPSTREAM`、`PROVIDERD_UPSTREAM`。使用 bearer 认证时，分别设置 `WISHD_TOKEN`、`PROVIDERD_TOKEN`，凭据只由服务端注入对应入口。两个上游均支持带路径前缀的 HTTP/HTTPS 地址。
 无 node?任何静态服务器 + 自己的同源反代也可,页面不挑宿主(hash 路由)。
 
 局域网调试时显式设置监听地址和允许访问的 Host（下面的 IP 换成本机局域网地址）：
@@ -17,7 +19,7 @@ node serve.mjs            # http://127.0.0.1:8790  (API 反代 → 127.0.0.1:978
 LISTEN_HOST=0.0.0.0 ALLOWED_HOSTS=192.168.31.161:8790 node serve.mjs
 ```
 
-其他设备打开 `http://192.168.31.161:8790`。`ALLOWED_HOSTS` 可用逗号分隔多个 `主机:端口`；默认仅允许本机访问。Web 统一代理 API，wishd 和 providerd 可继续监听回环地址。
+其他设备打开 `http://192.168.31.161:8790`。`ALLOWED_HOSTS` 可用逗号分隔多个 `主机:端口`；默认仅允许本机访问。Web 分别连接两个后端，wishd 和 providerd 可继续监听回环地址。
 
 ## 布局(来自 wish-plan/webui/01.md)
 
@@ -35,7 +37,7 @@ LISTEN_HOST=0.0.0.0 ALLOWED_HOSTS=192.168.31.161:8790 node serve.mjs
 webroot/
   index.html            import map + 样式 + 挂载点
   manifest.webmanifest  PWA
-  sw.js                 壳缓存(不缓存 /wishd-api)
+  sw.js                 壳缓存(两个 API 入口均不缓存)
   vendor/               preact / preact-hooks / htm(全部本地)
   app/
     core/               ← 零 DOM,壳/测试可直接复用
@@ -58,7 +60,7 @@ tools/
   fetch-icons.mjs       构建时抓 Lucide 子集 → ui/icons.js(81 枚,已入库)
   make-app-icons.py     PWA 图标
   selftest-api.mjs      无浏览器 API 自检
-serve.mjs               静态 + /wishd-api 反代(SSE 透传不缓冲)
+serve.mjs               静态 + 两个独立 API 入口(SSE 透传不缓冲)
 ```
 
 ## 验证
