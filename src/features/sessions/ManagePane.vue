@@ -2,7 +2,7 @@
 // Manage sheet: tags (metadata JSON — other keys ride along untouched),
 // rename, prune dialog (frozen cutoff), danger actions with centered
 // confirm modals (busy locks all dismiss paths; failures keep the modal).
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import * as api from '../../core/api/endpoints.js';
 import { chat } from '../../core/state/chatSlice.js';
@@ -24,45 +24,80 @@ const busy = ref(false);
 const confirming = ref<any>(null);
 const confirmErr = ref<string | null>(null);
 const pruneOpen = ref(false);
-const renameOpen = ref(false);
 const renameText = ref('');
 const tagInput = ref('');
+let epoch = 0;
+onUnmounted(() => { epoch++; });
+const owns = (id: string | null, gen: number) => gen === epoch && chat.sessionId.value === id;
 
-async function refresh() {
-  try { chat.snapshot.value = await api.sessionGet(chat.sessionId.value!); }
-  catch (e) { err.value = e; }
+// Every async write captures the session it belongs to; late responses are
+// only applied while that session is STILL open (switch/close ownership).
+async function refresh(target = chat.sessionId.value) {
+  if (!target) return;
+  const gen = epoch;
+  try {
+    const snap = await api.sessionGet(target);
+    if (owns(target, gen) && (chat.snapshot.value?.revision ?? 0) <= snap.revision) chat.snapshot.value = snap;
+  } catch (e) {
+    if (owns(target, gen)) err.value = e;
+  }
 }
 onMounted(refresh);
 
 const tags = computed(() => Array.isArray(snapshot.value?.metadata?.tags) ? snapshot.value.metadata.tags : []);
 
+// ONE pending flag, ONE error surface per interaction kind; success closes
+// exactly the surface it belongs to; failures stay visible and keep inputs.
 async function run(action: () => Promise<unknown>) {
+  const target = chat.sessionId.value;
+  const gen = epoch;
   busy.value = true;
   try {
     await action();
+    if (owns(target, gen)) err.value = null;
+    return true;
   } catch (e: any) {
+    if (!owns(target, gen)) return false;
     // busy 409: never auto-interrupt. revision 409: concurrent edit — refresh.
     if (e?.code === 'state_conflict') err.value = { code: 'state_conflict' };
     else err.value = e;
+    return false;
   } finally {
-    busy.value = false;
-    await refresh();
+    if (owns(target, gen)) { busy.value = false; await refresh(target); }
   }
 }
 
-async function runConfirmed(action: () => Promise<unknown>) {
+async function runConfirm() {
+  const kind = confirming.value?.kind as 'rename' | 'compact' | 'interrupt' | 'delete' | undefined;
+  if (!kind) return;
+  const target = chat.sessionId.value;
+  const gen = epoch;
   busy.value = true;
   confirmErr.value = null;
   try {
-    await action();
-    confirming.value = null;
+    if (kind === 'rename') await sessions.rename(target!, renameText.value.trim());
+    else if (kind === 'compact') await api.sessionCompact(target!);
+    else if (kind === 'interrupt') await api.sessionInterrupt(target!);
+    else if (kind === 'delete') await performDelete(target!);
+    if (owns(target, gen)) confirming.value = null;
   } catch (e: any) {
-    confirmErr.value = String(e?.detail || e?.message || e);
+    if (owns(target, gen)) confirmErr.value = String(e?.detail || e?.message || e);
   } finally {
-    busy.value = false;
-    await refresh();
+    if (owns(target, gen)) {
+      busy.value = false;
+      if (kind !== 'delete') await refresh(target);
+    }
   }
 }
+
+// All writes go through the slice EXACTLY ONCE: it performs the PATCH with
+// If-Match and refreshes the local row on success; failures propagate (no
+// optimistic local update that the server never accepted — audit A2).
+const metaRow = () => ({
+  id: chat.sessionId.value!,
+  revision: snapshot.value?.revision,
+  metadata: snapshot.value?.metadata,
+});
 
 async function addTag() {
   const t = tagInput.value.trim();
@@ -70,30 +105,37 @@ async function addTag() {
   if (tags.value.includes(t)) { tagInput.value = ''; return; }
   if (tags.value.length >= 16) return;
   const next = [...tags.value, t];
-  tagInput.value = '';
-  await run(() => api.sessionUpdateMeta(chat.sessionId.value!, { ...snapshot.value?.metadata, tags: next }, snapshot.value?.revision));
-  sessions.updateMeta(chat.sessionId.value!, { tags: next });
+  const target = chat.sessionId.value;
+  const succeeded = await run(() => sessions.updateMeta(metaRow(), { tags: next }));
+  if (succeeded && chat.sessionId.value === target && tagInput.value.trim() === t) tagInput.value = '';
 }
 
 async function removeTag(t: string) {
   const next = tags.value.filter((x: string) => x !== t);
-  await run(() => api.sessionUpdateMeta(chat.sessionId.value!, { ...snapshot.value?.metadata, tags: next }, snapshot.value?.revision));
-  sessions.updateMeta(chat.sessionId.value!, { tags: next });
+  await run(() => sessions.updateMeta(metaRow(), { tags: next }));
 }
 
-async function doRename() {
-  await runConfirmed(() => api.sessionRename(chat.sessionId.value!, renameText.value.trim()));
-  sessions.rename(chat.sessionId.value!, renameText.value.trim());
-}
-
-async function doDelete() {
-  await runConfirmed(async () => {
-    await api.sessionDelete(chat.sessionId.value!);
-    sessions.dropRow(chat.sessionId.value!);
+// Delete leaves on success — never refresh a snapshot that no longer exists.
+async function performDelete(target: string) {
+  await api.sessionDelete(target);
+  sessions.dropRow(target);
+  if (chat.sessionId.value === target) {
     chat.close();
-    router.push('/sessions');
-  });
+    await router.push('/sessions');
+  }
 }
+
+// Component reuse across sessions: reset transient state, re-belong refresh.
+watch(() => chat.sessionId.value, () => {
+  epoch++;
+  busy.value = false;
+  pruneOpen.value = false;
+  err.value = null;
+  confirmErr.value = null;
+  confirming.value = null;
+  tagInput.value = '';
+  refresh();
+});
 </script>
 
 <template>
@@ -101,7 +143,7 @@ async function doDelete() {
     <div v-if="err?.code === 'state_conflict'" class="warn-note" role="alert">{{ i18n.t('manage.busy') }}</div>
     <div v-else-if="err" class="load-error" role="alert">
       <span>{{ String(err?.detail || err?.message || err) }}</span>
-      <button class="btn ghost sm" @click="refresh">{{ i18n.t('common.retry') }}</button>
+      <button class="btn ghost sm" @click="refresh()">{{ i18n.t('common.retry') }}</button>
     </div>
 
     <section class="setting-row">
@@ -119,13 +161,13 @@ async function doDelete() {
     <section class="setting-row">
       <h4>{{ i18n.t('manage.session') }}</h4>
       <div class="btn-col">
-        <button class="btn ghost" :disabled="busy" @click="renameOpen = true; renameText = snapshot?.name || ''">
+        <button class="btn ghost" :disabled="busy" @click="renameText = snapshot?.name || ''; confirming = { kind: 'rename' }">
           {{ i18n.t('manage.rename') }}
         </button>
-        <button class="btn ghost" :disabled="busy" @click="confirming = { kind: 'compact', run: () => api.sessionCompact(chat.sessionId.value!) }">
+        <button class="btn ghost" :disabled="busy" @click="confirming = { kind: 'compact' }">
           {{ i18n.t('manage.compact') }}
         </button>
-        <button class="btn ghost" :disabled="busy" @click="confirming = { kind: 'interrupt', run: () => api.sessionInterrupt(chat.sessionId.value!) }">
+        <button class="btn ghost" :disabled="busy" @click="confirming = { kind: 'interrupt' }">
           {{ i18n.t('manage.interrupt') }}
         </button>
         <button class="btn ghost" :disabled="busy" @click="pruneOpen = true">{{ i18n.t('manage.prune') }}</button>
@@ -135,30 +177,31 @@ async function doDelete() {
     <section class="setting-row danger">
       <h4>{{ i18n.t('manage.danger') }}</h4>
       <button class="btn danger" :disabled="busy"
-        @click="confirming = { kind: 'delete', run: doDelete }">{{ i18n.t('manage.delete') }}</button>
+        @click="confirming = { kind: 'delete' }">{{ i18n.t('manage.delete') }}</button>
       <p class="hint">{{ i18n.t('manage.deleteDesc') }}</p>
     </section>
 
-    <Modal :open="renameOpen" :title="i18n.t('manage.rename')" :dismissable="!busy" @close="renameOpen = false">
-      <input v-model="renameText" class="input" type="text" :aria-label="i18n.t('manage.rename')" />
-      <template #footer>
-        <button class="btn ghost" :disabled="busy" @click="renameOpen = false">{{ i18n.t('manage.cancel') }}</button>
-        <button class="btn primary" :disabled="busy || !renameText.trim()" @click="doRename">{{ i18n.t('common.save') }}</button>
-      </template>
-    </Modal>
-
-    <Modal :open="!!confirming" :title="i18n.t(`manage.${confirming?.kind ?? 'compact'}`)" :dismissable="!busy" @close="confirming = null">
+    <Modal :open="!!confirming" :title="i18n.t(`manage.${confirming?.kind ?? 'rename'}`)" :dismissable="!busy" @close="confirming = null">
       <p v-if="confirming?.kind === 'delete'">{{ i18n.t('manage.deleteConfirm') }}</p>
-      <p v-else>{{ i18n.t('manage.confirmBody') }}</p>
+      <p v-else-if="confirming?.kind !== 'rename'">{{ i18n.t('manage.confirmBody') }}</p>
+      <input v-if="confirming?.kind === 'rename'" v-model="renameText" class="input" type="text"
+        :aria-label="i18n.t('manage.rename')" :disabled="busy" />
       <div v-if="confirmErr" class="load-error" role="alert">{{ confirmErr }}</div>
       <template #footer>
         <button class="btn ghost" :disabled="busy" @click="confirming = null">{{ i18n.t('manage.cancel') }}</button>
-        <button class="btn danger" :disabled="busy" @click="runConfirmed(confirming.run)">
-          {{ busy ? i18n.t('sessions.loading') : i18n.t('manage.confirmYes') }}
+        <button class="btn danger" :disabled="busy || (confirming?.kind === 'rename' && !renameText.trim())" @click="runConfirm">
+          {{ busy ? i18n.t('sessions.loading') : i18n.t(confirming?.kind === 'rename' ? 'common.save' : 'manage.confirmYes') }}
         </button>
       </template>
     </Modal>
 
-    <PruneDialog :open="pruneOpen" :session-id="chat.sessionId.value!" @close="pruneOpen = false" @done="refresh" />
+    <PruneDialog :open="pruneOpen" :session-id="chat.sessionId.value!" @close="pruneOpen = false" @done="() => refresh()" />
   </Sheet>
 </template>
+
+<style scoped>
+.setting-row { flex-direction: column; align-items: stretch; gap: var(--space-s); padding: var(--space-l) 0; }
+.setting-row h4 { margin: 0; font-size: 14px; }
+.tags-editor { min-width: 0; }
+.tag-input { min-width: 0; max-width: 100%; }
+</style>

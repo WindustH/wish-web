@@ -6,7 +6,7 @@ import { tryPlatform } from '../../platform/index.js';
 
 const HEIGHT_KEY = 'pref.composerHeight';
 
-export function useComposerHeight(el: Ref<HTMLElement | null>, mobile: boolean) {
+export function useComposerHeight(el: Ref<HTMLElement | null>) {
   const preferred = ref<number | null>(null);
   const available = ref(0);
   let observer: ResizeObserver | null = null;
@@ -15,7 +15,6 @@ export function useComposerHeight(el: Ref<HTMLElement | null>, mobile: boolean) 
   preferred.value = Number.isFinite(saved) && saved > 0 ? saved : null;
 
   onMounted(() => {
-    if (mobile) return;
     const container = el.value?.parentElement;
     if (!container) return;
     const update = () => { available.value = container.clientHeight; };

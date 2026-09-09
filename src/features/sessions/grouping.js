@@ -29,35 +29,56 @@ export function groupEntries(entries) {
 
   for (const entry of entries) {
     if (entry.kind === 'tool_result') {
-      pushGroupStep({ kind: 'entry', entry }, entry.run_id);
+      pushGroupStep({ kind: 'entry', entry, key: entryId(entry) }, entry.run_id);
       continue;
     }
     if (entry.kind === 'assistant_message') {
       const blocks = entry.payload?.content || [];
       const id = entryId(entry);
-      let segment = [];         // pending text segment for THIS entry
-      let segmentOrdinal = 0;   // how many text items this entry emitted
+      // Body blocks are everything that is not reasoning/tool_call — images
+      // stay in the body alongside text (they are content, not process).
+      // Usage (if any) belongs to the LAST body segment of its entry only —
+      // earlier segments carry an explicit null so consumers can rely on the
+      // key; process items never carry usage at all.
+      const totalSegments = (() => {
+        let n = 0, run = 0;
+        for (const b of blocks) {
+          if (PROCESS_BLOCK(b)) { if (run) n++; run = 0; }
+          else if (b.type === 'text' && (b.text || '').trim()) run++;
+          else if (b.type !== 'text') run++;     // image: part of the segment flow
+        }
+        if (run) n++;
+        return n;
+      })();
+      let segment = [];         // pending body segment for THIS entry
+      let segmentOrdinal = 0;   // segments this entry has emitted so far
+      const isBodyBlock = (b) => b.type === 'image' || (b.type === 'text' && (b.text || '').trim());
       const emitSegment = () => {
         if (!segment.length) return;
-        flushGroup();           // a group never spans a text item
-        items.push({ type: 'entry', entry, blocks: segment, key: `${id}t${segmentOrdinal++}` });
+        flushGroup();           // a group never spans a body item
+        const last = segmentOrdinal === totalSegments - 1;
+        items.push({
+          type: 'entry', entry, blocks: segment, key: `${id}t${segmentOrdinal}`,
+          usage: last ? (entry.payload?.usage ?? null) : null,
+        });
+        segmentOrdinal++;
         segment = [];
       };
       for (let bi = 0; bi < blocks.length; bi++) {
         const b = blocks[bi];
         if (PROCESS_BLOCK(b)) {
-          emitSegment();        // text before this block renders first
+          emitSegment();        // body before this block renders first
           pushGroupStep({ kind: 'block', block: b, fromSeq: entry.seq, key: `${id}b${bi}` }, entry.run_id);
-        } else if (b.type === 'text' && (b.text || '').trim()) {
+        } else if (isBodyBlock(b)) {
           segment.push(b);
         }
       }
-      emitSegment();            // trailing text segment (if any)
+      emitSegment();            // trailing body segment (if any)
       continue;                 // process-only entry: no body item at all
     }
     // user message / system entry — plain render, closes any open group
     flushGroup();
-    items.push({ type: 'entry', entry, blocks: entry.payload?.content || [], key: `${entryId(entry)}t0` });
+    items.push({ type: 'entry', entry, blocks: entry.payload?.content || [], key: `${entryId(entry)}t0`, usage: null });
   }
   flushGroup();
   return items;

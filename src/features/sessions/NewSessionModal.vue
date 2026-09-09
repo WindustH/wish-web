@@ -15,7 +15,7 @@ import { useProviderModels, withCurrent } from './useProviderModels.js';
 const router = useRouter();
 const open = computed(() => newSessionOpen.value);
 
-const { providers, models, loadErr, loading, retry, selectProvider } = useProviderModels();
+const { providers, models, loadErr, loading, retry, selectProvider } = useProviderModels({ immediate: false });   // read the catalog when the dialog opens
 
 const provider = ref<string>('');
 const model = ref<string>('');
@@ -33,10 +33,9 @@ watch(open, (v) => {
   }
 });
 watch(providers, (list) => {
-  if (list?.length && !provider.value) {
-    provider.value = list[0]!.id;
-    selectProvider(list[0]!.id);
-  }
+  // Only SET the selection here — the provider watcher performs the single
+  // catalog read (previously this double-fetched models).
+  if (list?.length && !provider.value) provider.value = list[0]!.id;
 });
 watch(provider, (p) => { model.value = ''; if (p) selectProvider(p); });
 
@@ -47,11 +46,12 @@ async function create() {
   busy.value = true;
   err.value = null;
   try {
-    const s = await api.sessionCreate({
+    // sessions.create POSTs and inserts the row itself — passing the result
+    // back in would create the session twice.
+    const s = await sessions.create({
       provider: provider.value, model: model.value,
       ...(name.value.trim() ? { name: name.value.trim() } : {}),
     });
-    sessions.create(s);
     newSessionOpen.value = false;
     router.push(`/s/${s.id}`);
   } catch (e: any) {

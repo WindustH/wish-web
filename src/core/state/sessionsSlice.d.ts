@@ -4,7 +4,6 @@ export interface SessionsApi {
   items: ComputedRef<any[]>;
   cursor: ShallowRef<string | null>;
   phaseFilter: ShallowRef<string>;
-  totalKnown: ShallowRef<number | null>;
   anyFilterActive: ComputedRef<boolean>;
   patchRow(id: string, patch: Record<string, unknown>): void;
   setPhaseFilter(p: string): void;
@@ -15,14 +14,14 @@ export interface SessionsApi {
   query: ShallowRef<string>;
   tagFilter: ShallowRef<string>;
   loadFirst(): Promise<void>;
-  loadMore(): Promise<void>;
+  loadMore(): Promise<boolean>;
   rebuild(): Promise<void>;
   refresh(): Promise<void>;
   setQuery(q: string): void;
   setTagFilter(t: string): void;
-  create(s: any): void;
-  rename(id: string, name: string): void;
-  updateMeta(id: string, changes: Record<string, unknown>): void;
+  create(s: { name?: string; provider: string; model: string; reasoningEffort?: string; agentCustom?: unknown }): Promise<any>;
+  rename(id: string, name: string): Promise<any>;
+  updateMeta(row: { id: string; revision?: number | null; metadata?: Record<string, unknown> | null }, changes: Record<string, unknown>): Promise<any>;
   dropRow(id: string): void;
   getById(id: string): any;
 }

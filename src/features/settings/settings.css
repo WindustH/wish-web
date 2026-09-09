@@ -7,7 +7,7 @@
 .ui-settings { max-width: 900px; display: grid; gap: 18px; }
 .ui-settings h2, .cfg-heading h2 { font-size: 18px; margin: 0 0 12px; }
 .ui-settings .card { padding: 22px; }
-.settings-page select, .settings-page input { font: inherit; color: var(--fg); background: var(--bg-input, var(--bg)); border: 1px solid var(--line); border-radius: 7px; padding: 9px 11px; min-width: 0; max-width: 100%; }
+.settings-page select, .settings-page input { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 9px 11px; min-width: 0; max-width: 100%; }
 .settings-page input:focus-visible, .settings-page select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .cfg-heading { display: flex; align-items: start; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
 .cfg-hint { color: var(--fg-muted); font-size: 13px; line-height: 1.65; margin: 5px 0 0; overflow-wrap: anywhere; }
@@ -48,7 +48,7 @@
 .cfg-savebar > span { flex: 1 1 auto; font-size: 13px; color: var(--fg-muted); }
 .cfg-notice { border: 1px solid var(--line); border-radius: 9px; padding: 16px; margin: 0 0 18px; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
 .cfg-notice p { margin: 7px 0; }
-.cfg-error { color: var(--danger, #d45b55); }
+.cfg-error { color: var(--err); }
 .cfg-dialog-overlay { position: fixed; inset: 0; background: rgb(0 0 0 / .42); z-index: 300; animation: cfg-fade 160ms ease; }
 .cfg-dialog { position: fixed; z-index: 301; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(480px, calc(100vw - 32px)); padding: 28px; border-radius: 14px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); box-shadow: 0 20px 80px rgb(0 0 0 / .3); animation: cfg-fade 160ms ease; }
 .cfg-dialog h2 { font-size: 18px; margin: 0 24px 12px 0; }

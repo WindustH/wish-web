@@ -3,6 +3,7 @@
 // live in the adjacent thumbnails, never here).
 import { computed } from 'vue';
 import { i18n } from '../../../core/i18n/index.js';
+import { blobUrl } from '../../../core/api/endpoints.js';
 import { fmtTokens } from '../../../core/util/fmt.js';
 import Markdown from '../../../ui/components/Markdown.vue';
 import CopyButton from '../../../ui/components/CopyButton.vue';
@@ -10,7 +11,11 @@ import Icon from '../../../ui/components/Icon.vue';
 
 const props = defineProps<{ item: any }>();
 const texts = computed(() => (props.item.blocks || []).filter((b: any) => b.type === 'text'));
-const usage = computed(() => props.item.entry?.payload?.usage);
+const images = computed(() => (props.item.blocks || []).filter((b: any) => b.type === 'image'));
+const blobSrc = (b: any) => b.data_base64
+  ? `data:${b.mime_type || 'image/png'};base64,${b.data_base64}`
+  : b.sha256 ? blobUrl(b.sha256) : null;
+const usage = computed(() => props.item?.usage ?? null);   // grouping projection: last body segment only
 const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
 </script>
 
@@ -19,6 +24,9 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
     <div class="avatar-col"><div class="avatar"><Icon name="bot" class="sm" /></div></div>
     <div class="body">
       <Markdown v-for="(b, i) in texts" :key="i" :text="b.text" />
+      <template v-for="(b, i) in images" :key="'img' + i">
+        <img v-if="blobSrc(b)" class="assistant-img" :src="blobSrc(b)!" alt="" loading="lazy" />
+      </template>
       <div v-if="texts.length" class="meta">
         <span v-if="usage">{{ i18n.t('entry.usage', {
           in: fmtTokens(usage.input_tokens), out: fmtTokens(usage.output_tokens), total: fmtTokens(usage.total_tokens),

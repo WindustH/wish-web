@@ -8,12 +8,20 @@ export interface ChatApi {
   sessionId: ShallowRef<string | null>;
   snapshot: ShallowRef<any>;
   entries: ShallowRef<any[]>;
+  oldestSeq: ShallowRef<number | null>;
+  newestSeq: ShallowRef<number | null>;
+  historyVersion: ShallowRef<number>;
+  deliveries: ShallowRef<any[]>;
+  locating: ShallowRef<boolean>;
+  isActive: ShallowRef<boolean>;
   stream: ShallowRef<any>;
   sending: ShallowRef<boolean>;
   capabilities: ShallowRef<CapabilitiesOk | CapabilitiesErr | null>;
   pendingSeq: ShallowRef<number | null>;
   hasMoreBefore: ShallowRef<boolean>;
   hasMoreAfter: ShallowRef<boolean>;
+  loadingNewer: ShallowRef<boolean>;
+  fetchNewer(): Promise<{ ok: boolean; drained: boolean; added: number }>;
   loadingOlder: ShallowRef<boolean>;
   loadingInitial: ShallowRef<boolean>;
   error: ShallowRef<any>;
@@ -23,12 +31,14 @@ export interface ChatApi {
   reload(): Promise<void>;
   send(text: string, images: any[]): Promise<string | null>;
   interrupt(): Promise<void>;
-  loadOlder(): Promise<boolean>;
+  loadOlder(opts?: { beforeMerge?: () => void }): Promise<boolean>;
   locate(id: string, seq: number): Promise<boolean>;
   jumpToLatest(): Promise<boolean>;
   getDraft(id?: string): string;
   setDraft(text: string, id?: string): void;
   reloadCapabilities(): Promise<void>;
+  refreshDeliveries(): Promise<void>;
+  cancelLocate(): void;
   clearPendingSeq(): void;
 }
 export declare const chat: ChatApi;

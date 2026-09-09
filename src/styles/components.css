@@ -84,25 +84,6 @@
 @keyframes spin { to { transform: rotate(360deg); } }
 .icon.spin { animation: spin 0.9s linear infinite; }
 
-.modal-root {
-  border: 0; padding: 0; background: transparent;
-  color: var(--fg);                       /* UA default is pure black/white */
-  width: min(92vw, 32rem);
-  max-height: min(84dvh, 44rem);
-}
-.modal-root.wide { width: min(94vw, 58rem); }
-.modal-root::backdrop { background: var(--scrim); }
-.modal {
-  /* The DIALOG owns the width; the card always fills it (single width
-     owner — a fixed card width made wide dialogs visibly off-center). */
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-radius: calc(var(--radius) + 4px);
-  box-shadow: var(--shadow-pop);
-  width: 100%;
-  max-height: min(84dvh, 44rem);
-  display: flex; flex-direction: column;
-}
 .modal-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: var(--space-m) var(--space-l);
@@ -154,18 +135,18 @@
 }
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
 
-.md { line-height: 1.65; overflow-wrap: anywhere; }
-.md p { margin: 0 0 var(--space-m); }
-.md p:last-child { margin-bottom: 0; }
-.md h1,.md h2,.md h3,.md h4 { margin: var(--space-l) 0 var(--space-s); font-weight: 600; line-height: 1.35; }
-.md h1 { font-size: 1.25em; } .md h2 { font-size: 1.15em; } .md h3 { font-size: 1.05em; }
-.md ul,.md ol { margin: 0 0 var(--space-m); padding-left: 1.4em; }
-.md li { margin: var(--space-xs) 0; }
-.md code {
+.markdown { line-height: 1.65; overflow-wrap: anywhere; }
+.markdown p { margin: 0 0 var(--space-m); }
+.markdown p:last-child { margin-bottom: 0; }
+.markdown h1,.markdown h2,.markdown h3,.markdown h4 { margin: var(--space-l) 0 var(--space-s); font-weight: 600; line-height: 1.35; }
+.markdown h1 { font-size: 1.25em; } .markdown h2 { font-size: 1.15em; } .markdown h3 { font-size: 1.05em; }
+.markdown ul,.markdown ol { margin: 0 0 var(--space-m); padding-left: 1.4em; }
+.markdown li { margin: var(--space-xs) 0; }
+.markdown code {
   font-family: var(--mono); font-size: 0.88em;
   background: var(--bg-sunken); border-radius: 4px; padding: 0.1em 0.35em;
 }
-.md pre {
+.markdown pre {
   margin: 0 0 var(--space-m);
   background: var(--bg-sunken);
   border: 1px solid var(--line);
@@ -173,15 +154,15 @@
   padding: var(--space-m);
   overflow-x: auto;
 }
-.md pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.55; }
-.md blockquote {
+.markdown pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.55; }
+.markdown blockquote {
   margin: 0 0 var(--space-m); padding: 0 var(--space-m);
   border-left: 2px solid var(--line-strong); color: var(--fg-muted);
 }
-.md hr { border: 0; border-top: 1px solid var(--line); margin: var(--space-l) 0; }
-.md table { border-collapse: collapse; margin: 0 0 var(--space-m); font-size: 13px; }
-.md th,.md td { border: 1px solid var(--line); padding: var(--space-xs) var(--space-s); }
-.md img { max-width: 100%; border-radius: var(--radius); }
+.markdown hr { border: 0; border-top: 1px solid var(--line); margin: var(--space-l) 0; }
+.markdown table { border-collapse: collapse; margin: 0 0 var(--space-m); font-size: 13px; }
+.markdown th,.markdown td { border: 1px solid var(--line); padding: var(--space-xs) var(--space-s); }
+.markdown img { max-width: 100%; border-radius: var(--radius); }
 
 /* PWA update banner (created from main.js bootstrap) */
 .pwa-update {
@@ -189,7 +170,7 @@
   display: flex; align-items: center; gap: 10px;
   padding: 8px 8px 8px 14px; border-radius: 10px;
   background: var(--bg-raised, #2a2a2c); color: var(--fg, #eee);
-  border: 1px solid var(--border, #3a3a3c);
+  border: 1px solid var(--line);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
   font-size: 13px; z-index: 300;
 }
@@ -202,13 +183,13 @@
   .nav-btn:hover .icon { transform: translateY(-1px); }
 }
 .nav-btn .icon { transition: transform var(--dur-fast); }
-.modal { animation: modal-enter var(--dur) ease-out; }
+.modal-card { animation: modal-show var(--dur) ease-out; }
 .attach-thumb { animation: message-enter var(--dur) ease-out; }
 .entry-anchor.recent, .proc-group.recent { animation: message-enter var(--dur) ease-out; }
-@keyframes modal-enter { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes modal-show { from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)) scale(.98); } to { opacity: 1; transform: translate(-50%, -50%); } }
 @keyframes message-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-/* ── Vue migration additions (Reka-rendered primitives) ── */
+/* Dialog and menu primitives rendered by Reka. */
 .modal-overlay { position: fixed; inset: 0; background: var(--scrim); z-index: 60; }
 .modal-card {
   position: fixed; z-index: 61; left: 50%; top: 50%; transform: translate(-50%, -50%);
@@ -218,10 +199,7 @@
   box-shadow: 0 18px 48px rgba(0, 0, 0, .18);
 }
 .modal-card.wide { width: min(94vw, 58rem); }
-.modal-head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--line); }
 .modal-title { font-size: 15px; font-weight: 600; }
-.modal-body { padding: var(--space-md); overflow: auto; }
-.modal-foot { display: flex; gap: var(--space-sm); justify-content: flex-end; padding: var(--space-sm) var(--space-md); border-top: 1px solid var(--line); }
 .detail-pre { white-space: pre-wrap; word-break: break-all; font-size: 12px; max-height: 60vh; overflow: auto; }
 .menu-pop { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; padding: 4px; min-width: 160px; box-shadow: 0 12px 32px rgba(0, 0, 0, .16); z-index: 70; }
 .menu-item { display: block; width: 100%; text-align: left; padding: 8px 10px; border: 0; background: none; color: var(--fg); border-radius: 6px; cursor: pointer; }
@@ -229,5 +207,5 @@
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
 .field > span { font-size: 12px; color: var(--fg-subtle); }
 .warn-note { color: var(--warn); font-size: 13px; margin: 6px 0; }
-.btn-row { display: flex; gap: var(--space-sm); }
+.btn-row { display: flex; gap: var(--space-s); }
 .btn-col { display: flex; flex-direction: column; gap: var(--space-xs); align-items: flex-start; }

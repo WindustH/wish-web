@@ -12,6 +12,7 @@ export default defineConfig({
       manifest: false,
       includeAssets: ['manifest.webmanifest', 'app-icons/*.png'],
       workbox: {
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
         navigateFallbackDenylist: [/^\/wishd-api(?:\/|$)/, /^\/providerd-api(?:\/|$)/, /^\/healthz$/],
         cleanupOutdatedCaches: true,

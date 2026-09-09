@@ -33,13 +33,15 @@ const virtualizer = useVirtualizer(
   })),
 );
 
-// Endless pagination: approach the rendered end → load the next page.
-watch(() => virtualizer.value.getVirtualItems().at(-1)?.index, (last) => {
-  if (last == null) return;
-  if (last >= rows.value.length - 10 && sessions.hasMore.value && !sessions.loadingMore.value) {
-    sessions.loadMore();
-  }
-});
+// Endless pagination, driven by real scroll position (the rendered-index
+// watch alone stalls: once the last VIRTUAL index stops changing, nothing
+// re-fires while the user keeps pinning to the bottom).
+function onListScroll() {
+  const el = listEl.value;
+  if (!el) return;
+  const fromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+  if (fromBottom < 400 && sessions.hasMore.value && !sessions.loadingMore.value) sessions.loadMore();
+}
 
 const PHASE_CLASS: Record<string, string> = {
   idle: '', running: 'running', queued: 'queued', compacting: 'compacting',
@@ -63,7 +65,7 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
         <button :aria-label="i18n.t('common.remove')" @click="sessions.setTagFilter('')"><Icon name="x" class="sm" /></button>
       </span>
     </div>
-    <div ref="listEl" class="sl-scroll">
+    <div ref="listEl" class="sl-scroll" @scroll.passive="onListScroll">
       <div v-if="sessions.loading.value && !rows.length" class="sl-state"><Spinner /></div>
       <div v-else-if="sessions.error.value" class="sl-state load-error" role="alert">
         <span>{{ String(sessions.error.value?.detail || sessions.error.value?.message || sessions.error.value) }}</span>

@@ -10,6 +10,7 @@ import { prefs } from './core/state/prefsSlice.js';
 import { sync } from './core/state/syncSlice.js';
 import { bus } from './core/bus.js';
 import { toast } from './ui/toast.js';
+import { applyTokens } from './ui/applyTokens';
 import { initPWA } from './ui/pwa.js';
 import { installShortcuts } from './ui/shortcuts.js';
 import App from './App.vue';
@@ -21,6 +22,7 @@ import './styles/layout.css';
 import './styles/components.css';
 import './styles/features.css';
 
+applyTokens();
 registerBrowserPlatform();
 prefs.load();
 

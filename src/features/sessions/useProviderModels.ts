@@ -8,71 +8,117 @@ export interface ProviderInfo {
   id: string; enabled: boolean; models?: Record<string, unknown>;
   has_api_key?: boolean; [k: string]: unknown;
 }
-export interface ModelInfo { id: string; source?: string }
+export interface ModelInfo { id: string; source?: 'configured' | 'catalog' | 'current' }
 
-export function useProviderModels() {
+export function useProviderModels(opts: { immediate?: boolean } = {}) {
+  const { immediate = true } = opts;
   const providers = ref<ProviderInfo[] | null>(null);
   const models = ref<ModelInfo[] | null>(null);
-  const loadErr = ref<any>(null);
-  const reloadKey = ref(0);
+  const providersErr = ref<any>(null);
+  const modelsErr = ref<any>(null);
 
-  let providerGen = 0;
-  let providersAlive = true;
-
-  const reload = () => {
-    providers.value = null;
-    models.value = null;
-    loadErr.value = null;
-    reloadKey.value++;
-  };
+  // Independent generations per RESOURCE (root review): a shared counter
+  // made retry() discard the provider response deterministically —
+  // loadModels' ++gen invalidated the in-flight loadProviders capture and
+  // the dialog was stuck on providers === null forever.
+  let provGen = 0;
+  let modelGen = 0;
+  let alive = true;
 
   const loadProviders = async () => {
-    const gen = providerGen;
+    const gen = ++provGen;
     try {
       const res = await providerConfigs();
-      if (!providersAlive || gen !== providerGen) return;
-      providers.value = res.providers ?? [];
-      loadErr.value = null;
+      if (!alive || gen !== provGen) return;
+      // Disabled providers are never offered (old models.js semantics).
+      providers.value = (res.providers ?? []).filter((p: ProviderInfo) => p.enabled !== false);
+      providersErr.value = null;
     } catch (e) {
-      if (!providersAlive || gen !== providerGen) return;
-      loadErr.value = e;
+      if (!alive || gen !== provGen) return;
+      providersErr.value = e;
     }
   };
 
   const selected = ref<string | null>(null);
 
+  // Model resolution WAITS for a successful providers read (root review):
+  // retry() resets providers to null and only reloads THEM — resolving
+  // models in parallel would look up an empty provider list, miss the
+  // explicitly configured models and fall through to the remote catalog.
   const loadModels = async (providerId: string) => {
-    const gen = ++providerGen;
+    if (providers.value == null) return;
+    const gen = ++modelGen;
+    // Explicitly CONFIGURED models win and the remote catalog is never
+    // contacted for them (old models.js): a provider whose registry catalog
+    // is unavailable (e.g. 501) still offers exactly what the user pinned
+    // in the config. Only unconfigured providers fall through to the
+    // catalog read, filtered by allowed_for_provider.
+    const cfgp = (providers.value || []).find((p) => p.id === providerId);
+    const explicit = Object.keys((cfgp?.models as Record<string, unknown>) || {});
+    if (explicit.length) {
+      models.value = explicit.map((id) => ({ id, source: 'configured' as const }));
+      modelsErr.value = null;
+      return;
+    }
+    models.value = null;
     try {
       const res = await providerModels(providerId);
-      if (!providersAlive || gen !== providerGen) return;
-      models.value = (res.models ?? []).map((m: any) => ({ id: m.id ?? m }));
-      loadErr.value = null;
+      if (!alive || gen !== modelGen) return;
+      models.value = (res.models ?? [])
+        .filter((m: any) => m.allowed_for_provider !== false)
+        .map((m: any) => ({ id: m.id ?? m, source: 'catalog' as const }));
+      modelsErr.value = null;
     } catch (e) {
-      if (!providersAlive || gen !== providerGen) return;
-      models.value = null;
-      loadErr.value = e;
+      if (!alive || gen !== modelGen) return;
+      models.value = [];
+      modelsErr.value = e;          // failure ≠ empty list: error drives the UI
     }
   };
 
-  loadProviders();
+  // providers arrival (or a provider switch) resolves the catalog.
+  watch([providers, selected], () => {
+    if (!alive) return;
+    if (providers.value == null || !selected.value) return;
+    loadModels(selected.value);
+  });
 
-  onUnmounted(() => { providersAlive = false; providerGen++; });
+  if (immediate) loadProviders();   // app-resident consumers load on OPEN, not on mount
 
+  onUnmounted(() => { alive = false; provGen++; modelGen++; });
+
+  // "loading" only while it can still resolve — and a FAILED providers
+  // read must END the spinner (the error UI takes over; no infinite wait).
   const loading = computed(() =>
-    providers.value === null || (models.value === null && loadErr.value === null));
+    providersErr.value == null
+    && (providers.value === null || (!!selected.value && models.value === null && modelsErr.value === null)));
+
+  const loadErr = computed(() => providersErr.value ?? modelsErr.value);
 
   return {
     providers, models, loadErr, loading,
-    selectProvider: (id: string) => { selected.value = id; models.value = null; loadErr.value = null; loadModels(id); },
-    retry: () => { reload(); loadProviders(); if (selected.value) loadModels(selected.value); },
-    _reloadKey: reloadKey,
+    selectProvider: (id: string) => {
+      if (selected.value === id) return;
+      modelGen++;
+      selected.value = id;
+      models.value = null;       // the previous provider's catalog is stale
+      modelsErr.value = null;
+    },
+    retry: () => {
+      modelGen++;
+      providers.value = null;
+      models.value = null;
+      providersErr.value = null;
+      modelsErr.value = null;
+      loadProviders();           // the watch re-resolves models on arrival
+    },
   };
 }
 
 /** Keep the current model selectable on its own provider's list. */
 export function withCurrent(models: ModelInfo[] | null, currentId: string | null | undefined): ModelInfo[] {
-  if (!models) return [];
+  // While the catalog is still null (loading/failed), the CURRENT model
+  // must remain visible/selectable — returning [] would blank the picker.
+  if (!models) return currentId ? [{ id: currentId, source: 'current' }] : [];
   if (!currentId) return models;
   if (models.some((m) => m.id === currentId)) return models;
   return [{ id: currentId, source: 'current' }, ...models];

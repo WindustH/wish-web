@@ -3,7 +3,7 @@
 // (preview and execute share one value; any change invalidates the
 // preview), exact contract report fields, empty = every category zero,
 // execution locks every dismiss path.
-import { computed, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import * as api from '../../core/api/endpoints.js';
 import { i18n } from '../../core/i18n/index.js';
 import { fmtDateTime } from '../../core/util/fmt.js';
@@ -40,10 +40,20 @@ const cutoffFor = (d: number) => {
 };
 
 // Any selection change or unmount discards a late preview response.
-watch(() => props.open, (v) => { if (!v) { previewGen.value++; previewBusy.value = false; } });
+watch(() => [props.open, props.sessionId], () => {
+  previewGen.value++;
+  previewBusy.value = false;
+  dialogBusy.value = false;
+  report.value = null;
+  cutoffMs.value = null;
+  err.value = null;
+  selCutoff.value = cutoffFor(effectiveDays.value);
+});
+onUnmounted(() => { previewGen.value++; });
 
 function chooseDays(v: number | 'custom') {
   previewGen.value++;
+  previewBusy.value = false;   // a changed selection ends any in-flight preview right away
   days.value = v;
   // Returning to "custom" keeps the typed number and a legal cutoff.
   selCutoff.value = v === 'custom' ? cutoffFor(Number(custom.value)) : cutoffFor(v);
@@ -53,6 +63,7 @@ function chooseDays(v: number | 'custom') {
 }
 function setCustomDays(v: string) {
   previewGen.value++;
+  previewBusy.value = false;
   custom.value = v;
   selCutoff.value = cutoffFor(Number(v));
   report.value = null;
@@ -93,24 +104,29 @@ async function preview() {
     if (previewGen.value !== gen) return;
     err.value = e;
   } finally {
+    // Only the owning generation may end its own busy; a superseded preview
+    // already reset the spinner when the selection changed.
     if (previewGen.value === gen) previewBusy.value = false;
   }
 }
 
 async function execute() {
   if (!previewValid.value || empty.value) return;
+  const gen = previewGen.value;
   dialogBusy.value = true;
   err.value = null;
   try {
     await api.sessionPrune(props.sessionId, {
       before_ms: cutoffMs.value!, keep_sealed_generations: 1, dry_run: false,
     });
+    if (previewGen.value !== gen) return;
     emit('done');
     emit('close');
   } catch (e) {
+    if (previewGen.value !== gen) return;
     err.value = e;   // keep the dialog open with the error visible
   } finally {
-    dialogBusy.value = false;
+    if (previewGen.value === gen) dialogBusy.value = false;
   }
 }
 </script>

@@ -43,7 +43,6 @@ export const sessions = (() => {
   const query = shallowRef('');
   const phaseFilter = shallowRef('');      // '' = all
   const tagFilter = shallowRef('');        // '' = none; exact tag (contract)
-  const totalKnown = shallowRef(null);     // from count_kind exact
 
   let gen = 0;                         // request generation
 
@@ -76,7 +75,6 @@ export const sessions = (() => {
       items.value = page.items;
       cursor.value = page.next_cursor ?? null;
       hasMore.value = Boolean(page.has_more);
-      totalKnown.value = page.count_kind === 'exact' ? page.count : null;
     } catch (err) {
       if (myGen === gen) error.value = err;
     } finally { if (myGen === gen) loading.value = false; }
@@ -105,7 +103,6 @@ export const sessions = (() => {
       items.value = uniq;
       cursor.value = cur;
       hasMore.value = more;
-      totalKnown.value = null;
     } catch (err) {
       if (myGen === gen) error.value = err;
     } finally { if (myGen === gen) loading.value = false; }
@@ -211,7 +208,7 @@ export const sessions = (() => {
 
   return {
     items: list, cursor, hasMore, loading, loadingMore, error,
-    query, phaseFilter, tagFilter, totalKnown, anyFilterActive,
+    query, phaseFilter, tagFilter, anyFilterActive,
     loadFirst, loadMore, rebuild,
     setQuery, setPhaseFilter, setTagFilter, refresh,
     create, rename, updateMeta, dropRow, patchRow, getById,

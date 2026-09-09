@@ -354,7 +354,7 @@ button.search-result:disabled { cursor: wait; opacity: .6; }
 
 /* ── Vue migration additions ── */
 .chatlog-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
-.chatlog { flex: 1; overflow-y: auto; padding: var(--space-md); min-height: 0; }
+.chatlog { flex: 1; overflow-y: auto; padding: var(--space-l); min-height: 0; }
 .chatlog-wrap .chatlog { display: block; }
 .log-loading { text-align: center; color: var(--fg-subtle); font-size: 13px; padding: 8px; }
 .live-row { text-align: center; padding: 6px; color: var(--fg-subtle); }
@@ -365,8 +365,8 @@ button.search-result:disabled { cursor: wait; opacity: .6; }
 }
 .jump-latest:hover { background: var(--bg-hover); }
 .chat-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.chatbar { display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) var(--space-sm); border-bottom: 1px solid var(--line); flex: none; }
-.chat-title { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
+.chatbar { display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) var(--space-s); border-bottom: 1px solid var(--line); flex: none; }
+.chat-title { display: flex; align-items: center; gap: var(--space-s); flex: 1; min-width: 0; }
 .chat-title .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .queue-badge { font-size: 12px; color: var(--fg-subtle); flex: none; }
 .model-chip {
@@ -379,7 +379,7 @@ button.search-result:disabled { cursor: wait; opacity: .6; }
 .proc-step .seq { color: var(--fg-faint); font-size: 12px; flex: none; }
 .proc-step .name { font-size: 13px; flex: none; }
 .proc-step .pv { color: var(--fg-subtle); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.search-row { display: flex; gap: var(--space-sm); margin-bottom: var(--space-sm); }
+.search-row { display: flex; gap: var(--space-s); margin-bottom: var(--space-s); }
 .search-results { display: flex; flex-direction: column; gap: 6px; }
 .search-result { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 8px 10px; background: none; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; color: var(--fg); }
 .search-result:hover { background: var(--bg-hover); }
@@ -388,8 +388,8 @@ button.search-result:disabled { cursor: wait; opacity: .6; }
 .tags-editor { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .runs-list { display: flex; flex-direction: column; gap: 4px; }
 .run-row { display: flex; gap: 10px; align-items: baseline; font-size: 13px; }
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-md); }
-.stat-card { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; padding: var(--space-md); }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-l); }
+.stat-card { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; padding: var(--space-l); }
 .stats-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .stats-table th { text-align: left; color: var(--fg-subtle); font-weight: 500; padding: 4px 8px 4px 0; }
 .stats-table td { padding: 4px 8px 4px 0; border-top: 1px solid var(--line); }
@@ -399,5 +399,9 @@ button.search-result:disabled { cursor: wait; opacity: .6; }
 .sessions-split { flex: 1; display: flex; min-width: 0; min-height: 0; }
 .content-pane { flex: 1; display: flex; min-width: 0; min-height: 0; position: relative; }
 .sl-scroll { flex: 1; overflow-y: auto; min-height: 0; }
-.sl-state { padding: var(--space-md); color: var(--fg-subtle); font-size: 13px; display: flex; gap: 8px; align-items: center; justify-content: center; }
+.sl-state { padding: var(--space-l); color: var(--fg-subtle); font-size: 13px; display: flex; gap: 8px; align-items: center; justify-content: center; }
 .entry-anchor { width: 100%; }
+
+/* step type label + persistent image thumbnails (root review restore) */
+.proc-step .type { color: var(--fg-subtle); font-size: 11px; flex: none; }
+.assistant-img, .detail-img { max-width: min(280px, 100%); border-radius: 8px; margin: 4px 0; display: block; }

@@ -11,7 +11,7 @@ const emit = defineEmits<{ close: [] }>();
   <DialogRoot :open="open" :modal="mobile === true"
     @update:open="(v: boolean) => { if (v === false) emit('close'); }">
     <DialogPortal>
-      <DialogContent class="drawer" :class="{ 'sheet-page': mobile }"
+      <DialogContent class="session-sheet" :class="mobile ? 'sheet-page' : 'drawer'"
         :aria-describedby="undefined">
         <div class="drawer-head">
           <button v-if="mobile" class="btn ghost icon-only" :aria-label="'back'" @click="emit('close')">

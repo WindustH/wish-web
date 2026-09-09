@@ -1,48 +1,39 @@
-// PWA explicit-update registration (vite-plugin-pwa generates dist/sw.js with
-// injectRegister:false; we register it manually — no workbox-window build-time
-// import). Semantics follow the prompt-style update flow: a new worker that
-// finished installing while we already have a controller raises `needRefresh`;
-// the user decides when to activate it (never auto-reloads mid-session).
+// PWA registration via the plugin's virtual module (prompt semantics: a new
+// worker waits for explicit user confirmation; no auto reloads mid-session).
+// registerSW returns the official updateSW(reloadPage?). Every failure path
+// is user-visible (console AND toast) — nothing is swallowed (round-3 #3).
 import { shallowRef } from 'vue';
+import { i18n } from '../core/i18n/index.js';
+import { toast } from './toast.js';
 
 export const needRefresh = shallowRef(false);
-const offlineReady = shallowRef(false);
-let applying = false;
+export const offlineReady = shallowRef(false);
+let updateSW: ((reloadPage?: boolean) => Promise<void>) | null = null;
 
-export function refreshApp() {
-  if (applying) return;
-  applying = true;
-  navigator.serviceWorker.getRegistration()
-    .then((reg) => {
-      const waiting = reg?.waiting;
-      if (!waiting) return;
-      waiting.postMessage({ type: 'SKIP_WAITING' });
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        // one-shot: the new shell took over — reload exactly once
-        if (!applying) return;
-        applying = false;
-        window.location.reload();
-      });
-    })
-    .catch(() => { applying = false; });
+export async function initPWA() {
+  if (!('serviceWorker' in navigator) || !location.protocol.startsWith('http')) return;
+  try {
+    const mod = await import('virtual:pwa-register');
+    updateSW = mod.registerSW({
+      immediate: true,
+      onNeedRefresh() { needRefresh.value = true; },
+      onOfflineReady() { offlineReady.value = true; },
+      onRegisterError(err: unknown) {
+        console.error('[pwa] registration error:', err);
+        toast(i18n.t('pwa.registerFailed'));
+      },
+    });
+  } catch (err) {
+    console.error('[pwa] registration module failed:', err);
+    toast(i18n.t('pwa.registerFailed'));
+  }
 }
 
-export function initPWA() {
-  if (!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.register('/sw.js')
-    .then((reg) => {
-      if (reg.waiting && navigator.serviceWorker.controller) {
-        needRefresh.value = true;
-        return;
-      }
-      reg.addEventListener('updatefound', () => {
-        const installing = reg.installing;
-        installing?.addEventListener('statechange', () => {
-          if (installing.state !== 'installed') return;
-          if (navigator.serviceWorker.controller) needRefresh.value = true;
-          else offlineReady.value = true;
-        });
-      });
-    })
-    .catch((err) => console.warn('[pwa] register failed:', err));
+export function refreshApp() {
+  if (!updateSW) return;
+  updateSW(true)   // reload once the new worker takes over
+    .catch((err: unknown) => {
+      console.error('[pwa] update failed:', err);
+      toast(i18n.t('pwa.updateFailed'));
+    });
 }

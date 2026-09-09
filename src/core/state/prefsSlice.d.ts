@@ -1,9 +1,15 @@
 import type { ShallowRef } from 'vue';
-export declare const prefs: {
+
+export interface PrefsApi {
   sendOnEnter: ShallowRef<boolean>;
   keepAwake: ShallowRef<boolean>;
+  showAdvanced: ShallowRef<boolean>;
   notifyOnFailure: ShallowRef<boolean>;
   loaded: ShallowRef<boolean>;
   load(): void;
-  set<K extends 'sendOnEnter' | 'keepAwake' | 'notifyOnFailure'>(key: K, v: boolean): void;
-};
+  setSendOnEnter(v: boolean): void;
+  setKeepAwake(v: boolean): void;
+  setShowAdvanced(v: boolean): void;
+  setNotifyOnFailure(v: boolean): void;
+}
+export declare const prefs: PrefsApi;

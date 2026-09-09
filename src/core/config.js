@@ -44,6 +44,8 @@ export const cfg = Object.freeze({
     searchPageSize: 50,               // /history/search page size (contract default)
     maxSearchPages: 40,               // fetch-older bound while paging search hits
     prefetchOlderTriggerPx: 320,      // load older when scroll within this of top
+    fetchNewerTriggerPx: 120,         // load newer (below) when within this of bottom
+    jumpLatestDistancePx: 2000,       // show the jump-to-latest chip past this distance
   },
 
   windowing: {                        // long-list DOM cap (chunked windowing)

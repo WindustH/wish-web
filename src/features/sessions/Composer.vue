@@ -30,7 +30,7 @@ const sendOnEnter = computed(() => prefs.sendOnEnter.value);
 
 const composerEl = ref<HTMLElement | null>(null);
 const ta = ref<HTMLTextAreaElement | null>(null);
-const sizing = useComposerHeight(composerEl, props.mobile);
+const sizing = useComposerHeight(composerEl);
 const height = computed(() => sizing.height());
 
 const text = ref(chat.getDraft(props.sessionId));
@@ -62,6 +62,7 @@ function setTextOwned(v: string) {
 }
 
 watch(() => props.sessionId, (id) => {
+  sidRef.value = id;   // ownership FIRST: drafts/attachments must never leak across sessions (audit A1)
   const prev = images.value;
   images.value = [];
   revokeAll(prev);
@@ -122,7 +123,11 @@ async function submit() {
   }
 }
 
-function onStop() { if (running.value && !sending.value) chat.interrupt(); }
+async function onStop() {
+  if (!running.value || sending.value) return;
+  try { await chat.interrupt(); }
+  catch (e: any) { toast(i18n.t('chat.stopFailed') + ': ' + String(e?.detail || e?.message || e)); }
+}
 
 function onKeydown(e: KeyboardEvent) {
   if (e.isComposing || e.keyCode === 229) return;

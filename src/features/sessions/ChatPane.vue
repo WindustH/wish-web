@@ -57,7 +57,7 @@ const goTab = (t: string) => router.push({ name: `chat-${t}`, params: { id: id.v
         { key: 'info', label: i18n.t('chatbar.info') },
         { key: 'search', label: i18n.t('chatbar.search') },
         { key: 'manage', label: i18n.t('chatbar.manage') },
-      ]" @select="goTab">
+      ]" :label="i18n.t('chatbar.more')" @select="goTab">
         <Icon name="ellipsis-vertical" />
       </Menu>
     </div>
