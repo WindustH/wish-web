@@ -11,6 +11,14 @@ node serve.mjs            # http://127.0.0.1:8790  (API 反代 → 127.0.0.1:978
 可选环境变量:`PORT`、`WISHD_UPSTREAM`、`WISHD_TOKEN`(守护 bearer 模式时注入)。
 无 node?任何静态服务器 + 自己的同源反代也可,页面不挑宿主(hash 路由)。
 
+局域网调试时显式设置监听地址和允许访问的 Host（下面的 IP 换成本机局域网地址）：
+
+```bash
+LISTEN_HOST=0.0.0.0 ALLOWED_HOSTS=192.168.31.161:8790 node serve.mjs
+```
+
+其他设备打开 `http://192.168.31.161:8790`。`ALLOWED_HOSTS` 可用逗号分隔多个 `主机:端口`；默认仅允许本机访问。Web 统一代理 API，wishd 和 providerd 可继续监听回环地址。
+
 ## 布局(来自 wish-plan/webui/01.md)
 
 - **桌面**(≥900px):左侧 vertical bar(上:会话/统计;下:设置)+ 会话页两栏(窄列表 + 对话)

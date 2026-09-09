@@ -4,7 +4,7 @@
 //   · /wishd-api/* → wishd (default http://127.0.0.1:9780), streamed so SSE works
 //   · optional bearer injection: WISHD_TOKEN env (when wishd auth mode = bearer)
 // Hardening:
-//   · Host allowlist (loopback only) — DNS rebinding / foreign-Host requests
+//   · explicit Host allowlist — DNS rebinding / foreign-Host requests
 //     are rejected BEFORE any proxying or token injection;
 //   · cross-origin mutations (Origin / Sec-Fetch-Site) rejected 403;
 //   · upstream base path preserved; http/https only (others rejected);
@@ -18,6 +18,7 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.env.PORT || 8790);
+const LISTEN_HOST = process.env.LISTEN_HOST || '127.0.0.1';
 const UPSTREAM = process.env.WISHD_UPSTREAM || 'http://127.0.0.1:9780';
 const TOKEN = process.env.WISHD_TOKEN || '';
 const ROOT = fileURLToPath(new URL('./webroot', import.meta.url));
@@ -29,12 +30,12 @@ if (up.protocol !== 'http:' && up.protocol !== 'https:') {
 }
 const UP_PATH = up.pathname.replace(/\/+$/, '');   // preserved base path ("" ok)
 
-// Loopback single-user boundary: only these Host values may talk to us.
+// Loopback by default; LAN access explicitly adds trusted HTTP authorities.
 const HOSTS = new Set([
   `127.0.0.1:${PORT}`, `localhost:${PORT}`, `[::1]:${PORT}`,
   ...(PORT === 80 ? ['127.0.0.1', 'localhost', '[::1]'] : []),
+  ...(process.env.ALLOWED_HOSTS || '').split(',').map(h => h.trim().toLowerCase()).filter(Boolean),
 ]);
-const SAME_ORIGIN = new Set([`http://127.0.0.1:${PORT}`, `http://localhost:${PORT}`]);
 const MUTATION = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 const MIME = {
@@ -60,7 +61,7 @@ const server = createServer(async (req, res) => {
     const origin = req.headers.origin ? String(req.headers.origin) : null;
     const fetchSite = req.headers['sec-fetch-site'] ? String(req.headers['sec-fetch-site']) : null;
     if (MUTATION.has(req.method)) {
-      if (origin && !SAME_ORIGIN.has(origin)) return reject(res, 403, 'cross-origin mutation');
+      if (origin && origin !== `http://${host}`) return reject(res, 403, 'cross-origin mutation');
       if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none') {
         return reject(res, 403, `cross-site mutation (${fetchSite})`);
       }
@@ -147,6 +148,6 @@ function proxyApi(req, res, url) {
   req.pipe(prox);
 }
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`wish-web → http://127.0.0.1:${PORT}  (api proxy → ${UPSTREAM})`);
+server.listen(PORT, LISTEN_HOST, () => {
+  console.log(`wish-web listening on ${LISTEN_HOST}:${PORT}  (api proxy → ${UPSTREAM})`);
 });
