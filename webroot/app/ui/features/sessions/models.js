@@ -22,7 +22,7 @@ export function useProviderModels({ initialProvider = '' } = {}) {
     let alive = true;
     api.providerConfigs().then((d) => {
       if (!alive) return;
-      const list = (d.providers || []).filter((p) => p.enabled !== false);
+      const list = d.providers.filter((p) => p.enabled !== false);
       setProviders(list);
       setProvider((cur) => cur || (list[0]?.id ?? ''));
     }).catch((e) => { if (alive) setLoadErr(e); });
@@ -30,7 +30,8 @@ export function useProviderModels({ initialProvider = '' } = {}) {
   }, [reloadKey]);
 
   useEffect(() => {
-    if (!providers || !provider) return;
+    if (!providers) return;
+    if (!provider || providers.length === 0) { setModels([]); return; }
     const gen = ++providerGen.current;   // invalidates the previous catalog request
     let alive = true;
     setLoadErr(null);                    // a provider switch retries on its own
@@ -43,7 +44,7 @@ export function useProviderModels({ initialProvider = '' } = {}) {
     setModels(null);
     api.providerModels(provider).then((d) => {
       if (!alive || providerGen.current !== gen) return;
-      setModels((d.models || [])
+      setModels(d.models
         .filter((m) => m.allowed_for_provider !== false)
         .map((m) => ({ id: m.id, source: 'catalog' })));
     }).catch((e) => {

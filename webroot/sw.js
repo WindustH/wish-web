@@ -7,7 +7,7 @@
 //   · /wishd-api/* and /providerd-api/* and every non-GET: always live,
 //     never cached;
 //   · only caches in THIS app's namespace (wish-web-shell-*) are managed.
-const VERSION = 'wish-web-shell-63b4d362b4c4d3be';
+const VERSION = 'wish-web-shell-ea992da21a5ad285';
 const SHELL = [
   "/",
   "/app-icons/icon-192.png",

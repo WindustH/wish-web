@@ -70,7 +70,7 @@ export function ModelSettings({ id, onClose }) {
       <//>`}>
     <div class="field">
       <label>${i18n.t('new.provider')}</label>
-      <select class="select" value=${provider} disabled=${!providers}
+      <select class="select" value=${provider} disabled=${busy || !providers}
         onChange=${(e) => { setProvider(e.target.value); setModel(''); }}>
         ${(providers || []).map((p) => html`<option key=${p.id} value=${p.id}>${p.id}</option>`)}
       </select>
@@ -84,14 +84,14 @@ export function ModelSettings({ id, onClose }) {
       ${!loadErr && loading && html`<div class="hint">${i18n.t('common.loading')}…</div>`}
       ${!loadErr && !loading && choices.length === 0 && html`
         <div class="hint" style="font-size:12px;color:var(--fg-subtle)">${i18n.t('new.noModels')}</div>`}
-      <select class="select" value=${model} onChange=${(e) => setModel(e.target.value)} disabled=${!choices.length}>
+      <select class="select" value=${model} onChange=${(e) => setModel(e.target.value)} disabled=${busy || !choices.length}>
         <option value="">—</option>
         ${choices.map((m) => html`<option key=${m.id} value=${m.id}>${m.id}${m.source === 'current' ? ` (${i18n.t('model.currentSuffix')})` : ''}</option>`)}
       </select>
     </div>
     <div class="field">
       <label>${i18n.t('new.reasoning')}</label>
-      <input class="input" placeholder="max / high / medium / low" value=${effort}
+      <input class="input" placeholder="max / high / medium / low" value=${effort} disabled=${busy}
         onInput=${(e) => setEffort(e.target.value)} />
       ${effortCleared && html`<div class="hint" style="color:var(--warn);margin-top:4px">${i18n.t('model.effortClearUnsupported')}</div>`}
     </div>

@@ -248,7 +248,7 @@ function PruneDialog({ id, busy, setBusy, onClose, onDone }) {
   const [err, setErr] = useState(null);
   const previewGen = useRef(0);
   // Any selection change or unmount must discard a late preview response.
-  useEffect(() => () => { previewGen.current += 1; setPreviewBusy(false); }, []);
+  useEffect(() => () => { previewGen.current += 1; }, []);
   const dialogBusy = busy || previewBusy;
 
   const effectiveDays = days === 'custom' ? Number(custom) : days;
@@ -267,6 +267,7 @@ function PruneDialog({ id, busy, setBusy, onClose, onDone }) {
 
   function chooseDays(v) {
     previewGen.current += 1;          // selection change invalidates in-flight preview
+    setPreviewBusy(false);
     setDays(v);
     // Returning to "custom" keeps the number already typed in — it must keep
     // producing a valid cutoff, never leave preview enabled with a null one.
@@ -278,6 +279,7 @@ function PruneDialog({ id, busy, setBusy, onClose, onDone }) {
 
   function setCustomDays(v) {
     previewGen.current += 1;
+    setPreviewBusy(false);
     setCustom(v);
     setSelCutoff(cutoffFor(Number(v)));
     setReport(null);
