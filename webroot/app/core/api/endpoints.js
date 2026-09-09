@@ -1,7 +1,7 @@
 // Typed endpoint surface — the ONLY place URL shapes appear. UI/state call
 // these functions, never build URLs themselves. Mirrors
 // doc/en/reference/wishd-api.md; shapes verified against openapi.json.
-import { get, post, patch, put, del, api, getBaseUrl } from './client.js';
+import { get, post, patch, put, del, api, getBaseUrl, providerd } from './client.js';
 
 // ── sessions ────────────────────────────────────────────────────────────
 export const sessionsList = (params) => get('/sessions', { query: params });
@@ -18,6 +18,14 @@ export const sessionUpdateMeta = (id, metadata, ifMatchRevision, opts) =>
     headers: { ...((opts || {}).headers || {}), ...(ifMatchRevision != null ? { 'if-match': String(ifMatchRevision) } : {}) },
   });
 export const sessionDelete = (id, opts) => del(`/sessions/${id}`, opts);
+// Provider/model switch: PATCH {provider, model, reasoning_effort?} with the
+// revision we read the snapshot at (decision #5). Provider-only switches are
+// rejected by the server — the client always sends provider+model together.
+export const sessionUpdateModel = (id, body, ifMatchRevision, opts) =>
+  patch(`/sessions/${id}`, body, {
+    ...(opts || {}),
+    headers: { ...((opts || {}).headers || {}), ...(ifMatchRevision != null ? { 'if-match': String(ifMatchRevision) } : {}) },
+  });
 
 // ── history (canonical chat timeline) ──────────────────────────────────
 export const historyPage = (id, params, opts) => get(`/sessions/${id}/history`, { query: params, ...opts });
@@ -55,8 +63,12 @@ export const usageTotals = () => get('/metrics/usage');
 export const storageStatus = () => get('/storage/status');
 
 // ── models / providers / config ─────────────────────────────────────────
-export const providerConfigs = () => get('/provider/configs');
-export const providerModels = (id) => get(`/providers/${id}/models`);
+// ── providerd (separate daemon; catalog reads NEVER go through wishd) ──
+export const providerConfigs = () => providerd.get('/provider-configs');
+export const providerModels = (id, opts) => providerd.get(`/providers/${id}/models`, opts);
+export const providerdEffective = () => providerd.get('/config/effective');
+// Exact contract: {status:'reloaded', config_generation} — no restart list.
+export const providerdReload = () => providerd.post('/config/reload', {});
 export const configEffective = () => get('/config/effective');
 export const configReload = () => post('/config/reload', {});
 // Contract: streaming read/write surface (strict {enabled} body).

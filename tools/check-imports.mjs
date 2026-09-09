@@ -21,8 +21,9 @@ const files = [];
 
 const IMPORT_RE = /(?:^|\n)\s*(?:import|export)\s[^'"]*?from\s*['"]([^'"]+)['"]|(?:^|\n)\s*import\s*['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]/g;
 const NAMED_IMPORT_RE = /(?:^|\n)\s*(?:import|export)\s+(?:type\s+)?\{([^}]+)\}\s*from\s*['"]([^'"]+)['"]/g;
+// Destructured exports count too: `export const { get, post } = factory();`
 const exportOf = (src, name) =>
-  new RegExp(`(?:export(?:\\s+async)?\\s+(?:function|const|let|class)\\s+${name}\\b|export\\s*\\{[^}]*\\b${name}\\b|export\\s+default\\b)`).test(src);
+  new RegExp(`(?:export(?:\\s+async)?\\s+(?:function|const|let|class)\\s+${name}\\b|export\\s*\\{[^}]*\\b${name}\\b|export\\s+default\\b|export\\s+const\\s*\\{[^}]*\\b${name}\\b)`).test(src);
 
 for (const file of files) {
   const src = readFileSync(file, 'utf8');
