@@ -18,6 +18,7 @@ import { HistoryEntry, groupEntries, ProcessGroup } from './entry.js';
 import { Vlist } from '../../components/vlist.js';
 import { announce } from '../../live.js';
 import { Composer } from './composer.js';
+import { ModelSettings } from './modelsettings.js';
 import { SessionsListPane } from './list.js';
 import { NewSessionModal } from './newsession.js';
 import { Sheet } from '../../components/sheet.js';
@@ -60,9 +61,14 @@ function ChatPane({ id, mobile, openSheet, covered }) {
   const loading = useSignal(chat.loadingInitial);
   const name = snapshot?.name || sessions.getById(id)?.name || '…';
 
+  const [modelOpen, openModel] = useState(false);
+
   return html`
     <div class="chat" inert=${covered || undefined}>
-      <${ChatTopBar} id=${id} openSheet=${openSheet} name=${name} mobile=${mobile} phase=${snapshot?.phase} queue=${snapshot?.queue ?? 0} />
+      <${ChatTopBar} id=${id} openSheet=${openSheet} name=${name} mobile=${mobile}
+        phase=${snapshot?.phase} queue=${snapshot?.queue ?? 0} model=${snapshot?.model}
+        onOpenModel=${() => openModel(true)} />
+      ${modelOpen && html`<${ModelSettings} key=${id} id=${id} onClose=${() => openModel(false)} />`}
       ${error && html`<div class="sl-empty">${i18n.t('common.error')} — ${String(error.detail || error.message)}
         <div><${Button} onClick=${() => chat.reload()}>${i18n.t('common.retry')}<//></div></div>`}
       <${ChatLog} id=${id} loading=${loading} snapshot=${snapshot} />
@@ -70,7 +76,7 @@ function ChatPane({ id, mobile, openSheet, covered }) {
     </div>`;
 }
 
-function ChatTopBar({ id, name, mobile, phase, queue = 0, openSheet: go }) {
+function ChatTopBar({ id, name, mobile, phase, queue = 0, model, onOpenModel, openSheet: go }) {
   const actions = [
     { icon: 'info', label: i18n.t('chatbar.info'), onClick: () => go('info') },
     { icon: 'search', label: i18n.t('chatbar.search'), onClick: () => go('search') },
@@ -83,6 +89,9 @@ function ChatTopBar({ id, name, mobile, phase, queue = 0, openSheet: go }) {
         <${Icon} name="arrow-left" />
       </button>`}
       <div class="title">${name}</div>
+      ${model && html`<button class="model-chip" title=${i18n.t('model.chipTitle')} onClick=${onOpenModel}>
+        ${model}
+      </button>`}
       ${phase === 'running' && html`<span class="badge accent">${i18n.t('phase.running')}</span>`}
       ${queue > 0 && html`<span class="badge">${i18n.t('chat.queuedN', { n: queue })}</span>`}
       ${phase === 'compacting' && html`<span class="badge">${i18n.t('phase.compacting')}</span>`}

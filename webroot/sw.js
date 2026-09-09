@@ -4,9 +4,10 @@
 //     a NEW service worker — never a mixed in-place mutation);
 //   · activation only after the user confirms (SKIP_WAITING message from
 //     the update prompt) — no mixed versions;
-//   · /wishd-api/* and every non-GET: always live, never cached;
+//   · /wishd-api/* and /providerd-api/* and every non-GET: always live,
+//     never cached;
 //   · only caches in THIS app's namespace (wish-web-shell-*) are managed.
-const VERSION = 'wish-web-shell-1357dd908db39cb0';
+const VERSION = 'wish-web-shell-63b4d362b4c4d3be';
 const SHELL = [
   "/",
   "/app-icons/icon-192.png",
@@ -58,6 +59,8 @@ const SHELL = [
   "/app/ui/features/sessions/info.js",
   "/app/ui/features/sessions/list.js",
   "/app/ui/features/sessions/manage.js",
+  "/app/ui/features/sessions/models.js",
+  "/app/ui/features/sessions/modelsettings.js",
   "/app/ui/features/sessions/newsession.js",
   "/app/ui/features/sessions/resize.js",
   "/app/ui/features/sessions/search.js",
@@ -106,7 +109,7 @@ self.addEventListener('message', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;                    // mutations: live
-  if (url.pathname.startsWith('/wishd-api/')) return;        // API: live only
+  if (url.pathname.startsWith('/wishd-api/') || url.pathname.startsWith('/providerd-api/')) return;  // API: live only
   if (url.origin !== location.origin) return;
   const isShell = SHELL.includes(url.pathname)
     || (e.request.mode === 'navigate' && (url.pathname === '/' || url.pathname === '/index.html'));
