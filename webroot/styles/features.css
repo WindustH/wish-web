@@ -295,7 +295,7 @@ html.resizing .chatlog, html.resizing .sl-list { pointer-events: none; }
   font-family: var(--mono);
 }
 
-/* Session list filter row (archive segmented / pinned-first / tag chip) */
+/* Session list filter row (tag chip) */
 .sl-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 10px 8px; }
 .seg-item {
   display: inline-flex; align-items: center; gap: 4px;
@@ -306,7 +306,6 @@ html.resizing .chatlog, html.resizing .sl-list { pointer-events: none; }
 .seg-item:hover { background: var(--bg-sunken); color: var(--fg); }
 .seg-item.on { background: var(--bg-raised); color: var(--fg); box-shadow: var(--shadow-card); }
 .seg-item .icon { width: 13px; height: 13px; }
-.sl-row .icon.pinned { width: 12px; height: 12px; color: var(--fg-faint); flex: none; }
 .sl-empty.subtle { color: var(--fg-faint); font-size: 12px; padding: 8px 0 12px; }
 
 /* capability read failure: visible + explicit retry (never fake-unknown) */
@@ -325,3 +324,30 @@ button.search-result { width: 100%; text-align: left; color: inherit; background
 button.search-result:disabled { cursor: wait; opacity: .6; }
 .history-target { animation: history-highlight 1.4s ease-out; }
 @keyframes history-highlight { from { background-color: color-mix(in srgb, var(--accent) 22%, transparent); } to { background-color: transparent; } }
+
+/* model chip next to the chat title (decision #5) */
+.model-chip {
+  flex: none; max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: 1px solid var(--line); background: var(--bg-raised); color: var(--fg-subtle);
+  border-radius: 999px; padding: 1px 10px; font-size: 12px; cursor: pointer;
+}
+.model-chip:hover { color: var(--fg); border-color: var(--fg-faint); }
+
+/* Settings tabs (role=tablist): three peers, horizontally scrollable on
+   narrow screens, gentle fade on panel switch (respects reduced motion). */
+.settings-tabs {
+  display: flex; gap: var(--space-xs); overflow-x: auto; flex: none;
+  border-bottom: 1px solid var(--line); margin: 0 var(--space-l) var(--space-m);
+  scrollbar-width: thin;
+}
+.settings-tab {
+  border: 0; background: none; cursor: pointer; padding: var(--space-s) var(--space-m);
+  color: var(--fg-subtle); font-size: 13px; border-bottom: 2px solid transparent;
+  white-space: nowrap; transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+.settings-tab:hover { color: var(--fg); }
+.settings-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.settings-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.settings-list { animation: settings-fade var(--dur) ease-out; }
+@keyframes settings-fade { from { opacity: 0.4; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .settings-list { animation: none; } }

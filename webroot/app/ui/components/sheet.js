@@ -16,6 +16,9 @@ export function Sheet({ title, actions, children, mobile, onClose }) {
     const prev = document.activeElement;
     (el.querySelector('[autofocus]') || el.querySelector('input, textarea, button')).focus({ preventScroll: true });
     const outside = e => {
+      // An open native dialog owns the top layer: outside-pointerdown must
+      // not dismiss the sheet underneath it.
+      if (document.querySelector('dialog[open]')) return;
       if (!el.contains(e.target) && !e.target.closest('.chatbar, .composer-toolbar')) close();
     };
     document.addEventListener('pointerdown', outside);

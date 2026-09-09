@@ -69,7 +69,13 @@ export function useDismiss(ref, onDismiss, active = true) {
 export function useEscape(fn, active = true) {
   useEffect(() => {
     if (!active) return;
-    const onKey = (e) => { if (e.key === 'Escape') fn(e); };
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      // A native <dialog> is always in the top layer: while one is open,
+      // Escape belongs to it, not to the sheet behind it.
+      if (document.querySelector('dialog[open]')) return;
+      fn(e);
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [fn, active]);

@@ -84,22 +84,25 @@
 @keyframes spin { to { transform: rotate(360deg); } }
 .icon.spin { animation: spin 0.9s linear infinite; }
 
-.scrim {
-  position: fixed; inset: 0; z-index: 60;
-  background: var(--scrim);
-  display: flex; align-items: center; justify-content: center;
-  padding: var(--space-l);
+.modal-root {
+  border: 0; padding: 0; background: transparent;
+  color: var(--fg);                       /* UA default is pure black/white */
+  width: min(92vw, 32rem);
+  max-height: min(84dvh, 44rem);
 }
+.modal-root.wide { width: min(94vw, 58rem); }
+.modal-root::backdrop { background: var(--scrim); }
 .modal {
+  /* The DIALOG owns the width; the card always fills it (single width
+     owner — a fixed card width made wide dialogs visibly off-center). */
   background: var(--bg-raised);
   border: 1px solid var(--line);
   border-radius: calc(var(--radius) + 4px);
   box-shadow: var(--shadow-pop);
-  width: min(92vw, 30rem);
+  width: 100%;
   max-height: min(84dvh, 44rem);
   display: flex; flex-direction: column;
 }
-.modal.wide { width: min(94vw, 56rem); }
 .modal-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: var(--space-m) var(--space-l);

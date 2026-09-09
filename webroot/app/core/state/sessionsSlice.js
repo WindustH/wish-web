@@ -31,7 +31,6 @@ const IDENTITY_FIELDS = new Set(['name', 'updated_at_ms', 'metadata']);
 // metadata accessors — the defined keys only; everything else is the
 // user's own JSON, carried untouched (decision-json-metadata).
 export const metaOf = (row) => row == null ? {} : row.metadata;
-export const metaBool = (row, key) => metaOf(row)[key] === true;
 export const metaTags = (row) => metaOf(row).tags ?? [];
 
 export const sessions = (() => {
@@ -43,16 +42,14 @@ export const sessions = (() => {
   const error = signal(null);
   const query = signal('');
   const phaseFilter = signal('');      // '' = all
-  const archivedFilter = signal('');   // '' = all | 'true' | 'false' (contract)
   const tagFilter = signal('');        // '' = none; exact tag (contract)
-  const pinnedFirst = signal(false);   // contract: default keeps old ordering
   const totalKnown = signal(null);     // from count_kind exact
 
   let gen = 0;                         // request generation
 
   const list = derive(() => items.value);
   const anyFilterActive = derive(() =>
-    Boolean(query.value || phaseFilter.value || archivedFilter.value || tagFilter.value));
+    Boolean(query.value || phaseFilter.value || tagFilter.value));
 
   function requestParams() {
     const p = {
@@ -60,9 +57,7 @@ export const sessions = (() => {
       query: query.peek() || undefined,
       phase: phaseFilter.peek() || undefined,
     };
-    if (archivedFilter.peek()) p.archived = archivedFilter.peek();
     if (tagFilter.peek()) p.tag = tagFilter.peek();
-    if (pinnedFirst.peek()) p.pinned_first = true;
     return p;
   }
 
@@ -138,11 +133,7 @@ export const sessions = (() => {
 
   const debouncedSearch = debounce(() => { loadFirst(); }, cfg.sessions.searchDebounceMs);
   function setQuery(q) { if (q === query.peek()) return; query.value = q; bump(); debouncedSearch(); }
-  function setPhaseFilter(p) { if (p === phaseFilter.peek()) return; phaseFilter.value = p; bump(); loadFirst(); }
-  function setArchivedFilter(v) { if (v === archivedFilter.peek()) return; archivedFilter.value = v; bump(); loadFirst(); }
-  function setTagFilter(t) { if (t === tagFilter.peek()) return; tagFilter.value = t; bump(); loadFirst(); }
-  function setPinnedFirst(v) { if (v === pinnedFirst.peek()) return; pinnedFirst.value = v; bump(); loadFirst(); }
-  function refresh() { bump(); return loadFirst(); }
+  function setPhaseFilter(p) { if (p === phaseFilter.peek()) return; phaseFilter.value = p; bump(); loadFirst(); }  function setTagFilter(t) { if (t === tagFilter.peek()) return; tagFilter.value = t; bump(); loadFirst(); }  function refresh() { bump(); return loadFirst(); }
 
   async function create({ name, provider, model, reasoningEffort, agentCustom }) {
     const body = { provider, model };
@@ -152,7 +143,7 @@ export const sessions = (() => {
     const snap = await api.sessionCreate(body);
     // The new row's position depends on the active collection (filters,
     // pinned_first ordering) — the server is the single sorting authority.
-    if (anyFilterActive.value || pinnedFirst.value) await rebuild();
+    if (anyFilterActive.value) await rebuild();
     else items.value = [snapToListRow(snap), ...items.peek().filter((s) => s.id !== snap.id)];
     return snap;
   }
@@ -220,9 +211,10 @@ export const sessions = (() => {
 
   return {
     items: list, cursor, hasMore, loading, loadingMore, error,
-    query, phaseFilter, archivedFilter, tagFilter, pinnedFirst, totalKnown, anyFilterActive,
-    loadFirst, loadMore, rebuild, setQuery, setPhaseFilter, setArchivedFilter, setTagFilter,
-    setPinnedFirst, refresh, create, rename, updateMeta, dropRow, patchRow, getById,
+    query, phaseFilter, tagFilter, totalKnown, anyFilterActive,
+    loadFirst, loadMore, rebuild,
+    setQuery, setPhaseFilter, setTagFilter, refresh,
+    create, rename, updateMeta, dropRow, patchRow, getById,
   };
 })();
 
