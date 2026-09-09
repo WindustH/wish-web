@@ -1,5 +1,10 @@
 # Project requirements
 
+- Use Vue 3, the existing Vue Router/Reka/TanStack primitives and Vite toolchain.
+  Keep dependencies, Corepack, pnpm store and caches inside this checkout; run
+  package commands through `./pnpmw` and retain the exact dependency lockfile.
+  Deploy compiled `dist` assets, without runtime CDN imports or global installs.
+
 - Target the current coordinated backend contract. Do not keep old-daemon API
   fallbacks, legacy history scans, or speculative response-shape aliases.
 - Avoid defensive scaffolding: do not swallow unexpected exceptions or replace
