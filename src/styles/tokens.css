@@ -1,0 +1,88 @@
+/* Design tokens. Sizes/durations come from core/config.js (written at boot
+   by ui/applyTokens); only the color scales and derived aliases live here.
+   Flat, restrained palette — no gradients, no heavy shadows. */
+
+:root {
+  --bg: #faf9f7;
+  --bg-raised: #ffffff;
+  --bg-sunken: #f0eee9;
+  --bg-hover: #eceae4;
+  --bg-active: #e4e1d9;
+  --bg-inset: #e9e7e1;
+
+  --fg: #26251f;
+  --fg-muted: #6b675c;
+  --fg-subtle: #9a9587;
+  --fg-faint: #c2bdb0;
+
+  --line: #e3e0d7;
+  --line-strong: #cfccc0;
+
+  --accent: #b4552d;
+  --accent-fg: #ffffff;
+  --accent-soft: #f3e0d5;
+  --accent-hover: #9c4826;
+
+  --ok: #4a7c59;
+  --warn: #a07a2c;
+  --err: #b3452e;
+
+  --user-bubble: #eceae4;
+  --user-bubble-fg: #26251f;
+
+  --focus-ring: rgba(180, 85, 45, 0.35);
+  --scrim: rgba(38, 37, 31, 0.32);
+
+  --shadow-pop: 0 4px 18px rgba(38, 37, 31, 0.10), 0 1px 3px rgba(38, 37, 31, 0.06);
+  --shadow-card: 0 1px 2px rgba(38, 37, 31, 0.04);
+}
+
+html[data-theme='dark'] {
+  --bg: #1c1b19;
+  --bg-raised: #242320;
+  --bg-sunken: #171614;
+  --bg-hover: #2c2a26;
+  --bg-active: #34322c;
+  --bg-inset: #141311;
+
+  --fg: #e8e6df;
+  --fg-muted: #a6a294;
+  --fg-subtle: #7b776a;
+  --fg-faint: #4d4a42;
+
+  --line: #333029;
+  --line-strong: #45423a;
+
+  --accent: #d08360;
+  --accent-fg: #201914;
+  --accent-soft: #3a2b22;
+  --accent-hover: #dd9779;
+
+  --ok: #7fae8c;
+  --warn: #c9a45c;
+  --err: #d97e6a;
+
+  --user-bubble: #2c2a26;
+  --user-bubble-fg: #e8e6df;
+
+  --focus-ring: rgba(208, 131, 96, 0.45);
+  --scrim: rgba(0, 0, 0, 0.5);
+
+  --shadow-pop: 0 4px 18px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* runtime tokens written by ui/applyTokens (from core/config.js) */
+:root {
+  --radius: 10px;
+  --font: system-ui, sans-serif;
+  --mono: ui-monospace, monospace;
+  --space-xs: 4px; --space-s: 8px; --space-m: 12px; --space-l: 16px;
+  --space-xl: 24px; --space-xxl: 32px;
+  --icon: 18px;
+  --w-sidebar: 56px; --w-list: 300px; --h-topbar: 48px; --h-bottombar: 52px;
+  --max-content: 48rem;
+  --dur-fast: 120ms; --dur: 200ms; --dur-slow: 400ms;
+  color-scheme: light;
+}
+html[data-theme='dark'] { color-scheme: dark; }
