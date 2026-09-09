@@ -15,6 +15,7 @@ export const cfg = Object.freeze({
   api: {
     // Same-origin reverse proxy (see serve.mjs). Overridable for shells.
     baseUrl: '/wishd-api',
+    providerdBaseUrl: '/providerd-api',
     requestTimeoutMs: 30_000,
     // Mutations require Idempotency-Key ≥16 printable ASCII chars.
     idempotencyKeyLen: 24,

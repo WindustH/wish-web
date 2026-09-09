@@ -15,34 +15,41 @@ export class ApiError extends Error {
   }
 }
 
-// Base URL handling must stay DOM-free so shells (Node / Tauri / Capacitor)
-// can import and use core. Root-relative bases are resolved against the
-// browser origin lazily (never at import time); non-browser hosts must inject
-// an absolute base via setBaseUrl() before the first call.
-let baseUrl = cfg.api.baseUrl;
-let resolvedBase = null;
-
-export function setBaseUrl(url) { baseUrl = url; resolvedBase = null; }
-export function getBaseUrl() { return baseUrl; }
-
-function absoluteBase() {
-  if (resolvedBase) return resolvedBase;
-  if (/^https?:\/\//i.test(baseUrl)) {
-    resolvedBase = baseUrl.replace(/\/+$/, '');
-  } else {
-    const loc = typeof globalThis !== 'undefined' ? globalThis.location : null;
-    if (loc && loc.origin) {
-      resolvedBase = new URL(baseUrl, loc.origin).href.replace(/\/+$/, '');
+// Each backend owns its base URL. Shells can set the two absolute bases
+// independently; browsers resolve the relative defaults against their origin.
+function createClient(initialBase) {
+  let baseUrl = initialBase;
+  let resolvedBase = null;
+  const setBaseUrl = url => { baseUrl = url; resolvedBase = null; };
+  const getBaseUrl = () => baseUrl;
+  function absoluteBase() {
+    if (resolvedBase) return resolvedBase;
+    if (/^https?:\/\//i.test(baseUrl)) {
+      resolvedBase = baseUrl.replace(/\/+$/, '');
     } else {
-      throw new ApiError(0, 'base-url-missing', 'base-url-missing',
-        `core used outside a browser must call setBaseUrl() with an absolute URL (got ${JSON.stringify(baseUrl)})`, false);
+      const loc = globalThis.location;
+      if (!loc?.origin) {
+        throw new ApiError(0, 'base-url-missing', 'base-url-missing',
+          `core used outside a browser must call setBaseUrl() with an absolute URL (got ${JSON.stringify(baseUrl)})`, false);
+      }
+      resolvedBase = new URL(baseUrl, loc.origin).href.replace(/\/+$/, '');
     }
+    return resolvedBase;
   }
-  return resolvedBase;
+  const absUrl = path => absoluteBase() + path;
+  const api = async (method, path, opts) => request(method, absUrl(path), opts);
+  return {
+    setBaseUrl, getBaseUrl, absUrl, api,
+    get: (path, opts) => api('GET', path, opts),
+    post: (path, body, opts) => api('POST', path, { ...opts, body }),
+    patch: (path, body, opts) => api('PATCH', path, { ...opts, body }),
+    put: (path, body, opts) => api('PUT', path, { ...opts, body }),
+    del: (path, opts) => api('DELETE', path, opts),
+  };
 }
 
-// Absolute URL for a given API path (fetch/SSE both need this in shells).
-export const absUrl = (path) => absoluteBase() + path;
+export const { get, post, patch, put, del, api, absUrl, getBaseUrl, setBaseUrl } = createClient(cfg.api.baseUrl);
+export const providerd = createClient(cfg.api.providerdBaseUrl);
 
 async function problemFromBody(body, status) {
   try {
@@ -51,8 +58,8 @@ async function problemFromBody(body, status) {
   } catch { return null; }
 }
 
-export async function api(method, path, { body, query, signal, headers, raw } = {}) {
-  const url = new URL(absUrl(path));
+async function request(method, target, { body, query, signal, headers, raw } = {}) {
+  const url = new URL(target);
   if (query) {
     for (const [k, v] of Object.entries(query)) {
       if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
@@ -82,9 +89,3 @@ export async function api(method, path, { body, query, signal, headers, raw } = 
   const ct = res.headers.get('content-type') || '';
   return ct.includes('json') ? res.json() : res.text();
 }
-
-export const get = (path, opts) => api('GET', path, opts);
-export const post = (path, body, opts) => api('POST', path, { ...opts, body });
-export const patch = (path, body, opts) => api('PATCH', path, { ...opts, body });
-export const put = (path, body, opts) => api('PUT', path, { ...opts, body });
-export const del = (path, opts) => api('DELETE', path, opts);

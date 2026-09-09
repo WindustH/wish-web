@@ -2,7 +2,8 @@
 // Static + API-proxy server for wish-web (hardened per decisions 23 / task 7).
 //   · static files from ./webroot (the app itself is build-free)
 //   · /wishd-api/* → wishd (default http://127.0.0.1:9780), streamed so SSE works
-//   · optional bearer injection: WISHD_TOKEN env (when wishd auth mode = bearer)
+//   · /providerd-api/* → wish-providerd (default http://127.0.0.1:9781)
+//   · independent bearer injection: WISHD_TOKEN and PROVIDERD_TOKEN
 // Hardening:
 //   · explicit Host allowlist — DNS rebinding / foreign-Host requests
 //     are rejected BEFORE any proxying or token injection;
@@ -19,16 +20,18 @@ import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.env.PORT || 8790);
 const LISTEN_HOST = process.env.LISTEN_HOST || '127.0.0.1';
-const UPSTREAM = process.env.WISHD_UPSTREAM || 'http://127.0.0.1:9780';
-const TOKEN = process.env.WISHD_TOKEN || '';
 const ROOT = fileURLToPath(new URL('./webroot', import.meta.url));
 
-const up = new URL(UPSTREAM);
-if (up.protocol !== 'http:' && up.protocol !== 'https:') {
-  console.error(`serve.mjs: unsupported upstream protocol ${up.protocol} (http/https only)`);
-  process.exit(2);
-}
-const UP_PATH = up.pathname.replace(/\/+$/, '');   // preserved base path ("" ok)
+const BACKENDS = [
+  { prefix: '/wishd-api', base: process.env.WISHD_UPSTREAM || 'http://127.0.0.1:9780', token: process.env.WISHD_TOKEN || '' },
+  { prefix: '/providerd-api', base: process.env.PROVIDERD_UPSTREAM || 'http://127.0.0.1:9781', token: process.env.PROVIDERD_TOKEN || '' },
+].map(backend => {
+  const url = new URL(backend.base);
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error(`serve.mjs: unsupported ${backend.prefix} protocol ${url.protocol} (http/https only)`);
+  }
+  return { ...backend, url, path: url.pathname.replace(/\/+$/, '') };
+});
 
 // Loopback by default; LAN access explicitly adds trusted HTTP authorities.
 const HOSTS = new Set([
@@ -70,11 +73,10 @@ const server = createServer(async (req, res) => {
     const url = new URL(req.url, `http://${host}`);
     if (url.pathname === '/healthz') {
       res.writeHead(200, { 'content-type': 'application/json' });
-      return res.end(JSON.stringify({ ok: true, upstream: UPSTREAM }));
+      return res.end(JSON.stringify({ ok: true }));
     }
-    if (url.pathname === '/wishd-api' || url.pathname.startsWith('/wishd-api/')) {
-      return proxyApi(req, res, url);
-    }
+    const backend = BACKENDS.find(b => url.pathname === b.prefix || url.pathname.startsWith(b.prefix + '/'));
+    if (backend) return proxyApi(req, res, url, backend);
 
     // ── static ────────────────────────────────────────────────────────────
     let path = normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, '');
@@ -112,14 +114,15 @@ const server = createServer(async (req, res) => {
   }
 });
 
-function proxyApi(req, res, url) {
-  const target = UP_PATH + url.pathname.replace(/^\/wishd-api/, '') + url.search;
+function proxyApi(req, res, url, backend) {
+  const up = backend.url;
+  const target = backend.path + url.pathname.slice(backend.prefix.length) + url.search;
   const headers = { ...req.headers, host: up.host };
   delete headers['accept-encoding'];            // avoid compressed SSE buffering
   delete headers.referer; delete headers.origin;
   delete headers['sec-fetch-site']; delete headers['sec-fetch-mode'];
   delete headers['sec-fetch-dest'];
-  if (TOKEN) headers.authorization = `Bearer ${TOKEN}`;
+  if (backend.token) headers.authorization = `Bearer ${backend.token}`;
 
   const doRequest = up.protocol === 'https:' ? httpsRequest : httpRequest;
   const prox = doRequest(
@@ -149,5 +152,5 @@ function proxyApi(req, res, url) {
 }
 
 server.listen(PORT, LISTEN_HOST, () => {
-  console.log(`wish-web listening on ${LISTEN_HOST}:${PORT}  (api proxy → ${UPSTREAM})`);
+  console.log(`wish-web listening on ${LISTEN_HOST}:${PORT}; wishd and providerd API routes enabled`);
 });
