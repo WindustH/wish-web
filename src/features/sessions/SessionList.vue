@@ -55,17 +55,13 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
 <template>
   <div class="sessions-pane">
     <div class="sl-masthead">
-      <span class="eyebrow">Wish</span>
-      <div class="sl-heading"><h1>{{ i18n.t('nav.sessions') }}</h1>
-        <button class="btn primary icon-only" :title="i18n.t('sessions.new')" :aria-label="i18n.t('sessions.new')"
-          @click="openNewSession()"><Icon name="plus" /></button>
+      <div class="sl-head">
+        <Spinner v-if="sessions.loading.value" /><Icon v-else name="search" />
+        <input v-model="query" type="search" @compositionstart="composing = true"
+          @compositionend="composing = false; sessions.setQuery(query)" :placeholder="i18n.t('sessions.search')" :aria-label="i18n.t('sessions.search')" />
       </div>
-    </div>
-    <div class="sl-head">
-      <Spinner v-if="sessions.loading.value" /><Icon v-else name="search" />
-      <input v-model="query" type="search" @compositionstart="composing = true"
-        @compositionend="composing = false; sessions.setQuery(query)" :placeholder="i18n.t('sessions.search')" :aria-label="i18n.t('sessions.search')" />
-
+      <button class="btn primary icon-only" :title="i18n.t('sessions.new')" :aria-label="i18n.t('sessions.new')"
+        @click="openNewSession()"><Icon name="plus" /></button>
     </div>
     <div v-if="sessions.tagFilter.value" class="sl-filters" role="group" :aria-label="i18n.t('sessions.filter.group')">
       <span class="tag-chip">

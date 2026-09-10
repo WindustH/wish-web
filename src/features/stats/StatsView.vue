@@ -19,7 +19,7 @@ onUnmounted(stats.stopAuto);
 
 <template>
   <div class="page statistics-page">
-    <div class="page-head publication-head"><div><span class="eyebrow">Wish / {{ tx('运行概况', 'Activity') }}</span><h1>{{ i18n.t('stats.title') }}</h1></div><button class="btn ghost" :disabled="loading" @click="stats.refresh"><RefreshCw :size="17" />{{ i18n.t('stats.refresh') }}</button></div>
+    <div class="statistics-toolbar"><span v-if="updatedAt" class="hint">{{ tx('更新于', 'Updated at') }} {{ fmtDateTime(updatedAt) }}</span><button class="btn ghost" :disabled="loading" @click="stats.refresh"><RefreshCw :size="17" />{{ i18n.t('stats.refresh') }}</button></div>
     <div class="statistics-body">
       <p v-if="error" class="load-error" role="alert">{{ errorMessage }}<span v-if="updatedAt">{{ tx('下方保留上次成功读取的数据。', 'The last successful snapshot remains below.') }}</span></p>
       <Spinner v-if="loading && !updatedAt" />
@@ -70,7 +70,6 @@ onUnmounted(stats.stopAuto);
           </dl>
         </section>
       </div>
-      <p v-if="updatedAt" class="hint statistics-updated">{{ tx('更新于', 'Updated at') }} {{ fmtDateTime(updatedAt) }}</p>
     </div>
   </div>
 </template>
@@ -79,17 +78,16 @@ onUnmounted(stats.stopAuto);
 .statistics-page { padding: 0 clamp(24px, 5vw, 72px) 48px; }
 .statistics-page > * { width: 100%; max-width: 1100px; margin-inline: auto; }
 .statistics-body { padding: 0; }
-.publication-head { justify-content: space-between; }
+.statistics-toolbar { display: flex; flex: none; align-items: center; justify-content: end; gap: 16px; padding-block: 16px; }
 .statistics-grid { display: grid; gap: 32px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 450px), 1fr)); align-items: start; }
-.statistics-grid .card { padding: 28px; min-width: 0; border-radius: 0; border: 0; border-top: 1px solid var(--line-strong); background: transparent; }
-h2 { font: 600 22px/1.5 var(--display); margin: 0 0 28px; }
+.statistics-grid .card { padding: 24px 0; min-width: 0; border-radius: 0; border: 0; border-top: 1px solid var(--line-strong); background: transparent; }
+h2 { font: 600 20px/1.5 var(--font); margin: 0 0 28px; }
 h3 { font-size: 14px; margin: 24px 0 16px; font-weight: 500; }
 .statistics-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin: 0; }
 dt { color: var(--fg-muted); font-size: 13px; }
 dd { margin: 5px 0 0; font-size: 28px; font-weight: 400; letter-spacing: -.03em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .statistics-table-wrap { overflow-x: auto; }
 .statistics-table { width: 100%; white-space: nowrap; }
-.statistics-updated { margin-top: 18px; }
 .load-error { margin-bottom: 20px; }
 @media (max-width: 899px) { .statistics-page { padding: 0 20px 32px; } .statistics-grid .card { padding: 24px 0; } .statistics-grid { gap: 0; } }
 </style>

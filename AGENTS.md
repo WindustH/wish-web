@@ -15,6 +15,10 @@
   and configuration parameters; backend state remains authoritative.
 - Put new regression coverage in the sibling `/home/windy/repo/wish-test`
   repository. Use isolated daemons and a local fake upstream for browser tests.
+- Favor practical, consistent layouts. Do not repeat navigation labels as large
+  page titles or add slogans. Settings tabs share the same layout, with useful
+  field explanations based on actual backend behavior. Save controls appear
+  only for unsaved backend edits and must not obscure form content.
 - Every test owns and cleans up its processes and sessions, including failure
   paths. For an explicitly required live-deployment test, track exact newly
   created session IDs, clean up only those IDs in `finally`, and report failures.

@@ -1,5 +1,5 @@
 import { computed, ref, shallowRef } from 'vue';
-import { applyOperation } from 'fast-json-patch';
+import { applyOperation, compare } from 'fast-json-patch';
 import type { Operation } from 'fast-json-patch';
 import { get, patch, providerd } from './api/client.js';
 
@@ -91,7 +91,10 @@ function createConfigEditor(owner: ConfigOwner) {
     const next = structuredClone(draft.value);
     applyOperation(next, operation as Operation, true);
     draft.value = next;
-    operations.value = [...operations.value, structuredClone(operation)];
+    // Returning every field to its loaded value cancels the draft. Keep the
+    // operation journal for real changes so masked credentials stay untouched.
+    operations.value = compare(source.value!.config, next).length
+      ? [...operations.value, structuredClone(operation)] : [];
     saved.value = undefined;
   }
   function set(path: string[], value: Json) {

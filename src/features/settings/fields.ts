@@ -1,5 +1,6 @@
 import { atPath, isObject } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigObject, Json } from '../../core/config-editor';
+import { helpFor } from './field-help';
 import { i18n } from '../../core/i18n/index.js';
 
 export const tr = (zh: string, en: string) => i18n.locale.value === 'zh' ? zh : en;
@@ -85,19 +86,22 @@ export function label(key: string) {
   if (i18n.locale.value === 'zh' && labels[key]) return labels[key];
   return key.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
 }
-export function fieldHint(path: string[]): string {
+export function fieldLabel(path: string[]) {
   const key = path.at(-1)!;
-  if (key === 'allow_any_model') return tr('开启后可以直接输入模型名称；关闭时使用模型列表和已配置的模型。', 'Allow model IDs outside the catalog and configured overrides.');
-  if (key === 'api_key') return tr('留空不更换现有密钥，也可以填写 ${环境变量名称}。', 'Leave unchanged to keep the key, or enter an ${ENV_VAR} reference.');
-  if (key.endsWith('_pointer')) return tr('填写接口响应中对应字段的 JSON Pointer，例如 /data。', 'JSON Pointer into the response, for example /data.');
-  if (key === 'allow_insecure_remote') return tr('允许局域网设备在没有访问令牌时使用服务。', 'Allow remote clients to use the service without a token.');
-  if (key === 'preset') return tr('选择预设后使用其服务地址和协议；自定义端点请清空预设。', 'A preset supplies its endpoint. Clear it to choose a custom endpoint.');
-  return '';
+  if (key === 'mode' && path.at(-2) === 'auth') return tr('身份验证方式', 'Authentication mode');
+  if (key === 'mode' && path.at(-2) === 'input_count') return tr('计数方式', 'Counting mode');
+  if (key === 'model' && path[0] === 'retry') return tr('模型请求', 'Model requests');
+  return label(key);
+}
+export function fieldHint(path: string[]): string {
+  const help = helpFor(path);
+  return help ? tr(...help) : '';
 }
 export function unit(key: string) {
   if (key.endsWith('_ms')) return tr('毫秒', 'ms');
   if (key.endsWith('_s')) return tr('秒', 'seconds');
   if (key.endsWith('_bytes')) return tr('字节', 'bytes');
+  if (key.endsWith('_chars')) return tr('字符', 'characters');
   if (key.endsWith('_tokens')) return 'Token';
   return '';
 }

@@ -1,12 +1,13 @@
 # Wish interface design
 
-Wish is a reading and writing workspace. The interface should give the conversation
-priority, while keeping navigation, state and actions easy to recognize.
+Usability comes first. Keep useful controls and content visible, with consistent
+navigation, field explanations and density. Do not repeat the current page name
+as a large title or add taglines: the navigation already identifies the page.
 
 ## Type and reading
 
 - Noto Sans SC Variable: interface labels and conversation body; weights 400–600.
-- Noto Serif SC Variable: page titles, section headings and the Wish wordmark;
+- Noto Serif SC Variable: conversation headings and the Wish wordmark;
   weights 500–600. Do not apply a display face to form inputs or technical data.
 - Desktop response text: 16px, line-height 1.95. Mobile response text: 15px.
   Mobile form controls and the composer use 16px.
@@ -57,6 +58,12 @@ height is 70px. Keep those values coordinated if density changes.
   Ctrl/⌘+Shift+O starts a new session. Modal dialogs own their keyboard input.
 - Forms retain unsaved edits across configuration tabs. Saves and failures remain
   explicit, and discarding edits requires the existing confirmation dialog.
+- All three settings tabs share section navigation and field layouts. Interface
+  preferences apply immediately; backend forms show a save bar only with edits.
+  The bar occupies its own layout row outside the page scroll area, above mobile
+  navigation. Saving or discarding removes it. It never covers a form field.
+- Field help explains purpose, scope and meaningful values next to controls and
+  is linked with aria-describedby. Source semantics remain owned by the backend.
 
 Use short 140–240ms transitions for control feedback and overlay entry. Never animate
 virtual-list positioning or prepend geometry. Respect prefers-reduced-motion.

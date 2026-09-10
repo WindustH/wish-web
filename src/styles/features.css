@@ -1,8 +1,6 @@
 /* Session index */
-.sl-masthead { padding: 28px 24px 22px; }
-.sl-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
-.sl-heading h1 { margin: 0; font: 600 30px/1.4 var(--display); letter-spacing: -.03em; }
-.sl-head { display: flex; align-items: center; gap: 10px; margin: 0 20px 24px; padding: 9px 0; border-bottom: 1px solid var(--line-strong); flex: none; color: var(--fg-subtle); }
+.sl-masthead { display: flex; align-items: center; flex: none; gap: 10px; padding: 16px; }
+.sl-head { display: flex; align-items: center; gap: 10px; margin: 0; padding: 9px 0; flex: 1; border-bottom: 1px solid var(--line-strong); color: var(--fg-subtle); }
 .sl-head input { background: transparent; border: 0; outline: none; width: 100%; min-width: 0; font-size: 12px; }
 .sl-head:focus-within { border-color: var(--accent); }
 .sl-scroll { flex: 1; overflow-y: auto; min-height: 0; padding: 0 12px; }
@@ -128,9 +126,6 @@ html.resizing-composer, html.resizing-composer * { cursor: row-resize !important
 .page { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow-y: auto; }
 .page-head { min-height: var(--h-topbar); flex: none; display: flex; align-items: center; gap: 12px; padding: 16px 32px; border-bottom: 1px solid var(--line); }
 .page-head h1 { font: 600 24px/1.4 var(--display); margin: 0; flex: 1; }
-.publication-head { padding: 48px 0 32px; border: 0; }
-.publication-head h1 { font-size: 36px; letter-spacing: -.03em; margin-top: 10px; }
-.publication-head p { margin: 14px 0 0; color: var(--fg-subtle); font-size: 13px; }
 .offline-banner { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 40; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--line-strong); border-top: 0; border-radius: 0 0 6px 6px; text-align: center; font-size: 12px; padding: 6px 20px; }
 @media (max-width: 899px) {
   .sl-masthead { padding: 32px 24px 20px; } .sl-head { margin-bottom: 20px; }
@@ -147,8 +142,6 @@ html.resizing-composer, html.resizing-composer * { cursor: row-resize !important
   .proc-group, .fold, .live-row { padding-left: 28px; }
   .proc-head { gap: 6px; } .proc-summary { display: none; }
   .page-head { padding: 16px 20px; }
-  .publication-head { padding: 28px 0 24px; }
-  .publication-head h1 { font-size: 30px; }
   .setting-row { gap: 16px; }
 }
 

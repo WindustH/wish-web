@@ -4,7 +4,7 @@ import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { ChevronDown, Plus, Trash2 } from '@lucide/vue';
 import { isObject, pointer } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigEditor, Json } from '../../core/config-editor';
-import { fieldHint, isMap, isSecret, label, newArrayEntry, optionalFields, optionLabel, optionsFor, tr, unit } from './fields';
+import { fieldLabel, fieldHint, isMap, isSecret, label, newArrayEntry, optionalFields, optionLabel, optionsFor, tr, unit } from './fields';
 
 const props = defineProps<{
   value: Json;
@@ -13,8 +13,12 @@ const props = defineProps<{
   catalog?: ConfigCatalog;
   title?: string;
 }>();
+const arrayItem = computed(() => /^\d+$/.test(props.path.at(-1)!));
+const hint = computed(() => arrayItem.value ? '' : fieldHint(props.path));
+const hintId = computed(() => hint.value ? `help-${pointer(props.path)}`
+  : arrayItem.value && fieldHint(props.path.slice(0, -1)) ? `help-${pointer(props.path.slice(0, -1))}` : undefined);
 const key = computed(() => props.path.at(-1)!);
-const name = computed(() => props.title || label(key.value));
+const name = computed(() => props.title || fieldLabel(props.path));
 const object = computed(() => isObject(props.value) ? props.value : undefined);
 const optional = computed(() => optionalFields(props.path));
 const available = computed(() => Object.keys(optional.value).filter(k => !object.value || !(k in object.value)));
@@ -56,6 +60,7 @@ function itemTitle(item: Json, index: number) {
 
 <template>
   <div v-if="Array.isArray(value)" class="cfg-array" :data-config-path="pointer(path)">
+    <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <p v-if="!value.length" class="cfg-hint">{{ tr('尚未添加项目。', 'No items yet.') }}</p>
     <div v-for="(item, index) in value" :key="index" class="cfg-array-item">
       <details v-if="isObject(item)" :open="!item.id">
@@ -68,14 +73,15 @@ function itemTitle(item: Json, index: number) {
     <button type="button" class="btn" @click="editor.append(path, newArrayEntry(path))"><Plus :size="16" />{{ tr('添加', 'Add') }}{{ name }}</button>
   </div>
   <div v-else-if="object" class="cfg-object" :data-config-path="pointer(path)">
+    <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <template v-for="(child, field) in object" :key="field">
       <div class="cfg-property">
         <details v-if="child !== null && typeof child === 'object'" class="cfg-nested" :open="isMap(path)">
-          <summary><ChevronDown :size="16" /><span>{{ isMap(path) ? field : label(field) }}</span><small v-if="Array.isArray(child)">{{ child.length }}</small></summary>
+          <summary><ChevronDown :size="16" /><span>{{ isMap(path) ? field : fieldLabel([...path, field]) }}</span><small v-if="Array.isArray(child)">{{ child.length }}</small></summary>
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
         </details>
         <ConfigNode v-else :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
-        <button v-if="isMap(path) || field in optional" type="button" class="btn ghost cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : label(field)}`" @click="editor.remove([...path, field])"><Trash2 :size="15" /><span>{{ tr('移除设置', 'Remove override') }}</span></button>
+        <button v-if="isMap(path) || field in optional" type="button" class="btn ghost cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : fieldLabel([...path, field])}`" @click="editor.remove([...path, field])"><Trash2 :size="15" /><span>{{ tr('移除设置', 'Remove override') }}</span></button>
       </div>
     </template>
     <div v-if="available.length || isMap(path)" class="cfg-add-field">
@@ -86,6 +92,7 @@ function itemTitle(item: Json, index: number) {
         <select v-if="key === 'reasoning_efforts'" v-model="mapValueType" :aria-label="tr('值的类型', 'Value type')"><option value="string">{{ tr('强度名称', 'Effort name') }}</option><option value="number">{{ tr('Token 数量', 'Token budget') }}</option></select>
         <button type="button" class="btn" :disabled="!addKey.trim()" @click="addField"><Plus :size="16" />{{ tr('添加', 'Add') }}</button>
       </div>
+      <p v-if="addKey && !isMap(path) && fieldHint([...path, addKey])" class="cfg-hint">{{ fieldHint([...path, addKey]) }}</p>
       <p v-if="addError" class="cfg-error" role="alert">{{ addError }}</p>
     </div>
   </div>
@@ -93,15 +100,15 @@ function itemTitle(item: Json, index: number) {
     <div class="cfg-field-label">
       <label :for="pointer(path)">{{ name }}</label>
       <small v-if="unit(key)">{{ unit(key) }}</small>
-      <p v-if="fieldHint(path)" class="cfg-hint">{{ fieldHint(path) }}</p>
+      <p v-if="hint" :id="hintId" class="cfg-hint">{{ hint }}</p>
     </div>
-    <SwitchRoot v-if="typeof value === 'boolean'" :id="pointer(path)" :model-value="value" class="cfg-switch" @update:model-value="editor.set(path, $event)"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot>
-    <select v-else-if="selectOptions" :id="pointer(path)" :value="value" @change="setInput">
+    <SwitchRoot v-if="typeof value === 'boolean'" :id="pointer(path)" :aria-describedby="hintId" :model-value="value" class="cfg-switch" @update:model-value="editor.set(path, $event)"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot>
+    <select v-else-if="selectOptions" :id="pointer(path)" :aria-describedby="hintId" :value="value" @change="setInput">
       <option v-if="!selectOptions.includes(String(value))" :value="String(value)">{{ value }}</option>
       <option v-for="option in selectOptions" :key="option" :value="option">{{ option === '' ? tr('未选择', 'Not selected') : optionLabel(option) }}</option>
     </select>
     <div v-else class="cfg-input-wrap">
-      <input :id="pointer(path)" :type="inputType" :value="inputValue" :autocomplete="secret ? 'new-password' : 'off'" :spellcheck="false"
+      <input :id="pointer(path)" :aria-describedby="hintId" :type="inputType" :value="inputValue" :autocomplete="secret ? 'new-password' : 'off'" :spellcheck="false"
         :required="typeof value === 'number' || ['id', 'base_url', 'provider', 'model', 'program'].includes(key)"
         :min="typeof value === 'number' ? 0 : undefined" :step="typeof value === 'number' ? floatField ? 'any' : '1' : undefined"
         :placeholder="value === '<redacted>' ? tr('已设置；输入新值以更换', 'Set; enter a new value to replace') : ''" @input="setInput" />
