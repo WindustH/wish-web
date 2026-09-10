@@ -86,8 +86,15 @@ Prefer compact control spacing while retaining readable text and mobile touch ta
   Failed requests retain the current selection and expose retry; updates use a
   fresh session revision. There is no save/confirmation footer. Use “推理强度”
   in Chinese and “Reasoning effort” in English in entries, settings and help.
-  Effort identifiers such as `low`, `medium` and `max` stay verbatim in every
-  locale, including configuration choices; do not translate or capitalize them.
+  Effort identifiers such as `low`, `medium` and `max` stay verbatim in pickers
+  and configuration choices. The conversation toolbar displays MODEL · EFFORT
+  in uppercase, substitutes spaces for model hyphens/underscores, and shows
+  button treatment on hover or keyboard focus. This is presentation only.
+  Desktop and mobile keep both controls beside the title on one line.
+  Label the automatic selection “自动” / “auto”. Read effort choices from the
+  backend: model metadata overrides provider preset/protocol defaults. Only
+  unknown providers receive generic suggestions; known switch-only protocols
+  expose their actual controls. Keep custom input and explicit upstream errors.
 - Adding a provider starts with a searchable preset list and a custom-provider
   option first. Use human names with region/plan descriptions and local monochrome
   brand icons. Model and provider lists share Reka filtering/keyboard navigation

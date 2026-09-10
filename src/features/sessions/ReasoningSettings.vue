@@ -18,18 +18,22 @@ const metadataBusy = ref(false);
 const selected = ref('default'), query = ref('');
 const key = (effort?: string) => effort ? `effort:${effort}` : 'default';
 let controller = new AbortController();
+const providerEfforts = shallowRef<Record<string, string | number>>({});
+const effortSource = ref('');
+const standardLevels = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+const usingStandardLevels = computed(() => effortSource.value === 'generic' && !metadata.value?.reasoning_efforts);
 const levels = computed(() => {
-  const levels = Object.keys(metadata.value?.reasoning_efforts || {});
+  const levels = Object.keys(metadata.value?.reasoning_efforts ?? providerEfforts.value).filter(level => level !== 'none');
   const defaultLevel = metadata.value?.default_reasoning_effort;
   if (defaultLevel && !levels.includes(defaultLevel)) levels.push(defaultLevel);
-  const order = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+  const order = ['off', ...standardLevels];
   return levels.sort((a, b) => (order.includes(a) ? order.indexOf(a) : order.length) - (order.includes(b) ? order.indexOf(b) : order.length));
 });
 function resetChoice() { selected.value = key(snapshot.value?.reasoning_effort); }
 async function loadMetadata() {
   controller.abort(); controller = new AbortController();
   const signal = controller.signal;
-  metadata.value = undefined; metadataError.value = undefined; metadataBusy.value = false;
+  metadata.value = undefined; providerEfforts.value = {}; effortSource.value = ''; metadataError.value = undefined; metadataBusy.value = false;
   if (!snapshot.value) return;
   const { provider, model } = snapshot.value;
   metadataBusy.value = true;
@@ -37,7 +41,7 @@ async function loadMetadata() {
     const providers = await readProviders(signal);
     const selected = providers.find(item => item.id === provider);
     if (!selected) throw new Error(i18n.t('model.providerUnavailable'));
-    if (!signal.aborted) { metadata.value = selected.models[model]; resetChoice(); }
+    if (!signal.aborted) { metadata.value = selected.models[model]; providerEfforts.value = selected.reasoning_efforts; effortSource.value = selected.reasoning_efforts_source; resetChoice(); }
     const info = (await readModels(selected, signal)).find(item => item.id === model);
     if (!signal.aborted) { metadata.value = info; resetChoice(); }
   } catch (cause) {
@@ -52,7 +56,7 @@ const unsupported = computed(() => metadata.value?.supports_reasoning === false)
 interface EffortItem extends PickerItem { effort: string }
 const choices = computed<EffortItem[]>(() => {
   const items: EffortItem[] = [
-    { key: 'default', effort: '', title: i18n.t('reasoning.default'), description: metadata.value?.default_reasoning_effort ? effortLabel(metadata.value.default_reasoning_effort) : undefined, search: 'default' },
+    { key: 'default', effort: '', title: i18n.t('reasoning.default'), description: metadata.value?.default_reasoning_effort ? effortLabel(metadata.value.default_reasoning_effort) : undefined, search: 'auto' },
     { key: key('none'), effort: 'none', title: 'none', description: i18n.t('reasoning.none'), search: 'none' },
     ...levels.value.map(effort => ({ key: key(effort), effort, title: effortLabel(effort), search: effort, disabled: unsupported.value })),
   ];
@@ -89,6 +93,7 @@ async function apply(value: string) {
       <template #after>
         <div v-if="metadataError" class="load-error" role="alert">{{ errorText(metadataError) }}<button class="btn ghost sm" @click="loadMetadata">{{ i18n.t('common.retry') }}</button></div>
         <p v-if="unsupported" class="hint">{{ i18n.t('reasoning.unsupported') }}</p>
+        <p v-else-if="usingStandardLevels && !metadataBusy" class="hint">{{ i18n.t('reasoning.standardHint') }}</p>
       </template>
     </PickerList>
   </CommandPanel>

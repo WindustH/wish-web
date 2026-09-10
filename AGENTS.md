@@ -30,5 +30,7 @@
   scrolling list, and immediate selection without a save/confirmation footer.
   Apply custom reasoning effort on Enter, never on each keystroke. Use the terms
   “推理强度” in Chinese and “Reasoning effort” in English throughout the UI.
-  Display effort identifiers verbatim (e.g. `low`, `medium`, `max`); never
-  translate them or change their capitalization, including custom values.
+  Picker and configuration effort identifiers stay verbatim (e.g. `low`,
+  `medium`, `max`), including custom values. The compact conversation toolbar
+  displays model and effort in uppercase, with model hyphens/underscores shown
+  as spaces; wire values remain unchanged.

@@ -15,16 +15,18 @@ export interface ProviderInfo {
   enabled: boolean;
   allow_any_model: boolean;
   model_catalog_available: boolean;
+  reasoning_efforts: Record<string, string | number>;
+  reasoning_efforts_source: string;
   models: Record<string, Omit<ModelInfo, 'id' | 'source'>>;
 }
 
 export async function readProviders(signal?: AbortSignal): Promise<ProviderInfo[]> {
   const [response, runtime] = await Promise.all([providerConfigs({ signal }), providerSummaries({ signal })]);
-  const summaries = new Map<string, { model_catalog_available: boolean }>(runtime.providers.map((provider: { id: string; model_catalog_available: boolean }) => [provider.id, provider]));
+  const summaries = new Map<string, Pick<ProviderInfo, 'model_catalog_available' | 'reasoning_efforts' | 'reasoning_efforts_source'>>(runtime.providers.map((provider: { id: string; model_catalog_available: boolean }) => [provider.id, provider]));
   return response.providers.filter((provider: ProviderInfo) => provider.enabled).map((provider: ProviderInfo) => {
     const summary = summaries.get(provider.id);
     if (!summary) throw new Error(`Provider configuration is not active: ${provider.id}`);
-    return { ...provider, model_catalog_available: summary.model_catalog_available };
+    return { ...provider, ...summary };
   });
 }
 
