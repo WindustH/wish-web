@@ -21,7 +21,7 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
 
 <template>
   <div class="entry assistant">
-    <div class="avatar-col"><div class="avatar"><Icon name="bot" class="sm" /></div></div>
+    <div class="avatar-col" aria-hidden="true"><span class="assistant-mark">w.</span></div>
     <div class="body">
       <Markdown v-for="(b, i) in texts" :key="i" :text="b.text" />
       <template v-for="(b, i) in images" :key="'img' + i">

@@ -93,19 +93,19 @@ export const cfg = Object.freeze({
   },
 
   design: {                           // → CSS custom properties (ui/applyTokens)
-    radius: '10px',
+    radius: '8px',
     fontStack:
-      "system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans SC', sans-serif",
-    monoFontStack: "'ui-monospace', 'JetBrains Mono', 'Cascadia Code', monospace",
-    maxContentWidth: '48rem',         // chat column readability cap
+      "'Noto Sans SC Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif",
+    monoFontStack: "'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace",
+    maxContentWidth: '46rem',         // chat column readability cap
     iconSize: 18,                     // default icon px
-    sidebarWidth: 56,                 // desktop vertical bar px
-    sessionListWidth: 300,            // desktop list pane px (default; user-resizable)
+    sidebarWidth: 72,                 // desktop vertical bar px
+    sessionListWidth: 280,            // desktop list pane px (default; user-resizable)
     sessionListWidthMin: 200,
     sessionListWidthMax: 520,
     drawerWidth: 420,
-    topbarHeight: 48,
-    bottombarHeight: 52,
+    topbarHeight: 72,
+    bottombarHeight: 64,
     space: { xs: 4, s: 8, m: 12, l: 16, xl: 24, xxl: 32 },
   },
 

@@ -148,14 +148,15 @@ function startComposerDrag(e: PointerEvent) {
   const y = e.clientY, h0 = height.value;
   document.documentElement.classList.add('resizing-composer');
   const move = (ev: PointerEvent) => sizing.change(h0 + y - ev.clientY);
-  const up = (ev: PointerEvent) => {
-    sizing.commit(h0 + y - ev.clientY);
+  const finish = (nextHeight: number) => {
+    sizing.commit(nextHeight);
     document.documentElement.classList.remove('resizing-composer');
     t.removeEventListener('pointermove', move);
     t.removeEventListener('pointerup', up);
     t.removeEventListener('pointercancel', cancel);
   };
-  const cancel = (ev: PointerEvent) => { sizing.change(h0); up(ev); };
+  const up = (ev: PointerEvent) => finish(h0 + y - ev.clientY);
+  const cancel = () => finish(h0);
   t.addEventListener('pointermove', move);
   t.addEventListener('pointerup', up);
   t.addEventListener('pointercancel', cancel);

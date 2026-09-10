@@ -26,10 +26,10 @@ const ICONS: Record<string, FunctionalComponent> = {
   'panel-left': PanelLeft, paperclip: Paperclip, languages: Languages,
 };
 
-const props = defineProps<{ name: string; class?: string }>();
+const props = defineProps<{ name: string }>();
 const comp = computed(() => ICONS[props.name]);
 </script>
 
 <template>
-  <component :is="comp" v-if="comp" :class="$props.class" aria-hidden="true" />
+  <component :is="comp" v-if="comp" class="icon" aria-hidden="true" />
 </template>

@@ -18,6 +18,8 @@ const isMobile = useMedia('(max-width: 899px)');
 interface SearchState { status: string; query?: string; items?: any[]; cursor?: string | null; more?: boolean; error?: any }
 const state = ref<SearchState>({ status: 'idle' });
 const q = ref('');
+const locating = ref<number | null>(null);
+const composing = ref(false);
 let gen = 0;
 let alive = true;
 // A response may only land while this pane instance is alive AND the query's
@@ -25,6 +27,8 @@ let alive = true;
 const owns = (sid: string | null | undefined) => alive && !!sid && chat.sessionId.value === sid;
 
 async function run() {
+  if (composing.value || locating.value !== null) return;
+  if (searchDebounce) clearTimeout(searchDebounce);
   const sid = chat.sessionId.value;
   const query = q.value.trim();
   const my = ++gen;
@@ -45,7 +49,7 @@ async function run() {
 async function more() {
   const cursor = state.value.cursor;
   const query = state.value.query;
-  if (!cursor || !query || state.value.status === 'busy') return;
+  if (!cursor || !query || state.value.status === 'busy' || locating.value !== null) return;
   const sid = chat.sessionId.value;
   const my = ++gen;
   state.value = { ...state.value, status: 'busy' };
@@ -61,22 +65,35 @@ async function more() {
 
 // Type-to-search (debounced) — same behavior as the audited build.
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
-watch(q, () => {
+function scheduleSearch() {
+  gen++; // Invalidate the previous response as soon as the query changes.
   if (searchDebounce) clearTimeout(searchDebounce);
-  searchDebounce = setTimeout(() => run(), 300);
-});
+  state.value = { status: q.value.trim() ? 'waiting' : 'idle' };
+  if (!composing.value) searchDebounce = setTimeout(() => run(), 300);
+}
+watch(q, scheduleSearch);
 
 async function jump(hit: any) {
+  if (locating.value !== null) return;
   const sid = chat.sessionId.value;
-  const ok = await chat.locate(sid!, hit.seq);
-  if (!owns(sid)) return;                    // switched/unmounted mid-jump
-  if (ok) router.push({ name: 'chat', params: { id: sid! } });
-  else state.value = { status: 'error', items: state.value.items ?? [], error: { localized: 'search.locateFailed' } };
+  const my = ++gen;
+  locating.value = hit.seq;
+  try {
+    const ok = await chat.locate(sid!, hit.seq);
+    if (!owns(sid) || my !== gen) return;
+    if (ok) await router.push({ name: 'chat', params: { id: sid! } });
+    else state.value = { status: 'error', items: state.value.items ?? [], error: { localized: 'search.locateFailed' } };
+  } catch (error) {
+    if (owns(sid) && my === gen) state.value = { status: 'error', items: state.value.items ?? [], error };
+  } finally {
+    if (owns(sid)) locating.value = null;
+  }
 }
 
 // Session switch / unmount: drop the debounce, invalidate everything in flight.
 watch(() => chat.sessionId.value, () => {
   gen++;
+  locating.value = null;
   state.value = { status: 'idle' };
   q.value = '';
 });
@@ -90,24 +107,26 @@ onUnmounted(() => {
 <template>
   <Sheet :open="true" :title="i18n.t('search.title')" :mobile="isMobile" @close="$emit('close')">
     <div class="search-row">
-      <input v-model="q" type="search" :placeholder="i18n.t('search.placeholder')"
+      <input v-model="q" class="input" data-initial-focus type="search" :disabled="locating !== null"
+        @compositionstart="composing = true" @compositionend="composing = false; scheduleSearch()" :placeholder="i18n.t('search.placeholder')"
         :aria-label="i18n.t('search.placeholder')" @keydown.enter.prevent="run" />
-      <button class="btn primary" :disabled="state.status === 'busy' || !q.trim()" @click="run">
+      <button class="btn primary" :disabled="state.status === 'busy' || locating !== null || !q.trim()" @click="run">
         {{ i18n.t('search.action') }}
       </button>
     </div>
-    <Spinner v-if="state.status === 'busy' && !(state.items ?? []).length" />
+    <div v-if="state.status === 'waiting' || (state.status === 'busy' && !(state.items ?? []).length)" class="search-status" role="status"><Spinner />{{ i18n.locale.value === 'zh' ? '正在搜索历史…' : 'Searching history…' }}</div>
     <div v-else-if="state.status === 'error'" class="load-error" role="alert">
       <span>{{ state.error?.localized ? i18n.t(state.error.localized) : String(state.error?.detail || state.error?.message || state.error) }}</span>
       <button class="btn ghost sm" @click="run">{{ i18n.t('common.retry') }}</button>
     </div>
     <div v-else-if="state.status === 'done' && !(state.items ?? []).length" class="hint">{{ i18n.t('search.empty') }}</div>
     <div v-else class="search-results">
-      <button v-for="hit in state.items ?? []" :key="hit.seq" class="search-result" @click="jump(hit)">
+      <button v-for="hit in state.items ?? []" :key="hit.seq" class="search-result" :disabled="locating !== null" :aria-busy="locating === hit.seq" @click="jump(hit)">
         <span class="sr-meta">#{{ hit.seq }} · {{ hit.kind }} · {{ fmtDateTime(hit.created_at) }}</span>
+        <span v-if="locating === hit.seq" class="search-status" role="status"><Spinner />{{ i18n.locale.value === 'zh' ? '正在定位这条消息…' : 'Locating this message…' }}</span>
         <span class="sr-snippet">{{ hit.snippet }}</span>
       </button>
-      <button v-if="state.more" class="btn ghost" @click="more">{{ i18n.t('search.more') }}</button>
+      <button v-if="state.more" class="btn ghost" :disabled="state.status === 'busy' || locating !== null" @click="more">{{ i18n.t('search.more') }}</button>
     </div>
   </Sheet>
 </template>

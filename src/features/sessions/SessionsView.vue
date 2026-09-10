@@ -25,7 +25,18 @@ onMounted(applySavedListWidth);
         :aria-label="i18n.t('app.name')" title="↔" @pointerdown="onListResizePointerDown" />
     </template>
     <div v-if="!isMobile || !showList" class="content-pane">
+      <div v-if="route.name === 'sessions'" class="session-welcome">
+        <span class="welcome-brand">Wish<span>.</span></span>
+        <p>{{ i18n.locale.value === 'zh' ? '选择一个会话，继续你的思考。' : 'Choose a conversation. Pick up a thought.' }}</p>
+      </div>
       <RouterView />
     </div>
   </div>
 </template>
+
+<style scoped>
+.session-welcome { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; padding: 32px; text-align: center; }
+.welcome-brand { font: 500 64px/1.3 var(--display); letter-spacing: -.06em; }
+.welcome-brand > span { color: var(--accent); }
+.session-welcome p { color: var(--fg-subtle); font-size: 13px; }
+</style>

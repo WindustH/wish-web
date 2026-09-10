@@ -316,7 +316,15 @@ onMounted(() => { if (route.query.auto === '1') runAll(); });
 </template>
 
 <style scoped>
-.st-summary { font-size: 12px; color: var(--fg-faint); }
+.st-list { width: min(100%, 800px); margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 12px; }
+.st-item { display: flex; align-items: center; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.st-ic { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex: none; }
+.st-item.pass .st-ic { color: var(--ok); } .st-item.fail .st-ic { color: var(--err); }
+.st-name { flex: 1; font-size: 14px; }
+.st-detail { font-size: 12px; color: var(--fg-subtle); overflow-wrap: anywhere; max-width: 40%; text-align: right; }
+@media (max-width: 899px) { .page-head { flex-wrap: wrap; } .page-head h1 { flex-basis: 100%; } .st-list { padding: 20px; } }
+
+.st-summary { font-size: 12px; color: var(--fg-subtle); }
 .st-summary.bad { color: var(--err); }
 .st-desc { font-size: 13px; color: var(--fg-subtle); }
 .st-item .st-ic :deep(svg) { width: 12px; height: 12px; }

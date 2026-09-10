@@ -40,9 +40,10 @@ watch(providers, (list) => {
 watch(provider, (p) => { model.value = ''; if (p) selectProvider(p); });
 
 const choices = computed(() => withCurrent(models.value, null));
+watch(choices, (list) => { if (!model.value && list.length) model.value = list[0]!.id; });
 
 async function create() {
-  if (!provider.value || !model.value) return;
+  if (busy.value || !provider.value || !model.value) return;
   busy.value = true;
   err.value = null;
   try {
@@ -70,7 +71,7 @@ async function create() {
     </div>
     <label class="field">
       <span>{{ i18n.t('new.name') }}</span>
-      <input v-model="name" class="input" type="text" :placeholder="i18n.t('new.namePlaceholder')" :disabled="busy" />
+      <input data-initial-focus v-model="name" class="input" type="text" :placeholder="i18n.t('new.namePlaceholder')" :disabled="busy" />
     </label>
     <label class="field">
       <span>{{ i18n.t('model.provider') }}</span>

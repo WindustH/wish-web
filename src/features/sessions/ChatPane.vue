@@ -30,7 +30,7 @@ const queue = computed(() => snapshot.value?.queue ?? 0);
 const modelOpen = ref(false);
 
 const closeTab = () => router.push({ name: 'chat', params: { id: id.value } });
-const goTab = (t: string) => router.push({ name: `chat-${t}`, params: { id: id.value } });
+const goTab = (t: string) => tab.value === t ? closeTab() : router.push({ name: `chat-${t}`, params: { id: id.value } });
 </script>
 
 <template>
@@ -42,16 +42,16 @@ const goTab = (t: string) => router.push({ name: `chat-${t}`, params: { id: id.v
         <span class="name">{{ snapshot?.name || id.slice(0, 8) }}</span>
         <span v-if="queue > 0" class="queue-badge">{{ i18n.t('chat.queuedN', { n: queue }) }}</span>
         <button class="model-chip" :title="i18n.t('model.chipTitle')" @click="modelOpen = true">
-          {{ snapshot?.model || '—' }}
+          <span>{{ snapshot?.model || '—' }}</span><Icon name="chevron-down" class="sm" />
         </button>
       </div>
       <template v-if="!isMobile">
         <button class="btn ghost icon-only" :title="i18n.t('chatbar.info')" :aria-label="i18n.t('chatbar.info')"
-          @click="goTab('info')"><Icon name="info" /></button>
+          :class="{ selected: tab === 'info' }" :aria-pressed="tab === 'info'" @click="goTab('info')"><Icon name="info" /></button>
         <button class="btn ghost icon-only" :title="i18n.t('chatbar.search')" :aria-label="i18n.t('chatbar.search')"
-          @click="goTab('search')"><Icon name="history" /></button>
+          :class="{ selected: tab === 'search' }" :aria-pressed="tab === 'search'" @click="goTab('search')"><Icon name="search" /></button>
         <button class="btn ghost icon-only" :title="i18n.t('chatbar.manage')" :aria-label="i18n.t('chatbar.manage')"
-          @click="goTab('manage')"><Icon name="settings-2" /></button>
+          :class="{ selected: tab === 'manage' }" :aria-pressed="tab === 'manage'" @click="goTab('manage')"><Icon name="settings-2" /></button>
       </template>
       <Menu v-else :items="[
         { key: 'info', label: i18n.t('chatbar.info') },

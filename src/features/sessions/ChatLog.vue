@@ -270,7 +270,7 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
       <div v-if="chat.loadingOlder.value" class="log-loading">{{ i18n.t('sessions.loading') }}</div>
       <div v-if="chat.loadingInitial.value && !groups.length" class="log-loading">{{ i18n.t('sessions.loading') }}</div>
       <div v-else-if="!groups.length && !running" class="chat-empty hint">{{ i18n.t('chat.empty') }}</div>
-      <div :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }">
+      <div class="chatlog-inner" :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }">
         <div v-for="v in virtualizer.getVirtualItems()" :key="groups[v.index]?.key"
           :ref="(el) => el && virtualizer.measureElement(el as HTMLElement)"
           :data-index="v.index"

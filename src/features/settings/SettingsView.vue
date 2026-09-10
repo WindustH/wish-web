@@ -12,7 +12,7 @@ const tab = ref('ui');
 
 <template>
   <div class="page settings-page">
-    <div class="page-head"><h1>{{ tr('设置', 'Settings') }}</h1></div>
+    <div class="page-head publication-head"><div><span class="eyebrow">Wish / {{ tr('偏好设置', 'Preferences') }}</span><h1>{{ tr('设置', 'Settings') }}</h1><p>{{ tr('让工作空间，贴合你的习惯。', 'A workspace that feels like yours.') }}</p></div></div>
     <TabsRoot v-model="tab" class="settings-root" :unmount-on-hide="true">
       <TabsList class="settings-tabs" :aria-label="tr('设置分类', 'Settings categories')">
         <TabsTrigger value="ui" class="settings-tab"><Monitor :size="18" />{{ tr('界面', 'Interface') }}</TabsTrigger>

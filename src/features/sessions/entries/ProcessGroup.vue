@@ -54,8 +54,8 @@ const stepIcon = (s: any) => s.kind === 'entry' ? 'wrench' : s.block?.type === '
   <div class="proc-group" :data-seqs="steps.map((s: any) => s.kind === 'entry' ? s.entry.seq : s.fromSeq).filter((n: any) => n != null).join(' ')">
     <button class="proc-head" :aria-expanded="open" @click="open = !open">
       <Icon :name="open ? 'chevron-down' : 'layers'" />
-      {{ i18n.t('proc.title') }} · {{ steps.length }} {{ i18n.t('proc.stepsUnit') }}
-      <span v-if="hasTools"> · {{ i18n.t('proc.hasTools') }}</span>
+      <span>{{ i18n.t('proc.title') }}</span><span class="proc-count">{{ steps.length }} {{ i18n.t('proc.stepsUnit') }}</span>
+      <span v-if="hasTools" class="proc-summary">{{ i18n.t('proc.hasTools') }}</span><Icon class="proc-chevron" :class="{ expanded: open }" name="chevron-down" />
     </button>
     <div v-if="open" class="proc-steps">
       <button v-for="(s, i) in steps" :key="i" class="proc-step"

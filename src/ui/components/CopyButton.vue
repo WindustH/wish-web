@@ -24,7 +24,7 @@ async function copy() {
 </script>
 
 <template>
-  <button class="btn ghost icon-only copy-btn" :title="i18n.t('common.copy')" @click="copy">
+  <button class="btn ghost icon-only copy-btn" :title="i18n.t('common.copy')" :aria-label="i18n.t('common.copy')" @click="copy">
     <Icon :name="done ? 'check' : 'copy'" />
   </button>
 </template>

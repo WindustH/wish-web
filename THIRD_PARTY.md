@@ -6,6 +6,8 @@ into `dist/`; the deployed client does not fetch libraries from a CDN.
 
 | Package | Version | Purpose | License |
 | --- | --- | --- | --- |
+| @fontsource-variable/noto-sans-sc | 5.3.0 | Local variable interface and body font | OFL-1.1 |
+| @fontsource-variable/noto-serif-sc | 5.3.0 | Local variable display and heading font | OFL-1.1 |
 | vue | 3.5.42 | Components and reactivity | MIT |
 | vue-router | 4.6.4 | Routing and lazy pages | MIT |
 | reka-ui | 2.10.4 | Accessible interaction primitives | MIT |
@@ -30,3 +32,10 @@ Official project documentation:
 [DOMPurify](https://github.com/cure53/DOMPurify),
 [JSON Patch](https://github.com/Starcounter-Jack/JSON-Patch),
 [Vite](https://vite.dev/), [Vite PWA](https://vite-pwa-org.netlify.app/).
+
+The Noto font binaries are emitted as Unicode-range WOFF2 shards. Browsers
+request only shards needed by visible text, from the same origin. The service
+worker caches requested fonts, without precaching the complete Chinese font
+families. Font license and copyright notices ship under `public/licenses/` and
+`dist/licenses/`. See [Noto CJK](https://github.com/notofonts/noto-cjk) and
+[Fontsource](https://fontsource.org/fonts/noto-sans-sc).

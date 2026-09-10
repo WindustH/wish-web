@@ -16,6 +16,13 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
         navigateFallbackDenylist: [/^\/wishd-api(?:\/|$)/, /^\/providerd-api(?:\/|$)/, /^\/healthz$/],
         cleanupOutdatedCaches: true,
+        // Fontsource splits CJK by unicode range. Cache only requested shards;
+        // precaching the complete font families would download unused glyphs.
+        runtimeCaching: [{
+          urlPattern: /\/assets\/noto-.*\.woff2$/,
+          handler: 'CacheFirst',
+          options: { cacheName: 'wish-fonts', expiration: { maxEntries: 180, maxAgeSeconds: 31536000 } },
+        }],
       },
     }),
   ],

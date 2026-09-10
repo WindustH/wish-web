@@ -78,7 +78,7 @@ const tokens = computed(() => usage.value?.statistics.totals.tokens ?? null);
       <dt>{{ i18n.t('info.createdAt') }}</dt><dd>{{ fmtDateTime(snapshot.created_at) }}</dd>
       <dt>{{ i18n.t('info.updatedAt') }}</dt><dd>{{ fmtDateTime(snapshot.updated_at) }}</dd>
     </dl>
-    <section v-if="snapshot?.agent_custom != null" class="setting-row">
+    <section v-if="snapshot?.agent_custom != null" class="setting-row info-instructions">
       <h4>{{ i18n.t('info.agentCustom') }}</h4>
       <div class="hint" style="white-space:pre-wrap">{{ snapshot.agent_custom || '—' }}</div>
     </section>
@@ -94,9 +94,9 @@ const tokens = computed(() => usage.value?.statistics.totals.tokens ?? null);
     <Spinner v-if="busy && !runs" />
     <div v-else-if="runs && runs.length" class="runs-list">
       <div v-for="r in runs" :key="r.id" class="run-row">
-        <span class="state">{{ r.state }}</span>
+        <span class="state">{{ ({ completed: tr('已完成', 'Completed'), running: tr('运行中', 'Running'), canceling: tr('正在停止', 'Stopping'), aborted: tr('已中断', 'Interrupted'), failed: tr('失败', 'Failed') } as Record<string, string>)[r.state] ?? r.state }}</span>
         <span class="hint">{{ fmtDateTime(r.started_at_ms) }}</span>
-        <span class="hint">{{ r.model_turns }}/{{ r.tool_calls }}</span>
+        <span class="run-counts">{{ tr(`模型调用 ${r.model_turns} 次 · 工具调用 ${r.tool_calls} 次`, `${r.model_turns} model calls · ${r.tool_calls} tool calls`) }}</span>
       </div>
     </div>
     <div v-else-if="runs" class="hint">{{ i18n.t('info.noRuns') }}</div>
@@ -106,7 +106,7 @@ const tokens = computed(() => usage.value?.statistics.totals.tokens ?? null);
       <button class="btn ghost sm" @click="() => chat.reloadCapabilities()">{{ i18n.t('common.retry') }}</button>
     </div>
     <dl v-else-if="capsData" class="kv">
-      <dt>{{ tr('输入类型', 'Input types') }}</dt><dd>{{ capsData.input_modalities == null ? tr('未知', 'Unknown') : capsData.input_modalities.join(', ') }}</dd>
+      <dt>{{ tr('输入类型', 'Input types') }}</dt><dd>{{ capsData.input_modalities == null ? tr('未知', 'Unknown') : capsData.input_modalities.map((type: string) => ({text: tr('文字', 'Text'), image: tr('图片', 'Images')} as Record<string, string>)[type] ?? type).join('、') }}</dd>
       <dt>{{ tr('图片限制', 'Image limits') }}</dt>
       <dd>{{ capsData.images?.max_images_per_message }} × {{ fmtBytes(capsData.images?.max_image_bytes) }}</dd>
     </dl>
