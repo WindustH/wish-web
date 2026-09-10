@@ -6,11 +6,11 @@ import { atPath, configEditors, errorText, isObject, loadConfigCatalog } from '.
 import type { ConfigCatalog, ConfigOwner } from '../../core/config-editor';
 import { label, tr } from './fields';
 import ConfigNode from './ConfigNode.vue';
+import SettingsSections from './SettingsSections.vue';
 
 const props = defineProps<{ owner: ConfigOwner }>();
 const editor = configEditors[props.owner];
 const { draft, busy, error, dirty, saved, epoch } = editor;
-const section = ref('');
 const confirmAction = ref<'reload' | 'discard'>();
 const form = ref<HTMLFormElement>();
 const catalog = shallowRef<ConfigCatalog>();
@@ -20,13 +20,19 @@ const root = computed(() => props.owner === 'providerd' ? draft.value?.providerd
 const order = props.owner === 'providerd'
   ? ['providers', 'endpoints', 'proxy', 'upstream', 'listen', 'auth', 'http', 'model_catalog_cache_ttl_s']
   : ['wishd', 'streaming', 'agent', 'compaction', 'images', 'queue', 'retry', 'shell'];
-const sections = computed(() => isObject(root.value) ? Object.keys(root.value).sort((a, b) => {
+const fields = computed(() => isObject(root.value) ? Object.keys(root.value).sort((a, b) => {
   const ai = order.indexOf(a), bi = order.indexOf(b);
   return (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi);
 }) : []);
-const current = computed(() => section.value || sections.value[0]);
-const path = computed(() => props.owner === 'providerd' ? ['providerd', current.value] : [current.value]);
-const value = computed(() => draft.value && current.value ? atPath(draft.value, path.value) : undefined);
+const sections = computed(() => fields.value.map(id => ({ id, label: label(id) })));
+const path = (field: string) => props.owner === 'providerd' ? ['providerd', field] : [field];
+function revealInvalid(event: Event) {
+  let parent = (event.target as HTMLElement).parentElement;
+  while (parent) {
+    if (parent instanceof HTMLDetailsElement) parent.open = true;
+    parent = parent.parentElement;
+  }
+}
 
 async function readCatalog() {
   catalogBusy.value = true;
@@ -63,15 +69,14 @@ async function save() {
     <div v-if="error" class="cfg-notice cfg-error" role="alert"><strong>{{ tr('操作未完成', 'Operation did not complete') }}</strong><p>{{ errorText(error) }}</p><p v-if="dirty">{{ tr('你的修改仍然保留。若配置已被其他地方修改，请重新读取后再编辑。', 'Your edits are retained. If the configuration changed elsewhere, reload before editing again.') }}</p><button v-if="!draft" class="btn" :disabled="busy" @click="editor.load">{{ tr('重试', 'Retry') }}</button></div>
     <div v-if="saved" class="cfg-notice" role="status"><strong>{{ saved.restart_required.length ? tr('配置已保存，部分设置需要重启', 'Saved; some settings require a restart') : tr('配置已保存并应用', 'Configuration saved and applied') }}</strong><ul v-if="saved.restart_required.length"><li v-for="field in saved.restart_required" :key="field">{{ field.split('/').filter(Boolean).map(label).join(' › ') }}</li></ul></div>
     <p v-if="busy && !draft" role="status">{{ tr('正在读取配置…', 'Loading configuration…') }}</p>
-    <div v-if="draft" class="cfg-layout">
-      <nav class="cfg-sections" :aria-label="tr('配置分类', 'Configuration sections')"><button v-for="field in sections" :key="field" type="button" :class="{ active: current === field }" :aria-current="current === field ? 'page' : undefined" @click="section = field">{{ label(field) }}</button></nav>
-      <div class="cfg-content">
-        <div v-if="catalogError" class="cfg-notice cfg-error" role="alert">{{ tr('提供方预设读取失败，已有设置仍可编辑。', 'Provider presets could not be loaded; existing settings remain editable.') }}<p>{{ errorText(catalogError) }}</p><button type="button" class="btn" :disabled="catalogBusy" @click="readCatalog">{{ tr('重试', 'Retry') }}</button></div>
-        <form :id="`config-${owner}`" ref="form" @submit.prevent="save">
-          <fieldset :disabled="busy"><legend>{{ label(current || '') }}</legend><ConfigNode v-if="value !== undefined" :key="`${epoch}-${current}`" :value="value" :path="path" :editor="editor" :catalog="catalog" /></fieldset>
-        </form>
-      </div>
-    </div>
+    <form v-if="draft" :id="`config-${owner}`" ref="form" @submit.prevent="save" @invalid.capture="revealInvalid">
+      <SettingsSections :prefix="owner" :sections="sections">
+        <template #before><div v-if="catalogError" class="cfg-notice cfg-error" role="alert">{{ tr('提供方预设读取失败，已有设置仍可编辑。', 'Provider presets could not be loaded; existing settings remain editable.') }}<p>{{ errorText(catalogError) }}</p><button type="button" class="btn" :disabled="catalogBusy" @click="readCatalog">{{ tr('重试', 'Retry') }}</button></div></template>
+        <template #default="{ section }">
+          <fieldset :disabled="busy" :aria-label="label(section)"><ConfigNode :key="`${epoch}-${section}`" :value="atPath(draft, path(section))!" :path="path(section)" :editor="editor" :catalog="catalog" /></fieldset>
+        </template>
+      </SettingsSections>
+    </form>
     <Teleport to="#settings-actions" defer>
       <Transition name="cfg-savebar">
         <div v-if="dirty" class="cfg-savebar" :data-owner="owner">

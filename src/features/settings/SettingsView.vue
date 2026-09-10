@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from 'reka-ui';
 import { Monitor, Server, Network } from '@lucide/vue';
 import ConfigEditor from './ConfigEditor.vue';
@@ -8,11 +8,13 @@ import { tr } from './fields';
 import './settings.css';
 
 const tab = ref('ui');
+const scroll = ref<HTMLElement>();
+watch(tab, () => scroll.value!.scrollTo({ top: 0, behavior: 'instant' }), { flush: 'post' });
 </script>
 
 <template>
   <div class="page settings-page">
-    <div class="settings-scroll">
+    <div ref="scroll" class="settings-scroll">
       <div class="settings-frame">
         <TabsRoot v-model="tab" class="settings-root" :unmount-on-hide="true">
           <TabsList class="settings-tabs" :aria-label="tr('设置分类', 'Settings categories')">

@@ -1,15 +1,17 @@
 /* Settings use the same reading grid, type and controls as the conversation. */
-.settings-page { --settings-gutter: clamp(24px, 5vw, 72px); width: 100%; overflow: hidden; }
-.settings-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
+.settings-page { --settings-gutter: clamp(24px, 5vw, 72px); --settings-anchor-offset: 80px; width: 100%; overflow: hidden; }
+.settings-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; scroll-padding-top: var(--settings-anchor-offset); }
 .settings-frame { padding: 0 var(--settings-gutter) 32px; }
 .settings-root { width: 100%; max-width: 1100px; margin-inline: auto; min-width: 0; }
 .settings-actions { flex: none; }
-.settings-tabs { display: flex; gap: 28px; overflow-x: auto; border-bottom: 1px solid var(--line-strong); }
+.settings-tabs { position: sticky; top: 0; z-index: 2; display: flex; gap: 28px; overflow-x: auto; border-bottom: 1px solid var(--line-strong); background: var(--bg); }
 .settings-tab { position: relative; display: inline-flex; align-items: center; gap: 9px; padding: 15px 0; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--fg-subtle); font-size: 13px; white-space: nowrap; cursor: pointer; transition: color var(--dur-fast), border-color var(--dur-fast); }
 .settings-tab[data-state="active"] { color: var(--accent); border-bottom-color: var(--accent); }
 .settings-tab:hover { color: var(--fg); }
 .settings-panel { padding: 28px 0 0; outline: none; animation: fade-in var(--dur) ease; }
-.cfg-preferences h2 { font: 600 20px/1.6 var(--font); margin: 0 0 20px; }
+.cfg-section h2 { font: 600 20px/1.6 var(--font); margin: 0 0 20px; }
+.cfg-section + .cfg-section { margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--line-strong); }
+.cfg-section:focus { outline: none; }
 .ui-settings .setting-row { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr); gap: 20px; padding: 20px 0; }
 .ui-settings .setting-row + .setting-row { border-top: 1px solid var(--line); }
 .ui-settings .setting-row > :last-child { justify-self: end; }
@@ -21,12 +23,11 @@
 .cfg-group-hint { padding-bottom: 12px; }
 .cfg-hint { color: var(--fg-subtle); font-size: 12px; line-height: 1.85; margin: 6px 0 0; overflow-wrap: anywhere; }
 .cfg-layout { display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 48px; align-items: start; }
-.cfg-sections { display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; max-height: calc(100dvh - 230px); overflow-y: auto; border-left: 1px solid var(--line); }
+.cfg-sections { display: flex; flex-direction: column; gap: 4px; position: sticky; top: var(--settings-anchor-offset); max-height: calc(100dvh - 180px); overflow-y: auto; border-left: 1px solid var(--line); }
 .cfg-sections button { text-align: left; padding: 10px 16px; border: 0; border-left: 2px solid transparent; background: transparent; color: var(--fg-subtle); font: inherit; font-size: 13px; cursor: pointer; }
 .cfg-sections button.active { border-left-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .cfg-content { min-width: 0; }
 .cfg-content fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-.cfg-content legend { font: 600 20px/1.6 var(--font); margin-bottom: 20px; padding: 0; }
 .cfg-field { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr); align-items: center; gap: 20px; padding: 20px 0; }
 .cfg-field-label { min-width: 0; }
 .cfg-field-label label { font-weight: 500; overflow-wrap: anywhere; }
@@ -77,9 +78,8 @@
   .settings-tab { font-size: 12px; gap: 6px; }
   .ui-settings .setting-row { grid-template-columns: minmax(0, 1fr); gap: 9px; }
   .ui-settings .setting-row:has(> [role="switch"]) { grid-template-columns: minmax(0, 1fr) auto; }
-  .cfg-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
-  .cfg-sections { border-left: 0; flex-direction: row; position: static; overflow-x: auto; max-height: none; padding-bottom: 6px; }
-  .cfg-sections button { white-space: nowrap; }
+  .cfg-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .cfg-sections { display: none; }
   .cfg-heading { flex-wrap: wrap; gap: 12px; }
   .cfg-field { grid-template-columns: minmax(0, 1fr); gap: 9px; }
   .cfg-field:has(> .cfg-switch) { grid-template-columns: minmax(0, 1fr) auto; }

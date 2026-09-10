@@ -57,14 +57,18 @@ height is 70px. Keep those values coordinated if density changes.
   immediately, Enter cancels its timer, and location progress prevents double jumps.
 - Desktop session lists can collapse without unmounting the list or conversation;
   remember the choice per browser. Place the toggle at the vertical center of the
-  list’s right edge; when collapsed, keep it on the conversation’s left edge.
+  list’s right edge, fully inside the sidebar as an inset handle; when collapsed,
+  keep it on the conversation’s left edge.
   Mobile list/back navigation is independent.
 - Ctrl/⌘+K expands the session list and focuses search (keeps the desktop conversation open).
   Ctrl/⌘+Shift+F opens history search; Ctrl/⌘+, opens settings;
   Ctrl/⌘+Shift+O starts a new session. Modal dialogs own their keyboard input.
 - Forms retain unsaved edits across configuration tabs. Saves and failures remain
   explicit, and discarding edits requires the existing confirmation dialog.
-- All three settings tabs share section navigation and field layouts. Interface
+- All three settings tabs show their sections in one continuous form. Desktop
+  section navigation scrolls to a heading and follows the reading position;
+  mobile hides the section navigation. The three main tabs remain reachable
+  while scrolling. Interface
   preferences apply immediately; backend forms show a save bar only with edits.
   The bar occupies its own layout row outside the page scroll area, above mobile
   navigation. Saving or discarding removes it. It never covers a form field.
