@@ -45,6 +45,8 @@ height is 70px. Keep those values coordinated if density changes.
 - Desktop uses a fixed-height rectangular composer, adjusted by drag or keyboard.
   Cancelling a pointer gesture restores its original height. Text does not resize it.
 - Mobile starts with one line, grows to its content limit, then scrolls internally.
+- Jump to latest is a 44px arrow button at the conversation viewport’s lower right,
+  above the composer, with a translated accessible name and hover tooltip.
 - Desktop sheets cover the conversation below its toolbar. Toolbar actions remain
   reachable for switching/toggling; chat width, scroll and draft do not change.
   Mobile sheets fill the screen and provide a single back action.
@@ -53,7 +55,9 @@ height is 70px. Keep those values coordinated if density changes.
 - Session search is debounced **once**, in the state slice; query text survives
   navigation. IME composition is respected. History search invalidates stale results
   immediately, Enter cancels its timer, and location progress prevents double jumps.
-- Ctrl/⌘+K focuses session search (keeps the desktop conversation open).
+- Desktop session lists can collapse without unmounting the list or conversation;
+  remember the choice per browser. Mobile list/back navigation is independent.
+- Ctrl/⌘+K expands the session list and focuses search (keeps the desktop conversation open).
   Ctrl/⌘+Shift+F opens history search; Ctrl/⌘+, opens settings;
   Ctrl/⌘+Shift+O starts a new session. Modal dialogs own their keyboard input.
 - Forms retain unsaved edits across configuration tabs. Saves and failures remain

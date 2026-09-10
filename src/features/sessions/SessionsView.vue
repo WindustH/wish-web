@@ -7,24 +7,27 @@ import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMedia } from '../../ui/composables/useMedia.js';
 import SessionList from './SessionList.vue';
+import SessionListToggle from './SessionListToggle.vue';
+import { prefs } from '../../core/state/prefsSlice.js';
 import { applySavedListWidth, onListResizePointerDown } from './listWidth.js';
 import { i18n } from '../../core/i18n/index.js';
 
 const route = useRoute();
 const isMobile = useMedia('(max-width: 899px)');
-const showList = computed(() => isMobile.value ? route.name === 'sessions' : true);
+const showList = computed(() => isMobile.value ? route.name === 'sessions' : !prefs.sessionListCollapsed.value);
 
 onMounted(applySavedListWidth);
 </script>
 
 <template>
   <div class="sessions-split">
-    <template v-if="showList">
-      <SessionList />
-      <div v-if="!isMobile" class="list-resize" role="separator" aria-orientation="vertical"
+    <template v-if="!isMobile || showList">
+      <SessionList v-show="showList" id="session-list" />
+      <div v-if="!isMobile" v-show="showList" class="list-resize" role="separator" aria-orientation="vertical"
         :aria-label="i18n.t('app.name')" title="↔" @pointerdown="onListResizePointerDown" />
     </template>
     <div v-if="!isMobile || !showList" class="content-pane">
+      <div v-if="!isMobile && route.name === 'sessions'" class="chatbar"><SessionListToggle /></div>
       <RouterView />
     </div>
   </div>

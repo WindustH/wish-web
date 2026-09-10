@@ -1,5 +1,6 @@
 import { nextTick } from 'vue';
 import { router } from '../router.js';
+import { prefs } from '../core/state/prefsSlice.js';
 
 export function installShortcuts({ openNewSession }: { openNewSession: () => void }) {
   const onKey = async (e: KeyboardEvent) => {
@@ -9,6 +10,7 @@ export function installShortcuts({ openNewSession }: { openNewSession: () => voi
       e.preventDefault();
       // Desktop already has the list: keep the current conversation in view.
       if (!document.querySelector('.sl-head input')) await router.push('/sessions');
+      prefs.setSessionListCollapsed(false);
       await nextTick();
       const search = document.querySelector<HTMLInputElement>('.sl-head input[type="search"]');
       search?.focus(); search?.select();

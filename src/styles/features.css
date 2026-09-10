@@ -61,7 +61,7 @@
 .proc-step .name { font-size: 12px; flex: none; }
 .proc-step .pv { color: var(--fg-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .live-row { padding: 12px 0 20px 40px; color: var(--fg-muted); font-size: 16px; line-height: 1.95; white-space: pre-wrap; }
-.jump-latest { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--bg-raised); border: 1px solid var(--line-strong); border-radius: 100px; padding: 9px 18px; color: var(--fg); font-size: 12px; cursor: pointer; box-shadow: var(--shadow-pop); }
+.jump-latest { position: absolute; bottom: 18px; right: 20px; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; background: var(--bg-raised); border: 1px solid var(--line-strong); border-radius: 50%; color: var(--fg); cursor: pointer; box-shadow: 0 2px 8px rgb(0 0 0 / 12%); transition: background var(--dur-fast); }
 .jump-latest:hover { background: var(--bg-hover); }
 .history-target { animation: history-highlight 1.4s ease-out; }
 @keyframes history-highlight { from { background-color: var(--accent-soft); } to { background-color: transparent; } }

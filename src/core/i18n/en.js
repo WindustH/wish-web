@@ -22,6 +22,8 @@ export const en = {
   'sessions.title': 'Sessions',
   'sessions.search.placeholder': 'Search sessions…',
   'sessions.new': 'New session',
+  'sessions.collapseList': 'Collapse session list',
+  'sessions.expandList': 'Expand session list',
   'sessions.empty': 'No sessions',
   'sessions.emptySearch': 'No matching sessions',
   'sessions.loadMore': 'Load more',

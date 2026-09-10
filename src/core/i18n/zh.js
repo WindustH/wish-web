@@ -22,6 +22,8 @@ export const zh = {
   'sessions.title': '会话',
   'sessions.search.placeholder': '搜索会话…',
   'sessions.new': '新建会话',
+  'sessions.collapseList': '收起会话列表',
+  'sessions.expandList': '展开会话列表',
   'sessions.empty': '没有会话',
   'sessions.emptySearch': '没有匹配的会话',
   'sessions.loadMore': '加载更多',

@@ -12,6 +12,7 @@ import Menu from '../../ui/components/Menu.vue';
 import ChatLog from './ChatLog.vue';
 import Composer from './Composer.vue';
 import ModelSettings from './ModelSettings.vue';
+import SessionListToggle from './SessionListToggle.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -36,6 +37,7 @@ const goTab = (t: string) => tab.value === t ? closeTab() : router.push({ name: 
 <template>
   <div class="chat-pane" :class="{ 'has-drawer': !!tab }">
     <div class="chatbar">
+      <SessionListToggle v-if="!isMobile" />
       <button v-if="isMobile" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')"
         @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
       <div class="chat-title">

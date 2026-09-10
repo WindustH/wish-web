@@ -14,6 +14,7 @@
 //  · live stream preview (text / reasoning / tool calls), not just a phase.
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { useVirtualizer } from '@tanstack/vue-virtual';
+import { ArrowDown } from '@lucide/vue';
 import { chat } from '../../core/state/chatSlice.js';
 import { cfg } from '../../core/config.js';
 import { i18n } from '../../core/i18n/index.js';
@@ -292,8 +293,9 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
         </div>
       </div>
     </div>
-    <button v-if="showJump" class="jump-latest" @click="jumpLatest">
-      <span>{{ i18n.t('chat.jumpLatest') }}</span>
+    <button v-if="showJump" type="button" class="jump-latest"
+      :title="i18n.t('chat.jumpLatest')" :aria-label="i18n.t('chat.jumpLatest')" @click="jumpLatest">
+      <ArrowDown :size="20" aria-hidden="true" />
     </button>
   </div>
 </template>

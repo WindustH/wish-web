@@ -8,9 +8,10 @@ export const prefs = (() => {
   const keepAwake = shallowRef(false);
   const showAdvanced = shallowRef(false);
   const notifyOnFailure = shallowRef(false);   // decisions 22: default OFF
+  const sessionListCollapsed = shallowRef(false);
   const loaded = shallowRef(false);
 
-  const KEYS = { sendOnEnter: 'pref.sendOnEnter', keepAwake: 'pref.keepAwake', showAdvanced: 'pref.showAdvanced', notifyOnFailure: 'pref.notifyOnFailure' };
+  const KEYS = { sendOnEnter: 'pref.sendOnEnter', keepAwake: 'pref.keepAwake', showAdvanced: 'pref.showAdvanced', notifyOnFailure: 'pref.notifyOnFailure', sessionListCollapsed: 'pref.sessionListCollapsed' };
 
   function load() {
     const s = platform('storage');
@@ -18,6 +19,7 @@ export const prefs = (() => {
     if (s.get(KEYS.keepAwake) != null) keepAwake.value = s.get(KEYS.keepAwake) === '1';
     if (s.get(KEYS.showAdvanced) != null) showAdvanced.value = s.get(KEYS.showAdvanced) === '1';
     if (s.get(KEYS.notifyOnFailure) != null) notifyOnFailure.value = s.get(KEYS.notifyOnFailure) === '1';
+    sessionListCollapsed.value = s.get(KEYS.sessionListCollapsed) === '1';
     loaded.value = true;
   }
 
@@ -26,11 +28,12 @@ export const prefs = (() => {
   }
 
   return {
-    sendOnEnter, keepAwake, showAdvanced, notifyOnFailure, loaded,
+    sendOnEnter, keepAwake, showAdvanced, notifyOnFailure, sessionListCollapsed, loaded,
     load,
     setSendOnEnter(v) { sendOnEnter.value = v; persist(KEYS.sendOnEnter, sendOnEnter); },
     setKeepAwake(v) { keepAwake.value = v; persist(KEYS.keepAwake, keepAwake); },
     setShowAdvanced(v) { showAdvanced.value = v; persist(KEYS.showAdvanced, showAdvanced); },
     setNotifyOnFailure(v) { notifyOnFailure.value = v; persist(KEYS.notifyOnFailure, notifyOnFailure); },
+    setSessionListCollapsed(v) { sessionListCollapsed.value = v; persist(KEYS.sessionListCollapsed, sessionListCollapsed); },
   };
 })();
