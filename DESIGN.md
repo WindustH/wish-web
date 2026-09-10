@@ -79,8 +79,13 @@ Prefer compact control spacing while retaining readable text and mobile touch ta
 - Session model and reasoning selectors have separate toolbar entries. Model
   search covers every enabled provider, grouped by provider instance, including
   all catalog pages. Provider read errors are visible and individually retryable.
-  Reasoning choices come from model metadata, with a custom value field and an
-  explicit model-default reset. Both selectors save against a fresh revision.
+  Reasoning effort choices come from model metadata. Both selectors use command
+  panels with fixed search and a single scrolling list. Selecting a row applies
+  immediately; selecting the current value closes without a mutation. Custom
+  reasoning effort is entered in the search field and applied with Enter.
+  Failed requests retain the current selection and expose retry; updates use a
+  fresh session revision. There is no save/confirmation footer. Use “推理强度”
+  in Chinese and “Reasoning effort” in English in entries, settings and help.
 - Adding a provider starts with a searchable preset list and a custom-provider
   option first. Use human names with region/plan descriptions and local monochrome
   brand icons. Model and provider lists share Reka filtering/keyboard navigation

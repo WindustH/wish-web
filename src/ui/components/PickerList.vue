@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { ListboxRoot, ListboxFilter, ListboxContent, ListboxItem, ListboxVirtualizer, ListboxItemIndicator } from 'reka-ui';
 import { Check, Search } from '@lucide/vue';
 import { i18n } from '../../core/i18n/index.js';
 import ProviderIcon from './ProviderIcon.vue';
 
-export interface PickerItem { key: string; title: string; description?: string; search?: string; group?: string; brand?: string; alwaysVisible?: boolean }
-const props = defineProps<{ items: PickerItem[]; placeholder: string; disabled?: boolean }>();
+export interface PickerItem { key: string; title: string; description?: string; search?: string; group?: string; brand?: string; alwaysVisible?: boolean; disabled?: boolean }
+const props = withDefaults(defineProps<{ items: PickerItem[]; placeholder: string; disabled?: boolean; icons?: boolean }>(), { icons: true });
+const emit = defineEmits<{ select: [key: string] }>();
 const selected = defineModel<string>();
-const query = ref('');
+const query = defineModel<string>('query', { default: '' });
 const filtered = computed(() => {
   const terms = query.value.trim().toLocaleLowerCase().split(/\s+/);
   return props.items.filter(item => item.alwaysVisible || terms.every(term => `${item.title} ${item.description || ''} ${item.group || ''} ${item.search || ''}`.toLocaleLowerCase().includes(term)));
@@ -23,15 +24,16 @@ const textContent = (key: string) => rows.value.get(key)!.title;
 <template>
   <ListboxRoot v-model="selected" class="picker" :disabled="disabled" selection-behavior="replace">
     <div class="picker-search"><Search :size="16" aria-hidden="true" /><ListboxFilter v-model="query" data-initial-focus :placeholder="placeholder" :aria-label="placeholder" autocomplete="off" /></div>
+    <slot name="status" />
     <!-- Reka caches virtual rows by index. A changed result set must reset
          both memoized options and the measured group offsets/scroll position. -->
     <ListboxContent :key="JSON.stringify(filtered)" class="picker-list" :style="{ height: `min(${listHeight}px, 48dvh, 380px)` }" :aria-label="placeholder">
       <ListboxVirtualizer :options="keys" :estimate-size="estimate" :text-content="textContent" :overscan="5">
         <template #default="{ option, virtualItem }">
-          <ListboxItem :value="option" :data-choice-key="option" class="picker-option" :style="{ height: `${estimate(virtualItem.index)}px` }">
+          <ListboxItem :value="option" :data-choice-key="option" :disabled="rows.get(option)!.disabled" class="picker-option" :style="{ height: `${estimate(virtualItem.index)}px` }" @select="emit('select', option)">
             <div v-if="rows.get(option)!.heading" class="picker-group"><ProviderIcon :brand="rows.get(option)!.brand" />{{ rows.get(option)!.group }}</div>
             <div class="picker-row">
-              <ProviderIcon v-if="!rows.get(option)!.group" :brand="rows.get(option)!.brand" />
+              <ProviderIcon v-if="!rows.get(option)!.group && icons !== false" :brand="rows.get(option)!.brand" />
               <div class="picker-label"><span>{{ rows.get(option)!.title }}</span><small v-if="rows.get(option)!.description">{{ rows.get(option)!.description }}</small></div>
               <ListboxItemIndicator class="picker-check"><Check :size="16" /></ListboxItemIndicator>
             </div>
@@ -39,6 +41,7 @@ const textContent = (key: string) => rows.value.get(key)!.title;
         </template>
       </ListboxVirtualizer>
       <p v-if="!keys.length" class="hint">{{ i18n.t('picker.empty') }}</p>
+      <slot name="after" />
     </ListboxContent>
   </ListboxRoot>
 </template>
@@ -50,6 +53,7 @@ const textContent = (key: string) => rows.value.get(key)!.title;
 .picker-search input { flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; outline: none; font: inherit; }
 .picker-list { overflow: auto; overscroll-behavior: contain; }
 .picker-option { width: 100%; outline: none; cursor: pointer; }
+.picker-option[data-disabled] { opacity: .5; cursor: default; }
 .picker-group { display: flex; align-items: center; gap: 8px; height: 32px; font-size: 12px; color: var(--fg-subtle); padding-inline: 10px; }
 .picker-group .provider-icon { width: 16px; height: 16px; }
 .picker-row { height: 50px; display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; }

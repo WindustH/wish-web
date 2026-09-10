@@ -26,3 +26,7 @@
   callbacks from a previous session must not modify the newly selected session.
 - Coordinate backend contract changes with the backend owner. Do not simulate
   missing persistent functionality by silently scanning or caching all history.
+- Model and reasoning-effort selection use command panels: fixed search, one
+  scrolling list, and immediate selection without a save/confirmation footer.
+  Apply custom reasoning effort on Enter, never on each keystroke. Use the terms
+  “推理强度” in Chinese and “Reasoning effort” in English throughout the UI.
