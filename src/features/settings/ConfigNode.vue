@@ -6,15 +6,18 @@ import { isObject, pointer } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigEditor, Json, ProviderPreset } from '../../core/config-editor';
 import { fieldLabel, fieldHint, isMap, isSecret, label, newArrayEntry, optionalFields, optionLabel, optionsFor, tr, unit } from './fields';
 import AddProvider from './AddProvider.vue';
+import PresetProvider from './PresetProvider.vue';
 import { presetLabel } from '../../ui/providerPresentation';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   value: Json;
   path: string[];
   editor: ConfigEditor;
   catalog?: ConfigCatalog;
   title?: string;
-}>();
+  required?: boolean;
+  requiredActive?: boolean;
+}>(), { required: undefined, requiredActive: undefined });
 const arrayItem = computed(() => /^\d+$/.test(props.path.at(-1)!));
 const hint = computed(() => arrayItem.value ? '' : fieldHint(props.path));
 const hintId = computed(() => hint.value ? `help-${pointer(props.path)}`
@@ -22,6 +25,8 @@ const hintId = computed(() => hint.value ? `help-${pointer(props.path)}`
 const key = computed(() => props.path.at(-1)!);
 const name = computed(() => props.title || fieldLabel(props.path));
 const object = computed(() => isObject(props.value) ? props.value : undefined);
+const providerPreset = computed(() => props.path.length === 3 && props.path[0] === 'providerd' && props.path[1] === 'providers'
+  ? props.catalog?.presets.find(preset => preset.id === object.value?.preset) : undefined);
 const optional = computed(() => optionalFields(props.path));
 const available = computed(() => Object.keys(optional.value).filter(k => !object.value || !(k in object.value)));
 const secret = computed(() => isSecret(props.path, props.value));
@@ -37,16 +42,19 @@ const floatField = computed(() => /ratio$|multiplier|bytes_per_token/.test(key.v
 
 function setInput(event: Event) {
   const input = event.target as HTMLInputElement;
-  if (!input.checkValidity()) return;
+  if (typeof props.value === 'number' && !input.checkValidity()) return;
   const value = typeof props.value === 'number' ? input.valueAsNumber : input.value;
   // Focusing and leaving a masked field does not clear the existing credential.
   if (secret.value && props.value === '<redacted>' && value === '') return;
+  if (Object.is(props.value, value)) return;
   props.editor.set(props.path, value);
   if (key.value === 'preset' && props.path.at(-3) === 'providers') {
     const parent = props.path.slice(0, -1);
     const preset = props.catalog?.presets.find(item => item.id === value);
     props.editor.set([...parent, 'protocol'], preset?.protocols[0] || '');
     if (preset) props.editor.set([...parent, 'endpoint'], '');
+    props.editor.set([...parent, 'api_key'], '');
+    props.editor.set([...parent, 'credentials'], Object.fromEntries((preset?.required_credentials || []).map(name => [name, ''])));
   }
 }
 function addProvider(preset?: ProviderPreset) {
@@ -106,6 +114,7 @@ function itemTitle(item: Json, index: number) {
     <button v-else type="button" class="btn" @click="editor.append(path, newArrayEntry(path))"><Plus :size="16" />{{ tr('添加', 'Add') }}{{ name }}</button>
     <AddProvider v-if="addProviderOpen" :catalog="catalog" @close="addProviderOpen = false" @select="addProvider" />
   </div>
+  <PresetProvider v-else-if="object && providerPreset" :value="object" :path="path" :preset="providerPreset" :editor="editor" :catalog="catalog!" />
   <div v-else-if="object" class="cfg-object" :data-config-path="pointer(path)">
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <template v-for="(child, field) in object" :key="field">
@@ -132,7 +141,7 @@ function itemTitle(item: Json, index: number) {
   </div>
   <div v-else class="cfg-field" :data-config-path="pointer(path)">
     <div class="cfg-field-label">
-      <label :for="pointer(path)">{{ name }}</label>
+      <label :for="pointer(path)">{{ name }}<span v-if="required !== undefined" class="cfg-requirement">{{ required ? tr('必填', 'Required') : tr('可选', 'Optional') }}</span></label>
       <small v-if="unit(key)">{{ unit(key) }}</small>
       <p v-if="hint" :id="hintId" class="cfg-hint">{{ hint }}</p>
     </div>
@@ -143,7 +152,8 @@ function itemTitle(item: Json, index: number) {
     </select>
     <div v-else class="cfg-input-wrap">
       <input :id="pointer(path)" :aria-describedby="hintId" :type="inputType" :value="inputValue" :autocomplete="secret ? 'new-password' : 'off'" :spellcheck="false"
-        :required="typeof value === 'number' || ['id', 'base_url', 'provider', 'model', 'program'].includes(key)"
+        :aria-required="required || undefined"
+        :required="required !== undefined ? required && requiredActive !== false && value !== '<redacted>' : typeof value === 'number' || ['id', 'base_url', 'provider', 'model', 'program'].includes(key)"
         :min="typeof value === 'number' ? 0 : undefined" :step="typeof value === 'number' ? floatField ? 'any' : '1' : undefined"
         :placeholder="value === '<redacted>' ? tr('已设置；输入新值以更换', 'Set; enter a new value to replace') : ''" @input="setInput" />
       <button v-if="secret && value !== ''" type="button" class="btn ghost" @click="editor.set(path, '')">{{ tr('清空', 'Clear') }}</button>

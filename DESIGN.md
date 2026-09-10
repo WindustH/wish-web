@@ -91,7 +91,7 @@ Prefer compact control spacing while retaining readable text and mobile touch ta
   in uppercase, substitutes spaces for model hyphens/underscores, and shows
   button treatment on hover or keyboard focus. This is presentation only.
   Desktop and mobile keep both controls beside the title on one line.
-  Label the automatic selection “自动” / “auto”. Read effort choices from the
+  Label the automatic reasoning selection `auto` in every locale. Read effort choices from the
   backend: model metadata overrides provider preset/protocol defaults. Only
   unknown providers receive generic suggestions; known switch-only protocols
   expose their actual controls. Keep custom input and explicit upstream errors.
@@ -110,3 +110,8 @@ for real-daemon browser workflows and `web/run-scale.sh` for virtual-list and
 history stress cases. The rich Chinese fixture checks prose, headings, lists,
 quotes, tables and code in both themes and viewports. Test processes, profiles
 and sessions must be removed on both success and failure.
+
+Preset provider forms read authentication requirements from the backend catalog.
+Show required credentials directly, distinguish optional credentials, and preserve
+masked values on unrelated edits. Hide custom endpoints, unused credentials and
+single-choice protocols. Keep effective overrides under Advanced settings.

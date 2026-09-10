@@ -12,7 +12,7 @@ export const zh = {
   'model.providerUnavailable': '当前供应商未启用或已被移除。',
   'reasoning.title': '推理强度',
   'reasoning.loading': '正在读取推理强度选项…',
-  'reasoning.default': '自动',
+  'reasoning.default': 'auto',
   'reasoning.standardHint': '通用推理强度选项，实际支持的值取决于模型。',
   'reasoning.none': '不发送推理强度参数',
   'reasoning.customHint': '按 Enter 应用自定义推理强度，支持的值取决于模型。',

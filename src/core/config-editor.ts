@@ -20,8 +20,10 @@ export interface ProviderPreset {
   region: string;
   billing: string;
   protocols: string[];
+  api_key_supported: boolean;
   api_key_required: boolean;
   required_credentials: string[];
+  optional_credentials: string[];
 }
 export interface ConfigCatalog { presets: ProviderPreset[]; protocols: string[] }
 

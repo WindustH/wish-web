@@ -206,6 +206,7 @@ const fields: Record<string, Help> = {
   cursor_query_parameter: ['请求下一页时，把游标放入哪个查询参数，例如 cursor。', 'Query parameter used to send the next-page cursor, such as cursor.'],
   limit_query_parameter: ['请求每页数量时使用的查询参数名称，例如 limit。', 'Query parameter for the requested page size, such as limit.'],
   strip_id_prefix: ['从返回的模型名称开头移除此前缀，例如 models/。', 'Prefix stripped from returned model IDs, such as models/.'],
+  workspace_id: ['此 API 密钥所属的工作区 ID，用于确定服务地址。', 'Workspace ID associated with this API key; selects the service address.'],
   region: ['AWS 签名所使用的地区，需与目标服务一致。', 'AWS signing region; must match the target service.'],
   access_key_id: ['用于 AWS 签名的访问密钥 ID。', 'Access key ID used for AWS request signing.'],
   secret_access_key: ['与访问密钥 ID 配套的 AWS 密钥。', 'AWS secret key paired with the access key ID.'],
@@ -262,7 +263,8 @@ export function helpFor(path: string[]): Help | undefined {
   const key = path.at(-1)!;
   const parent = path.at(-2);
   // Map keys are user-defined names, never schema field names.
-  if (parent && ['credentials', 'headers', 'query', 'reasoning_efforts'].includes(parent)) return fields[parent];
+  if (parent === 'credentials') return fields[key] || fields.credentials;
+  if (parent && ['headers', 'query', 'reasoning_efforts'].includes(parent)) return fields[parent];
   if (parent === 'models') return fields.models;
   if (/^\d+$/.test(key)) return fields[parent!];
   if (key === 'mode' && parent === 'auth') return ['不使用表示不验证令牌；访问令牌模式要求客户端携带有效令牌。', 'none disables token checks; bearer requires a valid token on client requests.'];

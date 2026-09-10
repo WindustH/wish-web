@@ -169,3 +169,7 @@ html.resizing-composer, html.resizing-composer * { cursor: row-resize !important
 @media (max-width: 899px) {
   .composer.mobile textarea, .input, .select, .textarea, .settings-page input, .settings-page select { font-size: 16px; }
 }
+
+.cfg-requirement { margin-inline-start: 8px; font-size: 11px; font-weight: 400; color: var(--fg-muted); }
+.cfg-preset-auth h4 { margin: 14px 0 0; font-size: 13px; font-weight: 600; }
+.cfg-preset-auth > .cfg-field:last-child { border-bottom: 0; }
