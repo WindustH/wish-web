@@ -67,6 +67,7 @@ function addProvider(preset?: ProviderPreset) {
   addProviderOpen.value = false;
 }
 function displayOption(value: string) {
+  if (key.value === 'default_reasoning_effort') return value;
   const preset = key.value === 'preset' && props.catalog?.presets.find(item => item.id === value);
   return preset ? presetLabel(preset) : optionLabel(value);
 }

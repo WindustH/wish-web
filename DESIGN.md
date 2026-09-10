@@ -86,6 +86,8 @@ Prefer compact control spacing while retaining readable text and mobile touch ta
   Failed requests retain the current selection and expose retry; updates use a
   fresh session revision. There is no save/confirmation footer. Use “推理强度”
   in Chinese and “Reasoning effort” in English in entries, settings and help.
+  Effort identifiers such as `low`, `medium` and `max` stay verbatim in every
+  locale, including configuration choices; do not translate or capitalize them.
 - Adding a provider starts with a searchable preset list and a custom-provider
   option first. Use human names with region/plan descriptions and local monochrome
   brand icons. Model and provider lists share Reka filtering/keyboard navigation

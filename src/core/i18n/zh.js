@@ -13,13 +13,6 @@ export const zh = {
   'reasoning.loading': '正在读取推理强度选项…',
   'reasoning.default': '模型默认',
   'reasoning.none': '不发送推理强度参数',
-  'reasoning.off': '关闭',
-  'reasoning.minimal': '最低',
-  'reasoning.low': '低',
-  'reasoning.medium': '中等',
-  'reasoning.high': '高',
-  'reasoning.xhigh': '很高',
-  'reasoning.max': '最高',
   'reasoning.customHint': '按 Enter 应用自定义推理强度，支持的值取决于模型。',
   'reasoning.unsupported': '此模型声明不支持推理，无法设置推理强度。',
 

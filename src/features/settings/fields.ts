@@ -162,7 +162,6 @@ const optionLabels: Record<string, string> = {
   inherit: '使用默认策略', parallel: '并行执行', serial: '依次执行', generate: '生成图片', edit: '编辑图片',
   auto: '自动选择', forward: '从早到晚', backward: '从晚到早', asc: '从早到晚', desc: '从晚到早',
   off: '关闭', local: '本地计数', provider_preflight: '向提供方查询', never: '不回传', always: '始终回传', tool_calls_only: '仅工具调用时',
-  low: '低', medium: '中', high: '高', xhigh: '很高', minimal: '最低',
 };
 export const optionLabel = (value: string) => i18n.locale.value === 'zh' ? (optionLabels[value] || value) : value;
 

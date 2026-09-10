@@ -53,7 +53,7 @@ interface EffortItem extends PickerItem { effort: string }
 const choices = computed<EffortItem[]>(() => {
   const items: EffortItem[] = [
     { key: 'default', effort: '', title: i18n.t('reasoning.default'), description: metadata.value?.default_reasoning_effort ? effortLabel(metadata.value.default_reasoning_effort) : undefined, search: 'default' },
-    { key: key('none'), effort: 'none', title: i18n.t('reasoning.none'), search: 'none' },
+    { key: key('none'), effort: 'none', title: 'none', description: i18n.t('reasoning.none'), search: 'none' },
     ...levels.value.map(effort => ({ key: key(effort), effort, title: effortLabel(effort), search: effort, disabled: unsupported.value })),
   ];
   const current = snapshot.value?.reasoning_effort;

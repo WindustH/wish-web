@@ -13,13 +13,6 @@ export const en = {
   'reasoning.loading': 'Loading reasoning effort options…',
   'reasoning.default': 'Model default',
   'reasoning.none': 'Omit reasoning effort parameter',
-  'reasoning.off': 'Off',
-  'reasoning.minimal': 'Minimal',
-  'reasoning.low': 'Low',
-  'reasoning.medium': 'Medium',
-  'reasoning.high': 'High',
-  'reasoning.xhigh': 'Very high',
-  'reasoning.max': 'Maximum',
   'reasoning.customHint': 'Press Enter to apply custom reasoning effort; supported values depend on the model.',
   'reasoning.unsupported': 'This model declares no reasoning support; reasoning effort cannot be set.',
 
