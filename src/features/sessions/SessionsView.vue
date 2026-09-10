@@ -23,11 +23,13 @@ onMounted(applySavedListWidth);
   <div class="sessions-split">
     <template v-if="!isMobile || showList">
       <SessionList v-show="showList" id="session-list" />
-      <div v-if="!isMobile" v-show="showList" class="list-resize" role="separator" aria-orientation="vertical"
-        :aria-label="i18n.t('app.name')" title="↔" @pointerdown="onListResizePointerDown" />
     </template>
+    <div v-if="!isMobile" class="session-list-edge">
+      <div v-show="showList" class="list-resize" role="separator" aria-orientation="vertical"
+        :aria-label="i18n.t('app.name')" title="↔" @pointerdown="onListResizePointerDown" />
+      <SessionListToggle />
+    </div>
     <div v-if="!isMobile || !showList" class="content-pane">
-      <div v-if="!isMobile && route.name === 'sessions'" class="chatbar"><SessionListToggle /></div>
       <RouterView />
     </div>
   </div>

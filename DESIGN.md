@@ -56,7 +56,9 @@ height is 70px. Keep those values coordinated if density changes.
   navigation. IME composition is respected. History search invalidates stale results
   immediately, Enter cancels its timer, and location progress prevents double jumps.
 - Desktop session lists can collapse without unmounting the list or conversation;
-  remember the choice per browser. Mobile list/back navigation is independent.
+  remember the choice per browser. Place the toggle at the vertical center of the
+  list’s right edge; when collapsed, keep it on the conversation’s left edge.
+  Mobile list/back navigation is independent.
 - Ctrl/⌘+K expands the session list and focuses search (keeps the desktop conversation open).
   Ctrl/⌘+Shift+F opens history search; Ctrl/⌘+, opens settings;
   Ctrl/⌘+Shift+O starts a new session. Modal dialogs own their keyboard input.

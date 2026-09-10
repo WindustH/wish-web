@@ -58,7 +58,11 @@
 .bbar .nav-btn { flex: 1; border-radius: 0; min-height: var(--h-bottombar); }
 .bbar .nav-btn.active { background: transparent; }
 .bbar .nav-btn.active::before { left: calc(50% - 12px); top: 0; width: 24px; height: 2px; }
-.list-resize { width: 7px; flex: none; cursor: col-resize; margin-left: -4px; z-index: 25; position: relative; touch-action: none; }
+.session-list-edge { position: relative; width: 0; flex: none; z-index: 25; }
+.session-list-toggle { position: absolute; top: 50%; left: -12px; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 56px; padding: 0; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--bg-raised); color: var(--fg-subtle); cursor: pointer; box-shadow: 0 2px 6px rgb(0 0 0 / 8%); transition: color var(--dur-fast), background var(--dur-fast); }
+.session-list-toggle:hover { color: var(--fg); background: var(--bg-hover); }
+.session-list-toggle[aria-expanded="false"] { left: 0; border-left: 0; border-radius: 0 8px 8px 0; }
+.list-resize { position: absolute; inset: 0 auto 0 -4px; width: 7px; cursor: col-resize; touch-action: none; }
 .list-resize::after { content: ''; position: absolute; inset-block: 0; left: 3px; width: 1px; background: transparent; transition: background var(--dur-fast); }
 .list-resize:hover::after, .list-resize:active::after { background: var(--accent); }
 html.resizing, html.resizing * { cursor: col-resize !important; user-select: none !important; }

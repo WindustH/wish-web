@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { PanelLeftClose, PanelLeftOpen } from '@lucide/vue';
+import { ChevronLeft, ChevronRight } from '@lucide/vue';
 import { prefs } from '../../core/state/prefsSlice.js';
 import { i18n } from '../../core/i18n/index.js';
 
@@ -9,9 +9,9 @@ const label = computed(() => i18n.t(sessionListCollapsed.value ? 'sessions.expan
 </script>
 
 <template>
-  <button type="button" class="btn ghost icon-only session-list-toggle" :title="label" :aria-label="label"
+  <button type="button" class="session-list-toggle" :title="label" :aria-label="label"
     :aria-expanded="!sessionListCollapsed" aria-controls="session-list"
     @click="prefs.setSessionListCollapsed(!sessionListCollapsed)">
-    <component :is="sessionListCollapsed ? PanelLeftOpen : PanelLeftClose" :size="20" aria-hidden="true" />
+    <component :is="sessionListCollapsed ? ChevronRight : ChevronLeft" :size="16" aria-hidden="true" />
   </button>
 </template>
