@@ -33,6 +33,7 @@ const scrollEl = ref<HTMLElement | null>(null);
 const groups = computed(() => groupEntries(chat.entries.value));
 const streamState = computed(() => chat.stream.value);
 const running = computed(() => streamState.value?.active);
+const runFailure = computed(() => !running.value && chat.snapshot.value?.last_error);
 const streamText = computed(() => streamState.value?.text || '');
 const streamReasoning = computed(() => streamState.value?.reasoning || '');
 const streamToolCount = computed(() => Object.keys(streamState.value?.toolCalls || {}).length);
@@ -225,7 +226,7 @@ watch(running, (now, was) => { if (was && !now) announce(i18n.t('a11y.runDone'))
 // measurement frames: setting scrollTop before the virtualizer has measured
 // clamps to a half-built height and misreads as "near top" (scale B1).
 let landed = false;
-watch([() => groups.value.length, running], async () => {
+watch([() => groups.value.length, running, runFailure], async () => {
   const gen = epoch;
   await nextTick();
   if (!owns(gen)) return;
@@ -292,6 +293,11 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
           <span v-if="streamToolCount">{{ i18n.t('entry.toolCall') }} ×{{ streamToolCount }} · </span>{{ i18n.t('chat.thinking') }}
         </div>
       </div>
+      <div v-if="runFailure" class="chat-run-error" role="alert">
+        <strong>{{ i18n.t('chat.runFailed') }}</strong>
+        <p>{{ runFailure.message }}</p>
+        <small>{{ runFailure.family }}</small>
+      </div>
     </div>
     <button v-if="showJump" type="button" class="jump-latest"
       :title="i18n.t('chat.jumpLatest')" :aria-label="i18n.t('chat.jumpLatest')" @click="jumpLatest">
@@ -299,3 +305,10 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
     </button>
   </div>
 </template>
+
+<style scoped>
+.chat-run-error { margin: 16px auto; padding: 12px 16px; max-width: var(--max-content); border-left: 2px solid var(--err); background: var(--bg-raised); overflow-wrap: anywhere; }
+.chat-run-error strong { color: var(--err); font-size: 13px; }
+.chat-run-error p { margin: 6px 0; font-size: 13px; }
+.chat-run-error small { color: var(--fg-subtle); }
+</style>

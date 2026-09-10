@@ -1,5 +1,6 @@
 // Chinese dictionary (zh). Keys are flat dot-namespaced for grep-ability.
 export const zh = {
+  'chat.runFailed': '未能完成回复',
   'picker.switching': '正在切换…',
   'picker.current': '当前设置',
   'reasoning.search': '搜索推理强度或输入自定义值…',
