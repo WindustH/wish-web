@@ -58,7 +58,7 @@ export const cfg = Object.freeze({
   composer: {
     mobileMinRows: 1,
     mobileMaxRows: 6,
-    desktopHeightRatio: 0.3,
+    desktopHeightRatio: 0.24,
     desktopMinHeight: 160,
     desktopMaxHeightRatio: 0.6,
     resizeStep: 24,
@@ -99,13 +99,15 @@ export const cfg = Object.freeze({
     monoFontStack: "'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace",
     maxContentWidth: '46rem',         // chat column readability cap
     iconSize: 18,                     // default icon px
-    sidebarWidth: 72,                 // desktop vertical bar px
-    sessionListWidth: 280,            // desktop list pane px (default; user-resizable)
+    sidebarWidth: 56,                 // desktop vertical bar px
+    sessionListWidth: 256,            // desktop list pane px (default; user-resizable)
     sessionListWidthMin: 200,
     sessionListWidthMax: 520,
+    sessionRowHeight: 60,
+    sessionRowGap: 4,
     drawerWidth: 420,
-    topbarHeight: 72,
-    bottombarHeight: 64,
+    topbarHeight: 56,
+    bottombarHeight: 56,
     space: { xs: 4, s: 8, m: 12, l: 16, xl: 24, xxl: 32 },
   },
 

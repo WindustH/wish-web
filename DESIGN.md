@@ -37,8 +37,10 @@ come from `core/config.js` through `ui/applyTokens.ts`. Shared controls live in
 presentation in `styles/features.css`. Settings have their own feature stylesheet.
 Do not append a second layer of legacy overrides for the same selectors.
 
-Session rows are native buttons. Their virtual stride is 76px and their visible
-height is 70px. Keep those values coordinated if density changes.
+Session rows are native buttons. Their virtual stride is 64px and their visible
+height is 60px, both derived from cfg.design. Keep those values coordinated.
+Navigation and conversation toolbars use 56px; the desktop rail is 56px wide.
+Prefer compact control spacing while retaining readable text and mobile touch targets.
 
 ## Interaction
 

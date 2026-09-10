@@ -75,10 +75,10 @@ onUnmounted(stats.stopAuto);
 </template>
 
 <style scoped>
-.statistics-page { padding: 0 clamp(24px, 5vw, 72px) 48px; }
+.statistics-page { padding: 0 clamp(20px, 3vw, 40px) 32px; }
 .statistics-page > * { width: 100%; max-width: 1100px; margin-inline: auto; }
 .statistics-body { padding: 0; }
-.statistics-toolbar { display: flex; flex: none; align-items: center; justify-content: end; gap: 16px; padding-block: 16px; }
+.statistics-toolbar { display: flex; flex: none; align-items: center; justify-content: end; gap: 12px; padding-block: 10px; }
 .statistics-grid { display: grid; gap: 32px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 450px), 1fr)); align-items: start; }
 .statistics-grid .card { padding: 24px 0; min-width: 0; border-radius: 0; border: 0; border-top: 1px solid var(--line-strong); background: transparent; }
 h2 { font: 600 20px/1.5 var(--font); margin: 0 0 28px; }

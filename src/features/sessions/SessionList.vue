@@ -4,6 +4,7 @@
 import { computed, ref, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useVirtualizer } from '@tanstack/vue-virtual';
+import { cfg } from '../../core/config.js';
 import { sessions } from '../../core/state/sessionsSlice.js';
 import { chat } from '../../core/state/chatSlice.js';
 import { i18n } from '../../core/i18n/index.js';
@@ -27,7 +28,7 @@ const virtualizer = useVirtualizer(
   computed(() => ({
     count: rows.value.length,
     getScrollElement: () => listEl.value,
-    estimateSize: () => 76,
+    estimateSize: () => cfg.design.sessionRowHeight + cfg.design.sessionRowGap,
     overscan: 8,
     getItemKey: (i: number) => rows.value[i]?.id ?? `i${i}`,
   })),

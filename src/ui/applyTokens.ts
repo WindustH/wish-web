@@ -12,6 +12,7 @@ export function applyTokens(root = document.documentElement) {
   root.style.setProperty('--icon', px(d.iconSize));
   root.style.setProperty('--w-sidebar', px(d.sidebarWidth));
   root.style.setProperty('--w-list', px(d.sessionListWidth));
+  root.style.setProperty('--h-session-row', px(d.sessionRowHeight));
   root.style.setProperty('--w-drawer', px(d.drawerWidth));
   root.style.setProperty('--h-topbar', px(d.topbarHeight));
   root.style.setProperty('--h-bottombar', px(d.bottombarHeight));
