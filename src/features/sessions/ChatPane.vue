@@ -12,6 +12,8 @@ import Menu from '../../ui/components/Menu.vue';
 import ChatLog from './ChatLog.vue';
 import Composer from './Composer.vue';
 import ModelSettings from './ModelSettings.vue';
+import ReasoningSettings from './ReasoningSettings.vue';
+import { effortLabel } from './reasoningLabels';
 
 const route = useRoute();
 const router = useRouter();
@@ -28,6 +30,8 @@ watch(id, (next) => { if (next) chat.open(next); }, { immediate: true });
 const snapshot = computed(() => chat.snapshot.value);
 const queue = computed(() => snapshot.value?.queue ?? 0);
 const modelOpen = ref(false);
+const reasoningOpen = ref(false);
+watch(id, () => { modelOpen.value = false; reasoningOpen.value = false; });
 
 const closeTab = () => router.push({ name: 'chat', params: { id: id.value } });
 const goTab = (t: string) => tab.value === t ? closeTab() : router.push({ name: `chat-${t}`, params: { id: id.value } });
@@ -44,6 +48,7 @@ const goTab = (t: string) => tab.value === t ? closeTab() : router.push({ name: 
         <button class="model-chip" :title="i18n.t('model.chipTitle')" @click="modelOpen = true">
           <span>{{ snapshot?.model || '—' }}</span><Icon name="chevron-down" class="sm" />
         </button>
+        <button class="reasoning-chip" :title="i18n.t('reasoning.title')" :aria-label="`${i18n.t('reasoning.title')}：${effortLabel(snapshot?.reasoning_effort)}`" @click="reasoningOpen = true"><Icon name="brain" class="sm" /><span>{{ effortLabel(snapshot?.reasoning_effort) }}</span><Icon name="chevron-down" class="sm" /></button>
       </div>
       <template v-if="!isMobile">
         <button class="btn ghost icon-only" :title="i18n.t('chatbar.info')" :aria-label="i18n.t('chatbar.info')"
@@ -64,6 +69,7 @@ const goTab = (t: string) => tab.value === t ? closeTab() : router.push({ name: 
     <ChatLog :session-id="id" :mobile="isMobile" />
     <Composer :session-id="id" :mobile="isMobile" :on-search="() => goTab('search')" />
     <RouterView @close="closeTab" />
-    <ModelSettings :open="modelOpen" :session-id="id" @close="modelOpen = false" />
+    <ModelSettings v-if="modelOpen" :session-id="id" @close="modelOpen = false" />
+    <ReasoningSettings v-if="reasoningOpen" :session-id="id" @close="reasoningOpen = false" />
   </div>
 </template>

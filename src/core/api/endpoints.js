@@ -64,7 +64,8 @@ export const storageStatus = () => get('/storage/status');
 
 // ── models / providers / config ─────────────────────────────────────────
 // ── providerd (separate daemon; catalog reads NEVER go through wishd) ──
-export const providerConfigs = () => providerd.get('/provider-configs');
+export const providerConfigs = (opts) => providerd.get('/provider-configs', opts);
+export const providerSummaries = (opts) => providerd.get('/providers', opts);
 export const providerModels = (id, opts) => providerd.get(`/providers/${id}/models`, opts);
 export const providerdEffective = () => providerd.get('/config/effective');
 // Exact contract: {status:'reloaded', config_generation} — no restart list.

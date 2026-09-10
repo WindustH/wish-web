@@ -2,13 +2,8 @@
 // Stale responses are generation-guarded; switching providers clears the
 // old error and reloads; an error is never an empty list.
 import { computed, ref, watch, onUnmounted } from 'vue';
-import { providerConfigs, providerModels } from '../../core/api/endpoints.js';
-
-export interface ProviderInfo {
-  id: string; enabled: boolean; models?: Record<string, unknown>;
-  has_api_key?: boolean; [k: string]: unknown;
-}
-export interface ModelInfo { id: string; source?: 'configured' | 'catalog' | 'current' }
+import { configuredModels, readModels, readProviders, type ModelInfo, type ProviderInfo } from '../../core/provider-catalog';
+export type { ModelInfo, ProviderInfo } from '../../core/provider-catalog';
 
 export function useProviderModels(opts: { immediate?: boolean } = {}) {
   const { immediate = true } = opts;
@@ -28,10 +23,9 @@ export function useProviderModels(opts: { immediate?: boolean } = {}) {
   const loadProviders = async () => {
     const gen = ++provGen;
     try {
-      const res = await providerConfigs();
+      const list = await readProviders();
       if (!alive || gen !== provGen) return;
-      // Disabled providers are never offered (old models.js semantics).
-      providers.value = (res.providers ?? []).filter((p: ProviderInfo) => p.enabled !== false);
+      providers.value = list;
       providersErr.value = null;
     } catch (e) {
       if (!alive || gen !== provGen) return;
@@ -41,36 +35,22 @@ export function useProviderModels(opts: { immediate?: boolean } = {}) {
 
   const selected = ref<string | null>(null);
 
-  // Model resolution WAITS for a successful providers read (root review):
-  // retry() resets providers to null and only reloads THEM — resolving
-  // models in parallel would look up an empty provider list, miss the
-  // explicitly configured models and fall through to the remote catalog.
+  // Resolve models only after their provider configuration has loaded.
   const loadModels = async (providerId: string) => {
     if (providers.value == null) return;
     const gen = ++modelGen;
-    // Explicitly CONFIGURED models win and the remote catalog is never
-    // contacted for them (old models.js): a provider whose registry catalog
-    // is unavailable (e.g. 501) still offers exactly what the user pinned
-    // in the config. Only unconfigured providers fall through to the
-    // catalog read, filtered by allowed_for_provider.
-    const cfgp = (providers.value || []).find((p) => p.id === providerId);
-    const explicit = Object.keys((cfgp?.models as Record<string, unknown>) || {});
-    if (explicit.length) {
-      models.value = explicit.map((id) => ({ id, source: 'configured' as const }));
-      modelsErr.value = null;
-      return;
-    }
     models.value = null;
+    modelsErr.value = null;
     try {
-      const res = await providerModels(providerId);
+      const provider = providers.value.find(provider => provider.id === providerId);
+      if (!provider) throw new Error(`Provider is no longer available: ${providerId}`);
+      models.value = configuredModels(provider);
+      const list = await readModels(provider);
       if (!alive || gen !== modelGen) return;
-      models.value = (res.models ?? [])
-        .filter((m: any) => m.allowed_for_provider !== false)
-        .map((m: any) => ({ id: m.id ?? m, source: 'catalog' as const }));
+      models.value = list;
       modelsErr.value = null;
     } catch (e) {
       if (!alive || gen !== modelGen) return;
-      models.value = [];
       modelsErr.value = e;          // failure ≠ empty list: error drives the UI
     }
   };

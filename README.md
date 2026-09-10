@@ -2,6 +2,9 @@
 
 基于 Vue 3 的 Wish 客户端，分别连接 wishd 和 wish-providerd。桌面与移动端共用业务逻辑，布局和输入交互按设备适配。
 
+`src/` 是当前前端源码，`public/` 存放图标和授权等静态资源，`tools/` 存放开发辅助脚本。
+Vite 将源码和静态资源构建到 `dist/`，由 `serve.mjs` 提供服务。回归测试位于相邻的 `wish-test` 仓库。
+
 ## 开发和构建
 
 需要 Node.js 22.19 或更高版本与 Corepack。使用仓库内的入口运行 pnpm：

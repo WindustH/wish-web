@@ -3,8 +3,10 @@ import { computed, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { ChevronDown, Plus, Trash2 } from '@lucide/vue';
 import { isObject, pointer } from '../../core/config-editor';
-import type { ConfigCatalog, ConfigEditor, Json } from '../../core/config-editor';
+import type { ConfigCatalog, ConfigEditor, Json, ProviderPreset } from '../../core/config-editor';
 import { fieldLabel, fieldHint, isMap, isSecret, label, newArrayEntry, optionalFields, optionLabel, optionsFor, tr, unit } from './fields';
+import AddProvider from './AddProvider.vue';
+import { presetLabel } from '../../ui/providerPresentation';
 
 const props = defineProps<{
   value: Json;
@@ -28,6 +30,8 @@ const inputValue = computed(() => props.value === '<redacted>' ? '' : String(pro
 const addKey = ref('');
 const mapValueType = ref('string');
 const addError = ref('');
+const addProviderOpen = ref(false);
+const newItemIndex = ref<number>();
 const inputType = computed(() => secret.value ? 'password' : typeof props.value === 'number' ? 'number' : 'text');
 const floatField = computed(() => /ratio$|multiplier|bytes_per_token/.test(key.value));
 
@@ -38,6 +42,33 @@ function setInput(event: Event) {
   // Focusing and leaving a masked field does not clear the existing credential.
   if (secret.value && props.value === '<redacted>' && value === '') return;
   props.editor.set(props.path, value);
+  if (key.value === 'preset' && props.path.at(-3) === 'providers') {
+    const parent = props.path.slice(0, -1);
+    const preset = props.catalog?.presets.find(item => item.id === value);
+    props.editor.set([...parent, 'protocol'], preset?.protocols[0] || '');
+    if (preset) props.editor.set([...parent, 'endpoint'], '');
+  }
+}
+function addProvider(preset?: ProviderPreset) {
+  const entry = newArrayEntry(props.path);
+  if (!isObject(entry) || !Array.isArray(props.value)) throw new Error('Provider editor must be an array');
+  entry.allow_any_model = true;
+  if (preset) {
+    const ids = new Set(props.value.filter(isObject).map(item => item.id));
+    let id = preset.id, suffix = 2;
+    while (ids.has(id)) id = `${preset.id}-${suffix++}`;
+    entry.id = id;
+    entry.preset = preset.id;
+    entry.protocol = preset.protocols[0]!;
+    entry.credentials = Object.fromEntries(preset.required_credentials.map(name => [name, '']));
+  }
+  newItemIndex.value = props.value.length;
+  props.editor.append(props.path, entry);
+  addProviderOpen.value = false;
+}
+function displayOption(value: string) {
+  const preset = key.value === 'preset' && props.catalog?.presets.find(item => item.id === value);
+  return preset ? presetLabel(preset) : optionLabel(value);
 }
 function addField() {
   const field = addKey.value.trim();
@@ -63,14 +94,16 @@ function itemTitle(item: Json, index: number) {
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <p v-if="!value.length" class="cfg-hint">{{ tr('尚未添加项目。', 'No items yet.') }}</p>
     <div v-for="(item, index) in value" :key="index" class="cfg-array-item">
-      <details v-if="isObject(item)" :open="!item.id">
+      <details v-if="isObject(item)" :open="!item.id || newItemIndex === index">
         <summary><ChevronDown :size="16" /><span>{{ itemTitle(item, index) }}</span></summary>
         <ConfigNode :value="item" :path="[...path, String(index)]" :editor="editor" :catalog="catalog" />
       </details>
       <ConfigNode v-else :value="item" :path="[...path, String(index)]" :title="`${name} ${index + 1}`" :editor="editor" :catalog="catalog" />
       <button type="button" class="btn ghost cfg-remove" :aria-label="`${tr('删除', 'Remove')} ${itemTitle(item, index)}`" @click="editor.remove([...path, String(index)])"><Trash2 :size="16" />{{ tr('删除', 'Remove') }}</button>
     </div>
-    <button type="button" class="btn" @click="editor.append(path, newArrayEntry(path))"><Plus :size="16" />{{ tr('添加', 'Add') }}{{ name }}</button>
+    <button v-if="key === 'providers' && path[0] === 'providerd'" type="button" class="btn" @click="addProviderOpen = true"><Plus :size="16" />{{ tr('添加模型提供方', 'Add provider') }}</button>
+    <button v-else type="button" class="btn" @click="editor.append(path, newArrayEntry(path))"><Plus :size="16" />{{ tr('添加', 'Add') }}{{ name }}</button>
+    <AddProvider v-if="addProviderOpen" :catalog="catalog" @close="addProviderOpen = false" @select="addProvider" />
   </div>
   <div v-else-if="object" class="cfg-object" :data-config-path="pointer(path)">
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
@@ -105,7 +138,7 @@ function itemTitle(item: Json, index: number) {
     <SwitchRoot v-if="typeof value === 'boolean'" :id="pointer(path)" :aria-describedby="hintId" :model-value="value" class="cfg-switch" @update:model-value="editor.set(path, $event)"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot>
     <select v-else-if="selectOptions" :id="pointer(path)" :aria-describedby="hintId" :value="value" @change="setInput">
       <option v-if="!selectOptions.includes(String(value))" :value="String(value)">{{ value }}</option>
-      <option v-for="option in selectOptions" :key="option" :value="option">{{ option === '' ? tr('未选择', 'Not selected') : optionLabel(option) }}</option>
+      <option v-for="option in selectOptions" :key="option" :value="option">{{ option === '' ? tr('未选择', 'Not selected') : displayOption(option) }}</option>
     </select>
     <div v-else class="cfg-input-wrap">
       <input :id="pointer(path)" :aria-describedby="hintId" :type="inputType" :value="inputValue" :autocomplete="secret ? 'new-password' : 'off'" :spellcheck="false"

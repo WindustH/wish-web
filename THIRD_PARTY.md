@@ -13,6 +13,7 @@ into `dist/`; the deployed client does not fetch libraries from a CDN.
 | reka-ui | 2.10.4 | Accessible interaction primitives | MIT |
 | @tanstack/vue-virtual | 3.13.37 | Dynamic list virtualization | MIT |
 | @lucide/vue | 1.43.0 | Icons, imported by name | ISC |
+| @lobehub/icons-static-svg | 1.95.0 | Local monochrome provider icons | MIT |
 | markdown-it | 15.0.1 | Markdown parsing | MIT |
 | dompurify | 3.4.15 | HTML sanitization | MPL-2.0 OR Apache-2.0 |
 | fast-json-patch | 3.1.1 | Ordered configuration draft operations | MIT |
@@ -29,6 +30,7 @@ Official project documentation:
 [Vue](https://vuejs.org/), [Vue Router](https://router.vuejs.org/),
 [Reka UI](https://reka-ui.com/), [TanStack Virtual](https://tanstack.com/virtual),
 [Lucide](https://lucide.dev/), [markdown-it](https://github.com/markdown-it/markdown-it),
+[LobeHub Icons](https://github.com/lobehub/lobe-icons),
 [DOMPurify](https://github.com/cure53/DOMPurify),
 [JSON Patch](https://github.com/Starcounter-Jack/JSON-Patch),
 [Vite](https://vite.dev/), [Vite PWA](https://vite-pwa-org.netlify.app/).
@@ -39,3 +41,7 @@ worker caches requested fonts, without precaching the complete Chinese font
 families. Font license and copyright notices ship under `public/licenses/` and
 `dist/licenses/`. See [Noto CJK](https://github.com/notofonts/noto-cjk) and
 [Fontsource](https://fontsource.org/fonts/noto-sans-sc).
+
+Provider icons import only the required monochrome SVGs. CSS masks inherit the
+interface text color in both themes; no React package or remote image requests
+are needed. The LobeHub MIT notice ships under `public/licenses/` and `dist/licenses/`.

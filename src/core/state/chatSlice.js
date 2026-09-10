@@ -279,8 +279,8 @@ export const chat = (() => {
     const id = sessionId.value;
     if (!id) return;
     if (evt.kind === 'upsert' && evt.body?.id === id) {
-      noteGeneration(evt.body);
-      snapshot.value = evt.body;
+      // Sync upserts contain list metadata, not a full session snapshot.
+      // Keep the current model/effort until the authoritative read completes.
       debouncedInvalidate();
     } else if (evt.kind === 'invalidate' || evt.kind === 'snapshot') {
       // 'snapshot' = authoritative reset (reconnect / cursor reset): re-read
@@ -300,8 +300,10 @@ export const chat = (() => {
     try {
       const snap = await api.sessionGet(id, { signal: sig });
       if (myEpoch !== epoch) return;
-      snapshot.value = snap;
-      noteGeneration(snap);
+      if ((snapshot.value?.revision ?? 0) <= snap.revision) {
+        snapshot.value = snap;
+        noteGeneration(snap);
+      }
     } catch (err) {
       if (myEpoch === epoch) error.value = err;
     }
@@ -780,5 +782,4 @@ export const chat = (() => {
 })();
 
 function cap(text) { return text.length > cfg.sse.maxBufferedChars ? text.slice(0, cfg.sse.maxBufferedChars) : text; }
-
 

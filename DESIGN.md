@@ -76,6 +76,15 @@ Prefer compact control spacing while retaining readable text and mobile touch ta
   navigation. Saving or discarding removes it. It never covers a form field.
 - Field help explains purpose, scope and meaningful values next to controls and
   is linked with aria-describedby. Source semantics remain owned by the backend.
+- Session model and reasoning selectors have separate toolbar entries. Model
+  search covers every enabled provider, grouped by provider instance, including
+  all catalog pages. Provider read errors are visible and individually retryable.
+  Reasoning choices come from model metadata, with a custom value field and an
+  explicit model-default reset. Both selectors save against a fresh revision.
+- Adding a provider starts with a searchable preset list and a custom-provider
+  option first. Use human names with region/plan descriptions and local monochrome
+  brand icons. Model and provider lists share Reka filtering/keyboard navigation
+  and virtualization; a changed result set resets virtual row identity and offsets.
 
 Use short 140–240ms transitions for control feedback and overlay entry. Never animate
 virtual-list positioning or prepend geometry. Respect prefers-reduced-motion.

@@ -115,6 +115,9 @@ importers:
       '@fontsource-variable/noto-serif-sc':
         specifier: 5.3.0
         version: 5.3.0
+      '@lobehub/icons-static-svg':
+        specifier: 1.95.0
+        version: 1.95.0
       '@lucide/vue':
         specifier: 1.43.0
         version: 1.43.0(vue@3.5.42(typescript@5.9.3))
@@ -720,6 +723,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lobehub/icons-static-svg@1.95.0':
+    resolution: {integrity: sha512-VSObF66DUVQe0EK3xbIoFcw+Fcia1+bLVFkMsQbmz0zCceMxPmoLImS5VM5SM7zL+/NarZ11/ySNfkekcomIkQ==}
 
   '@lucide/vue@1.43.0':
     resolution: {integrity: sha512-Asq2HozXp4s7JxQVTVVeMo6WINVsJr477uNOafM3Qft1K1aDbbgkVuCP3X37UZXcVB4rEGXaIM//04Ndi2GJfQ==}
@@ -2957,6 +2963,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  '@lobehub/icons-static-svg@1.95.0': {}
 
   '@lucide/vue@1.43.0(vue@3.5.42(typescript@5.9.3))':
     dependencies:

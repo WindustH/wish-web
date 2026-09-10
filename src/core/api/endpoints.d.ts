@@ -14,6 +14,7 @@ export declare function sessionPrune(id: string, body?: any): Promise<any>;
 export declare function sessionRuns(id: string, params?: any, opts?: any): Promise<any>;
 export declare function daemonStatus(): Promise<any>;
 export declare function providerConfigs(opts?: any): Promise<any>;
+export declare function providerSummaries(opts?: any): Promise<any>;
 export declare function providerModels(id: string, opts?: any): Promise<any>;
 export declare function streamingGet(opts?: any): Promise<any>;
 export declare function streamingPut(enabled: boolean, opts?: any): Promise<any>;
