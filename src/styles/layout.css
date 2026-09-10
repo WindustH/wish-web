@@ -59,14 +59,15 @@
 .bbar .nav-btn.active { background: transparent; }
 .bbar .nav-btn.active::before { left: calc(50% - 12px); top: 0; width: 24px; height: 2px; }
 .session-list-edge { position: relative; width: 0; flex: none; z-index: 25; }
-.session-list-toggle { position: absolute; top: 50%; right: 0; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 80px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--fg-subtle); cursor: pointer; transition: color var(--dur-fast); }
-.session-list-toggle::before { content: ''; position: absolute; inset: 0; background: var(--bg-hover); clip-path: polygon(100% 0, 100% 100%, 15% 77%, 0 66%, 0 34%, 15% 23%); transition: background var(--dur-fast); }
-.session-list-toggle svg { position: relative; }
+.session-list-toggle { position: absolute; top: 50%; right: 0; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 48px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--fg-subtle); cursor: pointer; transition: color var(--dur-fast); }
+.session-list-toggle::before { content: ''; position: absolute; inset: 0 0 0 8px; background: var(--bg-hover); clip-path: polygon(100% 0, 100% 100%, 15% 77%, 0 66%, 0 34%, 15% 23%); transition: background var(--dur-fast); }
+.session-list-toggle svg { position: relative; justify-self: end; margin-right: 2px; }
 .session-list-toggle:hover { color: var(--fg); }
 .session-list-toggle:hover::before { background: var(--bg-active); }
 .session-list-toggle:focus-visible { outline-offset: -2px; }
 .session-list-toggle[aria-expanded="false"] { right: auto; left: 0; }
-.session-list-toggle[aria-expanded="false"]::before { transform: scaleX(-1); }
+.session-list-toggle[aria-expanded="false"]::before { inset: 0 8px 0 0; transform: scaleX(-1); }
+.session-list-toggle[aria-expanded="false"] svg { justify-self: start; margin: 0 0 0 2px; }
 .list-resize { position: absolute; inset: 0 auto 0 -4px; width: 7px; cursor: col-resize; touch-action: none; }
 .list-resize::after { content: ''; position: absolute; inset-block: 0; left: 3px; width: 1px; background: transparent; transition: background var(--dur-fast); }
 .list-resize:hover::after, .list-resize:active::after { background: var(--accent); }

@@ -12,6 +12,6 @@ const label = computed(() => i18n.t(sessionListCollapsed.value ? 'sessions.expan
   <button type="button" class="session-list-toggle" :title="label" :aria-label="label"
     :aria-expanded="!sessionListCollapsed" aria-controls="session-list"
     @click="prefs.setSessionListCollapsed(!sessionListCollapsed)">
-    <component :is="sessionListCollapsed ? ChevronRight : ChevronLeft" :size="16" aria-hidden="true" />
+    <component :is="sessionListCollapsed ? ChevronRight : ChevronLeft" :size="12" aria-hidden="true" />
   </button>
 </template>
