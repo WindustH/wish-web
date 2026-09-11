@@ -33,6 +33,16 @@ const composerEl = ref<HTMLElement | null>(null);
 const ta = ref<HTMLTextAreaElement | null>(null);
 const sizing = useComposerHeight(composerEl);
 const height = computed(() => sizing.height());
+const attachmentStrip = ref<HTMLElement | null>(null);
+const attachmentHeight = ref(0);
+// Add previews to the preferred editor height without persisting that extra space.
+watch(attachmentStrip, (el, _, onCleanup) => {
+  attachmentHeight.value = el?.offsetHeight ?? 0;
+  if (!el) return;
+  const observer = new ResizeObserver(() => { attachmentHeight.value = el.offsetHeight; });
+  observer.observe(el);
+  onCleanup(() => observer.disconnect());
+}, { flush: 'post' });
 
 const text = ref(chat.getDraft(props.sessionId));
 const images = ref<Img[]>([]);
@@ -210,7 +220,7 @@ function resizeKeys(e: KeyboardEvent) {
 
 <template>
   <div ref="composerEl" class="composer" :class="mobile ? 'mobile' : 'desktop'"
-    :style="mobile ? undefined : { height: `${height}px` }">
+    :style="mobile ? undefined : { height: `${Math.min(sizing.max(), height + attachmentHeight)}px` }">
     <div v-if="!mobile" class="composer-resize" role="separator" tabindex="0" aria-orientation="horizontal"
       :aria-label="i18n.t('composer.resize')" :aria-valuemin="sizing.min()" :aria-valuemax="sizing.max()"
       :aria-valuenow="height" :title="i18n.t('composer.resize')"
@@ -222,7 +232,7 @@ function resizeKeys(e: KeyboardEvent) {
       <button class="btn ghost icon-only" :title="i18n.t('chatbar.search')" :aria-label="i18n.t('chatbar.search')"
         @click="onSearch"><Icon name="history" /></button>
     </div>
-    <div v-if="images.length > 0" class="attach-strip">
+    <div v-if="images.length > 0" ref="attachmentStrip" class="attach-strip">
       <div v-for="(img, i) in images" :key="img.localUrl" class="attach-thumb">
         <img :src="img.localUrl" :alt="img.name" />
         <button class="rm" :aria-label="i18n.t('common.remove')" @click="removeImage(i)">

@@ -136,3 +136,8 @@ previews and session-scoped upload path; stale file reads are discarded after
 navigation (including A→B→A) or unmount. Sending waits for pending image reads.
 Attachment selection and sending use the session capability limits; the sender
 never silently truncates accepted images to a separate client-side count.
+
+Image-only messages send without placeholder text. Desktop previews add their
+measured height to the preferred composer height, capped by available space;
+removing them restores that preference. Mobile grows naturally around previews.
+Transient notices float outside the layout and never reserve a sidebar column.

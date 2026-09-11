@@ -71,7 +71,8 @@
 @keyframes history-highlight { from { background-color: var(--accent-soft); } to { background-color: transparent; } }
 /* Desktop writing desk: explicit height and drag handle. Mobile grows with content. */
 .composer { position: relative; flex: none; min-height: 0; border-top: 1px solid var(--line-strong); background: var(--bg-raised); display: flex; flex-direction: column; }
-.composer.desktop { padding: 0 24px 12px; }
+.composer.desktop { padding: 0 24px 12px; transition: height var(--dur-fast) var(--ease-out); }
+.resizing-composer .composer.desktop { transition: none; }
 .composer-toolbar { display: flex; align-items: center; flex: none; gap: 8px; padding: 6px 0 4px; }
 .composer-toolbar .grow { flex: 1; }
 .composer-editor { display: flex; min-height: 0; }
