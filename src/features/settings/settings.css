@@ -18,7 +18,7 @@
 .settings-category-button span { flex: 1; }
 .settings-category-button > svg:last-child { transform: rotate(-90deg); transition: transform var(--dur-fast); }
 .settings-category-button.active { color: var(--fg); font-weight: 600; }
-.settings-category-button.active > svg:last-child { transform: none; }
+.settings-category-button[aria-expanded="true"] > svg:last-child { transform: none; }
 .settings-category-button:hover { background: var(--bg-hover); }
 .settings-result { display: grid; gap: 5px; text-align: left; width: 100%; padding: 14px 10px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--fg); font: inherit; cursor: pointer; overflow-wrap: anywhere; }
 .settings-result:hover, .settings-result:focus-visible { background: var(--bg-hover); }
@@ -139,3 +139,6 @@
 .cfg-array-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
 .cfg-array-row > .cfg-edit-row { flex: 1; gap: 8px; padding: 0; }
 .cfg-array-row > .cfg-remove { flex: none; margin: 0; }
+
+.cfg-edit-title { display: flex; align-items: center; gap: 8px; }
+.cfg-edit-title > span { min-width: 0; }

@@ -103,6 +103,10 @@ function addItem() {
   props.editor.append(props.path, entry);
   if (isObject(entry)) openDialog({ path: [...props.path, String(index)], title: itemTitle(entry, index) });
 }
+function itemBrand(item: Json) {
+  if (props.path[0] !== 'providerd' || key.value !== 'providers' || !isObject(item)) return undefined;
+  return props.catalog?.presets.find(preset => preset.id === item.preset)?.provider;
+}
 function itemTitle(item: Json, index: number) {
   return isObject(item) && item.id ? String(item.id) : `${tr('项目', 'Item')} ${index + 1}`;
 }
@@ -113,7 +117,7 @@ function itemTitle(item: Json, index: number) {
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <p v-if="!value.length" class="cfg-hint">{{ tr('尚未添加项目。', 'No items yet.') }}</p>
     <div v-for="(item, index) in value" :key="index" class="cfg-array-item" :class="{ 'cfg-array-row': isObject(item) }">
-      <ConfigLink v-if="isObject(item)" :path="[...path, String(index)]" :title="itemTitle(item, index)" />
+      <ConfigLink v-if="isObject(item)" :path="[...path, String(index)]" :title="itemTitle(item, index)" :brand="itemBrand(item)" />
       <ConfigNode v-else :value="item" :path="[...path, String(index)]" :title="`${name} ${index + 1}`" :editor="editor" :catalog="catalog" />
       <button type="button" class="btn ghost cfg-remove" :aria-label="`${tr('删除', 'Remove')} ${itemTitle(item, index)}`" @click="editor.remove([...path, String(index)])"><Trash2 :size="16" />{{ tr('删除', 'Remove') }}</button>
     </div>

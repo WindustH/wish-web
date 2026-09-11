@@ -31,7 +31,7 @@ function updateActive() {
   // Keep the active bookmark visible without scrolling the form itself.
   const nav = navigation.value!.closest<HTMLElement>('.settings-sidebar')!;
   const button = nav.querySelector<HTMLElement>(`[aria-controls="${active.value}"]`);
-  if (button && nav.clientHeight) {
+  if (button?.getClientRects().length && nav.clientHeight) {
     const bounds = nav.getBoundingClientRect(), item = button.getBoundingClientRect();
     if (item.top < bounds.top) nav.scrollTop += item.top - bounds.top;
     else if (item.bottom > bounds.bottom) nav.scrollTop += item.bottom - bounds.bottom;

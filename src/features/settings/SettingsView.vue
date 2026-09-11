@@ -9,6 +9,7 @@ import type { ConfigOwner, Json } from '../../core/config-editor';
 import './settings.css';
 
 const tab = ref('ui');
+const expanded = ref(true);
 const coreEditor = ref<InstanceType<typeof ConfigEditor>>();
 const providerEditor = ref<InstanceType<typeof ConfigEditor>>();
 const scroll = ref<HTMLElement>();
@@ -80,9 +81,15 @@ function scheduleSearch() {
 watch(() => [configEditors.wishd.draft.value, configEditors.providerd.draft.value], scheduleSearch);
 watch(query, async () => { await nextTick(); search(); if (searching.value) scroll.value!.scrollTo({ top: 0, behavior: 'instant' }); });
 watch(tab, () => scroll.value!.scrollTo({ top: 0, behavior: 'instant' }), { flush: 'post' });
+function selectCategory(id: string) {
+  expanded.value = tab.value === id && !searching.value ? !expanded.value : true;
+  tab.value = id;
+  query.value = '';
+}
 async function select(match: Match) {
   query.value = '';
   tab.value = match.owner;
+  expanded.value = true;
   await nextTick();
   if (!document.getElementById(match.id) && match.path) {
     (match.owner === 'wishd' ? coreEditor.value : providerEditor.value)!.revealPath(match.path);
@@ -112,8 +119,8 @@ onBeforeUnmount(() => { observer.disconnect(); cancelAnimationFrame(frame); });
         <div class="settings-search"><Search :size="16" /><input v-model="query" type="search" :placeholder="tr('搜索配置', 'Search settings')" :aria-label="tr('搜索配置', 'Search settings')" @keydown.esc="query = ''" @keydown.down.prevent="scroll?.querySelector<HTMLButtonElement>('.settings-result')?.focus()" @keydown.enter.prevent="matches.length === 1 ? select(matches[0]!) : scroll?.querySelector<HTMLButtonElement>('.settings-result')?.focus()" /><button v-if="query" type="button" :aria-label="tr('清除搜索', 'Clear search')" @click="query = ''"><X :size="15" /></button></div>
         <nav class="settings-categories" :aria-label="tr('设置分类', 'Settings categories')">
           <div v-for="category in categories" :key="category.id" class="settings-category">
-            <button type="button" class="settings-category-button" :data-settings-owner="category.id" :class="{ active: tab === category.id }" :aria-expanded="tab === category.id && !searching" :aria-controls="`settings-contents-${category.id}`" @click="tab = category.id; query = ''"><component :is="category.icon" :size="17" /><span>{{ category.label }}</span><ChevronDown :size="14" /></button>
-            <div v-show="tab === category.id && !searching" :id="`settings-contents-${category.id}`" class="settings-subitems" />
+            <button type="button" class="settings-category-button" :data-settings-owner="category.id" :class="{ active: tab === category.id }" :aria-expanded="tab === category.id && expanded && !searching" :aria-controls="`settings-contents-${category.id}`" @click="selectCategory(category.id)"><component :is="category.icon" :size="17" /><span>{{ category.label }}</span><ChevronDown :size="14" /></button>
+            <div v-show="tab === category.id && expanded && !searching" :id="`settings-contents-${category.id}`" class="settings-subitems" />
           </div>
         </nav>
       </aside>
