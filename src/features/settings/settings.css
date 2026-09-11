@@ -36,12 +36,12 @@
 .settings-page input:focus-visible, .settings-page select:focus-visible, .cfg-editor-window input:focus-visible, .cfg-editor-window select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .cfg-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 36px; margin-bottom: 16px; }
 .cfg-group-hint { padding-bottom: 12px; }
-.cfg-hint { color: var(--fg-subtle); font-size: 12px; line-height: 1.85; margin: 6px 0 0; overflow-wrap: anywhere; }
+.cfg-hint { color: var(--fg-subtle); font-size: 13px; line-height: 1.7; margin: 6px 0 0; overflow-wrap: anywhere; }
 .cfg-layout { min-width: 0; }
 .cfg-sections { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 8px; }
 .cfg-sections button { text-align: left; padding: 7px 10px 7px 35px; border: 0; border-radius: 6px; background: transparent; color: var(--fg-subtle); font: inherit; font-size: 13px; cursor: pointer; transition: color var(--dur-fast), background var(--dur-fast); }
 .cfg-sections button:hover { color: var(--fg); background: var(--bg-hover); }
-.cfg-sections button.active { color: var(--accent); background: var(--accent-soft); font-weight: 500; }
+.cfg-sections button.active { color: var(--fg); background: var(--bg-active); font-weight: 500; }
 .cfg-content { min-width: 0; }
 .cfg-content fieldset, .cfg-editor-window fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .cfg-field { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr); align-items: center; gap: 20px; padding: 14px 0; }

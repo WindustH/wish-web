@@ -1,0 +1,11 @@
+{
+  "version": "7.9",
+  "url": "https://github.com/subframe7536/maple-font/releases/download/v7.9/MapleMono-NF-CN-unhinted.zip",
+  "archive_sha256": "ab88522932cf4015dffeaef6dedc59a22a5fefecdcc6e583d9fcd997da5b7cac",
+  "weights": [
+    400,
+    600
+  ],
+  "shards": 278,
+  "license": "OFL-1.1"
+}

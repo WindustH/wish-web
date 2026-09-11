@@ -7,6 +7,7 @@ export function announce(text: string) {
     ariaLive: 'polite', role: 'status',
   });
   region.style.position = 'absolute';
+  region.style.top = '0'; region.style.left = '0';
   region.style.width = '1px'; region.style.height = '1px';
   region.style.overflow = 'hidden'; region.style.clip = 'rect(0 0 0 0)';
   if (!region.isConnected) document.body.append(region);

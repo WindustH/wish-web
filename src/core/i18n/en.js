@@ -1,6 +1,6 @@
 // English dictionary (en).
 export const en = {
-  'chat.runFailed': 'Could not complete the reply',
+  'chat.runFailed': 'Response failed',
   'picker.switching': 'Switching…',
   'picker.current': 'Current setting',
   'reasoning.search': 'Search reasoning effort or enter a custom value…',

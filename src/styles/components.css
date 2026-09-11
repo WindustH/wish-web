@@ -61,13 +61,13 @@
 .toast-enter-active, .toast-leave-active { transition: opacity var(--dur-fast), transform var(--dur-fast); }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(6px); }
 /* Text is the primary surface. Long prose, code and tables have distinct rhythms. */
-.markdown { line-height: 1.95; overflow-wrap: anywhere; line-break: strict; }
+.markdown { font-family: var(--prose); line-height: 1.8; overflow-wrap: anywhere; line-break: strict; }
 .markdown > :first-child { margin-top: 0; }
 .markdown p { margin: 0 0 1em; }
 .markdown > :last-child { margin-bottom: 0; }
-.markdown h1, .markdown h2, .markdown h3, .markdown h4 { margin: 1.8em 0 .7em; font-weight: 600; line-height: 1.5; text-wrap: pretty; letter-spacing: -.015em; }
-.markdown h1 { font: 600 1.65em/1.5 var(--display); }
-.markdown h2 { font: 600 1.35em/1.55 var(--display); }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4 { margin: 1.5em 0 .6em; font-weight: 600; line-height: 1.5; text-wrap: pretty; letter-spacing: -.015em; }
+.markdown h1 { font: 600 1.5em/1.4 var(--display); }
+.markdown h2 { font: 600 1.25em/1.45 var(--display); }
 .markdown h3 { font-size: 1.1em; }
 .markdown strong { font-weight: 600; }
 .markdown ul, .markdown ol { margin: 0 0 1em; padding-left: 1.5em; }
@@ -75,12 +75,12 @@
 .markdown li::marker { color: var(--fg-subtle); font-variant-numeric: tabular-nums; }
 .markdown a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .2em; }
 .markdown code { font: .85em var(--mono); background: var(--bg-sunken); border: 1px solid var(--line); border-radius: 4px; padding: .12em .3em; }
-.markdown pre { margin: 0 0 1.4em; background: var(--bg-sunken); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; overflow-x: auto; line-height: 1.8; }
+.markdown pre { margin: 0 0 1.4em; background: var(--bg-sunken); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; overflow-x: auto; line-height: 1.7; }
 .markdown pre code { background: none; border: 0; padding: 0; font-size: 13px; line-height: inherit; }
 .markdown blockquote { margin: 1.4em 0; padding: .2em 0 .2em 1.2em; border-left: 2px solid var(--accent); color: var(--fg-muted); }
 .markdown blockquote > :last-child { margin-bottom: 0; }
 .markdown hr { border: 0; border-top: 1px solid var(--line-strong); margin: 2em 0; }
-.markdown table { display: block; width: max-content; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 1.5em 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.markdown table { display: block; width: max-content; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 1.5em 0; font: 400 13px/1.65 var(--font); font-variant-numeric: tabular-nums; }
 .markdown th, .markdown td { border: 0; border-bottom: 1px solid var(--line); padding: 10px 14px; text-align: left; }
 .markdown th { border-top: 1px solid var(--line-strong); border-bottom-color: var(--line-strong); background: var(--bg-sunken); font-weight: 600; }
 .markdown img { max-width: 100%; height: auto; border-radius: var(--radius); }

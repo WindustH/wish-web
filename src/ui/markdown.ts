@@ -1,7 +1,15 @@
 import MarkdownIt from 'markdown-it';
 import DOMPurify from 'dompurify';
+import { tex } from '@mdit/plugin-tex';
+import temml from 'temml';
 
 const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true, typographer: true });
+markdown.use(tex, {
+  render: (content, displayMode) => temml.renderToString(content, {
+    displayMode, annotate: true, trust: false, throwOnError: false,
+  }),
+  delimiters: 'all',
+});
 markdown.renderer.rules.link_open = (tokens, index, options, _env, renderer) => {
   tokens[index].attrSet('target', '_blank');
   tokens[index].attrSet('rel', 'noopener noreferrer');
@@ -14,5 +22,5 @@ markdown.renderer.rules.fence = (tokens, index, options, env, renderer) => {
 };
 
 export function renderMarkdown(text: string, copyLabel: string): string {
-  return DOMPurify.sanitize(markdown.render(text, { copyLabel }), { ADD_ATTR: ['target'] });
+  return DOMPurify.sanitize(markdown.render(text, { copyLabel }), { ADD_ATTR: ['target'], ADD_TAGS: ['annotation', 'semantics'] });
 }

@@ -95,8 +95,8 @@ export const cfg = Object.freeze({
   design: {                           // → CSS custom properties (ui/applyTokens)
     radius: '8px',
     fontStack:
-      "'Noto Sans SC Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif",
-    monoFontStack: "'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace",
+      "'Inter Variable', 'Sarasa Gothic SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif",
+    monoFontStack: "'Maple Mono NF CN', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace",
     maxContentWidth: '46rem',         // chat column readability cap
     iconSize: 18,                     // default icon px
     sidebarWidth: 56,                 // desktop vertical bar px
