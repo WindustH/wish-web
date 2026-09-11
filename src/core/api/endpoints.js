@@ -81,6 +81,10 @@ export const uploadSessionBlob = (sid, bytes, opts) =>
   api('POST', `/sessions/${sid}/blobs`, {
     body: bytes, raw: true, headers: { 'content-type': 'application/octet-stream' }, ...opts,
   });
+export const uploadSessionImage = (sid, bytes, opts) =>
+  api('POST', `/sessions/${sid}/blobs/images`, {
+    body: bytes, raw: true, headers: { 'content-type': 'application/octet-stream' }, ...opts,
+  });
 // Contract: per-session model capabilities (same resolution as sending).
 export const sessionCapabilities = (id, opts) => get(`/sessions/${id}/capabilities`, opts);
 

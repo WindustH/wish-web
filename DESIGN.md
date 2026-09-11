@@ -231,7 +231,9 @@ reads and sends. A failed send retains its draft and files, and a late picker
 result cannot attach files to a different session.
 
 New and existing chats share `core/attachments` and the session blob upload API.
-The server determines image/file kind from bytes. Original filenames belong to
+Separate image and file buttons record explicit per-attachment kind. File mode
+never upgrades image bytes to native vision. Clipboard images use image mode;
+image uploads use the image-only API, file uploads use the generic blob API. Original filenames belong to
 message blocks, never content-addressed storage; clipboard images omit synthesized
 names. File cards expose the original name, size and download. Image captions
 retain known filenames. Ordinary files reach models as filename/path notices;

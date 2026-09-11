@@ -15,10 +15,11 @@ export const browserFs = {
 
   // Metadata is returned before reading bytes so the composer can reject a
   // large file before allocating its buffer. Cancelling does not leave a picker.
-  pickFiles({ multiple = false } = {}) {
+  pickFiles({ multiple = false, accept = '' } = {}) {
     return new Promise(resolve => {
       const input = document.createElement('input');
       input.type = 'file';
+      input.accept = accept;
       input.hidden = true;
       input.multiple = multiple;
       const finish = files => { input.remove(); resolve(files); };
