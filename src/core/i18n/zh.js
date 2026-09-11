@@ -210,7 +210,7 @@ export const zh = {
   'settings.sendOnEnter': 'Enter 发送(Ctrl+Enter 换行)',
   'settings.sendOnEnterOff': 'Ctrl+Enter 发送(Enter 换行)',
   'settings.keepAwake': '运行期间保持屏幕常亮',
-  'settings.appShell': '应用壳',
+  'settings.appShell': '应用 Shell',
   'settings.pwaInstall': '安装为应用',
   'settings.installed': '已安装',
   'settings.daemonConfig': '守护配置(只读)',
