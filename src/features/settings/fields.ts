@@ -10,7 +10,7 @@ export const tr = (zh: string, en: string) => i18n.locale.value === 'zh' ? zh : 
 const labels: Record<string, string> = {
   data_dir: '数据目录', wishd: 'Wish 会话服务', providerd: '模型提供服务',
   agent: '运行与工具调用', retry: '重试策略', queue: '消息队列', stateless: '独立上下文查询',
-  compaction: '上下文压缩', shell: '终端执行', images: '图片上传', attachments: '文件附件', image_jobs: '图片生成',
+  compaction: '上下文压缩', shell: 'Shell 执行', images: '图片上传', attachments: '文件附件', image_jobs: '图片生成',
   context_json: '上下文导入与导出', context_measurement: '上下文用量测量', context_read: '上下文读取',
   account_observation: '账户用量查询', storage: '存储', leases: '会话写入租约', events: '事件推送',
   streaming: '流式回复', status: '状态查询', diagnostics: '诊断信息', idempotency: '请求去重', logging: '日志',
@@ -36,7 +36,7 @@ const labels: Record<string, string> = {
   repartition_parts: '重新分段的片段数量', min_summary_bytes: '摘要大小下限', max_summary_bytes: '摘要大小上限',
   summary_max_output_tokens: '摘要输出 Token 上限', boundary_excerpt_chars: '片段边界摘录字数',
   image_estimated_tokens: '单张图片预估 Token', fallback_bytes_per_token: '每个 Token 预估字节数',
-  command: '终端命令', kind: '终端类型', program: '可执行文件', args: '固定启动参数',
+  command: 'Shell 命令', kind: 'Shell 类型', program: '可执行文件', args: '固定启动参数',
   default_soft_timeout_s: '默认执行等待时间', kill_grace_ms: '终止前等待时间', interrupt_kill_grace_ms: '中断后强制终止等待',
   inline_output_bytes: '直接显示的输出大小', poll_default_bytes: '默认读取输出大小', poll_max_bytes: '单次读取输出大小上限',
   poll_max_wait_ms: '读取输出等待上限', reconcile_interval_s: '执行状态检查间隔',

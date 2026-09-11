@@ -36,3 +36,6 @@
   as spaces; wire values remain unchanged.
 
 - Keep `workspace` as an untranslated product term in UI labels and explanations.
+
+- Keep `Shell` untranslated in UI labels and explanations. Do not call a shell
+  “终端”: that term means terminal. Preserve literal tool IDs and executable names.
