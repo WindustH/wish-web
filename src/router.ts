@@ -1,5 +1,17 @@
 // Hash routing (works from any static host, no server rewrites).
 import { createRouter, createWebHashHistory } from 'vue-router';
+import { readonly, shallowRef } from 'vue';
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    section?: 'sessions' | 'stats' | 'settings';
+  }
+}
+
+// Navigation remembers the last successful location, including an explicit
+// return to the mobile list. The URL remains the current view's authority.
+const lastSessionLocation = shallowRef('/sessions');
+export const sessionLocation = readonly(lastSessionLocation);
 
 export const router = createRouter({
   history: createWebHashHistory(),
@@ -8,6 +20,7 @@ export const router = createRouter({
       // The list stays mounted on desktop while the right side routes
       // between (empty) and chat; chat stays mounted across its child tabs.
       path: '/',
+      meta: { section: 'sessions' },
       component: () => import('./features/sessions/SessionsView.vue'),
       children: [
         { path: '', redirect: '/sessions' },
@@ -24,10 +37,14 @@ export const router = createRouter({
         },
       ],
     },
-    { path: '/stats', name: 'stats', component: () => import('./features/stats/StatsView.vue') },
+    { path: '/stats', name: 'stats', meta: { section: 'stats' }, component: () => import('./features/stats/StatsView.vue') },
     // Root-owned settings screen (config editor round).
-    { path: '/settings', name: 'settings', component: () => import('./features/settings/SettingsView.vue') },
+    { path: '/settings', name: 'settings', meta: { section: 'settings' }, component: () => import('./features/settings/SettingsView.vue') },
     { path: '/selftest', name: 'selftest', component: () => import('./features/selftest/SelftestView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/sessions' },
   ],
+});
+
+router.afterEach((to, _from, failure) => {
+  if (!failure && to.meta.section === 'sessions') lastSessionLocation.value = to.fullPath;
 });

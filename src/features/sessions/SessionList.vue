@@ -2,11 +2,10 @@
 // Session list with client query (server filter), tag chip, virtualized
 // rows (TanStack) and endless next-page loading — data unbounded, DOM bounded.
 import { computed, ref, watch, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { cfg } from '../../core/config.js';
 import { sessions } from '../../core/state/sessionsSlice.js';
-import { chat } from '../../core/state/chatSlice.js';
 import { i18n } from '../../core/i18n/index.js';
 import { relTime } from '../../core/util/fmt.js';
 import Icon from '../../ui/components/Icon.vue';
@@ -14,12 +13,13 @@ import Spinner from '../../ui/components/Spinner.vue';
 import { openNewSession } from './newSessionBus.js';
 
 const router = useRouter();
+const route = useRoute();
 const query = ref(sessions.query.value);
 const composing = ref(false);
 const listEl = ref<HTMLElement | null>(null);
 
 const rows = computed(() => sessions.items.value);
-const activeId = computed(() => chat.sessionId.value);
+const activeId = computed(() => route.params.id);
 
 // The state slice owns the search debounce; a second UI timer doubles latency.
 watch(query, (q) => { if (!composing.value) sessions.setQuery(q); });

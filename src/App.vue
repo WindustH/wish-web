@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMedia } from './ui/composables/useMedia.js';
 import Icon from './ui/components/Icon.vue';
@@ -8,6 +8,7 @@ import NewSessionModal from './features/sessions/NewSessionModal.vue';
 import { i18n } from './core/i18n/index.js';
 import { sync } from './core/state/syncSlice.js';
 import { needRefresh, refreshApp } from './ui/pwa.js';
+import { sessionLocation } from './router.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -20,22 +21,22 @@ const nav = [
   { id: 'settings', icon: 'settings', path: '/settings', label: () => i18n.t('nav.settings'), bottom: true },
 ];
 const top = nav.filter((n) => !n.bottom);
-const isActive = (p: string) => route.path === p || route.path.startsWith(p + '/');
-const go = (p: string) => router.push(p);
+const isActive = (section: string) => route.meta.section === section;
+const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? sessionLocation.value : item.path);
 </script>
 
 <template>
   <div class="shell" :class="isMobile ? 'mobile' : 'desktop'">
     <nav class="vbar" :aria-label="i18n.t('app.name')">
-      <RouterLink to="/sessions" class="brand-mark" aria-label="Wish">w<span>.</span></RouterLink>
-      <button v-for="item in top" :key="item.id" class="nav-btn" :class="{ active: isActive(item.path) }"
-        :aria-current="isActive(item.path) ? 'page' : undefined" :title="item.label()" :aria-label="item.label()" @click="go(item.path)">
+      <RouterLink :to="sessionLocation" class="brand-mark" aria-label="Wish">w<span>.</span></RouterLink>
+      <button v-for="item in top" :key="item.id" class="nav-btn" :class="{ active: isActive(item.id) }"
+        :aria-current="isActive(item.id) ? 'page' : undefined" :title="item.label()" :aria-label="item.label()" @click="go(item)">
         <Icon :name="item.icon" /><span class="nav-label">{{ item.label() }}</span>
       </button>
       <div class="spacer" />
       <button v-for="item in nav.filter((n) => n.bottom)" :key="item.id" class="nav-btn"
-        :class="{ active: isActive(item.path) }" :aria-current="isActive(item.path) ? 'page' : undefined" :title="item.label()" :aria-label="item.label()"
-        @click="go(item.path)">
+        :class="{ active: isActive(item.id) }" :aria-current="isActive(item.id) ? 'page' : undefined" :title="item.label()" :aria-label="item.label()"
+        @click="go(item)">
         <Icon :name="item.icon" /><span class="nav-label">{{ item.label() }}</span>
       </button>
     </nav>
@@ -46,8 +47,8 @@ const go = (p: string) => router.push(p);
       </div>
     </div>
     <nav class="bbar" :aria-label="i18n.t('app.name')">
-      <button v-for="item in nav" :key="item.id" class="nav-btn" :class="{ active: isActive(item.path) }"
-        :aria-label="item.label()" @click="go(item.path)">
+      <button v-for="item in nav" :key="item.id" class="nav-btn" :class="{ active: isActive(item.id) }"
+        :aria-current="isActive(item.id) ? 'page' : undefined" :aria-label="item.label()" @click="go(item)">
         <Icon :name="item.icon" /><span class="nav-label">{{ item.label() }}</span>
       </button>
     </nav>
