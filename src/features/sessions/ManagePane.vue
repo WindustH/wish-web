@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Manage sheet: tags (metadata JSON — other keys ride along untouched),
+// Session management window: tags (metadata JSON — other keys ride along untouched),
 // rename, prune dialog (frozen cutoff), danger actions with centered
 // confirm modals (busy locks all dismiss paths; failures keep the modal).
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -8,8 +8,6 @@ import * as api from '../../core/api/endpoints.js';
 import { chat } from '../../core/state/chatSlice.js';
 import { sessions } from '../../core/state/sessionsSlice.js';
 import { i18n } from '../../core/i18n/index.js';
-import { fmtDateTime } from '../../core/util/fmt.js';
-import Sheet from '../../ui/components/Sheet.vue';
 import Modal from '../../ui/components/Modal.vue';
 import PruneDialog from './PruneDialog.vue';
 import { useMedia } from '../../ui/composables/useMedia.js';
@@ -139,7 +137,7 @@ watch(() => chat.sessionId.value, () => {
 </script>
 
 <template>
-  <Sheet :open="true" :title="i18n.t('manage.title')" :mobile="isMobile" @close="$emit('close')">
+  <Modal :open="true" content-class="session-window" :dismissable="!busy && !confirming && !pruneOpen" :title="i18n.t('manage.title')" :page="isMobile" @close="$emit('close')">
     <div v-if="err?.code === 'state_conflict'" class="warn-note" role="alert">{{ i18n.t('manage.busy') }}</div>
     <div v-else-if="err" class="load-error" role="alert">
       <span>{{ String(err?.detail || err?.message || err) }}</span>
@@ -196,7 +194,7 @@ watch(() => chat.sessionId.value, () => {
     </Modal>
 
     <PruneDialog :open="pruneOpen" :session-id="chat.sessionId.value!" @close="pruneOpen = false" @done="() => refresh()" />
-  </Sheet>
+  </Modal>
 </template>
 
 <style scoped>

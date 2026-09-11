@@ -107,7 +107,6 @@ export const cfg = Object.freeze({
     sessionListWidthMax: 520,
     sessionRowHeight: 40,
     sessionRowGap: 4,
-    drawerWidth: 420,
     topbarHeight: 56,
     bottombarHeight: 56,
     space: { xs: 4, s: 8, m: 12, l: 16, xl: 24, xxl: 32 },

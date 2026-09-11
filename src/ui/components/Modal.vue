@@ -11,7 +11,7 @@ import { useDialogFocus } from '../composables/useDialogFocus';
 const focus = useDialogFocus();
 const pageActive = usePageActivity();
 
-withDefaults(defineProps<{ open: boolean; title: string; wide?: boolean; dismissable?: boolean }>(), { dismissable: true });
+withDefaults(defineProps<{ open: boolean; title: string; wide?: boolean; page?: boolean; contentClass?: string; dismissable?: boolean }>(), { dismissable: true });
 const emit = defineEmits<{ close: [] }>();
 </script>
 
@@ -19,15 +19,17 @@ const emit = defineEmits<{ close: [] }>();
   <DialogRoot :open="open" @update:open="(v: boolean) => { if (v === false && dismissable !== false) emit('close'); }">
     <DialogPortal v-if="pageActive">
       <DialogOverlay class="modal-overlay" />
-      <DialogContent @open-auto-focus="focus.opened" @close-auto-focus="focus.closed" class="modal-card" :class="{ wide }" :aria-describedby="undefined"
+      <DialogContent @open-auto-focus="focus.opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page }, contentClass]" :aria-describedby="undefined"
         @escape-key-down="(e: KeyboardEvent) => { if (dismissable === false) e.preventDefault(); }"
         @interact-outside="(e: Event) => { if (dismissable === false) e.preventDefault(); }"
         @pointer-down-outside="(e: Event) => { if (dismissable === false) e.preventDefault(); }">
         <div class="modal-head">
+          <button v-if="page" type="button" class="btn ghost icon-only" :disabled="dismissable === false"
+            :aria-label="i18n.t('chatbar.back')" @click="dismissable !== false && emit('close')"><Icon name="arrow-left" /></button>
           <DialogTitle class="modal-title">{{ title }}</DialogTitle>
           <div class="modal-head-actions">
             <slot name="actions" />
-            <button type="button" class="btn ghost icon-only" :disabled="dismissable === false" :aria-label="i18n.t('common.close')"
+            <button v-if="!page" type="button" class="btn ghost icon-only" :disabled="dismissable === false" :aria-label="i18n.t('common.close')"
               @click="dismissable !== false && emit('close')">
               <Icon name="x" />
             </button>

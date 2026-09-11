@@ -57,9 +57,11 @@ Prefer compact control spacing while retaining readable text and mobile touch ta
 - Mobile starts with one line, grows to its content limit, then scrolls internally.
 - Jump to latest is a 44px arrow button at the conversation viewport’s lower right,
   above the composer, with a translated accessible name and hover tooltip.
-- Desktop sheets cover the conversation below its toolbar. Toolbar actions remain
-  reachable for switching/toggling; chat width, scroll and draft do not change.
-  Mobile sheets fill the screen and provide a single back action.
+- Session information, history search and management reuse the centered Modal
+  shell on desktop, with a scrim and focus trap. Mobile uses its full-page variant
+  with a back action. Child routes preserve chat DOM, reading position and draft.
+  Information contains session details/instructions and usage, not recent runs
+  or model capabilities. Nested confirmations close before their parent window.
 - Confirmations use centered Reka dialogs. Their real opener is remembered for
   keyboard focus restoration. Initial-focus fields opt in through `data-initial-focus`.
 - Session search is debounced **once**, in the state slice; query text survives

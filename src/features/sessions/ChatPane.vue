@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import Hint from '../../ui/components/Hint.vue';
 // Chat surface: top bar (desktop three actions / mobile back+menu), log,
-// composer, and the right-side tabs (info/search/manage) rendered as Sheet
-// overlays through CHILD routes — switching them never rebuilds this pane.
+// composer, and child-route dialogs (mobile subpages). Opening session
+// actions never rebuilds the conversation.
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMedia } from '../../ui/composables/useMedia.js';
@@ -39,7 +39,7 @@ const goTab = (t: string) => tab.value === t ? closeTab() : router.push({ name: 
 </script>
 
 <template>
-  <div class="chat-pane" :class="{ 'has-drawer': !!tab }">
+  <div class="chat-pane">
     <div class="chatbar">
       <button v-if="isMobile" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')"
         @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
