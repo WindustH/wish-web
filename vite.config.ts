@@ -12,7 +12,7 @@ export default defineConfig({
       'font-face': (rule) => {
         rule.walkDecls('font-family', (family) => {
           const name = family.value.replace(/["']/g, '');
-          const scale = name === 'Sarasa Gothic SC' ? '94%'
+          const scale = name === 'Sarasa Gothic SC' ? '95%'
             : name === 'Noto Serif SC Variable' ? '96%' : undefined;
           if (scale) rule.append({ prop: 'size-adjust', value: scale });
         });
@@ -34,7 +34,7 @@ export default defineConfig({
         // Fontsource splits CJK by unicode range. Cache only requested shards;
         // precaching the complete font families would download unused glyphs.
         runtimeCaching: [{
-          urlPattern: /\/assets\/(?:noto-|sarasa-|maple-|STIXTwoMath-|inter-|bitter-).*\.woff2$/,
+          urlPattern: /\/assets\/(?:noto-|sarasa-|maple-|STIXTwoMath-|montserrat-|bitter-).*\.woff2$/,
           handler: 'CacheFirst',
           options: { cacheName: 'wish-fonts', expiration: { maxEntries: 180, maxAgeSeconds: 31536000 } },
         }],

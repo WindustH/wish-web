@@ -48,9 +48,11 @@
 .modal-card.wide { width: min(94vw, 58rem); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; border-bottom: 1px solid var(--line); flex: none; }
 .modal-head h2, .modal-title { font: 600 16px/1.5 var(--font); margin: 0; }
-.modal-body { padding: 24px 28px; overflow: auto; flex: 1; line-height: 1.85; }
-.modal-body > p:first-child { margin-top: 0; }
-.modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 18px 28px; border-top: 1px solid var(--line); flex: none; }
+.modal-body { padding: 20px; overflow: auto; flex: 1; line-height: 1.6; }
+.modal-body > :first-child { margin-top: 0; }
+.modal-body > :last-child { margin-bottom: 0; }
+.modal-body .field:last-child { margin-bottom: 0; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--line); flex: none; }
 .detail-pre { font: 12px/1.85 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 60vh; overflow: auto; }
 .menu-pop { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px; min-width: 180px; box-shadow: var(--shadow-pop); z-index: 70; animation: menu-in var(--dur-fast) var(--ease-out); }
 .menu-item { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 0; background: none; color: var(--fg); border-radius: 4px; cursor: pointer; }
@@ -65,7 +67,7 @@
 .markdown > :first-child { margin-top: 0; }
 .markdown p { margin: 0 0 1em; }
 .markdown > :last-child { margin-bottom: 0; }
-.markdown h1, .markdown h2, .markdown h3, .markdown h4 { margin: 1.5em 0 .6em; font-weight: 600; line-height: 1.5; text-wrap: pretty; letter-spacing: 0; }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4, .markdown h5, .markdown h6 { font-family: var(--display); margin: 1.5em 0 .6em; font-weight: 600; line-height: 1.5; text-wrap: pretty; letter-spacing: 0; }
 .markdown h1 { font: 600 1.5em/1.4 var(--display); }
 .markdown h2 { font: 600 1.25em/1.45 var(--display); }
 .markdown h3 { font-size: 1.1em; }
@@ -94,7 +96,7 @@
 .attach-thumb { animation: menu-in var(--dur) ease-out; }
 @media (max-width: 899px) {
   .btn.icon-only { width: 40px; height: 40px; }
-  .modal-head { padding: 12px 16px; } .modal-body { padding: 20px; } .modal-foot { padding: 16px 20px; }
+  .modal-head { padding: 12px 16px; } .modal-body { padding: 20px; } .modal-foot { padding: 12px 20px; }
   .modal-head h2 { font-size: 16px; }
   .menu-item { min-height: 44px; }
   .pwa-update { flex-wrap: wrap; }

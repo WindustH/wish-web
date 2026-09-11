@@ -11,7 +11,7 @@ import SessionListRow from './SessionListRow.vue';
 import SessionListAction from './SessionListAction.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Spinner from '../../ui/components/Spinner.vue';
-import { openNewSession } from './newSessionBus.js';
+import { openNewSession } from './newSession.js';
 
 const route = useRoute();
 const query = ref(sessions.query.value);

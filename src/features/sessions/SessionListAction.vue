@@ -69,7 +69,7 @@ async function save() {
       <template v-else>
         <p v-if="loading" role="status">{{ i18n.t('sessions.loading') }}</p>
         <div v-else-if="snapshot" class="sl-tag-editor">
-          <span v-for="tag in tags" :key="tag" class="tag-chip">{{ tag }}<button type="button" :disabled="busy" :aria-label="`${i18n.t('common.remove')} ${tag}`" @click="tags = tags.filter(t => t !== tag)"><Icon name="x" /></button></span>
+          <div v-if="tags.length" class="sl-tag-chips"><span v-for="tag in tags" :key="tag" class="tag-chip">{{ tag }}<button type="button" :disabled="busy" :aria-label="`${i18n.t('common.remove')} ${tag}`" @click="tags = tags.filter(t => t !== tag)"><Icon name="x" /></button></span></div>
           <input v-model="tagInput" class="input" :disabled="busy || tags.length >= 16" :placeholder="i18n.t('manage.tagPlaceholder')" :aria-label="i18n.t('manage.tags')" @keydown.enter="event => { if (!event.isComposing) { event.preventDefault(); addTag(); } }" />
           <span class="hint">{{ i18n.t('manage.tagsHint') }} · {{ draftTags.length }} / 16</span>
         </div>
@@ -85,8 +85,10 @@ async function save() {
 </template>
 
 <style scoped>
-.sl-action-name { margin-top: 0; color: var(--fg-subtle); overflow-wrap: anywhere; }
-.sl-tag-editor { display: flex; flex-wrap: wrap; gap: 6px; }
+.sl-action-name { margin: 0 0 16px; color: var(--fg-subtle); overflow-wrap: anywhere; }
+.sl-tag-editor { display: flex; flex-direction: column; gap: 10px; }
+.sl-tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.sl-tag-editor .hint { font-size: 12px; line-height: 1.5; }
 .sl-tag-editor .tag-chip { max-width: 100%; overflow-wrap: anywhere; }
 .sl-tag-editor .input { width: 100%; }
 </style>

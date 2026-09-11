@@ -56,6 +56,7 @@ export const zh = {
   'phase.queued': '排队',
   'phase.compacting': '压缩中',
   'phase.unknown': '未知',
+  'new.retryMessage': '消息尚未发送。重试会使用已创建的会话。',
   'new.title': '新建会话',
   'new.name': '名称',
   'new.namePlaceholder': '可选,默认自动生成',

@@ -6,11 +6,11 @@ as a large title or add taglines: the navigation already identifies the page.
 
 ## Type and reading
 
-- Inter Variable: Latin interface labels; Sarasa Gothic SC: Chinese labels and user messages; weights 400–600.
-- Bitter Variable with Noto Serif SC: Latin/Chinese assistant prose and headings, with real italic; weights 400–600.
+- Montserrat Variable: Latin interface and conversation text; Sarasa Gothic SC: Chinese labels and user messages; weights 400–600.
+- Bitter Variable with Noto Serif SC: Latin/Chinese Markdown headings, with real italic; weights 400–600.
 - Noto Serif SC Variable: conversation headings and the Wish wordmark;
   weights 500–600. Do not apply a display face to form inputs or technical data.
-- Desktop response text: 17px, line-height 1.8. Mobile response text: 16px.
+- User and assistant body text: 16px, line-height 1.8 on desktop and mobile.
   Mobile form controls and the composer use 16px.
 - The **actual virtual-list container** is `.chatlog-inner`, capped by
   `--max-content` (46rem). Constrain it, never the scroll viewport: the scrollbar
@@ -186,8 +186,26 @@ updates preserve extension metadata and use revision checks. Deletion always
 requires confirmation; removing another row keeps the current conversation.
 
 CJK face metrics are balanced at build time through Vite's PostCSS pipeline:
-Sarasa 94%, Noto Serif SC 96%; Latin/Maple/STIX metrics remain original. UI text
+Sarasa 95%, Noto Serif SC 96%; Latin/Maple/STIX metrics remain original. UI text
 uses slight 0.01em tracking; CJK headings avoid negative tracking. Native
 text-autospace adds Chinese–Latin/numeric boundary spacing without modifying
 text or clipboard content. Code/math use normal tracking and no automatic
 spacing. Inline code uses the accent color; fenced code keeps the body color.
+
+
+## Starting a conversation
+
+The unselected desktop pane and `/new` share a centered composer with only the
+existing image, model and reasoning controls. Mobile `/sessions` remains the
+list, and New opens `/new`. The first send creates a session; entering the page
+or choosing a model never does. An upload/message failure preserves its draft,
+attachments and created ID for retry. Successful sends open the conversation
+only if the starting page is still visible. Its cached draft survives page and
+session navigation. There is no separate creation dialog.
+
+Both user messages and assistant body text use Montserrat/Sarasa at 16px.
+Bitter/Noto Serif are reserved for Markdown headings and the 19px, semibold
+conversation title (17px on mobile). The model and effort controls share a hover
+background, but only the active control receives the accent foreground.
+Dialogs use 20px body padding and 12px footer padding; tags have their own
+wrapping group, separated from the input by 14px.

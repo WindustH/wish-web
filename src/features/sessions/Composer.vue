@@ -19,18 +19,18 @@ import { useComposerHeight } from './useComposerHeight.js';
 interface ImageData { name: string; mime: string; bytes: ArrayBuffer }
 interface Img extends ImageData { localUrl: string }
 
-const props = defineProps<{ sessionId: string; mobile: boolean; onSearch: () => void }>();
+const props = defineProps<{ sessionId: string; mobile: boolean; onSearch?: () => void;
+  start?: boolean; disabled?: boolean; sendMessage?: (text: string, images: ImageData[]) => Promise<string> }>();
+const submitting = ref(false);
 
-const stream = ref(chat.stream.value);
-const sending = ref(chat.sending.value);
-const caps = ref(chat.capabilities.value);
-watch(chat.stream, (v) => { stream.value = v; });
-watch(chat.sending, (v) => { sending.value = v; });
-watch(chat.capabilities, (v) => { caps.value = v; });
+const stream = computed(() => props.start ? null : chat.stream.value);
+const sending = computed(() => submitting.value || (!props.start && chat.sending.value));
+const caps = computed(() => props.start ? null : chat.capabilities.value);
 const sendOnEnter = computed(() => prefs.sendOnEnter.value);
 
 const composerEl = ref<HTMLElement | null>(null);
 const ta = ref<HTMLTextAreaElement | null>(null);
+defineExpose({ focus: () => ta.value?.focus() });
 const sizing = useComposerHeight(composerEl);
 const height = computed(() => sizing.height());
 const attachmentStrip = ref<HTMLElement | null>(null);
@@ -53,7 +53,7 @@ sidRef.value = props.sessionId;
 
 const running = computed(() => stream.value?.active);
 const busy = computed(() => running.value || sending.value);
-const canSend = computed(() => (text.value.trim().length > 0 || images.value.length > 0) && !busy.value && !readingImages.value);
+const canSend = computed(() => (text.value.trim().length > 0 || images.value.length > 0) && !busy.value && !readingImages.value && !props.disabled);
 
 const capsFailed = computed(() => caps.value?.status === 'error');
 const capsData = computed(() => caps.value?.status === 'ok' ? caps.value.data : null);
@@ -154,8 +154,9 @@ async function submit() {
   if (!canSend.value) return;
   const owner = props.sessionId;
   const payload = text.value, imgs = images.value;
+  submitting.value = true;
   try {
-    const receipt = await chat.send(payload, imgs);
+    const receipt = await (props.sendMessage ? props.sendMessage(payload, imgs) : chat.send(payload, imgs));
     if (!receipt) return;   // stale: never accepted — everything survives
     if (sidRef.value !== owner) { chat.setDraft('', owner); revokeAll(imgs); return; }
     if (text.value === payload) { text.value = ''; chat.setDraft('', owner); }
@@ -163,7 +164,7 @@ async function submit() {
     revokeAll(imgs);
   } catch (e: any) {
     if (sidRef.value === owner) toast(String(e?.detail || e?.message || e));
-  }
+  } finally { submitting.value = false; }
 }
 
 async function onStop() {
@@ -214,17 +215,18 @@ function resizeKeys(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div ref="composerEl" class="composer" :class="mobile ? 'mobile' : 'desktop'"
-    :style="mobile ? undefined : { height: `${Math.min(sizing.max(), height + attachmentHeight)}px` }">
-    <div v-if="!mobile" class="composer-resize" role="separator" tabindex="0" aria-orientation="horizontal"
+  <div ref="composerEl" class="composer" :class="[mobile ? 'mobile' : 'desktop', { 'composer-start': start }]"
+    :style="mobile || start ? undefined : { height: `${Math.min(sizing.max(), height + attachmentHeight)}px` }">
+    <div v-if="!mobile && !start" class="composer-resize" role="separator" tabindex="0" aria-orientation="horizontal"
       :aria-label="i18n.t('composer.resize')" :aria-valuemin="sizing.min()" :aria-valuemax="sizing.max()"
       :aria-valuenow="height" :title="i18n.t('composer.resize')"
       @pointerdown="startComposerDrag" @keydown="resizeKeys" />
     <div v-if="!mobile" class="composer-toolbar">
       <button class="btn ghost icon-only" :title="i18n.t('chat.image')" :aria-label="i18n.t('chat.image')"
         @click="attach"><Icon name="image" /></button>
+      <slot name="selection" />
       <div class="grow" />
-      <button class="btn ghost icon-only" :title="i18n.t('chatbar.search')" :aria-label="i18n.t('chatbar.search')"
+      <button v-if="onSearch" class="btn ghost icon-only" :title="i18n.t('chatbar.search')" :aria-label="i18n.t('chatbar.search')"
         @click="onSearch"><Icon name="history" /></button>
     </div>
     <div v-if="images.length > 0" ref="attachmentStrip" class="attachment-preview">
@@ -241,6 +243,7 @@ function resizeKeys(e: KeyboardEvent) {
       <span>{{ i18n.t('chat.capError') }}</span>
       <button class="btn ghost sm" @click="() => chat.reloadCapabilities()">{{ i18n.t('common.retry') }}</button>
     </div>
+    <div v-if="mobile && start" class="composer-start-selection"><slot name="selection" /></div>
     <div class="composer-editor">
       <button v-if="mobile" class="btn ghost icon-only" :title="i18n.t('chat.image')"
         :aria-label="i18n.t('chat.image')" @click="attach"><Icon name="image" /></button>

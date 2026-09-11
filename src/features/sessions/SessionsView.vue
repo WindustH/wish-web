@@ -29,8 +29,10 @@ onMounted(applySavedListWidth);
         :aria-label="i18n.t('app.name')" title="↔" @pointerdown="onListResizePointerDown" />
       <SessionListToggle />
     </div>
-    <div v-if="!isMobile || !showList" class="content-pane">
-      <RouterView />
+    <div v-show="!isMobile || !showList" class="content-pane">
+      <RouterView v-slot="{ Component }">
+        <KeepAlive include="StartChat"><component :is="Component" /></KeepAlive>
+      </RouterView>
     </div>
   </div>
 </template>
