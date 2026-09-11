@@ -434,8 +434,12 @@ export const chat = (() => {
       // and every attachment. Blob upload is per-session by design.
       const blocks = [];
       const uploaded = [];
-      for (const img of images.slice(0, cfg.composer.maxImages)) {
-        if (img.bytes?.byteLength > cfg.composer.maxImageBytes) {
+      const limits = capabilities.value?.status === 'ok' ? capabilities.value.data.images : null;
+      if (images.length > (limits?.max_images_per_message ?? cfg.composer.maxImages)) {
+        throw Object.assign(new Error('too many images'), { code: 'too_many_images' });
+      }
+      for (const img of images) {
+        if (img.bytes?.byteLength > (limits?.max_image_bytes ?? cfg.composer.maxImageBytes)) {
           throw Object.assign(new Error('image exceeds size limit'), { code: 'image_too_large' });
         }
         const blob = await api.uploadSessionImage(id, img.bytes, img.mime, { signal: sig });

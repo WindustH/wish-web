@@ -128,3 +128,11 @@ interactive. Search focus uses an inset border so the sidebar cannot clip it.
 Session model options show an image icon plus 视觉 / Vision only when their
 resolved input_modalities explicitly include image. Unknown and text-only models
 have no badge; image generation alone does not establish native vision.
+
+The session composer accepts image files from native paste events, including LAN
+HTTP, without requiring Clipboard API permissions. Text pasting retains native
+selection and undo behavior. Pasted images use the existing attachment validation,
+previews and session-scoped upload path; stale file reads are discarded after
+navigation (including A→B→A) or unmount. Sending waits for pending image reads.
+Attachment selection and sending use the session capability limits; the sender
+never silently truncates accepted images to a separate client-side count.

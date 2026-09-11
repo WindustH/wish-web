@@ -72,6 +72,8 @@ export const en = {
   'chat.send': 'Send',
   'chat.stop': 'Stop',
   'chat.image': 'Image',
+  'chat.imageLimit': 'You can attach up to {count} images',
+  'chat.imageReadFailed': 'Could not read image',
   'chat.imageTooLarge': 'Image exceeds size limit',
   'chat.imageUploading': 'Uploading image…',
   'chat.imageUnsupported': 'This model does not accept image input',

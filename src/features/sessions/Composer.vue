@@ -16,7 +16,8 @@ import { toast } from '../../ui/toast.js';
 import Icon from '../../ui/components/Icon.vue';
 import { useComposerHeight } from './useComposerHeight.js';
 
-interface Img { name: string; mime: string; bytes: ArrayBuffer; localUrl: string }
+interface ImageData { name: string; mime: string; bytes: ArrayBuffer }
+interface Img extends ImageData { localUrl: string }
 
 const props = defineProps<{ sessionId: string; mobile: boolean; onSearch: () => void }>();
 
@@ -35,12 +36,14 @@ const height = computed(() => sizing.height());
 
 const text = ref(chat.getDraft(props.sessionId));
 const images = ref<Img[]>([]);
+const readingImages = ref(0);
+let attachmentEpoch = 0;
 const sidRef = ref(props.sessionId);
 sidRef.value = props.sessionId;
 
 const running = computed(() => stream.value?.active);
 const busy = computed(() => running.value || sending.value);
-const canSend = computed(() => (text.value.trim().length > 0 || images.value.length > 0) && !busy.value);
+const canSend = computed(() => (text.value.trim().length > 0 || images.value.length > 0) && !busy.value && !readingImages.value);
 
 const capsFailed = computed(() => caps.value?.status === 'error');
 const capsData = computed(() => caps.value?.status === 'ok' ? caps.value.data : null);
@@ -62,13 +65,15 @@ function setTextOwned(v: string) {
 }
 
 watch(() => props.sessionId, (id) => {
+  attachmentEpoch++;
+  readingImages.value = 0;
   sidRef.value = id;   // ownership FIRST: drafts/attachments must never leak across sessions (audit A1)
   const prev = images.value;
   images.value = [];
   revokeAll(prev);
   text.value = chat.getDraft(id);
-});
-onBeforeUnmount(() => revokeAll(images.value));
+}, { flush: 'sync' });
+onBeforeUnmount(() => { attachmentEpoch++; revokeAll(images.value); });
 
 watch([text, () => props.mobile], async () => {
   await nextTick();
@@ -85,19 +90,52 @@ watch([text, () => props.mobile], async () => {
   el.style.overflowY = el.scrollHeight > maxPx ? 'auto' : 'hidden';
 });
 
+function imageAccepted(mime: string, size: number) {
+  if (!imageAllowed.value) { toast(i18n.t('chat.imageUnsupported')); return false; }
+  if (allowedMimes.value && !allowedMimes.value.includes(mime)) { toast(i18n.t('chat.imageMime')); return false; }
+  if (size > maxImageBytes.value) { toast(i18n.t('chat.imageTooLarge')); return false; }
+  if (images.value.length >= maxImages.value) { toast(i18n.t('chat.imageLimit', { count: maxImages.value })); return false; }
+  return true;
+}
+function addImage(image: ImageData) {
+  if (!imageAccepted(image.mime, image.bytes.byteLength)) return;
+  images.value = [...images.value, { ...image, localUrl: URL.createObjectURL(new Blob([image.bytes], { type: image.mime })) }];
+}
 async function attach() {
   if (!imageAllowed.value) { toast(i18n.t('chat.imageUnsupported')); return; }
-  const owner = props.sessionId;
-  const picked = await platform('fs').pickImages({ multiple: true });
-  if (sidRef.value !== owner) return;
-  const next = [...images.value];
-  for (const p of picked) {
-    if (allowedMimes.value && !allowedMimes.value.includes(p.mime)) { toast(i18n.t('chat.imageMime')); continue; }
-    if (p.bytes.byteLength > maxImageBytes.value) { toast(i18n.t('chat.imageTooLarge')); continue; }
-    if (next.length >= maxImages.value) break;
-    next.push({ ...p, localUrl: URL.createObjectURL(new Blob([p.bytes], { type: p.mime })) });
+  const epoch = attachmentEpoch;
+  try {
+    const picked = await platform('fs').pickImages({ multiple: true });
+    if (epoch !== attachmentEpoch) return;
+    for (const image of picked) addImage(image);
+  } catch (error) {
+    if (epoch === attachmentEpoch) toast(i18n.t('chat.imageReadFailed') + ': ' + String(error));
   }
-  images.value = next;
+}
+function onPaste(event: ClipboardEvent) {
+  const files = Array.from(event.clipboardData?.files ?? []).filter(file => file.type.startsWith('image/'));
+  if (!files.length) return;
+  // Preserve native text insertion (selection, undo, IME) for mixed clipboards.
+  // Clipboard events also work over LAN HTTP; no clipboard-read permission is needed.
+  if (!event.clipboardData?.getData('text/plain')) event.preventDefault();
+  void pasteImages(files);
+}
+async function pasteImages(files: File[]) {
+  const epoch = attachmentEpoch;
+  readingImages.value++;
+  try {
+    for (const file of files) {
+      if (epoch !== attachmentEpoch) return;
+      if (!imageAccepted(file.type, file.size)) continue;
+      const bytes = await file.arrayBuffer();
+      if (epoch !== attachmentEpoch) return;
+      addImage({ name: file.name, mime: file.type, bytes });
+    }
+  } catch (error) {
+    if (epoch === attachmentEpoch) toast(i18n.t('chat.imageReadFailed') + ': ' + String(error));
+  } finally {
+    if (epoch === attachmentEpoch) readingImages.value--;
+  }
 }
 
 function removeImage(i: number) {
@@ -202,7 +240,7 @@ function resizeKeys(e: KeyboardEvent) {
       <textarea ref="ta" :rows="cfg.composer.mobileMinRows"
         :placeholder="running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')"
         :aria-label="i18n.t('chat.placeholder')" v-model="text"
-        @input="setTextOwned(($event.target as HTMLTextAreaElement).value)" @keydown="onKeydown" />
+        @input="setTextOwned(($event.target as HTMLTextAreaElement).value)" @keydown="onKeydown" @paste="onPaste" />
       <button v-if="mobile" class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
         :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')" :title="i18n.t(running ? 'chat.stop' : 'chat.send')"
         @click="running ? onStop() : submit()">

@@ -72,6 +72,8 @@ export const zh = {
   'chat.send': '发送',
   'chat.stop': '停止',
   'chat.image': '图片',
+  'chat.imageLimit': '最多可添加 {count} 张图片',
+  'chat.imageReadFailed': '读取图片失败',
   'chat.imageTooLarge': '图片超过大小限制',
   'chat.imageUploading': '上传图片…',
   'chat.imageUnsupported': '该模型不支持图片输入',
