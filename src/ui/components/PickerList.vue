@@ -35,6 +35,7 @@ const textContent = (key: string) => rows.value.get(key)!.title;
             <div class="picker-row">
               <ProviderIcon v-if="!rows.get(option)!.group && icons !== false" :brand="rows.get(option)!.brand" />
               <div class="picker-label"><span>{{ rows.get(option)!.title }}</span><small v-if="rows.get(option)!.description">{{ rows.get(option)!.description }}</small></div>
+              <slot name="suffix" :item-key="option" />
               <ListboxItemIndicator class="picker-check"><Check :size="16" /></ListboxItemIndicator>
             </div>
           </ListboxItem>

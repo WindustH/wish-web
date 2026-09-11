@@ -124,3 +124,7 @@ preflights through the owning daemon; restart-only edits require a dialog before
 any write, with save-and-restart, save-for-later, and cancel choices. No permanent
 save instructions. Remove the decorative composer resize grip; keep the separator
 interactive. Search focus uses an inset border so the sidebar cannot clip it.
+
+Session model options show an image icon plus 视觉 / Vision only when their
+resolved input_modalities explicitly include image. Unknown and text-only models
+have no badge; image generation alone does not establish native vision.

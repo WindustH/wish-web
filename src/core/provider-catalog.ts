@@ -5,6 +5,7 @@ export interface ModelInfo {
   display_name?: string;
   description?: string;
   source?: 'configured' | 'catalog' | 'current';
+  input_modalities?: string[] | null;
   supports_reasoning?: boolean;
   default_reasoning_effort?: string;
   reasoning_efforts?: Record<string, string | number>;

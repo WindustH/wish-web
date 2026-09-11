@@ -6,6 +6,8 @@ export const zh = {
   'reasoning.search': '搜索推理强度或输入自定义值…',
   'reasoning.useCustom': '使用“{value}”',
   'picker.empty': '没有匹配的选项',
+  'model.vision': '视觉',
+  'model.visionHint': '原生视觉：可直接理解图片输入',
   'model.search': '搜索模型或提供商…',
   'model.loading': '正在读取模型目录…',
   'model.noModels': '没有可用模型',

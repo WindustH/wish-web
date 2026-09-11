@@ -6,6 +6,8 @@ export const en = {
   'reasoning.search': 'Search reasoning effort or enter a custom value…',
   'reasoning.useCustom': 'Use “{value}”',
   'picker.empty': 'No matching options',
+  'model.vision': 'Vision',
+  'model.visionHint': 'Native vision: understands image input',
   'model.search': 'Search models or providers…',
   'model.loading': 'Loading model catalogs…',
   'model.noModels': 'No available models',
