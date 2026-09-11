@@ -14,6 +14,8 @@ into `dist/`; the deployed client does not fetch libraries from a CDN.
 | STIX Two Math | 2.13b171 | Local mathematics font | OFL-1.1 |
 | temml | 0.13.5 | TeX to native MathML | MIT |
 | @mdit/plugin-tex | 1.1.1 | Markdown TeX delimiters | MIT |
+| echarts | 6.1.0 | Lazy, modular usage charts and calendar heatmaps | Apache-2.0 |
+| zrender | 6.1.0 | ECharts canvas renderer | BSD-3-Clause |
 | vue | 3.5.42 | Components and reactivity | MIT |
 | vue-router | 4.6.4 | Routing and lazy pages | MIT |
 | reka-ui | 2.10.4 | Accessible interaction primitives | MIT |

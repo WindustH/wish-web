@@ -88,3 +88,9 @@ export const uploadSessionImage = (sid, bytes, opts) =>
 export const sessionCapabilities = (id, opts) => get(`/sessions/${id}/capabilities`, opts);
 
 export const blobUrl = (sha256) => `${getBaseUrl()}/blobs/${sha256}`;
+
+// Bounded server-side usage projections; no transcript/attempt scans in UI.
+export const usageSeries = (sessionId, params, opts) =>
+  get(sessionId ? `/sessions/${sessionId}/metrics/usage/series` : '/metrics/usage/series', { query: params, ...opts });
+export const usageDaily = (sessionId, params, opts) =>
+  get(sessionId ? `/sessions/${sessionId}/metrics/usage/daily` : '/metrics/usage/daily', { query: params, ...opts });
