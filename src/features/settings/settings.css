@@ -135,3 +135,7 @@
 .cfg-window-actions .cfg-hint { margin: 0; }
 .cfg-editor-window .cfg-field:first-child { padding-top: 0; }
 .cfg-nested h4 { margin: 0 0 8px; font-size: 13px; font-weight: 500; }
+
+.cfg-array-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
+.cfg-array-row > .cfg-edit-row { flex: 1; gap: 8px; padding: 0; }
+.cfg-array-row > .cfg-remove { flex: none; margin: 0; }
