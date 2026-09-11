@@ -137,6 +137,8 @@ export const en = {
   'search.searchAll': 'Keep searching older messages',
   'search.jump': 'Jump',
   'manage.title': 'Manage session',
+  'sessions.editTags': 'Edit tags',
+  'sessions.delete': 'Delete',
   'manage.rename': 'Rename',
   'manage.renamePlaceholder': 'New name',
   'manage.apply': 'Apply',

@@ -5,9 +5,12 @@ body {
   font: 400 14px/1.65 var(--font);
   -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; font-optical-sizing: auto;
   overscroll-behavior: none;
+  text-autospace: normal;
+  letter-spacing: .01em;
 }
 #app { height: 100dvh; display: flex; flex-direction: column; }
-button, input, textarea, select { font: inherit; color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; letter-spacing: inherit; }
+pre, code, kbd, samp, math, .detail-pre { text-autospace: no-autospace; letter-spacing: normal; }
 button { -webkit-tap-highlight-color: transparent; }
 input, textarea { accent-color: var(--accent); }
 input::placeholder, textarea::placeholder { color: var(--fg-subtle); opacity: 1; }

@@ -4,13 +4,28 @@
 .sl-head input { background: transparent; border: 0; outline: none; width: 100%; min-width: 0; font-size: 12px; }
 .sl-head:focus-within { border-color: var(--accent); }
 .sl-scroll { flex: 1; overflow-y: auto; min-height: 0; padding: 0 8px; }
-.sl-row { display: flex; align-items: center; gap: 8px; height: var(--h-session-row); padding: 8px 10px; text-align: left; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--fg); cursor: pointer; transition: background var(--dur-fast), border-color var(--dur-fast); }
-.sl-row:hover { background: var(--bg-hover); }
-.sl-row.active { background: var(--bg-active); }
-.sl-main { flex: 1; min-width: 0; }
-.sl-name { display: block; font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sl-row.active .sl-name { color: var(--fg); font-weight: 600; }
-.sl-sub { display: block; margin-top: 2px; font-size: 11px; color: var(--fg-subtle); }
+.sl-item { display: flex; align-items: flex-start; min-height: var(--h-session-row); border-radius: var(--radius); color: var(--fg-muted); transition: background var(--dur-fast); }
+.sl-item:hover, .sl-item:focus-within { background: var(--bg-hover); }
+.sl-item.active { background: var(--bg-active); color: var(--fg); }
+.sl-row { flex: 1; min-width: 0; min-height: var(--h-session-row); display: flex; align-items: flex-start; gap: 10px; padding: 10px 4px 10px 12px; color: inherit; border-radius: inherit; }
+.sl-row:hover { text-decoration: none; color: var(--fg); }
+.sl-main { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; flex: 1; min-width: 0; }
+.sl-name { max-width: 100%; font-size: 13px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-tag { max-width: 100%; padding: 1px 5px; border-radius: 4px; background: var(--bg-hover); color: var(--fg-subtle); font-size: 11px; line-height: 16px; overflow-wrap: anywhere; }
+.sl-item.active .sl-tag, .sl-item:hover .sl-tag { background: var(--bg-sunken); }
+.sl-menu-trigger { flex: none; display: grid; place-items: center; width: 28px; height: 28px; margin: 6px 4px 0 0; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--fg-subtle); cursor: pointer; opacity: 0; transition: opacity var(--dur-fast), background var(--dur-fast); }
+.sl-item:hover .sl-menu-trigger, .sl-item:focus-within .sl-menu-trigger, .sl-menu-trigger[data-state="open"] { opacity: 1; }
+.sl-menu-trigger:hover, .sl-menu-trigger[data-state="open"] { background: var(--bg-raised); color: var(--fg); }
+.sl-menu-trigger .icon { width: 16px; height: 16px; }
+.sl-menu .menu-item { display: flex; align-items: center; gap: 12px; padding: 9px 12px; font-size: 13px; outline: none; }
+.sl-menu .sl-delete { color: var(--err); }
+.sl-menu-separator { height: 1px; background: var(--line); margin: 5px 8px; }
+.sl-status { margin-top: 7px; }
+.sl-status.idle { background: transparent; border: 1px solid var(--fg-faint); }
+@media (hover: none), (pointer: coarse), (max-width: 899px) {
+  .sl-menu-trigger { opacity: 1; width: 36px; height: 36px; margin-top: 2px; }
+  .sl-row { min-height: 44px; }
+}
 .phase-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg-subtle); flex: none; }
 .phase-dot.running { background: var(--accent); } .phase-dot.queued { background: var(--warn); } .phase-dot.compacting { background: var(--ok); }
 .sl-state { padding: 24px 12px; color: var(--fg-subtle); font-size: 13px; display: flex; gap: 8px; align-items: center; justify-content: center; }
@@ -179,7 +194,6 @@ html.resizing-composer, html.resizing-composer * { cursor: row-resize !important
 .load-error { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--err); font-size: 13px; padding: 12px 0; overflow-wrap: anywhere; }
 @media (max-width: 899px) { .proc-head, .fold-chip { min-height: 44px; } }
 
-.sl-name, .sl-sub { display: block; }
 .sheet-body > h4 { font: 600 18px/1.6 var(--font); margin: 32px 0 20px; padding-top: 24px; border-top: 1px solid var(--line); }
 .info-instructions { flex-direction: column; align-items: stretch; gap: 12px; }
 .info-instructions h4 { margin: 0; font-weight: 500; }

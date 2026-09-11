@@ -2,22 +2,23 @@
 // Session list with client query (server filter), tag chip, virtualized
 // rows (TanStack) and endless next-page loading — data unbounded, DOM bounded.
 import { computed, ref, watch, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { cfg } from '../../core/config.js';
 import { sessions } from '../../core/state/sessionsSlice.js';
 import { i18n } from '../../core/i18n/index.js';
-import { relTime } from '../../core/util/fmt.js';
+import SessionListRow from './SessionListRow.vue';
+import SessionListAction from './SessionListAction.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 import { openNewSession } from './newSessionBus.js';
 
-const router = useRouter();
 const route = useRoute();
 const query = ref(sessions.query.value);
 const composing = ref(false);
 const listEl = ref<HTMLElement | null>(null);
 
+const action = ref<{ target: { id: string; name?: string }; kind: 'rename' | 'tags' | 'delete' } | null>(null);
 const rows = computed(() => sessions.items.value);
 const activeId = computed(() => route.params.id);
 
@@ -44,12 +45,6 @@ function onListScroll() {
   if (fromBottom < 400 && sessions.hasMore.value && !sessions.loadingMore.value) sessions.loadMore();
 }
 
-const PHASE_CLASS: Record<string, string> = {
-  idle: '', running: 'running', queued: 'queued', compacting: 'compacting',
-};
-const phaseLabel = (p: string) => i18n.t(`phase.${p}`) ?? p;
-
-function open(id: string) { router.push(`/s/${id}`); }
 onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.loadFirst(); });
 </script>
 
@@ -78,20 +73,14 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
       </div>
       <div v-else-if="!rows.length" class="sl-state hint">{{ i18n.t('sessions.empty') }}</div>
       <div v-else :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }">
-        <button v-for="v in virtualizer.getVirtualItems()" :key="rows[v.index]?.id"
-          class="sl-row" :class="{ active: rows[v.index]?.id === activeId }"
-          :data-testid="`sl-row-${v.index}`" :aria-current="rows[v.index]?.id === activeId ? 'page' : undefined"
-          :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }"
-          @click="rows[v.index] && open(rows[v.index]!.id)">
-          <span class="sl-main">
-            <span class="sl-name">{{ rows[v.index]?.name || rows[v.index]?.id.slice(0, 8) }}</span>
-            <span class="sl-sub">{{ relTime(rows[v.index]?.updated_at_ms, i18n.t) }}</span>
-          </span>
-          <span v-if="rows[v.index]?.phase && rows[v.index]!.phase !== 'idle'"
-            class="phase-dot" :class="PHASE_CLASS[rows[v.index]!.phase] ?? ''"
-            :title="phaseLabel(rows[v.index]!.phase!)" />
-        </button>
+        <div v-for="v in virtualizer.getVirtualItems()" :key="rows[v.index]?.id"
+          :ref="(el) => el && virtualizer.measureElement(el as HTMLElement)" :data-index="v.index"
+          :style="{ position: 'absolute', top: 0, left: 0, width: '100%', paddingBottom: `${cfg.design.sessionRowGap}px`, transform: `translateY(${v.start}px)` }">
+          <SessionListRow :row="rows[v.index]" :index="v.index" :active="rows[v.index]?.id === activeId"
+            @action="kind => action = { target: { id: rows[v.index]!.id, name: rows[v.index]!.name }, kind }" />
+        </div>
       </div>
     </div>
+    <SessionListAction v-if="action" :key="`${action.target.id}:${action.kind}`" :target="action.target" :kind="action.kind" @close="action = null" />
   </div>
 </template>

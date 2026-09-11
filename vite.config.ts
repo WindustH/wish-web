@@ -4,6 +4,21 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   cacheDir: '.cache/vite',
+  // Adjust only the CJK faces, including Fontsource's generated shards.
+  // Latin, monospace and math retain their own metrics.
+  css: { postcss: { plugins: [{
+    postcssPlugin: 'wish-cjk-metrics',
+    AtRule: {
+      'font-face': (rule) => {
+        rule.walkDecls('font-family', (family) => {
+          const name = family.value.replace(/["']/g, '');
+          const scale = name === 'Sarasa Gothic SC' ? '94%'
+            : name === 'Noto Serif SC Variable' ? '96%' : undefined;
+          if (scale) rule.append({ prop: 'size-adjust', value: scale });
+        });
+      },
+    },
+  }] } },
   plugins: [
     vue(),
     VitePWA({
