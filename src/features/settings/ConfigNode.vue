@@ -120,7 +120,7 @@ function itemTitle(item: Json, index: number) {
   <div v-if="Array.isArray(value)" class="cfg-array" :data-config-path="pointer(path)">
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <p v-if="!value.length" class="cfg-hint">{{ tr('尚未添加项目。', 'No items yet.') }}</p>
-    <div v-for="(item, index) in value" :key="index" class="cfg-array-item" :class="{ 'cfg-array-row': isObject(item) }">
+    <div v-for="(item, index) in value" :key="index" class="cfg-array-item" :class="{ 'cfg-array-row': isObject(item), 'cfg-array-scalar': item === null || typeof item !== 'object' }">
       <ConfigLink v-if="isObject(item)" :path="[...path, String(index)]" :title="itemTitle(item, index)" :brand="itemBrand(item)" />
       <ConfigNode v-else :value="item" :path="[...path, String(index)]" :title="`${name} ${index + 1}`" :editor="editor" :catalog="catalog" />
       <button type="button" class="btn ghost cfg-remove" :aria-label="`${tr('删除', 'Remove')} ${itemTitle(item, index)}`" @click="editor.remove([...path, String(index)])"><Trash2 :size="16" />{{ tr('删除', 'Remove') }}</button>
@@ -155,7 +155,7 @@ function itemTitle(item: Json, index: number) {
       <p v-if="addError" class="cfg-error" role="alert">{{ addError }}</p>
     </div>
   </div>
-  <div v-else class="cfg-field" :data-config-path="pointer(path)">
+  <div v-else class="cfg-field" :class="{ 'cfg-field-compact': arrayItem }" :data-config-path="pointer(path)">
     <div class="cfg-field-label">
       <label :for="pointer(path)">{{ name }}<span v-if="required !== undefined" class="cfg-requirement">{{ required ? tr('必填', 'Required') : tr('可选', 'Optional') }}</span></label>
       <small v-if="unit(key)">{{ unit(key) }}</small>
