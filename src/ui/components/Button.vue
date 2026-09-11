@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import Hint from './Hint.vue';
+defineOptions({ inheritAttrs: false });
 defineProps<{ variant?: 'primary' | 'ghost'; disabled?: boolean; title?: string }>();
 </script>
 
 <template>
-  <button class="btn" :class="variant" :disabled="disabled" :title="title">
+  <Hint :text="title"><button v-bind="$attrs" class="btn" :class="variant" :disabled="disabled">
     <slot />
-  </button>
+  </button></Hint>
 </template>

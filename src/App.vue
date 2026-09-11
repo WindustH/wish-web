@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import Hint from './ui/components/Hint.vue';
 import { computed } from 'vue';
+import { TooltipProvider } from 'reka-ui';
 import { useRoute, useRouter } from 'vue-router';
 import { useMedia } from './ui/composables/useMedia.js';
 import Icon from './ui/components/Icon.vue';
@@ -26,19 +28,20 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
 </script>
 
 <template>
+  <TooltipProvider :delay-duration="450" :skip-delay-duration="150">
   <div class="shell" :class="isMobile ? 'mobile' : 'desktop'">
     <nav class="vbar" :aria-label="i18n.t('app.name')">
       <RouterLink :to="sessionLocation" class="brand-mark" aria-label="Wish">w<span>.</span></RouterLink>
-      <button v-for="item in top" :key="item.id" class="nav-btn" :class="{ active: isActive(item.id) }"
-        :aria-current="isActive(item.id) ? 'page' : undefined" :title="item.label()" :aria-label="item.label()" @click="go(item)">
+      <Hint :text="item.label()" v-for="item in top" :key="item.id"><button class="nav-btn" :class="{ active: isActive(item.id) }"
+        :aria-current="isActive(item.id) ? 'page' : undefined" :aria-label="item.label()" @click="go(item)">
         <Icon :name="item.icon" />
-      </button>
+      </button></Hint>
       <div class="spacer" />
-      <button v-for="item in nav.filter((n) => n.bottom)" :key="item.id" class="nav-btn"
-        :class="{ active: isActive(item.id) }" :aria-current="isActive(item.id) ? 'page' : undefined" :title="item.label()" :aria-label="item.label()"
+      <Hint :text="item.label()" v-for="item in nav.filter((n) => n.bottom)" :key="item.id"><button class="nav-btn"
+        :class="{ active: isActive(item.id) }" :aria-current="isActive(item.id) ? 'page' : undefined" :aria-label="item.label()"
         @click="go(item)">
         <Icon :name="item.icon" />
-      </button>
+      </button></Hint>
     </nav>
     <div class="main">
       <div class="main-col">
@@ -51,10 +54,10 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
       </div>
     </div>
     <nav class="bbar" :aria-label="i18n.t('app.name')">
-      <button v-for="item in nav" :key="item.id" class="nav-btn" :class="{ active: isActive(item.id) }"
-        :aria-current="isActive(item.id) ? 'page' : undefined" :title="item.label()" :aria-label="item.label()" @click="go(item)">
+      <Hint :text="item.label()" v-for="item in nav" :key="item.id"><button class="nav-btn" :class="{ active: isActive(item.id) }"
+        :aria-current="isActive(item.id) ? 'page' : undefined" :aria-label="item.label()" @click="go(item)">
         <Icon :name="item.icon" />
-      </button>
+      </button></Hint>
     </nav>
     <div v-if="needRefresh" class="pwa-update" role="alert">
       <span>{{ i18n.t('pwa.updateAvailable') }}</span>
@@ -63,4 +66,5 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
     </div>
     <ToastHost />
   </div>
+  </TooltipProvider>
 </template>

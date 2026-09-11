@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from '../../ui/components/Hint.vue';
 import { computed } from 'vue';
 import { ChevronLeft, ChevronRight } from '@lucide/vue';
 import { prefs } from '../../core/state/prefsSlice.js';
@@ -9,9 +10,9 @@ const label = computed(() => i18n.t(sessionListCollapsed.value ? 'sessions.expan
 </script>
 
 <template>
-  <button type="button" class="session-list-toggle" :title="label" :aria-label="label"
+  <Hint :text="label"><button type="button" class="session-list-toggle" :aria-label="label"
     :aria-expanded="!sessionListCollapsed" aria-controls="session-list"
     @click="prefs.setSessionListCollapsed(!sessionListCollapsed)">
     <component :is="sessionListCollapsed ? ChevronRight : ChevronLeft" :size="12" aria-hidden="true" />
-  </button>
+  </button></Hint>
 </template>

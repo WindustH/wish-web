@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from '../../ui/components/Hint.vue';
 import { computed, nextTick, onActivated, onDeactivated, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { sessions } from '../../core/state/sessionsSlice.js';
@@ -71,9 +72,9 @@ async function send(text: string, images: { name: string; mime: string; bytes: A
       <Composer ref="composer" session-id="new-session" :mobile="mobile" start :send-message="send" :disabled="!selection.model || busy">
         <template #selection>
           <div class="start-model-controls model-selection">
-            <button class="model-chip" :aria-expanded="modelOpen" :disabled="busy || !!created" :title="i18n.t('model.title')" @click="modelOpen = true">{{ modelLabel || i18n.t('model.title') }}</button>
+            <Hint :text="i18n.t('model.title')"><button class="model-chip" :aria-expanded="modelOpen" :disabled="busy || !!created" @click="modelOpen = true">{{ modelLabel || i18n.t('model.title') }}</button></Hint>
             <span class="selection-dot" aria-hidden="true">·</span>
-            <button class="reasoning-chip" :aria-expanded="reasoningOpen" :disabled="!selection.model || busy || !!created" :title="i18n.t('reasoning.title')" @click="reasoningOpen = true">{{ (selection.reasoning_effort || 'auto').toUpperCase() }}</button>
+            <Hint :text="i18n.t('reasoning.title')"><button class="reasoning-chip" :aria-expanded="reasoningOpen" :disabled="!selection.model || busy || !!created" @click="reasoningOpen = true">{{ (selection.reasoning_effort || 'auto').toUpperCase() }}</button></Hint>
           </div>
         </template>
       </Composer>

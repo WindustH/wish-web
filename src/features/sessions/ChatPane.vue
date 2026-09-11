@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from '../../ui/components/Hint.vue';
 // Chat surface: top bar (desktop three actions / mobile back+menu), log,
 // composer, and the right-side tabs (info/search/manage) rendered as Sheet
 // overlays through CHILD routes — switching them never rebuilds this pane.
@@ -46,20 +47,20 @@ const goTab = (t: string) => tab.value === t ? closeTab() : router.push({ name: 
         <span class="name">{{ snapshot?.name || id.slice(0, 8) }}</span>
         <span v-if="queue > 0" class="queue-badge">{{ i18n.t('chat.queuedN', { n: queue }) }}</span>
         <span class="model-selection">
-        <button class="model-chip" :aria-expanded="modelOpen" :title="i18n.t('model.chipTitle')" @click="modelOpen = true">
+        <Hint :text="i18n.t('model.chipTitle')"><button class="model-chip" :aria-expanded="modelOpen" @click="modelOpen = true">
           <span>{{ snapshot?.model?.replace(/[-_]/g, ' ').toUpperCase() || '—' }}</span>
-        </button>
+        </button></Hint>
         <span class="selection-dot" aria-hidden="true">·</span>
-        <button class="reasoning-chip" :aria-expanded="reasoningOpen" :title="i18n.t('reasoning.title')" :aria-label="`${i18n.t('reasoning.title')}：${effortLabel(snapshot?.reasoning_effort)}`" @click="reasoningOpen = true"><span>{{ effortLabel(snapshot?.reasoning_effort).toUpperCase() }}</span></button>
+        <Hint :text="i18n.t('reasoning.title')"><button class="reasoning-chip" :aria-expanded="reasoningOpen" :aria-label="`${i18n.t('reasoning.title')}：${effortLabel(snapshot?.reasoning_effort)}`" @click="reasoningOpen = true"><span>{{ effortLabel(snapshot?.reasoning_effort).toUpperCase() }}</span></button></Hint>
         </span>
       </div>
       <template v-if="!isMobile">
-        <button class="btn ghost icon-only" :title="i18n.t('chatbar.info')" :aria-label="i18n.t('chatbar.info')"
-          :class="{ selected: tab === 'info' }" :aria-pressed="tab === 'info'" @click="goTab('info')"><Icon name="info" /></button>
-        <button class="btn ghost icon-only" :title="i18n.t('chatbar.search')" :aria-label="i18n.t('chatbar.search')"
-          :class="{ selected: tab === 'search' }" :aria-pressed="tab === 'search'" @click="goTab('search')"><Icon name="search" /></button>
-        <button class="btn ghost icon-only" :title="i18n.t('chatbar.manage')" :aria-label="i18n.t('chatbar.manage')"
-          :class="{ selected: tab === 'manage' }" :aria-pressed="tab === 'manage'" @click="goTab('manage')"><Icon name="settings-2" /></button>
+        <Hint :text="i18n.t('chatbar.info')"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.info')"
+          :class="{ selected: tab === 'info' }" :aria-pressed="tab === 'info'" @click="goTab('info')"><Icon name="info" /></button></Hint>
+        <Hint :text="i18n.t('chatbar.search')"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.search')"
+          :class="{ selected: tab === 'search' }" :aria-pressed="tab === 'search'" @click="goTab('search')"><Icon name="search" /></button></Hint>
+        <Hint :text="i18n.t('chatbar.manage')"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.manage')"
+          :class="{ selected: tab === 'manage' }" :aria-pressed="tab === 'manage'" @click="goTab('manage')"><Icon name="settings-2" /></button></Hint>
       </template>
       <Menu v-else :items="[
         { key: 'info', label: i18n.t('chatbar.info') },
