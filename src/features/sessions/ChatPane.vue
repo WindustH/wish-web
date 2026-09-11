@@ -46,11 +46,11 @@ const goTab = (t: string) => tab.value === t ? closeTab() : router.push({ name: 
         <span class="name">{{ snapshot?.name || id.slice(0, 8) }}</span>
         <span v-if="queue > 0" class="queue-badge">{{ i18n.t('chat.queuedN', { n: queue }) }}</span>
         <span class="model-selection">
-        <button class="model-chip" :title="i18n.t('model.chipTitle')" @click="modelOpen = true">
+        <button class="model-chip" :aria-expanded="modelOpen" :title="i18n.t('model.chipTitle')" @click="modelOpen = true">
           <span>{{ snapshot?.model?.replace(/[-_]/g, ' ').toUpperCase() || '—' }}</span>
         </button>
         <span class="selection-dot" aria-hidden="true">·</span>
-        <button class="reasoning-chip" :title="i18n.t('reasoning.title')" :aria-label="`${i18n.t('reasoning.title')}：${effortLabel(snapshot?.reasoning_effort)}`" @click="reasoningOpen = true"><span>{{ effortLabel(snapshot?.reasoning_effort).toUpperCase() }}</span></button>
+        <button class="reasoning-chip" :aria-expanded="reasoningOpen" :title="i18n.t('reasoning.title')" :aria-label="`${i18n.t('reasoning.title')}：${effortLabel(snapshot?.reasoning_effort)}`" @click="reasoningOpen = true"><span>{{ effortLabel(snapshot?.reasoning_effort).toUpperCase() }}</span></button>
         </span>
       </div>
       <template v-if="!isMobile">

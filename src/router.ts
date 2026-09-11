@@ -24,7 +24,8 @@ export const router = createRouter({
       component: () => import('./features/sessions/SessionsView.vue'),
       children: [
         { path: '', redirect: '/sessions' },
-        { path: 'sessions', name: 'sessions', component: { render: () => null } },
+        { path: 'sessions', name: 'sessions', component: () => import('./features/sessions/StartChat.vue') },
+        { path: 'new', name: 'new-chat', component: () => import('./features/sessions/StartChat.vue') },
         {
           path: 's/:id',
           component: () => import('./features/sessions/ChatPane.vue'),

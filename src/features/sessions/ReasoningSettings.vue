@@ -3,15 +3,15 @@ import { computed, onScopeDispose, ref, shallowRef, toRef, watch } from 'vue';
 import { i18n } from '../../core/i18n/index.js';
 import { errorText } from '../../core/config-editor';
 import { readModels, readProviders, type ModelInfo } from '../../core/provider-catalog';
-import { useSessionSelection } from './useSessionSelection';
+import { useSessionSelection, type ModelSelection } from './useSessionSelection';
 import { effortLabel } from './reasoningLabels';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
 import PickerList, { type PickerItem } from '../../ui/components/PickerList.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 
-const props = defineProps<{ sessionId: string }>();
-const emit = defineEmits<{ close: [] }>();
-const { snapshot, loading, saving, error, conflict, reload, save } = useSessionSelection(toRef(props, 'sessionId'));
+const props = defineProps<{ sessionId?: string; selection?: ModelSelection }>();
+const emit = defineEmits<{ close: []; select: [value: ModelSelection] }>();
+const { snapshot, loading, saving, error, conflict, reload, save } = useSessionSelection(toRef(props, 'sessionId'), toRef(props, 'selection'), value => emit('select', value));
 const metadata = shallowRef<Omit<ModelInfo, 'id'>>();
 const metadataError = shallowRef<unknown>();
 const metadataBusy = ref(false);
@@ -50,7 +50,7 @@ async function loadMetadata() {
     if (!signal.aborted) metadataBusy.value = false;
   }
 }
-watch(snapshot, () => { resetChoice(); void loadMetadata(); });
+watch(snapshot, () => { resetChoice(); void loadMetadata(); }, { immediate: true });
 onScopeDispose(() => controller.abort());
 const unsupported = computed(() => metadata.value?.supports_reasoning === false);
 interface EffortItem extends PickerItem { effort: string }

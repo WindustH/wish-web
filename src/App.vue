@@ -5,7 +5,6 @@ import { useMedia } from './ui/composables/useMedia.js';
 import Icon from './ui/components/Icon.vue';
 import ToastHost from './ui/components/ToastHost.vue';
 import CachedPage from './ui/components/CachedPage.vue';
-import NewSessionModal from './features/sessions/NewSessionModal.vue';
 import { i18n } from './core/i18n/index.js';
 import { sync } from './core/state/syncSlice.js';
 import { needRefresh, refreshApp } from './ui/pwa.js';
@@ -32,13 +31,13 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
       <RouterLink :to="sessionLocation" class="brand-mark" aria-label="Wish">w<span>.</span></RouterLink>
       <button v-for="item in top" :key="item.id" class="nav-btn" :class="{ active: isActive(item.id) }"
         :aria-current="isActive(item.id) ? 'page' : undefined" :title="item.label()" :aria-label="item.label()" @click="go(item)">
-        <Icon :name="item.icon" /><span class="nav-label">{{ item.label() }}</span>
+        <Icon :name="item.icon" />
       </button>
       <div class="spacer" />
       <button v-for="item in nav.filter((n) => n.bottom)" :key="item.id" class="nav-btn"
         :class="{ active: isActive(item.id) }" :aria-current="isActive(item.id) ? 'page' : undefined" :title="item.label()" :aria-label="item.label()"
         @click="go(item)">
-        <Icon :name="item.icon" /><span class="nav-label">{{ item.label() }}</span>
+        <Icon :name="item.icon" />
       </button>
     </nav>
     <div class="main">
@@ -53,8 +52,8 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
     </div>
     <nav class="bbar" :aria-label="i18n.t('app.name')">
       <button v-for="item in nav" :key="item.id" class="nav-btn" :class="{ active: isActive(item.id) }"
-        :aria-current="isActive(item.id) ? 'page' : undefined" :aria-label="item.label()" @click="go(item)">
-        <Icon :name="item.icon" /><span class="nav-label">{{ item.label() }}</span>
+        :aria-current="isActive(item.id) ? 'page' : undefined" :title="item.label()" :aria-label="item.label()" @click="go(item)">
+        <Icon :name="item.icon" />
       </button>
     </nav>
     <div v-if="needRefresh" class="pwa-update" role="alert">
@@ -62,7 +61,6 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
       <button class="btn" @click="refreshApp()">{{ i18n.t('pwa.reload') }}</button>
       <button class="btn ghost" @click="needRefresh = false">{{ i18n.t('pwa.later') }}</button>
     </div>
-    <NewSessionModal />
     <ToastHost />
   </div>
 </template>

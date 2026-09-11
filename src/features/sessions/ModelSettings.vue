@@ -4,19 +4,19 @@ import { Image } from '@lucide/vue';
 import { i18n } from '../../core/i18n/index.js';
 import { errorText } from '../../core/config-editor';
 import { presetBrand, providerName } from '../../ui/providerPresentation';
-import { useSessionSelection } from './useSessionSelection';
+import { useSessionSelection, type ModelSelection } from './useSessionSelection';
 import { useModelCatalog } from './useModelCatalog';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
 import PickerList from '../../ui/components/PickerList.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 
-const props = defineProps<{ sessionId: string }>();
-const emit = defineEmits<{ close: [] }>();
-const { snapshot, loading, saving, error, conflict, reload, save } = useSessionSelection(toRef(props, 'sessionId'));
+const props = defineProps<{ sessionId?: string; selection?: ModelSelection }>();
+const emit = defineEmits<{ close: []; select: [value: ModelSelection] }>();
+const { snapshot, loading, saving, error, conflict, reload, save } = useSessionSelection(toRef(props, 'sessionId'), toRef(props, 'selection'), value => emit('select', value));
 const catalog = useModelCatalog();
 const selected = ref('');
 const key = (provider: string, model: string) => JSON.stringify([provider, model]);
-watch(snapshot, value => { selected.value = value ? key(value.provider, value.model) : ''; });
+watch(snapshot, value => { selected.value = value ? key(value.provider, value.model) : ''; }, { immediate: true });
 const choices = computed(() => catalog.groups.value.flatMap(group => {
   const { provider } = group;
   const brand = presetBrand(provider.preset);

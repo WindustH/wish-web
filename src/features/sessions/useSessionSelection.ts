@@ -2,11 +2,12 @@ import { computed, onScopeDispose, ref, shallowRef, watch, type Ref } from 'vue'
 import * as api from '../../core/api/endpoints.js';
 import { chat } from '../../core/state/chatSlice.js';
 
-interface SelectionSnapshot { provider: string; model: string; reasoning_effort?: string; revision: number }
+export interface ModelSelection { provider: string; model: string; reasoning_effort?: string }
+interface SelectionSnapshot extends ModelSelection { revision: number }
 
 // Both selectors share the same revision/ownership rules, but save only their
 // own fields. Late responses cannot update another conversation or dialog.
-export function useSessionSelection(sessionId: Ref<string>) {
+export function useSessionSelection(sessionId: Ref<string | undefined>, local?: Ref<ModelSelection | undefined>, select?: (value: ModelSelection) => void) {
   const snapshot = shallowRef<SelectionSnapshot>();
   const loading = ref(false), saving = ref(false);
   const error = shallowRef<unknown>();
@@ -18,6 +19,8 @@ export function useSessionSelection(sessionId: Ref<string>) {
     controller?.abort();
     controller = new AbortController();
     const gen = ++generation, id = sessionId.value;
+    if (local?.value) { snapshot.value = { ...local.value, revision: 0 }; return; }
+    if (!id) throw new Error('Selection requires a session or a draft');
     loading.value = true;
     error.value = undefined;
     snapshot.value = undefined;
@@ -32,7 +35,12 @@ export function useSessionSelection(sessionId: Ref<string>) {
   }
   async function save(body: { provider?: string; model?: string; reasoning_effort?: string }) {
     if (saving.value || !snapshot.value) return false;
-    const gen = generation, id = sessionId.value;
+    if (local?.value && select) {
+      const next = body.model ? { provider: local.value.provider, model: body.model, ...body } : { ...local.value, ...body };
+      select(next);
+      return true;
+    }
+    const gen = generation, id = sessionId.value!;
     saving.value = true;
     error.value = undefined;
     try {
@@ -48,7 +56,7 @@ export function useSessionSelection(sessionId: Ref<string>) {
       if (owns(gen, id)) saving.value = false;
     }
   }
-  watch(sessionId, reload, { immediate: true });
+  watch(() => [sessionId.value, local?.value], reload, { immediate: true });
   onScopeDispose(() => { generation++; controller.abort(); });
   return { snapshot, loading, saving, error, conflict, reload, save };
 }

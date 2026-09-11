@@ -29,8 +29,9 @@
   --shadow-card: none;
   --display: 'Bitter Variable', 'Noto Serif SC Variable', 'Songti SC', 'Noto Serif CJK SC', serif;
   --radius: 8px;
-  --prose: 'Bitter Variable', 'Noto Serif SC Variable', serif;
-  --font: 'Inter Variable', 'Sarasa Gothic SC', system-ui, sans-serif;
+  --prose: var(--font);
+  --font: 'Montserrat Variable', 'Sarasa Gothic SC', system-ui, sans-serif;
+  --message-size: 16px;
   --mono: 'Maple Mono NF CN', ui-monospace, monospace;
   --space-xs: 4px; --space-s: 8px; --space-m: 12px; --space-l: 16px;
   --space-xl: 24px; --space-xxl: 32px;

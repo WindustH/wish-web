@@ -16,7 +16,7 @@ import { installShortcuts } from './ui/shortcuts.js';
 import App from './App.vue';
 import { router } from './router.js';
 
-import '@fontsource-variable/inter';
+import '@fontsource-variable/montserrat';
 import '@fontsource-variable/bitter';
 import '@fontsource-variable/bitter/wght-italic.css';
 import './styles/sarasa.css';
@@ -85,7 +85,7 @@ app.mount('#app');
 
 installShortcuts({
   openNewSession: async () => {
-    const { openNewSession } = await import('./features/sessions/newSessionBus.js');
+    const { openNewSession } = await import('./features/sessions/newSession.js');
     openNewSession();
   },
 });

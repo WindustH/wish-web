@@ -8,8 +8,8 @@ into `dist/`; the deployed client does not fetch libraries from a CDN.
 | --- | --- | --- | --- |
 | Sarasa Gothic SC | 1.0.41 | Local Chinese interface and body font, Regular/SemiBold | OFL-1.1 |
 | @fontsource-variable/noto-serif-sc | 5.3.0 | Local variable display and heading font | OFL-1.1 |
-| @fontsource-variable/inter | 5.3.0 | Local Latin interface font | OFL-1.1 |
-| @fontsource-variable/bitter | 5.3.0 | Local Latin reading font, regular and italic | OFL-1.1 |
+| @fontsource-variable/montserrat | 5.3.0 | Local Latin interface and conversation font | OFL-1.1 |
+| @fontsource-variable/bitter | 5.3.0 | Local Latin heading font, regular and italic | OFL-1.1 |
 | Maple Mono NF CN | 7.9 | Local code, Chinese monospace and Nerd Font glyphs | OFL-1.1 |
 | STIX Two Math | 2.13b171 | Local mathematics font | OFL-1.1 |
 | temml | 0.13.5 | TeX to native MathML | MIT |
@@ -52,7 +52,7 @@ Provider icons import only the required monochrome SVGs. CSS masks inherit the
 interface text color in both themes; no React package or remote image requests
 are needed. The LobeHub MIT notice ships under `public/licenses/` and `dist/licenses/`.
 
-Latin interface text uses [Inter](https://rsms.me/inter/); reading text uses
+Latin interface text uses [Montserrat](https://fonts.google.com/specimen/Montserrat); Markdown headings use
 [Bitter](https://www.huertatipografica.com/en/fonts/bitter-ht). Both are served
 locally as variable WOFF2 fonts with their OFL notices in `public/licenses/`.
 
