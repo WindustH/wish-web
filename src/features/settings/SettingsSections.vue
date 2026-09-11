@@ -16,6 +16,7 @@ const anchorOffset = () => parseFloat(getComputedStyle(viewport).scrollPaddingTo
 
 function updateActive() {
   frame = 0;
+  if (!layout.value!.getClientRects().length) return;
   const sections = [...layout.value!.querySelectorAll<HTMLElement>('.cfg-section')];
   const anchor = viewport.getBoundingClientRect().top + anchorOffset() + 1;
   let current: HTMLElement | undefined = sections[0];
@@ -28,7 +29,7 @@ function updateActive() {
   }
   active.value = current?.id || '';
   // Keep the active bookmark visible without scrolling the form itself.
-  const nav = navigation.value!;
+  const nav = navigation.value!.closest<HTMLElement>('.settings-sidebar')!;
   const button = nav.querySelector<HTMLElement>(`[aria-controls="${active.value}"]`);
   if (button && nav.clientHeight) {
     const bounds = nav.getBoundingClientRect(), item = button.getBoundingClientRect();
@@ -64,12 +65,14 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="layout" class="cfg-layout">
+    <Teleport :to="`#settings-contents-${prefix}`" defer>
     <nav ref="navigation" class="cfg-sections" :aria-label="tr('配置目录', 'Settings contents')">
       <button v-for="item in sections" :key="item.id" type="button"
         :class="{ active: active === sectionId(item.id) }"
         :aria-current="active === sectionId(item.id) ? 'location' : undefined"
         :aria-controls="sectionId(item.id)" @click="jump(item.id)">{{ item.label }}</button>
     </nav>
+    </Teleport>
     <div class="cfg-content">
       <slot name="before" />
       <section v-for="item in sections" :id="sectionId(item.id)" :key="item.id"

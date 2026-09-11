@@ -67,10 +67,12 @@ Prefer compact control spacing while retaining readable text and mobile touch ta
   Ctrl/⌘+Shift+O starts a new session. Modal dialogs own their keyboard input.
 - Forms retain unsaved edits across configuration tabs. Saves and failures remain
   explicit, and discarding edits requires the existing confirmation dialog.
-- All three settings tabs show their sections in one continuous form. Desktop
-  section navigation scrolls to a heading and follows the reading position;
-  mobile hides the section navigation. The three main tabs remain reachable
-  while scrolling. Interface
+- Settings use a single desktop sidebar with Interface / Core / Provider
+  categories and nested section links under the active category. Each category
+  retains a continuous form. Links follow the reading position; mobile hides
+  them and keeps compact category buttons. Global search indexes field labels,
+  paths and explanations across categories, never credential values. Selecting
+  a result reveals and focuses the field without changing configuration. Interface
   preferences apply immediately; backend forms show a save bar only with edits.
   The bar occupies its own layout row outside the page scroll area, above mobile
   navigation. Saving or discarding removes it. It never covers a form field.

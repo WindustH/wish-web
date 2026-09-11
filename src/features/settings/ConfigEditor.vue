@@ -8,7 +8,7 @@ import { label, tr } from './fields';
 import ConfigNode from './ConfigNode.vue';
 import SettingsSections from './SettingsSections.vue';
 
-const props = defineProps<{ owner: ConfigOwner }>();
+const props = defineProps<{ owner: ConfigOwner; active: boolean }>();
 const editor = configEditors[props.owner];
 const { draft, busy, error, dirty, saved, epoch } = editor;
 const confirmAction = ref<'reload' | 'discard'>();
@@ -79,7 +79,7 @@ async function save() {
     </form>
     <Teleport to="#settings-actions" defer>
       <Transition name="cfg-savebar">
-        <div v-if="dirty" class="cfg-savebar" :data-owner="owner">
+        <div v-if="active && dirty" class="cfg-savebar" :data-owner="owner">
           <div class="cfg-savebar-inner">
             <span role="status">{{ tr('有未保存的修改', 'You have unsaved changes') }}</span>
             <div class="cfg-savebar-actions">
