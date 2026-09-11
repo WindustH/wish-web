@@ -222,3 +222,17 @@ wrapping group, separated from the input by 14px.
   for buttons and links.
 - The session list divider and collapse tab share resize colors, including pointer
   capture after the cursor leaves the divider. Restore both when dragging ends.
+
+### Attachments
+
+The composer accepts arbitrary files through the platform file picker. Inspect
+size/count before reading buffers; keep attachment ownership across asynchronous
+reads and sends. A failed send retains its draft and files, and a late picker
+result cannot attach files to a different session.
+
+New and existing chats share `core/attachments` and the session blob upload API.
+The server determines image/file kind from bytes. Original filenames belong to
+message blocks, never content-addressed storage; clipboard images omit synthesized
+names. File cards expose the original name, size and download. Image captions
+retain known filenames. Ordinary files reach models as filename/path notices;
+images retain capability negotiation and their native visual representation.

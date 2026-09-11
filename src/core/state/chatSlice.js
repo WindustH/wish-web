@@ -16,6 +16,7 @@
 //    run stream is settled from durable state, never re-attached blindly;
 //  · denied (401/403) surfaces an error and stops — never retried.
 import { cfg } from '../config.js';
+import { uploadAttachments } from '../attachments.js';
 import { bus } from '../bus.js';
 import { shallowRef, computed } from 'vue';
 import { createSse } from '../api/sse.js';
@@ -422,7 +423,7 @@ export const chat = (() => {
   }
 
   // ── sending & streaming ────────────────────────────────────────────────
-  async function send(text, images = []) {
+  async function send(text, attachments = []) {
     const id = sessionId.value;
     if (!id) throw new Error('no active session');
     if (sending.value) throw new Error('send already in flight');
@@ -432,22 +433,11 @@ export const chat = (() => {
     sending.value = true;
     let optimistic = null;
     try {
-      // Upload images first; failures THROW so the composer keeps the draft
-      // and every attachment. Blob upload is per-session by design.
-      const blocks = [];
-      const uploaded = [];
-      const limits = capabilities.value?.status === 'ok' ? capabilities.value.data.images : null;
-      if (images.length > (limits?.max_images_per_message ?? cfg.composer.maxImages)) {
-        throw Object.assign(new Error('too many images'), { code: 'too_many_images' });
-      }
-      for (const img of images) {
-        if (img.bytes?.byteLength > (limits?.max_image_bytes ?? cfg.composer.maxImageBytes)) {
-          throw Object.assign(new Error('image exceeds size limit'), { code: 'image_too_large' });
-        }
-        const blob = await api.uploadSessionImage(id, img.bytes, img.mime, { signal: sig });
-        uploaded.push({ blobId: blob.id ?? blob.sha256, localUrl: img.localUrl, name: img.name });
-        blocks.push({ type: 'image', blob_id: blob.id ?? blob.sha256 });
-      }
+      // Upload belongs to this session epoch; failure retains the whole draft.
+      const { blocks, uploaded } = await uploadAttachments(id, attachments, {
+        signal: sig,
+        capabilities: capabilities.value?.status === 'ok' ? capabilities.value.data : undefined,
+      });
 
       // A new message belongs at the live tail, even when the reader came
       // here through an old search result. Keep that history range contiguous.
@@ -462,7 +452,7 @@ export const chat = (() => {
         seq: null, kind: 'user_message', deliveryId: null,
         created_at: new Date().toISOString(),
         payload: { role: 'user', content: [{ type: 'text', text }],
-          ...(uploaded.length ? { __images: uploaded } : {}) },
+          ...(uploaded.length ? { __attachments: uploaded } : {}) },
       };
       if (myEpoch !== epoch) return null;
       entries.value = [...entries.value, optimistic];

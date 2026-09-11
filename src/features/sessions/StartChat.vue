@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { uploadAttachments, type AttachmentInput } from '../../core/attachments.js';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, nextTick, onActivated, onDeactivated, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -37,7 +38,7 @@ watch(() => route.name, async name => {
   if (name === 'new-chat' && !mobile.value && visible.value) { await nextTick(); composer.value?.focus(); }
 });
 const modelLabel = computed(() => selection.value.model.replace(/[-_]/g, ' ').toUpperCase());
-async function send(text: string, images: { name: string; mime: string; bytes: ArrayBuffer }[]) {
+async function send(text: string, attachments: AttachmentInput[]) {
   busy.value = true;
   failed.value = false;
   try {
@@ -45,15 +46,12 @@ async function send(text: string, images: { name: string; mime: string; bytes: A
     // create a second session, and its images always belong to this exact ID.
     if (!created.value) {
       const { provider, model, reasoning_effort } = selection.value;
-      const name = [...text.trim().split('\n')[0]].slice(0, 60).join('');
+      const name = [...(text.trim().split('\n')[0] || attachments.find(file => file.name)?.name || '')].slice(0, 60).join('');
       created.value = (await sessions.create({ provider, model, reasoningEffort: reasoning_effort, name })).id;
     }
     const id = created.value!;
-    const blocks = [];
-    for (const image of images) {
-      const blob = await api.uploadSessionImage(id, image.bytes, image.mime);
-      blocks.push({ type: 'image', blob_id: blob.id ?? blob.sha256 });
-    }
+    const capabilities = attachments.length ? await api.sessionCapabilities(id) : undefined;
+    const { blocks } = await uploadAttachments(id, attachments, { capabilities });
     const delivery = await api.messageSend(id, { content: text, ...(blocks.length ? { blocks } : {}) });
     created.value = undefined;
     // Completion can arrive after navigation; do not take over another page.

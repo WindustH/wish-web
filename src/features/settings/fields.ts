@@ -10,7 +10,7 @@ export const tr = (zh: string, en: string) => i18n.locale.value === 'zh' ? zh : 
 const labels: Record<string, string> = {
   data_dir: '数据目录', wishd: 'Wish 会话服务', providerd: '模型提供服务',
   agent: '运行与工具调用', retry: '重试策略', queue: '消息队列', stateless: '独立上下文查询',
-  compaction: '上下文压缩', shell: '终端执行', images: '图片上传', image_jobs: '图片生成',
+  compaction: '上下文压缩', shell: '终端执行', images: '图片上传', attachments: '文件附件', image_jobs: '图片生成',
   context_json: '上下文导入与导出', context_measurement: '上下文用量测量', context_read: '上下文读取',
   account_observation: '账户用量查询', storage: '存储', leases: '会话写入租约', events: '事件推送',
   streaming: '流式回复', status: '状态查询', diagnostics: '诊断信息', idempotency: '请求去重', logging: '日志',
@@ -44,6 +44,7 @@ const labels: Record<string, string> = {
   max_command_bytes: '命令大小上限', max_rendered_bytes: '通知大小上限', limits: '资源限制',
   max_stdin_write_bytes: '单次输入大小上限', stdin_write_timeout_ms: '写入输入超时',
   max_stdin_total_bytes: '单次执行的输入总量上限', max_output_bytes_per_execution: '单次执行的输出总量上限',
+  max_attachment_bytes: '单个附件大小上限', max_attachments_per_message: '每条消息的附件数量上限',
   allowed_mime_types: '允许的图片格式', max_image_bytes: '单张图片大小上限', max_images_per_message: '每条消息的图片数量上限',
   default_kind: '默认图片操作', default_output_images: '默认生成图片数量', max_output_images: '生成图片数量上限',
   max_entries: '条目数量上限', automatic_before_model_call: '每次调用模型前自动测量', near_limit_ratio: '接近容量上限的比例',

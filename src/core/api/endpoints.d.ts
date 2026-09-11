@@ -18,7 +18,7 @@ export declare function providerSummaries(opts?: any): Promise<any>;
 export declare function providerModels(id: string, opts?: any): Promise<any>;
 export declare function streamingGet(opts?: any): Promise<any>;
 export declare function streamingPut(enabled: boolean, opts?: any): Promise<any>;
-export declare function uploadSessionImage(sid: string, bytes: ArrayBuffer | Uint8Array, mime: string, opts?: any): Promise<any>;
+export declare function uploadSessionBlob(sid: string, bytes: ArrayBuffer | Uint8Array, opts?: any): Promise<any>;
 export declare function sessionCapabilities(id: string, opts?: any): Promise<any>;
 
 export declare function messageSend(id: string, body: any, opts?: any): Promise<any>;

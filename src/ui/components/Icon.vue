@@ -2,7 +2,7 @@
 // Lucide icons imported BY NAME (no whole-pack import, no string indexing
 // into the full icon registry — bundle stays minimal).
 import {
-  ArrowLeft, Bot, Brain, ChartColumn, Check, ChevronDown, ChevronLeft,
+  ArrowLeft, Download, Bot, Brain, ChartColumn, Check, ChevronDown, ChevronLeft,
   ChevronRight, ChevronUp, CircleDot, Copy, EllipsisVertical, History,
   Image as ImageIcon, Layers, LoaderCircle, MessageCircle, Monitor, Pencil,
   Plus, RefreshCw, Search, Send, Settings, Settings2, Sparkles, Square,
@@ -12,7 +12,7 @@ import {
 import { computed, type FunctionalComponent } from 'vue';
 
 const ICONS: Record<string, FunctionalComponent> = {
-  'arrow-left': ArrowLeft, bot: Bot, brain: Brain, 'chart-column': ChartColumn,
+  'arrow-left': ArrowLeft, download: Download, bot: Bot, brain: Brain, 'chart-column': ChartColumn,
   check: Check, 'chevron-down': ChevronDown, 'chevron-left': ChevronLeft,
   'chevron-right': ChevronRight, 'chevron-up': ChevronUp, 'circle-dot': CircleDot,
   copy: Copy, 'ellipsis-vertical': EllipsisVertical, history: History,
