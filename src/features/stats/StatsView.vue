@@ -53,7 +53,7 @@ onUnmounted(stats.stopAuto);
           <p v-if="usage.statistics.attempts_without_usage" class="hint">{{ tx(`其中 ${number(usage.statistics.attempts_without_usage)} 次调用未返回用量。`, `${number(usage.statistics.attempts_without_usage)} attempts did not report usage.`) }}</p>
           <h3>{{ i18n.t('stats.byModel') }}</h3>
           <div class="statistics-table-wrap"><table class="table statistics-table">
-            <thead><tr><th>{{ tx('提供方', 'Provider') }}</th><th>{{ tx('模型', 'Model') }}</th><th>{{ i18n.t('stats.tokensIn') }}</th><th>{{ i18n.t('stats.tokensOut') }}</th><th>{{ i18n.t('stats.tokensTotal') }}</th></tr></thead>
+            <thead><tr><th>{{ tx('提供商', 'Provider') }}</th><th>{{ tx('模型', 'Model') }}</th><th>{{ i18n.t('stats.tokensIn') }}</th><th>{{ i18n.t('stats.tokensOut') }}</th><th>{{ i18n.t('stats.tokensTotal') }}</th></tr></thead>
             <tbody><tr v-for="row in rows" :key="JSON.stringify([row.provider, row.model])">
               <td>{{ row.provider ?? tx('未记录', 'Not recorded') }}</td><td>{{ row.model ?? tx('未记录', 'Not recorded') }}</td>
               <td>{{ fmtTokens(row.totals.tokens.input_tokens) }}</td><td>{{ fmtTokens(row.totals.tokens.output_tokens) }}</td><td>{{ fmtTokens(row.totals.tokens.total_tokens) }}</td>

@@ -117,3 +117,10 @@ Preset provider forms read authentication requirements from the backend catalog.
 Show required credentials directly, distinguish optional credentials, and preserve
 masked values on unrelated edits. Hide custom endpoints, unused credentials and
 single-choice protocols. Keep effective overrides under Advanced settings.
+
+Use 提供商 / Provider consistently for provider terminology.
+Keep Token Plan and Coding Plan verbatim in all locales. Configuration save
+preflights through the owning daemon; restart-only edits require a dialog before
+any write, with save-and-restart, save-for-later, and cancel choices. No permanent
+save instructions. Remove the decorative composer resize grip; keep the separator
+interactive. Search focus uses an inset border so the sidebar cannot clip it.

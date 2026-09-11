@@ -110,7 +110,7 @@ function itemTitle(item: Json, index: number) {
       <ConfigNode v-else :value="item" :path="[...path, String(index)]" :title="`${name} ${index + 1}`" :editor="editor" :catalog="catalog" />
       <button type="button" class="btn ghost cfg-remove" :aria-label="`${tr('删除', 'Remove')} ${itemTitle(item, index)}`" @click="editor.remove([...path, String(index)])"><Trash2 :size="16" />{{ tr('删除', 'Remove') }}</button>
     </div>
-    <button v-if="key === 'providers' && path[0] === 'providerd'" type="button" class="btn" @click="addProviderOpen = true"><Plus :size="16" />{{ tr('添加模型提供方', 'Add provider') }}</button>
+    <button v-if="key === 'providers' && path[0] === 'providerd'" type="button" class="btn" @click="addProviderOpen = true"><Plus :size="16" />{{ tr('添加模型提供商', 'Add provider') }}</button>
     <button v-else type="button" class="btn" @click="editor.append(path, newArrayEntry(path))"><Plus :size="16" />{{ tr('添加', 'Add') }}{{ name }}</button>
     <AddProvider v-if="addProviderOpen" :catalog="catalog" @close="addProviderOpen = false" @select="addProvider" />
   </div>

@@ -18,7 +18,7 @@ const labels: Record<string, string> = {
   allow_insecure_remote: '允许未验证的远程连接', provider_client: '模型服务连接',
   base_url: '服务地址', bearer_token: '服务访问令牌', proxy_policy: '代理策略', http: 'HTTP 请求',
   connect_timeout_ms: '连接超时', total_timeout_ms: '请求总超时', stream_read_timeout_ms: '流式读取超时',
-  default_model: '新会话的默认模型', provider: '提供方', model: '模型', reasoning_effort: '推理强度',
+  default_model: '新会话的默认模型', provider: '提供商', model: '模型', reasoning_effort: '推理强度',
   max_json_body_bytes: '请求内容大小上限', max_assistant_message_bytes: '助手消息大小上限',
   unknown_tool_is_fatal: '遇到未知工具时停止运行', tool_execution: '工具执行方式',
   max_attempts: '最多尝试次数', initial_delay_ms: '首次重试等待', max_delay_ms: '重试等待上限',
@@ -59,8 +59,8 @@ const labels: Record<string, string> = {
   session_writer_ttl_ms: '写入租约有效时间', session_writer_heartbeat_ms: '写入租约续期频率', sse_heartbeat_ms: '事件心跳间隔',
   subscriber_buffer_events: '订阅者事件缓冲数量', max_subscribers_per_stream: '每个流的订阅者上限', default_order: '默认排序',
   bundle_enabled: '允许创建诊断包', bundle_retention_s: '诊断包保留时间', bundle_max_bytes: '诊断包大小上限', retention_s: '请求去重记录保留时间', level: '日志级别',
-  proxy: '网络代理', upstream: '上游请求限制', providers: '模型提供方', model_catalog_cache_ttl_s: '模型列表缓存时间',
-  preset: '提供方预设', api_key: 'API 密钥', credentials: '额外凭据', allow_any_model: '允许使用列表以外的模型', model_id_max_bytes: '模型名称长度上限',
+  proxy: '网络代理', upstream: '上游请求限制', providers: '模型提供商', model_catalog_cache_ttl_s: '模型列表缓存时间',
+  preset: '提供商预设', api_key: 'API 密钥', credentials: '额外凭据', allow_any_model: '允许使用列表以外的模型', model_id_max_bytes: '模型名称长度上限',
   models: '模型配置', compat: '协议选项', input_count: '输入 Token 计数', dialect: '协议扩展',
   context_window_tokens: '上下文容量', max_output_tokens: '最大输出 Token', input_modalities: '输入类型', output_modalities: '输出类型',
   capabilities: '模型能力', supports_client_tools: '支持工具调用', supports_reasoning: '支持推理', default_reasoning_effort: '默认推理强度', reasoning_efforts: '推理强度映射',
@@ -70,7 +70,7 @@ const labels: Record<string, string> = {
   model_list: '模型列表接口', image_edit_path: '图片编辑路径', headers: '额外请求头', query: '额外查询参数', codex: 'Codex 连接',
   default_page_size: '默认每页模型数', max_page_size: '每页模型数上限', generic: '模型列表字段映射', items_pointer: '模型数组位置',
   id_pointer: '模型标识字段', display_name_pointer: '显示名称字段', description_pointer: '描述字段', created_at_pointer: '创建时间字段',
-  owned_by_pointer: '所属提供方字段', context_window_pointer: '上下文容量字段', max_output_tokens_pointer: '最大输出字段',
+  owned_by_pointer: '所属提供商字段', context_window_pointer: '上下文容量字段', max_output_tokens_pointer: '最大输出字段',
   input_modalities_pointer: '输入类型字段', output_modalities_pointer: '输出类型字段', capabilities_pointer: '模型能力字段',
   next_cursor_pointer: '下一页游标字段', cursor_query_parameter: '游标请求参数', limit_query_parameter: '每页数量请求参数', strip_id_prefix: '移除的模型名称前缀',
   workspace_id: '工作区 ID', value: '值', region: '地区', access_key_id: '访问密钥 ID', secret_access_key: '访问密钥', session_token: '临时访问令牌', credentials_path: '凭据文件路径',
@@ -162,7 +162,7 @@ const optionLabels: Record<string, string> = {
   aws_sigv4: 'AWS 签名', google_adc: 'Google 凭据', environment: '读取环境变量', manual: '手动设置', disabled: '禁用',
   inherit: '使用默认策略', parallel: '并行执行', serial: '依次执行', generate: '生成图片', edit: '编辑图片',
   auto: '自动选择', forward: '从早到晚', backward: '从晚到早', asc: '从早到晚', desc: '从晚到早',
-  off: '关闭', local: '本地计数', provider_preflight: '向提供方查询', never: '不回传', always: '始终回传', tool_calls_only: '仅工具调用时',
+  off: '关闭', local: '本地计数', provider_preflight: '向提供商查询', never: '不回传', always: '始终回传', tool_calls_only: '仅工具调用时',
 };
 export const optionLabel = (value: string) => i18n.locale.value === 'zh' ? (optionLabels[value] || value) : value;
 

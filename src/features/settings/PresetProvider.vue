@@ -22,7 +22,7 @@ function addAdvanced(field: string) { props.editor.set(fieldPath(field), structu
     <ConfigNode v-if="preset.protocols.length > 1" :value="value.protocol ?? preset.protocols[0]!" :path="fieldPath('protocol')" :editor="editor" :catalog="catalog" />
     <div v-if="preset.api_key_supported || credentialFields.length" class="cfg-preset-auth">
       <h4>{{ tr('身份验证', 'Authentication') }}</h4>
-      <p v-if="!authRequired" class="cfg-hint">{{ tr('启用此提供方前，需要填写必填认证信息。', 'Required credentials must be supplied before enabling this provider.') }}</p>
+      <p v-if="!authRequired" class="cfg-hint">{{ tr('启用此提供商前，需要填写必填认证信息。', 'Required credentials must be supplied before enabling this provider.') }}</p>
       <ConfigNode v-if="preset.api_key_supported" :value="value.api_key ?? ''" :path="fieldPath('api_key')" :required="preset.api_key_required" :required-active="authRequired" :editor="editor" :catalog="catalog" />
       <ConfigNode v-for="field in credentialFields" :key="field" :value="credentials[field] ?? ''" :path="[...path, 'credentials', field]" :required="preset.required_credentials.includes(field)" :required-active="authRequired" :editor="editor" :catalog="catalog" />
     </div>

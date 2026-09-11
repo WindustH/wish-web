@@ -3,15 +3,16 @@ import { computed, onMounted, ref, shallowRef } from 'vue';
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from 'reka-ui';
 import { RefreshCw, Save, RotateCcw, X } from '@lucide/vue';
 import { atPath, configEditors, errorText, isObject, loadConfigCatalog } from '../../core/config-editor';
-import type { ConfigCatalog, ConfigOwner } from '../../core/config-editor';
+import type { ConfigCatalog, ConfigOwner, ConfigPreview } from '../../core/config-editor';
 import { label, tr } from './fields';
 import ConfigNode from './ConfigNode.vue';
 import SettingsSections from './SettingsSections.vue';
 
 const props = defineProps<{ owner: ConfigOwner; active: boolean }>();
 const editor = configEditors[props.owner];
-const { draft, busy, error, dirty, saved, epoch } = editor;
+const { draft, busy, error, dirty, saved, epoch, restartState } = editor;
 const confirmAction = ref<'reload' | 'discard'>();
+const restartReview = ref<ConfigPreview>();
 const form = ref<HTMLFormElement>();
 const catalog = shallowRef<ConfigCatalog>();
 const catalogError = shallowRef<unknown>();
@@ -59,19 +60,27 @@ async function confirm() {
   else editor.discard();
 }
 async function save() {
-  if (form.value?.reportValidity()) await editor.save();
+  if (!form.value?.reportValidity()) return;
+  const preview = await editor.preview();
+  if (!preview) return;
+  if (preview.restart_required.length) restartReview.value = preview;
+  else await editor.save();
+}
+async function confirmSave(restart: boolean) {
+  restartReview.value = undefined;
+  await editor.save(restart);
 }
 </script>
 
 <template>
   <div class="config-editor" :data-owner="owner">
-    <div class="cfg-heading"><p class="cfg-hint">{{ tr('修改后点击保存。需要重启的设置会在保存结果中列出。', 'Save to apply your changes. Settings requiring a restart are listed in the result.') }}</p><button type="button" class="btn" :disabled="busy || catalogBusy" @click="request('reload')"><RefreshCw :size="16" />{{ tr('重新读取', 'Reload') }}</button></div>
+    <div class="cfg-heading cfg-heading-actions"><button type="button" class="btn" :disabled="busy || catalogBusy" @click="request('reload')"><RefreshCw :size="16" />{{ tr('重新读取', 'Reload') }}</button></div>
     <div v-if="error" class="cfg-notice cfg-error" role="alert"><strong>{{ tr('操作未完成', 'Operation did not complete') }}</strong><p>{{ errorText(error) }}</p><p v-if="dirty">{{ tr('你的修改仍然保留。若配置已被其他地方修改，请重新读取后再编辑。', 'Your edits are retained. If the configuration changed elsewhere, reload before editing again.') }}</p><button v-if="!draft" class="btn" :disabled="busy" @click="editor.load">{{ tr('重试', 'Retry') }}</button></div>
-    <div v-if="saved" class="cfg-notice" role="status"><strong>{{ saved.restart_required.length ? tr('配置已保存，部分设置需要重启', 'Saved; some settings require a restart') : tr('配置已保存并应用', 'Configuration saved and applied') }}</strong><ul v-if="saved.restart_required.length"><li v-for="field in saved.restart_required" :key="field">{{ field.split('/').filter(Boolean).map(label).join(' › ') }}</li></ul></div>
+    <div v-if="saved" class="cfg-notice" role="status"><strong>{{ restartState === 'waiting' ? tr('配置已保存，正在重启…', 'Configuration saved. Restarting…') : restartState === 'complete' ? tr('配置已保存并重启', 'Configuration saved and restarted') : restartState === 'failed' ? tr('配置已保存，但未能确认重启完成', 'Configuration saved, but restart could not be confirmed') : saved.restart_required.length ? tr('配置已保存，待重启生效', 'Configuration saved; restart to apply') : tr('配置已保存并应用', 'Configuration saved and applied') }}</strong><p v-if="restartState === 'failed'">{{ tr('若修改了监听地址或认证信息，请更新连接设置后重新连接。', 'If the listen address or authentication changed, update the connection settings and reconnect.') }}</p></div>
     <p v-if="busy && !draft" role="status">{{ tr('正在读取配置…', 'Loading configuration…') }}</p>
     <form v-if="draft" :id="`config-${owner}`" ref="form" @submit.prevent="save" @invalid.capture="revealInvalid">
       <SettingsSections :prefix="owner" :sections="sections">
-        <template #before><div v-if="catalogError" class="cfg-notice cfg-error" role="alert">{{ tr('提供方预设读取失败，已有设置仍可编辑。', 'Provider presets could not be loaded; existing settings remain editable.') }}<p>{{ errorText(catalogError) }}</p><button type="button" class="btn" :disabled="catalogBusy" @click="readCatalog">{{ tr('重试', 'Retry') }}</button></div></template>
+        <template #before><div v-if="catalogError" class="cfg-notice cfg-error" role="alert">{{ tr('提供商预设读取失败，已有设置仍可编辑。', 'Provider presets could not be loaded; existing settings remain editable.') }}<p>{{ errorText(catalogError) }}</p><button type="button" class="btn" :disabled="catalogBusy" @click="readCatalog">{{ tr('重试', 'Retry') }}</button></div></template>
         <template #default="{ section }">
           <fieldset :disabled="busy" :aria-label="label(section)"><ConfigNode :key="`${epoch}-${section}`" :value="atPath(draft, path(section))!" :path="path(section)" :editor="editor" :catalog="catalog" /></fieldset>
         </template>
@@ -90,6 +99,7 @@ async function save() {
         </div>
       </Transition>
     </Teleport>
+    <DialogRoot :open="!!restartReview" @update:open="!$event && (restartReview = undefined)"><DialogPortal><DialogOverlay class="cfg-dialog-overlay" /><DialogContent class="cfg-dialog cfg-restart-dialog"><DialogTitle>{{ tr('这些修改需要重启后生效', 'These changes require a restart') }}</DialogTitle><DialogDescription>{{ tr('配置尚未保存。立即重启会中断此服务正在处理的请求；核心服务的运行中会话会停止，稍后可继续。', 'The configuration has not been saved. Restarting interrupts requests handled by this service; running Core sessions stop and can be continued later.') }}</DialogDescription><ul><li v-for="field in restartReview?.restart_required" :key="field">{{ field.split('/').filter(Boolean).map(label).join(' › ') }}</li></ul><p v-if="restartReview?.restart_required.some(field => field.includes('/listen/') || field.includes('/auth/'))">{{ tr('更改监听地址或认证信息后，可能需要更新连接设置。', 'Changing the listen address or authentication may require updating connection settings.') }}</p><p v-if="!restartReview?.restart_supported">{{ tr('此平台不支持从网页重启，请保存后自行重启。', 'Restarting from the Web is unavailable on this platform. Save and restart manually.') }}</p><div class="cfg-dialog-actions"><button class="btn ghost" @click="restartReview = undefined">{{ tr('取消保存', 'Cancel save') }}</button><button class="btn" @click="confirmSave(false)">{{ tr('保存，稍后重启', 'Save, restart later') }}</button><button class="btn primary" :disabled="!restartReview?.restart_supported" @click="confirmSave(true)">{{ tr('保存并立即重启', 'Save and restart now') }}</button></div></DialogContent></DialogPortal></DialogRoot>
     <DialogRoot :open="!!confirmAction" @update:open="!$event && (confirmAction = undefined)"><DialogPortal><DialogOverlay class="cfg-dialog-overlay" /><DialogContent class="cfg-dialog"><DialogTitle>{{ tr('放弃尚未保存的修改？', 'Discard unsaved changes?') }}</DialogTitle><DialogDescription>{{ confirmAction === 'reload' ? tr('重新读取会用文件中的配置替换当前草稿。', 'Reloading replaces your draft with the configuration on disk.') : tr('所有未保存的修改都会撤销，包括刚输入的密钥。', 'All unsaved changes, including newly entered credentials, will be discarded.') }}</DialogDescription><div class="cfg-dialog-actions"><button class="btn ghost" @click="confirmAction = undefined">{{ tr('继续编辑', 'Keep editing') }}</button><button class="btn danger" @click="confirm">{{ tr('放弃修改', 'Discard changes') }}</button></div><button class="cfg-dialog-close btn ghost" :aria-label="tr('关闭', 'Close')" @click="confirmAction = undefined"><X :size="18" /></button></DialogContent></DialogPortal></DialogRoot>
   </div>
 </template>
