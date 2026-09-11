@@ -8,7 +8,7 @@ const names: Record<string, string> = {
 const regions: Record<string, string> = { global: '全球', cn: '中国大陆', sgp: '新加坡', hk: '香港', us: '美国', de: '德国', jp: '日本', eu: '欧洲', local: '本地', custom: '自选地区' };
 const billing: Record<string, [string, string]> = {
   payg: ['按量付费', 'Pay as you go'], coding_plan: ['Coding Plan', 'Coding Plan'],
-  token_plan: ['Token Plan', 'Token Plan'], payg_workspace: ['工作空间 · 按量付费', 'Workspace · Pay as you go'],
+  token_plan: ['Token Plan', 'Token Plan'], payg_workspace: ['workspace · 按量付费', 'workspace · Pay as you go'],
   subscription: ['订阅', 'Subscription'], local: ['本地运行', 'Local'],
 };
 export const providerName = (name: string) => i18n.locale.value === 'zh' ? names[name] || name : name;

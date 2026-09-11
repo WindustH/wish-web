@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useMedia } from './ui/composables/useMedia.js';
 import Icon from './ui/components/Icon.vue';
 import ToastHost from './ui/components/ToastHost.vue';
+import CachedPage from './ui/components/CachedPage.vue';
 import NewSessionModal from './features/sessions/NewSessionModal.vue';
 import { i18n } from './core/i18n/index.js';
 import { sync } from './core/state/syncSlice.js';
@@ -43,7 +44,11 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
     <div class="main">
       <div class="main-col">
         <div v-if="!online" class="offline-banner" role="status">{{ i18n.t('settings.offline') }}</div>
-        <RouterView />
+        <RouterView v-slot="{ Component, route: pageRoute }">
+          <KeepAlive :max="4">
+            <CachedPage v-if="Component" :key="pageRoute.matched[0].path" :view="Component" :route="pageRoute" />
+          </KeepAlive>
+        </RouterView>
       </div>
     </div>
     <nav class="bbar" :aria-label="i18n.t('app.name')">

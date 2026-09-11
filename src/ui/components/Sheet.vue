@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usePageActivity } from '../composables/usePageActivity';
 // Right-side overlay pane. Desktop: non-modal drawer (chat stays interactive,
 // Esc closes). Mobile: full-page modal sheet (chat goes inert underneath).
 import { DialogRoot, DialogPortal, DialogContent, DialogTitle } from 'reka-ui';
@@ -9,13 +10,14 @@ import { useDialogFocus } from '../composables/useDialogFocus';
 const focus = useDialogFocus();
 
 defineProps<{ open: boolean; title: string; mobile?: boolean }>();
+const pageActive = usePageActivity();
 const emit = defineEmits<{ close: [] }>();
 </script>
 
 <template>
   <DialogRoot :open="open" :modal="mobile === true"
     @update:open="(v: boolean) => { if (v === false) emit('close'); }">
-    <DialogPortal>
+    <DialogPortal v-if="pageActive">
       <DialogContent @interact-outside="focus.outside" @open-auto-focus="focus.opened" @close-auto-focus="focus.closed" class="session-sheet" :class="mobile ? 'sheet-page' : 'drawer'"
         :aria-describedby="undefined">
         <div class="drawer-head">

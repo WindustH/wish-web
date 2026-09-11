@@ -9,6 +9,8 @@ import type { ConfigOwner, Json } from '../../core/config-editor';
 import './settings.css';
 
 const tab = ref('ui');
+const visited = ref(new Set(['ui']));
+const categoryScroll = new Map<string, number>();
 const expanded = ref(true);
 const coreEditor = ref<InstanceType<typeof ConfigEditor>>();
 const providerEditor = ref<InstanceType<typeof ConfigEditor>>();
@@ -80,7 +82,12 @@ function scheduleSearch() {
 }
 watch(() => [configEditors.wishd.draft.value, configEditors.providerd.draft.value], scheduleSearch);
 watch(query, async () => { await nextTick(); search(); if (searching.value) scroll.value!.scrollTo({ top: 0, behavior: 'instant' }); });
-watch(tab, () => scroll.value!.scrollTo({ top: 0, behavior: 'instant' }), { flush: 'post' });
+watch(tab, async (next, previous) => {
+  categoryScroll.set(previous, scroll.value!.scrollTop);
+  visited.value.add(next);
+  await nextTick();
+  if (tab.value === next) scroll.value!.scrollTo({ top: categoryScroll.get(next) ?? 0, behavior: 'instant' });
+});
 function selectCategory(id: string) {
   expanded.value = tab.value === id && !searching.value ? !expanded.value : true;
   tab.value = id;
@@ -133,9 +140,9 @@ onBeforeUnmount(() => { observer.disconnect(); cancelAnimationFrame(frame); });
             <button v-for="match in matches" :key="`${match.owner}:${match.id}`" class="settings-result" @click="select(match)"><small>{{ categories.find(c => c.id === match.owner)!.label }} · {{ match.section }}</small><strong>{{ match.label }}</strong><span>{{ match.hint }}</span></button>
           </div>
           <div ref="panels" v-show="!searching" class="settings-panels">
-            <div v-if="tab === 'ui' || searching" v-show="tab === 'ui'" data-settings-panel="ui"><UiSettings /></div>
-            <div v-if="tab === 'wishd' || searching" v-show="tab === 'wishd'" data-settings-panel="wishd"><ConfigEditor ref="coreEditor" owner="wishd" :active="tab === 'wishd' && !searching" /></div>
-            <div v-if="tab === 'providerd' || searching" v-show="tab === 'providerd'" data-settings-panel="providerd"><ConfigEditor ref="providerEditor" owner="providerd" :active="tab === 'providerd' && !searching" /></div>
+            <div v-if="visited.has('ui') || searching" v-show="tab === 'ui'" data-settings-panel="ui"><UiSettings /></div>
+            <div v-if="visited.has('wishd') || searching" v-show="tab === 'wishd'" data-settings-panel="wishd"><ConfigEditor ref="coreEditor" owner="wishd" :active="tab === 'wishd' && !searching" /></div>
+            <div v-if="visited.has('providerd') || searching" v-show="tab === 'providerd'" data-settings-panel="providerd"><ConfigEditor ref="providerEditor" owner="providerd" :active="tab === 'providerd' && !searching" /></div>
           </div>
         </div>
         <div id="settings-actions" class="settings-actions" />

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { usePageActivity } from '../../ui/composables/usePageActivity';
+const pageActive = usePageActivity();
 import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { SwitchRoot, SwitchThumb, DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from 'reka-ui';
@@ -76,6 +78,6 @@ function clearPreferences() {
       </template>
       <template #after><p class="cfg-hint">Wish {{ cfg.meta.appVersion }}</p></template>
     </SettingsSections>
-    <DialogRoot v-model:open="clearOpen"><DialogPortal><DialogOverlay class="cfg-dialog-overlay" /><DialogContent class="cfg-dialog"><DialogTitle>{{ tr('清除本地数据？', 'Clear local data?') }}</DialogTitle><DialogDescription>{{ tr('将移除这个浏览器保存的界面偏好和消息草稿。', 'Remove interface preferences and message drafts saved in this browser.') }}</DialogDescription><div class="cfg-dialog-actions"><button class="btn ghost" @click="clearOpen = false">{{ tr('取消', 'Cancel') }}</button><button class="btn danger" @click="clearPreferences">{{ tr('确认清除', 'Clear local data') }}</button></div></DialogContent></DialogPortal></DialogRoot>
+    <DialogRoot v-model:open="clearOpen"><DialogPortal v-if="pageActive"><DialogOverlay class="cfg-dialog-overlay" /><DialogContent class="cfg-dialog"><DialogTitle>{{ tr('清除本地数据？', 'Clear local data?') }}</DialogTitle><DialogDescription>{{ tr('将移除这个浏览器保存的界面偏好和消息草稿。', 'Remove interface preferences and message drafts saved in this browser.') }}</DialogDescription><div class="cfg-dialog-actions"><button class="btn ghost" @click="clearOpen = false">{{ tr('取消', 'Cancel') }}</button><button class="btn danger" @click="clearPreferences">{{ tr('确认清除', 'Clear local data') }}</button></div></DialogContent></DialogPortal></DialogRoot>
   </div>
 </template>

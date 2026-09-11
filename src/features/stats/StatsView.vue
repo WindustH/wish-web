@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue';
+import { computed, onActivated, onDeactivated } from 'vue';
 import { RefreshCw } from '@lucide/vue';
 import { stats } from '../../core/state/statsSlice.js';
 import { i18n } from '../../core/i18n/index.js';
@@ -13,8 +13,8 @@ const errorMessage = computed(() => error.value instanceof Error ? error.value.m
 const tx = (zh: string, en: string) => i18n.locale.value === 'zh' ? zh : en;
 const number = (value: number) => new Intl.NumberFormat(i18n.locale.value).format(value);
 const percent = (value: number | null) => value == null ? '—' : new Intl.NumberFormat(i18n.locale.value, { style: 'percent', maximumFractionDigits: 1 }).format(value);
-onMounted(stats.startAuto);
-onUnmounted(stats.stopAuto);
+onActivated(stats.startAuto);
+onDeactivated(stats.stopAuto);
 </script>
 
 <template>

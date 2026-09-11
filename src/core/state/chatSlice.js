@@ -249,7 +249,6 @@ export const chat = (() => {
       const page = await api.historyPage(id, {order: 'desc', limit: cfg.history.pageSize}, {signal: epochCtrl?.signal});
       if (myEpoch !== epoch || version !== historyVersion.value) return false;
       replaceHistory([...page.items].reverse(), page.has_more, false);
-      pendingSeq.value = newestSeq.value;
       return true;
     } catch (err) {
       if (myEpoch === epoch && version === historyVersion.value) error.value = err;
@@ -786,4 +785,3 @@ export const chat = (() => {
 })();
 
 function cap(text) { return text.length > cfg.sse.maxBufferedChars ? text.slice(0, cfg.sse.maxBufferedChars) : text; }
-

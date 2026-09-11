@@ -34,3 +34,5 @@
   `medium`, `max`), including custom values. The compact conversation toolbar
   displays model and effort in uppercase, with model hyphens/underscores shown
   as spaces; wire values remain unchanged.
+
+- Keep `workspace` as an untranslated product term in UI labels and explanations.

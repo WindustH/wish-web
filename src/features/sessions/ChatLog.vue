@@ -21,6 +21,8 @@ import { i18n } from '../../core/i18n/index.js';
 import { announce } from '../../ui/live.js';
 import { groupEntries } from './grouping.js';
 import HistoryItem from './HistoryItem.vue';
+import { usePageActivity } from '../../ui/composables/usePageActivity';
+const pageActive = usePageActivity();
 
 const props = defineProps<{ sessionId: string; mobile: boolean }>();
 
@@ -50,22 +52,49 @@ const virtualizer = useVirtualizer(
 
 // ── reactive scroll state (updated on every scroll + once after layout) ──
 const stick = ref(true);
+let direction: 'history' | 'latest' | undefined;
 const nearTop = ref(false);
 const nearBottom = ref(false);
 const farUp = ref(false);
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
 
 function measureScroll() {
+  if (!pageActive.value) return;
   const el = scrollEl.value;
   if (!el) return;
   const fromTop = el.scrollTop;
   const fromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-  stick.value = fromBottom < cfg.history.fetchNewerTriggerPx + 60;
+  if (!stick.value && direction === 'latest' && !chat.hasMoreAfter.value
+    && fromBottom < cfg.history.fetchNewerTriggerPx + 60) {
+    stick.value = true;
+    el.scrollTop = el.scrollHeight;
+  }
   nearTop.value = fromTop < cfg.history.prefetchOlderTriggerPx;
   nearBottom.value = fromBottom < cfg.history.fetchNewerTriggerPx;
   farUp.value = fromBottom > cfg.history.jumpLatestDistancePx;
 }
-const showJump = computed(() => (farUp.value || chat.hasMoreAfter.value) && !running.value);
+const showJump = computed(() => !stick.value || farUp.value || chat.hasMoreAfter.value);
+
+// Following is user intent, not a distance threshold: a small upward gesture
+// must win over the next stream frame even while still close to the bottom.
+function scrollIntent(toward: 'history' | 'latest') {
+  direction = toward;
+  if (toward === 'history') stick.value = false;
+}
+function onWheel(event: WheelEvent) {
+  if (event.deltaY) scrollIntent(event.deltaY < 0 ? 'history' : 'latest');
+}
+let touchY: number | undefined;
+function onTouchStart(event: TouchEvent) { touchY = event.touches[0]?.clientY; }
+function onTouchMove(event: TouchEvent) {
+  const next = event.touches[0]?.clientY;
+  if (next != null && touchY != null && next !== touchY) scrollIntent(next > touchY ? 'history' : 'latest');
+  touchY = next;
+}
+function onKeydown(event: KeyboardEvent) {
+  if (['ArrowUp', 'PageUp', 'Home'].includes(event.key) || (event.key === ' ' && event.shiftKey)) scrollIntent('history');
+  else if (['ArrowDown', 'PageDown', 'End', ' '].includes(event.key)) scrollIntent('latest');
+}
 
 // ── anchored older-history loading ─────────────────────────────────────
 let loadingOlderBusy = false;
@@ -158,6 +187,7 @@ async function fetchNewerBelow() {
 }
 
 function onScroll() {
+  if (!pageActive.value) return;
   measureScroll();
   if (!nearTop.value) chained = 0;
   if (nearTop.value && chat.hasMoreBefore.value && !chat.loadingOlder.value) loadOlderAnchored();
@@ -191,6 +221,7 @@ watch(() => chat.pendingSeq.value, async (seq) => {
       continue;
     }
     node.scrollIntoView({ block: 'center' });
+    direction = 'history';
     stick.value = false;
     targetSeq.value = seq;
     if (targetTimer) clearTimeout(targetTimer);
@@ -210,9 +241,10 @@ onUnmounted(() => { if (targetTimer) clearTimeout(targetTimer); });
 
 async function jumpLatest() {
   const gen = epoch;
-  await chat.jumpToLatest();
+  direction = 'latest';
+  if (chat.hasMoreAfter.value && !await chat.jumpToLatest()) return;
   await nextTick();
-  if (!owns(gen)) return;
+  if (!owns(gen) || !pageActive.value || direction !== 'latest') return;
   const el = scrollEl.value;
   if (el) el.scrollTop = el.scrollHeight;
   stick.value = true;
@@ -226,15 +258,15 @@ watch(running, (now, was) => { if (was && !now) announce(i18n.t('a11y.runDone'))
 // measurement frames: setting scrollTop before the virtualizer has measured
 // clamps to a half-built height and misreads as "near top" (scale B1).
 let landed = false;
-watch([() => groups.value.length, running, runFailure], async () => {
+watch([() => groups.value.length, running, runFailure, pageActive], async () => {
   const gen = epoch;
   await nextTick();
-  if (!owns(gen)) return;
-  // FIRST landing happens regardless of stick: at mount scrollTop=0, so
-  // measureScroll reports stick=false and would cancel the initial jump
-  // to the tail (scale B1/B3 cascade root #2).
+  if (!owns(gen) || !pageActive.value) return;
+  // First landing waits for layout, but must not override an upward gesture
+  // made while the initial history request was still loading.
   if (!landed && groups.value.length) {
     landed = true;
+    if (direction === 'history') return;
     for (let i = 0; i < 24; i++) {
       if (!owns(gen)) return;
       const el = scrollEl.value;
@@ -250,11 +282,11 @@ watch([() => groups.value.length, running, runFailure], async () => {
   const el2 = scrollEl.value;
   if (el2 && !running.value) el2.scrollTop = el2.scrollHeight;
 });
-watch(() => props.sessionId, () => { landed = false; stick.value = true; chained = 0; loadingOlderBusy = false; targetSeq.value = null; });
+watch(() => props.sessionId, () => { landed = false; direction = undefined; stick.value = true; chained = 0; loadingOlderBusy = false; targetSeq.value = null; });
 watch(streamState, (s) => {
   if (s?.active) nextTick(() => {
     const el = scrollEl.value;
-    if (el && stick.value) el.scrollTop = el.scrollHeight;
+    if (pageActive.value && el && stick.value) el.scrollTop = el.scrollHeight;
   });
 });
 
@@ -268,7 +300,9 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
 
 <template>
   <div class="chatlog-wrap">
-    <div ref="scrollEl" class="chatlog" @scroll.passive="onScroll">
+    <div ref="scrollEl" class="chatlog" :data-following="stick" tabindex="0" @scroll.passive="onScroll"
+      @wheel.passive="onWheel" @touchstart.passive="onTouchStart" @touchmove.passive="onTouchMove"
+      @keydown="onKeydown">
       <div v-if="chat.loadingOlder.value" class="log-loading">{{ i18n.t('sessions.loading') }}</div>
       <div v-if="chat.loadingInitial.value && !groups.length" class="log-loading">{{ i18n.t('sessions.loading') }}</div>
       <div v-else-if="!groups.length && !running" class="chat-empty hint">{{ i18n.t('chat.empty') }}</div>

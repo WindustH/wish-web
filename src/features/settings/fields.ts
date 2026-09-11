@@ -73,7 +73,7 @@ const labels: Record<string, string> = {
   owned_by_pointer: '所属提供商字段', context_window_pointer: '上下文容量字段', max_output_tokens_pointer: '最大输出字段',
   input_modalities_pointer: '输入类型字段', output_modalities_pointer: '输出类型字段', capabilities_pointer: '模型能力字段',
   next_cursor_pointer: '下一页游标字段', cursor_query_parameter: '游标请求参数', limit_query_parameter: '每页数量请求参数', strip_id_prefix: '移除的模型名称前缀',
-  workspace_id: '工作区 ID', value: '值', region: '地区', access_key_id: '访问密钥 ID', secret_access_key: '访问密钥', session_token: '临时访问令牌', credentials_path: '凭据文件路径',
+  workspace_id: 'workspace ID', value: '值', region: '地区', access_key_id: '访问密钥 ID', secret_access_key: '访问密钥', session_token: '临时访问令牌', credentials_path: '凭据文件路径',
   transport: '传输方式', account_id_source: '账户 ID 来源', account_id: '账户 ID', originator: '客户端名称', request_compression: '请求压缩方式',
   websocket_connect_timeout_ms: 'WebSocket 连接超时', websocket_idle_timeout_ms: 'WebSocket 空闲超时', websocket_cache_ttl_ms: 'WebSocket 缓存时间',
   websocket_cache_max_connections: 'WebSocket 缓存连接上限', session_affinity_max_bytes: '会话关联字段长度上限', fallback_to_sse_before_first_event: '首次响应前允许切换到 SSE',

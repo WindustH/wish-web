@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usePageActivity } from '../composables/usePageActivity';
 // Centered confirm/content modal on Reka primitives (title/description
 // wired for a11y). While `dismissable` is false no path closes it — Esc,
 // overlay, close button are all suppressed; the owner resolves the busy work.
@@ -8,6 +9,7 @@ import Icon from './Icon.vue';
 import { i18n } from '../../core/i18n/index.js';
 import { useDialogFocus } from '../composables/useDialogFocus';
 const focus = useDialogFocus();
+const pageActive = usePageActivity();
 
 withDefaults(defineProps<{ open: boolean; title: string; wide?: boolean; dismissable?: boolean }>(), { dismissable: true });
 const emit = defineEmits<{ close: [] }>();
@@ -15,7 +17,7 @@ const emit = defineEmits<{ close: [] }>();
 
 <template>
   <DialogRoot :open="open" @update:open="(v: boolean) => { if (v === false && dismissable !== false) emit('close'); }">
-    <DialogPortal>
+    <DialogPortal v-if="pageActive">
       <DialogOverlay class="modal-overlay" />
       <DialogContent @open-auto-focus="focus.opened" @close-auto-focus="focus.closed" class="modal-card" :class="{ wide }" :aria-describedby="undefined"
         @escape-key-down="(e: KeyboardEvent) => { if (dismissable === false) e.preventDefault(); }"

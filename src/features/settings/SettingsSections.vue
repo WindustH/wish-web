@@ -27,7 +27,9 @@ function updateActive() {
   if (viewport.scrollHeight > viewport.clientHeight && viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 1) {
     current = sections.at(-1);
   }
-  active.value = current?.id || '';
+  const next = current?.id || '';
+  if (active.value === next) return;
+  active.value = next;
   // Keep the active bookmark visible without scrolling the form itself.
   const nav = navigation.value!.closest<HTMLElement>('.settings-sidebar')!;
   const button = nav.querySelector<HTMLElement>(`[aria-controls="${active.value}"]`);

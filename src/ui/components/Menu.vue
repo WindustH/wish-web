@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { usePageActivity } from '../composables/usePageActivity';
 import { DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuContent, DropdownMenuItem } from 'reka-ui';
 
 defineProps<{ items: Array<{ key: string; label: string; icon?: string }>; label?: string }>();
+const pageActive = usePageActivity();
 const emit = defineEmits<{ select: [key: string] }>();
 </script>
 
@@ -10,7 +12,7 @@ const emit = defineEmits<{ select: [key: string] }>();
     <DropdownMenuTrigger class="btn ghost icon-only" :aria-label="label || 'menu'">
       <slot />
     </DropdownMenuTrigger>
-    <DropdownMenuPortal>
+    <DropdownMenuPortal v-if="pageActive">
       <DropdownMenuContent class="menu-pop" align="end" :side-offset="6">
         <DropdownMenuItem v-for="item in items" :key="item.key" class="menu-item"
           @select="emit('select', item.key)">

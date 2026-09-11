@@ -6,6 +6,7 @@ import { get, post, patch, providerd } from './api/client.js';
 export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 export type ConfigObject = { [key: string]: Json };
 export type ConfigOwner = 'wishd' | 'providerd';
+export type ConfigErrorStage = 'load' | 'preview' | 'save' | 'restart';
 export type ConfigOperation =
   | { op: 'add' | 'replace'; path: string; value: Json }
   | { op: 'remove'; path: string };
@@ -67,6 +68,7 @@ function createConfigEditor(owner: ConfigOwner) {
   const operations = shallowRef<ConfigOperation[]>([]);
   const busy = ref(false);
   const error = shallowRef<unknown>();
+  const errorStage = ref<ConfigErrorStage>();
   const saved = shallowRef<SavedConfig>();
   const epoch = ref(0);
   const restartState = ref<'waiting' | 'complete' | 'failed'>();
@@ -88,6 +90,7 @@ function createConfigEditor(owner: ConfigOwner) {
       restartState.value = undefined;
     } catch (cause) {
       error.value = cause;
+      errorStage.value = 'load';
     } finally { busy.value = false; }
   }
   function edit(operation: ConfigOperation) {
@@ -126,7 +129,7 @@ function createConfigEditor(owner: ConfigOwner) {
     error.value = undefined;
     try {
       return await clients[owner].post('/config/editable/preview', { revision: source.value.revision, operations: operations.value });
-    } catch (cause) { error.value = cause; }
+    } catch (cause) { error.value = cause; errorStage.value = 'preview'; }
     finally { busy.value = false; }
   }
   async function waitForRestart(instance: string) {
@@ -147,6 +150,7 @@ function createConfigEditor(owner: ConfigOwner) {
     busy.value = true;
     error.value = undefined;
     const previousRevision = source.value.revision;
+    let stage: ConfigErrorStage = 'save';
     try {
       const result: SavedConfig = await clients[owner].patch('/config/editable', {
         revision: previousRevision,
@@ -163,6 +167,7 @@ function createConfigEditor(owner: ConfigOwner) {
       }
       saved.value = result;
       if (result.restart_requested) {
+        stage = 'restart';
         restartState.value = 'waiting';
         await waitForRestart(result.instance_id);
       }
@@ -170,9 +175,10 @@ function createConfigEditor(owner: ConfigOwner) {
     } catch (cause) {
       // A conflict or rejected configuration leaves all entered values intact.
       error.value = cause;
+      errorStage.value = stage;
     } finally { busy.value = false; }
   }
-  return { owner, source, draft, operations, busy, error, saved, epoch, dirty,
+  return { owner, source, draft, operations, busy, error, errorStage, saved, epoch, dirty,
     load, edit, set, remove, append, discard, preview, save, restartState };
 }
 
