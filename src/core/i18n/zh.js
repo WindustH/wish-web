@@ -137,6 +137,8 @@ export const zh = {
   'search.searchAll': '继续搜索更早的消息',
   'search.jump': '跳转',
   'manage.title': '会话管理',
+  'sessions.editTags': '编辑标签',
+  'sessions.delete': '删除',
   'manage.rename': '重命名',
   'manage.renamePlaceholder': '新名称',
   'manage.apply': '应用',

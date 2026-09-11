@@ -65,7 +65,7 @@
 .markdown > :first-child { margin-top: 0; }
 .markdown p { margin: 0 0 1em; }
 .markdown > :last-child { margin-bottom: 0; }
-.markdown h1, .markdown h2, .markdown h3, .markdown h4 { margin: 1.5em 0 .6em; font-weight: 600; line-height: 1.5; text-wrap: pretty; letter-spacing: -.015em; }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4 { margin: 1.5em 0 .6em; font-weight: 600; line-height: 1.5; text-wrap: pretty; letter-spacing: 0; }
 .markdown h1 { font: 600 1.5em/1.4 var(--display); }
 .markdown h2 { font: 600 1.25em/1.45 var(--display); }
 .markdown h3 { font-size: 1.1em; }
@@ -74,9 +74,9 @@
 .markdown li { margin: .35em 0; padding-left: .2em; }
 .markdown li::marker { color: var(--fg-subtle); font-variant-numeric: tabular-nums; }
 .markdown a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .2em; }
-.markdown code { font: .85em var(--mono); background: var(--bg-sunken); border: 1px solid var(--line); border-radius: 4px; padding: .12em .3em; }
+.markdown code { color: var(--accent); font: .85em var(--mono); background: var(--bg-sunken); border: 1px solid var(--line); border-radius: 4px; padding: .12em .3em; }
 .markdown pre { margin: 0 0 1.4em; background: var(--bg-sunken); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; overflow-x: auto; line-height: 1.7; }
-.markdown pre code { background: none; border: 0; padding: 0; font-size: 13px; line-height: inherit; }
+.markdown pre code { color: var(--fg); background: none; border: 0; padding: 0; font-size: 13px; line-height: inherit; }
 .markdown blockquote { margin: 1.4em 0; padding: .2em 0 .2em 1.2em; border-left: 2px solid var(--accent); color: var(--fg-muted); }
 .markdown blockquote > :last-child { margin-bottom: 0; }
 .markdown hr { border: 0; border-top: 1px solid var(--line-strong); margin: 2em 0; }

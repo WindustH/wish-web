@@ -29,14 +29,14 @@
   --shadow-card: none;
   --display: 'Bitter Variable', 'Noto Serif SC Variable', 'Songti SC', 'Noto Serif CJK SC', serif;
   --radius: 8px;
-  --prose: 'Bitter Variable', 'Sarasa Gothic SC', serif;
+  --prose: 'Bitter Variable', 'Noto Serif SC Variable', serif;
   --font: 'Inter Variable', 'Sarasa Gothic SC', system-ui, sans-serif;
   --mono: 'Maple Mono NF CN', ui-monospace, monospace;
   --space-xs: 4px; --space-s: 8px; --space-m: 12px; --space-l: 16px;
   --space-xl: 24px; --space-xxl: 32px;
   --icon: 18px;
   --w-sidebar: 56px; --w-list: 256px; --w-drawer: 420px;
-  --h-topbar: 56px; --h-bottombar: 56px; --h-session-row: 60px;
+  --h-topbar: 56px; --h-bottombar: 56px; --h-session-row: 40px;
   --max-content: 46rem;
   --dur-fast: 140ms; --dur: 240ms; --dur-slow: 400ms;
   --ease-out: cubic-bezier(.2,.8,.2,1);

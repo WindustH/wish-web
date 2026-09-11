@@ -6,8 +6,8 @@ as a large title or add taglines: the navigation already identifies the page.
 
 ## Type and reading
 
-- Inter Variable: Latin interface labels; Sarasa Gothic SC: Chinese labels and conversation body; weights 400–600.
-- Bitter Variable: Latin conversation prose and headings, with real italic; weights 400–600.
+- Inter Variable: Latin interface labels; Sarasa Gothic SC: Chinese labels and user messages; weights 400–600.
+- Bitter Variable with Noto Serif SC: Latin/Chinese assistant prose and headings, with real italic; weights 400–600.
 - Noto Serif SC Variable: conversation headings and the Wish wordmark;
   weights 500–600. Do not apply a display face to form inputs or technical data.
 - Desktop response text: 17px, line-height 1.8. Mobile response text: 16px.
@@ -44,8 +44,9 @@ come from `core/config.js` through `ui/applyTokens.ts`. Shared controls live in
 presentation in `styles/features.css`. Settings have their own feature stylesheet.
 Do not append a second layer of legacy overrides for the same selectors.
 
-Session rows are native buttons. Their virtual stride is 64px and their visible
-height is 60px, both derived from cfg.design. Keep those values coordinated.
+Session titles are native navigation links; their management menus are sibling
+controls. Rows have a 40px desktop minimum plus a 4px gap from cfg.design, with
+dynamic measurement when tags wrap. Touch targets retain a 44px minimum.
 Navigation and conversation toolbars use 56px; the desktop rail is 56px wide.
 Prefer compact control spacing while retaining readable text and mobile touch targets.
 
@@ -174,3 +175,19 @@ scroll anchoring disabled on the virtual scroller. Loading feedback is an
 overlay and never changes the history height. Native scrollbar presses pause
 pagination and defer in-flight history merges until release (or focus loss).
 Do not add frame-by-frame position restoration: it fights ongoing user input.
+
+Session list rows use a compact title line and a quiet status dot. Tags share
+the title line when they fit, otherwise wrap naturally; the virtualizer measures
+the actual row height. Updated time lives in the title tooltip. A trailing menu
+contains Rename, Edit tags and Delete; it is shown on hover/focus and always
+available on touch. Edit/confirm dialogs belong to the list, outside recycled
+rows, and keep their target ID independent of the selected conversation. Tag
+updates preserve extension metadata and use revision checks. Deletion always
+requires confirmation; removing another row keeps the current conversation.
+
+CJK face metrics are balanced at build time through Vite's PostCSS pipeline:
+Sarasa 94%, Noto Serif SC 96%; Latin/Maple/STIX metrics remain original. UI text
+uses slight 0.01em tracking; CJK headings avoid negative tracking. Native
+text-autospace adds Chinese–Latin/numeric boundary spacing without modifying
+text or clipboard content. Code/math use normal tracking and no automatic
+spacing. Inline code uses the accent color; fenced code keeps the body color.
