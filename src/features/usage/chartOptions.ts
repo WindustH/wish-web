@@ -40,3 +40,14 @@ export function calendarOptions(days: [string, number][], style: ChartStyle, loc
       itemStyle: { borderColor: style.surface, borderWidth: 2, borderRadius: 3 }, emphasis: { itemStyle: { borderColor: style.foreground, borderWidth: 1 } } }],
   };
 }
+
+export function pieOptions(items: { name: string; value: number }[], style: ChartStyle, locale: string): EChartsCoreOption {
+  return {
+    animation: false, color: style.colors,
+    tooltip: { trigger: 'item', confine: true, renderMode: 'richText', backgroundColor: style.surface, borderColor: style.line,
+      textStyle: { color: style.foreground, fontFamily: style.font, fontSize: 12 },
+      formatter: (p: any) => `${p.name}\n${new Intl.NumberFormat(locale).format(p.value)} Token · ${p.percent}%` },
+    series: [{ type: 'pie', radius: '82%', stillShowZeroSum: false, label: { show: false },
+      itemStyle: { borderColor: style.surface, borderWidth: 2 }, data: items }],
+  };
+}
