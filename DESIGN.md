@@ -145,4 +145,4 @@ Transient notices float outside the layout and never reserve a sidebar column.
 Image attachments are accepted for every model. With explicit native image
 capability the backend sends pixels; otherwise it projects a notice and a
 verified session-local file path for model input, preserving original images.
-The attachment preview explains the fallback and distinguishes unknown vision.
+The composer does not display a capability slogan; the model-side notice distinguishes unknown vision.

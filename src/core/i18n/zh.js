@@ -76,8 +76,6 @@ export const zh = {
   'chat.imageReadFailed': '读取图片失败',
   'chat.imageTooLarge': '图片超过大小限制',
   'chat.imageUploading': '上传图片…',
-  'chat.imageFallback': '当前模型将收到图片说明和文件路径，无法直接查看图片。',
-  'chat.imageUnknown': '尚未确认当前模型的视觉能力，将发送图片说明和文件路径。',
   'chat.interrupt': '中断',
   'chat.jumpLatest': '回到最新',
   'chat.generationChanged': '上下文已压缩切换到新版本,历史保持完整',

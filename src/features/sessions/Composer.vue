@@ -57,11 +57,6 @@ const canSend = computed(() => (text.value.trim().length > 0 || images.value.len
 
 const capsFailed = computed(() => caps.value?.status === 'error');
 const capsData = computed(() => caps.value?.status === 'ok' ? caps.value.data : null);
-const imageNotice = computed(() => {
-  const modalities = capsData.value?.input_modalities;
-  if (modalities?.includes('image')) return '';
-  return i18n.t(modalities == null ? 'chat.imageUnknown' : 'chat.imageFallback');
-});
 const maxImages = computed(() => capsData.value?.images?.max_images_per_message ?? cfg.composer.maxImages);
 const maxImageBytes = computed(() => capsData.value?.images?.max_image_bytes ?? cfg.composer.maxImageBytes);
 const allowedMimes = computed(() => {
@@ -241,7 +236,6 @@ function resizeKeys(e: KeyboardEvent) {
         </button>
       </div>
     </div>
-      <p v-if="imageNotice" class="attachment-notice">{{ imageNotice }}</p>
     </div>
     <div v-if="capsFailed" class="caps-error">
       <span>{{ i18n.t('chat.capError') }}</span>

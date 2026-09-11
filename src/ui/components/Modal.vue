@@ -9,7 +9,7 @@ import { i18n } from '../../core/i18n/index.js';
 import { useDialogFocus } from '../composables/useDialogFocus';
 const focus = useDialogFocus();
 
-defineProps<{ open: boolean; title: string; wide?: boolean; dismissable?: boolean }>();
+withDefaults(defineProps<{ open: boolean; title: string; wide?: boolean; dismissable?: boolean }>(), { dismissable: true });
 const emit = defineEmits<{ close: [] }>();
 </script>
 
@@ -23,10 +23,13 @@ const emit = defineEmits<{ close: [] }>();
         @pointer-down-outside="(e: Event) => { if (dismissable === false) e.preventDefault(); }">
         <div class="modal-head">
           <DialogTitle class="modal-title">{{ title }}</DialogTitle>
-          <button class="btn ghost icon-only" :disabled="dismissable === false" :aria-label="i18n.t('common.close')"
-            @click="dismissable !== false && emit('close')">
-            <Icon name="x" />
-          </button>
+          <div class="modal-head-actions">
+            <slot name="actions" />
+            <button type="button" class="btn ghost icon-only" :disabled="dismissable === false" :aria-label="i18n.t('common.close')"
+              @click="dismissable !== false && emit('close')">
+              <Icon name="x" />
+            </button>
+          </div>
         </div>
         <div class="modal-body">
           <slot />

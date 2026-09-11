@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { ChevronDown, Plus, Trash2 } from '@lucide/vue';
 import { isObject, pointer } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigEditor, Json, ProviderPreset } from '../../core/config-editor';
 import { fieldLabel, fieldHint, isMap, isSecret, label, newArrayEntry, optionalFields, optionLabel, optionsFor, tr, unit } from './fields';
+import ConfigLink from './ConfigLink.vue';
+import { openConfigDialog } from './config-dialog';
 import AddProvider from './AddProvider.vue';
 import PresetProvider from './PresetProvider.vue';
 import { presetLabel } from '../../ui/providerPresentation';
@@ -18,6 +20,7 @@ const props = withDefaults(defineProps<{
   required?: boolean;
   requiredActive?: boolean;
 }>(), { required: undefined, requiredActive: undefined });
+const openDialog = inject(openConfigDialog)!;
 const arrayItem = computed(() => /^\d+$/.test(props.path.at(-1)!));
 const hint = computed(() => arrayItem.value ? '' : fieldHint(props.path));
 const hintId = computed(() => hint.value ? `help-${pointer(props.path)}`
@@ -36,7 +39,6 @@ const addKey = ref('');
 const mapValueType = ref('string');
 const addError = ref('');
 const addProviderOpen = ref(false);
-const newItemIndex = ref<number>();
 const inputType = computed(() => secret.value ? 'password' : typeof props.value === 'number' ? 'number' : 'text');
 const floatField = computed(() => /ratio$|multiplier|bytes_per_token/.test(key.value));
 
@@ -70,9 +72,10 @@ function addProvider(preset?: ProviderPreset) {
     entry.protocol = preset.protocols[0]!;
     entry.credentials = Object.fromEntries(preset.required_credentials.map(name => [name, '']));
   }
-  newItemIndex.value = props.value.length;
+  const index = props.value.length;
   props.editor.append(props.path, entry);
   addProviderOpen.value = false;
+  openDialog({ path: [...props.path, String(index)], title: String(entry.id || tr('新提供商', 'New provider')) });
 }
 function displayOption(value: string) {
   if (key.value === 'default_reasoning_effort') return value;
@@ -90,8 +93,15 @@ function addField() {
     ? key.value === 'models' ? {} : key.value === 'reasoning_efforts' && mapValueType.value === 'number' ? 0 : ''
     : structuredClone(optional.value[field]);
   props.editor.set([...props.path, field], value);
+  if (key.value === 'models') openDialog({ path: [...props.path, field], title: field });
   addKey.value = '';
   addError.value = '';
+}
+function addItem() {
+  const entry = newArrayEntry(props.path);
+  const index = (props.value as Json[]).length;
+  props.editor.append(props.path, entry);
+  if (isObject(entry)) openDialog({ path: [...props.path, String(index)], title: itemTitle(entry, index) });
 }
 function itemTitle(item: Json, index: number) {
   return isObject(item) && item.id ? String(item.id) : `${tr('项目', 'Item')} ${index + 1}`;
@@ -103,15 +113,12 @@ function itemTitle(item: Json, index: number) {
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <p v-if="!value.length" class="cfg-hint">{{ tr('尚未添加项目。', 'No items yet.') }}</p>
     <div v-for="(item, index) in value" :key="index" class="cfg-array-item">
-      <details v-if="isObject(item)" :open="!item.id || newItemIndex === index">
-        <summary><ChevronDown :size="16" /><span>{{ itemTitle(item, index) }}</span></summary>
-        <ConfigNode :value="item" :path="[...path, String(index)]" :editor="editor" :catalog="catalog" />
-      </details>
+      <ConfigLink v-if="isObject(item)" :path="[...path, String(index)]" :title="itemTitle(item, index)" />
       <ConfigNode v-else :value="item" :path="[...path, String(index)]" :title="`${name} ${index + 1}`" :editor="editor" :catalog="catalog" />
       <button type="button" class="btn ghost cfg-remove" :aria-label="`${tr('删除', 'Remove')} ${itemTitle(item, index)}`" @click="editor.remove([...path, String(index)])"><Trash2 :size="16" />{{ tr('删除', 'Remove') }}</button>
     </div>
     <button v-if="key === 'providers' && path[0] === 'providerd'" type="button" class="btn" @click="addProviderOpen = true"><Plus :size="16" />{{ tr('添加模型提供商', 'Add provider') }}</button>
-    <button v-else type="button" class="btn" @click="editor.append(path, newArrayEntry(path))"><Plus :size="16" />{{ tr('添加', 'Add') }}{{ name }}</button>
+    <button v-else type="button" class="btn" @click="addItem"><Plus :size="16" />{{ tr('添加', 'Add') }}{{ name }}</button>
     <AddProvider v-if="addProviderOpen" :catalog="catalog" @close="addProviderOpen = false" @select="addProvider" />
   </div>
   <PresetProvider v-else-if="object && providerPreset" :value="object" :path="path" :preset="providerPreset" :editor="editor" :catalog="catalog!" />
@@ -119,7 +126,8 @@ function itemTitle(item: Json, index: number) {
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <template v-for="(child, field) in object" :key="field">
       <div class="cfg-property">
-        <details v-if="child !== null && typeof child === 'object'" class="cfg-nested" :open="isMap(path)">
+        <ConfigLink v-if="(path[0] === 'providerd' && ['providers', 'endpoints'].includes(path[1] || '')) && (isObject(child) || (Array.isArray(child) && child.some(isObject)))" :path="[...path, field]" :title="isMap(path) ? field : fieldLabel([...path, field])" />
+        <details v-else-if="child !== null && typeof child === 'object'" class="cfg-nested" :open="isMap(path)">
           <summary><ChevronDown :size="16" /><span>{{ isMap(path) ? field : fieldLabel([...path, field]) }}</span><small v-if="Array.isArray(child)">{{ child.length }}</small></summary>
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
         </details>

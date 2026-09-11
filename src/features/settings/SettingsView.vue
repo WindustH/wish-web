@@ -3,11 +3,14 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Monitor, Server, Network, Search, X, ChevronDown } from '@lucide/vue';
 import ConfigEditor from './ConfigEditor.vue';
 import UiSettings from './UiSettings.vue';
-import { tr } from './fields';
-import { configEditors, errorText } from '../../core/config-editor';
+import { fieldHint, fieldLabel, tr } from './fields';
+import { configEditors, errorText, pointer } from '../../core/config-editor';
+import type { ConfigOwner, Json } from '../../core/config-editor';
 import './settings.css';
 
 const tab = ref('ui');
+const coreEditor = ref<InstanceType<typeof ConfigEditor>>();
+const providerEditor = ref<InstanceType<typeof ConfigEditor>>();
 const scroll = ref<HTMLElement>();
 const panels = ref<HTMLElement>();
 const query = ref('');
@@ -16,7 +19,7 @@ const categories = computed(() => [
   { id: 'wishd', label: tr('核心', 'Core'), icon: Server },
   { id: 'providerd', label: tr('提供商', 'Provider'), icon: Network },
 ]);
-type Match = { owner: string; id: string; label: string; hint: string; section: string };
+type Match = { owner: string; id: string; label: string; hint: string; section: string; path?: string[] };
 const matches = ref<Match[]>([]);
 const pendingSearch = computed(() => Object.values(configEditors).some(editor => editor.busy.value && !editor.draft.value));
 const searchErrors = computed(() => categories.value.filter(category => category.id !== 'ui').flatMap(category => {
@@ -32,6 +35,7 @@ function search() {
   const found: Match[] = [];
   if (searching.value) for (const panel of panels.value!.querySelectorAll<HTMLElement>('[data-settings-panel]')) {
     const owner = panel.dataset.settingsPanel!;
+    if (owner !== 'ui') continue;
     for (const field of panel.querySelectorAll<HTMLElement>('.cfg-field, .setting-row')) {
       const control = field.querySelector<HTMLElement>('input[id], select[id], button[id], a');
       const label = field.querySelector('label')?.textContent?.trim() || field.querySelector('.setting-row > div > span')?.textContent?.trim();
@@ -50,17 +54,40 @@ function search() {
       }
     }
   }
+  if (searching.value) for (const owner of ['wishd', 'providerd'] as ConfigOwner[]) {
+    const draft = configEditors[owner].draft.value;
+    if (!draft) continue;
+    const category = categories.value.find(c => c.id === owner)!.label;
+    function visit(value: Json, path: string[]) {
+      if (value !== null && typeof value === 'object') {
+        for (const [key, child] of Object.entries(value)) visit(child, [...path, key]);
+        return;
+      }
+      const label = fieldLabel(path), hint = fieldHint(path), id = pointer(path);
+      const section = path.slice(0, -1).map((_, index) => fieldLabel(path.slice(0, index + 1))).join(' · ');
+      // Search schema names and descriptions only, never credential values.
+      if (words.every(word => `${category} ${section} ${label} ${hint} ${id}`.toLocaleLowerCase().includes(word))) {
+        found.push({ owner, id, label, hint, section, path });
+      }
+    }
+    visit(draft, []);
+  }
   matches.value = found;
 }
 function scheduleSearch() {
   if (searching.value && !frame) frame = requestAnimationFrame(search);
 }
+watch(() => [configEditors.wishd.draft.value, configEditors.providerd.draft.value], scheduleSearch);
 watch(query, async () => { await nextTick(); search(); if (searching.value) scroll.value!.scrollTo({ top: 0, behavior: 'instant' }); });
 watch(tab, () => scroll.value!.scrollTo({ top: 0, behavior: 'instant' }), { flush: 'post' });
 async function select(match: Match) {
   query.value = '';
   tab.value = match.owner;
   await nextTick();
+  if (!document.getElementById(match.id) && match.path) {
+    (match.owner === 'wishd' ? coreEditor.value : providerEditor.value)!.revealPath(match.path);
+    await nextTick();
+  }
   const field = document.getElementById(match.id)!;
   for (let parent = field.parentElement; parent; parent = parent.parentElement) {
     if (parent instanceof HTMLDetailsElement) parent.open = true;
@@ -68,7 +95,8 @@ async function select(match: Match) {
   await nextTick();
   field.focus({ preventScroll: true });
   const row = field.closest('.cfg-field, .setting-row')!;
-  scroll.value!.scrollTo({ top: scroll.value!.scrollTop + row.getBoundingClientRect().top - scroll.value!.getBoundingClientRect().top - 20, behavior: 'instant' });
+  const viewport = row.closest<HTMLElement>('.modal-body') || scroll.value!;
+  viewport.scrollTo({ top: viewport.scrollTop + row.getBoundingClientRect().top - viewport.getBoundingClientRect().top - 20, behavior: 'instant' });
 }
 onMounted(() => {
   observer = new MutationObserver(scheduleSearch);
@@ -99,8 +127,8 @@ onBeforeUnmount(() => { observer.disconnect(); cancelAnimationFrame(frame); });
           </div>
           <div ref="panels" v-show="!searching" class="settings-panels">
             <div v-if="tab === 'ui' || searching" v-show="tab === 'ui'" data-settings-panel="ui"><UiSettings /></div>
-            <div v-if="tab === 'wishd' || searching" v-show="tab === 'wishd'" data-settings-panel="wishd"><ConfigEditor owner="wishd" :active="tab === 'wishd' && !searching" /></div>
-            <div v-if="tab === 'providerd' || searching" v-show="tab === 'providerd'" data-settings-panel="providerd"><ConfigEditor owner="providerd" :active="tab === 'providerd' && !searching" /></div>
+            <div v-if="tab === 'wishd' || searching" v-show="tab === 'wishd'" data-settings-panel="wishd"><ConfigEditor ref="coreEditor" owner="wishd" :active="tab === 'wishd' && !searching" /></div>
+            <div v-if="tab === 'providerd' || searching" v-show="tab === 'providerd'" data-settings-panel="providerd"><ConfigEditor ref="providerEditor" owner="providerd" :active="tab === 'providerd' && !searching" /></div>
           </div>
         </div>
         <div id="settings-actions" class="settings-actions" />

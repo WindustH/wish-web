@@ -32,8 +32,8 @@
 .ui-settings .setting-row > :last-child { justify-self: end; }
 .ui-settings .setting-row > select { width: 100%; }
 .ui-settings .setting-row label { font-weight: 500; }
-.settings-page select, .settings-page input { font: inherit; font-size: 13px; color: var(--fg); background: var(--bg-raised); border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px 10px; min-width: 0; max-width: 100%; }
-.settings-page input:focus-visible, .settings-page select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.settings-page select, .settings-page input, .cfg-editor-window select, .cfg-editor-window input { font: inherit; font-size: 13px; color: var(--fg); background: var(--bg-raised); border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px 10px; min-width: 0; max-width: 100%; }
+.settings-page input:focus-visible, .settings-page select:focus-visible, .cfg-editor-window input:focus-visible, .cfg-editor-window select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .cfg-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 36px; margin-bottom: 16px; }
 .cfg-group-hint { padding-bottom: 12px; }
 .cfg-hint { color: var(--fg-subtle); font-size: 12px; line-height: 1.85; margin: 6px 0 0; overflow-wrap: anywhere; }
@@ -43,7 +43,7 @@
 .cfg-sections button:hover { color: var(--fg); background: var(--bg-hover); }
 .cfg-sections button.active { color: var(--accent); background: var(--accent-soft); font-weight: 500; }
 .cfg-content { min-width: 0; }
-.cfg-content fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.cfg-content fieldset, .cfg-editor-window fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .cfg-field { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr); align-items: center; gap: 20px; padding: 14px 0; }
 .cfg-field-label { min-width: 0; }
 .cfg-field-label label { font-weight: 500; overflow-wrap: anywhere; }
@@ -87,7 +87,7 @@
 .cfg-dialog-actions { display: flex; justify-content: end; gap: 12px; margin-top: 24px; }
 @keyframes cfg-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (max-width: 899px) {
-  .settings-page input, .settings-page select { font-size: 16px; min-height: 44px; }
+  .settings-page input, .settings-page select, .cfg-editor-window input, .cfg-editor-window select { font-size: 16px; min-height: 44px; }
   .settings-page { --settings-gutter: 20px; }
   .settings-shell { flex-direction: column; gap: 16px; padding: 12px var(--settings-gutter) 0; }
   .settings-sidebar { width: 100%; overflow: visible; padding: 0; }
@@ -125,3 +125,13 @@
 .cfg-restart-dialog { width: min(580px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; }
 .cfg-restart-dialog ul { padding-left: 20px; font-size: 13px; line-height: 1.8; }
 .cfg-restart-dialog .cfg-dialog-actions { flex-wrap: wrap; }
+
+.cfg-edit-row { display: flex; align-items: center; gap: 16px; padding: 10px 0; min-width: 0; }
+.cfg-edit-row > div { flex: 1; min-width: 0; }
+.cfg-edit-row strong { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.cfg-edit-row > button { flex: none; }
+.cfg-window-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; width: 100%; }
+.cfg-window-actions .grow { flex: 1; }
+.cfg-window-actions .cfg-hint { margin: 0; }
+.cfg-editor-window .cfg-field:first-child { padding-top: 0; }
+.cfg-nested h4 { margin: 0 0 8px; font-size: 13px; font-weight: 500; }

@@ -76,8 +76,6 @@ export const en = {
   'chat.imageReadFailed': 'Could not read image',
   'chat.imageTooLarge': 'Image exceeds size limit',
   'chat.imageUploading': 'Uploading image…',
-  'chat.imageFallback': 'This model will receive an image notice and file path instead of image pixels.',
-  'chat.imageUnknown': 'Vision support is unconfirmed. An image notice and file path will be sent.',
   'chat.interrupt': 'Interrupt',
   'chat.jumpLatest': 'Jump to latest',
   'chat.generationChanged': 'Context compacted to a new generation; history is unchanged',

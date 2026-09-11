@@ -4,6 +4,7 @@ import { ChevronDown, Plus, Trash2 } from '@lucide/vue';
 import { isObject, pointer } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigEditor, ConfigObject, ProviderPreset } from '../../core/config-editor';
 import { fieldLabel, optionalFields, tr } from './fields';
+import ConfigLink from './ConfigLink.vue';
 import ConfigNode from './ConfigNode.vue';
 
 const props = defineProps<{ value: ConfigObject; path: string[]; preset: ProviderPreset; editor: ConfigEditor; catalog: ConfigCatalog }>();
@@ -28,7 +29,7 @@ function addAdvanced(field: string) { props.editor.set(fieldPath(field), structu
     </div>
     <p v-else class="cfg-hint cfg-auth-none">{{ tr('此预设无需认证信息。', 'This preset does not require authentication.') }}</p>
     <ConfigNode v-for="field in ['proxy_policy', 'allow_any_model']" :key="field" :value="value[field]!" :path="fieldPath(field)" :editor="editor" :catalog="catalog" />
-    <details class="cfg-nested"><summary><ChevronDown :size="16" /><span>{{ fieldLabel(fieldPath('models')) }}</span></summary><ConfigNode :value="value.models ?? {}" :path="fieldPath('models')" :editor="editor" :catalog="catalog" /></details>
+    <ConfigLink :path="fieldPath('models')" :title="fieldLabel(fieldPath('models'))" />
     <details class="cfg-nested cfg-provider-advanced">
       <summary><ChevronDown :size="16" /><span>{{ tr('高级设置', 'Advanced settings') }}</span></summary>
       <div v-for="[field] in advanced" :key="field" class="cfg-property">

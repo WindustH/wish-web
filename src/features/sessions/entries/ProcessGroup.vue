@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CopyButton from '../../../ui/components/CopyButton.vue';
 // One thumbnail covering a consecutive run of reasoning / tool calls /
 // tool results (mixed-entry tool calls fold in here too). Collapsed by
 // default; expanded shows the true ordered sequence.
@@ -68,6 +69,7 @@ const stepIcon = (s: any) => s.kind === 'entry' ? 'wrench' : s.block?.type === '
       </button>
     </div>
     <Modal :open="!!detail" :title="detail ? detailTitle(detail) : ''" wide @close="detail = null">
+      <template #actions><CopyButton v-if="detail" :text="detailText(detail)" /></template>
       <template v-if="detail">
         <pre class="detail-pre">{{ detailText(detail) }}</pre>
         <template v-for="(b, j) in detailImages(detail)" :key="'di' + j">
