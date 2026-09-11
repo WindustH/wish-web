@@ -209,3 +209,16 @@ conversation title (17px on mobile). The model and effort controls share a hover
 background, but only the active control receives the accent foreground.
 Dialogs use 20px body padding and 12px footer padding; tags have their own
 wrapping group, separated from the input by 14px.
+
+### Shared controls
+
+- Use `SelectField` for finite choices and `PickerList` for searchable catalogs.
+  Select options preserve raw wire values, including the empty string. Reuse Reka
+  keyboard navigation, focus return, collision handling and page activity cleanup.
+- Use `Hint` for hover/keyboard descriptions, not native `title` attributes. Keep
+  accessible names on icon buttons. Hints and selection popovers share theme tokens.
+- Text fields, selects and switches indicate focus by changing their existing
+  border; do not stack an outline or glow around them. Keep visible keyboard focus
+  for buttons and links.
+- The session list divider and collapse tab share resize colors, including pointer
+  capture after the cursor leaves the divider. Restore both when dragging ends.

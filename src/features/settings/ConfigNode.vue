@@ -6,6 +6,7 @@ import { isObject, pointer } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigEditor, Json, ProviderPreset } from '../../core/config-editor';
 import { fieldLabel, fieldHint, isMap, isSecret, label, newArrayEntry, optionalFields, optionLabel, optionsFor, tr, unit } from './fields';
 import ConfigLink from './ConfigLink.vue';
+import SelectField from '../../ui/components/SelectField.vue';
 import { openConfigDialog } from './config-dialog';
 import AddProvider from './AddProvider.vue';
 import PresetProvider from './PresetProvider.vue';
@@ -48,6 +49,9 @@ function setInput(event: Event) {
   const value = typeof props.value === 'number' ? input.valueAsNumber : input.value;
   // Focusing and leaving a masked field does not clear the existing credential.
   if (secret.value && props.value === '<redacted>' && value === '') return;
+  setValue(value);
+}
+function setValue(value: Json) {
   if (Object.is(props.value, value)) return;
   props.editor.set(props.path, value);
   if (key.value === 'preset' && props.path.at(-3) === 'providers') {
@@ -142,9 +146,9 @@ function itemTitle(item: Json, index: number) {
     <div v-if="available.length || isMap(path)" class="cfg-add-field">
       <label :for="`add-${pointer(path)}`">{{ isMap(path) ? tr('添加项目', 'Add entry') : tr('添加可选设置', 'Add optional setting') }}</label>
       <div class="cfg-inline">
-        <input v-if="isMap(path)" :id="`add-${pointer(path)}`" v-model="addKey" :placeholder="key === 'models' ? tr('模型名称，例如 model-name', 'Model ID, e.g. model-name') : tr('名称', 'Name')" @keydown.enter.prevent="addField" />
-        <select v-else :id="`add-${pointer(path)}`" v-model="addKey"><option value="" disabled>{{ tr('选择设置', 'Choose setting') }}</option><option v-for="field in available" :key="field" :value="field">{{ label(field) }}</option></select>
-        <select v-if="key === 'reasoning_efforts'" v-model="mapValueType" :aria-label="tr('值的类型', 'Value type')"><option value="string">{{ tr('强度名称', 'Effort name') }}</option><option value="number">{{ tr('Token 数量', 'Token budget') }}</option></select>
+        <input class="input" v-if="isMap(path)" :id="`add-${pointer(path)}`" v-model="addKey" :placeholder="key === 'models' ? tr('模型名称，例如 model-name', 'Model ID, e.g. model-name') : tr('名称', 'Name')" @keydown.enter.prevent="addField" />
+        <SelectField v-else :id="`add-${pointer(path)}`" v-model="addKey" :placeholder="tr('选择设置', 'Choose setting')" :options="available.map(field => ({ value: field, label: label(field) }))" />
+        <SelectField v-if="key === 'reasoning_efforts'" v-model="mapValueType" :aria-label="tr('值的类型', 'Value type')" :options="[{ value: 'string', label: tr('强度名称', 'Effort name') }, { value: 'number', label: tr('Token 数量', 'Token budget') }]" />
         <button type="button" class="btn" :disabled="!addKey.trim()" @click="addField"><Plus :size="16" />{{ tr('添加', 'Add') }}</button>
       </div>
       <p v-if="addKey && !isMap(path) && fieldHint([...path, addKey])" class="cfg-hint">{{ fieldHint([...path, addKey]) }}</p>
@@ -158,12 +162,9 @@ function itemTitle(item: Json, index: number) {
       <p v-if="hint" :id="hintId" class="cfg-hint">{{ hint }}</p>
     </div>
     <SwitchRoot v-if="typeof value === 'boolean'" :id="pointer(path)" :aria-describedby="hintId" :model-value="value" class="cfg-switch" @update:model-value="editor.set(path, $event)"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot>
-    <select v-else-if="selectOptions" :id="pointer(path)" :aria-describedby="hintId" :value="value" @change="setInput">
-      <option v-if="!selectOptions.includes(String(value))" :value="String(value)">{{ value }}</option>
-      <option v-for="option in selectOptions" :key="option" :value="option">{{ option === '' ? tr('未选择', 'Not selected') : displayOption(option) }}</option>
-    </select>
+    <SelectField v-else-if="selectOptions" :id="pointer(path)" :aria-describedby="hintId" :model-value="String(value)" :options="[...(selectOptions.includes(String(value)) ? [] : [String(value)]), ...selectOptions].map(option => ({ value: option, label: option === '' ? tr('未选择', 'Not selected') : displayOption(option) }))" @update:model-value="setValue" />
     <div v-else class="cfg-input-wrap">
-      <input :id="pointer(path)" :aria-describedby="hintId" :type="inputType" :value="inputValue" :autocomplete="secret ? 'new-password' : 'off'" :spellcheck="false"
+      <input class="input" :id="pointer(path)" :aria-describedby="hintId" :type="inputType" :value="inputValue" :autocomplete="secret ? 'new-password' : 'off'" :spellcheck="false"
         :aria-required="required || undefined"
         :required="required !== undefined ? required && requiredActive !== false && value !== '<redacted>' : typeof value === 'number' || ['id', 'base_url', 'provider', 'model', 'program'].includes(key)"
         :min="typeof value === 'number' ? 0 : undefined" :step="typeof value === 'number' ? floatField ? 'any' : '1' : undefined"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from './Hint.vue';
 import { onUnmounted, ref } from 'vue';
 import Icon from './Icon.vue';
 import { i18n } from '../../core/i18n/index.js';
@@ -24,7 +25,7 @@ async function copy() {
 </script>
 
 <template>
-  <button class="btn ghost icon-only copy-btn" :title="i18n.t('common.copy')" :aria-label="i18n.t('common.copy')" @click="copy">
+  <Hint :text="i18n.t('common.copy')"><button class="btn ghost icon-only copy-btn" :aria-label="i18n.t('common.copy')" @click="copy">
     <Icon :name="done ? 'check' : 'copy'" />
-  </button>
+  </button></Hint>
 </template>

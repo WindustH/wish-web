@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from '../../ui/components/Hint.vue';
 // Correctness rules preserved from the audited implementation:
 //  · IME-safe Enter (composition strokes never send);
 //  · in-flight guard, no implicit stop from the keyboard;
@@ -217,17 +218,17 @@ function resizeKeys(e: KeyboardEvent) {
 <template>
   <div ref="composerEl" class="composer" :class="[mobile ? 'mobile' : 'desktop', { 'composer-start': start }]"
     :style="mobile || start ? undefined : { height: `${Math.min(sizing.max(), height + attachmentHeight)}px` }">
-    <div v-if="!mobile && !start" class="composer-resize" role="separator" tabindex="0" aria-orientation="horizontal"
+    <Hint :text="i18n.t('composer.resize')" v-if="!mobile && !start"><div class="composer-resize" role="separator" tabindex="0" aria-orientation="horizontal"
       :aria-label="i18n.t('composer.resize')" :aria-valuemin="sizing.min()" :aria-valuemax="sizing.max()"
-      :aria-valuenow="height" :title="i18n.t('composer.resize')"
-      @pointerdown="startComposerDrag" @keydown="resizeKeys" />
+      :aria-valuenow="height"
+      @pointerdown="startComposerDrag" @keydown="resizeKeys" /></Hint>
     <div v-if="!mobile" class="composer-toolbar">
-      <button class="btn ghost icon-only" :title="i18n.t('chat.image')" :aria-label="i18n.t('chat.image')"
-        @click="attach"><Icon name="image" /></button>
+      <Hint :text="i18n.t('chat.image')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.image')"
+        @click="attach"><Icon name="image" /></button></Hint>
       <slot name="selection" />
       <div class="grow" />
-      <button v-if="onSearch" class="btn ghost icon-only" :title="i18n.t('chatbar.search')" :aria-label="i18n.t('chatbar.search')"
-        @click="onSearch"><Icon name="history" /></button>
+      <Hint :text="i18n.t('chatbar.search')" v-if="onSearch"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.search')"
+        @click="onSearch"><Icon name="history" /></button></Hint>
     </div>
     <div v-if="images.length > 0" ref="attachmentStrip" class="attachment-preview">
       <div class="attach-strip">
@@ -245,27 +246,27 @@ function resizeKeys(e: KeyboardEvent) {
     </div>
     <div v-if="mobile && start" class="composer-start-selection"><slot name="selection" /></div>
     <div class="composer-editor">
-      <button v-if="mobile" class="btn ghost icon-only" :title="i18n.t('chat.image')"
-        :aria-label="i18n.t('chat.image')" @click="attach"><Icon name="image" /></button>
+      <Hint :text="i18n.t('chat.image')" v-if="mobile"><button class="btn ghost icon-only"
+        :aria-label="i18n.t('chat.image')" @click="attach"><Icon name="image" /></button></Hint>
       <textarea ref="ta" :rows="cfg.composer.mobileMinRows"
         :placeholder="running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')"
         :aria-label="i18n.t('chat.placeholder')" v-model="text"
         @input="setTextOwned(($event.target as HTMLTextAreaElement).value)" @keydown="onKeydown" @paste="onPaste" />
-      <button v-if="mobile" class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
-        :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')" :title="i18n.t(running ? 'chat.stop' : 'chat.send')"
+      <Hint :text="i18n.t(running ? 'chat.stop' : 'chat.send')" v-if="mobile"><button class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
+        :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')"
         @click="running ? onStop() : submit()">
         <Icon v-if="sending" name="loader-circle" class="spin" />
         {{ i18n.t(running ? 'chat.stop' : 'chat.send') }}
-      </button>
+      </button></Hint>
     </div>
     <div v-if="!mobile" class="composer-footer">
       <span class="composer-hint">{{ i18n.t(sendOnEnter ? 'composer.enterSends' : 'composer.modEnterSends') }}</span>
-      <button class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
-        :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')" :title="i18n.t(running ? 'chat.stop' : 'chat.send')"
+      <Hint :text="i18n.t(running ? 'chat.stop' : 'chat.send')"><button class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
+        :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')"
         @click="running ? onStop() : submit()">
         <Icon v-if="sending" name="loader-circle" class="spin" />
         {{ i18n.t(running ? 'chat.stop' : 'chat.send') }}
-      </button>
+      </button></Hint>
     </div>
   </div>
 </template>

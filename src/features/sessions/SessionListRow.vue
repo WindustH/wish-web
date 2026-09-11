@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from '../../ui/components/Hint.vue';
 import { computed } from 'vue';
 import { DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from 'reka-ui';
 import { Tag } from '@lucide/vue';
@@ -15,14 +16,14 @@ const tags = computed<string[]>(() => Array.isArray(props.row.metadata?.tags) ? 
 
 <template>
   <div class="sl-item" :class="{ active }" :data-session-id="row.id">
-    <RouterLink :to="`/s/${row.id}`" class="sl-row" :data-testid="`sl-row-${index}`"
-      :aria-current="active ? 'page' : undefined" :title="`${name} · ${relTime(row.updated_at_ms, i18n.t)}`">
-      <span class="sl-status phase-dot" :class="row.phase" :title="i18n.t(`phase.${row.phase}`)" :aria-label="i18n.t(`phase.${row.phase}`)" />
+    <Hint :text="`${name} · ${relTime(row.updated_at_ms, i18n.t)}`"><RouterLink :to="`/s/${row.id}`" class="sl-row" :data-testid="`sl-row-${index}`"
+      :aria-current="active ? 'page' : undefined">
+      <Hint :text="i18n.t(`phase.${row.phase}`)"><span class="sl-status phase-dot" :class="row.phase" :aria-label="i18n.t(`phase.${row.phase}`)" /></Hint>
       <span class="sl-main">
         <span class="sl-name">{{ name }}</span>
         <span v-for="tag in tags" :key="tag" class="sl-tag">{{ tag }}</span>
       </span>
-    </RouterLink>
+    </RouterLink></Hint>
     <DropdownMenuRoot :modal="false">
       <DropdownMenuTrigger class="sl-menu-trigger" :aria-label="`${i18n.t('manage.title')} · ${name}`"><Icon name="ellipsis-vertical" /></DropdownMenuTrigger>
       <DropdownMenuPortal v-if="pageActive">

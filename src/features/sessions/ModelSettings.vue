@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from '../../ui/components/Hint.vue';
 import { computed, ref, toRef, watch } from 'vue';
 import { Image } from '@lucide/vue';
 import { i18n } from '../../core/i18n/index.js';
@@ -47,7 +48,7 @@ async function apply(value: string) {
 <template>
   <CommandPanel :title="i18n.t('model.title')" :busy="saving" @close="emit('close')">
     <PickerList v-model="selected" :items="choices" :placeholder="i18n.t('model.search')" :disabled="saving || loading" @select="apply">
-      <template #suffix="{ itemKey }"><span v-if="visionChoices.has(itemKey)" class="model-vision" :title="i18n.t('model.visionHint')"><Image :size="13" aria-hidden="true" />{{ i18n.t('model.vision') }}</span></template>
+      <template #suffix="{ itemKey }"><Hint :text="i18n.t('model.visionHint')" v-if="visionChoices.has(itemKey)"><span class="model-vision"><Image :size="13" aria-hidden="true" />{{ i18n.t('model.vision') }}</span></Hint></template>
       <template #status>
         <div v-if="error" class="command-status load-error" role="alert">{{ conflict ? i18n.t('model.conflict') : errorText(error) }}<button class="btn ghost sm" :disabled="loading || saving" @click="reload">{{ i18n.t('common.retry') }}</button></div>
         <div v-if="catalog.error.value" class="command-status load-error" role="alert">{{ errorText(catalog.error.value) }}<button class="btn ghost sm" @click="catalog.reload">{{ i18n.t('common.retry') }}</button></div>

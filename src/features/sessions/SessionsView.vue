@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from '../../ui/components/Hint.vue';
 // Two-pane shell (desktop): the session list stays mounted while the right
 // side routes between (empty) and chat; chat stays mounted while its
 // info/search/manage child routes change. Mobile: list and chat are
@@ -25,8 +26,8 @@ onMounted(applySavedListWidth);
       <SessionList v-show="showList" id="session-list" />
     </template>
     <div v-if="!isMobile" class="session-list-edge">
-      <div v-show="showList" class="list-resize" role="separator" aria-orientation="vertical"
-        :aria-label="i18n.t('app.name')" title="↔" @pointerdown="onListResizePointerDown" />
+      <Hint text="↔"><div v-show="showList" class="list-resize" role="separator" aria-orientation="vertical"
+        :aria-label="i18n.t('app.name')" @pointerdown="onListResizePointerDown" /></Hint>
       <SessionListToggle />
     </div>
     <div v-show="!isMobile || !showList" class="content-pane">

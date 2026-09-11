@@ -14,6 +14,7 @@ import { errorText } from '../../core/config-editor';
 import { useMedia } from '../../ui/composables/useMedia';
 import { tr } from './fields';
 import SettingsSections from './SettingsSections.vue';
+import SelectField from '../../ui/components/SelectField.vue';
 
 const sections = computed(() => [
   { id: 'appearance', zh: '外观与语言', en: 'Appearance and language' },
@@ -62,8 +63,8 @@ function clearPreferences() {
       <template #before><p v-if="problem" class="cfg-notice cfg-error" role="alert">{{ problem }}</p><p v-if="notice" class="cfg-notice" role="status">{{ notice }}</p></template>
       <template #default="{ section }">
         <template v-if="section === 'appearance'">
-          <div class="setting-row"><div><label for="ui-theme">{{ tr('主题', 'Theme') }}</label><p id="ui-theme-hint" class="cfg-hint">{{ tr('选择浅色、深色，或随操作系统自动切换。', 'Choose light, dark, or follow your operating system.') }}</p></div><select id="ui-theme" aria-describedby="ui-theme-hint" :value="mode" @change="theme.setMode(($event.target as HTMLSelectElement).value)"><option value="auto">{{ tr('跟随系统', 'Follow system') }}</option><option value="light">{{ tr('浅色', 'Light') }}</option><option value="dark">{{ tr('深色', 'Dark') }}</option></select></div>
-          <div class="setting-row"><div><label for="ui-language">{{ tr('界面语言', 'Language') }}</label><p id="ui-language-hint" class="cfg-hint">{{ tr('只更改按钮和说明的语言，不翻译对话内容。', 'Changes interface labels and help; conversations are not translated.') }}</p></div><select id="ui-language" aria-describedby="ui-language-hint" :value="locale" @change="i18n.setLocale(($event.target as HTMLSelectElement).value)"><option value="zh">中文</option><option value="en">English</option></select></div>
+          <div class="setting-row"><div><label for="ui-theme">{{ tr('主题', 'Theme') }}</label><p id="ui-theme-hint" class="cfg-hint">{{ tr('选择浅色、深色，或随操作系统自动切换。', 'Choose light, dark, or follow your operating system.') }}</p></div><SelectField id="ui-theme" aria-describedby="ui-theme-hint" :model-value="mode" :options="[{ value: 'auto', label: tr('跟随系统', 'Follow system') }, { value: 'light', label: tr('浅色', 'Light') }, { value: 'dark', label: tr('深色', 'Dark') }]" @update:model-value="theme.setMode" /></div>
+          <div class="setting-row"><div><label for="ui-language">{{ tr('界面语言', 'Language') }}</label><p id="ui-language-hint" class="cfg-hint">{{ tr('只更改按钮和说明的语言，不翻译对话内容。', 'Changes interface labels and help; conversations are not translated.') }}</p></div><SelectField id="ui-language" aria-describedby="ui-language-hint" :model-value="locale" :options="[{ value: 'zh', label: '中文' }, { value: 'en', label: 'English' }]" @update:model-value="i18n.setLocale" /></div>
         </template>
         <template v-if="section === 'input'">
           <div v-if="desktop" class="setting-row"><div><label for="send-on-enter">{{ tr('按 Enter 发送消息', 'Send with Enter') }}</label><p id="send-on-enter-hint" class="cfg-hint">{{ sendOnEnter ? tr('按 Shift + Enter 换行。', 'Press Shift + Enter for a new line.') : tr('按 Enter 换行，按 Ctrl / ⌘ + Enter 发送。', 'Press Enter for a new line; Ctrl / ⌘ + Enter to send.') }}</p></div><SwitchRoot id="send-on-enter" aria-describedby="send-on-enter-hint" :model-value="sendOnEnter" class="cfg-switch" @update:model-value="prefs.setSendOnEnter"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from '../../ui/components/Hint.vue';
 // Session list with client query (server filter), tag chip, virtualized
 // rows (TanStack) and endless next-page loading — data unbounded, DOM bounded.
 import { computed, ref, watch, onMounted } from 'vue';
@@ -56,8 +57,8 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
         <input v-model="query" type="search" @compositionstart="composing = true"
           @compositionend="composing = false; sessions.setQuery(query)" :placeholder="i18n.t('sessions.search')" :aria-label="i18n.t('sessions.search')" />
       </div>
-      <button class="btn primary icon-only" :title="i18n.t('sessions.new')" :aria-label="i18n.t('sessions.new')"
-        @click="openNewSession()"><Icon name="plus" /></button>
+      <Hint :text="i18n.t('sessions.new')"><button class="btn primary icon-only" :aria-label="i18n.t('sessions.new')"
+        @click="openNewSession()"><Icon name="plus" /></button></Hint>
     </div>
     <div v-if="sessions.tagFilter.value" class="sl-filters" role="group" :aria-label="i18n.t('sessions.filter.group')">
       <span class="tag-chip">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from '../../ui/components/Hint.vue';
 import { computed, onActivated, onDeactivated } from 'vue';
 import { RefreshCw } from '@lucide/vue';
 import { stats } from '../../core/state/statsSlice.js';
@@ -43,9 +44,9 @@ onDeactivated(stats.stopAuto);
         <section v-if="totals && usage" class="card statistics-usage">
           <h2>{{ i18n.t('stats.usage') }}</h2>
           <dl class="statistics-values">
-            <div><dt>{{ i18n.t('stats.tokensIn') }}</dt><dd data-stat="input" :title="number(totals.tokens.input_tokens)">{{ fmtTokens(totals.tokens.input_tokens) }}</dd></div>
-            <div><dt>{{ i18n.t('stats.tokensOut') }}</dt><dd data-stat="output" :title="number(totals.tokens.output_tokens)">{{ fmtTokens(totals.tokens.output_tokens) }}</dd></div>
-            <div><dt>{{ i18n.t('stats.tokensTotal') }}</dt><dd data-stat="total" :title="number(totals.tokens.total_tokens)">{{ fmtTokens(totals.tokens.total_tokens) }}</dd></div>
+            <div><dt>{{ i18n.t('stats.tokensIn') }}</dt><Hint :text="number(totals.tokens.input_tokens)"><dd data-stat="input">{{ fmtTokens(totals.tokens.input_tokens) }}</dd></Hint></div>
+            <div><dt>{{ i18n.t('stats.tokensOut') }}</dt><Hint :text="number(totals.tokens.output_tokens)"><dd data-stat="output">{{ fmtTokens(totals.tokens.output_tokens) }}</dd></Hint></div>
+            <div><dt>{{ i18n.t('stats.tokensTotal') }}</dt><Hint :text="number(totals.tokens.total_tokens)"><dd data-stat="total">{{ fmtTokens(totals.tokens.total_tokens) }}</dd></Hint></div>
             <div><dt>{{ i18n.t('stats.cacheHit') }}</dt><dd>{{ percent(totals.cache.request_hit_ratio) }}</dd></div>
             <div><dt>{{ i18n.t('stats.attempts') }}</dt><dd>{{ number(usage.statistics.model_attempts) }}</dd></div>
             <div><dt>{{ tx('已完成回复', 'Completed responses') }}</dt><dd>{{ number(totals.committed_responses) }}</dd></div>

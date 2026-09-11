@@ -22,12 +22,12 @@
 .card { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
 .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
 .field > label, .field > span { font-size: 13px; color: var(--fg-muted); }
-.input, .select, .textarea {
-  width: 100%; min-width: 0; background: var(--bg); border: 1px solid var(--line-strong);
-  border-radius: var(--radius); padding: 10px 12px; color: var(--fg);
+.input, .textarea, .control-select {
+  width: 100%; min-width: 0; background: var(--bg-raised); border: 1px solid var(--line-strong);
+  border-radius: var(--radius); padding: 8px 10px; color: var(--fg);
   transition: border-color var(--dur-fast), background var(--dur-fast);
 }
-.input:focus, .select:focus, .textarea:focus { outline: none; border-color: var(--accent); background: var(--bg-raised); }
+.input:focus, .textarea:focus, .control-select:focus-visible, .control-select[data-state="open"] { outline: none; border-color: var(--accent); background: var(--bg-raised); }
 .textarea { resize: none; }
 .chip, .tag-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); padding: 3px 10px; border-radius: 5px; font-size: 12px; color: var(--fg-muted); background: var(--bg-sunken); }
 .tag-chip button { display: inline-flex; border: 0; background: none; cursor: pointer; color: inherit; padding: 2px; }
@@ -105,3 +105,22 @@
 .modal-head-actions { display: flex; align-items: center; gap: 6px; flex: none; }
 
 .modal-body > .detail-pre { max-height: none; overflow: visible; margin: 0; }
+
+/* Shared choice controls and hover help use the same surfaces as menus. */
+.control-select { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-width: 0; min-height: 36px; font: 400 13px/1.5 var(--font); cursor: pointer; text-align: left; }
+.control-select > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.control-select svg { flex: none; color: var(--fg-subtle); }
+.control-select:hover { background: var(--bg-hover); }
+.control-select[data-disabled] { opacity: .5; cursor: default; }
+.control-select[data-placeholder] { color: var(--fg-subtle); }
+.control-select-popover { z-index: 80; min-width: var(--reka-select-trigger-width); max-width: calc(100vw - 24px); overflow: hidden; background: var(--bg-raised); color: var(--fg); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-pop); animation: menu-in var(--dur-fast) var(--ease-out); }
+.control-select-list { max-height: min(320px, var(--reka-select-content-available-height)); overflow: auto; padding: 4px; }
+.control-select-option { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 34px; padding: 7px 10px; border-radius: 4px; font: 400 13px/1.5 var(--font); cursor: pointer; outline: none; overflow-wrap: anywhere; }
+.control-select-option[data-highlighted] { background: var(--bg-hover); }
+.control-select-option[data-state="checked"] { color: var(--accent); }
+.control-select-option[data-disabled] { opacity: .45; pointer-events: none; }
+.control-tooltip { z-index: 100; max-width: min(300px, calc(100vw - 20px)); padding: 6px 10px; background: var(--bg-raised); color: var(--fg); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-pop); font: 400 12px/1.5 var(--font); overflow-wrap: anywhere; animation: fade-in var(--dur-fast) ease; user-select: none; }
+@media (max-width: 899px) {
+  .control-select { min-height: 44px; font-size: 16px; }
+  .control-select-option { min-height: 44px; font-size: 15px; }
+}

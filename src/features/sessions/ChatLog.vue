@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from '../../ui/components/Hint.vue';
 // TanStack owns prepend and measurement anchoring. User intent owns tail
 // following; native scrollbar gestures suspend pagination until release.
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
@@ -321,10 +322,10 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
         <small>{{ runFailure.family }}</small>
       </div>
     </div>
-    <button v-if="showJump" type="button" class="jump-latest"
-      :title="i18n.t('chat.jumpLatest')" :aria-label="i18n.t('chat.jumpLatest')" @click="jumpLatest">
+    <Hint :text="i18n.t('chat.jumpLatest')" v-if="showJump"><button type="button" class="jump-latest"
+       :aria-label="i18n.t('chat.jumpLatest')" @click="jumpLatest">
       <ArrowDown :size="20" aria-hidden="true" />
-    </button>
+    </button></Hint>
   </div>
 </template>
 
