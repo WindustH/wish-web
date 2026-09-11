@@ -71,3 +71,15 @@ html[data-theme='dark'] {
   --shadow-pop: 0 16px 48px rgb(0 0 0 / 28%), 0 2px 8px rgb(0 0 0 / 15%);
   color-scheme: dark;
 }
+
+/* Shared chart palette: distinct series and a sequential daily-usage scale. */
+:root {
+  --chart-1: #3a68bd; --chart-2: #aa4d78; --chart-3: #23817e;
+  --chart-4: #8b6bb1; --chart-5: #a36b25; --chart-6: #69813e;
+  --heat-0: #eeefeb; --heat-1: #c5decb; --heat-2: #8abc99; --heat-3: #4c9764; --heat-4: #27733f;
+}
+html[data-theme='dark'] {
+  --chart-1: #82acff; --chart-2: #eb93b9; --chart-3: #6ecac4;
+  --chart-4: #baa0e8; --chart-5: #e5b568; --chart-6: #b0ca7a;
+  --heat-0: #353732; --heat-1: #355641; --heat-2: #457b53; --heat-3: #68aa72; --heat-4: #9bd19b;
+}

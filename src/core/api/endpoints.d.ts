@@ -22,3 +22,5 @@ export declare function uploadSessionImage(sid: string, bytes: ArrayBuffer | Uin
 export declare function sessionCapabilities(id: string, opts?: any): Promise<any>;
 
 export declare function messageSend(id: string, body: any, opts?: any): Promise<any>;
+export declare function usageSeries(sessionId: string | undefined, params: import('../usage/types').SeriesQuery, opts?: { signal?: AbortSignal }): Promise<import('../usage/types').UsageSeriesResponse>;
+export declare function usageDaily(sessionId: string | undefined, params: import('../usage/types').DailyQuery, opts?: { signal?: AbortSignal }): Promise<import('../usage/types').UsageDailyResponse>;

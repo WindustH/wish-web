@@ -76,6 +76,9 @@ export const cfg = Object.freeze({
 
   stats: {
     refreshMs: 30_000,
+    calendarRefreshMs: 300_000,
+    calendarDays: 365,
+    tablePageSize: 50,
   },
 
   i18n: {

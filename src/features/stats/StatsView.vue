@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import Hint from '../../ui/components/Hint.vue';
-import { computed, onActivated, onDeactivated } from 'vue';
+import { computed, defineAsyncComponent, onActivated, onDeactivated, ref } from 'vue';
 import { RefreshCw } from '@lucide/vue';
 import { stats } from '../../core/state/statsSlice.js';
 import { i18n } from '../../core/i18n/index.js';
 import { fmtDateTime, fmtTokens, fmtUptime } from '../../core/util/fmt.js';
 import Spinner from '../../ui/components/Spinner.vue';
 
+const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
+const charts = ref<{ refresh: () => void }>();
+function refresh() { void stats.refresh(); charts.value?.refresh(); }
 const { status, usage, storage, version, loading, error, updatedAt } = stats;
 const totals = computed(() => usage.value?.statistics.totals);
 const rows = computed(() => usage.value?.statistics.by_provider_model ?? []);
@@ -20,10 +23,11 @@ onDeactivated(stats.stopAuto);
 
 <template>
   <div class="page statistics-page">
-    <div class="statistics-toolbar"><span v-if="updatedAt" class="hint">{{ tx('更新于', 'Updated at') }} {{ fmtDateTime(updatedAt) }}</span><button class="btn ghost" :disabled="loading" @click="stats.refresh"><RefreshCw :size="17" />{{ i18n.t('stats.refresh') }}</button></div>
+    <div class="statistics-toolbar"><span v-if="updatedAt" class="hint">{{ tx('更新于', 'Updated at') }} {{ fmtDateTime(updatedAt) }}</span><button class="btn ghost" :disabled="loading" @click="refresh"><RefreshCw :size="17" />{{ i18n.t('stats.refresh') }}</button></div>
     <div class="statistics-body">
       <p v-if="error" class="load-error" role="alert">{{ errorMessage }}<span v-if="updatedAt">{{ tx('下方保留上次成功读取的数据。', 'The last successful snapshot remains below.') }}</span></p>
       <Spinner v-if="loading && !updatedAt" />
+      <UsageCharts ref="charts" />
       <div class="statistics-grid">
         <section v-if="status" class="card">
           <h2>{{ i18n.t('stats.overview') }}</h2>

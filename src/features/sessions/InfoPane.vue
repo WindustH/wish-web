@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import Modal from '../../ui/components/Modal.vue';
 // Session details and usage; requests belong to this mounted session.
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue';
 import * as api from '../../core/api/endpoints.js';
 import { chat } from '../../core/state/chatSlice.js';
 import { i18n } from '../../core/i18n/index.js';
@@ -9,6 +9,7 @@ import { fmtDateTime, fmtTokens } from '../../core/util/fmt.js';
 import type { UsageSnapshot } from '../../core/state/statsSlice.js';
 import { useMedia } from '../../ui/composables/useMedia.js';
 
+const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 defineEmits<{ close: [] }>();
 const isMobile = useMedia('(max-width: 899px)');
 
@@ -43,7 +44,7 @@ const tokens = computed(() => usage.value?.statistics.totals.tokens ?? null);
 </script>
 
 <template>
-  <Modal :open="true" content-class="session-window" :title="i18n.t('info.title')" :page="isMobile" @close="$emit('close')">
+  <Modal :open="true" content-class="session-window usage-info-window" :title="i18n.t('info.title')" :page="isMobile" @close="$emit('close')">
     <div v-if="err" class="load-error" role="alert">
       <span>{{ String(err?.detail || err?.message || err) }}</span>
       <button class="btn ghost sm" @click="refresh">{{ i18n.t('common.retry') }}</button>
@@ -73,5 +74,6 @@ const tokens = computed(() => usage.value?.statistics.totals.tokens ?? null);
       <dt>{{ i18n.t('stats.tokensTotal') }}</dt><dd>{{ fmtTokens(tokens?.total_tokens) }}</dd>
     </dl>
     <div v-else-if="!err" class="hint">{{ i18n.t('sessions.loading') }}</div>
+    <UsageCharts v-if="chat.sessionId.value" :session-id="chat.sessionId.value" />
   </Modal>
 </template>
