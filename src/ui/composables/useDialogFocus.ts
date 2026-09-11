@@ -10,19 +10,12 @@ export function useDialogFocus() {
   }
   function closed(event: Event) {
     if (!opener?.isConnected) return;
-    // A nonmodal sheet can close because the user selected another control.
-    // Preserve that control's focus instead of jumping back to the opener.
+    // Preserve an explicitly focused control when navigation closes a dialog.
     const active = document.activeElement;
     const content = event.target as HTMLElement;
     if (active && active !== document.body && !content.contains(active)) return;
     event.preventDefault();
     opener.focus({ preventScroll: true });
   }
-  function outside(event: CustomEvent<{ originalEvent: Event }>) {
-    const target = event.detail.originalEvent.target;
-    // Let the opener's click toggle a nonmodal sheet. Otherwise pointerdown
-    // closes it first and the following click immediately opens it again.
-    if (target instanceof Node && opener?.contains(target)) event.preventDefault();
-  }
-  return { opened, closed, outside };
+  return { opened, closed };
 }

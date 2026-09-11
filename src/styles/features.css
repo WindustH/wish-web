@@ -154,8 +154,6 @@ html.resizing-composer, html.resizing-composer * { cursor: row-resize !important
 .sr-snippet { font-size: 13px; line-height: 1.8; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .sr-snippet mark { background: var(--accent-soft); color: var(--accent); }
 .tags-editor { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.runs-list { display: flex; flex-direction: column; gap: 0; }
-.run-row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; font-size: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 0; }
 .setting-row + .setting-row { border-top: 1px solid var(--line); }
 .setting-row > div { min-width: 0; }
@@ -196,11 +194,9 @@ html.resizing-composer, html.resizing-composer * { cursor: row-resize !important
 .load-error { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--err); font-size: 13px; padding: 12px 0; overflow-wrap: anywhere; }
 @media (max-width: 899px) { .proc-head, .fold-chip { min-height: 44px; } }
 
-.sheet-body > h4 { font: 600 18px/1.6 var(--font); margin: 32px 0 20px; padding-top: 24px; border-top: 1px solid var(--line); }
+.session-window > .modal-body > h4 { font: 600 18px/1.6 var(--font); margin: 32px 0 20px; padding-top: 24px; border-top: 1px solid var(--line); }
 .info-instructions { flex-direction: column; align-items: stretch; gap: 12px; }
 .info-instructions h4 { margin: 0; font-weight: 500; }
-.run-counts { flex-basis: 100%; color: var(--fg-subtle); font-size: 11px; }
-.sheet-head-spacer { width: 40px; flex: none; }
 @media (max-width: 899px) {
   .composer.mobile textarea, .input, .select, .textarea, .settings-page input, .settings-page select { font-size: 16px; }
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Modal from '../../ui/components/Modal.vue';
 // Server-side history search with generational guards; jumping locates the
 // seq through the bounded window (never a full scan); errors surface.
 import { onUnmounted, ref, watch } from 'vue';
@@ -7,7 +8,6 @@ import * as api from '../../core/api/endpoints.js';
 import { chat } from '../../core/state/chatSlice.js';
 import { i18n } from '../../core/i18n/index.js';
 import { fmtDateTime } from '../../core/util/fmt.js';
-import Sheet from '../../ui/components/Sheet.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 import { useMedia } from '../../ui/composables/useMedia.js';
 
@@ -105,7 +105,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Sheet :open="true" :title="i18n.t('search.title')" :mobile="isMobile" @close="$emit('close')">
+  <Modal :open="true" content-class="session-window" :title="i18n.t('search.title')" :page="isMobile" @close="$emit('close')">
     <div class="search-row">
       <input v-model="q" class="input" data-initial-focus type="search" :disabled="locating !== null"
         @compositionstart="composing = true" @compositionend="composing = false; scheduleSearch()" :placeholder="i18n.t('search.placeholder')"
@@ -128,5 +128,5 @@ onUnmounted(() => {
       </button>
       <button v-if="state.more" class="btn ghost" :disabled="state.status === 'busy' || locating !== null" @click="more">{{ i18n.t('search.more') }}</button>
     </div>
-  </Sheet>
+  </Modal>
 </template>

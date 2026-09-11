@@ -24,27 +24,6 @@
   flex-direction: column; background: var(--bg-sunken); min-height: 0;
 }
 .content-pane { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-/* Sheets overlay the conversation without changing its reading width or scroll. */
-.session-sheet {
-  position: absolute; inset: 0 0 0 auto; z-index: 30; display: flex; flex-direction: column;
-  min-width: 0; min-height: 0; border-left: 1px solid var(--line); background: var(--bg-raised);
-  overflow: hidden; box-shadow: -16px 0 48px rgb(0 0 0 / 8%);
-  animation: sheet-in var(--dur) var(--ease-out) both;
-}
-/* Keep desktop conversation actions reachable while a sheet is open. */
-.drawer { top: var(--h-topbar); width: min(var(--w-drawer), 90%); }
-.session-sheet.sheet-page { width: 100%; border: 0; }
-.session-sheet.closing { animation: sheet-out var(--dur) ease-in both; pointer-events: none; }
-@keyframes sheet-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
-@keyframes sheet-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
-.sheet-actions { display: flex; align-items: center; gap: var(--space-xs); margin-left: auto; }
-.drawer-head {
-  min-height: var(--h-topbar); flex: none; display: flex; align-items: center; justify-content: space-between;
-  gap: var(--space-s); padding: 0 20px; border-bottom: 1px solid var(--line);
-}
-.drawer-head h2 { margin: 0; min-width: 0; font: 600 18px/1.5 var(--font); }
-.sheet-body { flex: 1; min-height: 0; overflow-y: auto; overflow-wrap: anywhere; padding: 20px; }
-.sheet-page { min-width: 0; min-height: 0; overflow: hidden; }
 .shell.mobile { flex-direction: column; }
 .shell.mobile .vbar { display: none; }
 .shell.mobile .sessions-pane { width: 100%; flex: 1; border-right: 0; }
@@ -77,7 +56,3 @@
 }
 html.resizing, html.resizing * { cursor: col-resize !important; user-select: none !important; }
 html.resizing .chatlog, html.resizing .sl-scroll { pointer-events: none; }
-@media (max-width: 899px) {
-  .drawer-head { padding-inline: 16px; }
-  .sheet-body { padding: 20px 16px; }
-}

@@ -53,7 +53,6 @@ export const compactionHistory = (id) => get(`/sessions/${id}/compaction-history
 export const sessionContext = (id) => get(`/sessions/${id}/context`);
 export const sessionContextBudget = (id) => get(`/sessions/${id}/context/budget`);
 export const sessionUsage = (id) => get(`/sessions/${id}/metrics/usage`);
-export const sessionRuns = (id, params, opts) => get(`/sessions/${id}/runs`, { query: params, ...opts });
 export const runGet = (id, opts) => get(`/runs/${id}`, opts);
 export const runCancel = (id) => post(`/runs/${id}/cancel`, {});
 
