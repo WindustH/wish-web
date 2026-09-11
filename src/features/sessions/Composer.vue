@@ -95,25 +95,25 @@ watch([text, () => props.mobile], async () => {
 });
 
 function attachmentAccepted(file: PickedAttachment) {
-  const image = hasImagePreview(file.mime);
+  const image = file.kind === 'image';
   const bytes = image ? limits.value.imageBytes : limits.value.fileBytes;
   if (file.size > bytes) { toast(`Attachment exceeds size limit (${fmtBytes(bytes)})`); return false; }
-  return hasAttachmentSpace(file.mime);
+  return hasAttachmentSpace(file.kind);
 }
-function hasAttachmentSpace(mime: string) {
-  const image = hasImagePreview(mime);
+function hasAttachmentSpace(kind: 'image' | 'file') {
+  const image = kind === 'image';
   const count = image ? limits.value.imageCount : limits.value.fileCount;
-  if (attachments.value.filter(item => hasImagePreview(item.mime) === image).length >= count) {
+  if (attachments.value.filter(item => item.kind === kind).length >= count) {
     toast(`Too many ${image ? 'images' : 'files'} (limit: ${count})`); return false;
   }
   return true;
 }
-async function attach() {
+async function attach(kind: 'image' | 'file') {
   const epoch = attachmentEpoch;
   try {
-    const picked = await platform('fs').pickFiles({ multiple: true });
+    const picked = await platform('fs').pickFiles({ multiple: true, accept: kind === 'image' ? 'image/png,image/jpeg,image/gif,image/webp' : '' });
     if (epoch !== attachmentEpoch) return;
-    await readAttachments(picked);
+    await readAttachments(picked.map((file: Omit<PickedAttachment, 'kind'>) => ({ ...file, kind })));
   } catch (error) {
     if (epoch === attachmentEpoch) toast('Could not read attachment: ' + String(error));
   }
@@ -125,6 +125,7 @@ function onPaste(event: ClipboardEvent) {
   if (!event.clipboardData?.getData('text/plain')) event.preventDefault();
   void readAttachments(files.map(file => ({
     // Clipboard image names are synthesized by the browser, not source names.
+    kind: hasImagePreview(file.type) ? 'image' as const : 'file' as const,
     name: file.type.startsWith('image/') ? undefined : file.name || undefined,
     mime: file.type || 'application/octet-stream', size: file.size,
     read: () => file.arrayBuffer(),
@@ -139,9 +140,9 @@ async function readAttachments(files: PickedAttachment[]) {
       if (!attachmentAccepted(file)) continue;
       const bytes = await file.read();
       if (epoch !== attachmentEpoch) return;
-      if (!hasAttachmentSpace(file.mime)) continue;
+      if (!hasAttachmentSpace(file.kind)) continue;
       attachments.value = [...attachments.value, {
-        name: file.name, mime: file.mime, bytes,
+        kind: file.kind, name: file.name, mime: file.mime, bytes,
         localUrl: URL.createObjectURL(new Blob([bytes], { type: file.mime })),
       }];
     }
@@ -231,8 +232,10 @@ function resizeKeys(e: KeyboardEvent) {
       :aria-valuenow="height"
       @pointerdown="startComposerDrag" @keydown="resizeKeys" /></Hint>
     <div v-if="!mobile" class="composer-toolbar">
+      <Hint :text="i18n.t('chat.image')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.image')"
+        @click="attach('image')"><Icon name="image" /></button></Hint>
       <Hint :text="i18n.t('chat.attach')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.attach')"
-        @click="attach"><Icon name="paperclip" /></button></Hint>
+        @click="attach('file')"><Icon name="paperclip" /></button></Hint>
       <slot name="selection" />
       <div class="grow" />
       <Hint :text="i18n.t('chatbar.search')" v-if="onSearch"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.search')"
@@ -241,7 +244,7 @@ function resizeKeys(e: KeyboardEvent) {
     <div v-if="attachments.length > 0" ref="attachmentStrip" class="attachment-preview">
       <div class="attach-strip">
       <div v-for="(img, i) in attachments" :key="img.localUrl" class="attach-thumb">
-        <Hint v-if="hasImagePreview(img.mime)" :text="img.name"><img :src="img.localUrl" :alt="img.name || i18n.t('chat.image')" /></Hint>
+        <Hint v-if="img.kind === 'image'" :text="img.name"><img :src="img.localUrl" :alt="img.name || i18n.t('chat.image')" /></Hint>
         <div v-else class="attachment-file"><Icon name="paperclip" /><div class="attachment-file-label"><span>{{ img.name || i18n.t('chat.attachment') }}</span><small>{{ fmtBytes(img.bytes.byteLength) }}</small></div></div>
         <button class="rm" :aria-label="i18n.t('common.remove')" @click="removeAttachment(i)">
           <Icon name="x" class="sm" />
@@ -255,8 +258,10 @@ function resizeKeys(e: KeyboardEvent) {
     </div>
     <div v-if="mobile && start" class="composer-start-selection"><slot name="selection" /></div>
     <div class="composer-editor">
+      <Hint :text="i18n.t('chat.image')" v-if="mobile"><button class="btn ghost icon-only"
+        :aria-label="i18n.t('chat.image')" @click="attach('image')"><Icon name="image" /></button></Hint>
       <Hint :text="i18n.t('chat.attach')" v-if="mobile"><button class="btn ghost icon-only"
-        :aria-label="i18n.t('chat.attach')" @click="attach"><Icon name="paperclip" /></button></Hint>
+        :aria-label="i18n.t('chat.attach')" @click="attach('file')"><Icon name="paperclip" /></button></Hint>
       <textarea ref="ta" :rows="cfg.composer.mobileMinRows"
         :placeholder="running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')"
         :aria-label="i18n.t('chat.placeholder')" v-model="text"
