@@ -77,9 +77,9 @@ export const streamingGet = (opts) => get('/config/streaming', opts);
 export const streamingPut = (enabled, opts) => put('/config/streaming', { enabled }, opts);
 
 // ── blobs / images ──────────────────────────────────────────────────────
-export const uploadSessionImage = (sid, bytes, mime, opts) =>
-  api('POST', `/sessions/${sid}/blobs/images`, {
-    body: bytes, raw: true, headers: { 'content-type': mime }, ...opts,
+export const uploadSessionBlob = (sid, bytes, opts) =>
+  api('POST', `/sessions/${sid}/blobs`, {
+    body: bytes, raw: true, headers: { 'content-type': 'application/octet-stream' }, ...opts,
   });
 // Contract: per-session model capabilities (same resolution as sending).
 export const sessionCapabilities = (id, opts) => get(`/sessions/${id}/capabilities`, opts);

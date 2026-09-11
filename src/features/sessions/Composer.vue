@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import Hint from '../../ui/components/Hint.vue';
+import { attachmentLimits, hasImagePreview, type AttachmentInput, type PickedAttachment } from '../../core/attachments.js';
+import { fmtBytes } from '../../core/util/fmt.js';
 // Correctness rules preserved from the audited implementation:
 //  · IME-safe Enter (composition strokes never send);
 //  · in-flight guard, no implicit stop from the keyboard;
@@ -17,11 +19,10 @@ import { toast } from '../../ui/toast.js';
 import Icon from '../../ui/components/Icon.vue';
 import { useComposerHeight } from './useComposerHeight.js';
 
-interface ImageData { name: string; mime: string; bytes: ArrayBuffer }
-interface Img extends ImageData { localUrl: string }
+interface Attachment extends AttachmentInput { localUrl: string }
 
 const props = defineProps<{ sessionId: string; mobile: boolean; onSearch?: () => void;
-  start?: boolean; disabled?: boolean; sendMessage?: (text: string, images: ImageData[]) => Promise<string> }>();
+  start?: boolean; disabled?: boolean; sendMessage?: (text: string, attachments: AttachmentInput[]) => Promise<string> }>();
 const submitting = ref(false);
 
 const stream = computed(() => props.start ? null : chat.stream.value);
@@ -46,26 +47,21 @@ watch(attachmentStrip, (el, _, onCleanup) => {
 }, { flush: 'post' });
 
 const text = ref(chat.getDraft(props.sessionId));
-const images = ref<Img[]>([]);
-const readingImages = ref(0);
+const attachments = ref<Attachment[]>([]);
+const readingAttachments = ref(0);
 let attachmentEpoch = 0;
 const sidRef = ref(props.sessionId);
 sidRef.value = props.sessionId;
 
 const running = computed(() => stream.value?.active);
 const busy = computed(() => running.value || sending.value);
-const canSend = computed(() => (text.value.trim().length > 0 || images.value.length > 0) && !busy.value && !readingImages.value && !props.disabled);
+const canSend = computed(() => (text.value.trim().length > 0 || attachments.value.length > 0) && !busy.value && !readingAttachments.value && !props.disabled);
 
 const capsFailed = computed(() => caps.value?.status === 'error');
 const capsData = computed(() => caps.value?.status === 'ok' ? caps.value.data : null);
-const maxImages = computed(() => capsData.value?.images?.max_images_per_message ?? cfg.composer.maxImages);
-const maxImageBytes = computed(() => capsData.value?.images?.max_image_bytes ?? cfg.composer.maxImageBytes);
-const allowedMimes = computed(() => {
-  const l = capsData.value?.images?.allowed_mime_types;
-  return Array.isArray(l) && l.length ? l : null;
-});
+const limits = computed(() => attachmentLimits(capsData.value));
 
-const revokeAll = (imgs: Img[]) => { for (const i of imgs) if (i?.localUrl) URL.revokeObjectURL(i.localUrl); };
+const revokeAll = (items: Attachment[]) => { for (const i of items) if (i?.localUrl) URL.revokeObjectURL(i.localUrl); };
 
 function setTextOwned(v: string) {
   text.value = v;
@@ -74,14 +70,14 @@ function setTextOwned(v: string) {
 
 watch(() => props.sessionId, (id) => {
   attachmentEpoch++;
-  readingImages.value = 0;
+  readingAttachments.value = 0;
   sidRef.value = id;   // ownership FIRST: drafts/attachments must never leak across sessions (audit A1)
-  const prev = images.value;
-  images.value = [];
+  const prev = attachments.value;
+  attachments.value = [];
   revokeAll(prev);
   text.value = chat.getDraft(id);
 }, { flush: 'sync' });
-onBeforeUnmount(() => { attachmentEpoch++; revokeAll(images.value); });
+onBeforeUnmount(() => { attachmentEpoch++; revokeAll(attachments.value); });
 
 watch([text, () => props.mobile], async () => {
   await nextTick();
@@ -98,71 +94,83 @@ watch([text, () => props.mobile], async () => {
   el.style.overflowY = el.scrollHeight > maxPx ? 'auto' : 'hidden';
 });
 
-function imageAccepted(mime: string, size: number) {
-  if (allowedMimes.value && !allowedMimes.value.includes(mime)) { toast(i18n.t('chat.imageMime')); return false; }
-  if (size > maxImageBytes.value) { toast(i18n.t('chat.imageTooLarge')); return false; }
-  if (images.value.length >= maxImages.value) { toast(i18n.t('chat.imageLimit', { count: maxImages.value })); return false; }
-  return true;
+function attachmentAccepted(file: PickedAttachment) {
+  const image = hasImagePreview(file.mime);
+  const bytes = image ? limits.value.imageBytes : limits.value.fileBytes;
+  if (file.size > bytes) { toast(`Attachment exceeds size limit (${fmtBytes(bytes)})`); return false; }
+  return hasAttachmentSpace(file.mime);
 }
-function addImage(image: ImageData) {
-  if (!imageAccepted(image.mime, image.bytes.byteLength)) return;
-  images.value = [...images.value, { ...image, localUrl: URL.createObjectURL(new Blob([image.bytes], { type: image.mime })) }];
+function hasAttachmentSpace(mime: string) {
+  const image = hasImagePreview(mime);
+  const count = image ? limits.value.imageCount : limits.value.fileCount;
+  if (attachments.value.filter(item => hasImagePreview(item.mime) === image).length >= count) {
+    toast(`Too many ${image ? 'images' : 'files'} (limit: ${count})`); return false;
+  }
+  return true;
 }
 async function attach() {
   const epoch = attachmentEpoch;
   try {
-    const picked = await platform('fs').pickImages({ multiple: true });
+    const picked = await platform('fs').pickFiles({ multiple: true });
     if (epoch !== attachmentEpoch) return;
-    for (const image of picked) addImage(image);
+    await readAttachments(picked);
   } catch (error) {
-    if (epoch === attachmentEpoch) toast(i18n.t('chat.imageReadFailed') + ': ' + String(error));
+    if (epoch === attachmentEpoch) toast('Could not read attachment: ' + String(error));
   }
 }
 function onPaste(event: ClipboardEvent) {
-  const files = Array.from(event.clipboardData?.files ?? []).filter(file => file.type.startsWith('image/'));
+  const files = Array.from(event.clipboardData?.files ?? []);
   if (!files.length) return;
   // Preserve native text insertion (selection, undo, IME) for mixed clipboards.
-  // Clipboard events also work over LAN HTTP; no clipboard-read permission is needed.
   if (!event.clipboardData?.getData('text/plain')) event.preventDefault();
-  void pasteImages(files);
+  void readAttachments(files.map(file => ({
+    // Clipboard image names are synthesized by the browser, not source names.
+    name: file.type.startsWith('image/') ? undefined : file.name || undefined,
+    mime: file.type || 'application/octet-stream', size: file.size,
+    read: () => file.arrayBuffer(),
+  })));
 }
-async function pasteImages(files: File[]) {
+async function readAttachments(files: PickedAttachment[]) {
   const epoch = attachmentEpoch;
-  readingImages.value++;
+  readingAttachments.value++;
   try {
     for (const file of files) {
       if (epoch !== attachmentEpoch) return;
-      if (!imageAccepted(file.type, file.size)) continue;
-      const bytes = await file.arrayBuffer();
+      if (!attachmentAccepted(file)) continue;
+      const bytes = await file.read();
       if (epoch !== attachmentEpoch) return;
-      addImage({ name: file.name, mime: file.type, bytes });
+      if (!hasAttachmentSpace(file.mime)) continue;
+      attachments.value = [...attachments.value, {
+        name: file.name, mime: file.mime, bytes,
+        localUrl: URL.createObjectURL(new Blob([bytes], { type: file.mime })),
+      }];
     }
   } catch (error) {
-    if (epoch === attachmentEpoch) toast(i18n.t('chat.imageReadFailed') + ': ' + String(error));
+    if (epoch === attachmentEpoch) toast('Could not read attachment: ' + String(error));
   } finally {
-    if (epoch === attachmentEpoch) readingImages.value--;
+    if (epoch === attachmentEpoch) readingAttachments.value--;
   }
 }
 
-function removeImage(i: number) {
-  const img = images.value[i];
-  if (img?.localUrl) URL.revokeObjectURL(img.localUrl);
-  images.value = images.value.filter((_, j) => j !== i);
+function removeAttachment(i: number) {
+  const attachment = attachments.value[i];
+  if (attachment?.localUrl) URL.revokeObjectURL(attachment.localUrl);
+  attachments.value = attachments.value.filter((_, j) => j !== i);
 }
 
 async function submit() {
   if (sending.value || running.value) return;
   if (!canSend.value) return;
   const owner = props.sessionId;
-  const payload = text.value, imgs = images.value;
+  const payload = text.value, sent = attachments.value;
   submitting.value = true;
   try {
-    const receipt = await (props.sendMessage ? props.sendMessage(payload, imgs) : chat.send(payload, imgs));
+    const receipt = await (props.sendMessage ? props.sendMessage(payload, sent) : chat.send(payload, sent));
     if (!receipt) return;   // stale: never accepted — everything survives
-    if (sidRef.value !== owner) { chat.setDraft('', owner); revokeAll(imgs); return; }
+    if (sidRef.value !== owner) { chat.setDraft('', owner); revokeAll(sent); return; }
     if (text.value === payload) { text.value = ''; chat.setDraft('', owner); }
-    images.value = images.value.filter((i) => !imgs.includes(i));
-    revokeAll(imgs);
+    attachments.value = attachments.value.filter((i) => !sent.includes(i));
+    revokeAll(sent);
   } catch (e: any) {
     if (sidRef.value === owner) toast(String(e?.detail || e?.message || e));
   } finally { submitting.value = false; }
@@ -223,18 +231,19 @@ function resizeKeys(e: KeyboardEvent) {
       :aria-valuenow="height"
       @pointerdown="startComposerDrag" @keydown="resizeKeys" /></Hint>
     <div v-if="!mobile" class="composer-toolbar">
-      <Hint :text="i18n.t('chat.image')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.image')"
-        @click="attach"><Icon name="image" /></button></Hint>
+      <Hint :text="i18n.t('chat.attach')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.attach')"
+        @click="attach"><Icon name="paperclip" /></button></Hint>
       <slot name="selection" />
       <div class="grow" />
       <Hint :text="i18n.t('chatbar.search')" v-if="onSearch"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.search')"
         @click="onSearch"><Icon name="history" /></button></Hint>
     </div>
-    <div v-if="images.length > 0" ref="attachmentStrip" class="attachment-preview">
+    <div v-if="attachments.length > 0" ref="attachmentStrip" class="attachment-preview">
       <div class="attach-strip">
-      <div v-for="(img, i) in images" :key="img.localUrl" class="attach-thumb">
-        <img :src="img.localUrl" :alt="img.name" />
-        <button class="rm" :aria-label="i18n.t('common.remove')" @click="removeImage(i)">
+      <div v-for="(img, i) in attachments" :key="img.localUrl" class="attach-thumb">
+        <Hint v-if="hasImagePreview(img.mime)" :text="img.name"><img :src="img.localUrl" :alt="img.name || i18n.t('chat.image')" /></Hint>
+        <div v-else class="attachment-file"><Icon name="paperclip" /><div class="attachment-file-label"><span>{{ img.name || i18n.t('chat.attachment') }}</span><small>{{ fmtBytes(img.bytes.byteLength) }}</small></div></div>
+        <button class="rm" :aria-label="i18n.t('common.remove')" @click="removeAttachment(i)">
           <Icon name="x" class="sm" />
         </button>
       </div>
@@ -246,8 +255,8 @@ function resizeKeys(e: KeyboardEvent) {
     </div>
     <div v-if="mobile && start" class="composer-start-selection"><slot name="selection" /></div>
     <div class="composer-editor">
-      <Hint :text="i18n.t('chat.image')" v-if="mobile"><button class="btn ghost icon-only"
-        :aria-label="i18n.t('chat.image')" @click="attach"><Icon name="image" /></button></Hint>
+      <Hint :text="i18n.t('chat.attach')" v-if="mobile"><button class="btn ghost icon-only"
+        :aria-label="i18n.t('chat.attach')" @click="attach"><Icon name="paperclip" /></button></Hint>
       <textarea ref="ta" :rows="cfg.composer.mobileMinRows"
         :placeholder="running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')"
         :aria-label="i18n.t('chat.placeholder')" v-model="text"

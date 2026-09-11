@@ -29,7 +29,7 @@ export interface ChatApi {
   open(id: string): Promise<void>;
   close(): void;
   reload(): Promise<void>;
-  send(text: string, images: any[]): Promise<string | null>;
+  send(text: string, attachments: any[]): Promise<string | null>;
   interrupt(): Promise<void>;
   loadOlder(opts?: { beforeMerge?: () => void | Promise<void> }): Promise<boolean>;
   locate(id: string, seq: number): Promise<boolean>;

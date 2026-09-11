@@ -6,7 +6,7 @@
 // Interfaces (all async/optional unless noted):
 //   storage  { get(key), set(key,value), remove(key), keys(), clear() }
 //   notify   { isSupported, permission(), request(), show({title,body,tag}) }
-//   fs       { saveFile({name,mime,bytes}), pickImages({multiple,maxBytes}) }
+//   fs       { saveFile({name,mime,bytes}), pickFiles({multiple}) -> [{name,mime,size,read()}] }
 //   share    { isSupported, share({title,text,url}) }
 //   app      { isStandalone(), canInstall(), promptInstall(), keepAwake(bool) }
 

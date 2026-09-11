@@ -135,7 +135,7 @@
 .composer-resize { position: absolute; top: -5px; left: 0; width: 100%; height: 9px; cursor: row-resize; touch-action: none; z-index: 5; }
 html.resizing-composer, html.resizing-composer * { cursor: row-resize !important; user-select: none !important; }
 .attach-strip { display: flex; gap: 8px; padding: 8px; overflow-x: auto; }
-.attach-thumb { position: relative; }
+.attach-thumb { position: relative; flex: none; }
 .attach-thumb img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
 .attach-thumb .rm { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; background: var(--fg); color: var(--bg); border: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .attach-thumb .rm .icon { width: 12px; height: 12px; }
@@ -208,3 +208,14 @@ html.resizing-composer, html.resizing-composer * { cursor: row-resize !important
 .cfg-requirement { margin-inline-start: 8px; font-size: 11px; font-weight: 400; color: var(--fg-muted); }
 .cfg-preset-auth h4 { margin: 14px 0 0; font-size: 13px; font-weight: 600; }
 .cfg-preset-auth > .cfg-field:last-child { border-bottom: 0; }
+
+.attachment-file { display: flex; align-items: center; gap: 10px; min-height: 48px; width: min(260px, 65vw); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--bg-raised); color: var(--fg); }
+.attachment-file > .icon { flex: none; color: var(--fg-subtle); }
+.attachment-file-label { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.4; }
+.attachment-file-label > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; }
+.attachment-file-label small { color: var(--fg-subtle); font-size: 11px; }
+.message-file { width: min(340px, 100%); margin-top: 8px; }
+.message-file:hover { text-decoration: none; background: var(--bg-hover); border-color: var(--accent); }
+.message-image { margin: 8px 0 0; }
+.message-image figcaption { margin-top: 4px; font-size: 12px; color: var(--fg-subtle); overflow-wrap: anywhere; }
+.bubble > .message-file:first-child, .bubble > .message-image:first-child { margin-top: 0; }

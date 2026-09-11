@@ -1,32 +1,35 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import CopyButton from '../../../ui/components/CopyButton.vue';
+import Hint from '../../../ui/components/Hint.vue';
+import Icon from '../../../ui/components/Icon.vue';
 import { blobUrl } from '../../../core/api/endpoints.js';
-// Local (just-sent) attachments render from their object URL; durable
-// history carries image blocks with base64 data or a content-addressed
-// sha256 — both must show, or reloaded conversations silently lose their
-// pictures (root review).
+import { fmtBytes } from '../../../core/util/fmt.js';
+import { i18n } from '../../../core/i18n/index.js';
 const props = defineProps<{ item: any }>();
-const blocks = () => props.item.entry?.payload?.content || [];
-const joined = computed(() => blocks().filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n\n'));
-const images = () => props.item.entry?.payload?.__images || [];
-const durableImages = () => images().length ? [] : blocks().filter((b: any) => b.type === 'image');
-const blobSrc = (b: any) => b.data_base64
-  ? `data:${b.mime_type || 'image/png'};base64,${b.data_base64}`
-  : b.sha256 ? blobUrl(b.sha256) : null;
+const payload = computed(() => props.item.entry?.payload);
+const textBlocks = computed(() => (payload.value?.content || []).filter((b: any) => b.type === 'text'));
+const joined = computed(() => textBlocks.value.map((b: any) => b.text).join('\n\n'));
+const attachments = computed(() => payload.value?.__attachments || (payload.value?.content || []).filter((b: any) => b.type === 'image' || b.type === 'file'));
+const imageSrc = (block: any) => block.blob_id ? blobUrl(block.blob_id) : `data:${block.mime_type};base64,${block.data_base64}`;
 </script>
 
 <template>
   <div class="entry user">
     <div class="bubble">
-      <div v-for="(b, i) in blocks().filter((b: any) => b.type === 'text')" :key="i">{{ b.text }}</div>
-      <img v-for="(img, i) in images()" :key="'i' + i" :src="img.localUrl" :alt="img.name || 'image'" loading="lazy" />
-      <template v-for="(b, i) in durableImages()" :key="'b' + i">
-        <img v-if="blobSrc(b)" :src="blobSrc(b)!" alt="" loading="lazy" />
+      <div v-for="(b, i) in textBlocks" :key="i">{{ b.text }}</div>
+      <template v-for="(file, i) in attachments" :key="i">
+        <figure v-if="file.type === 'image'" class="message-image">
+          <img :src="imageSrc(file)" :alt="file.filename || ''" loading="lazy" />
+          <figcaption v-if="file.filename">{{ file.filename }}</figcaption>
+        </figure>
+        <Hint v-else :text="file.filename">
+          <a class="attachment-file message-file" :href="blobUrl(file.blob_id)" :download="file.filename || file.blob_id">
+            <Icon name="paperclip" /><div class="attachment-file-label"><span>{{ file.filename || i18n.t('chat.attachment') }}</span><small>{{ fmtBytes(file.byte_count) }}</small></div><Icon name="download" />
+          </a>
+        </Hint>
       </template>
     </div>
-    <div v-if="joined.trim()" class="meta">
-      <CopyButton :text="joined" />
-    </div>
+    <div v-if="joined.trim()" class="meta"><CopyButton :text="joined" /></div>
   </div>
 </template>

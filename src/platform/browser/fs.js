@@ -13,22 +13,23 @@ export const browserFs = {
     return true;
   },
 
-  // Resolves [{ name, mime, bytes }] — upload to wishd happens in the chat
-  // slice via endpoints.uploadSessionImage.
-  pickImages({ multiple = false } = {}) {
-    return new Promise((resolve) => {
+  // Metadata is returned before reading bytes so the composer can reject a
+  // large file before allocating its buffer. Cancelling does not leave a picker.
+  pickFiles({ multiple = false } = {}) {
+    return new Promise(resolve => {
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = 'image/*';
+      input.hidden = true;
       input.multiple = multiple;
-      input.onchange = async () => {
-        const files = [...(input.files || [])];
-        const out = [];
-        for (const f of files) {
-          out.push({ name: f.name, mime: f.type || 'image/png', bytes: new Uint8Array(await f.arrayBuffer()) });
-        }
-        resolve(out);
-      };
+      const finish = files => { input.remove(); resolve(files); };
+      input.addEventListener('cancel', () => finish([]), { once: true });
+      input.addEventListener('change', () => finish(Array.from(input.files || [], file => ({
+        name: file.name,
+        mime: file.type || 'application/octet-stream',
+        size: file.size,
+        read: () => file.arrayBuffer(),
+      }))), { once: true });
+      document.body.append(input);
       input.click();
     });
   },

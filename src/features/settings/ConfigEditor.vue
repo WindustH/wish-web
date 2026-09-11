@@ -44,7 +44,7 @@ const catalogBusy = ref(false);
 const root = computed(() => props.owner === 'providerd' ? draft.value?.providerd : draft.value);
 const order = props.owner === 'providerd'
   ? ['providers', 'endpoints', 'proxy', 'upstream', 'listen', 'auth', 'http', 'model_catalog_cache_ttl_s']
-  : ['wishd', 'streaming', 'agent', 'compaction', 'images', 'queue', 'retry', 'shell'];
+  : ['wishd', 'streaming', 'agent', 'compaction', 'images', 'attachments', 'queue', 'retry', 'shell'];
 const fields = computed(() => isObject(root.value) ? Object.keys(root.value).sort((a, b) => {
   const ai = order.indexOf(a), bi = order.indexOf(b);
   return (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi);
