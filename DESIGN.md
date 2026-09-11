@@ -141,3 +141,8 @@ Image-only messages send without placeholder text. Desktop previews add their
 measured height to the preferred composer height, capped by available space;
 removing them restores that preference. Mobile grows naturally around previews.
 Transient notices float outside the layout and never reserve a sidebar column.
+
+Image attachments are accepted for every model. With explicit native image
+capability the backend sends pixels; otherwise it projects a notice and a
+verified session-local file path for model input, preserving original images.
+The attachment preview explains the fallback and distinguishes unknown vision.

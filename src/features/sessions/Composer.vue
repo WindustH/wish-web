@@ -57,9 +57,11 @@ const canSend = computed(() => (text.value.trim().length > 0 || images.value.len
 
 const capsFailed = computed(() => caps.value?.status === 'error');
 const capsData = computed(() => caps.value?.status === 'ok' ? caps.value.data : null);
-const imageAllowed = computed(() => !capsData.value
-  || capsData.value.input_modalities == null
-  || (Array.isArray(capsData.value.input_modalities) && capsData.value.input_modalities.includes('image')));
+const imageNotice = computed(() => {
+  const modalities = capsData.value?.input_modalities;
+  if (modalities?.includes('image')) return '';
+  return i18n.t(modalities == null ? 'chat.imageUnknown' : 'chat.imageFallback');
+});
 const maxImages = computed(() => capsData.value?.images?.max_images_per_message ?? cfg.composer.maxImages);
 const maxImageBytes = computed(() => capsData.value?.images?.max_image_bytes ?? cfg.composer.maxImageBytes);
 const allowedMimes = computed(() => {
@@ -101,7 +103,6 @@ watch([text, () => props.mobile], async () => {
 });
 
 function imageAccepted(mime: string, size: number) {
-  if (!imageAllowed.value) { toast(i18n.t('chat.imageUnsupported')); return false; }
   if (allowedMimes.value && !allowedMimes.value.includes(mime)) { toast(i18n.t('chat.imageMime')); return false; }
   if (size > maxImageBytes.value) { toast(i18n.t('chat.imageTooLarge')); return false; }
   if (images.value.length >= maxImages.value) { toast(i18n.t('chat.imageLimit', { count: maxImages.value })); return false; }
@@ -112,7 +113,6 @@ function addImage(image: ImageData) {
   images.value = [...images.value, { ...image, localUrl: URL.createObjectURL(new Blob([image.bytes], { type: image.mime })) }];
 }
 async function attach() {
-  if (!imageAllowed.value) { toast(i18n.t('chat.imageUnsupported')); return; }
   const epoch = attachmentEpoch;
   try {
     const picked = await platform('fs').pickImages({ multiple: true });
@@ -227,12 +227,13 @@ function resizeKeys(e: KeyboardEvent) {
       @pointerdown="startComposerDrag" @keydown="resizeKeys" />
     <div v-if="!mobile" class="composer-toolbar">
       <button class="btn ghost icon-only" :title="i18n.t('chat.image')" :aria-label="i18n.t('chat.image')"
-        :disabled="!imageAllowed" @click="attach"><Icon name="image" /></button>
+        @click="attach"><Icon name="image" /></button>
       <div class="grow" />
       <button class="btn ghost icon-only" :title="i18n.t('chatbar.search')" :aria-label="i18n.t('chatbar.search')"
         @click="onSearch"><Icon name="history" /></button>
     </div>
-    <div v-if="images.length > 0" ref="attachmentStrip" class="attach-strip">
+    <div v-if="images.length > 0" ref="attachmentStrip" class="attachment-preview">
+      <div class="attach-strip">
       <div v-for="(img, i) in images" :key="img.localUrl" class="attach-thumb">
         <img :src="img.localUrl" :alt="img.name" />
         <button class="rm" :aria-label="i18n.t('common.remove')" @click="removeImage(i)">
@@ -240,13 +241,15 @@ function resizeKeys(e: KeyboardEvent) {
         </button>
       </div>
     </div>
+      <p v-if="imageNotice" class="attachment-notice">{{ imageNotice }}</p>
+    </div>
     <div v-if="capsFailed" class="caps-error">
       <span>{{ i18n.t('chat.capError') }}</span>
       <button class="btn ghost sm" @click="() => chat.reloadCapabilities()">{{ i18n.t('common.retry') }}</button>
     </div>
     <div class="composer-editor">
       <button v-if="mobile" class="btn ghost icon-only" :title="i18n.t('chat.image')"
-        :aria-label="i18n.t('chat.image')" :disabled="!imageAllowed" @click="attach"><Icon name="image" /></button>
+        :aria-label="i18n.t('chat.image')" @click="attach"><Icon name="image" /></button>
       <textarea ref="ta" :rows="cfg.composer.mobileMinRows"
         :placeholder="running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')"
         :aria-label="i18n.t('chat.placeholder')" v-model="text"
