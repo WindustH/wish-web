@@ -4,9 +4,10 @@ import { computed, defineAsyncComponent, onActivated, onDeactivated, ref } from 
 import { RefreshCw } from '@lucide/vue';
 import { stats } from '../../core/state/statsSlice.js';
 import { i18n } from '../../core/i18n/index.js';
-import { fmtDateTime, fmtTokens, fmtUptime } from '../../core/util/fmt.js';
+import { fmtBytes, fmtDateTime, fmtTokens, fmtUptime } from '../../core/util/fmt.js';
 import Spinner from '../../ui/components/Spinner.vue';
 
+const UsagePlot = defineAsyncComponent(() => import('../usage/UsagePlot.vue'));
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 const charts = ref<{ refresh: () => void }>();
 function refresh() { void stats.refresh(); charts.value?.refresh(); }
@@ -17,6 +18,22 @@ const errorMessage = computed(() => error.value instanceof Error ? error.value.m
 const tx = (zh: string, en: string) => i18n.locale.value === 'zh' ? zh : en;
 const number = (value: number) => new Intl.NumberFormat(i18n.locale.value).format(value);
 const percent = (value: number | null) => value == null ? '—' : new Intl.NumberFormat(i18n.locale.value, { style: 'percent', maximumFractionDigits: 1 }).format(value);
+const models = computed(() => {
+  const values = new Map<string, number>();
+  for (const row of rows.value) {
+    const name = row.model ?? tx('未记录', 'Not recorded');
+    values.set(name, (values.get(name) ?? 0) + row.totals.tokens.total_tokens);
+  }
+  return Array.from(values, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+});
+const modelTotal = computed(() => models.value.reduce((sum, item) => sum + item.value, 0));
+const storageRows = computed(() => storage.value ? [
+  { name: tx('会话数据', 'Session data'), value: storage.value.bytes.session_data },
+  { name: tx('资源文件', 'Resource files'), value: storage.value.bytes.blobs },
+  { name: tx('执行输出', 'Execution output'), value: storage.value.bytes.executions },
+  { name: tx('服务数据', 'Service data'), value: storage.value.bytes.service_data },
+] : []);
+const color = (index: number) => `var(--chart-${index % 6 + 1})`;
 onActivated(stats.startAuto);
 onDeactivated(stats.stopAuto);
 </script>
@@ -29,8 +46,9 @@ onDeactivated(stats.stopAuto);
       <Spinner v-if="loading && !updatedAt" />
       <UsageCharts ref="charts" />
       <div class="statistics-grid">
+        <div class="statistics-column">
         <section v-if="status" class="card">
-          <h2>{{ i18n.t('stats.overview') }}</h2>
+          <h2>{{ tx('服务状态', 'Service status') }}</h2>
           <dl class="statistics-values">
             <div><dt>{{ i18n.t('stats.sessions') }}</dt><dd>{{ number(status.counts.sessions) }}</dd></div>
             <div><dt>{{ i18n.t('stats.runs') }}</dt><dd>{{ number(status.counts.runs) }}</dd></div>
@@ -45,6 +63,17 @@ onDeactivated(stats.stopAuto);
             <div><dt>{{ tx('正在压缩上下文', 'Compacting context') }}</dt><dd>{{ number(status.queue.compacting_sessions) }}</dd></div>
           </dl>
         </section>
+        <section v-if="storage" class="card">
+          <h2>{{ i18n.t('stats.storage') }}</h2>
+          <div class="storage-total">{{ fmtBytes(storage.bytes.total) }}</div>
+          <div class="storage-bar" role="img" :aria-label="storageRows.map(item => `${item.name}: ${fmtBytes(item.value)}`).join(', ')">
+            <span v-for="(item,index) in storageRows" :key="item.name" :style="{ width: `${storage.bytes.total ? item.value / storage.bytes.total * 100 : 0}%`, background: color(index) }" />
+          </div>
+          <ul class="distribution-legend storage-legend">
+            <li v-for="(item,index) in storageRows" :key="item.name"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><strong>{{ fmtBytes(item.value) }}</strong></li>
+          </ul>
+        </section>
+        </div>
         <section v-if="totals && usage" class="card statistics-usage">
           <h2>{{ i18n.t('stats.usage') }}</h2>
           <dl class="statistics-values">
@@ -56,6 +85,14 @@ onDeactivated(stats.stopAuto);
             <div><dt>{{ tx('已完成回复', 'Completed responses') }}</dt><dd>{{ number(totals.committed_responses) }}</dd></div>
           </dl>
           <p v-if="usage.statistics.attempts_without_usage" class="hint">{{ tx(`其中 ${number(usage.statistics.attempts_without_usage)} 次调用未返回用量。`, `${number(usage.statistics.attempts_without_usage)} attempts did not report usage.`) }}</p>
+          <h3>{{ tx('模型 Token 占比', 'Token share by model') }}</h3>
+          <div v-if="modelTotal" class="model-share">
+            <UsagePlot :pie="models" :label="tx('各模型总 Token 消耗占比', 'Total Token consumption by model')" />
+            <ul class="distribution-legend">
+              <li v-for="(item,index) in models" :key="item.name"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><strong>{{ percent(item.value / modelTotal) }}</strong></li>
+            </ul>
+          </div>
+          <p v-else class="hint">{{ tx('还没有用量记录。', 'No usage records yet.') }}</p>
           <h3>{{ i18n.t('stats.byModel') }}</h3>
           <div class="statistics-table-wrap"><table class="table statistics-table">
             <thead><tr><th>{{ tx('提供商', 'Provider') }}</th><th>{{ tx('模型', 'Model') }}</th><th>{{ i18n.t('stats.tokensIn') }}</th><th>{{ i18n.t('stats.tokensOut') }}</th><th>{{ i18n.t('stats.tokensTotal') }}</th></tr></thead>
@@ -65,15 +102,7 @@ onDeactivated(stats.stopAuto);
             </tr><tr v-if="!rows.length"><td colspan="5" class="hint">{{ tx('还没有用量记录。', 'No usage records yet.') }}</td></tr></tbody>
           </table></div>
         </section>
-        <section v-if="storage" class="card">
-          <h2>{{ i18n.t('stats.storage') }}</h2>
-          <dl class="statistics-values">
-            <div><dt>{{ tx('执行记录', 'Execution records') }}</dt><dd>{{ number(storage.counts.executions) }}</dd></div>
-            <div><dt>{{ tx('资源文件', 'Resource files') }}</dt><dd>{{ number(storage.counts.blobs) }}</dd></div>
-            <div><dt>{{ tx('图片任务', 'Image tasks') }}</dt><dd>{{ number(storage.counts.image_jobs) }}</dd></div>
-            <div><dt>{{ tx('上下文版本', 'Context generations') }}</dt><dd>{{ number(storage.counts.context_generations) }}</dd></div>
-          </dl>
-        </section>
+
       </div>
     </div>
   </div>
@@ -84,15 +113,27 @@ onDeactivated(stats.stopAuto);
 .statistics-page > * { width: 100%; max-width: 1100px; margin-inline: auto; }
 .statistics-body { padding: 0; }
 .statistics-toolbar { display: flex; flex: none; align-items: center; justify-content: end; gap: 12px; padding-block: 10px; }
-.statistics-grid { display: grid; gap: 32px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 450px), 1fr)); align-items: start; }
-.statistics-grid .card { padding: 24px 0; min-width: 0; border-radius: 0; border: 0; border-top: 1px solid var(--line-strong); background: transparent; }
-h2 { font: 600 20px/1.5 var(--font); margin: 0 0 28px; }
-h3 { font-size: 14px; margin: 24px 0 16px; font-weight: 500; }
-.statistics-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin: 0; }
+.statistics-grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 450px), 1fr)); align-items: start; }
+.statistics-column { display: grid; gap: 20px; min-width: 0; }
+.statistics-grid .card { padding: 16px 0; min-width: 0; border-radius: 0; border: 0; border-top: 1px solid var(--line-strong); background: transparent; }
+h2 { font: 600 16px/1.5 var(--font); margin: 0 0 16px; }
+h3 { font-size: 14px; margin: 16px 0 12px; font-weight: 500; }
+.statistics-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; margin: 0; }
 dt { color: var(--fg-muted); font-size: 13px; }
-dd { margin: 5px 0 0; font-size: 28px; font-weight: 400; letter-spacing: -.03em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .statistics-table-wrap { overflow-x: auto; }
 .statistics-table { width: 100%; white-space: nowrap; }
 .load-error { margin-bottom: 20px; }
-@media (max-width: 899px) { .statistics-page { padding: 0 20px 32px; } .statistics-grid .card { padding: 24px 0; } .statistics-grid { gap: 0; } }
+@media (max-width: 899px) { .statistics-page { padding: 0 20px 32px; } .statistics-grid .card { padding: 16px 0; } .statistics-grid { gap: 0; } }
+.model-share { display: grid; grid-template-columns: minmax(120px, 180px) minmax(0, 1fr); gap: 16px; align-items: center; }
+.model-share :deep(.usage-canvas) { height: 180px; }
+.distribution-legend { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; font-size: 13px; }
+.distribution-legend li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.distribution-legend i { width: 8px; height: 8px; flex: none; border-radius: 2px; }
+.distribution-legend span { overflow-wrap: anywhere; }
+.distribution-legend strong { font-weight: 500; margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.storage-total { font-size: 18px; font-weight: 500; }
+.storage-bar { display: flex; overflow: hidden; border-radius: 4px; height: 18px; background: var(--bg-raised); margin: 12px 0 16px; }
+.storage-bar span { flex: none; }
+@media (max-width: 450px) { .model-share { grid-template-columns: minmax(100px, 130px) minmax(0, 1fr); gap: 10px; } .model-share :deep(.usage-canvas) { height: 140px; } }
 </style>

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import ChartCanvas from './ChartCanvas.vue';
-import { calendarOptions, lineOptions, type ChartStyle, type PlotSeries } from './chartOptions';
+import { calendarOptions, lineOptions, pieOptions, type ChartStyle, type PlotSeries } from './chartOptions';
 import { theme } from '../../core/theme/index.js';
 import { i18n } from '../../core/i18n/index.js';
-const props = defineProps<{ series?: PlotSeries[]; days?: [string, number][]; unit?: string; label: string }>();
+const props = defineProps<{ pie?: { name: string; value: number }[]; series?: PlotSeries[]; days?: [string, number][]; unit?: string; label: string }>();
 const root = ref<HTMLElement>();
 const style = ref<ChartStyle>();
 let calendarObserver: ResizeObserver | undefined;
@@ -31,7 +31,7 @@ onMounted(async () => {
 });
 onBeforeUnmount(() => calendarObserver?.disconnect());
 watch(theme.resolved, async () => { await nextTick(); readStyle(); });
-const option = computed(() => style.value && (props.days
+const option = computed(() => style.value && (props.pie ? pieOptions(props.pie, style.value, i18n.locale.value) : props.days
   ? calendarOptions(props.days, style.value, i18n.locale.value)
   : lineOptions(props.series ?? [], style.value, i18n.locale.value, props.unit ?? 'Token/s')));
 </script>

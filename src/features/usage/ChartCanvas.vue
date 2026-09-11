@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { init, use, type EChartsCoreOption, type EChartsType } from 'echarts/core';
-import { LineChart, HeatmapChart } from 'echarts/charts';
+import { LineChart, HeatmapChart, PieChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent, CalendarComponent, VisualMapComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import { usePageActivity } from '../../ui/composables/usePageActivity';
-use([LineChart, HeatmapChart, GridComponent, TooltipComponent, CalendarComponent, VisualMapComponent, CanvasRenderer]);
+use([LineChart, HeatmapChart, PieChart, GridComponent, TooltipComponent, CalendarComponent, VisualMapComponent, CanvasRenderer]);
 const props = defineProps<{ option: EChartsCoreOption; label: string }>();
 const host = ref<HTMLDivElement>();
 const active = usePageActivity();

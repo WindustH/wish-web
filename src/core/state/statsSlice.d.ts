@@ -20,6 +20,7 @@ export interface StatusSnapshot {
   uptime_ms: number;
 }
 export interface StorageSnapshot {
+  bytes: { session_data: number; blobs: number; executions: number; service_data: number; total: number };
   counts: { executions: number; blobs: number; image_jobs: number; context_generations: number };
 }
 export declare const stats: {
