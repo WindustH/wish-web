@@ -16,7 +16,12 @@ import { installShortcuts } from './ui/shortcuts.js';
 import App from './App.vue';
 import { router } from './router.js';
 
-import '@fontsource-variable/noto-sans-sc';
+import '@fontsource-variable/inter';
+import '@fontsource-variable/bitter';
+import '@fontsource-variable/bitter/wght-italic.css';
+import './styles/sarasa.css';
+import './styles/maple.css';
+import './styles/math.css';
 import '@fontsource-variable/noto-serif-sc';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -38,7 +43,7 @@ theme.init({
 watch(theme.resolved, (r) => {
   document.documentElement.dataset.theme = r;
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) (meta as HTMLMetaElement).content = r === 'dark' ? '#20221f' : '#fbfaf7';
+  if (meta) (meta as HTMLMetaElement).content = r === 'dark' ? '#20201e' : '#fcfcfb';
 }, { immediate: true });
 
 // i18n: persisted locale + <html lang> sync

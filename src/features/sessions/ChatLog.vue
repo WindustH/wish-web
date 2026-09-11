@@ -1,17 +1,6 @@
 <script setup lang="ts">
-// Virtualized conversation log (TanStack, dynamic measurement). Behaviors
-// kept from the audited version:
-//  · initial window at the tail; tail-follow while streaming;
-//  · older history loads near the top with an EXACT reading anchor — the
-//    anchor (first visible row + pixel offset + scroll metrics) is captured
-//    in the slice's beforeMerge callback (response arrival), then restored
-//    after merge/measure, with one settle pass for late image sizes;
-//  · newer history loads near the bottom (hasMoreAfter) — the window is
-//    bidirectional, jump-to-latest covers the rest;
-//  · search locate: resident [data-seq] scrolls into view; a target pruned
-//    by the virtualizer is re-mounted via its group index (process groups
-//    included — forced open + step anchors); one 4s .history-target flag;
-//  · live stream preview (text / reasoning / tool calls), not just a phase.
+// TanStack owns prepend and measurement anchoring. User intent owns tail
+// following; native scrollbar gestures suspend pagination until release.
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { ArrowDown } from '@lucide/vue';
@@ -41,13 +30,18 @@ const streamReasoning = computed(() => streamState.value?.reasoning || '');
 const streamToolCount = computed(() => Object.keys(streamState.value?.toolCalls || {}).length);
 
 const virtualizer = useVirtualizer(
-  computed(() => ({
-    count: groups.value.length,
-    getScrollElement: () => scrollEl.value,
-    estimateSize: () => 110,
-    overscan: 6,
-    getItemKey: (i: number) => groups.value[i]?.key ?? `i${i}`,
-  })),
+  computed(() => {
+    const items = groups.value;
+    return {
+      count: items.length,
+      getScrollElement: () => scrollEl.value,
+      estimateSize: () => 110,
+      overscan: 6,
+      getItemKey: (i: number) => items[i]!.key,
+      anchorTo: 'end',
+      followOnAppend: false,
+    };
+  }),
 );
 
 // ── reactive scroll state (updated on every scroll + once after layout) ──
@@ -59,7 +53,7 @@ const farUp = ref(false);
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
 
 function measureScroll() {
-  if (!pageActive.value) return;
+  if (!pageActive.value || scrollbarHeld.value) return;
   const el = scrollEl.value;
   if (!el) return;
   const fromTop = el.scrollTop;
@@ -96,98 +90,91 @@ function onKeydown(event: KeyboardEvent) {
   else if (['ArrowDown', 'PageDown', 'End', ' '].includes(event.key)) scrollIntent('latest');
 }
 
-// ── anchored older-history loading ─────────────────────────────────────
+// A response already in flight must also wait: otherwise releasing the
+// scrollbar is too late to prevent a prepend from moving its thumb.
+const scrollbarHeld = ref(false);
+let releaseMerge: (() => void) | undefined;
+let mergeReady: Promise<void> | undefined;
+let dragOffset = 0;
+function beforeHistoryMerge() { return mergeReady; }
+function onPointerDown(event: PointerEvent) {
+  const el = scrollEl.value;
+  if (!el || scrollbarHeld.value || event.button !== 0 || event.pointerType !== 'mouse' || event.target !== el) return;
+  const rect = el.getBoundingClientRect();
+  const gutter = el.offsetWidth - el.clientWidth;
+  // Overlay scrollbars occupy the same edge without reserving a gutter.
+  if (event.clientX < rect.right - Math.max(gutter, 12)) return;
+  scrollbarHeld.value = true;
+  stick.value = false;
+  direction = undefined;
+  dragOffset = el.scrollTop;
+  mergeReady = new Promise<void>((resolve) => { releaseMerge = resolve; });
+}
+function releaseScrollbar() {
+  if (!scrollbarHeld.value) return;
+  scrollbarHeld.value = false;
+  releaseMerge?.();
+  releaseMerge = undefined;
+  mergeReady = undefined;
+  nextTick(onScroll);
+}
+function onPointerMove(event: PointerEvent) {
+  // Also handles release outside the browser before the pointer returns.
+  if (scrollbarHeld.value && !(event.buttons & 1)) releaseScrollbar();
+}
+watch(scrollEl, (el, _, cleanup) => {
+  if (!el) return;
+  window.addEventListener('pointerup', releaseScrollbar, true);
+  window.addEventListener('pointercancel', releaseScrollbar, true);
+  window.addEventListener('blur', releaseScrollbar);
+  window.addEventListener('pointermove', onPointerMove, true);
+  cleanup(() => {
+    window.removeEventListener('pointerup', releaseScrollbar, true);
+    window.removeEventListener('pointercancel', releaseScrollbar, true);
+    window.removeEventListener('blur', releaseScrollbar);
+    window.removeEventListener('pointermove', onPointerMove, true);
+    releaseScrollbar();
+  });
+});
+watch(pageActive, (active) => { if (!active) releaseScrollbar(); });
+watch(() => props.sessionId, releaseScrollbar);
+
 let loadingOlderBusy = false;
-let chained = 0;   // consecutive top-pinned loadOlder pages (guard against runaway)
+let chained = 0;
 async function loadOlderAnchored() {
-  if (loadingOlderBusy) return;
+  if (loadingOlderBusy || scrollbarHeld.value || !pageActive.value) return;
   loadingOlderBusy = true;
   const gen = epoch;
-  const epochSid = chat.sessionId.value;   // late side effects must not cross sessions
   try {
-    interface AnchorCap { scrollTop: number; height: number; seq: number | null; off: number }
-    let cap: AnchorCap | undefined;
-    await chat.loadOlder({
-      // Fires at response-merge time: capture the ACTUAL reading position.
-      beforeMerge: () => {
-        const el = scrollEl.value;
-        if (!el) return;
-        const elTop = el.getBoundingClientRect().top;
-        const rows = [...el.querySelectorAll('.entry-anchor, .proc-group')];
-        const first = rows.find((n) => (n as HTMLElement).getBoundingClientRect().bottom > elTop + 4);
-        cap = {
-          scrollTop: el.scrollTop,
-          height: el.scrollHeight,
-          // A .proc-group carries data-seqs (plural, space list); its steps
-          // carry singular data-seq but are UNMOUNTED while collapsed — so
-          // the group's first member is the only reliable anchor id (root
-          // review: capture must parse data-seqs, never yield null).
-          seq: first ? Number((first as HTMLElement).dataset.seq
-            ?? (first as HTMLElement).getAttribute('data-seqs')?.split(' ')[0]
-            ?? (first as HTMLElement).querySelector('[data-seq]')?.getAttribute('data-seq')) || null : null,
-          off: first ? Math.round((first as HTMLElement).getBoundingClientRect().top - elTop) : 0,
-        };
-      },
-    });
-    const c = cap;
-    if (!c || !owns(gen) || chat.sessionId.value !== epochSid) return;
+    const added = await chat.loadOlder({ beforeMerge: beforeHistoryMerge });
     await nextTick();
-    await nextFrame();
-    const el = scrollEl.value;
-    if (!el || !owns(gen) || chat.sessionId.value !== epochSid) return;
-    // Primary restore: absolute position via the height delta caused by the
-    // prepend (independent of measurement timing).
-    el.scrollTop = c.scrollTop + (el.scrollHeight - c.height);
-    // Settle passes: dynamic measurement (TanStack measureElement runs after
-    // mount, images load later) keeps shifting rows for a few frames — a
-    // single re-pin lands before the new sizes are known and the anchor
-    // drifts (scale B4: -167px). Converge on the captured offset instead,
-    // bounded so a pathological layout can never loop forever.
-    if (c.seq != null) {
-      // TanStack measures rows AFTER mount (ResizeObserver) — sizes keep
-      // arriving well past the first frames (scale B5.2: converge at frame
-      // 2, drift again by +1500ms). Exit only after the anchor holds still
-      // for 3 consecutive frames, within a hard frame budget.
-      let stable = 0;
-      for (let i = 0; i < 36 && stable < 3; i++) {
-        await nextFrame();
-        if (!owns(gen) || chat.sessionId.value !== epochSid) return;
-        // A collapsed process group renders no step anchors — fall back to
-        // the group root (data-seqs is a space-separated list).
-        const node = (el.querySelector(`[data-seq="${c.seq}"]`)
-          ?? el.querySelector(`[data-seqs~="${c.seq}"]`)) as HTMLElement | null;
-        if (!node) continue;
-        const delta = Math.round(node.getBoundingClientRect().top - el.getBoundingClientRect().top);
-        if (Math.abs(delta - c.off) <= 2) { stable++; continue; }
-        stable = 0;
-        el.scrollTop += delta - c.off;
-      }
-    }
+    if (!owns(gen) || !pageActive.value) return;
     measureScroll();
-    // Pinned at the top: no further scroll events fire while scrollTop
-    // stays 0, so the anchor restore must chain the next page itself
-    // (bounded — a runaway loop must not fetch the whole history).
-    if (nearTop.value && chat.hasMoreBefore.value && chained < 12) {
+    if (added && nearTop.value && chat.hasMoreBefore.value && chained < 12 && !scrollbarHeld.value) {
       chained++;
       queueMicrotask(loadOlderAnchored);
-    } else {
-      chained = 0;
-    }
+    } else chained = 0;
   } finally {
     if (owns(gen)) loadingOlderBusy = false;
   }
 }
 
 async function fetchNewerBelow() {
-  if (chat.loadingNewer.value) return;
+  if (chat.loadingNewer.value || scrollbarHeld.value || !pageActive.value) return;
   const gen = epoch;
-  await chat.fetchNewer();          // appended below: scrollTop stays valid
+  await chat.fetchNewer({ beforeMerge: beforeHistoryMerge });
   await nextTick();
   if (owns(gen)) measureScroll();
 }
 
 function onScroll() {
   if (!pageActive.value) return;
+  const el = scrollEl.value;
+  if (scrollbarHeld.value && el) {
+    if (el.scrollTop !== dragOffset) scrollIntent(el.scrollTop < dragOffset ? 'history' : 'latest');
+    dragOffset = el.scrollTop;
+    return;
+  }
   measureScroll();
   if (!nearTop.value) chained = 0;
   if (nearTop.value && chat.hasMoreBefore.value && !chat.loadingOlder.value) loadOlderAnchored();
@@ -300,10 +287,11 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
 
 <template>
   <div class="chatlog-wrap">
+    <div v-if="chat.loadingOlder.value" class="history-loading log-loading" role="status">{{ i18n.t('sessions.loading') }}</div>
     <div ref="scrollEl" class="chatlog" :data-following="stick" tabindex="0" @scroll.passive="onScroll"
       @wheel.passive="onWheel" @touchstart.passive="onTouchStart" @touchmove.passive="onTouchMove"
-      @keydown="onKeydown">
-      <div v-if="chat.loadingOlder.value" class="log-loading">{{ i18n.t('sessions.loading') }}</div>
+      @keydown="onKeydown" @pointerdown="onPointerDown" :data-scrollbar-held="scrollbarHeld">
+
       <div v-if="chat.loadingInitial.value && !groups.length" class="log-loading">{{ i18n.t('sessions.loading') }}</div>
       <div v-else-if="!groups.length && !running" class="chat-empty hint">{{ i18n.t('chat.empty') }}</div>
       <div class="chatlog-inner" :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }">
@@ -341,8 +329,8 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
 </template>
 
 <style scoped>
-.chat-run-error { margin: 16px auto; padding: 12px 16px; max-width: var(--max-content); border-left: 2px solid var(--err); background: var(--bg-raised); overflow-wrap: anywhere; }
+.chat-run-error { margin: 16px auto; padding: 12px 16px; max-width: var(--max-content); border: 1px solid var(--err-border); border-radius: var(--radius); background: var(--err-bg); color: var(--err); overflow-wrap: anywhere; }
 .chat-run-error strong { color: var(--err); font-size: 13px; }
 .chat-run-error p { margin: 6px 0; font-size: 13px; }
-.chat-run-error small { color: var(--fg-subtle); }
+.chat-run-error small { color: inherit; font: 12px/1.6 var(--mono); }
 </style>

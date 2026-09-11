@@ -19,7 +19,7 @@ export default defineConfig({
         // Fontsource splits CJK by unicode range. Cache only requested shards;
         // precaching the complete font families would download unused glyphs.
         runtimeCaching: [{
-          urlPattern: /\/assets\/noto-.*\.woff2$/,
+          urlPattern: /\/assets\/(?:noto-|sarasa-|maple-|STIXTwoMath-|inter-|bitter-).*\.woff2$/,
           handler: 'CacheFirst',
           options: { cacheName: 'wish-fonts', expiration: { maxEntries: 180, maxAgeSeconds: 31536000 } },
         }],

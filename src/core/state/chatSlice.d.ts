@@ -21,7 +21,7 @@ export interface ChatApi {
   hasMoreBefore: ShallowRef<boolean>;
   hasMoreAfter: ShallowRef<boolean>;
   loadingNewer: ShallowRef<boolean>;
-  fetchNewer(): Promise<{ ok: boolean; drained: boolean; added: number }>;
+  fetchNewer(opts?: { pages?: number; beforeMerge?: () => void | Promise<void> }): Promise<{ ok: boolean; drained: boolean; added: number }>;
   loadingOlder: ShallowRef<boolean>;
   loadingInitial: ShallowRef<boolean>;
   error: ShallowRef<any>;
@@ -31,7 +31,7 @@ export interface ChatApi {
   reload(): Promise<void>;
   send(text: string, images: any[]): Promise<string | null>;
   interrupt(): Promise<void>;
-  loadOlder(opts?: { beforeMerge?: () => void }): Promise<boolean>;
+  loadOlder(opts?: { beforeMerge?: () => void | Promise<void> }): Promise<boolean>;
   locate(id: string, seq: number): Promise<boolean>;
   jumpToLatest(): Promise<boolean>;
   getDraft(id?: string): string;

@@ -360,7 +360,8 @@ export const chat = (() => {
       }, { signal: epochCtrl?.signal });
       if (!current()) return false;
       const older = (page.items ?? []).slice().reverse();
-      if (older.length) beforeMerge?.();
+      if (older.length) await beforeMerge?.();
+      if (!current()) return false;
       applyPage(older, page.has_more ?? false);
       return older.length > 0;
     } catch (err) {
@@ -374,7 +375,7 @@ export const chat = (() => {
   // (has_more exhausted) — hitting the page cap or a stalled cursor means
   // there may STILL be more durable entries, which must not be reported as
   // an up-to-date read (review #5).
-  async function fetchNewer({pages = cfg.history.maxDrainPages} = {}) {
+  async function fetchNewer({pages = cfg.history.maxDrainPages, beforeMerge} = {}) {
     const myEpoch = epoch;
     const sig = epochCtrl?.signal;
     const version = historyVersion.value;
@@ -393,6 +394,8 @@ export const chat = (() => {
         if (!current()) return { ok: false, drained: false, added };
         const fresh = page.items ?? [];
         if (!fresh.length) { hasMoreAfter.value = false; return { ok: true, drained: true, added }; }
+        await beforeMerge?.();
+        if (!current()) return { ok: false, drained: false, added };
         added += mergeItems(fresh);
         if (!page.has_more) { hasMoreAfter.value = false; return { ok: true, drained: true, added }; }
         if (newestSeq.value === after) { hasMoreAfter.value = true; return { ok: true, drained: false, added }; }

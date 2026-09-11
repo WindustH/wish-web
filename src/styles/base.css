@@ -3,7 +3,7 @@ html, body { height: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--fg);
   font: 400 14px/1.65 var(--font);
-  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; font-optical-sizing: auto;
   overscroll-behavior: none;
 }
 #app { height: 100dvh; display: flex; flex-direction: column; }
