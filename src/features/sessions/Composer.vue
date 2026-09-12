@@ -257,21 +257,24 @@ function resizeKeys(e: KeyboardEvent) {
       <button class="btn ghost sm" @click="() => chat.reloadCapabilities()">{{ i18n.t('common.retry') }}</button>
     </div>
     <div v-if="mobile && start" class="composer-start-selection"><slot name="selection" /></div>
-    <div class="composer-editor">
-      <Hint :text="i18n.t('chat.image')" v-if="mobile"><button class="btn ghost icon-only"
+    <div v-if="mobile" class="composer-mobile-actions">
+      <Hint :text="i18n.t('chat.image')"><button class="btn ghost icon-only"
         :aria-label="i18n.t('chat.image')" @click="attach('image')"><Icon name="image" /></button></Hint>
-      <Hint :text="i18n.t('chat.attach')" v-if="mobile"><button class="btn ghost icon-only"
+      <Hint :text="i18n.t('chat.attach')"><button class="btn ghost icon-only"
         :aria-label="i18n.t('chat.attach')" @click="attach('file')"><Icon name="paperclip" /></button></Hint>
-      <textarea ref="ta" :rows="cfg.composer.mobileMinRows"
-        :placeholder="running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')"
-        :aria-label="i18n.t('chat.placeholder')" v-model="text"
-        @input="setTextOwned(($event.target as HTMLTextAreaElement).value)" @keydown="onKeydown" @paste="onPaste" />
-      <Hint :text="i18n.t(running ? 'chat.stop' : 'chat.send')" v-if="mobile"><button class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
+      <div class="grow" />
+      <Hint :text="i18n.t(running ? 'chat.stop' : 'chat.send')"><button class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
         :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')"
         @click="running ? onStop() : submit()">
         <Icon v-if="sending" name="loader-circle" class="spin" />
         {{ i18n.t(running ? 'chat.stop' : 'chat.send') }}
       </button></Hint>
+    </div>
+    <div class="composer-editor">
+      <textarea ref="ta" :rows="cfg.composer.mobileMinRows"
+        :placeholder="running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')"
+        :aria-label="i18n.t('chat.placeholder')" v-model="text"
+        @input="setTextOwned(($event.target as HTMLTextAreaElement).value)" @keydown="onKeydown" @paste="onPaste" />
     </div>
     <div v-if="!mobile" class="composer-footer">
       <span class="composer-hint">{{ i18n.t(sendOnEnter ? 'composer.enterSends' : 'composer.modEnterSends') }}</span>
