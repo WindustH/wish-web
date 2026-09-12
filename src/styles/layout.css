@@ -1,21 +1,22 @@
 .shell { display: flex; height: 100dvh; overflow: hidden; }
 .vbar {
   width: var(--w-sidebar); flex: none; display: flex; flex-direction: column; align-items: center;
-  padding: 14px 0 12px; gap: 8px; border-right: 1px solid var(--line); background: var(--bg-sunken); z-index: 20;
+  padding: 10px 0 8px; gap: 4px; border-right: 1px solid var(--line); background: var(--bg-sunken); z-index: 20;
 }
-.brand-mark { font: 600 26px/1 var(--display); letter-spacing: -.08em; color: var(--fg); margin: 0 0 12px; }
+.brand-mark { font: 600 24px/1 var(--display); letter-spacing: -.08em; color: var(--fg); margin: 0 0 8px; }
 .brand-mark span { color: var(--accent); }
 .brand-mark:hover { text-decoration: none; }
 .vbar .spacer { flex: 1; }
 .nav-btn {
-  width: 40px; min-height: 44px; border-radius: var(--radius); display: flex; flex-direction: column;
+  width: 34px; min-height: 36px; border-radius: var(--radius); display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 2px; color: var(--fg-subtle); cursor: pointer;
   border: 0; background: none; position: relative;
   transition: background var(--dur-fast), color var(--dur-fast), transform var(--dur-fast);
 }
+.nav-btn .icon { width: 18px; height: 18px; }
 .nav-btn:hover { background: var(--bg-hover); color: var(--fg); }
 .nav-btn.active { background: var(--bg-raised); color: var(--accent); }
-.nav-btn.active::before { content: ''; position: absolute; left: calc((40px - var(--w-sidebar)) / 2); height: 20px; width: 2px; background: var(--accent); }
+.nav-btn.active::before { content: ''; position: absolute; left: calc((34px - var(--w-sidebar)) / 2); height: 18px; width: 2px; background: var(--accent); }
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 .main-col { position: relative; flex: 1; display: flex; min-width: 0; min-height: 0; overflow: hidden; }
 .sessions-split { flex: 1; display: flex; min-width: 0; min-height: 0; }
