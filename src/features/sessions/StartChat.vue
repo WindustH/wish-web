@@ -12,6 +12,7 @@ import { useMedia } from '../../ui/composables/useMedia';
 import { pageActivityKey, usePageActivity } from '../../ui/composables/usePageActivity';
 import { useModelCatalog } from './useModelCatalog';
 import type { ModelSelection } from './useSessionSelection';
+import RecentSessions from './RecentSessions.vue';
 import Composer from './Composer.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
@@ -20,7 +21,7 @@ import Icon from '../../ui/components/Icon.vue';
 const route = useRoute(), router = useRouter();
 const mobile = useMedia('(max-width: 899px)');
 const parentActive = usePageActivity(), active = ref(true);
-const visible = computed(() => parentActive.value && active.value && (!mobile.value || route.name !== 'sessions'));
+const visible = computed(() => parentActive.value && active.value);
 provide(pageActivityKey, visible);
 onActivated(async () => { active.value = true; void readDefaultModel(); await nextTick(); if (!mobile.value && route.name === 'new-chat') composer.value?.focus(); });
 onDeactivated(() => { active.value = false; modelOpen.value = false; reasoningOpen.value = false; });
@@ -98,8 +99,8 @@ async function send(text: string, attachments: AttachmentInput[]) {
 </script>
 
 <template>
-  <div class="start-chat">
-    <button v-if="mobile" class="btn ghost icon-only start-back" :aria-label="i18n.t('chatbar.back')" @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
+  <div class="start-chat" :class="{ 'mobile-home': mobile && route.name === 'sessions' }">
+    <button v-if="mobile && route.name !== 'sessions'" class="btn ghost icon-only start-back" :aria-label="i18n.t('chatbar.back')" @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
     <div class="start-surface">
       <div class="start-mark" aria-hidden="true">W<span>.</span></div>
       <Composer ref="composer" session-id="new-session" :mobile="mobile" start :send-message="send" :disabled="!selection.model || busy || (!manuallySelected && !defaultReady)">
@@ -118,6 +119,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
         <div v-else class="start-empty hint">{{ i18n.t('new.noModels') }} <RouterLink class="btn ghost sm" to="/settings">{{ i18n.t('nav.settings') }}</RouterLink></div>
       </template>
       <p v-if="failed && created" class="hint" role="status">{{ i18n.t('new.retryMessage') }}</p>
+      <RecentSessions v-if="mobile && route.name === 'sessions'" />
     </div>
     <ModelSettings v-if="modelOpen" :selection="selection" @select="selectModel" @close="modelOpen = false" />
     <ReasoningSettings v-if="reasoningOpen" :selection="selection" @select="selectModel" @close="reasoningOpen = false" />
@@ -143,6 +145,10 @@ async function send(text: string, attachments: AttachmentInput[]) {
 @media (max-width: 899px) {
   .start-chat { padding: 48px 16px 16px; }
   .start-surface { padding-block: 16px 8vh; }
+  .mobile-home { display: block; padding: 20px 16px 24px; }
+  .mobile-home .start-surface { margin: 0 auto; padding: 0; }
+  .mobile-home .start-mark { font-size: 28px; text-align: left; margin-bottom: 16px; }
+  .mobile-home :deep(.composer-start) { min-height: 170px; }
   .start-mark { font-size: 36px; margin-bottom: 24px; }
   :deep(.composer-start) { min-height: 0; padding: 10px; }
   :deep(.composer-start .composer-editor), :deep(.composer-start textarea) { min-height: 44px; }

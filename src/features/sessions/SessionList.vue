@@ -51,6 +51,7 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
 
 <template>
   <div class="sessions-pane">
+    <div v-if="route.name === 'all-sessions'" class="sl-all-heading"><RouterLink to="/sessions" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')"><Icon name="arrow-left" /></RouterLink><span>{{ i18n.locale.value === 'zh' ? '全部会话' : 'All sessions' }}</span></div>
     <div class="sl-masthead">
       <div class="sl-head">
         <Spinner v-if="sessions.loading.value" /><Icon v-else name="search" />
@@ -85,3 +86,7 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
     <SessionListAction v-if="action" :key="`${action.target.id}:${action.kind}`" :target="action.target" :kind="action.kind" @close="action = null" />
   </div>
 </template>
+
+<style scoped>
+.sl-all-heading { display: flex; align-items: center; gap: 8px; padding: 8px 12px 0; font-size: 14px; }
+</style>
