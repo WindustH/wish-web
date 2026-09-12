@@ -46,34 +46,6 @@ onDeactivated(stats.stopAuto);
       <Spinner v-if="loading && !updatedAt" />
       <UsageCharts ref="charts" />
       <div class="statistics-grid">
-        <div class="statistics-column">
-        <section v-if="status" class="card">
-          <h2>{{ tx('服务状态', 'Service status') }}</h2>
-          <dl class="statistics-values">
-            <div><dt>{{ i18n.t('stats.sessions') }}</dt><dd>{{ number(status.counts.sessions) }}</dd></div>
-            <div><dt>{{ i18n.t('stats.runs') }}</dt><dd>{{ number(status.counts.runs) }}</dd></div>
-            <div><dt>{{ i18n.t('stats.uptime') }}</dt><dd>{{ fmtUptime(status.uptime_ms) }}</dd></div>
-            <div><dt>{{ tx('会话服务版本', 'Session service version') }}</dt><dd>{{ version?.version }}</dd></div>
-          </dl>
-          <h3>{{ i18n.t('stats.queue') }}</h3>
-          <dl class="statistics-values">
-            <div><dt>{{ tx('正在运行', 'Running') }}</dt><dd>{{ number(status.queue.active_sessions) }}</dd></div>
-            <div><dt>{{ tx('等待调度', 'Ready to run') }}</dt><dd>{{ number(status.queue.ready_sessions) }}</dd></div>
-            <div><dt>{{ tx('待处理消息', 'Pending messages') }}</dt><dd>{{ number(status.queue.pending_items) }}</dd></div>
-            <div><dt>{{ tx('正在压缩上下文', 'Compacting context') }}</dt><dd>{{ number(status.queue.compacting_sessions) }}</dd></div>
-          </dl>
-        </section>
-        <section v-if="storage" class="card">
-          <h2>{{ i18n.t('stats.storage') }}</h2>
-          <div class="storage-total">{{ fmtBytes(storage.bytes.total) }}</div>
-          <div class="storage-bar" role="img" :aria-label="storageRows.map(item => `${item.name}: ${fmtBytes(item.value)}`).join(', ')">
-            <span v-for="(item,index) in storageRows" :key="item.name" :style="{ width: `${storage.bytes.total ? item.value / storage.bytes.total * 100 : 0}%`, background: color(index) }" />
-          </div>
-          <ul class="distribution-legend storage-legend">
-            <li v-for="(item,index) in storageRows" :key="item.name"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><strong>{{ fmtBytes(item.value) }}</strong></li>
-          </ul>
-        </section>
-        </div>
         <section v-if="totals && usage" class="card statistics-usage">
           <h2>{{ i18n.t('stats.usage') }}</h2>
           <dl class="statistics-values">
@@ -103,6 +75,36 @@ onDeactivated(stats.stopAuto);
           </table></div>
         </section>
 
+        <div class="statistics-footer">
+        <section v-if="status" class="card statistics-detail">
+          <h2>{{ tx('服务状态', 'Service status') }}</h2>
+          <dl class="statistics-values">
+            <div><dt>{{ tx('已保存会话', 'Stored sessions') }}</dt><dd>{{ number(status.counts.sessions) }}</dd></div>
+            <div><dt>{{ tx('累计运行记录', 'Recorded runs') }}</dt><dd>{{ number(status.counts.runs) }}</dd></div>
+            <div><dt>{{ tx('本次启动已运行', 'Uptime since startup') }}</dt><dd>{{ fmtUptime(status.uptime_ms) }}</dd></div>
+            <div><dt>wishd {{ tx('版本', 'version') }}</dt><dd>{{ version?.version ?? '—' }}</dd></div>
+          </dl>
+          <h3>{{ i18n.t('stats.queue') }}</h3>
+          <dl class="statistics-values">
+            <div><dt>{{ tx('运行中会话', 'Running sessions') }}</dt><dd>{{ number(status.queue.active_sessions) }}</dd></div>
+            <div><dt>{{ tx('待调度会话', 'Ready sessions') }}</dt><dd>{{ number(status.queue.ready_sessions) }}</dd></div>
+            <div><dt>{{ tx('待处理消息', 'Pending messages') }}</dt><dd>{{ number(status.queue.pending_items) }}</dd></div>
+            <div><dt>{{ tx('上下文压缩中会话', 'Compacting sessions') }}</dt><dd>{{ number(status.queue.compacting_sessions) }}</dd></div>
+          </dl>
+        </section>
+        <section v-if="storage" class="card statistics-detail">
+          <h2>{{ i18n.t('stats.storage') }}</h2>
+          <div class="storage-summary"><span>{{ tx('文件总大小', 'Total file size') }}</span><Hint :text="`${number(storage.bytes.total)} B`"><strong>{{ fmtBytes(storage.bytes.total) }}</strong></Hint></div>
+          <div class="storage-bar" role="img" :aria-label="storageRows.map(item => `${item.name}: ${fmtBytes(item.value)}`).join(', ')">
+            <span v-for="(item,index) in storageRows" :key="item.name" :style="{ width: `${storage.bytes.total ? item.value / storage.bytes.total * 100 : 0}%`, background: color(index) }" />
+          </div>
+          <ul class="distribution-legend storage-legend">
+            <li v-for="(item,index) in storageRows" :key="item.name"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><small>{{ percent(storage.bytes.total ? item.value / storage.bytes.total : 0) }}</small><Hint :text="`${number(item.value)} B`"><strong>{{ fmtBytes(item.value) }}</strong></Hint></li>
+          </ul>
+          <p class="storage-note">{{ tx('按文件字节数统计，不含文件系统分配开销。', 'File bytes, excluding filesystem allocation overhead.') }}</p>
+        </section>
+        </div>
+
       </div>
     </div>
   </div>
@@ -113,8 +115,8 @@ onDeactivated(stats.stopAuto);
 .statistics-page > * { width: 100%; max-width: 1100px; margin-inline: auto; }
 .statistics-body { padding: 0; }
 .statistics-toolbar { display: flex; flex: none; align-items: center; justify-content: end; gap: 12px; padding-block: 10px; }
-.statistics-grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 450px), 1fr)); align-items: start; }
-.statistics-column { display: grid; gap: 20px; min-width: 0; }
+.statistics-grid { display: grid; gap: 20px; min-width: 0; }
+.statistics-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; min-width: 0; }
 .statistics-grid .card { padding: 16px 0; min-width: 0; border-radius: 0; border: 0; border-top: 1px solid var(--line-strong); background: transparent; }
 h2 { font: 600 16px/1.5 var(--font); margin: 0 0 16px; }
 h3 { font-size: 14px; margin: 16px 0 12px; font-weight: 500; }
@@ -132,8 +134,23 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 .distribution-legend i { width: 8px; height: 8px; flex: none; border-radius: 2px; }
 .distribution-legend span { overflow-wrap: anywhere; }
 .distribution-legend strong { font-weight: 500; margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.storage-total { font-size: 18px; font-weight: 500; }
-.storage-bar { display: flex; overflow: hidden; border-radius: 4px; height: 18px; background: var(--bg-raised); margin: 12px 0 16px; }
+.statistics-detail h2 { font-size: 14px; margin-bottom: 12px; }
+.statistics-detail h3 { font-size: 12px; color: var(--fg-muted); margin: 14px 0 8px; }
+.statistics-detail .statistics-values { gap: 8px 20px; }
+.statistics-detail .statistics-values > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.statistics-detail dt { font-size: 12px; }
+.statistics-detail dd { margin: 0; font-size: 13px; letter-spacing: 0; white-space: nowrap; }
+.storage-summary { display: flex; justify-content: space-between; font-size: 12px; color: var(--fg-muted); }
+.storage-summary strong { color: var(--fg); font-size: 13px; font-weight: 500; }
+.storage-legend { gap: 7px; font-size: 12px; }
+.storage-legend span { flex: 1; }
+.storage-legend small { color: var(--fg-muted); font-size: 11px; }
+.storage-legend strong { margin-left: 0; min-width: 65px; text-align: right; }
+.storage-note { font-size: 11px; color: var(--fg-muted); margin: 10px 0 0; }
+@media (max-width: 899px) { .statistics-footer { grid-template-columns: 1fr; gap: 0; } }
+@media (min-width: 900px) { .statistics-usage > .statistics-values { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 450px) { .statistics-detail .statistics-values { grid-template-columns: 1fr; } }
+.storage-bar { display: flex; overflow: hidden; border-radius: 4px; height: 10px; background: var(--bg-raised); margin: 10px 0 12px; }
 .storage-bar span { flex: none; }
 @media (max-width: 450px) { .model-share { grid-template-columns: minmax(100px, 130px) minmax(0, 1fr); gap: 10px; } .model-share :deep(.usage-canvas) { height: 140px; } }
 </style>
