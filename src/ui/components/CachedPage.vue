@@ -17,7 +17,8 @@ provide(pageActivityKey, readonly(active));
 const positions = new Map<HTMLElement, { top: number; left: number }>();
 let frame = 0;
 watch(() => router.currentRoute.value.matched[0], record => {
-  if (record === props.route.matched[0] || !active.value) return;
+  if (record === props.route.matched[0]) { active.value = true; return; }
+  if (!active.value) return;
   // Capture before KeepAlive detaches the DOM and layout observers see zeros.
   positions.clear();
   for (const el of root.value!.querySelectorAll<HTMLElement>('*')) {
