@@ -56,11 +56,10 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
       lineStyle: { width: 2 }, itemStyle: { color: style.colors[(item.colorIndex ?? index) % style.colors.length] }, emphasis: { focus: 'series' } }; }),
   };
 }
-export interface HeatData { buckets: { start_ms: number; total_tokens: number }[]; bucketMs: number; offsetMinutes: number }
+export interface HeatData { buckets: { start_ms: number; total_tokens: number }[]; bucketMs: number; offsetMinutes: number; endMs: number }
 export function calendarLayout(count: number, width: number) {
   const available = Math.max(1, width - 4);
-  const targetColumns = Math.max(1, Math.min(Math.max(1, count), Math.floor(available / 10), Math.ceil(Math.sqrt(count * available / 200))));
-  const rows = Math.max(1, Math.ceil(count / targetColumns));
+  const rows = 7;
   const columns = Math.max(1, Math.ceil(count / rows));
   const cell = Math.max(1, Math.floor(available / columns));
   return { columns, rows, cell, width: columns * cell, height: rows * cell, canvasHeight: rows * cell + 32 };
@@ -71,7 +70,7 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
   const max = Math.max(1, ...heat.buckets.map(bucket => bucket.total_tokens));
   const date = (at: number, time = false) => new Date(at + heat.offsetMinutes * 60_000).toLocaleString(locale, {
     timeZone: 'UTC', month: 'numeric', day: 'numeric', ...(time ? { hour: '2-digit' as const, minute: '2-digit' as const } : {}) });
-  const interval = heat.bucketMs < 86_400_000;
+  const interval = heat.bucketMs !== 86_400_000;
   return {
     animation: false,
     textStyle: { fontFamily: style.font, color: style.foreground },
@@ -80,7 +79,7 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
       textStyle: { color: style.foreground, fontFamily: style.font, fontSize: 12 },
       formatter: (params: any) => {
         const bucket = heat.buckets[params.data[3]]!;
-        return `${date(bucket.start_ms, interval)}${interval ? ' – ' + date(bucket.start_ms + heat.bucketMs, true) : ''}\n${new Intl.NumberFormat(locale).format(bucket.total_tokens)} Token`;
+        return `${date(bucket.start_ms, interval)}${interval ? ' – ' + date(Math.min(bucket.start_ms + heat.bucketMs, heat.endMs), true) : ''}\n${new Intl.NumberFormat(locale).format(bucket.total_tokens)} Token`;
       } },
     xAxis: { type: 'category', position: 'top', data: Array.from({ length: columns }, (_, i) => i),
       axisLine: { show: false }, axisTick: { show: false }, splitArea: { show: false },

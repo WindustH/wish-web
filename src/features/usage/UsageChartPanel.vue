@@ -10,7 +10,7 @@ import { cfg } from '../../core/config.js';
 import { fmtTokens } from '../../core/util/fmt.js';
 import type { UsageChartData } from '../../core/usage/types';
 const props = defineProps<{ data: UsageChartData | null; heat: HeatData | null; days: [string, number][] | null; loading: boolean; calendarLoading: boolean; error: string; calendarError: string; range: RangeSelection; calendarRange: RangeSelection }>();
-const emit = defineEmits<{ range: [value: RangeSelection]; calendarRange: [value: RangeSelection]; refresh: []; retryCalendar: [] }>();
+const emit = defineEmits<{ range: [value: RangeSelection]; calendarRange: [value: RangeSelection]; refresh: []; retryCalendar: []; calendarColumns: [value: number] }>();
 const metric = ref<'tps' | 'tokens'>('tps');
 const hidden = ref(new Set<string>());
 const table = ref(false);
@@ -40,7 +40,7 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
       <div v-if="calendarLoading && !days" class="usage-empty" role="status">{{ tx('正在读取用量…', 'Loading usage…') }}</div>
       <template v-if="days">
         <p class="usage-calendar-summary"><strong>{{ fmtTokens(dailyTotal) }}</strong> Token <span>· {{ tx(`${activeDays} 天有用量记录`, `${activeDays} days with usage`) }}</span></p>
-        <UsagePlot v-if="heat" :heat="heat" :label="tx(`所选日期共消耗 ${num(dailyTotal)} Token，${activeDays} 天有用量记录。`, `${num(dailyTotal)} tokens over ${activeDays} active days in the selected range.`)" />
+        <UsagePlot v-if="heat" :heat="heat" @columns="emit('calendarColumns', $event)" :label="tx(`所选日期共消耗 ${num(dailyTotal)} Token，${activeDays} 天有用量记录。`, `${num(dailyTotal)} tokens over ${activeDays} active days in the selected range.`)" />
         <footer class="usage-chart-meta"><span>{{ data?.timezone }}</span><button class="btn ghost sm" :aria-expanded="dailyTable" @click="dailyTable = !dailyTable">{{ tx('每日数据', 'Daily data') }}</button><div class="usage-heat-legend"><span>{{ tx('少', 'Less') }}</span><i v-for="index in [0,1,2,3,4]" :key="index" :style="{ background: `var(--heat-${index})` }" /><span>{{ tx('多', 'More') }}</span></div></footer>
         <div v-if="dailyTable" class="usage-data-table"><table class="table"><thead><tr><th>{{ tx('日期', 'Date') }}</th><th>Token</th></tr></thead><tbody><tr v-for="day in [...days].reverse()" :key="day[0]"><td>{{ day[0] }}</td><td>{{ num(day[1]) }}</td></tr></tbody></table></div>
       </template>
