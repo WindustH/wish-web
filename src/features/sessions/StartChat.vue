@@ -81,6 +81,11 @@ async function send(text: string, attachments: AttachmentInput[]) {
     // create a second session, and its images always belong to this exact ID.
     if (!created.value) {
       const { provider, model, reasoning_effort } = selection.value;
+      const remembered = { provider, model, reasoning_effort: reasoning_effort ?? effectiveEffort.value };
+      await api.rememberDefaultModel(remembered);
+      ++defaultGeneration;
+      defaultModel.value = remembered;
+      defaultReady.value = true;
       const name = [...(text.trim().split('\n')[0] || attachments.find(file => file.name)?.name || '')].slice(0, 60).join('');
       created.value = (await sessions.create({ provider, model, reasoningEffort: reasoning_effort ?? effectiveEffort.value, name })).id;
     }

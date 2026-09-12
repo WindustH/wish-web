@@ -28,3 +28,5 @@ export declare function usageDaily(sessionId: string | undefined, params: import
 export declare function configEffective(): Promise<{ wishd: { default_model?: { provider: string; model: string; reasoning_effort?: string } } }>;
 
 export declare function sessionsList(params: { limit?: number; order?: string }): Promise<{ items: any[] }>;
+
+export declare function rememberDefaultModel(value: { provider: string; model: string; reasoning_effort?: string }): Promise<void>;

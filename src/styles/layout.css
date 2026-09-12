@@ -33,6 +33,7 @@
   background: var(--bg-raised); padding-bottom: env(safe-area-inset-bottom);
 }
 .shell.mobile .bbar { display: flex; }
+.shell.mobile:has(.composer textarea:focus) .bbar { visibility: hidden; pointer-events: none; }
 .bbar .nav-btn { flex: 1; border-radius: 0; min-height: var(--h-bottombar); }
 .bbar .nav-btn .icon { width: 18px; height: 18px; }
 .bbar .nav-btn.active { background: transparent; }
@@ -57,3 +58,8 @@
 }
 html.resizing, html.resizing * { cursor: col-resize !important; user-select: none !important; }
 html.resizing .chatlog, html.resizing .sl-scroll { pointer-events: none; }
+
+@media (max-width: 899px) {
+  html { overscroll-behavior-y: none; }
+  .shell.mobile .chatlog { overscroll-behavior-y: contain; }
+}
