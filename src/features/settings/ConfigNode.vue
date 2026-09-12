@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { resolvedEffort } from '../sessions/reasoningLabels';
+import type { ModelInfo } from '../../core/provider-catalog';
 import { upstreamModelsKey } from './upstream-models';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, inject, ref } from 'vue';
@@ -37,15 +39,37 @@ const name = computed(() => props.title || fieldLabel(props.path));
 const upstream = inject(upstreamModelsKey, ref(undefined));
 const upstreamForProvider = computed(() => upstream.value?.providerPath === props.path.slice(0, 3).join('/') ? upstream.value.models : {});
 const upstreamModel = computed(() => upstreamForProvider.value[props.path[4]!] ?? {});
-const inherited = computed(() => props.path[3] === 'models' && props.path.length === 6
-  && Object.hasOwn(upstreamModel.value, key.value) && atPath(props.editor.draft.value!, props.path) === undefined);
+const providerDefaults = computed(() => upstream.value?.providerPath === props.path.slice(0, 3).join('/') ? upstream.value : undefined);
+const modelDefaults = computed(() => {
+  const values = { ...providerDefaults.value?.defaults, ...upstreamModel.value };
+  const local = atPath(props.editor.draft.value!, props.path.slice(0, 5));
+  const effective = { ...values, ...(isObject(local) ? local : {}) };
+  if (values.default_reasoning_effort === undefined) {
+    const effort = resolvedEffort(undefined, effective as Omit<ModelInfo, 'id'>, {});
+    if (effort !== 'none') values.default_reasoning_effort = effort;
+  }
+  return values;
+});
+const sourceLabel = computed(() => {
+  if (props.path[3] !== 'models' || props.path.length !== 6 || atPath(props.editor.draft.value!, props.path) !== undefined
+    || modelDefaults.value[key.value] == null) return '';
+  let field = key.value;
+  if (field === 'default_reasoning_effort' && upstreamModel.value[field] === undefined) field = 'reasoning_efforts';
+  const local = atPath(props.editor.draft.value!, props.path.slice(0, 5));
+  if (field === 'reasoning_efforts' && isObject(local) && local[field] !== undefined) return tr('来自自定义映射', 'From custom mapping');
+  if (upstreamModel.value[field] !== undefined) return tr('来自上游模型列表', 'From upstream model catalog');
+  const source = providerDefaults.value?.sources[field];
+  return source === 'preset' ? tr('来自 Provider 预设', 'From provider preset')
+    : source === 'protocol' ? tr('来自协议默认值', 'From protocol default')
+    : source === 'generic' ? tr('来自程序默认值', 'From application default') : '';
+});
 function ensureModelOverride(path: string[]) {
   if (path[3] !== 'models' || path.length < 6) return;
   const modelPath = path.slice(0, 5);
   if (atPath(props.editor.draft.value!, modelPath) === undefined) props.editor.set(modelPath, {});
   const fieldPath = path.slice(0, 6);
   if (path.length > 6 && atPath(props.editor.draft.value!, fieldPath) === undefined) {
-    props.editor.set(fieldPath, structuredClone(upstreamForProvider.value[path[4]!]?.[path[5]!] ?? {}));
+    props.editor.set(fieldPath, structuredClone(modelDefaults.value[path[5]!] ?? {}));
   }
 }
 function removeField(path: string[]) {
@@ -59,7 +83,7 @@ const modelField = computed(() => props.path.at(-3) === 'models' && modelFields.
 const modelNumber = computed(() => modelField.value && ['context_window_tokens', 'max_output_tokens'].includes(key.value));
 const modelBoolean = computed(() => modelField.value && ['supports_client_tools', 'supports_reasoning'].includes(key.value));
 const object = computed<Record<string, Json> | undefined>(() => isObject(props.value)
-  ? isModel.value ? { ...Object.fromEntries(modelFields.map(field => [field, field === 'reasoning_efforts' ? {} : null])), ...upstreamModel.value, ...props.value }
+  ? isModel.value ? { ...Object.fromEntries(modelFields.map(field => [field, field === 'reasoning_efforts' ? {} : null])), ...modelDefaults.value, ...props.value }
     : key.value === 'models' ? { ...Object.fromEntries(Object.keys(upstreamForProvider.value).map(id => [id, {}])), ...props.value } : props.value
   : undefined);
 function removeOverride() {
@@ -81,7 +105,7 @@ const floatField = computed(() => /ratio$|multiplier|bytes_per_token/.test(key.v
 
 function setInput(event: Event) {
   const input = event.target as HTMLInputElement;
-  if (modelNumber.value && input.value === '') { removeOverride(); input.value = String(upstreamModel.value[key.value] ?? ''); return; }
+  if (modelNumber.value && input.value === '') { removeOverride(); input.value = String(modelDefaults.value[key.value] ?? ''); return; }
   if ((modelNumber.value || typeof props.value === 'number') && !input.checkValidity()) return;
   const value = modelNumber.value || typeof props.value === 'number' ? input.valueAsNumber : input.value;
   // Focusing and leaving a masked field does not clear the existing credential.
@@ -187,7 +211,7 @@ function itemTitle(item: Json, index: number) {
   </div>
   <PresetProvider v-else-if="object && providerPreset" :value="object" :path="path" :preset="providerPreset" :editor="editor" :catalog="catalog!" />
   <div v-else-if="object" class="cfg-object" :data-config-path="pointer(path)">
-    <div v-if="modelField && key === 'reasoning_efforts'" class="cfg-field-label">{{ name }}</div>
+    <div v-if="modelField && key === 'reasoning_efforts'" class="cfg-field-label">{{ name }} <small v-if="sourceLabel">{{ sourceLabel }}</small></div>
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <template v-for="(child, field) in object" :key="field">
       <div v-if="!(path.length === 3 && path[0] === 'providerd' && path[1] === 'providers' && field === 'enabled')" class="cfg-property" :class="{ 'cfg-property-removable': (isMap(path) || field in optional) && field !== 'proxy_policy' }">
@@ -221,16 +245,16 @@ function itemTitle(item: Json, index: number) {
   <div v-else class="cfg-field" :class="{ 'cfg-field-compact': arrayItem }" :data-config-path="pointer(path)">
     <div class="cfg-field-label">
       <label :for="pointer(path)">{{ name }}<span v-if="required !== undefined" class="cfg-requirement">{{ required ? tr('必填', 'Required') : tr('可选', 'Optional') }}</span></label>
-      <small v-if="unit(key)">{{ unit(key) }}</small>
+      <small v-if="unit(key) && !name.includes(unit(key))">{{ unit(key) }}</small>
       <p v-if="hint" :id="hintId" class="cfg-hint">{{ hint }}</p>
-      <small v-if="inherited">{{ tr('来自上游模型列表', 'From upstream model catalog') }}</small>
+      <small v-if="sourceLabel">{{ sourceLabel }}</small>
     </div>
-    <SelectField v-if="modelBoolean" :id="pointer(path)" :aria-describedby="hintId" :model-value="value === null ? 'inherit' : String(value)"
-      :options="[{ value: 'inherit', label: tr('使用模型信息', 'Use model metadata') }, { value: 'true', label: tr('支持', 'Supported') }, { value: 'false', label: tr('不支持', 'Not supported') }]"
-      @update:model-value="$event === 'inherit' ? removeOverride() : setValue($event === 'true')" />
+    <SelectField v-if="modelBoolean" :id="pointer(path)" :aria-describedby="hintId" :model-value="value === null ? '' : String(value)" placeholder=""
+      :options="[{ value: 'true', label: tr('支持', 'Supported') }, { value: 'false', label: tr('不支持', 'Not supported') }]"
+      @update:model-value="setValue($event === 'true')" />
     <SwitchRoot v-else-if="typeof value === 'boolean'" :id="pointer(path)" :aria-describedby="hintId" :model-value="value" class="cfg-switch" @update:model-value="setValue"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot>
     <div v-else-if="selectOptions" class="cfg-input-wrap">
-      <SelectField :id="pointer(path)" :aria-describedby="hintId" :searchable="key === 'preset' || key === 'protocol'" :search-placeholder="tr('搜索名称…', 'Search names…')" :empty-text="tr('没有匹配的选项', 'No matching options')" :model-value="value === null ? '' : String(value)" :placeholder="modelField ? tr('使用默认推理强度', 'Use default effort') : tr('未选择', 'Not selected')"
+      <SelectField :id="pointer(path)" :aria-describedby="hintId" :searchable="key === 'preset' || key === 'protocol'" :search-placeholder="tr('搜索名称…', 'Search names…')" :empty-text="tr('没有匹配的选项', 'No matching options')" :model-value="value === null ? '' : String(value)" :placeholder="modelField ? '' : tr('未选择', 'Not selected')"
         :disabled="!selectOptions.some(option => option !== '')"
         :options="[...(value && !selectOptions.includes(String(value)) ? [String(value)] : []), ...selectOptions].filter(option => option !== '').map(option => ({ value: option, label: displayOption(option), description: settingOption(path, option).description, brand: key === 'protocol' ? protocolPresentation(option).brand : key === 'preset' ? presetBrand(option) : undefined, annotation: key === 'protocol' ? protocolPresentation(option).annotation : undefined }))" @update:model-value="setValue" />
       <button v-if="required !== true && value && selectOptions.includes('')" type="button" class="btn ghost" :aria-label="`${tr('清空', 'Clear')} ${name}`" @click="setValue('')">{{ tr('清空', 'Clear') }}</button>
@@ -240,7 +264,7 @@ function itemTitle(item: Json, index: number) {
         :aria-required="required || undefined"
         :required="required !== undefined ? required && requiredActive !== false && value !== '<redacted>' : typeof value === 'number' || ['id', 'base_url', 'provider', 'model', 'program'].includes(key)"
         :min="modelNumber ? 1 : typeof value === 'number' ? 0 : undefined" :step="typeof value === 'number' ? floatField ? 'any' : '1' : undefined"
-        :placeholder="modelNumber ? tr('使用模型信息', 'Use model metadata') : value === '<redacted>' ? tr('已设置；输入新值以更换', 'Set; enter a new value to replace') : ''" @input="setInput" />
+        :placeholder="modelNumber ? '' : value === '<redacted>' ? tr('已设置；输入新值以更换', 'Set; enter a new value to replace') : ''" @input="setInput" />
       <button v-if="secret && value !== ''" type="button" class="btn ghost" @click="editor.set(path, '')">{{ tr('清空', 'Clear') }}</button>
     </div>
   </div>
