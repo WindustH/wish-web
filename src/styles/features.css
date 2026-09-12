@@ -227,3 +227,12 @@ html.resizing-composer, html.resizing-composer * { cursor: row-resize !important
 .message-image { margin: 8px 0 0; }
 .message-image figcaption { margin-top: 4px; font-size: 12px; color: var(--fg-subtle); overflow-wrap: anywhere; }
 .bubble > .message-file:first-child, .bubble > .message-image:first-child { margin-top: 0; }
+
+@media (max-width: 899px) {
+  .chat-pane > .composer.mobile {
+    width: calc(100% - clamp(24px, 5vw, 48px));
+    max-width: var(--mobile-content-width);
+    margin-inline: auto;
+  }
+  .chatlog-inner, .live-row { max-width: var(--mobile-content-width); }
+}

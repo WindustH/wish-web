@@ -57,3 +57,9 @@ html.resizing .chatlog, html.resizing .sl-scroll { pointer-events: none; }
   html { overscroll-behavior-y: none; }
   .shell.mobile .chatlog { overscroll-behavior-y: contain; }
 }
+
+@media (max-width: 899px) {
+  .shell.mobile .sessions-pane > :is(.sl-all-heading, .sl-masthead, .sl-filters, .sl-scroll) {
+    width: 100%; max-width: var(--mobile-content-width); margin-inline: auto;
+  }
+}

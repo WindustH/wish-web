@@ -146,7 +146,7 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 .storage-legend small { color: var(--fg-muted); font-size: 11px; }
 .storage-legend strong { margin-left: 0; min-width: 65px; text-align: right; }
 @media (max-width: 899px) { .statistics-footer { grid-template-columns: 1fr; gap: 0; } }
-@media (min-width: 900px) {
+@media (min-width: 700px) {
   .statistics-body :deep(.usage-charts) { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
   .statistics-body :deep(.usage-chart-card:first-child) { grid-column: 1; grid-row: 1; }
   .statistics-body :deep(.usage-chart-card:last-child) { grid-column: 1; grid-row: 2; }
