@@ -7,11 +7,13 @@ import { usePageActivity } from '../../ui/composables/usePageActivity';
 import { theme } from '../../core/theme/index.js';
 import { i18n } from '../../core/i18n/index.js';
 const props = defineProps<{ pie?: PieSlice[]; series?: PlotSeries[]; heat?: HeatData; unit?: string; label: string }>();
+const emit = defineEmits<{ columns: [value: number] }>();
 const root = ref<HTMLElement>();
 const active = usePageActivity();
 const style = ref<ChartStyle>();
 let calendarObserver: ResizeObserver | undefined;
 const width = ref(800);
+watch(width, value => { if (props.heat) emit('columns', Math.max(1, Math.floor((value - 4) / 18))); });
 function readStyle() {
   if (!active.value || !root.value?.isConnected) return;
   const css = getComputedStyle(root.value);

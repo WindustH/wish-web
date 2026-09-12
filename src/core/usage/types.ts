@@ -3,7 +3,7 @@ export interface UsageModel { provider: string | null; model: string | null; tok
 export interface UsageChartData { models: UsageModel[]; samples: number; attempts: number; timezone: string }
 
 export interface SeriesQuery { window: '1d' | '7d' | '30d' | '90d' | '365d' | 'custom'; bucket?: '1h' | '6h' | '1d'; to_ms?: number; from_ms?: number }
-export interface DailyQuery { days?: number; end_date?: string; tz_offset_minutes: number }
+export interface DailyQuery { bucket_ms?: number; days?: number; end_date?: string; tz_offset_minutes: number }
 export interface UsageBucket {
   start_ms: number; input_tokens: number; output_tokens: number; total_tokens: number; attempts: number;
   stream_samples: number; stream_output_tokens: number; stream_duration_ms: number; tps: number | null;
