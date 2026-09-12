@@ -263,18 +263,19 @@ function resizeKeys(e: KeyboardEvent) {
         :aria-label="i18n.t('chat.attach')" @click="attach('file')"><Icon name="paperclip" /></button></Hint>
       <div v-if="start" class="composer-start-selection"><slot name="selection" /></div>
       <div v-else class="grow" />
-      <Hint :text="i18n.t(running ? 'chat.stop' : 'chat.send')"><button class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
-        :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')"
-        @click="running ? onStop() : submit()">
-        <Icon v-if="sending" name="loader-circle" class="spin" />
-        {{ i18n.t(running ? 'chat.stop' : 'chat.send') }}
-      </button></Hint>
+
     </div>
     <div class="composer-editor">
       <textarea ref="ta" :rows="cfg.composer.mobileMinRows"
         :placeholder="running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')"
         :aria-label="i18n.t('chat.placeholder')" v-model="text"
         @input="setTextOwned(($event.target as HTMLTextAreaElement).value)" @keydown="onKeydown" @paste="onPaste" />
+      <Hint v-if="mobile" :text="i18n.t(running ? 'chat.stop' : 'chat.send')"><button class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
+        :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')"
+        @click="running ? onStop() : submit()">
+        <Icon v-if="sending" name="loader-circle" class="spin" />
+        <Icon v-else :name="running ? 'square' : 'send'" />
+      </button></Hint>
     </div>
     <div v-if="!mobile" class="composer-footer">
       <span class="composer-hint">{{ i18n.t(sendOnEnter ? 'composer.enterSends' : 'composer.modEnterSends') }}</span>
@@ -282,7 +283,7 @@ function resizeKeys(e: KeyboardEvent) {
         :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')"
         @click="running ? onStop() : submit()">
         <Icon v-if="sending" name="loader-circle" class="spin" />
-        {{ i18n.t(running ? 'chat.stop' : 'chat.send') }}
+        <Icon v-else :name="running ? 'square' : 'send'" />
       </button></Hint>
     </div>
   </div>

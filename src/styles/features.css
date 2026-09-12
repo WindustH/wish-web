@@ -119,20 +119,20 @@
 .composer.desktop textarea { height: 100%; min-height: 0; overflow-y: auto; }
 .composer-footer { display: flex; flex: none; align-items: center; justify-content: flex-end; gap: 16px; padding-top: 8px; }
 .composer-hint { font-size: 11px; color: var(--fg-subtle); }
-.composer .send-btn { flex: none; min-width: 80px; height: 36px; padding: 0 18px; border-radius: 6px; border: 0; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; justify-content: center; background: var(--accent); color: var(--accent-fg); font-size: 13px; font-weight: 500; transition: background var(--dur-fast), opacity var(--dur-fast), transform var(--dur-fast); }
+.composer .send-btn { flex: none; min-width: 36px; width: 36px; height: 36px; padding: 0; border-radius: 6px; border: 0; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; justify-content: center; background: var(--accent); color: var(--accent-fg); font-size: 13px; font-weight: 500; transition: background var(--dur-fast), opacity var(--dur-fast), transform var(--dur-fast); }
 .composer .send-btn:disabled { background: var(--bg-hover); color: var(--fg-subtle); cursor: default; }
 .composer .send-btn:hover:not(:disabled) { background: var(--accent-hover); }
 .composer .send-btn:active:not(:disabled) { transform: scale(.97); }
 .composer .send-btn.stop { background: var(--err); }
 .composer .send-btn .icon { width: 16px; height: 16px; }
-.composer.mobile { padding: 6px 12px calc(10px + env(safe-area-inset-bottom)); }
-.composer.mobile .composer-editor { width: 100%; }
+.composer.mobile { padding: 6px 12px calc(14px + env(safe-area-inset-bottom)); }
+.composer.mobile .composer-editor { width: 100%; align-items: flex-end; gap: 8px; }
 .composer-mobile-actions { display: flex; align-items: center; gap: 6px; padding-bottom: 4px; }
 .composer-mobile-actions .grow { flex: 1; }
-.composer.mobile textarea { flex: 1; min-height: calc(1.8em + 16px); padding: 8px 12px; border-radius: 6px; background: var(--bg-sunken); }
+.composer.mobile textarea { flex: 1; min-height: 36px; line-height: 1.5; padding: 6px 12px; border-radius: 6px; background: var(--bg-sunken); }
 .composer-mobile-actions > .btn.icon-only { width: 32px; height: 32px; flex: none; }
 .composer-mobile-actions .icon { width: 18px; height: 18px; }
-.composer.mobile .send-btn { min-width: 0; height: 28px; padding: 0 8px; font-size: 12px; }
+.composer.mobile .send-btn { flex: none; min-width: 0; width: 36px; height: 36px; padding: 0; }
 .composer .attachment-preview, .composer .caps-error { flex: none; }
 .caps-error { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--warn); padding: 4px 0; }
 .composer-resize { position: absolute; top: -5px; left: 0; width: 100%; height: 9px; cursor: row-resize; touch-action: none; z-index: 5; }
