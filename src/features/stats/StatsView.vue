@@ -50,10 +50,10 @@ onDeactivated(stats.stopAuto);
         <section v-if="totals && usage" class="card statistics-usage">
           <h2>{{ i18n.t('stats.usage') }}</h2>
           <dl class="statistics-values">
-            <div><dt>{{ i18n.t('stats.tokensIn') }}</dt><Hint :text="number(totals.tokens.input_tokens)"><dd data-stat="input">{{ fmtTokens(totals.tokens.input_tokens) }} <small>Token</small></dd></Hint></div>
-            <div><dt>{{ i18n.t('stats.tokensOut') }}</dt><Hint :text="number(totals.tokens.output_tokens)"><dd data-stat="output">{{ fmtTokens(totals.tokens.output_tokens) }} <small>Token</small></dd></Hint></div>
-            <div><dt>{{ tx('缓存命中 Token', 'Cache read tokens') }}</dt><Hint :text="number(totals.cache.read_input_tokens)"><dd data-stat="cached">{{ fmtTokens(totals.cache.read_input_tokens) }} <small>Token</small></dd></Hint></div>
-            <div><dt>{{ i18n.t('stats.cacheHit') }}</dt><dd>{{ percent(totals.cache.request_hit_ratio) }}</dd></div>
+            <div><dt>{{ i18n.t('stats.tokensIn') }} <small>Token</small></dt><Hint :text="number(totals.tokens.input_tokens)"><dd data-stat="input">{{ fmtTokens(totals.tokens.input_tokens) }}</dd></Hint></div>
+            <div><dt>{{ i18n.t('stats.tokensOut') }} <small>Token</small></dt><Hint :text="number(totals.tokens.output_tokens)"><dd data-stat="output">{{ fmtTokens(totals.tokens.output_tokens) }}</dd></Hint></div>
+            <div><dt>{{ tx('缓存命中', 'Cache read') }} <small>Token</small></dt><Hint :text="number(totals.cache.read_input_tokens)"><dd data-stat="cached">{{ fmtTokens(totals.cache.read_input_tokens) }}</dd></Hint></div>
+            <div><dt>{{ tx('缓存命中率', 'Cache hit rate') }} <small>%</small></dt><dd>{{ totals.cache.request_hit_ratio == null ? '—' : new Intl.NumberFormat(i18n.locale.value, { maximumFractionDigits: 1 }).format(totals.cache.request_hit_ratio * 100) }}</dd></div>
           </dl>
           <h3 v-if="showPie">{{ tx('模型 Token 占比', 'Token share by model') }}</h3>
           <div v-if="showPie" class="model-share">
@@ -119,7 +119,7 @@ onDeactivated(stats.stopAuto);
 h2 { font: 600 16px/1.5 var(--font); margin: 0 0 16px; }
 h3 { font-size: 14px; margin: 16px 0 12px; font-weight: 500; }
 .statistics-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; margin: 0; }
-dd small { font-size: 12px; font-weight: 400; color: var(--fg-muted); letter-spacing: 0; }
+dt small { font-size: 12px; font-weight: 400; color: var(--fg-muted); letter-spacing: 0; }
 dt { color: var(--fg-muted); font-size: 13px; }
 dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .statistics-table-wrap { overflow-x: auto; }
