@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import UsageRangePicker from './UsageRangePicker.vue';
+import type { RangeSelection } from '../../core/usage/windows';
 import UsagePlot from './UsagePlot.vue';
 import InfoHint from '../../ui/components/InfoHint.vue';
 import { RefreshCw } from '@lucide/vue';
@@ -7,8 +9,8 @@ import { i18n } from '../../core/i18n/index.js';
 import { cfg } from '../../core/config.js';
 import { fmtTokens } from '../../core/util/fmt.js';
 import type { UsageChartData } from '../../core/usage/types';
-const props = defineProps<{ data: UsageChartData | null; days: [string, number][] | null; loading: boolean; calendarLoading: boolean; error: string; calendarError: string; range: string }>();
-const emit = defineEmits<{ range: [value: string]; refresh: []; retryCalendar: [] }>();
+const props = defineProps<{ data: UsageChartData | null; days: [string, number][] | null; loading: boolean; calendarLoading: boolean; error: string; calendarError: string; range: RangeSelection; calendarRange: RangeSelection }>();
+const emit = defineEmits<{ range: [value: RangeSelection]; calendarRange: [value: RangeSelection]; refresh: []; retryCalendar: [] }>();
 const metric = ref<'tps' | 'tokens'>('tps');
 const hidden = ref(new Set<string>());
 const table = ref(false);
@@ -40,7 +42,7 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
           <InfoHint :label="tx('计算方式', 'Calculation')" :text="tx('TPS = 输出 Token ÷ 首个至最后一个流式输出片段的时间。每个点代表一次请求；仅计入成功且有完整采样的调用，不包含首个输出前的等待、工具执行或其他 agent loop 环节。', 'TPS = output tokens / time from the first to the last streamed output delta. Each point represents one request. Only successful, timed calls count; time to first output, tools and other agent-loop work are excluded.')" />
         </div>
         <div class="usage-range" :aria-label="tx('时间范围', 'Time range')">
-          <button v-for="period in [['day', tx('过去一天', 'Past day')], ['week', tx('过去一周', 'Past week')]]" :key="period[0]" class="btn ghost sm" :aria-pressed="range === period[0]" @click="emit('range', period[0]!)">{{ period[1] }}</button>
+          <UsageRangePicker :model-value="range" @update:model-value="emit('range', $event)" />
           <button class="btn ghost icon-only sm" :disabled="loading" :aria-label="i18n.t('stats.refresh')" @click="emit('refresh')"><RefreshCw :size="15" :class="{ spinning: loading }" /></button>
         </div>
       </header>
@@ -55,8 +57,8 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
         </div>
         <UsagePlot v-if="hasPoints" :series="series" :unit="metric === 'tps' ? 'Token/s' : 'Token'" :label="tx('分模型用量曲线；下方可展开数据表。', 'Usage by model; a data table is available below.')" />
         <div v-else class="usage-empty">{{ !series.length && models.length ? tx('请选择要显示的模型。', 'Select a model to display.') : metric === 'tps' ? tx('这段时间还没有有效的 TPS 采样。', 'No valid TPS samples in this period.') : tx('这段时间没有用量记录。', 'No usage recorded in this period.') }}</div>
-        <footer class="usage-chart-meta">
-          <span>{{ metric === 'tps' ? tx(`${num(data.samples)} 次有效采样`, `${num(data.samples)} timed samples`) : tx('包含失败请求已报告的用量', 'Includes reported usage from failed requests') }}</span>
+        <footer class="usage-chart-meta" :class="{ 'align-end': metric === 'tps' }">
+          <span v-if="metric === 'tokens'">{{ tx('包含失败请求已报告的用量', 'Includes reported usage from failed requests') }}</span>
           <button v-if="models.length" class="btn ghost sm" :aria-expanded="table" @click="table = !table">{{ tx('数据表', 'Data table') }}</button>
         </footer>
         <div v-if="table" class="usage-data-table"><table class="table"><thead><tr><th>{{ tx('时间', 'Time') }}</th><th>{{ tx('模型', 'Model') }}</th><th>Token</th><th>Token/s</th></tr></thead><tbody>
@@ -66,12 +68,12 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
       </template>
     </section>
     <section class="usage-chart-card">
-      <header class="usage-chart-header"><h3>{{ tx('每日 Token 消耗', 'Daily token usage') }}</h3><span class="usage-calendar-period">{{ tx('过去一年', 'Past year') }}</span></header>
+      <header class="usage-chart-header"><h3>{{ tx('每日 Token 消耗', 'Daily token usage') }}</h3><UsageRangePicker :model-value="calendarRange" @update:model-value="emit('calendarRange', $event)" /></header>
       <div v-if="calendarError" class="load-error" role="alert">{{ calendarError }}<button class="btn ghost sm" @click="emit('retryCalendar')">{{ i18n.t('common.retry') }}</button></div>
       <div v-if="calendarLoading && !days" class="usage-empty" role="status">{{ tx('正在读取用量…', 'Loading usage…') }}</div>
       <template v-if="days">
         <p class="usage-calendar-summary"><strong>{{ fmtTokens(dailyTotal) }}</strong> Token <span>· {{ tx(`${activeDays} 天有用量记录`, `${activeDays} days with usage`) }}</span></p>
-        <UsagePlot :days="days" :label="tx(`过去一年共消耗 ${num(dailyTotal)} Token，${activeDays} 天有用量记录。`, `${num(dailyTotal)} tokens over ${activeDays} active days in the past year.`)" />
+        <UsagePlot :days="days" :label="tx(`所选日期共消耗 ${num(dailyTotal)} Token，${activeDays} 天有用量记录。`, `${num(dailyTotal)} tokens over ${activeDays} active days in the selected range.`)" />
         <footer class="usage-chart-meta"><span>{{ data?.timezone }}</span><button class="btn ghost sm" :aria-expanded="dailyTable" @click="dailyTable = !dailyTable">{{ tx('每日数据', 'Daily data') }}</button><div class="usage-heat-legend"><span>{{ tx('少', 'Less') }}</span><i v-for="index in [0,1,2,3,4]" :key="index" :style="{ background: `var(--heat-${index})` }" /><span>{{ tx('多', 'More') }}</span></div></footer>
         <div v-if="dailyTable" class="usage-data-table"><table class="table"><thead><tr><th>{{ tx('日期', 'Date') }}</th><th>Token</th></tr></thead><tbody><tr v-for="day in [...days].reverse()" :key="day[0]"><td>{{ day[0] }}</td><td>{{ num(day[1]) }}</td></tr></tbody></table></div>
       </template>
@@ -98,6 +100,7 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
 .load-error { padding: 10px 12px; margin-block: 8px; border: 1px solid var(--err-border); border-radius: 6px; background: var(--err-bg); color: var(--err); font-size: 12px; overflow-wrap: anywhere; }
 .usage-empty { min-height: 160px; display: grid; place-items: center; text-align: center; color: var(--fg-subtle); font-size: 13px; }
 .usage-chart-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 8px; color: var(--fg-subtle); font-size: 11px; }
+.usage-chart-meta.align-end { justify-content: flex-end; }
 .usage-calendar-summary { margin: 4px 0 12px; font-size: 12px; color: var(--fg-subtle); }
 .usage-calendar-summary strong { font-size: 21px; color: var(--fg); font-weight: 600; }
 .usage-calendar-period { font-size: 12px; color: var(--fg-subtle); }
