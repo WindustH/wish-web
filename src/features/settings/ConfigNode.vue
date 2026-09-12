@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { upstreamModelsKey } from './upstream-models';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, inject, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
@@ -33,13 +34,33 @@ const hintId = computed(() => hint.value ? `help-${pointer(props.path)}`
   : arrayItem.value && fieldHint(props.path.slice(0, -1)) ? `help-${pointer(props.path.slice(0, -1))}` : undefined);
 const key = computed(() => props.path.at(-1)!);
 const name = computed(() => props.title || fieldLabel(props.path));
+const upstream = inject(upstreamModelsKey, ref(undefined));
+const upstreamForProvider = computed(() => upstream.value?.providerPath === props.path.slice(0, 3).join('/') ? upstream.value.models : {});
+const upstreamModel = computed(() => upstreamForProvider.value[props.path[4]!] ?? {});
+const inherited = computed(() => props.path[3] === 'models' && props.path.length === 6
+  && Object.hasOwn(upstreamModel.value, key.value) && atPath(props.editor.draft.value!, props.path) === undefined);
+function ensureModelOverride(path: string[]) {
+  if (path[3] !== 'models' || path.length < 6) return;
+  const modelPath = path.slice(0, 5);
+  if (atPath(props.editor.draft.value!, modelPath) === undefined) props.editor.set(modelPath, {});
+  const fieldPath = path.slice(0, 6);
+  if (path.length > 6 && atPath(props.editor.draft.value!, fieldPath) === undefined) {
+    props.editor.set(fieldPath, structuredClone(upstreamForProvider.value[path[4]!]?.[path[5]!] ?? {}));
+  }
+}
+function removeField(path: string[]) {
+  if (path.length <= 6 && atPath(props.editor.draft.value!, path) === undefined) return;
+  ensureModelOverride(path);
+  props.editor.remove(path);
+}
 const modelFields = ['context_window_tokens', 'max_output_tokens', 'supports_client_tools', 'supports_reasoning', 'default_reasoning_effort', 'reasoning_efforts'];
 const isModel = computed(() => props.path.at(-2) === 'models');
 const modelField = computed(() => props.path.at(-3) === 'models' && modelFields.includes(key.value));
 const modelNumber = computed(() => modelField.value && ['context_window_tokens', 'max_output_tokens'].includes(key.value));
 const modelBoolean = computed(() => modelField.value && ['supports_client_tools', 'supports_reasoning'].includes(key.value));
 const object = computed<Record<string, Json> | undefined>(() => isObject(props.value)
-  ? isModel.value ? { ...Object.fromEntries(modelFields.map(field => [field, field === 'reasoning_efforts' ? {} : null])), ...props.value } : props.value
+  ? isModel.value ? { ...Object.fromEntries(modelFields.map(field => [field, field === 'reasoning_efforts' ? {} : null])), ...upstreamModel.value, ...props.value }
+    : key.value === 'models' ? { ...Object.fromEntries(Object.keys(upstreamForProvider.value).map(id => [id, {}])), ...props.value } : props.value
   : undefined);
 function removeOverride() {
   if (atPath(props.editor.draft.value!, props.path) !== undefined) props.editor.remove(props.path);
@@ -60,7 +81,7 @@ const floatField = computed(() => /ratio$|multiplier|bytes_per_token/.test(key.v
 
 function setInput(event: Event) {
   const input = event.target as HTMLInputElement;
-  if (modelNumber.value && input.value === '') { removeOverride(); return; }
+  if (modelNumber.value && input.value === '') { removeOverride(); input.value = String(upstreamModel.value[key.value] ?? ''); return; }
   if ((modelNumber.value || typeof props.value === 'number') && !input.checkValidity()) return;
   const value = modelNumber.value || typeof props.value === 'number' ? input.valueAsNumber : input.value;
   // Focusing and leaving a masked field does not clear the existing credential.
@@ -69,6 +90,7 @@ function setInput(event: Event) {
 }
 function setValue(value: Json) {
   if (Object.is(props.value, value)) return;
+  ensureModelOverride(props.path);
   if (['credentials', 'reasoning_efforts'].includes(props.path.at(-2)!) && atPath(props.editor.draft.value!, props.path.slice(0, -1)) === undefined) {
     props.editor.set(props.path.slice(0, -1), {});
   }
@@ -127,6 +149,7 @@ function addField() {
   const value = isMap(props.path)
     ? key.value === 'models' ? {} : key.value === 'reasoning_efforts' && mapValueType.value === 'number' ? 0 : ''
     : structuredClone(optional.value[field]);
+  ensureModelOverride([...props.path, field]);
   if (key.value === 'reasoning_efforts' && atPath(props.editor.draft.value!, props.path) === undefined) props.editor.set(props.path, {});
   props.editor.set([...props.path, field], value);
   if (key.value === 'models') openDialog({ path: [...props.path, field], title: field });
@@ -134,6 +157,7 @@ function addField() {
   addError.value = '';
 }
 function addItem() {
+  ensureModelOverride([...props.path, String(Array.isArray(props.value) ? props.value.length : 0)]);
   const entry = newArrayEntry(props.path);
   const index = (props.value as Json[]).length;
   props.editor.append(props.path, entry);
@@ -153,9 +177,9 @@ function itemTitle(item: Json, index: number) {
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <p v-if="!value.length" class="cfg-hint">{{ tr('尚未添加项目。', 'No items yet.') }}</p>
     <div v-for="(item, index) in value" :key="index" class="cfg-array-item" :class="{ 'cfg-array-row': isObject(item), 'cfg-array-scalar': item === null || typeof item !== 'object' }">
-      <ConfigLink v-if="isObject(item)" :path="[...path, String(index)]" :title="itemTitle(item, index)" :brand="itemBrand(item)" :enabled="path[0] === 'providerd' && key === 'providers' ? item.enabled !== false : undefined" @update:enabled="editor.set([...path, String(index), 'enabled'], $event)" @remove="editor.remove([...path, String(index)])" />
+      <ConfigLink v-if="isObject(item)" :path="[...path, String(index)]" :title="itemTitle(item, index)" :brand="itemBrand(item)" :enabled="path[0] === 'providerd' && key === 'providers' ? item.enabled !== false : undefined" @update:enabled="editor.set([...path, String(index), 'enabled'], $event)" @remove="removeField([...path, String(index)])" />
       <ConfigNode v-else :value="item" :path="[...path, String(index)]" :title="`${name} ${index + 1}`" :editor="editor" :catalog="catalog" />
-      <button v-if="!(isObject(item) && path[0] === 'providerd' && key === 'providers')" type="button" class="btn ghost cfg-remove" :aria-label="`${tr('删除', 'Remove')} ${itemTitle(item, index)}`" @click="editor.remove([...path, String(index)])"><Trash2 :size="16" />{{ tr('删除', 'Remove') }}</button>
+      <button v-if="!(isObject(item) && path[0] === 'providerd' && key === 'providers')" type="button" class="btn ghost cfg-remove" :aria-label="`${tr('删除', 'Remove')} ${itemTitle(item, index)}`" @click="removeField([...path, String(index)])"><Trash2 :size="16" />{{ tr('删除', 'Remove') }}</button>
     </div>
     <button v-if="key === 'providers' && path[0] === 'providerd'" type="button" class="btn" @click="addProviderOpen = true"><Plus :size="16" />{{ tr('添加模型提供商', 'Add provider') }}</button>
     <button v-else type="button" class="btn" @click="addItem"><Plus :size="16" />{{ tr('添加', 'Add') }}{{ name }}</button>
@@ -171,14 +195,14 @@ function itemTitle(item: Json, index: number) {
           <summary><ChevronDown :size="16" /><span>{{ fieldLabel([...path, field]) }}</span><small>{{ settingOption([...path, field], String(child)).label }}</small></summary>
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" />
         </details>
-        <ConfigNode v-else-if="isModel && field === 'reasoning_efforts'" :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" />
+        <ConfigNode v-else-if="isModel && child !== null && typeof child === 'object'" :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" />
         <ConfigLink v-else-if="(path[0] === 'providerd' && path[1] === 'providers') && (isObject(child) || (Array.isArray(child) && child.some(isObject)))" :path="[...path, field]" :title="isMap(path) ? field : fieldLabel([...path, field])" />
         <details v-else-if="child !== null && typeof child === 'object'" class="cfg-nested" :open="isMap(path)">
           <summary><ChevronDown :size="16" /><span>{{ isMap(path) ? field : fieldLabel([...path, field]) }}</span><small v-if="Array.isArray(child)">{{ child.length }}</small></summary>
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
         </details>
         <ConfigNode v-else :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
-        <Hint v-if="(isMap(path) || field in optional) && field !== 'proxy_policy' && (!isModel || (isObject(value) && field in value))" :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : fieldLabel([...path, field])}`" @click="editor.remove([...path, field])"><Trash2 :size="15" /></button></Hint>
+        <Hint v-if="(isMap(path) || field in optional) && field !== 'proxy_policy' && (atPath(editor.draft.value!, [...path, field]) !== undefined)" :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : fieldLabel([...path, field])}`" @click="removeField([...path, field])"><Trash2 :size="15" /></button></Hint>
       </div>
     </template>
     <AddOptionalSetting v-if="!isMap(path)" :options="available.map(field => ({ value: field, label: label(field) }))" @add="addKey = $event; addField()" />
@@ -199,11 +223,12 @@ function itemTitle(item: Json, index: number) {
       <label :for="pointer(path)">{{ name }}<span v-if="required !== undefined" class="cfg-requirement">{{ required ? tr('必填', 'Required') : tr('可选', 'Optional') }}</span></label>
       <small v-if="unit(key)">{{ unit(key) }}</small>
       <p v-if="hint" :id="hintId" class="cfg-hint">{{ hint }}</p>
+      <small v-if="inherited">{{ tr('来自上游模型列表', 'From upstream model catalog') }}</small>
     </div>
     <SelectField v-if="modelBoolean" :id="pointer(path)" :aria-describedby="hintId" :model-value="value === null ? 'inherit' : String(value)"
       :options="[{ value: 'inherit', label: tr('使用模型信息', 'Use model metadata') }, { value: 'true', label: tr('支持', 'Supported') }, { value: 'false', label: tr('不支持', 'Not supported') }]"
       @update:model-value="$event === 'inherit' ? removeOverride() : setValue($event === 'true')" />
-    <SwitchRoot v-else-if="typeof value === 'boolean'" :id="pointer(path)" :aria-describedby="hintId" :model-value="value" class="cfg-switch" @update:model-value="editor.set(path, $event)"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot>
+    <SwitchRoot v-else-if="typeof value === 'boolean'" :id="pointer(path)" :aria-describedby="hintId" :model-value="value" class="cfg-switch" @update:model-value="setValue"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot>
     <div v-else-if="selectOptions" class="cfg-input-wrap">
       <SelectField :id="pointer(path)" :aria-describedby="hintId" :searchable="key === 'preset' || key === 'protocol'" :search-placeholder="tr('搜索名称…', 'Search names…')" :empty-text="tr('没有匹配的选项', 'No matching options')" :model-value="value === null ? '' : String(value)" :placeholder="modelField ? tr('使用默认推理强度', 'Use default effort') : tr('未选择', 'Not selected')"
         :disabled="!selectOptions.some(option => option !== '')"

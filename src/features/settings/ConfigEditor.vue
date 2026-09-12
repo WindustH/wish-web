@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { usePageActivity } from '../../ui/composables/usePageActivity';
 const pageActive = usePageActivity();
-import { computed, onMounted, provide, ref, shallowRef } from 'vue';
+import { computed, onMounted, provide, ref, shallowRef, watch } from 'vue';
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from 'reka-ui';
 import { ArrowLeft, RefreshCw, Save, RotateCcw, X } from '@lucide/vue';
 import { atPath, configEditors, errorText, isObject, loadConfigCatalog } from '../../core/config-editor';
@@ -14,6 +14,10 @@ import { openConfigDialog } from './config-dialog';
 import type { ConfigDialogTarget } from './config-dialog';
 import ConfigNode from './ConfigNode.vue';
 import SettingsSections from './SettingsSections.vue';
+import { providerModels } from '../../core/api/endpoints.js';
+import { upstreamModelsKey } from './upstream-models';
+import type { UpstreamModels } from './upstream-models';
+import type { ConfigObject } from '../../core/config-editor';
 
 const props = defineProps<{ owner: ConfigOwner; active: boolean }>();
 const editor = configEditors[props.owner];
@@ -21,7 +25,7 @@ const editing = ref<ConfigDialogTarget[]>([]);
 const current = computed(() => editing.value.at(-1));
 function openEditor(target: ConfigDialogTarget) { editing.value.push(target); }
 provide(openConfigDialog, openEditor);
-function closeEditor() { editing.value = []; }
+function closeEditor() { if (editing.value.length > 1) editing.value.pop(); else editing.value = []; }
 function revealPath(path: string[]) {
   let parent = path.slice(0, -1);
   const provider = path[0] === 'providerd' && path[1] === 'providers'
@@ -34,6 +38,52 @@ function revealPath(path: string[]) {
 }
 defineExpose({ revealPath, validate: () => !!form.value?.reportValidity() && (!dialogForm.value || dialogForm.value.reportValidity()) });
 const { draft, busy, error, dirty, saved, epoch, restartState } = editor;
+const upstreamModels = shallowRef<UpstreamModels>();
+const upstreamError = shallowRef<unknown>();
+const upstreamBusy = ref(false);
+provide(upstreamModelsKey, upstreamModels);
+const upstreamTarget = computed(() => {
+  const path = current.value?.path;
+  if (!path || path[3] !== 'models' || !draft.value || !editor.source.value) return undefined;
+  const parent = path.slice(0, 3);
+  const provider = atPath(draft.value, parent);
+  const original = atPath(editor.source.value.config, parent);
+  if (!isObject(provider) || !provider.preset || !isObject(original)
+    || provider.id !== original.id || provider.preset !== original.preset) return undefined;
+  return JSON.stringify([parent.join('/'), String(provider.id)]);
+});
+watch(upstreamTarget, async (target, _, onCleanup) => {
+  upstreamModels.value = undefined;
+  upstreamError.value = undefined;
+  upstreamBusy.value = false;
+  if (!target) return;
+  const [providerPath, id] = JSON.parse(target) as [string, string];
+  const controller = new AbortController();
+  onCleanup(() => controller.abort());
+  upstreamBusy.value = true;
+  try {
+    const models: Record<string, ConfigObject> = {};
+    const cursors = new Set<string>();
+    let cursor: string | undefined;
+    do {
+      const page = await providerModels(id, { signal: controller.signal, query: { cursor } });
+      for (const model of page.upstream_models) {
+        const { id: modelId, allowed_for_provider: _allowed, display_name: _name, description: _description,
+          created_at: _created, owned_by: _owner, ...metadata } = model;
+        models[modelId] = metadata;
+      }
+      cursor = page.next_cursor;
+      if (cursor && cursors.has(cursor)) throw new Error('Upstream model catalog repeated a cursor');
+      if (cursor) cursors.add(cursor);
+    } while (cursor);
+    if (!controller.signal.aborted) upstreamModels.value = { providerPath, models };
+  } catch (cause) {
+    if (!controller.signal.aborted) upstreamError.value = cause;
+  } finally {
+    if (!controller.signal.aborted) upstreamBusy.value = false;
+  }
+});
+
 const failure = computed(() => configFailure(error.value, editor.errorStage.value));
 const confirmAction = ref<'reload' | 'discard'>();
 const restartReview = ref<ConfigPreview>();
@@ -124,14 +174,16 @@ async function confirmSave(restart: boolean) {
         </div>
       </Transition>
     </Teleport>
-    <Modal :open="!!current" :title="current?.title || ''" wide :dismissable="!busy" @close="closeEditor">
+    <Modal :open="!!current" :title="current?.title || ''" wide :dismissable="!busy" :close-button="editing.length <= 1" @close="closeEditor">
       <form v-if="current && draft" ref="dialogForm" class="config-editor cfg-editor-window" @submit.prevent @invalid.capture="revealInvalid">
         <div v-if="error" class="cfg-notice cfg-error" role="alert"><strong>{{ failure.title }}</strong><p>{{ failure.detail }}</p><p v-if="dirty">{{ failure.hint }}</p></div>
         <div v-if="saved" class="cfg-notice" role="status">{{ tr('配置已保存', 'Configuration saved') }}</div>
+        <p v-if="upstreamBusy" class="cfg-hint">{{ tr('正在读取上游模型列表…', 'Loading upstream model catalog…') }}</p>
+        <p v-else-if="upstreamError" class="cfg-error" role="alert">{{ tr('上游模型列表读取失败：', 'Could not load upstream model catalog: ') }}{{ errorText(upstreamError) }}</p>
+        <p v-else-if="upstreamModels" class="cfg-hint">{{ tr('上游模型列表仅用于展示。只有明确修改的字段会保存为覆盖值。', 'Upstream metadata is display-only. Only fields you edit are saved as overrides.') }}</p>
         <fieldset :disabled="busy"><ConfigNode :key="`${epoch}-${current.path.join('/')}`" :value="atPath(draft, current.path) ?? {}" :path="current.path" :editor="editor" :catalog="catalog" /></fieldset>
       </form>
       <template #actions>
-        <span v-if="dirty" class="cfg-window-status" role="status">{{ tr('有未保存的修改', 'You have unsaved changes') }}</span>
         <Hint v-if="editing.length > 1" :text="tr('返回上一级', 'Back')"><button type="button" class="btn ghost icon-only" :disabled="busy" :aria-label="tr('返回上一级', 'Back')" @click="editing.pop()"><ArrowLeft :size="16" /></button></Hint>
       </template>
     </Modal>

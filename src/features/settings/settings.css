@@ -174,5 +174,3 @@
 .cfg-property-removable > .cfg-remove-field { margin: 16px 0 0; }
 .cfg-property-removable > :first-child { min-width: 0; }
 .cfg-provider-advanced > .cfg-property { padding-block: 4px; }
-
-.cfg-window-status { font-size: 11px; color: var(--fg-subtle); }
