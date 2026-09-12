@@ -16,6 +16,7 @@ export interface ChatApi {
   isActive: ShallowRef<boolean>;
   stream: ShallowRef<any>;
   sending: ShallowRef<boolean>;
+  sentRun: ShallowRef<{ sessionId: string; deliveryId: string } | null>;
   capabilities: ShallowRef<CapabilitiesOk | CapabilitiesErr | null>;
   pendingSeq: ShallowRef<number | null>;
   hasMoreBefore: ShallowRef<boolean>;

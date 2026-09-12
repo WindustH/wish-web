@@ -58,6 +58,7 @@ export const chat = (() => {
   const error = shallowRef(null);
   const stream = shallowRef(EMPTY_STREAM());
   const sending = shallowRef(false);
+  const sentRun = shallowRef(null);
   // Session capabilities (contract). null = not loaded yet.
   // {status:'ok', data} | {status:'error'} — API failure is NEVER presented as
   // "model cannot do X"; only an explicit modality list may gate the UI.
@@ -465,6 +466,7 @@ export const chat = (() => {
       }, { signal: sig });
       if (myEpoch !== epoch) return null;
       const deliveryId = d.resource_id ?? d.id;
+      sentRun.value = { sessionId: id, deliveryId };
       optimistic.deliveryId = deliveryId;
       settleOptimistic();               // durable echo may already be resident
       stream.value = { ...stream.value, deliveryId };
@@ -769,7 +771,7 @@ export const chat = (() => {
 
   return {
     sessionId, snapshot, entries, oldestSeq, newestSeq, hasMoreBefore, hasMoreAfter,
-    loadingOlder, loadingNewer, loadingInitial, locating, historyVersion, error, stream, sending, capabilities,
+    loadingOlder, loadingNewer, loadingInitial, locating, historyVersion, error, stream, sending, sentRun, capabilities,
     pendingSeq, deliveries, phase, isActive,
     open, close, reload, reloadCapabilities, jumpToLatest, loadOlder, fetchNewer,
     send, interrupt, refreshDeliveries,

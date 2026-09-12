@@ -240,6 +240,11 @@ async function jumpLatest() {
   measureScroll();
 }
 
+// Only a successful local send that starts work resets the reader's intent.
+watch(chat.sentRun, event => {
+  if (event?.sessionId === props.sessionId && pageActive.value) void jumpLatest();
+});
+
 // Stream end → one polite announcement.
 watch(running, (now, was) => { if (was && !now) announce(i18n.t('a11y.runDone')); });
 
