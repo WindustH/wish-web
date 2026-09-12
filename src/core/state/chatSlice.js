@@ -28,7 +28,7 @@ import * as api from '../api/endpoints.js';
 const EMPTY_STREAM = () => ({
   active: false, phase: 'idle',   // idle|pending|streaming|finalizing
   deliveryId: null, runId: null, model: null,
-  text: '', reasoning: '', toolCalls: {}, usage: null,
+  text: '', reasoning: '', toolCalls: {}, currentTool: null, usage: null,
   gap: false, error: null, startedAt: 0,
 });
 
@@ -567,13 +567,13 @@ export const chat = (() => {
         stream.value = { ...s, phase: 'streaming', text: cap(s.text + (data.delta ?? '')) };
         break;
       case 'response_reasoning_summary_delta':
-        stream.value = { ...s, phase: 'streaming', reasoning: cap(s.reasoning + (data.delta ?? '')) };
+        stream.value = { ...s, phase: 'streaming', reasoning: cap(s.reasoning + (data.delta ?? '')), currentTool: null };
         break;
       case 'response_tool_call_delta': {
         const tc = { ...(s.toolCalls || {}) };
         const cur = tc[data.tool_call_id] || { name: data.tool_name, args: '' };
         tc[data.tool_call_id] = { name: data.tool_name ?? cur.name, args: cur.args + (data.json_delta ?? '') };
-        stream.value = { ...s, phase: 'streaming', toolCalls: tc };
+        stream.value = { ...s, phase: 'streaming', toolCalls: tc, currentTool: tc[data.tool_call_id].name || 'tool' };
         break;
       }
       case 'response_usage':

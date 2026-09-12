@@ -44,11 +44,28 @@ export function calendarOptions(days: [string, number][], style: ChartStyle, loc
 }
 
 export function pieOptions(items: { name: string; value: number }[], style: ChartStyle, locale: string): EChartsCoreOption {
+  let container: HTMLElement;
   return {
     animation: false, color: style.colors,
-    tooltip: { trigger: 'item', confine: true, renderMode: 'richText', backgroundColor: style.surface, borderColor: style.line,
+    tooltip: { trigger: 'item', confine: false, renderMode: 'html', backgroundColor: style.surface, borderColor: style.line,
+      className: 'usage-pie-tooltip',
+      appendTo: (chartContainer: HTMLElement) => { container = chartContainer; return document.body; },
+      extraCssText: 'max-width:min(320px,calc(100vw - 24px));white-space:normal;overflow-wrap:anywhere;box-sizing:border-box;',
+      position: (point: number[], _params: unknown, _dom: unknown, _rect: unknown, size: { contentSize: number[] }) => {
+        const bounds = container.getBoundingClientRect();
+        return [Math.max(12 - bounds.left, Math.min(point[0]! + 12, window.innerWidth - bounds.left - size.contentSize[0]! - 12)),
+          Math.max(12 - bounds.top, Math.min(point[1]! + 12, window.innerHeight - bounds.top - size.contentSize[1]! - 12))];
+      },
       textStyle: { color: style.foreground, fontFamily: style.font, fontSize: 12 },
-      formatter: (p: any) => `${p.name}\n${new Intl.NumberFormat(locale).format(p.value)} Token · ${p.percent}%` },
+      formatter: (p: any) => {
+        const content = document.createElement('div');
+        const name = document.createElement('div');
+        name.textContent = p.name;
+        const value = document.createElement('div');
+        value.textContent = `${new Intl.NumberFormat(locale).format(p.value)} Token · ${p.percent}%`;
+        content.append(name, value);
+        return content;
+      } },
     series: [{ type: 'pie', radius: '82%', stillShowZeroSum: false, label: { show: false },
       itemStyle: { borderColor: style.surface, borderWidth: 2 }, data: items }],
   };
