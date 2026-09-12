@@ -36,6 +36,7 @@
   --space-xs: 4px; --space-s: 8px; --space-m: 12px; --space-l: 16px;
   --space-xl: 24px; --space-xxl: 32px;
   --icon: 18px;
+  --mobile-content-width: 640px;
   --w-sidebar: 48px; --w-list: 256px;
   --h-topbar: 56px; --h-bottombar: 44px; --h-session-row: 40px;
   --max-content: 46rem;

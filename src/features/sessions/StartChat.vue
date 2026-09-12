@@ -157,7 +157,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
 :deep(.composer-start-selection) { padding: 2px 4px 8px; }
 @media (max-width: 899px) {
   .start-chat { padding: 48px 16px 16px; }
-  .start-surface { padding-block: 16px 8vh; }
+  .start-surface { max-width: var(--mobile-content-width); padding-block: 16px 8vh; }
   .mobile-home { flex-direction: column; justify-content: flex-start; padding: 52px 24px 24px; }
   .mobile-home .start-surface { flex-shrink: 0; margin: auto; padding: 0; }
   :deep(.composer-mobile-actions .composer-start-selection) { flex: 1; min-width: 0; padding: 0; }
