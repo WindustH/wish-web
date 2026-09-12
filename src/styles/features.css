@@ -126,6 +126,15 @@
 .composer .send-btn.stop { background: var(--err); }
 .composer .send-btn .icon { width: 16px; height: 16px; }
 .composer.mobile { padding: 6px 12px calc(14px + env(safe-area-inset-bottom)); }
+.chat-pane > .composer.mobile {
+  margin: 6px 12px 10px;
+  padding: 6px 12px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 18px;
+  box-shadow: 0 5px 20px rgb(0 0 0 / 12%);
+  transition: margin var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.chat-pane > .composer.mobile:focus-within { border-color: var(--accent); }
 .composer.mobile .composer-editor { width: 100%; align-items: flex-end; gap: 8px; }
 .composer-mobile-actions { display: flex; align-items: center; gap: 6px; padding-bottom: 0; }
 .composer-mobile-actions .grow { flex: 1; }

@@ -1,3 +1,4 @@
+import type { PieSlice } from './pieDistribution';
 import type { EChartsCoreOption } from 'echarts/core';
 export interface PlotSeries { key: string; label: string; colorIndex?: number; extendMean?: boolean; points: [number, number | null, number?][] }
 export interface ChartStyle { foreground: string; muted: string; line: string; surface: string; font: string; colors: string[]; heat: string[] }
@@ -56,9 +57,17 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
   };
 }
 export interface HeatData { buckets: { start_ms: number; total_tokens: number }[]; bucketMs: number; offsetMinutes: number }
+export function calendarLayout(count: number, width: number) {
+  const available = Math.max(1, width - 4);
+  const targetColumns = Math.max(1, Math.min(Math.max(1, count), Math.floor(available / 10), Math.ceil(Math.sqrt(count * available / 200))));
+  const rows = Math.max(1, Math.ceil(count / targetColumns));
+  const columns = Math.max(1, Math.ceil(count / rows));
+  const cell = Math.max(1, Math.floor(available / columns));
+  return { columns, rows, cell, width: columns * cell, height: rows * cell, canvasHeight: rows * cell + 32 };
+}
 export function calendarOptions(heat: HeatData, style: ChartStyle, locale: string, width = 800): EChartsCoreOption {
-  const rows = width < 500 ? 14 : 7;
-  const columns = Math.ceil(heat.buckets.length / rows);
+  const layout = calendarLayout(heat.buckets.length, width);
+  const { rows, columns } = layout;
   const max = Math.max(1, ...heat.buckets.map(bucket => bucket.total_tokens));
   const date = (at: number, time = false) => new Date(at + heat.offsetMinutes * 60_000).toLocaleString(locale, {
     timeZone: 'UTC', month: 'numeric', day: 'numeric', ...(time ? { hour: '2-digit' as const, minute: '2-digit' as const } : {}) });
@@ -66,7 +75,7 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
   return {
     animation: false,
     textStyle: { fontFamily: style.font, color: style.foreground },
-    grid: { top: 30, left: 2, right: 2, bottom: 2 },
+    grid: { top: 30, left: (width - layout.width) / 2, width: layout.width, height: layout.height },
     tooltip: { confine: true, renderMode: 'richText', backgroundColor: style.surface, borderColor: style.line,
       textStyle: { color: style.foreground, fontFamily: style.font, fontSize: 12 },
       formatter: (params: any) => {
@@ -86,7 +95,7 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
   };
 }
 
-export function pieOptions(items: { name: string; value: number }[], style: ChartStyle, locale: string): EChartsCoreOption {
+export function pieOptions(items: PieSlice[], style: ChartStyle, locale: string): EChartsCoreOption {
   let container: HTMLElement;
   return {
     animation: false, color: style.colors,
@@ -105,11 +114,16 @@ export function pieOptions(items: { name: string; value: number }[], style: Char
         const name = document.createElement('div');
         name.textContent = p.name;
         const value = document.createElement('div');
-        value.textContent = `${new Intl.NumberFormat(locale).format(p.value)} Token · ${p.percent}%`;
+        value.textContent = `${new Intl.NumberFormat(locale).format(p.data.tokens)} Token · ${new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 2 }).format(p.data.share)}`;
         content.append(name, value);
+        if (p.data.members.length > 1) {
+          const members = document.createElement('div');
+          members.textContent = p.data.members.map((item: { name: string }) => item.name).join('、');
+          content.append(members);
+        }
         return content;
       } },
     series: [{ type: 'pie', radius: '82%', stillShowZeroSum: false, label: { show: false },
-      itemStyle: { borderColor: style.surface, borderWidth: 2 }, data: items }],
+      itemStyle: { borderColor: style.surface, borderWidth: 2 }, data: items.map(item => ({ name: item.name, value: item.displayShare, tokens: item.value, share: item.share, members: item.members })) }],
   };
 }

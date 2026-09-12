@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { pieDistribution } from '../usage/pieDistribution';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, defineAsyncComponent, onActivated, onDeactivated, ref } from 'vue';
 import { RefreshCw } from '@lucide/vue';
@@ -26,7 +27,8 @@ const models = computed(() => {
   }
   return Array.from(values, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 });
-const modelTotal = computed(() => models.value.reduce((sum, item) => sum + item.value, 0));
+const slices = computed(() => pieDistribution(models.value, tx('其他', 'Other')));
+const showPie = computed(() => models.value.filter(item => item.value > 0).length > 1);
 const storageRows = computed(() => storage.value ? [
   { name: tx('会话数据', 'Session data'), value: storage.value.bytes.session_data },
   { name: tx('资源文件', 'Resource files'), value: storage.value.bytes.blobs },
@@ -40,7 +42,7 @@ onDeactivated(stats.stopAuto);
 
 <template>
   <div class="page statistics-page">
-    <div class="statistics-toolbar"><span v-if="updatedAt" class="hint">{{ tx('更新于', 'Updated at') }} {{ fmtDateTime(updatedAt) }}</span><button class="btn ghost" :disabled="loading" @click="refresh"><RefreshCw :size="17" />{{ i18n.t('stats.refresh') }}</button></div>
+    <div class="statistics-toolbar"><span v-if="updatedAt" class="hint">{{ tx('更新于', 'Updated at') }} {{ fmtDateTime(updatedAt) }}</span><Hint :text="i18n.t('stats.refresh')"><button class="btn ghost icon-only" :disabled="loading" :aria-label="i18n.t('stats.refresh')" @click="refresh"><RefreshCw :size="17" /></button></Hint></div>
     <div class="statistics-body">
       <p v-if="error" class="load-error" role="alert">{{ errorMessage }}<span v-if="updatedAt">{{ tx('下方保留上次成功读取的数据。', 'The last successful snapshot remains below.') }}</span></p>
       <Spinner v-if="loading && !updatedAt" />
@@ -48,21 +50,18 @@ onDeactivated(stats.stopAuto);
         <section v-if="totals && usage" class="card statistics-usage">
           <h2>{{ i18n.t('stats.usage') }}</h2>
           <dl class="statistics-values">
-            <div><dt>{{ i18n.t('stats.tokensIn') }}</dt><Hint :text="number(totals.tokens.input_tokens)"><dd data-stat="input">{{ fmtTokens(totals.tokens.input_tokens) }}</dd></Hint></div>
-            <div><dt>{{ i18n.t('stats.tokensOut') }}</dt><Hint :text="number(totals.tokens.output_tokens)"><dd data-stat="output">{{ fmtTokens(totals.tokens.output_tokens) }}</dd></Hint></div>
-            <div><dt>{{ i18n.t('stats.tokensTotal') }}</dt><Hint :text="number(totals.tokens.total_tokens)"><dd data-stat="total">{{ fmtTokens(totals.tokens.total_tokens) }}</dd></Hint></div>
+            <div><dt>{{ i18n.t('stats.tokensIn') }}</dt><Hint :text="number(totals.tokens.input_tokens)"><dd data-stat="input">{{ fmtTokens(totals.tokens.input_tokens) }} <small>Token</small></dd></Hint></div>
+            <div><dt>{{ i18n.t('stats.tokensOut') }}</dt><Hint :text="number(totals.tokens.output_tokens)"><dd data-stat="output">{{ fmtTokens(totals.tokens.output_tokens) }} <small>Token</small></dd></Hint></div>
+            <div><dt>{{ tx('缓存命中 Token', 'Cache read tokens') }}</dt><Hint :text="number(totals.cache.read_input_tokens)"><dd data-stat="cached">{{ fmtTokens(totals.cache.read_input_tokens) }} <small>Token</small></dd></Hint></div>
             <div><dt>{{ i18n.t('stats.cacheHit') }}</dt><dd>{{ percent(totals.cache.request_hit_ratio) }}</dd></div>
-            <div><dt>{{ i18n.t('stats.attempts') }}</dt><dd>{{ number(usage.statistics.model_attempts) }}</dd></div>
-            <div><dt>{{ tx('已完成回复', 'Completed responses') }}</dt><dd>{{ number(totals.committed_responses) }}</dd></div>
           </dl>
-          <h3>{{ tx('模型 Token 占比', 'Token share by model') }}</h3>
-          <div v-if="modelTotal" class="model-share">
-            <UsagePlot :pie="models" :label="tx('各模型总 Token 消耗占比', 'Total Token consumption by model')" />
+          <h3 v-if="showPie">{{ tx('模型 Token 占比', 'Token share by model') }}</h3>
+          <div v-if="showPie" class="model-share">
+            <UsagePlot :pie="slices" :label="tx('各模型总 Token 消耗占比', 'Total Token consumption by model')" />
             <ul class="distribution-legend">
-              <li v-for="(item,index) in models" :key="item.name"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><strong>{{ percent(item.value / modelTotal) }}</strong></li>
+              <li v-for="(item,index) in slices" :key="index"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><strong>{{ percent(item.share) }}</strong></li>
             </ul>
           </div>
-          <p v-else class="hint">{{ tx('还没有用量记录。', 'No usage records yet.') }}</p>
           <h3>{{ i18n.t('stats.byModel') }}</h3>
           <div class="statistics-table-wrap"><table class="table statistics-table">
             <thead><tr><th>{{ tx('提供商', 'Provider') }}</th><th>{{ tx('模型', 'Model') }}</th><th>{{ i18n.t('stats.tokensIn') }}</th><th>{{ i18n.t('stats.tokensOut') }}</th><th>{{ i18n.t('stats.tokensTotal') }}</th></tr></thead>
@@ -98,7 +97,7 @@ onDeactivated(stats.stopAuto);
             <span v-for="(item,index) in storageRows" :key="item.name" :style="{ width: `${storage.bytes.total ? item.value / storage.bytes.total * 100 : 0}%`, background: color(index) }" />
           </div>
           <ul class="distribution-legend storage-legend">
-            <li v-for="(item,index) in storageRows" :key="item.name"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><small>{{ percent(storage.bytes.total ? item.value / storage.bytes.total : 0) }}</small><Hint :text="`${number(item.value)} B`"><strong>{{ fmtBytes(item.value) }}</strong></Hint></li>
+            <li v-for="(item,index) in storageRows" :key="index"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><small>{{ percent(storage.bytes.total ? item.value / storage.bytes.total : 0) }}</small><Hint :text="`${number(item.value)} B`"><strong>{{ fmtBytes(item.value) }}</strong></Hint></li>
           </ul>
         </section>
         </div>
@@ -120,6 +119,7 @@ onDeactivated(stats.stopAuto);
 h2 { font: 600 16px/1.5 var(--font); margin: 0 0 16px; }
 h3 { font-size: 14px; margin: 16px 0 12px; font-weight: 500; }
 .statistics-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; margin: 0; }
+dd small { font-size: 12px; font-weight: 400; color: var(--fg-muted); letter-spacing: 0; }
 dt { color: var(--fg-muted); font-size: 13px; }
 dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .statistics-table-wrap { overflow-x: auto; }
@@ -146,7 +146,7 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 .storage-legend small { color: var(--fg-muted); font-size: 11px; }
 .storage-legend strong { margin-left: 0; min-width: 65px; text-align: right; }
 @media (max-width: 899px) { .statistics-footer { grid-template-columns: 1fr; gap: 0; } }
-@media (min-width: 900px) { .statistics-usage > .statistics-values { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 900px) { .statistics-usage > .statistics-values { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 450px) { .statistics-detail .statistics-values { grid-template-columns: 1fr; } }
 .storage-bar { display: flex; overflow: hidden; border-radius: 4px; height: 10px; background: var(--bg-raised); margin: 10px 0 12px; }
 .storage-bar span { flex: none; }
