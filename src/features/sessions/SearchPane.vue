@@ -105,7 +105,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Modal :open="true" content-class="session-window" :title="i18n.t('search.title')" :page="isMobile" @close="$emit('close')">
+  <Modal :open="true" content-class="session-window history-search-window" :title="i18n.t('search.title')" :page="isMobile" @close="$emit('close')">
     <div class="search-row">
       <input v-model="q" class="input" data-initial-focus type="search" :disabled="locating !== null"
         @compositionstart="composing = true" @compositionend="composing = false; scheduleSearch()" :placeholder="i18n.t('search.placeholder')"
@@ -114,6 +114,7 @@ onUnmounted(() => {
         {{ i18n.t('search.action') }}
       </button>
     </div>
+    <div class="history-search-content">
     <div v-if="state.status === 'waiting' || (state.status === 'busy' && !(state.items ?? []).length)" class="search-status" role="status"><Spinner />{{ i18n.locale.value === 'zh' ? '正在搜索历史…' : 'Searching history…' }}</div>
     <div v-else-if="state.status === 'error'" class="load-error" role="alert">
       <span>{{ state.error?.localized ? i18n.t(state.error.localized) : String(state.error?.detail || state.error?.message || state.error) }}</span>
@@ -127,6 +128,7 @@ onUnmounted(() => {
         <span class="sr-snippet">{{ hit.snippet }}</span>
       </button>
       <button v-if="state.more" class="btn ghost" :disabled="state.status === 'busy' || locating !== null" @click="more">{{ i18n.t('search.more') }}</button>
+    </div>
     </div>
   </Modal>
 </template>

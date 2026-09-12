@@ -134,3 +134,12 @@
 .modal-page > .modal-head > .modal-head-actions { margin-left: auto; }
 .session-window > .modal-body { min-height: 0; overflow-wrap: anywhere; }
 @keyframes page-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+
+/* Search stays anchored while its result list grows or is replaced. */
+@media (min-width: 900px) {
+  .modal-card.history-search-window { top: max(24px, env(safe-area-inset-top)); transform: translateX(-50%); max-height: calc(100dvh - 48px); animation: fade-in var(--dur) ease; }
+}
+.history-search-window > .modal-body { display: flex; flex-direction: column; overflow: hidden; }
+.history-search-window .search-row { flex: none; margin-bottom: 0; }
+.history-search-content { min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
+.history-search-content:not(:has(.search-results:empty)) { margin-top: 16px; }
