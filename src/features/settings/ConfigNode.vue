@@ -214,19 +214,19 @@ function itemTitle(item: Json, index: number) {
     <div v-if="modelField && key === 'reasoning_efforts'" class="cfg-field-label">{{ name }} <small v-if="sourceLabel">{{ sourceLabel }}</small></div>
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <template v-for="(child, field) in object" :key="field">
-      <div v-if="!(path.length === 3 && path[0] === 'providerd' && path[1] === 'providers' && field === 'enabled')" class="cfg-property" :class="{ 'cfg-property-removable': (isMap(path) || field in optional) && field !== 'proxy_policy' }">
+      <div v-if="!(path.length === 3 && path[0] === 'providerd' && path[1] === 'providers' && field === 'enabled')" class="cfg-property" :class="{ 'cfg-property-removable': (isMap(path) || field in optional) && key !== 'models' && field !== 'proxy_policy' }">
         <details v-if="path.length === 3 && path[0] === 'providerd' && path[1] === 'providers' && field === 'proxy_policy'" class="cfg-nested">
           <summary><ChevronDown :size="16" /><span>{{ fieldLabel([...path, field]) }}</span><small>{{ settingOption([...path, field], String(child)).label }}</small></summary>
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" />
         </details>
         <ConfigNode v-else-if="isModel && child !== null && typeof child === 'object'" :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" />
-        <ConfigLink v-else-if="(path[0] === 'providerd' && path[1] === 'providers') && (isObject(child) || (Array.isArray(child) && child.some(isObject)))" :path="[...path, field]" :title="isMap(path) ? field : fieldLabel([...path, field])" />
+        <ConfigLink v-else-if="(path[0] === 'providerd' && path[1] === 'providers') && (isObject(child) || (Array.isArray(child) && child.some(isObject)))" :path="[...path, field]" :title="isMap(path) ? field : fieldLabel([...path, field])" :menu="key === 'models'" :removable="atPath(editor.draft.value!, [...path, field]) !== undefined" :remove-label="field in upstreamForProvider ? tr('清除覆盖', 'Clear overrides') : tr('删除', 'Delete')" @remove="removeField([...path, field])" />
         <details v-else-if="child !== null && typeof child === 'object'" class="cfg-nested" :open="isMap(path)">
           <summary><ChevronDown :size="16" /><span>{{ isMap(path) ? field : fieldLabel([...path, field]) }}</span><small v-if="Array.isArray(child)">{{ child.length }}</small></summary>
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
         </details>
         <ConfigNode v-else :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
-        <Hint v-if="(isMap(path) || field in optional) && field !== 'proxy_policy' && (atPath(editor.draft.value!, [...path, field]) !== undefined)" :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : fieldLabel([...path, field])}`" @click="removeField([...path, field])"><Trash2 :size="15" /></button></Hint>
+        <Hint v-if="(isMap(path) || field in optional) && key !== 'models' && field !== 'proxy_policy' && (atPath(editor.draft.value!, [...path, field]) !== undefined)" :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : fieldLabel([...path, field])}`" @click="removeField([...path, field])"><Trash2 :size="15" /></button></Hint>
       </div>
     </template>
     <AddOptionalSetting v-if="!isMap(path)" :options="available.map(field => ({ value: field, label: label(field) }))" @add="addKey = $event; addField()" />
