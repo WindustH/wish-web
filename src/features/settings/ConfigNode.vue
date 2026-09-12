@@ -2,7 +2,7 @@
 import { computed, inject, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { ChevronDown, Plus, Trash2 } from '@lucide/vue';
-import { isObject, pointer } from '../../core/config-editor';
+import { atPath, isObject, pointer } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigEditor, Json, ProviderPreset } from '../../core/config-editor';
 import { fieldLabel, fieldHint, isMap, isSecret, label, newArrayEntry, optionalFields, optionLabel, optionsFor, tr, unit } from './fields';
 import ConfigLink from './ConfigLink.vue';
@@ -59,7 +59,17 @@ function setValue(value: Json) {
     const parent = props.path.slice(0, -1);
     const preset = props.catalog?.presets.find(item => item.id === value);
     props.editor.set([...parent, 'protocol'], preset?.protocols[0] || '');
-    if (preset) props.editor.set([...parent, 'endpoint'], '');
+    if (preset) {
+      for (const field of ['base_url', 'path', 'auth', 'headers', 'query', 'model_list', 'image_edit_path', 'codex']) {
+        if (isObject(props.editor.draft.value) && props.editor.draft.value) {
+          // Connection overrides belong to the newly chosen preset.
+          const current = atPath(props.editor.draft.value, [...parent, field]);
+          if (current !== undefined) props.editor.remove([...parent, field]);
+        }
+      }
+    } else {
+      props.editor.set([...parent, 'base_url'], '');
+    }
     props.editor.set([...parent, 'api_key'], '');
     props.editor.set([...parent, 'credentials'], Object.fromEntries((preset?.required_credentials || []).map(name => [name, ''])));
   }
@@ -74,6 +84,7 @@ function addProvider(preset?: ProviderPreset) {
     while (ids.has(id)) id = `${preset.id}-${suffix++}`;
     entry.id = id;
     entry.preset = preset.id;
+    for (const field of ['base_url', 'auth', 'headers', 'query']) delete entry[field];
     entry.protocol = preset.protocols[0]!;
     entry.credentials = Object.fromEntries(preset.required_credentials.map(name => [name, '']));
   }
@@ -136,7 +147,7 @@ function itemTitle(item: Json, index: number) {
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <template v-for="(child, field) in object" :key="field">
       <div class="cfg-property">
-        <ConfigLink v-if="(path[0] === 'providerd' && ['providers', 'endpoints'].includes(path[1] || '')) && (isObject(child) || (Array.isArray(child) && child.some(isObject)))" :path="[...path, field]" :title="isMap(path) ? field : fieldLabel([...path, field])" />
+        <ConfigLink v-if="(path[0] === 'providerd' && path[1] === 'providers') && (isObject(child) || (Array.isArray(child) && child.some(isObject)))" :path="[...path, field]" :title="isMap(path) ? field : fieldLabel([...path, field])" />
         <details v-else-if="child !== null && typeof child === 'object'" class="cfg-nested" :open="isMap(path)">
           <summary><ChevronDown :size="16" /><span>{{ isMap(path) ? field : fieldLabel([...path, field]) }}</span><small v-if="Array.isArray(child)">{{ child.length }}</small></summary>
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
