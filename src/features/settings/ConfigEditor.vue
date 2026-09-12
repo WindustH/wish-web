@@ -3,7 +3,7 @@ import { usePageActivity } from '../../ui/composables/usePageActivity';
 const pageActive = usePageActivity();
 import { computed, onMounted, provide, ref, shallowRef } from 'vue';
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from 'reka-ui';
-import { RefreshCw, Save, RotateCcw, X } from '@lucide/vue';
+import { ArrowLeft, RefreshCw, Save, RotateCcw, X } from '@lucide/vue';
 import { atPath, configEditors, errorText, isObject, loadConfigCatalog } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigOwner, ConfigPreview } from '../../core/config-editor';
 import { fieldLabel, label, tr } from './fields';
@@ -130,13 +130,9 @@ async function confirmSave(restart: boolean) {
         <div v-if="saved" class="cfg-notice" role="status">{{ tr('配置已保存', 'Configuration saved') }}</div>
         <fieldset :disabled="busy"><ConfigNode :key="`${epoch}-${current.path.join('/')}`" :value="atPath(draft, current.path) ?? {}" :path="current.path" :editor="editor" :catalog="catalog" /></fieldset>
       </form>
-      <template #footer>
-        <div class="cfg-window-actions">
-          <button v-if="editing.length > 1" type="button" class="btn ghost" :disabled="busy" @click="editing.pop()">{{ tr('返回上一级', 'Back') }}</button>
-          <span v-if="dirty" class="cfg-hint">{{ tr('有未保存的修改', 'You have unsaved changes') }}</span>
-          <div class="grow" />
-          <button type="button" class="btn" :disabled="busy" @click="closeEditor">{{ tr('关闭', 'Close') }}</button>
-        </div>
+      <template #actions>
+        <span v-if="dirty" class="cfg-window-status" role="status">{{ tr('有未保存的修改', 'You have unsaved changes') }}</span>
+        <Hint v-if="editing.length > 1" :text="tr('返回上一级', 'Back')"><button type="button" class="btn ghost icon-only" :disabled="busy" :aria-label="tr('返回上一级', 'Back')" @click="editing.pop()"><ArrowLeft :size="16" /></button></Hint>
       </template>
     </Modal>
     <DialogRoot :open="!!restartReview" @update:open="!$event && (restartReview = undefined)"><DialogPortal v-if="pageActive"><DialogOverlay class="cfg-dialog-overlay" /><DialogContent class="cfg-dialog cfg-restart-dialog"><DialogTitle>{{ tr('这些修改需要重启后生效', 'These changes require a restart') }}</DialogTitle><DialogDescription>{{ tr('配置尚未保存。立即重启会中断此服务正在处理的请求；核心服务的运行中会话会停止，稍后可继续。', 'The configuration has not been saved. Restarting interrupts requests handled by this service; running Core sessions stop and can be continued later.') }}</DialogDescription><ul><li v-for="field in restartReview?.restart_required" :key="field">{{ field.split('/').filter(Boolean).map(label).join(' › ') }}</li></ul><p v-if="restartReview?.restart_required.some(field => field.includes('/listen/') || field.includes('/auth/'))">{{ tr('更改监听地址或认证信息后，可能需要更新连接设置。', 'Changing the listen address or authentication may require updating connection settings.') }}</p><p v-if="!restartReview?.restart_supported">{{ tr('此平台不支持从网页重启，请保存后自行重启。', 'Restarting from the Web is unavailable on this platform. Save and restart manually.') }}</p><div class="cfg-dialog-actions"><button class="btn ghost" @click="restartReview = undefined">{{ tr('取消保存', 'Cancel save') }}</button><button class="btn" @click="confirmSave(false)">{{ tr('保存，稍后重启', 'Save, restart later') }}</button><button class="btn primary" :disabled="!restartReview?.restart_supported" @click="confirmSave(true)">{{ tr('保存并立即重启', 'Save and restart now') }}</button></div></DialogContent></DialogPortal></DialogRoot>
