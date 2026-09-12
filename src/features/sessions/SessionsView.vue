@@ -4,8 +4,8 @@ import Hint from '../../ui/components/Hint.vue';
 // side routes between (empty) and chat; chat stays mounted while its
 // info/search/manage child routes change. Mobile: list and chat are
 // exclusive full views.
-import { computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useMedia } from '../../ui/composables/useMedia.js';
 import SessionList from './SessionList.vue';
 import SessionListToggle from './SessionListToggle.vue';
@@ -14,9 +14,13 @@ import { applySavedListWidth, onListResizePointerDown } from './listWidth.js';
 import { i18n } from '../../core/i18n/index.js';
 
 const route = useRoute();
+const router = useRouter();
 const isMobile = useMedia('(max-width: 899px)');
 const showList = computed(() => isMobile.value ? route.name === 'all-sessions' : !prefs.sessionListCollapsed.value);
 
+watch([isMobile, () => route.name], ([mobile, name]) => {
+  if (!mobile && name === 'all-sessions') void router.replace('/sessions');
+}, { immediate: true });
 onMounted(applySavedListWidth);
 </script>
 

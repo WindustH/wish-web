@@ -7,7 +7,7 @@ export function chartData(response: UsageSeriesResponse, timezone: string): Usag
     attempts: response.coverage.attempts_with_usage,
     timezone,
     models: response.groups.map(group => ({
-      provider: group.provider, model: group.model,
+      provider: group.provider, model: group.model, samples: group.samples,
       tokens: group.window.total_tokens,
       tps: group.window.tps,
       points: group.buckets.map(bucket => ({ at: bucket.start_ms,
