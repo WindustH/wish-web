@@ -189,6 +189,7 @@ async function confirmSave(restart: boolean) {
       <form v-if="current && draft" ref="dialogForm" class="config-editor cfg-editor-window" @submit.prevent @invalid.capture="revealInvalid">
         <div v-if="error" class="cfg-notice cfg-error" role="alert"><strong>{{ failure.title }}</strong><p>{{ failure.detail }}</p><p v-if="dirty">{{ failure.hint }}</p></div>
         <div v-if="saved" class="cfg-notice" role="status">{{ tr('配置已保存', 'Configuration saved') }}</div>
+        <p v-if="current.path[3] === 'models' && !upstreamTarget" class="cfg-hint">{{ tr('Provider 连接配置尚未保存。保存配置后会自动获取上游模型列表。', 'The provider connection is not saved yet. Its upstream model catalog will load after saving.') }}</p>
         <p v-if="upstreamBusy" class="cfg-hint">{{ tr('正在读取上游模型列表…', 'Loading upstream model catalog…') }}</p>
         <p v-else-if="upstreamError" class="cfg-error" role="alert">{{ tr('上游模型列表读取失败：', 'Could not load upstream model catalog: ') }}{{ errorText(upstreamError) }}</p>
         <p v-else-if="upstreamModels" class="cfg-hint">{{ tr('上游模型列表仅用于展示。只有明确修改的字段会保存为覆盖值。', 'Upstream metadata is display-only. Only fields you edit are saved as overrides.') }}</p>

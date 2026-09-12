@@ -1,3 +1,4 @@
+import { compareProtocols, providerPriority } from '../../ui/catalogOrder';
 import { atPath, isObject } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigObject, Json } from '../../core/config-editor';
 import { helpFor } from './field-help';
@@ -175,10 +176,10 @@ export function optionsFor(path: string[], root: ConfigObject, catalog?: ConfigC
   if (key === 'mode' && path.at(-2) === 'input_count') return ['provider_preflight', 'local', 'disabled'];
   if (key === 'source' && path.includes('policies')) return ['environment', 'manual', 'disabled'];
   if (key === 'source' && path.at(-2) === 'credential') return ['env'];
-  if (key === 'preset' && catalog) return ['', ...catalog.presets.map(p => p.id)];
+  if (key === 'preset' && catalog) return ['', ...[...catalog.presets].sort((a, b) => providerPriority(a.provider) - providerPriority(b.provider)).map(p => p.id)];
   if (key === 'protocol' && path.at(-2) === 'model_list') return ['auto', 'openai_models', 'anthropic_models', 'google_models', 'bedrock_models', 'generic_json'];
-  if (key === 'protocol' && path.includes('providers') && catalog) return ['', ...(catalog.presets.find(p => p.id === object.preset)?.protocols || catalog.protocols)];
-  if (key === 'protocol' && path[0] === 'providerd' && catalog) return ['', ...catalog.protocols];
+  if (key === 'protocol' && path.includes('providers') && catalog) return ['', ...[...(catalog.presets.find(p => p.id === object.preset)?.protocols || catalog.protocols)].sort(compareProtocols)];
+  if (key === 'protocol' && path[0] === 'providerd' && catalog) return ['', ...[...catalog.protocols].sort(compareProtocols)];
 
   if (['proxy_policy', 'default_policy', 'artifact_policy'].includes(key) && path[0] === 'providerd') {
     const policies = atPath(root, ['providerd', 'proxy', 'policies']);
