@@ -33,7 +33,17 @@ const hintId = computed(() => hint.value ? `help-${pointer(props.path)}`
   : arrayItem.value && fieldHint(props.path.slice(0, -1)) ? `help-${pointer(props.path.slice(0, -1))}` : undefined);
 const key = computed(() => props.path.at(-1)!);
 const name = computed(() => props.title || fieldLabel(props.path));
-const object = computed(() => isObject(props.value) ? props.value : undefined);
+const modelFields = ['context_window_tokens', 'max_output_tokens', 'supports_client_tools', 'supports_reasoning', 'default_reasoning_effort', 'reasoning_efforts'];
+const isModel = computed(() => props.path.at(-2) === 'models');
+const modelField = computed(() => props.path.at(-3) === 'models' && modelFields.includes(key.value));
+const modelNumber = computed(() => modelField.value && ['context_window_tokens', 'max_output_tokens'].includes(key.value));
+const modelBoolean = computed(() => modelField.value && ['supports_client_tools', 'supports_reasoning'].includes(key.value));
+const object = computed<Record<string, Json> | undefined>(() => isObject(props.value)
+  ? isModel.value ? { ...Object.fromEntries(modelFields.map(field => [field, field === 'reasoning_efforts' ? {} : null])), ...props.value } : props.value
+  : undefined);
+function removeOverride() {
+  if (atPath(props.editor.draft.value!, props.path) !== undefined) props.editor.remove(props.path);
+}
 const providerPreset = computed(() => props.path.length === 3 && props.path[0] === 'providerd' && props.path[1] === 'providers'
   ? props.catalog?.presets.find(preset => preset.id === object.value?.preset) : undefined);
 const optional = computed(() => optionalFields(props.path));
@@ -45,20 +55,21 @@ const addKey = ref('');
 const mapValueType = ref('string');
 const addError = ref('');
 const addProviderOpen = ref(false);
-const inputType = computed(() => secret.value ? 'password' : typeof props.value === 'number' ? 'number' : 'text');
+const inputType = computed(() => secret.value ? 'password' : (modelNumber.value || typeof props.value === 'number') ? 'number' : 'text');
 const floatField = computed(() => /ratio$|multiplier|bytes_per_token/.test(key.value));
 
 function setInput(event: Event) {
   const input = event.target as HTMLInputElement;
-  if (typeof props.value === 'number' && !input.checkValidity()) return;
-  const value = typeof props.value === 'number' ? input.valueAsNumber : input.value;
+  if (modelNumber.value && input.value === '') { removeOverride(); return; }
+  if ((modelNumber.value || typeof props.value === 'number') && !input.checkValidity()) return;
+  const value = modelNumber.value || typeof props.value === 'number' ? input.valueAsNumber : input.value;
   // Focusing and leaving a masked field does not clear the existing credential.
   if (secret.value && props.value === '<redacted>' && value === '') return;
   setValue(value);
 }
 function setValue(value: Json) {
   if (Object.is(props.value, value)) return;
-  if (props.path.at(-2) === 'credentials' && atPath(props.editor.draft.value!, props.path.slice(0, -1)) === undefined) {
+  if (['credentials', 'reasoning_efforts'].includes(props.path.at(-2)!) && atPath(props.editor.draft.value!, props.path.slice(0, -1)) === undefined) {
     props.editor.set(props.path.slice(0, -1), {});
   }
   props.editor.set(props.path, value);
@@ -116,6 +127,7 @@ function addField() {
   const value = isMap(props.path)
     ? key.value === 'models' ? {} : key.value === 'reasoning_efforts' && mapValueType.value === 'number' ? 0 : ''
     : structuredClone(optional.value[field]);
+  if (key.value === 'reasoning_efforts' && atPath(props.editor.draft.value!, props.path) === undefined) props.editor.set(props.path, {});
   props.editor.set([...props.path, field], value);
   if (key.value === 'models') openDialog({ path: [...props.path, field], title: field });
   addKey.value = '';
@@ -151,6 +163,7 @@ function itemTitle(item: Json, index: number) {
   </div>
   <PresetProvider v-else-if="object && providerPreset" :value="object" :path="path" :preset="providerPreset" :editor="editor" :catalog="catalog!" />
   <div v-else-if="object" class="cfg-object" :data-config-path="pointer(path)">
+    <div v-if="modelField && key === 'reasoning_efforts'" class="cfg-field-label">{{ name }}</div>
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <template v-for="(child, field) in object" :key="field">
       <div v-if="!(path.length === 3 && path[0] === 'providerd' && path[1] === 'providers' && field === 'enabled')" class="cfg-property" :class="{ 'cfg-property-removable': (isMap(path) || field in optional) && field !== 'proxy_policy' }">
@@ -158,13 +171,14 @@ function itemTitle(item: Json, index: number) {
           <summary><ChevronDown :size="16" /><span>{{ fieldLabel([...path, field]) }}</span><small>{{ settingOption([...path, field], String(child)).label }}</small></summary>
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" />
         </details>
+        <ConfigNode v-else-if="isModel && field === 'reasoning_efforts'" :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" />
         <ConfigLink v-else-if="(path[0] === 'providerd' && path[1] === 'providers') && (isObject(child) || (Array.isArray(child) && child.some(isObject)))" :path="[...path, field]" :title="isMap(path) ? field : fieldLabel([...path, field])" />
         <details v-else-if="child !== null && typeof child === 'object'" class="cfg-nested" :open="isMap(path)">
           <summary><ChevronDown :size="16" /><span>{{ isMap(path) ? field : fieldLabel([...path, field]) }}</span><small v-if="Array.isArray(child)">{{ child.length }}</small></summary>
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
         </details>
         <ConfigNode v-else :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
-        <Hint v-if="(isMap(path) || field in optional) && field !== 'proxy_policy'" :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : fieldLabel([...path, field])}`" @click="editor.remove([...path, field])"><Trash2 :size="15" /></button></Hint>
+        <Hint v-if="(isMap(path) || field in optional) && field !== 'proxy_policy' && (!isModel || (isObject(value) && field in value))" :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : fieldLabel([...path, field])}`" @click="editor.remove([...path, field])"><Trash2 :size="15" /></button></Hint>
       </div>
     </template>
     <AddOptionalSetting v-if="!isMap(path)" :options="available.map(field => ({ value: field, label: label(field) }))" @add="addKey = $event; addField()" />
@@ -186,9 +200,12 @@ function itemTitle(item: Json, index: number) {
       <small v-if="unit(key)">{{ unit(key) }}</small>
       <p v-if="hint" :id="hintId" class="cfg-hint">{{ hint }}</p>
     </div>
-    <SwitchRoot v-if="typeof value === 'boolean'" :id="pointer(path)" :aria-describedby="hintId" :model-value="value" class="cfg-switch" @update:model-value="editor.set(path, $event)"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot>
+    <SelectField v-if="modelBoolean" :id="pointer(path)" :aria-describedby="hintId" :model-value="value === null ? 'inherit' : String(value)"
+      :options="[{ value: 'inherit', label: tr('使用模型信息', 'Use model metadata') }, { value: 'true', label: tr('支持', 'Supported') }, { value: 'false', label: tr('不支持', 'Not supported') }]"
+      @update:model-value="$event === 'inherit' ? removeOverride() : setValue($event === 'true')" />
+    <SwitchRoot v-else-if="typeof value === 'boolean'" :id="pointer(path)" :aria-describedby="hintId" :model-value="value" class="cfg-switch" @update:model-value="editor.set(path, $event)"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot>
     <div v-else-if="selectOptions" class="cfg-input-wrap">
-      <SelectField :id="pointer(path)" :aria-describedby="hintId" :searchable="key === 'preset' || key === 'protocol'" :search-placeholder="tr('搜索名称…', 'Search names…')" :empty-text="tr('没有匹配的选项', 'No matching options')" :model-value="String(value)" :placeholder="tr('未选择', 'Not selected')"
+      <SelectField :id="pointer(path)" :aria-describedby="hintId" :searchable="key === 'preset' || key === 'protocol'" :search-placeholder="tr('搜索名称…', 'Search names…')" :empty-text="tr('没有匹配的选项', 'No matching options')" :model-value="value === null ? '' : String(value)" :placeholder="modelField ? tr('使用默认推理强度', 'Use default effort') : tr('未选择', 'Not selected')"
         :disabled="!selectOptions.some(option => option !== '')"
         :options="[...(value && !selectOptions.includes(String(value)) ? [String(value)] : []), ...selectOptions].filter(option => option !== '').map(option => ({ value: option, label: displayOption(option), description: settingOption(path, option).description, brand: key === 'protocol' ? protocolPresentation(option).brand : key === 'preset' ? presetBrand(option) : undefined, annotation: key === 'protocol' ? protocolPresentation(option).annotation : undefined }))" @update:model-value="setValue" />
       <button v-if="required !== true && value && selectOptions.includes('')" type="button" class="btn ghost" :aria-label="`${tr('清空', 'Clear')} ${name}`" @click="setValue('')">{{ tr('清空', 'Clear') }}</button>
@@ -197,8 +214,8 @@ function itemTitle(item: Json, index: number) {
       <input class="input" :id="pointer(path)" :aria-describedby="hintId" :type="inputType" :value="inputValue" :autocomplete="secret ? 'new-password' : 'off'" :spellcheck="false"
         :aria-required="required || undefined"
         :required="required !== undefined ? required && requiredActive !== false && value !== '<redacted>' : typeof value === 'number' || ['id', 'base_url', 'provider', 'model', 'program'].includes(key)"
-        :min="typeof value === 'number' ? 0 : undefined" :step="typeof value === 'number' ? floatField ? 'any' : '1' : undefined"
-        :placeholder="value === '<redacted>' ? tr('已设置；输入新值以更换', 'Set; enter a new value to replace') : ''" @input="setInput" />
+        :min="modelNumber ? 1 : typeof value === 'number' ? 0 : undefined" :step="typeof value === 'number' ? floatField ? 'any' : '1' : undefined"
+        :placeholder="modelNumber ? tr('使用模型信息', 'Use model metadata') : value === '<redacted>' ? tr('已设置；输入新值以更换', 'Set; enter a new value to replace') : ''" @input="setInput" />
       <button v-if="secret && value !== ''" type="button" class="btn ghost" @click="editor.set(path, '')">{{ tr('清空', 'Clear') }}</button>
     </div>
   </div>
