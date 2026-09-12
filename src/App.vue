@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useComposerFocus } from './ui/composables/useComposerFocus';
 import Hint from './ui/components/Hint.vue';
 import { computed } from 'vue';
 import { TooltipProvider } from 'reka-ui';
@@ -12,6 +13,7 @@ import { sync } from './core/state/syncSlice.js';
 import { needRefresh, refreshApp } from './ui/pwa.js';
 import { sessionLocation } from './router.js';
 
+const composerFocused = useComposerFocus();
 const route = useRoute();
 const router = useRouter();
 const isMobile = useMedia('(max-width: 899px)');
@@ -29,7 +31,7 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
 
 <template>
   <TooltipProvider :delay-duration="450" :skip-delay-duration="150">
-  <div class="shell" :class="isMobile ? 'mobile' : 'desktop'">
+  <div class="shell" :class="[isMobile ? 'mobile' : 'desktop', { 'composer-focused': composerFocused }]">
     <nav class="vbar" :aria-label="i18n.t('app.name')">
       <RouterLink :to="sessionLocation" class="brand-mark" aria-label="Wish">w<span>.</span></RouterLink>
       <Hint :text="item.label()" v-for="item in top" :key="item.id"><button class="nav-btn" :class="{ active: isActive(item.id) }"
