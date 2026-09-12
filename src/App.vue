@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import Hint from './ui/components/Hint.vue';
-import { computed } from 'vue';
+import { computed, shallowRef, watch } from 'vue';
 import { TooltipProvider } from 'reka-ui';
 import { useRoute, useRouter } from 'vue-router';
 import { useMedia } from './ui/composables/useMedia.js';
@@ -15,6 +15,13 @@ import { sessionLocation } from './router.js';
 const route = useRoute();
 const router = useRouter();
 const isMobile = useMedia('(max-width: 899px)');
+const backgroundRoute = shallowRef(router.currentRoute.value);
+const settingsRoute = shallowRef(router.currentRoute.value.meta.section === 'settings' ? router.currentRoute.value : undefined);
+watch(() => router.currentRoute.value, current => {
+  if (current.meta.section === 'settings') settingsRoute.value = current;
+  else backgroundRoute.value = current;
+}, { flush: 'sync' });
+const settingsOpen = computed(() => route.meta.section === 'settings');
 const online = computed(() => sync.online.value);
 
 const nav = [
@@ -50,10 +57,13 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
           <span>{{ i18n.t(route.meta.section === 'stats' ? 'nav.stats' : 'nav.settings') }}</span>
         </header>
         <div v-if="!online" class="offline-banner" role="status">{{ i18n.t('settings.offline') }}</div>
-        <RouterView v-slot="{ Component, route: pageRoute }">
+        <RouterView v-if="backgroundRoute.meta.section !== 'settings'" :route="backgroundRoute" v-slot="{ Component, route: pageRoute }">
           <KeepAlive :max="4">
-            <CachedPage v-if="Component" :key="pageRoute.matched[0].path" :view="Component" :route="pageRoute" />
+            <CachedPage v-if="Component" v-show="!settingsOpen || !isMobile" :key="pageRoute.matched[0].path" :view="Component" :route="pageRoute" />
           </KeepAlive>
+        </RouterView>
+        <RouterView v-if="settingsRoute" :route="settingsRoute" v-slot="{ Component, route: pageRoute }">
+          <KeepAlive><CachedPage class="settings-route-host" v-if="Component && settingsOpen" :view="Component" :route="pageRoute" /></KeepAlive>
         </RouterView>
       </div>
     </div>

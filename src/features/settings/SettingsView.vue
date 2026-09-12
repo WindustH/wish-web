@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { onBeforeRouteLeave } from 'vue-router';
+import { onBeforeRouteLeave, useRouter } from 'vue-router';
+import { DialogRoot, DialogContent, DialogOverlay, DialogTitle } from 'reka-ui';
+import { usePageActivity } from '../../ui/composables/usePageActivity';
+import { useMedia } from '../../ui/composables/useMedia';
 import Modal from '../../ui/components/Modal.vue';
 import { Monitor, Server, Network, Search, X, ChevronDown } from '@lucide/vue';
 import ConfigEditor from './ConfigEditor.vue';
@@ -10,6 +13,13 @@ import { configEditors, errorText, pointer } from '../../core/config-editor';
 import type { ConfigOwner, Json } from '../../core/config-editor';
 import './settings.css';
 
+const router = useRouter();
+const pageActive = usePageActivity();
+const mobile = useMedia('(max-width: 899px)');
+let returnPath = typeof window.history.state.back === 'string' ? window.history.state.back : '/sessions';
+const removeNavigationListener = router.afterEach((to, from, failure) => { if (!failure && to.meta.section === 'settings' && from.meta.section !== 'settings' && from.matched.length) returnPath = from.fullPath; });
+onBeforeUnmount(removeNavigationListener);
+function closeSettings() { void router.push(returnPath); }
 const leaveOpen = ref(false);
 const leaving = ref(false);
 const leaveError = ref('');
@@ -159,15 +169,23 @@ async function select(match: Match) {
   const viewport = row.closest<HTMLElement>('.modal-body') || scroll.value!;
   viewport.scrollTo({ top: viewport.scrollTop + row.getBoundingClientRect().top - viewport.getBoundingClientRect().top - 20, behavior: 'instant' });
 }
-onMounted(() => {
-  observer = new MutationObserver(scheduleSearch);
-  observer.observe(panels.value!, { childList: true, characterData: true, subtree: true });
-});
-onBeforeUnmount(() => { observer.disconnect(); cancelAnimationFrame(frame); });
+watch(panels, element => {
+  observer?.disconnect();
+  if (element) {
+    observer = new MutationObserver(scheduleSearch);
+    observer.observe(element, { childList: true, characterData: true, subtree: true });
+  }
+}, { flush: 'post' });
+onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); });
 </script>
 
 <template>
+  <DialogRoot :open="pageActive" :unmount-on-hide="false" :modal="!mobile">
+    <DialogOverlay v-if="!mobile" class="settings-overlay" />
+    <DialogContent as-child :aria-describedby="undefined" @open-auto-focus.prevent @close-auto-focus.prevent @escape-key-down="event => { event.preventDefault(); if (!mobile) closeSettings(); }" @interact-outside="event => { event.preventDefault(); if (!mobile) closeSettings(); }">
   <div class="page settings-page">
+    <DialogTitle class="visually-hidden">{{ tr('设置', 'Settings') }}</DialogTitle>
+    <button v-if="!mobile" class="btn ghost icon-only settings-close" :aria-label="tr('关闭设置', 'Close settings')" @click="closeSettings"><X :size="20" /></button>
     <div class="settings-shell">
       <aside class="settings-sidebar">
         <div class="settings-search"><Search :size="16" /><input v-model="query" type="search" :placeholder="tr('搜索配置', 'Search settings')" :aria-label="tr('搜索配置', 'Search settings')" @keydown.esc="query = ''" @keydown.down.prevent="scroll?.querySelector<HTMLButtonElement>('.settings-result')?.focus()" @keydown.enter.prevent="matches.length === 1 ? select(matches[0]!) : scroll?.querySelector<HTMLButtonElement>('.settings-result')?.focus()" /><button v-if="query" type="button" :aria-label="tr('清除搜索', 'Clear search')" @click="query = ''"><X :size="15" /></button></div>
@@ -206,4 +224,6 @@ onBeforeUnmount(() => { observer.disconnect(); cancelAnimationFrame(frame); });
       </div></template>
     </Modal>
   </div>
+    </DialogContent>
+  </DialogRoot>
 </template>
