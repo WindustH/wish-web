@@ -187,7 +187,7 @@ watch(() => chat.sessionId.value, () => {
       <div v-if="confirmErr" class="load-error" role="alert">{{ confirmErr }}</div>
       <template #footer>
         <button class="btn ghost" :disabled="busy" @click="confirming = null">{{ i18n.t('manage.cancel') }}</button>
-        <button class="btn danger" :disabled="busy || (confirming?.kind === 'rename' && !renameText.trim())" @click="runConfirm">
+        <button class="btn" :class="confirming?.kind === 'rename' ? 'primary' : 'danger'" :disabled="busy || (confirming?.kind === 'rename' && !renameText.trim())" @click="runConfirm">
           {{ busy ? i18n.t('sessions.loading') : i18n.t(confirming?.kind === 'rename' ? 'common.save' : 'manage.confirmYes') }}
         </button>
       </template>

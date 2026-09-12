@@ -159,7 +159,7 @@ const fields: Record<string, Help> = {
   providers: ['使用内置预设，或直接配置提供商的服务地址和连接选项。', 'Use a preset or configure the provider’s service address and connection options directly.'],
   endpoints: ['定义可以被其他配置引用的服务地址及连接方式。', 'Define service addresses and connection details referenced by other settings.'],
   model_catalog_cache_ttl_s: ['模型列表在内存中的有效时间，过期后重新读取。', 'How long model catalogs remain valid in memory before being fetched again.'],
-  preset: ['预设提供厂商地址、协议和认证方式的默认值，可在高级设置中覆盖。', 'A preset supplies default addresses, protocols and authentication; advanced settings can override them.'],
+  preset: ['预设定义厂商地址、支持的协议和认证方式。请填写该预设要求的凭据。', 'A preset defines the service address, supported protocols and authentication method. Supply the credentials required by the preset.'],
   endpoint: ['引用服务端点配置的标识名称，不是 URL。端点配置定义 API 基础地址和连接选项；使用自定义端点时需清空预设。', 'Reference an endpoint by ID; a provider using a custom endpoint must leave its preset empty.'],
   protocol: ['选择目标接口实际支持的通信协议，同一地址可以使用不同协议。', 'Choose the protocol the target API supports; the same address can support different protocols.'],
   api_key: ['未编辑时保留现有密钥；输入新值可替换，也支持 ${环境变量名称}。清空请使用“清空”按钮。', 'Untouched fields keep the current key. Enter a replacement or an ${ENV_VAR} reference; use Clear to remove it.'],
