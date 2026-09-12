@@ -218,7 +218,7 @@ onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); });
       <p class="cfg-hint">{{ tr('需要重启才能生效的配置将保存，服务可稍后重启。', 'Changes requiring a restart will be saved; you can restart the service later.') }}</p>
       <p v-if="leaveError" class="cfg-notice cfg-error" role="alert">{{ leaveError }}</p>
       <template #footer><div class="cfg-leave-actions">
-        <button class="btn ghost" :disabled="leaving" @click="finishLeave(false)">{{ tr('取消跳转', 'Cancel navigation') }}</button>
+        <button class="btn ghost" :disabled="leaving" @click="finishLeave(false)">{{ tr('不离开', 'Stay') }}</button>
         <button class="btn" :disabled="leaving" @click="leaveWith('discard')">{{ tr('放弃修改并离开', 'Discard and leave') }}</button>
         <button class="btn primary" :disabled="leaving" @click="leaveWith('save')">{{ tr('保存并离开', 'Save and leave') }}</button>
       </div></template>
