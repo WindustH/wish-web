@@ -41,8 +41,9 @@ function apply() { if(valid.value) { emit('update:modelValue',{period:'custom',s
   </Modal>
 </template>
 <style scoped>
-.usage-range-picker { display:flex; align-items:center; gap:4px; max-width:100%; }
-.usage-range-picker :deep(.control-select) { width: auto; max-width: 260px; min-width: 100px; min-height: 32px; padding: 4px 10px; font-size:12px; }
+.usage-range-picker { display:flex; align-items:center; gap:4px; min-width:0; max-width:100%; }
+.usage-range-picker :deep(.control-select) { width: auto; max-width: min(260px, 100%); min-width: 0; min-height: 32px; padding: 4px 10px; font-size:12px; }
+.usage-range-picker :deep(.control-select) { flex: 1; }
 .usage-date-form { display:grid; gap:16px; }
 .usage-date-form label { display:grid; gap:6px; }
 .usage-date-form .btn { justify-self:end; }

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useComposerFocus } from './ui/composables/useComposerFocus';
 import Hint from './ui/components/Hint.vue';
 import { computed } from 'vue';
 import { TooltipProvider } from 'reka-ui';
@@ -13,7 +12,6 @@ import { sync } from './core/state/syncSlice.js';
 import { needRefresh, refreshApp } from './ui/pwa.js';
 import { sessionLocation } from './router.js';
 
-const composerFocused = useComposerFocus();
 const route = useRoute();
 const router = useRouter();
 const isMobile = useMedia('(max-width: 899px)');
@@ -31,7 +29,7 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
 
 <template>
   <TooltipProvider :delay-duration="450" :skip-delay-duration="150">
-  <div class="shell" :class="[isMobile ? 'mobile' : 'desktop', { 'composer-focused': composerFocused }]">
+  <div class="shell" :class="isMobile ? 'mobile' : 'desktop'">
     <nav class="vbar" :aria-label="i18n.t('app.name')">
       <RouterLink :to="sessionLocation" class="brand-mark" aria-label="Wish">w<span>.</span></RouterLink>
       <Hint :text="item.label()" v-for="item in top" :key="item.id"><button class="nav-btn" :class="{ active: isActive(item.id) }"
@@ -47,6 +45,10 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
     </nav>
     <div class="main">
       <div class="main-col">
+        <header v-if="isMobile && ['stats', 'settings'].includes(String(route.meta.section))" class="mobile-secondary-header">
+          <button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')" @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
+          <span>{{ i18n.t(route.meta.section === 'stats' ? 'nav.stats' : 'nav.settings') }}</span>
+        </header>
         <div v-if="!online" class="offline-banner" role="status">{{ i18n.t('settings.offline') }}</div>
         <RouterView v-slot="{ Component, route: pageRoute }">
           <KeepAlive :max="4">
@@ -55,12 +57,6 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
         </RouterView>
       </div>
     </div>
-    <nav class="bbar" :inert="isMobile && composerFocused" :aria-label="i18n.t('app.name')">
-      <Hint :text="item.label()" v-for="item in nav" :key="item.id"><button class="nav-btn" :class="{ active: isActive(item.id) }"
-        :aria-current="isActive(item.id) ? 'page' : undefined" :aria-label="item.label()" @click="go(item)">
-        <Icon :name="item.icon" />
-      </button></Hint>
-    </nav>
     <div v-if="needRefresh" class="pwa-update" role="alert">
       <span>{{ i18n.t('pwa.updateAvailable') }}</span>
       <button class="btn" @click="refreshApp()">{{ i18n.t('pwa.reload') }}</button>

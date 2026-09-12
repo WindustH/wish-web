@@ -87,16 +87,16 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
 .usage-chart-card { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); }
 .usage-chart-header { display: flex; justify-content: space-between; align-items: center; gap: 8px 16px; flex-wrap: wrap; margin-bottom: 12px; }
 .usage-chart-header h3 { margin: 0; font: 600 14px/1.5 var(--font); }
-.usage-metrics, .usage-range { display: flex; align-items: center; gap: 2px; }
+.usage-metrics, .usage-range { display: flex; align-items: center; gap: 2px; min-width: 0; max-width: 100%; }
 .usage-metrics .btn, .usage-range .btn { white-space: nowrap; }
 .btn[aria-pressed='true'] { background: var(--bg-active); color: var(--fg); }
 .usage-models { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 8px; }
-.usage-model { display: flex; align-items: center; gap: 7px; padding: 7px 8px; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--fg); text-align: left; }
+.usage-model { min-width: 0; max-width: 100%; display: flex; align-items: center; gap: 7px; padding: 7px 8px; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--fg); text-align: left; }
 .usage-model:hover { background: var(--bg-hover); }
 .usage-model:focus-visible { outline: none; border-color: var(--accent); }
 .usage-model[aria-pressed='false'] { opacity: .45; }
 .usage-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-.usage-model-name { font-size: 12px; overflow-wrap: anywhere; }
+.usage-model-name { min-width: 0; font-size: 12px; overflow-wrap: anywhere; }
 .usage-model small { display: block; font-size: 10px; font-weight: 400; color: var(--fg-subtle); }
 .usage-model strong { margin-left: 7px; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .load-error { padding: 10px 12px; margin-block: 8px; border: 1px solid var(--err-border); border-radius: 6px; background: var(--err-bg); color: var(--err); font-size: 12px; overflow-wrap: anywhere; }
