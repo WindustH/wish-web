@@ -111,6 +111,7 @@ export const zh = {
   'chatbar.manage': '管理',
   'chatbar.back': '返回',
   'chatbar.more': '更多',
+  'info.compactionCount': '压缩次数',
   'info.title': '会话信息',
   'info.model': '模型',
   'info.provider': '提供商',

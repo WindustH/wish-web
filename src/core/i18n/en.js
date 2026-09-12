@@ -111,6 +111,7 @@ export const en = {
   'chatbar.manage': 'Manage',
   'chatbar.back': 'Back',
   'chatbar.more': 'More',
+  'info.compactionCount': 'Compaction count',
   'info.title': 'Session info',
   'info.model': 'Model',
   'info.provider': 'Provider',

@@ -52,7 +52,7 @@ const tokens = computed(() => usage.value?.statistics.totals.tokens ?? null);
     <dl v-if="snapshot" class="info-facts">
       <div class="info-full"><dt>{{ i18n.t('info.name') }}</dt><dd>{{ snapshot.name || '—' }}</dd></div>
       <div class="info-full"><dt>{{ i18n.t('info.provider') }}</dt><dd>{{ snapshot.provider || '—' }} / {{ snapshot.model || '—' }}</dd></div>
-      <div><dt>{{ i18n.locale.value === 'zh' ? 'compact 次数' : 'Compact count' }}</dt><dd>{{ snapshot.compaction_count }}</dd></div>
+      <div><dt>{{ i18n.t('info.compactionCount') }}</dt><dd>{{ snapshot.compaction_count }}</dd></div>
       <div><dt>{{ i18n.t('info.phase') }}</dt><dd>{{ i18n.t(`phase.${snapshot.phase || 'idle'}`) }}</dd></div>
       <div><dt>{{ i18n.t('info.queue') }}</dt><dd>{{ snapshot.queue ?? 0 }}</dd></div>
       <div><dt>{{ i18n.t('info.createdAt') }}</dt><dd>{{ fmtDateTime(snapshot.created_at) }}</dd></div>
