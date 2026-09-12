@@ -33,7 +33,7 @@
   background: var(--bg-raised); padding-bottom: env(safe-area-inset-bottom);
 }
 .shell.mobile .bbar { display: flex; }
-.shell.mobile:has(.composer textarea:focus) .bbar { visibility: hidden; pointer-events: none; }
+.shell.mobile.composer-focused .bbar { display: none; }
 .bbar .nav-btn { flex: 1; border-radius: 0; min-height: var(--h-bottombar); }
 .bbar .nav-btn .icon { width: 18px; height: 18px; }
 .bbar .nav-btn.active { background: transparent; }
