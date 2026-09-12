@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { onBeforeRouteLeave, useRouter } from 'vue-router';
-import { DialogRoot, DialogContent, DialogOverlay, DialogTitle } from 'reka-ui';
+import { DialogRoot, DialogContent, DialogTitle } from 'reka-ui';
 import { usePageActivity } from '../../ui/composables/usePageActivity';
 import { useMedia } from '../../ui/composables/useMedia';
 import Modal from '../../ui/components/Modal.vue';
@@ -180,9 +180,9 @@ onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); });
 </script>
 
 <template>
-  <DialogRoot :open="pageActive" :unmount-on-hide="false" :modal="!mobile">
-    <DialogOverlay v-if="!mobile" class="settings-overlay" />
-    <DialogContent as-child :aria-describedby="undefined" @open-auto-focus.prevent @close-auto-focus.prevent @escape-key-down="event => { event.preventDefault(); if (!mobile) closeSettings(); }" @interact-outside="event => { event.preventDefault(); if (!mobile) closeSettings(); }">
+  <DialogRoot :open="pageActive" :unmount-on-hide="false" :modal="false">
+    <div v-if="!mobile && pageActive" class="settings-overlay" aria-hidden="true" />
+    <DialogContent as-child :aria-modal="!mobile || undefined" :aria-describedby="undefined" @open-auto-focus.prevent @close-auto-focus.prevent @escape-key-down="event => { event.preventDefault(); if (!mobile) closeSettings(); }" @interact-outside="event => { event.preventDefault(); if (!mobile) closeSettings(); }">
   <div class="page settings-page">
     <DialogTitle class="visually-hidden">{{ tr('设置', 'Settings') }}</DialogTitle>
     <button v-if="!mobile" class="btn ghost icon-only settings-close" :aria-label="tr('关闭设置', 'Close settings')" @click="closeSettings"><X :size="20" /></button>

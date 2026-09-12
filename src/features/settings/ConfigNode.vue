@@ -10,6 +10,7 @@ import { atPath, isObject, pointer } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigEditor, Json, ProviderPreset } from '../../core/config-editor';
 import { fieldLabel, fieldHint, isMap, isSecret, label, newArrayEntry, optionalFields, optionLabel, optionsFor, tr, unit } from './fields';
 import ConfigLink from './ConfigLink.vue';
+import SettingHint from './SettingHint.vue';
 import AddOptionalSetting from './AddOptionalSetting.vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import { openConfigDialog } from './config-dialog';
@@ -242,7 +243,7 @@ function itemTitle(item: Json, index: number) {
     <template v-for="(child, field) in object" :key="field">
       <div v-if="!(path.length === 3 && path[0] === 'providerd' && path[1] === 'providers' && field === 'enabled')" class="cfg-property" :class="{ 'cfg-property-removable': (isMap(path) || field in optional) && key !== 'models' && field !== 'proxy_enabled' }">
         <ConfigNode v-if="isModel && child !== null && typeof child === 'object'" :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" />
-        <ConfigLink v-else-if="(path[0] === 'providerd' && path[1] === 'providers') && (isObject(child) || (Array.isArray(child) && child.some(isObject)))" :path="[...path, field]" :title="isMap(path) ? field : fieldLabel([...path, field])" :menu="key === 'models'" :removable="atPath(editor.draft.value!, [...path, field]) !== undefined" :remove-label="field in upstreamForProvider ? tr('清除覆盖', 'Clear overrides') : tr('删除', 'Delete')" @remove="removeField([...path, field])" />
+        <ConfigLink v-else-if="key === 'models' && isObject(child)" :path="[...path, field]" :title="isMap(path) ? field : fieldLabel([...path, field])" :menu="key === 'models'" :removable="atPath(editor.draft.value!, [...path, field]) !== undefined" :remove-label="field in upstreamForProvider ? tr('清除覆盖', 'Clear overrides') : tr('删除', 'Delete')" @remove="removeField([...path, field])" />
         <details v-else-if="child !== null && typeof child === 'object'" class="cfg-nested" :open="isMap(path)">
           <summary><ChevronDown :size="16" /><span>{{ isMap(path) ? field : fieldLabel([...path, field]) }}</span><small v-if="Array.isArray(child)">{{ child.length }}</small></summary>
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
@@ -270,7 +271,7 @@ function itemTitle(item: Json, index: number) {
     <div class="cfg-field-label">
       <label :for="pointer(path)">{{ name }}<span v-if="required !== undefined" class="cfg-requirement">{{ required ? tr('必填', 'Required') : tr('可选', 'Optional') }}</span></label>
       <small v-if="unit(key) && !name.includes(unit(key))">{{ unit(key) }}</small>
-      <p v-if="hint" :id="hintId" class="cfg-hint">{{ hint }}</p>
+      <SettingHint v-if="hint" :id="hintId" :text="hint" :label="name" />
       <small v-if="sourceLabel">{{ sourceLabel }}</small>
     </div>
     <SelectField v-if="modelBoolean" :id="pointer(path)" :aria-describedby="hintId" :model-value="value === null ? '' : String(value)" placeholder=""

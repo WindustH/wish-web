@@ -3,14 +3,14 @@ import { usePageActivity } from '../../ui/composables/usePageActivity';
 const pageActive = usePageActivity();
 import { computed, onMounted, provide, ref, shallowRef, watch } from 'vue';
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from 'reka-ui';
-import { ArrowLeft, RefreshCw, Save, RotateCcw, X } from '@lucide/vue';
-import { atPath, configEditors, errorText, isObject, loadConfigCatalog } from '../../core/config-editor';
+import { RefreshCw, Save, RotateCcw, X } from '@lucide/vue';
+import { atPath, configEditors, errorText, isObject, loadConfigCatalog, pointer } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigOwner, ConfigPreview } from '../../core/config-editor';
 import { fieldLabel, label, tr } from './fields';
 import { configFailure } from './config-errors';
 import Modal from '../../ui/components/Modal.vue';
 import Hint from '../../ui/components/Hint.vue';
-import { openConfigDialog } from './config-dialog';
+import { openConfigDialog, activeConfigPaths } from './config-dialog';
 import type { ConfigDialogTarget } from './config-dialog';
 import ConfigNode from './ConfigNode.vue';
 import SettingsSections from './SettingsSections.vue';
@@ -23,20 +23,33 @@ const props = defineProps<{ owner: ConfigOwner; active: boolean }>();
 const editor = configEditors[props.owner];
 const editing = ref<ConfigDialogTarget[]>([]);
 const current = computed(() => editing.value.at(-1));
-function openEditor(target: ConfigDialogTarget) { editing.value.push(target); }
+const windows = new Map<string, InstanceType<typeof Modal>>();
+provide(activeConfigPaths, computed(() => editing.value.map(target => pointer(target.path))));
+function openEditor(target: ConfigDialogTarget) {
+  const index = editing.value.findIndex(item => pointer(item.path) === pointer(target.path));
+  if (index >= 0) { windows.get(pointer(target.path))?.close(); return; }
+  const parent = editing.value[0];
+  editing.value = parent ? [parent, target] : [target];
+}
 provide(openConfigDialog, openEditor);
-function closeEditor() { if (editing.value.length > 1) editing.value.pop(); else editing.value = []; }
+function closeEditor(target: ConfigDialogTarget) {
+  const index = editing.value.indexOf(target);
+  if (index >= 0) editing.value = editing.value.slice(0, index);
+}
 function revealPath(path: string[]) {
   let parent = path.slice(0, -1);
   const provider = path[0] === 'providerd' && path[1] === 'providers'
     ? atPath(editor.draft.value!, path.slice(0, 3)) : undefined;
-  // Preset credential controls carry required/optional semantics in their
-  // provider form. Search must open that form, not a generic credentials map.
-  if (isObject(provider) && provider.preset && path[3] !== 'models') parent = path.slice(0, 3);
-  editing.value = [{ path: parent, title: parent.length === 3 && isObject(provider)
-    ? String(provider.id) : fieldLabel(parent) }];
+  if (isObject(provider)) {
+    editing.value = [{ path: path.slice(0, 3), title: String(provider.id) }];
+    if (path[3] === 'models' && path.length > 5) {
+      editing.value.push({ path: path.slice(0, 5), title: path[4]! });
+    }
+    return;
+  }
+  editing.value = [{ path: parent, title: fieldLabel(parent) }];
 }
-defineExpose({ revealPath, validate: () => !!form.value?.reportValidity() && (!dialogForm.value || dialogForm.value.reportValidity()) });
+defineExpose({ revealPath, validate: () => !!form.value?.reportValidity() && dialogForms.value.every(form => form.reportValidity()) });
 const { draft, busy, error, dirty, saved, epoch, restartState } = editor;
 const upstreamModels = shallowRef<UpstreamModels>();
 const upstreamError = shallowRef<unknown>();
@@ -44,7 +57,7 @@ const upstreamBusy = ref(false);
 provide(upstreamModelsKey, upstreamModels);
 const upstreamTarget = computed(() => {
   const path = current.value?.path;
-  if (!path || path[3] !== 'models' || !draft.value || !editor.source.value) return undefined;
+  if (!path || path[0] !== 'providerd' || path[1] !== 'providers' || !draft.value || !editor.source.value) return undefined;
   const parent = path.slice(0, 3);
   const provider = atPath(draft.value, parent);
   const original = atPath(editor.source.value.config, parent);
@@ -99,7 +112,7 @@ const failure = computed(() => configFailure(error.value, editor.errorStage.valu
 const confirmAction = ref<'reload' | 'discard'>();
 const restartReview = ref<ConfigPreview>();
 const form = ref<HTMLFormElement>();
-const dialogForm = ref<HTMLFormElement>();
+const dialogForms = ref<HTMLFormElement[]>([]);
 const catalog = shallowRef<ConfigCatalog>();
 const catalogError = shallowRef<unknown>();
 const catalogBusy = ref(false);
@@ -146,7 +159,7 @@ async function confirm() {
   else editor.discard();
 }
 async function save() {
-  if (!form.value?.reportValidity() || (dialogForm.value && !dialogForm.value.reportValidity())) return;
+  if (!form.value?.reportValidity() || !dialogForms.value.every(form => form.reportValidity())) return;
   const preview = await editor.preview();
   if (!preview) return;
   if (preview.restart_required.length) restartReview.value = preview;
@@ -185,19 +198,17 @@ async function confirmSave(restart: boolean) {
         </div>
       </Transition>
     </Teleport>
-    <Modal :open="!!current" :title="current?.title || ''" wide :dismissable="!busy" :close-button="editing.length <= 1" @close="closeEditor">
-      <form v-if="current && draft" ref="dialogForm" class="config-editor cfg-editor-window" @submit.prevent @invalid.capture="revealInvalid">
+    <Modal v-for="(target, index) in editing" :key="pointer(target.path)" :ref="instance => { if (instance) windows.set(pointer(target.path), instance as InstanceType<typeof Modal>); else windows.delete(pointer(target.path)); }" :open="true" :title="index ? `${editing[0]!.title} › ${target.title}` : target.title" :wide="index === 0" :floating="index > 0" :anchor="target.anchor" :content-class="index ? 'cfg-child-window' : 'cfg-parent-window'" :dismissable="!busy" @close="closeEditor(target)">
+      <form v-if="draft" ref="dialogForms" class="config-editor cfg-editor-window" @submit.prevent @invalid.capture="revealInvalid">
         <div v-if="error" class="cfg-notice cfg-error" role="alert"><strong>{{ failure.title }}</strong><p>{{ failure.detail }}</p><p v-if="dirty">{{ failure.hint }}</p></div>
         <div v-if="saved" class="cfg-notice" role="status">{{ tr('配置已保存', 'Configuration saved') }}</div>
-        <p v-if="current.path[3] === 'models' && !upstreamTarget" class="cfg-hint">{{ tr('Provider 连接配置尚未保存。保存配置后会自动获取上游模型列表。', 'The provider connection is not saved yet. Its upstream model catalog will load after saving.') }}</p>
-        <p v-if="upstreamBusy" class="cfg-hint">{{ tr('正在读取上游模型列表…', 'Loading upstream model catalog…') }}</p>
-        <p v-else-if="upstreamError" class="cfg-error" role="alert">{{ tr('上游模型列表读取失败：', 'Could not load upstream model catalog: ') }}{{ errorText(upstreamError) }}</p>
-        <p v-else-if="upstreamModels" class="cfg-hint">{{ tr('上游模型列表仅用于展示。只有明确修改的字段会保存为覆盖值。', 'Upstream metadata is display-only. Only fields you edit are saved as overrides.') }}</p>
-        <fieldset :disabled="busy"><ConfigNode :key="`${epoch}-${current.path.join('/')}`" :value="atPath(draft, current.path) ?? {}" :path="current.path" :editor="editor" :catalog="catalog" /></fieldset>
+        <p v-if="target.path[3] === 'models' && !upstreamTarget" class="cfg-hint">{{ tr('Provider 连接配置尚未保存。保存配置后会自动获取上游模型列表。', 'The provider connection is not saved yet. Its upstream model catalog will load after saving.') }}</p>
+        <p v-if="target.path[3] === 'models' && upstreamBusy" class="cfg-hint">{{ tr('正在读取上游模型列表…', 'Loading upstream model catalog…') }}</p>
+        <p v-else-if="target.path[3] === 'models' && upstreamError" class="cfg-error" role="alert">{{ tr('上游模型列表读取失败：', 'Could not load upstream model catalog: ') }}{{ errorText(upstreamError) }}</p>
+        <p v-else-if="target.path[3] === 'models' && upstreamModels" class="cfg-hint">{{ tr('上游模型列表仅用于展示。只有明确修改的字段会保存为覆盖值。', 'Upstream metadata is display-only. Only fields you edit are saved as overrides.') }}</p>
+        <fieldset :disabled="busy"><ConfigNode :key="`${epoch}-${target.path.join('/')}`" :value="atPath(draft, target.path) ?? {}" :path="target.path" :editor="editor" :catalog="catalog" /></fieldset>
       </form>
-      <template #actions>
-        <Hint v-if="editing.length > 1" :text="tr('返回上一级', 'Back')"><button type="button" class="btn ghost icon-only" :disabled="busy" :aria-label="tr('返回上一级', 'Back')" @click="editing.pop()"><ArrowLeft :size="16" /></button></Hint>
-      </template>
+
     </Modal>
     <DialogRoot :open="!!restartReview" @update:open="!$event && (restartReview = undefined)"><DialogPortal v-if="pageActive"><DialogOverlay class="cfg-dialog-overlay" /><DialogContent class="cfg-dialog cfg-restart-dialog"><DialogTitle>{{ tr('这些修改需要重启后生效', 'These changes require a restart') }}</DialogTitle><DialogDescription>{{ tr('配置尚未保存。立即重启会中断此服务正在处理的请求；核心服务的运行中会话会停止，稍后可继续。', 'The configuration has not been saved. Restarting interrupts requests handled by this service; running Core sessions stop and can be continued later.') }}</DialogDescription><ul><li v-for="field in restartReview?.restart_required" :key="field">{{ field.split('/').filter(Boolean).map(label).join(' › ') }}</li></ul><p v-if="restartReview?.restart_required.some(field => field.includes('/listen/') || field.includes('/auth/'))">{{ tr('更改监听地址或认证信息后，可能需要更新连接设置。', 'Changing the listen address or authentication may require updating connection settings.') }}</p><p v-if="!restartReview?.restart_supported">{{ tr('此平台不支持从网页重启，请保存后自行重启。', 'Restarting from the Web is unavailable on this platform. Save and restart manually.') }}</p><div class="cfg-dialog-actions"><button class="btn ghost" @click="restartReview = undefined">{{ tr('取消保存', 'Cancel save') }}</button><button class="btn" @click="confirmSave(false)">{{ tr('保存，稍后重启', 'Save, restart later') }}</button><button class="btn primary" :disabled="!restartReview?.restart_supported" @click="confirmSave(true)">{{ tr('保存并立即重启', 'Save and restart now') }}</button></div></DialogContent></DialogPortal></DialogRoot>
     <DialogRoot :open="!!confirmAction" @update:open="!$event && (confirmAction = undefined)"><DialogPortal v-if="pageActive"><DialogOverlay class="cfg-dialog-overlay" /><DialogContent class="cfg-dialog"><DialogTitle>{{ tr('放弃尚未保存的修改？', 'Discard unsaved changes?') }}</DialogTitle><DialogDescription>{{ confirmAction === 'reload' ? tr('刷新会用文件中的配置替换当前草稿。', 'Refreshing replaces your draft with the configuration on disk.') : tr('所有未保存的修改都会被放弃。', 'All unsaved changes will be discarded.') }}</DialogDescription><div class="cfg-dialog-actions"><button class="btn ghost" @click="confirmAction = undefined">{{ tr('继续编辑', 'Keep editing') }}</button><button class="btn danger" @click="confirm">{{ tr('放弃修改', 'Discard changes') }}</button></div><button class="cfg-dialog-close btn ghost" :aria-label="tr('关闭', 'Close')" @click="confirmAction = undefined"><X :size="18" /></button></DialogContent></DialogPortal></DialogRoot>

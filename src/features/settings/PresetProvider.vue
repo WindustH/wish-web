@@ -4,7 +4,6 @@ import { ChevronDown, Trash2 } from '@lucide/vue';
 import { isObject, pointer } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigEditor, ConfigObject, ProviderPreset } from '../../core/config-editor';
 import { fieldLabel, optionalFields, tr } from './fields';
-import ConfigLink from './ConfigLink.vue';
 import AddOptionalSetting from './AddOptionalSetting.vue';
 import Hint from '../../ui/components/Hint.vue';
 import SelectField from '../../ui/components/SelectField.vue';
@@ -61,12 +60,12 @@ function addAdvanced(field: string) { props.editor.set(fieldPath(field), structu
       </template>
       <p v-if="preset.api_key_supported || credentialFields.length" class="cfg-hint preset-secret-help">{{ tr('凭据支持 ${环境变量名}；未编辑时保留已保存的值。', 'Credentials accept ${ENV_VAR}; saved values are preserved when left unchanged.') }}</p>
     </section>
-    <ConfigLink :path="fieldPath('models')" :title="fieldLabel(fieldPath('models'))" />
+    <details class="cfg-nested cfg-inline-models"><summary><ChevronDown :size="16" /><span>{{ fieldLabel(fieldPath('models')) }}</span></summary><ConfigNode :value="value.models ?? {}" :path="fieldPath('models')" :editor="editor" :catalog="catalog" /></details>
     <details class="cfg-nested cfg-provider-advanced">
       <summary><ChevronDown :size="16" /><span>{{ tr('高级设置', 'Advanced settings') }}</span></summary>
       <div v-for="[field] in advanced.filter(([field]) => field in value)" :key="field" class="cfg-property cfg-property-removable">
         <template v-if="field in value">
-          <ConfigLink v-if="isObject(value[field])" :path="fieldPath(field)" :title="fieldLabel(fieldPath(field))" />
+          <details v-if="isObject(value[field])" class="cfg-nested"><summary><ChevronDown :size="16" /><span>{{ fieldLabel(fieldPath(field)) }}</span></summary><ConfigNode :value="value[field]!" :path="fieldPath(field)" :editor="editor" :catalog="catalog" /></details>
           <ConfigNode v-else :value="value[field]!" :path="fieldPath(field)" :editor="editor" :catalog="catalog" />
           <Hint :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除设置', 'Remove override')} ${fieldLabel(fieldPath(field))}`" @click="editor.remove(fieldPath(field))"><Trash2 :size="15" /></button></Hint>
         </template>
