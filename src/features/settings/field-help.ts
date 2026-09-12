@@ -44,7 +44,7 @@ const fields: Record<string, Help> = {
   provider: ['填写模型服务中配置的提供商标识名称。', 'The provider instance ID configured in the provider service.'],
   model: ['填写提供商接受的模型名称。', 'A model ID accepted by the selected provider.'],
   reasoning_effort: ['设置新会话默认的推理强度；可用等级取决于模型。移除此项则不指定。', 'Default reasoning effort for new sessions; supported levels depend on the model. Remove to leave unspecified.'],
-  max_assistant_message_bytes: ['限制一条助手消息的大小，避免异常响应无限增长。', 'Bound the size of one assistant message.'],
+  max_assistant_message_bytes: ['限制一次模型响应序列化后的大小，包含正文、思考内容和工具调用参数；接收完成后检查，超限则报错。', 'Limit the serialized size of one model response, including text, reasoning and tool-call arguments. Checked after reception; oversized responses fail.'],
   unknown_tool_is_fatal: ['开启时，模型调用未知工具会终止运行；关闭时将错误反馈给模型继续处理。', 'Stop the run on an unknown tool, or return a tool error to the model and continue when disabled.'],
   tool_execution: ['并行执行同一轮中的多个工具可减少等待；依次执行则按调用顺序运行。', 'Parallel runs tools from the same turn concurrently; serial runs them in call order.'],
   max_attempts: ['一次操作的最多尝试次数，包含第一次尝试；1 表示失败后不再重试。', 'Total attempts for an operation, including the first; 1 disables retries.'],
