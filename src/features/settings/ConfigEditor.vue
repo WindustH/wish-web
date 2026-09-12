@@ -14,7 +14,7 @@ import { openConfigDialog } from './config-dialog';
 import type { ConfigDialogTarget } from './config-dialog';
 import ConfigNode from './ConfigNode.vue';
 import SettingsSections from './SettingsSections.vue';
-import { providerModels } from '../../core/api/endpoints.js';
+import { providerModels, providerSummaries } from '../../core/api/endpoints.js';
 import { upstreamModelsKey } from './upstream-models';
 import type { UpstreamModels } from './upstream-models';
 import type { ConfigObject } from '../../core/config-editor';
@@ -48,8 +48,8 @@ const upstreamTarget = computed(() => {
   const parent = path.slice(0, 3);
   const provider = atPath(draft.value, parent);
   const original = atPath(editor.source.value.config, parent);
-  if (!isObject(provider) || !provider.preset || !isObject(original)
-    || provider.id !== original.id || provider.preset !== original.preset) return undefined;
+  if (!isObject(provider) || !isObject(original)
+    || provider.id !== original.id || provider.preset !== original.preset || provider.protocol !== original.protocol) return undefined;
   return JSON.stringify([parent.join('/'), String(provider.id)]);
 });
 watch(upstreamTarget, async (target, _, onCleanup) => {
@@ -62,7 +62,18 @@ watch(upstreamTarget, async (target, _, onCleanup) => {
   onCleanup(() => controller.abort());
   upstreamBusy.value = true;
   try {
+    const response = await providerSummaries({ signal: controller.signal });
+    const summary = response.providers.find((provider: { id: string }) => provider.id === id);
+    if (!summary) throw new Error('Provider is not active');
+    const defaults: ConfigObject = { reasoning_efforts: summary.reasoning_efforts };
+    const sources: Record<string, string> = { reasoning_efforts: summary.reasoning_efforts_source };
+    if (summary.max_output_tokens != null) {
+      defaults.max_output_tokens = summary.max_output_tokens;
+      sources.max_output_tokens = 'preset';
+    }
     const models: Record<string, ConfigObject> = {};
+    if (!controller.signal.aborted) upstreamModels.value = { providerPath, models: {}, defaults, sources };
+    if (!summary.model_catalog_available) return;
     const cursors = new Set<string>();
     let cursor: string | undefined;
     do {
@@ -76,7 +87,7 @@ watch(upstreamTarget, async (target, _, onCleanup) => {
       if (cursor && cursors.has(cursor)) throw new Error('Upstream model catalog repeated a cursor');
       if (cursor) cursors.add(cursor);
     } while (cursor);
-    if (!controller.signal.aborted) upstreamModels.value = { providerPath, models };
+    if (!controller.signal.aborted) upstreamModels.value = { providerPath, models, defaults, sources };
   } catch (cause) {
     if (!controller.signal.aborted) upstreamError.value = cause;
   } finally {
