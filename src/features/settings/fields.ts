@@ -148,7 +148,7 @@ export function isMap(path: string[]) {
 }
 export function newArrayEntry(path: string[]): Json {
   const key = path.at(-1);
-  if (key === 'providers') return { id: '', preset: '', protocol: '', base_url: '', headers: {}, query: {}, api_key: '', credentials: {}, enabled: true, model_id_max_bytes: 512, models: {}, compat: {} };
+  if (key === 'providers') return { id: '', preset: '', protocol: '', base_url: '', headers: {}, query: {}, api_key: '', credentials: {}, enabled: true, models: {}, compat: {} };
   if (key === 'endpoints') return { id: '', base_url: '', proxy_policy: 'inherit' };
   if (key === 'policies') return { id: '', source: 'disabled' };
   if (key === 'bindings') return { id: '', display_name: '', credential: { source: 'env', name: '' } };

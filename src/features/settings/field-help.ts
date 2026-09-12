@@ -164,7 +164,7 @@ const fields: Record<string, Help> = {
   protocol: ['选择目标接口实际支持的通信协议，同一地址可以使用不同协议。', 'Choose the protocol the target API supports; the same address can support different protocols.'],
   api_key: ['未编辑时保留现有密钥；输入新值可替换，也支持 ${环境变量名称}。清空请使用“清空”按钮。', 'Untouched fields keep the current key. Enter a replacement or an ${ENV_VAR} reference; use Clear to remove it.'],
   credentials: ['填写预设额外需要的命名凭据，例如 workspace_id。', 'Named credentials additionally required by a preset, such as workspace_id.'],
-  model_id_max_bytes: ['限制客户端提交的模型名称长度。', 'Maximum length of model IDs submitted by clients.'],
+  model_id_max_bytes: ['统一限制客户端提交的模型名称长度，按 UTF-8 Byte 计算，对所有提供商生效。', 'Maximum UTF-8 byte length of model IDs submitted by clients, shared by all providers.'],
   models: ['按模型名称配置容量和能力，填写的值优先于模型列表中的数据。', 'Override capacity and capabilities by model ID; entered values take precedence over catalog metadata.'],
   compat: ['覆盖提供商协议的具体请求或响应格式；未添加的选项使用协议默认值。', 'Override provider wire-format options; omitted fields use protocol defaults.'],
   input_count: ['选择发送请求前计算输入 Token 的方式。', 'Choose how input tokens are counted before invocation.'],

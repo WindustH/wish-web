@@ -5,6 +5,8 @@ import { isObject, pointer } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigEditor, ConfigObject, ProviderPreset } from '../../core/config-editor';
 import { fieldLabel, optionalFields, tr } from './fields';
 import ConfigLink from './ConfigLink.vue';
+import AddOptionalSetting from './AddOptionalSetting.vue';
+import Hint from '../../ui/components/Hint.vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import { settingOption } from './option-help';
 import { presetProfile, credentialPresentation } from './preset-profile';
@@ -21,7 +23,7 @@ function setAccountSource(source: string) {
 }
 const credentials = computed(() => isObject(props.value.credentials) ? props.value.credentials : {});
 const credentialFields = computed(() => [...props.preset.required_credentials, ...props.preset.optional_credentials]);
-const advancedDefaults = computed<ConfigObject>(() => ({ model_id_max_bytes: 512, compat: {}, ...optionalFields(props.path) }));
+const advancedDefaults = computed<ConfigObject>(() => ({ compat: {}, ...optionalFields(props.path) }));
 const advanced = computed(() => Object.entries(advancedDefaults.value).filter(([field]) => {
   if (field === 'api_key' || field === 'auth' || (profile.value.local && field === 'base_url')) return false;
   if (field in props.value) return true;
@@ -72,13 +74,15 @@ function addAdvanced(field: string) { props.editor.set(fieldPath(field), structu
     <details class="cfg-nested cfg-provider-advanced">
       <summary><ChevronDown :size="16" /><span>{{ tr('高级设置', 'Advanced settings') }}</span></summary>
       <button v-if="!value.auth && !profile.local" type="button" class="btn ghost" @click="editor.set(fieldPath('auth'), { type: 'bearer', token: '' })"><Plus :size="15" />{{ tr('覆盖认证方式', 'Override authentication') }}</button>
-      <div v-for="[field] in advanced" :key="field" class="cfg-property">
+      <div v-for="[field] in advanced.filter(([field]) => field in value)" :key="field" class="cfg-property" :class="{ 'cfg-property-removable': field !== 'compat' }">
         <template v-if="field in value">
-          <ConfigNode :value="value[field]!" :path="fieldPath(field)" :editor="editor" :catalog="catalog" />
-          <button v-if="field !== 'model_id_max_bytes' && field !== 'compat'" type="button" class="btn ghost cfg-remove-field" @click="editor.remove(fieldPath(field))"><Trash2 :size="15" />{{ tr('移除设置', 'Remove override') }}</button>
+          <ConfigLink v-if="isObject(value[field])" :path="fieldPath(field)" :title="fieldLabel(fieldPath(field))" />
+          <ConfigNode v-else :value="value[field]!" :path="fieldPath(field)" :editor="editor" :catalog="catalog" />
+          <Hint v-if="field !== 'compat'" :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除设置', 'Remove override')} ${fieldLabel(fieldPath(field))}`" @click="editor.remove(fieldPath(field))"><Trash2 :size="15" /></button></Hint>
         </template>
-        <button v-else type="button" class="btn ghost" @click="addAdvanced(field)"><Plus :size="15" />{{ fieldLabel(fieldPath(field)) }}</button>
+
       </div>
+      <AddOptionalSetting :options="advanced.filter(([field]) => !(field in value)).map(([field]) => ({ value: field, label: fieldLabel(fieldPath(field)) }))" @add="addAdvanced" />
     </details>
   </div>
 </template>

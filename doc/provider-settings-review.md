@@ -43,3 +43,11 @@ Some vendor pages are client-rendered or failed retrieval (MiMo, Tencent, vLLM r
 Browser scenario `wish-test/web/scenarios-preset-profiles.mjs` opens all 48 presets through an isolated real backend, checks specialized forms, Codex option tooltips, local authentication and preservation of masked credentials after saving. Mobile dark-mode checks cover Codex, AWS and local authentication. Build and backend regression evidence is in the coordination deployment directory.
 
 Model catalog changes: overriding a preset service address also changes its default model-catalog host. Explicit model-list configuration remains authoritative.
+
+
+Model-name length is a shared inbound HTTP limit at
+`providerd.http.model_id_max_bytes` (512 UTF-8 Byte by default), never a
+provider-specific option. Migrate older source files with
+`wish/scripts/global-model-limit.py INPUT.toml OUTPUT.toml`; it preserves the
+largest previous effective limit. Removing a visible schema default is valid
+even when the source file has no explicit override.

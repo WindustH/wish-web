@@ -6,6 +6,7 @@ import { atPath, isObject, pointer } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigEditor, Json, ProviderPreset } from '../../core/config-editor';
 import { fieldLabel, fieldHint, isMap, isSecret, label, newArrayEntry, optionalFields, optionLabel, optionsFor, tr, unit } from './fields';
 import ConfigLink from './ConfigLink.vue';
+import AddOptionalSetting from './AddOptionalSetting.vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import { openConfigDialog } from './config-dialog';
 import AddProvider from './AddProvider.vue';
@@ -161,7 +162,8 @@ function itemTitle(item: Json, index: number) {
         <button v-if="(isMap(path) || field in optional) && field !== 'proxy_policy'" type="button" class="btn ghost cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : fieldLabel([...path, field])}`" @click="editor.remove([...path, field])"><Trash2 :size="15" /><span>{{ tr('移除设置', 'Remove override') }}</span></button>
       </div>
     </template>
-    <div v-if="available.length || isMap(path)" class="cfg-add-field">
+    <AddOptionalSetting v-if="!isMap(path)" :options="available.map(field => ({ value: field, label: label(field) }))" @add="addKey = $event; addField()" />
+    <div v-if="isMap(path)" class="cfg-add-field">
       <label :for="`add-${pointer(path)}`">{{ isMap(path) ? tr('添加项目', 'Add entry') : tr('添加可选设置', 'Add optional setting') }}</label>
       <div class="cfg-inline">
         <input class="input" v-if="isMap(path)" :id="`add-${pointer(path)}`" v-model="addKey" :placeholder="key === 'models' ? tr('模型名称，例如 model-name', 'Model ID, e.g. model-name') : tr('名称', 'Name')" @keydown.enter.prevent="addField" />
