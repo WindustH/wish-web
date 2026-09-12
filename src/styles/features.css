@@ -110,11 +110,11 @@
 .composer { position: relative; flex: none; min-height: 0; border-top: 1px solid var(--line-strong); background: var(--bg-raised); display: flex; flex-direction: column; }
 .composer.desktop { padding: 0 24px 12px; transition: height var(--dur-fast) var(--ease-out); }
 .resizing-composer .composer.desktop { transition: none; }
-.composer-toolbar { display: flex; align-items: center; flex: none; gap: 8px; padding: 6px 0 4px; }
+.composer-toolbar { display: flex; align-items: center; flex: none; gap: 8px; padding: 6px 0 0; }
 .composer-toolbar .grow { flex: 1; }
 .composer-editor { display: flex; min-height: 0; }
 .composer.desktop .composer-editor { flex: 1; }
-.composer textarea { min-width: 0; width: 100%; border: 0; background: none; outline: none; resize: none; line-height: 1.8; padding: 4px 0; border-radius: 0; font-size: 15px; }
+.composer textarea { min-width: 0; width: 100%; border: 0; background: none; outline: none; resize: none; line-height: 1.8; padding: 2px 0 4px; border-radius: 0; font-size: 15px; }
 .composer:focus-within { border-top-color: var(--accent); }
 .composer.desktop textarea { height: 100%; min-height: 0; overflow-y: auto; }
 .composer-footer { display: flex; flex: none; align-items: center; justify-content: flex-end; gap: 16px; padding-top: 8px; }
@@ -127,9 +127,9 @@
 .composer .send-btn .icon { width: 16px; height: 16px; }
 .composer.mobile { padding: 6px 12px calc(14px + env(safe-area-inset-bottom)); }
 .composer.mobile .composer-editor { width: 100%; align-items: flex-end; gap: 8px; }
-.composer-mobile-actions { display: flex; align-items: center; gap: 6px; padding-bottom: 4px; }
+.composer-mobile-actions { display: flex; align-items: center; gap: 6px; padding-bottom: 0; }
 .composer-mobile-actions .grow { flex: 1; }
-.composer.mobile textarea { flex: 1; min-height: 36px; line-height: 1.5; padding: 6px 4px; }
+.composer.mobile textarea { flex: 1; min-height: 36px; line-height: 1.5; padding: 2px 4px 6px; }
 .composer-mobile-actions > .btn.icon-only { width: 32px; height: 32px; flex: none; }
 .composer-mobile-actions .icon { width: 18px; height: 18px; }
 .composer.mobile .send-btn { flex: none; min-width: 0; width: 36px; height: 36px; padding: 0; }
