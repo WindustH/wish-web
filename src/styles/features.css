@@ -129,7 +129,7 @@
 .composer.mobile .composer-editor { width: 100%; align-items: flex-end; gap: 8px; }
 .composer-mobile-actions { display: flex; align-items: center; gap: 6px; padding-bottom: 4px; }
 .composer-mobile-actions .grow { flex: 1; }
-.composer.mobile textarea { flex: 1; min-height: 36px; line-height: 1.5; padding: 6px 12px; border-radius: 6px; background: var(--bg-sunken); }
+.composer.mobile textarea { flex: 1; min-height: 36px; line-height: 1.5; padding: 6px 4px; }
 .composer-mobile-actions > .btn.icon-only { width: 32px; height: 32px; flex: none; }
 .composer-mobile-actions .icon { width: 18px; height: 18px; }
 .composer.mobile .send-btn { flex: none; min-width: 0; width: 36px; height: 36px; padding: 0; }
