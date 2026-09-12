@@ -98,7 +98,7 @@ export const en = {
   'entry.toolCall': 'Tool call',
   'entry.toolResult': 'Tool Result',
   'entry.system': 'System Message',
-  'entry.stoppedByUser': 'Stopped by user',
+  'entry.stopped': 'Stopped',
   'entry.interruption': 'Interrupted',
   'entry.backgroundTerminal': 'Background task finished',
   'entry.showDetail': 'Details',

@@ -44,8 +44,7 @@ onDeactivated(stats.stopAuto);
     <div class="statistics-body">
       <p v-if="error" class="load-error" role="alert">{{ errorMessage }}<span v-if="updatedAt">{{ tx('下方保留上次成功读取的数据。', 'The last successful snapshot remains below.') }}</span></p>
       <Spinner v-if="loading && !updatedAt" />
-      <UsageCharts ref="charts" />
-      <div class="statistics-grid">
+      <UsageCharts ref="charts">
         <section v-if="totals && usage" class="card statistics-usage">
           <h2>{{ i18n.t('stats.usage') }}</h2>
           <dl class="statistics-values">
@@ -73,7 +72,8 @@ onDeactivated(stats.stopAuto);
             </tr><tr v-if="!rows.length"><td colspan="5" class="hint">{{ tx('还没有用量记录。', 'No usage records yet.') }}</td></tr></tbody>
           </table></div>
         </section>
-
+      </UsageCharts>
+      <div class="statistics-grid">
         <div class="statistics-footer">
         <section v-if="status" class="card statistics-detail">
           <h2>{{ tx('服务状态', 'Service status') }}</h2>
