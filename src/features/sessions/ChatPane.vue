@@ -73,7 +73,7 @@ const goTab = (t: string) => tab.value === t ? closeTab() : router.push({ name: 
       </Menu>
     </div>
     <ChatLog :session-id="id" :mobile="isMobile" />
-    <Composer :session-id="id" :mobile="isMobile" :on-search="() => goTab('search')" />
+    <Composer :session-id="id" :mobile="isMobile" />
     <RouterView @close="closeTab" />
     <ModelSettings v-if="modelOpen" :session-id="id" @close="modelOpen = false" />
     <ReasoningSettings v-if="reasoningOpen" :session-id="id" @close="reasoningOpen = false" />

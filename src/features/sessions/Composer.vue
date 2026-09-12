@@ -21,7 +21,7 @@ import { useComposerHeight } from './useComposerHeight.js';
 
 interface Attachment extends AttachmentInput { localUrl: string }
 
-const props = defineProps<{ sessionId: string; mobile: boolean; onSearch?: () => void;
+const props = defineProps<{ sessionId: string; mobile: boolean;
   start?: boolean; disabled?: boolean; sendMessage?: (text: string, attachments: AttachmentInput[]) => Promise<string> }>();
 const submitting = ref(false);
 
@@ -238,8 +238,6 @@ function resizeKeys(e: KeyboardEvent) {
         @click="attach('file')"><Icon name="paperclip" /></button></Hint>
       <slot name="selection" />
       <div class="grow" />
-      <Hint :text="i18n.t('chatbar.search')" v-if="onSearch"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.search')"
-        @click="onSearch"><Icon name="history" /></button></Hint>
     </div>
     <div v-if="attachments.length > 0" ref="attachmentStrip" class="attachment-preview">
       <div class="attach-strip">
