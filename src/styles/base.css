@@ -17,7 +17,8 @@ input::placeholder, textarea::placeholder { color: var(--fg-subtle); opacity: 1;
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 ::selection { background: var(--accent-soft); color: var(--fg); }
-:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+:focus-visible { outline: none; border-color: var(--accent) !important; }
+button:focus-visible, a:focus-visible, [role="button"]:focus-visible, [role="option"]:focus-visible, [role="menuitem"]:focus-visible { border: 1px solid var(--accent) !important; }
 .eyebrow { display: block; font: 500 11px/1.5 var(--font); letter-spacing: .12em; color: var(--fg-subtle); }
 .hint { font-size: 13px; line-height: 1.75; color: var(--fg-subtle); }
 ::-webkit-scrollbar { width: 8px; height: 8px; }

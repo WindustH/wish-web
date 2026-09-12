@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
+import { computed, inject, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { usePageActivity } from '../composables/usePageActivity';
 // Centered confirm/content modal on Reka primitives (title/description
 // wired for a11y). While `dismissable` is false no path closes it — Esc,
 // overlay, close button are all suppressed; the owner resolves the busy work.
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from 'reka-ui';
 
+import { sessionPanelCloseKey } from '../composables/sessionPanel';
 import Icon from './Icon.vue';
 import { i18n } from '../../core/i18n/index.js';
 import { useDialogFocus } from '../composables/useDialogFocus';
@@ -16,6 +17,20 @@ const props = withDefaults(defineProps<{ open: boolean; title: string; wide?: bo
 const emit = defineEmits<{ close: [] }>();
 const closing = ref(false);
 const bubble = computed(() => !props.page && !!props.contentClass?.split(' ').includes('session-window'));
+const panelClose = inject(sessionPanelCloseKey, null);
+watch(bubble, value => {
+  if (!panelClose) return;
+  if (value) panelClose.value = requestClose;
+  else if (panelClose.value === requestClose) panelClose.value = null;
+}, { immediate: true });
+onBeforeUnmount(() => { if (panelClose?.value === requestClose) panelClose.value = null; });
+function opened(event: Event) {
+  if (bubble.value) event.preventDefault();
+  else focus.opened(event);
+}
+function outside(event: Event) {
+  if (!props.dismissable || (bubble.value && (event.target as Element)?.closest?.('[data-session-panel]'))) event.preventDefault();
+}
 const anchorStyle = ref<Record<string, string>>({});
 function positionBubble() {
   if (!bubble.value) return;
@@ -41,10 +56,10 @@ function finishClose(event: AnimationEvent) {
   <DialogRoot :modal="!bubble" :open="open && !closing" @update:open="(v: boolean) => { if (!v) requestClose(); }">
     <DialogPortal v-if="pageActive">
       <DialogOverlay v-if="!bubble" class="modal-overlay" />
-      <DialogContent @animationend="finishClose" @open-auto-focus="focus.opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'session-bubble': bubble }, contentClass]" :style="bubble ? anchorStyle : undefined" :aria-describedby="undefined"
+      <DialogContent @animationend="finishClose" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'session-bubble': bubble }, contentClass]" :style="bubble ? anchorStyle : undefined" :aria-describedby="undefined"
         @escape-key-down="(e: KeyboardEvent) => { if (dismissable === false) e.preventDefault(); }"
-        @interact-outside="(e: Event) => { if (dismissable === false) e.preventDefault(); }"
-        @pointer-down-outside="(e: Event) => { if (dismissable === false) e.preventDefault(); }">
+        @interact-outside="outside"
+        @pointer-down-outside="outside">
         <DialogTitle v-if="bubble" class="visually-hidden">{{ title }}</DialogTitle>
         <div v-else class="modal-head">
           <button v-if="page" type="button" class="btn ghost icon-only" :disabled="dismissable === false"
