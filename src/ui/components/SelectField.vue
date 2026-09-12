@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMedia } from '../composables/useMedia';
 import ProviderIcon from './ProviderIcon.vue';
 import InfoHint from './InfoHint.vue';
 import { computed, ref, watch } from 'vue';
@@ -11,6 +12,7 @@ export interface SelectOption { value: string; label: string; brand?: string; an
 const props = defineProps<{ modelValue: string; options: SelectOption[]; placeholder?: string; disabled?: boolean; searchable?: boolean; searchPlaceholder?: string; emptyText?: string }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 const pageActive = usePageActivity();
+const mobile = useMedia('(max-width: 899px)');
 const open = ref(false);
 const query = ref('');
 const searchInput = ref<HTMLInputElement>();
@@ -20,7 +22,7 @@ const filtered = computed(() => {
     [option.label, option.value, option.annotation].some(value => value?.toLocaleLowerCase().includes(term)));
 });
 watch(open, () => { query.value = ''; });
-watch(searchInput, input => { input?.focus(); });
+watch(searchInput, input => { if (!mobile.value) input?.focus(); });
 
 const unavailable = computed(() => props.disabled || !props.options.some(option => !option.disabled));
 watch(unavailable, value => { if (value) open.value = false; });

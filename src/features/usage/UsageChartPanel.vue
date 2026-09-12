@@ -5,7 +5,6 @@ import type { RangeSelection } from '../../core/usage/windows';
 import UsagePlot from './UsagePlot.vue';
 import type { HeatData } from './chartOptions';
 import InfoHint from '../../ui/components/InfoHint.vue';
-import { RefreshCw } from '@lucide/vue';
 import { i18n } from '../../core/i18n/index.js';
 import { cfg } from '../../core/config.js';
 import { fmtTokens } from '../../core/util/fmt.js';
@@ -56,7 +55,6 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
         </div>
         <div class="usage-range" :aria-label="tx('时间范围', 'Time range')">
           <UsageRangePicker :model-value="range" @update:model-value="emit('range', $event)" />
-          <button class="btn ghost icon-only sm" :disabled="loading" :aria-label="i18n.t('stats.refresh')" @click="emit('refresh')"><RefreshCw :size="15" :class="{ spinning: loading }" /></button>
         </div>
       </header>
       <div v-if="error" class="load-error" role="alert">{{ error }} <button class="btn ghost sm" @click="emit('refresh')">{{ i18n.t('common.retry') }}</button></div>
