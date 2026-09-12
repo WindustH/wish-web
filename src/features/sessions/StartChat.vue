@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { resolvedEffort, effortLabel } from './reasoningLabels';
 import { uploadAttachments, type AttachmentInput } from '../../core/attachments.js';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, nextTick, onActivated, onDeactivated, provide, ref, watch } from 'vue';
@@ -37,6 +38,11 @@ watch(catalog.groups, groups => {
 watch(() => route.name, async name => {
   if (name === 'new-chat' && !mobile.value && visible.value) { await nextTick(); composer.value?.focus(); }
 });
+const effectiveEffort = computed(() => {
+  const group = catalog.groups.value.find(item => item.provider.id === selection.value.provider);
+  if (!group || group.loading) return selection.value.reasoning_effort;
+  return resolvedEffort(selection.value.reasoning_effort, group.models.find(item => item.id === selection.value.model), group.provider.reasoning_efforts);
+});
 const modelLabel = computed(() => selection.value.model.replace(/[-_]/g, ' ').toUpperCase());
 async function send(text: string, attachments: AttachmentInput[]) {
   busy.value = true;
@@ -72,7 +78,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
           <div class="start-model-controls model-selection">
             <Hint :text="i18n.t('model.title')"><button class="model-chip" :aria-expanded="modelOpen" :disabled="busy || !!created" @click="modelOpen = true">{{ modelLabel || i18n.t('model.title') }}</button></Hint>
             <span class="selection-dot" aria-hidden="true">·</span>
-            <Hint :text="i18n.t('reasoning.title')"><button class="reasoning-chip" :aria-expanded="reasoningOpen" :disabled="!selection.model || busy || !!created" @click="reasoningOpen = true">{{ (selection.reasoning_effort || 'auto').toUpperCase() }}</button></Hint>
+            <Hint :text="i18n.t('reasoning.title')"><button class="reasoning-chip" :aria-expanded="reasoningOpen" :disabled="!selection.model || busy || !!created" @click="reasoningOpen = true">{{ effortLabel(effectiveEffort).toUpperCase() }}</button></Hint>
           </div>
         </template>
       </Composer>

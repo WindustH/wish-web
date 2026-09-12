@@ -106,7 +106,6 @@ export const zh = {
   'entry.streamGap': '流式缓冲溢出,已从持久历史恢复',
   'proc.title': '工作过程',
   'proc.stepsUnit': '步',
-  'proc.hasTools': '含工具调用',
   'chatbar.info': '会话信息与统计',
   'chatbar.search': '历史搜索',
   'chatbar.manage': '管理',
