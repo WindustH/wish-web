@@ -24,3 +24,5 @@ export declare function sessionCapabilities(id: string, opts?: any): Promise<any
 export declare function messageSend(id: string, body: any, opts?: any): Promise<any>;
 export declare function usageSeries(sessionId: string | undefined, params: import('../usage/types').SeriesQuery, opts?: { signal?: AbortSignal }): Promise<import('../usage/types').UsageSeriesResponse>;
 export declare function usageDaily(sessionId: string | undefined, params: import('../usage/types').DailyQuery, opts?: { signal?: AbortSignal }): Promise<import('../usage/types').UsageDailyResponse>;
+
+export declare function configEffective(): Promise<{ wishd: { default_model?: { provider: string; model: string; reasoning_effort?: string } } }>;
