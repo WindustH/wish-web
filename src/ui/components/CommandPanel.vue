@@ -2,18 +2,20 @@
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
 import { X } from '@lucide/vue';
 import { i18n } from '../../core/i18n/index.js';
+import { useDialogLayer } from '../composables/useDialogLayer';
 import { useDialogFocus } from '../composables/useDialogFocus';
 
 defineProps<{ title: string; busy?: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 const focus = useDialogFocus();
+const layer = useDialogLayer();
 </script>
 
 <template>
   <DialogRoot :open="true" @update:open="open => { if (!open && !busy) emit('close'); }">
     <DialogPortal>
-      <DialogOverlay class="modal-overlay" />
-      <DialogContent class="command-panel" :aria-describedby="undefined" :aria-busy="busy"
+      <DialogOverlay class="modal-overlay" :style="{ zIndex: layer }" />
+      <DialogContent class="command-panel" :style="{ zIndex: layer + 1 }" :aria-describedby="undefined" :aria-busy="busy"
         @open-auto-focus="focus.opened" @close-auto-focus="focus.closed"
         @escape-key-down="event => { if (busy) event.preventDefault(); }"
         @interact-outside="event => { if (busy) event.preventDefault(); }">
