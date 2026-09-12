@@ -23,9 +23,9 @@ function setAccountSource(source: string) {
 }
 const credentials = computed(() => isObject(props.value.credentials) ? props.value.credentials : {});
 const credentialFields = computed(() => [...props.preset.required_credentials, ...props.preset.optional_credentials]);
-const advancedDefaults = computed<ConfigObject>(() => ({ compat: {}, ...optionalFields(props.path) }));
+const advancedDefaults = computed<ConfigObject>(() => optionalFields(props.path));
 const advanced = computed(() => Object.entries(advancedDefaults.value).filter(([field]) => {
-  if (field === 'api_key' || field === 'auth' || (profile.value.local && field === 'base_url')) return false;
+  if (field === 'credentials' || field === 'api_key' || field === 'auth' || (profile.value.local && field === 'base_url')) return false;
   if (field in props.value) return true;
   if (field === 'codex') return profile.value.codex;
   if (field === 'image_edit_path') return protocol.value === 'openai_images';
@@ -63,11 +63,11 @@ function addAdvanced(field: string) { props.editor.set(fieldPath(field), structu
     <ConfigLink :path="fieldPath('models')" :title="fieldLabel(fieldPath('models'))" />
     <details class="cfg-nested cfg-provider-advanced">
       <summary><ChevronDown :size="16" /><span>{{ tr('高级设置', 'Advanced settings') }}</span></summary>
-      <div v-for="[field] in advanced.filter(([field]) => field in value)" :key="field" class="cfg-property" :class="{ 'cfg-property-removable': field !== 'compat' }">
+      <div v-for="[field] in advanced.filter(([field]) => field in value)" :key="field" class="cfg-property cfg-property-removable">
         <template v-if="field in value">
           <ConfigLink v-if="isObject(value[field])" :path="fieldPath(field)" :title="fieldLabel(fieldPath(field))" />
           <ConfigNode v-else :value="value[field]!" :path="fieldPath(field)" :editor="editor" :catalog="catalog" />
-          <Hint v-if="field !== 'compat'" :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除设置', 'Remove override')} ${fieldLabel(fieldPath(field))}`" @click="editor.remove(fieldPath(field))"><Trash2 :size="15" /></button></Hint>
+          <Hint :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除设置', 'Remove override')} ${fieldLabel(fieldPath(field))}`" @click="editor.remove(fieldPath(field))"><Trash2 :size="15" /></button></Hint>
         </template>
 
       </div>

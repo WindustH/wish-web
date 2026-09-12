@@ -125,7 +125,7 @@ const compatFields: ObjectShape = {
   supports_developer_role: false, supports_stream_usage: false, max_tokens_field: 'max_tokens', reasoning_output_field: 'none',
   reasoning_replay: 'never', tool_arguments_wire: 'json_string', assistant_prefill_field: 'none', prompt_cache_key: 'optional', unknown_finish_reason: 'error',
 };
-const modelList: ObjectShape = { protocol: 'auto', path: '/models', method: 'GET', default_page_size: 100, max_page_size: 1000, query: {}, headers: {} };
+const modelList: ObjectShape = { protocol: 'auto', path: '/models', method: 'GET', default_page_size: 100, max_page_size: 1000 };
 const codex: ObjectShape = { transport: 'auto', account_id_source: 'jwt_claim', originator: 'wish', request_compression: 'zstd_if_available', websocket_connect_timeout_ms: 15000, websocket_idle_timeout_ms: 120000, websocket_cache_ttl_ms: 300000, websocket_cache_max_connections: 32, session_affinity_max_bytes: 64, fallback_to_sse_before_first_event: true };
 const modelMappingFields = Object.fromEntries(['display_name_pointer', 'description_pointer', 'created_at_pointer', 'owned_by_pointer', 'context_window_pointer', 'max_output_tokens_pointer', 'input_modalities_pointer', 'output_modalities_pointer', 'capabilities_pointer', 'next_cursor_pointer', 'cursor_query_parameter', 'limit_query_parameter', 'strip_id_prefix'].map(k => [k, '']));
 export function optionalFields(path: string[]): ObjectShape {
@@ -134,8 +134,8 @@ export function optionalFields(path: string[]): ObjectShape {
   if (key === 'default_model') return { reasoning_effort: '' };
   if (path.at(-2) === 'models') return modelFields;
   if (key === 'compat') return compatFields;
-  if (path.at(-2) === 'providers') return { proxy_policy: 'inherit', base_url: '', path: '', auth: { type: 'none' }, headers: {}, query: {}, model_list: modelList, image_edit_path: '', codex, api_key: '', input_count: { mode: 'provider_preflight', may_bill: false, timeout_ms: 30000 }, dialect: { allow_unverified_overrides: false, contract_version: 1 } };
-  if (key === 'model_list') return { base_url: '', auth: { type: 'none' }, generic: { items_pointer: '/data', id_pointer: '/id' } };
+  if (path.at(-2) === 'providers') return { credentials: {}, compat: {}, proxy_policy: 'inherit', base_url: '', path: '', auth: { type: 'none' }, headers: {}, query: {}, model_list: modelList, image_edit_path: '', codex, api_key: '', input_count: { mode: 'provider_preflight', may_bill: false, timeout_ms: 30000 }, dialect: { allow_unverified_overrides: false, contract_version: 1 } };
+  if (key === 'model_list') return { headers: {}, query: {}, base_url: '', auth: { type: 'none' }, generic: { items_pointer: '/data', id_pointer: '/id' } };
   if (key === 'generic') return modelMappingFields;
   if (path.at(-2) === 'policies') return { http_url: '', https_url: '', all_url: '', auth: { type: 'basic', username: '', password: '' } };
   if (key === 'auth' && (path.includes('endpoints') || path.includes('providers'))) return authFields;
@@ -148,7 +148,7 @@ export function isMap(path: string[]) {
 }
 export function newArrayEntry(path: string[]): Json {
   const key = path.at(-1);
-  if (key === 'providers') return { id: '', preset: '', protocol: '', base_url: '', headers: {}, query: {}, api_key: '', credentials: {}, enabled: true, models: {}, compat: {} };
+  if (key === 'providers') return { id: '', preset: '', protocol: '', base_url: '', api_key: '', enabled: true, models: {} };
   if (key === 'endpoints') return { id: '', base_url: '', proxy_policy: 'inherit' };
   if (key === 'policies') return { id: '', source: 'disabled' };
   if (key === 'bindings') return { id: '', display_name: '', credential: { source: 'env', name: '' } };
