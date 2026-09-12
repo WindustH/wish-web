@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import ProviderIcon from './ProviderIcon.vue';
+import InfoHint from './InfoHint.vue';
 import { computed, ref, watch } from 'vue';
 import { SelectRoot, SelectTrigger, SelectValue, SelectIcon, SelectPortal, SelectContent, SelectViewport, SelectItem, SelectItemText, SelectItemIndicator } from 'reka-ui';
 import { Check, ChevronDown } from '@lucide/vue';
 import { usePageActivity } from '../composables/usePageActivity';
 
 defineOptions({ inheritAttrs: false });
-export interface SelectOption { value: string; label: string; brand?: string; annotation?: string; disabled?: boolean }
+export interface SelectOption { value: string; label: string; brand?: string; annotation?: string; description?: string; disabled?: boolean }
 const props = defineProps<{ modelValue: string; options: SelectOption[]; placeholder?: string; disabled?: boolean }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 const pageActive = usePageActivity();
@@ -28,6 +29,7 @@ watch(pageActive, active => { if (!active) open.value = false; });
         <SelectViewport class="control-select-list">
           <SelectItem v-for="option in options" :key="option.value" :value="option" :disabled="option.disabled" :text-value="option.label" :data-value="option.value" class="control-select-option">
             <span class="select-option-label"><span v-if="option.annotation" class="select-option-annotation">{{ option.annotation }}</span><ProviderIcon v-if="option.brand" :brand="option.brand" /><SelectItemText>{{ option.label }}</SelectItemText></span>
+            <InfoHint v-if="option.description" :text="option.description" :label="option.description" :focusable="false" />
             <SelectItemIndicator><Check :size="15" aria-hidden="true" /></SelectItemIndicator>
           </SelectItem>
         </SelectViewport>

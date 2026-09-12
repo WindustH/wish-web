@@ -61,7 +61,7 @@ const labels: Record<string, string> = {
   subscriber_buffer_events: '订阅者事件缓冲数量', max_subscribers_per_stream: '每个流的订阅者上限', default_order: '默认排序',
   bundle_enabled: '允许创建诊断包', bundle_retention_s: '诊断包保留时间', bundle_max_bytes: '诊断包大小上限', retention_s: '请求去重记录保留时间', level: '日志级别',
   proxy: '网络代理', upstream: '上游请求限制', providers: '模型提供商', model_catalog_cache_ttl_s: '模型列表缓存时间',
-  preset: '提供商预设', api_key: 'API 密钥', credentials: '额外凭据', allow_any_model: '允许使用列表以外的模型', model_id_max_bytes: '模型名称长度上限',
+  preset: '提供商预设', api_key: 'API 密钥', credentials: '额外凭据', model_id_max_bytes: '模型名称长度上限',
   models: '模型配置', compat: '协议选项', input_count: '输入 Token 计数', dialect: '协议扩展',
   context_window_tokens: '上下文容量', max_output_tokens: '最大输出 Token', input_modalities: '输入类型', output_modalities: '输出类型',
   capabilities: '模型能力', supports_client_tools: '支持工具调用', supports_reasoning: '支持推理', default_reasoning_effort: '默认推理强度', reasoning_efforts: '推理强度映射',
@@ -134,7 +134,7 @@ export function optionalFields(path: string[]): ObjectShape {
   if (key === 'default_model') return { reasoning_effort: '' };
   if (path.at(-2) === 'models') return modelFields;
   if (key === 'compat') return compatFields;
-  if (path.at(-2) === 'providers') return { base_url: '', path: '', auth: { type: 'none' }, headers: {}, query: {}, model_list: modelList, image_edit_path: '', codex, api_key: '', input_count: { mode: 'provider_preflight', may_bill: false, timeout_ms: 30000 }, dialect: { allow_unverified_overrides: false, contract_version: 1 } };
+  if (path.at(-2) === 'providers') return { proxy_policy: 'inherit', base_url: '', path: '', auth: { type: 'none' }, headers: {}, query: {}, model_list: modelList, image_edit_path: '', codex, api_key: '', input_count: { mode: 'provider_preflight', may_bill: false, timeout_ms: 30000 }, dialect: { allow_unverified_overrides: false, contract_version: 1 } };
   if (key === 'model_list') return { base_url: '', auth: { type: 'none' }, generic: { items_pointer: '/data', id_pointer: '/id' } };
   if (key === 'generic') return modelMappingFields;
   if (path.at(-2) === 'policies') return { http_url: '', https_url: '', all_url: '', auth: { type: 'basic', username: '', password: '' } };
@@ -148,7 +148,7 @@ export function isMap(path: string[]) {
 }
 export function newArrayEntry(path: string[]): Json {
   const key = path.at(-1);
-  if (key === 'providers') return { id: '', preset: '', protocol: '', base_url: '', headers: {}, query: {}, api_key: '', credentials: {}, proxy_policy: 'inherit', enabled: true, allow_any_model: false, model_id_max_bytes: 512, models: {}, compat: {} };
+  if (key === 'providers') return { id: '', preset: '', protocol: '', base_url: '', headers: {}, query: {}, api_key: '', credentials: {}, enabled: true, model_id_max_bytes: 512, models: {}, compat: {} };
   if (key === 'endpoints') return { id: '', base_url: '', proxy_policy: 'inherit' };
   if (key === 'policies') return { id: '', source: 'disabled' };
   if (key === 'bindings') return { id: '', display_name: '', credential: { source: 'env', name: '' } };

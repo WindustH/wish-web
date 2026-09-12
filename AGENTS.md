@@ -50,3 +50,6 @@
 - Keep message type names as `Assistant Message`, `User Message`, `System Message`, and `Tool Result` in all UI locales and help text.
 
 - Use the display brand spelling `Z.AI` consistently; preserve backend IDs.
+
+- Separate Chinese text from adjacent English terms with spaces in UI copy.
+- Preset forms must reflect actual authentication and provider-specific setup; reuse shared profiles for equivalent presets.
