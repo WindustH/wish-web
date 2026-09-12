@@ -37,7 +37,10 @@ const reasoningOpen = ref(false);
 watch(id, () => { modelOpen.value = false; reasoningOpen.value = false; });
 
 const closeTab = () => router.push({ name: 'chat', params: { id: id.value } });
-const goTab = (t: string) => tab.value === t ? closeTab() : router.push({ name: `chat-${t}`, params: { id: id.value } });
+const goTab = (t: string) => {
+  if (tab.value === t) { if (isMobile.value) closeTab(); }
+  else router.push({ name: `chat-${t}`, params: { id: id.value } });
+};
 </script>
 
 <template>
@@ -58,11 +61,11 @@ const goTab = (t: string) => tab.value === t ? closeTab() : router.push({ name: 
       </div>
       <template v-if="!isMobile">
         <Hint :text="i18n.t('chatbar.info')"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.info')"
-          :class="{ selected: tab === 'info' }" :aria-pressed="tab === 'info'" @click="goTab('info')"><Icon name="info" /></button></Hint>
+          :class="{ selected: tab === 'info' }" data-session-panel="info" :aria-pressed="tab === 'info'" @click="goTab('info')"><Icon name="info" /></button></Hint>
         <Hint :text="i18n.t('chatbar.search')"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.search')"
-          :class="{ selected: tab === 'search' }" :aria-pressed="tab === 'search'" @click="goTab('search')"><Icon name="search" /></button></Hint>
+          :class="{ selected: tab === 'search' }" data-session-panel="search" :aria-pressed="tab === 'search'" @click="goTab('search')"><Icon name="search" /></button></Hint>
         <Hint :text="i18n.t('chatbar.manage')"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.manage')"
-          :class="{ selected: tab === 'manage' }" :aria-pressed="tab === 'manage'" @click="goTab('manage')"><Icon name="settings-2" /></button></Hint>
+          :class="{ selected: tab === 'manage' }" data-session-panel="manage" :aria-pressed="tab === 'manage'" @click="goTab('manage')"><Icon name="settings-2" /></button></Hint>
       </template>
       <Menu v-else :items="[
         { key: 'info', label: i18n.t('chatbar.info') },
