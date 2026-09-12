@@ -161,7 +161,7 @@ const fields: Record<string, Help> = {
   model_catalog_cache_ttl_s: ['模型列表在内存中的有效时间，过期后重新读取。', 'How long model catalogs remain valid in memory before being fetched again.'],
   preset: ['预设提供厂商地址和协议选项；与自定义端点二选一。', 'A preset supplies vendor addresses and protocol choices; use either a preset or a custom endpoint.'],
   endpoint: ['引用服务端点配置的标识名称，不是 URL。端点配置定义 API 基础地址和连接选项；使用自定义端点时需清空预设。', 'Reference an endpoint by ID; a provider using a custom endpoint must leave its preset empty.'],
-  protocol: ['选择目标接口实际支持的通信协议，地址相同也可能使用不同协议。', 'Choose the protocol the target API supports; one host may expose several protocols.'],
+  protocol: ['选择目标接口实际支持的通信协议，同一地址可以使用不同协议。', 'Choose the protocol the target API supports; the same address can support different protocols.'],
   api_key: ['未编辑时保留现有密钥；输入新值可替换，也支持 ${环境变量名称}。清空请使用“清空”按钮。', 'Untouched fields keep the current key. Enter a replacement or an ${ENV_VAR} reference; use Clear to remove it.'],
   credentials: ['填写预设额外需要的命名凭据，例如 workspace_id。', 'Named credentials additionally required by a preset, such as workspace_id.'],
   allow_any_model: ['开启后接受模型列表及模型配置之外的名称；实际是否可调用仍由上游决定。', 'Accept IDs absent from both catalog and overrides; the upstream still decides whether they are callable.'],

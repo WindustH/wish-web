@@ -10,6 +10,7 @@ import SelectField from '../../ui/components/SelectField.vue';
 import { openConfigDialog } from './config-dialog';
 import AddProvider from './AddProvider.vue';
 import PresetProvider from './PresetProvider.vue';
+import { protocolPresentation } from '../../ui/protocolPresentation';
 import { presetLabel } from '../../ui/providerPresentation';
 
 const props = withDefaults(defineProps<{
@@ -82,6 +83,7 @@ function addProvider(preset?: ProviderPreset) {
   openDialog({ path: [...props.path, String(index)], title: String(entry.id || tr('新提供商', 'New provider')) });
 }
 function displayOption(value: string) {
+  if (key.value === 'protocol') return protocolPresentation(value).label;
   if (key.value === 'default_reasoning_effort') return value;
   const preset = key.value === 'preset' && props.catalog?.presets.find(item => item.id === value);
   return preset ? presetLabel(preset) : optionLabel(value);
@@ -165,7 +167,7 @@ function itemTitle(item: Json, index: number) {
     <div v-else-if="selectOptions" class="cfg-input-wrap">
       <SelectField :id="pointer(path)" :aria-describedby="hintId" :model-value="String(value)" :placeholder="tr('未选择', 'Not selected')"
         :disabled="!selectOptions.some(option => option !== '')"
-        :options="[...(value && !selectOptions.includes(String(value)) ? [String(value)] : []), ...selectOptions].filter(option => option !== '').map(option => ({ value: option, label: displayOption(option) }))" @update:model-value="setValue" />
+        :options="[...(value && !selectOptions.includes(String(value)) ? [String(value)] : []), ...selectOptions].filter(option => option !== '').map(option => ({ value: option, label: displayOption(option), brand: key === 'protocol' ? protocolPresentation(option).brand : undefined }))" @update:model-value="setValue" />
       <button v-if="required !== true && value && selectOptions.includes('')" type="button" class="btn ghost" :aria-label="`${tr('清空', 'Clear')} ${name}`" @click="setValue('')">{{ tr('清空', 'Clear') }}</button>
     </div>
     <div v-else class="cfg-input-wrap">
