@@ -19,7 +19,7 @@ const labels: Record<string, string> = {
   base_url: '服务地址', bearer_token: '服务访问令牌', proxy_policy: '代理策略', http: 'HTTP 请求',
   connect_timeout_ms: '连接超时', total_timeout_ms: '请求总超时', stream_read_timeout_ms: '流式读取超时',
   default_model: '新会话的默认模型', provider: '提供商', model: '模型', reasoning_effort: '推理强度',
-  max_json_body_bytes: '请求内容大小上限', max_assistant_message_bytes: '助手消息大小上限',
+  max_json_body_bytes: '请求内容大小上限', max_assistant_message_bytes: 'Assistant Message大小上限',
   unknown_tool_is_fatal: '遇到未知工具时停止运行', tool_execution: '工具执行方式',
   max_attempts: '最多尝试次数', initial_delay_ms: '首次重试等待', max_delay_ms: '重试等待上限',
   multiplier: '等待时间增长倍数', jitter_ratio: '等待时间随机浮动比例', circuit_breaker: '故障暂停策略',
