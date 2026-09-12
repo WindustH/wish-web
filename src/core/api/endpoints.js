@@ -70,6 +70,13 @@ export const providerdEffective = () => providerd.get('/config/effective');
 // Exact contract: {status:'reloaded', config_generation} — no restart list.
 export const providerdReload = () => providerd.post('/config/reload', {});
 export const configEffective = () => get('/config/effective');
+export async function rememberDefaultModel(value) {
+  const snapshot = await get('/config/editable');
+  const previous = snapshot.config.wishd.default_model;
+  if (previous?.provider === value.provider && previous?.model === value.model && previous?.reasoning_effort === value.reasoning_effort) return;
+  await patch('/config/editable', { revision: snapshot.revision,
+    operations: [{ op: 'add', path: '/wishd/default_model', value }] });
+}
 export const configReload = () => post('/config/reload', {});
 // Contract: streaming read/write surface (strict {enabled} body).
 export const streamingGet = (opts) => get('/config/streaming', opts);
