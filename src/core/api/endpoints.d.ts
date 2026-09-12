@@ -26,3 +26,5 @@ export declare function usageSeries(sessionId: string | undefined, params: impor
 export declare function usageDaily(sessionId: string | undefined, params: import('../usage/types').DailyQuery, opts?: { signal?: AbortSignal }): Promise<import('../usage/types').UsageDailyResponse>;
 
 export declare function configEffective(): Promise<{ wishd: { default_model?: { provider: string; model: string; reasoning_effort?: string } } }>;
+
+export declare function sessionsList(params: { limit?: number; order?: string }): Promise<{ items: any[] }>;

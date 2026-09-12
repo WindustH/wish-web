@@ -15,7 +15,7 @@ import { i18n } from '../../core/i18n/index.js';
 
 const route = useRoute();
 const isMobile = useMedia('(max-width: 899px)');
-const showList = computed(() => isMobile.value ? route.name === 'sessions' : !prefs.sessionListCollapsed.value);
+const showList = computed(() => isMobile.value ? route.name === 'all-sessions' : !prefs.sessionListCollapsed.value);
 
 onMounted(applySavedListWidth);
 </script>
