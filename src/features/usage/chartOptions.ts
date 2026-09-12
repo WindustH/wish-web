@@ -28,23 +28,19 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
     series: series.map((item, index) => {
       const samples = item.points.filter((point): point is [number, number] => point[1] != null);
       const mean = samples.length ? samples.reduce((sum, point) => sum + point[1], 0) / samples.length : 0;
-      // A compact, smooth kernel averages local deviations from the model mean.
-      // The mean remains the baseline outside observed clusters.
-      const bandwidth = Math.max((right - left) / 12, 1_000);
-      const data = item.extendMean && samples.length ? Array.from({ length: 161 }, (_, i) => {
-        const at = left + (right - left) * i / 160;
-        let weighted = 0, weight = 1;
-        for (const [time, value] of samples) {
-          const distance = Math.abs(time - at) / bandwidth;
-          if (distance >= 1) continue;
-          const w = (1 - distance * distance) ** 3;
-          weighted += w * (value - mean);
-          weight += w;
-        }
-        return { value: [at, mean + weighted / weight], virtual: i === 0 || i === 160, fitted: true, symbolSize: 0 };
-      }) : item.points;
+      // Smooth only immediate neighbours so distant sampling clusters cannot
+      // flatten local peaks. ECharts interpolates between these local values.
+      const ordered = [...samples].sort((a, b) => a[0] - b[0]);
+      const data = item.extendMean && samples.length ? [
+        { value: [left, mean], virtual: true, fitted: true, symbolSize: 0 },
+        ...ordered.map(([at, value], index) => ({
+          value: [at, value * 0.75 + (ordered[index - 1]?.[1] ?? value) * 0.125 + (ordered[index + 1]?.[1] ?? value) * 0.125],
+          fitted: true, symbolSize: 0,
+        })),
+        { value: [right, mean], virtual: true, fitted: true, symbolSize: 0 },
+      ] : item.points;
       return { id: item.key, name: item.label, type: 'line', data,
-      smooth: item.extendMean ? 0.7 : 0.25, smoothMonotone: 'x', connectNulls: false, showSymbol: !item.extendMean, symbol: 'circle', symbolSize: 4,
+      smooth: item.extendMean ? 0.5 : 0.25, smoothMonotone: 'x', connectNulls: false, showSymbol: !item.extendMean, symbol: 'circle', symbolSize: 4,
       lineStyle: { width: 2 }, itemStyle: { color: style.colors[(item.colorIndex ?? index) % style.colors.length] }, emphasis: { focus: 'series' } }; }),
   };
 }
