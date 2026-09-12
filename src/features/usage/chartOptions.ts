@@ -28,19 +28,30 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
     series: series.map((item, index) => {
       const samples = item.points.filter((point): point is [number, number] => point[1] != null);
       const mean = samples.length ? samples.reduce((sum, point) => sum + point[1], 0) / samples.length : 0;
-      // Smooth only immediate neighbours so distant sampling clusters cannot
-      // flatten local peaks. ECharts interpolates between these local values.
+      // f(t) = mean + sum((TPS_i - mean) * phi((t - t_i) / sigma)).
+      // Scale time by each model's typical sampling gap, not the full chart span.
       const ordered = [...samples].sort((a, b) => a[0] - b[0]);
-      const data = item.extendMean && samples.length ? [
-        { value: [left, mean], virtual: true, fitted: true, symbolSize: 0 },
-        ...ordered.map(([at, value], index) => ({
-          value: [at, value * 0.75 + (ordered[index - 1]?.[1] ?? value) * 0.125 + (ordered[index + 1]?.[1] ?? value) * 0.125],
-          fitted: true, symbolSize: 0,
-        })),
-        { value: [right, mean], virtual: true, fitted: true, symbolSize: 0 },
-      ] : item.points;
+      const gaps = ordered.slice(1).map((point, i) => point[0] - ordered[i]![0]).filter(gap => gap > 0).sort((a, b) => a - b);
+      const sigma = gaps.length ? gaps[Math.floor(gaps.length / 2)]! : Math.max((right - left) / 40, 1);
+      const timesToDraw = new Set(Array.from({ length: 241 }, (_, i) => left + (right - left) * i / 240));
+      // Include points near observations so short bursts do not disappear
+      // between uniformly spaced drawing coordinates in a long time range.
+      for (let i = 0; i < ordered.length; i += Math.max(1, Math.ceil(ordered.length / 96))) {
+        for (const offset of [-4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4]) {
+          const at = ordered[i]![0] + offset * sigma;
+          if (at >= left && at <= right) timesToDraw.add(at);
+        }
+      }
+      const data = item.extendMean && samples.length ? [...timesToDraw].sort((a, b) => a - b).map(at => {
+        let value = mean;
+        for (const [time, tps] of ordered) {
+          const z = (at - time) / sigma;
+          value += (tps - mean) * Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
+        }
+        return { value: [at, value], fitted: true, symbolSize: 0 };
+      }) : item.points;
       return { id: item.key, name: item.label, type: 'line', data,
-      smooth: item.extendMean ? 0.5 : 0.25, smoothMonotone: 'x', connectNulls: false, showSymbol: !item.extendMean, symbol: 'circle', symbolSize: 4,
+      smooth: item.extendMean ? 0.25 : 0.25, smoothMonotone: 'x', connectNulls: false, showSymbol: !item.extendMean, symbol: 'circle', symbolSize: 4,
       lineStyle: { width: 2 }, itemStyle: { color: style.colors[(item.colorIndex ?? index) % style.colors.length] }, emphasis: { focus: 'series' } }; }),
   };
 }
