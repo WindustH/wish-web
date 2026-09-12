@@ -46,6 +46,7 @@ function addAdvanced(field: string) { props.editor.set(fieldPath(field), structu
       <ConfigNode v-if="profile.local" :value="value.base_url || defaultAddress" :path="fieldPath('base_url')" :editor="editor" :catalog="catalog" :help="profile.note" />
       <p v-else class="preset-address"><span>{{ tr('预设地址', 'Preset address') }}</span><code>{{ defaultAddress }}</code></p>
       <ConfigNode v-if="profile.workspace" :value="credentials.workspace_id ?? ''" :path="[...path, 'credentials', 'workspace_id']" title="workspace ID" :help="credentialPresentation('workspace_id')?.hint" :required="true" :required-active="value.enabled !== false" :editor="editor" :catalog="catalog" />
+      <ConfigNode :value="value.proxy_enabled ?? true" :path="fieldPath('proxy_enabled')" :editor="editor" :catalog="catalog" />
       <p v-if="profile.workspace" class="cfg-hint">{{ profile.note }}</p>
     </section>
     <section class="preset-section" data-preset-section="authentication">

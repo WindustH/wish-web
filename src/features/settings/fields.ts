@@ -17,7 +17,7 @@ const labels: Record<string, string> = {
   streaming: '流式回复', status: '状态查询', diagnostics: '诊断信息', idempotency: '请求去重', logging: '日志',
   listen: '监听地址', host: '主机地址', port: '端口', auth: '身份验证', mode: '工作模式', token: '访问令牌',
   allow_insecure_remote: '允许未验证的远程连接', provider_client: '模型服务连接',
-  base_url: '服务地址', bearer_token: '服务访问令牌', proxy_policy: '代理策略', http: 'HTTP 请求',
+  base_url: '服务地址', bearer_token: '服务访问令牌', proxy_policy: '代理策略', proxy_enabled: '启用代理', http: 'HTTP 请求',
   connect_timeout_ms: '连接超时', total_timeout_ms: '请求总超时', stream_read_timeout_ms: '流式读取超时',
   default_model: '新会话的默认模型', provider: '提供商', model: '模型', reasoning_effort: '推理强度',
   max_json_body_bytes: '请求内容大小上限', max_assistant_message_bytes: 'Assistant Message 大小上限',
@@ -66,7 +66,6 @@ const labels: Record<string, string> = {
   models: '模型配置', compat: '协议选项', input_count: '输入 Token 计数', dialect: '协议扩展',
   context_window_tokens: '上下文容量', max_output_tokens: '最大输出 Token', input_modalities: '输入类型', output_modalities: '输出类型',
   capabilities: '模型能力', supports_client_tools: '支持工具调用', supports_reasoning: '支持推理', default_reasoning_effort: '默认推理强度', reasoning_efforts: '推理强度映射',
-  default_policy: '默认代理策略', artifact_policy: '图片下载代理策略', policies: '代理策略列表', http_url: 'HTTP 代理地址', https_url: 'HTTPS 代理地址', all_url: '通用代理地址',
   type: '验证方式', username: '用户名', password: '密码', first_byte_timeout_ms: '首次响应超时', stream_idle_timeout_ms: '流式响应空闲超时',
   max_response_bytes: '响应大小上限', max_event_bytes: '单个事件大小上限', max_stream_events: '单次流的事件数量上限', max_error_body_bytes: '错误详情大小上限',
   model_list: '模型列表接口', image_edit_path: '图片编辑路径', headers: '额外请求头', query: '额外查询参数', codex: 'Codex 连接',
@@ -109,7 +108,7 @@ export function unit(key: string) {
 }
 export function isSecret(path: string[], value: Json | undefined) {
   if (['region', 'workspace_id'].includes(path.at(-1)!) && value !== '<redacted>') return false;
-  return value === '<redacted>' || /^(api_key|token|bearer_token|password|access_key_id|secret_access_key|session_token|http_url|https_url|all_url)$/.test(path.at(-1)!)
+  return path.join('/') === 'providerd/proxy/url' || value === '<redacted>' || /^(api_key|token|bearer_token|password|access_key_id|secret_access_key|session_token|http_url|https_url|all_url)$/.test(path.at(-1)!)
     || ['credentials', 'headers', 'query'].includes(path.at(-2)!)
     || (path.at(-1) === 'value' && path.at(-2) === 'auth');
 }
@@ -135,10 +134,9 @@ export function optionalFields(path: string[]): ObjectShape {
   if (key === 'default_model') return { reasoning_effort: '' };
   if (path.at(-2) === 'models') return modelFields;
   if (key === 'compat') return compatFields;
-  if (path.at(-2) === 'providers') return { credentials: {}, compat: {}, proxy_policy: 'inherit', base_url: '', path: '', auth: { type: 'none' }, headers: {}, query: {}, model_list: modelList, image_edit_path: '', codex, api_key: '', input_count: { mode: 'provider_preflight', may_bill: false, timeout_ms: 30000 }, dialect: { allow_unverified_overrides: false, contract_version: 1 } };
+  if (path.at(-2) === 'providers') return { credentials: {}, compat: {}, base_url: '', path: '', auth: { type: 'none' }, headers: {}, query: {}, model_list: modelList, image_edit_path: '', codex, api_key: '', input_count: { mode: 'provider_preflight', may_bill: false, timeout_ms: 30000 }, dialect: { allow_unverified_overrides: false, contract_version: 1 } };
   if (key === 'model_list') return { headers: {}, query: {}, base_url: '', auth: { type: 'none' }, generic: { items_pointer: '/data', id_pointer: '/id' } };
   if (key === 'generic') return modelMappingFields;
-  if (path.at(-2) === 'policies') return { http_url: '', https_url: '', all_url: '', auth: { type: 'basic', username: '', password: '' } };
   if (key === 'auth' && (path.includes('endpoints') || path.includes('providers'))) return authFields;
   if (key === 'codex') return { account_id: '' };
   if (key === 'input_count') return { request_path: '' };
@@ -151,7 +149,6 @@ export function newArrayEntry(path: string[]): Json {
   const key = path.at(-1);
   if (key === 'providers') return { id: '', preset: '', protocol: '', base_url: '', api_key: '', enabled: true, models: {} };
   if (key === 'endpoints') return { id: '', base_url: '', proxy_policy: 'inherit' };
-  if (key === 'policies') return { id: '', source: 'disabled' };
   if (key === 'bindings') return { id: '', display_name: '', credential: { source: 'env', name: '' } };
   if (key === 'sources') return { id: '', account_binding: '', endpoint: '', protocol: '', method: 'GET', path: '', fresh_for_ms: 300000, stale_for_ms: 1800000, request_timeout_ms: 30000 };
   return '';
@@ -170,21 +167,15 @@ export function optionsFor(path: string[], root: ConfigObject, catalog?: ConfigC
   const key = path.at(-1)!;
   const parent = atPath(root, path.slice(0, -1));
   const object = isObject(parent) ? parent : {};
-  if (key === 'type' && path.includes('policies')) return ['basic'];
   if (key === 'type' && path.at(-2) === 'auth') return ['none', 'bearer', 'header', 'query', 'aws_sigv4', 'google_adc'];
   if (key === 'mode' && path.at(-2) === 'auth') return ['none', 'bearer'];
   if (key === 'mode' && path.at(-2) === 'input_count') return ['provider_preflight', 'local', 'disabled'];
-  if (key === 'source' && path.includes('policies')) return ['environment', 'manual', 'disabled'];
   if (key === 'source' && path.at(-2) === 'credential') return ['env'];
   if (key === 'preset' && catalog) return ['', ...[...catalog.presets].sort((a, b) => providerPriority(a.provider) - providerPriority(b.provider)).map(p => p.id)];
   if (key === 'protocol' && path.at(-2) === 'model_list') return ['auto', 'openai_models', 'anthropic_models', 'google_models', 'bedrock_models', 'generic_json'];
   if (key === 'protocol' && path.includes('providers') && catalog) return ['', ...[...(catalog.presets.find(p => p.id === object.preset)?.protocols || catalog.protocols)].sort(compareProtocols)];
   if (key === 'protocol' && path[0] === 'providerd' && catalog) return ['', ...[...catalog.protocols].sort(compareProtocols)];
 
-  if (['proxy_policy', 'default_policy', 'artifact_policy'].includes(key) && path[0] === 'providerd') {
-    const policies = atPath(root, ['providerd', 'proxy', 'policies']);
-    return [...(key === 'default_policy' ? [] : ['inherit']), ...(Array.isArray(policies) ? policies.filter(isObject).map(p => String(p.id)) : [])];
-  }
   const options: Record<string, string[]> = {
     tool_execution: ['parallel', 'serial'], default_kind: ['generate', 'edit'], default_direction: ['forward', 'backward'],
     default_order: ['asc', 'desc'], level: ['off', 'error', 'warn', 'info', 'debug', 'trace'], method: ['GET', 'POST'],
