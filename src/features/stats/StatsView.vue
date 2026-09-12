@@ -101,7 +101,7 @@ onDeactivated(stats.stopAuto);
           <ul class="distribution-legend storage-legend">
             <li v-for="(item,index) in storageRows" :key="item.name"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><small>{{ percent(storage.bytes.total ? item.value / storage.bytes.total : 0) }}</small><Hint :text="`${number(item.value)} B`"><strong>{{ fmtBytes(item.value) }}</strong></Hint></li>
           </ul>
-          <p class="storage-note">{{ tx('按文件字节数统计，不含文件系统分配开销。', 'File bytes, excluding filesystem allocation overhead.') }}</p>
+          <p class="storage-note">{{ tx('按文件 Byte 数统计，不含文件系统分配开销。', 'File bytes, excluding filesystem allocation overhead.') }}</p>
         </section>
         </div>
 

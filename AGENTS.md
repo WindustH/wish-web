@@ -44,5 +44,5 @@
   the resolved backend default (configured default, highest supported level, or
   `none`). Preserve explicit selections and keep preset effort identifiers verbatim.
 
-- Keep `Summary` and `Entry` as untranslated UI terms, including Chinese labels
+- Keep `Summary`, `Entry`, and `Byte` as untranslated UI terms, including Chinese labels
   and explanations. Use “压缩” for compaction.

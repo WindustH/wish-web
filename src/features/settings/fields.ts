@@ -35,7 +35,7 @@ const labels: Record<string, string> = {
   max_verbatim_message_tokens: '保留原文的消息大小上限', standby_target_ratio: '备用上下文目标比例',
   repartition_parts: '重新分段的片段数量', min_summary_bytes: 'Summary 大小下限', max_summary_bytes: 'Summary 大小上限',
   summary_max_output_tokens: 'Summary 输出 Token 上限', boundary_excerpt_chars: '片段边界摘录字数',
-  image_estimated_tokens: '单张图片预估 Token', fallback_bytes_per_token: '每个 Token 预估字节数',
+  image_estimated_tokens: '单张图片预估 Token', fallback_bytes_per_token: '每个 Token 预估 Byte 数',
   command: 'Shell 命令', kind: 'Shell 类型', program: '可执行文件', args: '固定启动参数',
   default_soft_timeout_s: '默认执行等待时间', kill_grace_ms: '终止前等待时间', interrupt_kill_grace_ms: '中断后强制终止等待',
   inline_output_bytes: '直接显示的输出大小', poll_default_bytes: '默认读取输出大小', poll_max_bytes: '单次读取输出大小上限',
@@ -101,7 +101,7 @@ export function fieldHint(path: string[]): string {
 export function unit(key: string) {
   if (key.endsWith('_ms')) return tr('毫秒', 'ms');
   if (key.endsWith('_s')) return tr('秒', 'seconds');
-  if (key.endsWith('_bytes')) return tr('字节', 'bytes');
+  if (key.endsWith('_bytes')) return tr('Byte', 'Byte');
   if (key.endsWith('_chars')) return tr('字符', 'characters');
   if (key.endsWith('_tokens')) return 'Token';
   return '';
