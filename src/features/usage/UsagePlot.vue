@@ -38,12 +38,12 @@ const option = computed(() => style.value && (props.pie ? pieOptions(props.pie, 
   : lineOptions(props.series ?? [], style.value, i18n.locale.value, props.unit ?? 'Token/s')));
 </script>
 <template>
-  <div ref="root" class="usage-plot" :class="{ 'usage-calendar': days }">
+  <div ref="root" class="usage-plot" :class="{ 'usage-calendar': days }" :style="days ? { '--calendar-min-width': days.length < 90 ? '0px' : '660px' } : undefined">
     <ChartCanvas v-if="option" :option="option" :label="label" />
   </div>
 </template>
 <style scoped>
 .usage-plot { min-width: 0; }
 .usage-calendar { overflow-x: auto; scrollbar-width: thin; }
-.usage-calendar :deep(.usage-canvas) { height: 144px; min-width: 660px; }
+.usage-calendar :deep(.usage-canvas) { height: 144px; min-width: var(--calendar-min-width, 660px); }
 </style>

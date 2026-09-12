@@ -56,7 +56,6 @@ onDeactivated(stats.stopAuto);
             <div><dt>{{ i18n.t('stats.attempts') }}</dt><dd>{{ number(usage.statistics.model_attempts) }}</dd></div>
             <div><dt>{{ tx('已完成回复', 'Completed responses') }}</dt><dd>{{ number(totals.committed_responses) }}</dd></div>
           </dl>
-          <p v-if="usage.statistics.attempts_without_usage" class="hint">{{ tx(`其中 ${number(usage.statistics.attempts_without_usage)} 次调用未返回用量。`, `${number(usage.statistics.attempts_without_usage)} attempts did not report usage.`) }}</p>
           <h3>{{ tx('模型 Token 占比', 'Token share by model') }}</h3>
           <div v-if="modelTotal" class="model-share">
             <UsagePlot :pie="models" :label="tx('各模型总 Token 消耗占比', 'Total Token consumption by model')" />
@@ -101,7 +100,6 @@ onDeactivated(stats.stopAuto);
           <ul class="distribution-legend storage-legend">
             <li v-for="(item,index) in storageRows" :key="item.name"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><small>{{ percent(storage.bytes.total ? item.value / storage.bytes.total : 0) }}</small><Hint :text="`${number(item.value)} B`"><strong>{{ fmtBytes(item.value) }}</strong></Hint></li>
           </ul>
-          <p class="storage-note">{{ tx('按文件 Byte 数统计，不含文件系统分配开销。', 'File bytes, excluding filesystem allocation overhead.') }}</p>
         </section>
         </div>
 
@@ -146,7 +144,6 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 .storage-legend span { flex: 1; }
 .storage-legend small { color: var(--fg-muted); font-size: 11px; }
 .storage-legend strong { margin-left: 0; min-width: 65px; text-align: right; }
-.storage-note { font-size: 11px; color: var(--fg-muted); margin: 10px 0 0; }
 @media (max-width: 899px) { .statistics-footer { grid-template-columns: 1fr; gap: 0; } }
 @media (min-width: 900px) { .statistics-usage > .statistics-values { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 450px) { .statistics-detail .statistics-values { grid-template-columns: 1fr; } }

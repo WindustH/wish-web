@@ -4,13 +4,14 @@ import UsageChartPanel from './UsageChartPanel.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity';
 import { createUsageResource } from '../../core/usage/resource';
 import { chartData } from '../../core/usage/normalize';
-import { usageQueries, offsetLabel, type UsageRange } from '../../core/usage/windows';
+import { usageQueries, offsetLabel, type RangeSelection } from '../../core/usage/windows';
 import { usageDaily, usageSeries } from '../../core/api/endpoints.js';
 import { cfg } from '../../core/config.js';
 import type { SeriesQuery, DailyQuery } from '../../core/usage/types';
 const props = defineProps<{ sessionId?: string }>();
 const active = usePageActivity();
-const range = ref<UsageRange>('day');
+const range = ref<RangeSelection>({period:'day'});
+const calendarRange = ref<RangeSelection>({period:'year'});
 const timezone = ref(offsetLabel(-new Date().getTimezoneOffset()));
 const series = createUsageResource((input: { sessionId?: string; query: SeriesQuery }, signal) => usageSeries(input.sessionId, input.query, { signal }));
 const calendar = createUsageResource((input: { sessionId?: string; query: DailyQuery }, signal) => usageDaily(input.sessionId, input.query, { signal }));
@@ -23,7 +24,7 @@ function readSeries(clear = false) {
 }
 function readCalendar(clear = false) {
   const now = Date.now();
-  const query = usageQueries(range.value, now);
+  const query = usageQueries(calendarRange.value, now);
   timezone.value = query.timezone;
   calendarReadAt = now;
   return calendar.load({ sessionId: props.sessionId, query: query.daily }, clear);
@@ -37,7 +38,9 @@ function start() {
     if (!calendar.loading.value && Date.now() - calendarReadAt >= cfg.stats.calendarRefreshMs) void readCalendar();
   }, cfg.stats.refreshMs);
 }
-function changeRange(value: string) { if (value === 'day' || value === 'week') range.value = value; }
+function changeRange(value: RangeSelection) { range.value = value; }
+function changeCalendarRange(value: RangeSelection) { calendarRange.value = value; }
+watch(calendarRange, () => { if (active.value) void readCalendar(true); });
 watch(range, () => { if (active.value) void readSeries(true); });
 watch(() => props.sessionId, () => { series.reset(); calendar.reset(); if (active.value) { void readSeries(true); void readCalendar(true); } });
 watch(active, value => value ? start() : stop(), { immediate: true });
@@ -46,6 +49,6 @@ defineExpose({ refresh });
 </script>
 <template>
   <UsageChartPanel :data="data" :days="days" :loading="series.loading.value" :calendar-loading="calendar.loading.value"
-    :error="series.error.value" :calendar-error="calendar.error.value" :range="range"
-    @range="changeRange" @refresh="refresh" @retry-calendar="readCalendar()" />
+    :error="series.error.value" :calendar-error="calendar.error.value" :range="range" :calendar-range="calendarRange"
+    @range="changeRange" @calendar-range="changeCalendarRange" @refresh="refresh" @retry-calendar="readCalendar()" />
 </template>

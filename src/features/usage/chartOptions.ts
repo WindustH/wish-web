@@ -3,6 +3,8 @@ export interface PlotSeries { key: string; label: string; colorIndex?: number; p
 export interface ChartStyle { foreground: string; muted: string; line: string; surface: string; font: string; colors: string[]; heat: string[] }
 export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: string, unit: string): EChartsCoreOption {
   const format = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
+  const times = series.flatMap(item => item.points.map(point => point[0]));
+  const span = times.length ? times.reduce((a,b)=>Math.max(a,b),-Infinity) - times.reduce((a,b)=>Math.min(a,b),Infinity) : 0;
   return {
     animation: false,
     textStyle: { fontFamily: style.font, color: style.foreground },
@@ -12,7 +14,7 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
       valueFormatter: (value: unknown) => value == null ? '—' : `${format.format(Number(value))} ${unit}`,
       axisPointer: { type: 'line', lineStyle: { color: style.muted, type: 'dashed' } } },
     xAxis: { type: 'time', boundaryGap: false, axisLine: { lineStyle: { color: style.line } }, axisTick: { show: false },
-      axisLabel: { color: style.muted, hideOverlap: true, formatter: (value: number) => new Date(value).toLocaleString(locale, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }, splitNumber: 4 },
+      axisLabel: { color: style.muted, hideOverlap: true, formatter: (value: number) => new Date(value).toLocaleString(locale, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', ...(span < 3_600_000 ? { second: '2-digit' as const } : {}) }) }, splitNumber: 4 },
     yAxis: { type: 'value', min: 0, name: unit, nameTextStyle: { color: style.muted, align: 'left' }, axisLabel: { color: style.muted, formatter: (value: number) => new Intl.NumberFormat('en', { notation: 'compact' }).format(value) },
       splitLine: { lineStyle: { color: style.line } } },
     series: series.map((item, index) => ({ id: item.key, name: item.label, type: 'line', data: item.points,
@@ -32,7 +34,7 @@ export function calendarOptions(days: [string, number][], style: ChartStyle, loc
       { value: 0, color: style.heat[0] },
       ...[0, 1, 2, 3].map(index => ({ gt: max * index / 4, lte: max * (index + 1) / 4, color: style.heat[index + 1] }))
     ] },
-    calendar: { top: 28, left: 34, right: 8, bottom: 4, cellSize: ['auto', 15], range: [days[0]?.[0], days.at(-1)?.[0]],
+    calendar: { top: 28, left: 34, right: days.length < 90 ? undefined : 8, bottom: 4, cellSize: [days.length < 90 ? 18 : 'auto', 15], range: [days[0]?.[0], days.at(-1)?.[0]],
       splitLine: { show: false }, itemStyle: { borderWidth: 0, color: 'transparent' },
       yearLabel: { show: false }, monthLabel: { color: style.muted, fontSize: 11, nameMap: locale.startsWith('zh') ? 'ZH' : 'EN', margin: 10 },
       dayLabel: { firstDay: 1, color: style.muted, fontSize: 10, margin: 7, nameMap: locale.startsWith('zh') ? ['日','一','二','三','四','五','六'] : ['S','M','T','W','T','F','S'] } },
