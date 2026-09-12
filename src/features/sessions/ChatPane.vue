@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { sessionPanelCloseKey } from '../../ui/composables/sessionPanel';
 import Hint from '../../ui/components/Hint.vue';
 // Chat surface: top bar (desktop three actions / mobile back+menu), log,
 // composer, and child-route dialogs (mobile subpages). Opening session
 // actions never rebuilds the conversation.
-import { computed, ref, watch } from 'vue';
+import { computed, provide, shallowRef, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMedia } from '../../ui/composables/useMedia.js';
 import { i18n } from '../../core/i18n/index.js';
@@ -17,6 +18,8 @@ import ReasoningSettings from './ReasoningSettings.vue';
 import { useResolvedEffort } from './useResolvedEffort';
 import { effortLabel } from './reasoningLabels';
 
+const panelClose = shallowRef<(() => void) | null>(null);
+provide(sessionPanelCloseKey, panelClose);
 const route = useRoute();
 const router = useRouter();
 const isMobile = useMedia('(max-width: 899px)');
@@ -38,7 +41,7 @@ watch(id, () => { modelOpen.value = false; reasoningOpen.value = false; });
 
 const closeTab = () => router.push({ name: 'chat', params: { id: id.value } });
 const goTab = (t: string) => {
-  if (tab.value === t) { if (isMobile.value) closeTab(); }
+  if (tab.value === t) { if (isMobile.value) closeTab(); else panelClose.value?.(); }
   else router.push({ name: `chat-${t}`, params: { id: id.value } });
 };
 </script>

@@ -39,7 +39,6 @@
 .session-list-toggle svg { position: relative; justify-self: end; margin-right: 2px; }
 .session-list-toggle:hover { color: var(--edge-icon, var(--fg)); }
 .session-list-toggle:hover::before { background: var(--edge-tab, var(--bg-active)); }
-.session-list-toggle:focus-visible { outline-offset: -2px; }
 .session-list-toggle[aria-expanded="false"] { right: auto; left: 0; }
 .session-list-toggle[aria-expanded="false"]::before { inset: 0 8px 0 0; transform: scaleX(-1); }
 .session-list-toggle[aria-expanded="false"] svg { justify-self: start; margin: 0 0 0 2px; }
