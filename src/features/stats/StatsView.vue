@@ -53,7 +53,7 @@ onDeactivated(stats.stopAuto);
             <div><dt>{{ i18n.t('stats.tokensIn') }} <small>Token</small></dt><Hint :text="number(totals.tokens.input_tokens)"><dd data-stat="input">{{ fmtTokens(totals.tokens.input_tokens) }}</dd></Hint></div>
             <div><dt>{{ i18n.t('stats.tokensOut') }} <small>Token</small></dt><Hint :text="number(totals.tokens.output_tokens)"><dd data-stat="output">{{ fmtTokens(totals.tokens.output_tokens) }}</dd></Hint></div>
             <div><dt>{{ tx('缓存命中', 'Cache read') }} <small>Token</small></dt><Hint :text="number(totals.cache.read_input_tokens)"><dd data-stat="cached">{{ fmtTokens(totals.cache.read_input_tokens) }}</dd></Hint></div>
-            <div><dt>{{ tx('缓存命中率', 'Cache hit rate') }} <small>%</small></dt><dd>{{ totals.cache.request_hit_ratio == null ? '—' : new Intl.NumberFormat(i18n.locale.value, { maximumFractionDigits: 1 }).format(totals.cache.request_hit_ratio * 100) }}</dd></div>
+            <div><dt>{{ tx('缓存命中率', 'Cache hit rate') }}</dt><dd>{{ percent(totals.cache.request_hit_ratio) }}</dd></div>
           </dl>
           <h3 v-if="showPie">{{ tx('模型 Token 占比', 'Token share by model') }}</h3>
           <div v-if="showPie" class="model-share">
