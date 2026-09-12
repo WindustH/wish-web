@@ -162,3 +162,5 @@
 @keyframes session-bubble-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-6px) scale(.96); } }
 
 .session-bubble:focus-visible { outline: none; }
+
+@media (min-width: 900px) { .modal-card.session-manage-window { width: min(294px, calc(100vw - 40px)); } }
