@@ -17,7 +17,8 @@ const text = computed(() => (props.item.entry.payload?.content ?? [])
 <template>
   <div class="entry system">
     <div class="body">
-      <button class="fold-chip" @click="open = true"><Icon name="circle-dot" />{{ label }}</button>
+      <span v-if="item.entry.kind === 'interruption'" class="stop-marker hint" role="status"><Icon name="square" />{{ i18n.t('entry.stoppedByUser') }}</span>
+      <button v-else class="fold-chip" @click="open = true"><Icon name="circle-dot" />{{ label }}</button>
       <Modal :open="open" :title="label" wide @close="open = false">
         <pre class="detail-pre">{{ text }}</pre>
         <CopyButton :text="text" />
@@ -25,3 +26,8 @@ const text = computed(() => (props.item.entry.payload?.content ?? [])
     </div>
   </div>
 </template>
+
+<style scoped>
+.stop-marker { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+.stop-marker :deep(svg) { width: 14px; height: 14px; }
+</style>

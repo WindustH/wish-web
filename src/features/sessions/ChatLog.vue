@@ -11,6 +11,7 @@ import { i18n } from '../../core/i18n/index.js';
 import { announce } from '../../ui/live.js';
 import { groupEntries } from './grouping.js';
 import HistoryItem from './HistoryItem.vue';
+import ThinkingViewport from './ThinkingViewport.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity';
 const pageActive = usePageActivity();
 
@@ -311,7 +312,7 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
       </div>
       <div v-if="running" class="live-row" aria-live="polite">
         <div v-if="streamText" class="live-text">{{ streamText }}</div>
-        <div v-else-if="streamReasoning" class="live-reasoning hint">{{ streamReasoning }}</div>
+        <ThinkingViewport v-else-if="streamReasoning" :key="sessionId" :text="streamReasoning" :tool="streamState?.currentTool" />
         <div v-else class="hint">
           <span v-if="streamToolCount">{{ i18n.t('entry.toolCall') }} ×{{ streamToolCount }} · </span>{{ i18n.t('chat.thinking') }}
         </div>
