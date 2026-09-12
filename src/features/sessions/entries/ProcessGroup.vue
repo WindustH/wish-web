@@ -16,8 +16,6 @@ const detail = ref<any>(null);
 watch(() => props.forced, (forced) => { if (forced) open.value = true; }, { immediate: true });
 
 const steps = computed(() => props.item.steps ?? []);
-const hasTools = computed(() => steps.value.some((s: any) =>
-  s.kind === 'entry' || s.block?.type === 'tool_call'));
 
 // Type labels restored (root review): every step states what it IS —
 // thinking / tool call / tool result — not just a bare name.
@@ -56,7 +54,7 @@ const stepIcon = (s: any) => s.kind === 'entry' ? 'wrench' : s.block?.type === '
     <button class="proc-head" :aria-expanded="open" @click="open = !open">
       <Icon :name="open ? 'chevron-down' : 'layers'" />
       <span>{{ i18n.t('proc.title') }}</span><span class="proc-count">{{ steps.length }} {{ i18n.t('proc.stepsUnit') }}</span>
-      <span v-if="hasTools" class="proc-summary">{{ i18n.t('proc.hasTools') }}</span><Icon class="proc-chevron" :class="{ expanded: open }" name="chevron-down" />
+      <Icon class="proc-chevron" :class="{ expanded: open }" name="chevron-down" />
     </button>
     <div v-if="open" class="proc-steps">
       <button v-for="(s, i) in steps" :key="i" class="proc-step"

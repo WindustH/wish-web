@@ -4,7 +4,7 @@ import { i18n } from '../../core/i18n/index.js';
 import { errorText } from '../../core/config-editor';
 import { readModels, readProviders, type ModelInfo } from '../../core/provider-catalog';
 import { useSessionSelection, type ModelSelection } from './useSessionSelection';
-import { effortLabel } from './reasoningLabels';
+import { effortLabel, resolvedEffort } from './reasoningLabels';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
 import PickerList, { type PickerItem } from '../../ui/components/PickerList.vue';
 import Spinner from '../../ui/components/Spinner.vue';
@@ -23,13 +23,13 @@ const effortSource = ref('');
 const standardLevels = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 const usingStandardLevels = computed(() => effortSource.value === 'generic' && !metadata.value?.reasoning_efforts);
 const levels = computed(() => {
-  const levels = Object.keys(metadata.value?.reasoning_efforts ?? providerEfforts.value).filter(level => level !== 'none');
+  const levels = Object.keys(metadata.value?.reasoning_efforts ?? providerEfforts.value).filter(level => level !== 'none' && level !== 'auto');
   const defaultLevel = metadata.value?.default_reasoning_effort;
   if (defaultLevel && !levels.includes(defaultLevel)) levels.push(defaultLevel);
   const order = ['off', ...standardLevels];
   return levels.sort((a, b) => (order.includes(a) ? order.indexOf(a) : order.length) - (order.includes(b) ? order.indexOf(b) : order.length));
 });
-function resetChoice() { selected.value = key(snapshot.value?.reasoning_effort); }
+function resetChoice() { selected.value = key(resolvedEffort(snapshot.value?.reasoning_effort, metadata.value, providerEfforts.value)); }
 async function loadMetadata() {
   controller.abort(); controller = new AbortController();
   const signal = controller.signal;
@@ -56,14 +56,13 @@ const unsupported = computed(() => metadata.value?.supports_reasoning === false)
 interface EffortItem extends PickerItem { effort: string }
 const choices = computed<EffortItem[]>(() => {
   const items: EffortItem[] = [
-    { key: 'default', effort: '', title: i18n.t('reasoning.default'), description: metadata.value?.default_reasoning_effort ? effortLabel(metadata.value.default_reasoning_effort) : undefined, search: 'auto' },
     { key: key('none'), effort: 'none', title: 'none', description: i18n.t('reasoning.none'), search: 'none' },
     ...levels.value.map(effort => ({ key: key(effort), effort, title: effortLabel(effort), search: effort, disabled: unsupported.value })),
   ];
   const current = snapshot.value?.reasoning_effort;
   if (current && !items.some(item => item.effort === current)) items.push({ key: key(current), effort: current, title: current, description: i18n.t('picker.current'), disabled: unsupported.value });
   const custom = query.value.trim();
-  if (custom && !unsupported.value && !items.some(item => item.effort.toLocaleLowerCase() === custom.toLocaleLowerCase())) {
+  if (custom && custom.toLowerCase() !== 'auto' && !unsupported.value && !items.some(item => item.effort.toLocaleLowerCase() === custom.toLocaleLowerCase())) {
     items.push({ key: key(custom), effort: custom, title: i18n.t('reasoning.useCustom', { value: custom }), description: i18n.t('reasoning.customHint'), search: custom });
   }
   return items;
@@ -74,10 +73,7 @@ async function apply(value: string) {
   if (value === current) { emit('close'); return; }
   const choice = choices.value.find(item => item.key === value);
   if (!choice || choice.disabled) return;
-  // Selecting the same model without an effort restores its default.
-  const body = choice.effort === ''
-    ? { provider: snapshot.value.provider, model: snapshot.value.model }
-    : { reasoning_effort: choice.effort };
+  const body = { reasoning_effort: choice.effort };
   if (await save(body)) emit('close');
   else selected.value = current;
 }

@@ -39,3 +39,7 @@
 
 - Keep `Shell` untranslated in UI labels and explanations. Do not call a shell
   “终端”: that term means terminal. Preserve literal tool IDs and executable names.
+
+- Do not expose `auto` as a reasoning-effort choice. When unset, display and select
+  the resolved backend default (configured default, highest supported level, or
+  `none`). Preserve explicit selections and keep preset effort identifiers verbatim.

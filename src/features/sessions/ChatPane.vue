@@ -14,6 +14,7 @@ import ChatLog from './ChatLog.vue';
 import Composer from './Composer.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
+import { useResolvedEffort } from './useResolvedEffort';
 import { effortLabel } from './reasoningLabels';
 
 const route = useRoute();
@@ -29,6 +30,7 @@ const tab = computed(() => {
 watch(id, (next) => { if (next) chat.open(next); }, { immediate: true });
 
 const snapshot = computed(() => chat.snapshot.value);
+const { effort, error: effortError } = useResolvedEffort(snapshot);
 const queue = computed(() => snapshot.value?.queue ?? 0);
 const modelOpen = ref(false);
 const reasoningOpen = ref(false);
@@ -51,7 +53,7 @@ const goTab = (t: string) => tab.value === t ? closeTab() : router.push({ name: 
           <span>{{ snapshot?.model?.replace(/[-_]/g, ' ').toUpperCase() || '—' }}</span>
         </button></Hint>
         <span class="selection-dot" aria-hidden="true">·</span>
-        <Hint :text="i18n.t('reasoning.title')"><button class="reasoning-chip" :aria-expanded="reasoningOpen" :aria-label="`${i18n.t('reasoning.title')}：${effortLabel(snapshot?.reasoning_effort)}`" @click="reasoningOpen = true"><span>{{ effortLabel(snapshot?.reasoning_effort).toUpperCase() }}</span></button></Hint>
+        <Hint :text="effortError ? String(effortError) : i18n.t('reasoning.title')"><button class="reasoning-chip" :aria-expanded="reasoningOpen" :aria-label="`${i18n.t('reasoning.title')}：${effortLabel(effort)}`" @click="reasoningOpen = true"><span>{{ effortLabel(effort).toUpperCase() }}</span></button></Hint>
         </span>
       </div>
       <template v-if="!isMobile">
