@@ -34,6 +34,7 @@
 }
 .shell.mobile .bbar { display: flex; }
 .bbar .nav-btn { flex: 1; border-radius: 0; min-height: var(--h-bottombar); }
+.bbar .nav-btn .icon { width: 18px; height: 18px; }
 .bbar .nav-btn.active { background: transparent; }
 .bbar .nav-btn.active::before { left: calc(50% - 12px); top: 0; width: 24px; height: 2px; }
 .session-list-edge { position: relative; width: 0; flex: none; z-index: 25; }
