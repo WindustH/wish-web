@@ -37,7 +37,7 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
 <template>
   <TooltipProvider :delay-duration="450" :skip-delay-duration="150">
   <div class="shell" :class="isMobile ? 'mobile' : 'desktop'">
-    <nav class="vbar" :aria-label="i18n.t('app.name')">
+    <nav :inert="settingsOpen && !isMobile" :aria-hidden="settingsOpen && !isMobile || undefined" class="vbar" :aria-label="i18n.t('app.name')">
       <RouterLink :to="sessionLocation" class="brand-mark" aria-label="Wish">w<span>.</span></RouterLink>
       <Hint :text="item.label()" v-for="item in top" :key="item.id"><button class="nav-btn" :class="{ active: isActive(item.id) }"
         :aria-current="isActive(item.id) ? 'page' : undefined" :aria-label="item.label()" @click="go(item)">
@@ -59,7 +59,7 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
         <div v-if="!online" class="offline-banner" role="status">{{ i18n.t('settings.offline') }}</div>
         <RouterView v-if="backgroundRoute.meta.section !== 'settings'" :route="backgroundRoute" v-slot="{ Component, route: pageRoute }">
           <KeepAlive :max="4">
-            <CachedPage v-if="Component" v-show="!settingsOpen || !isMobile" :key="pageRoute.matched[0].path" :view="Component" :route="pageRoute" />
+            <CachedPage :inert="settingsOpen && !isMobile" :aria-hidden="settingsOpen && !isMobile || undefined" v-if="Component" v-show="!settingsOpen || !isMobile" :key="pageRoute.matched[0].path" :view="Component" :route="pageRoute" />
           </KeepAlive>
         </RouterView>
         <RouterView v-if="settingsRoute" :route="settingsRoute" v-slot="{ Component, route: pageRoute }">
