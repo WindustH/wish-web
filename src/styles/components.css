@@ -146,7 +146,9 @@
 
 /* Search stays anchored while its result list grows or is replaced. */
 .history-search-window > .modal-body { display: flex; flex-direction: column; overflow: hidden; }
-.history-search-window .search-row { flex: none; margin-bottom: 0; }
+.history-search-window .search-row { flex: none; margin-bottom: 0; align-items: center; }
+.history-search-window .search-row .input { border: 0; border-bottom: 1px solid var(--line-strong); border-radius: 0; background: transparent; padding: 8px 0; }
+.history-search-window .search-row .input:focus { border-bottom-color: var(--accent); }
 .history-search-content { min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
 .history-search-content:not(:has(.search-results:empty)) { margin-top: 16px; }
 
