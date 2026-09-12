@@ -127,7 +127,16 @@
 
 /* Session actions share the dialog shell; mobile renders a full subpage. */
 .modal-card.session-window { width: min(92vw, 42rem); }
-@media (min-width: 900px) { .modal-card.usage-info-window { width: min(92vw, 44rem); } }
+@media (min-width: 900px) {
+  .modal-card.session-window {
+    left: auto; right: 20px; top: 20px; transform: none;
+    width: min(440px, calc(100vw - 40px)); max-height: calc(100dvh - 40px);
+    animation: session-panel-in var(--dur) var(--ease-out);
+  }
+  .modal-card.session-window[data-state='closed'] { animation: session-panel-out var(--dur-fast) ease-in; }
+}
+@keyframes session-panel-in { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes session-panel-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(28px); } }
 .modal-card.modal-page { inset: 0; transform: none; width: 100%; height: 100dvh; max-height: none; border: 0; border-radius: 0; box-shadow: none; animation: page-in var(--dur) var(--ease-out); }
 .modal-page > .modal-head { min-height: var(--h-topbar); justify-content: flex-start; padding: 8px 12px; gap: 8px; }
 .modal-page > .modal-head > .modal-title { flex: 1; }
@@ -136,9 +145,6 @@
 @keyframes page-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
 
 /* Search stays anchored while its result list grows or is replaced. */
-@media (min-width: 900px) {
-  .modal-card.history-search-window { top: max(24px, env(safe-area-inset-top)); transform: translateX(-50%); max-height: calc(100dvh - 48px); animation: fade-in var(--dur) ease; }
-}
 .history-search-window > .modal-body { display: flex; flex-direction: column; overflow: hidden; }
 .history-search-window .search-row { flex: none; margin-bottom: 0; }
 .history-search-content { min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }

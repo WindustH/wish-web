@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { usePageActivity } from '../composables/usePageActivity';
 // Centered confirm/content modal on Reka primitives (title/description
 // wired for a11y). While `dismissable` is false no path closes it — Esc,
@@ -11,26 +12,35 @@ import { useDialogFocus } from '../composables/useDialogFocus';
 const focus = useDialogFocus();
 const pageActive = usePageActivity();
 
-withDefaults(defineProps<{ open: boolean; title: string; wide?: boolean; page?: boolean; contentClass?: string; dismissable?: boolean; closeButton?: boolean }>(), { dismissable: true, closeButton: true });
+const props = withDefaults(defineProps<{ open: boolean; title: string; wide?: boolean; page?: boolean; contentClass?: string; dismissable?: boolean; closeButton?: boolean }>(), { dismissable: true, closeButton: true });
 const emit = defineEmits<{ close: [] }>();
+const closing = ref(false);
+function requestClose() {
+  if (!props.dismissable || closing.value) return;
+  if (!props.page && props.contentClass?.split(' ').includes('session-window')) closing.value = true;
+  else emit('close');
+}
+function finishClose(event: AnimationEvent) {
+  if (closing.value && event.target === event.currentTarget) emit('close');
+}
 </script>
 
 <template>
-  <DialogRoot :open="open" @update:open="(v: boolean) => { if (v === false && dismissable !== false) emit('close'); }">
+  <DialogRoot :open="open && !closing" @update:open="(v: boolean) => { if (!v) requestClose(); }">
     <DialogPortal v-if="pageActive">
       <DialogOverlay class="modal-overlay" />
-      <DialogContent @open-auto-focus="focus.opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page }, contentClass]" :aria-describedby="undefined"
+      <DialogContent @animationend="finishClose" @open-auto-focus="focus.opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page }, contentClass]" :aria-describedby="undefined"
         @escape-key-down="(e: KeyboardEvent) => { if (dismissable === false) e.preventDefault(); }"
         @interact-outside="(e: Event) => { if (dismissable === false) e.preventDefault(); }"
         @pointer-down-outside="(e: Event) => { if (dismissable === false) e.preventDefault(); }">
         <div class="modal-head">
           <button v-if="page" type="button" class="btn ghost icon-only" :disabled="dismissable === false"
-            :aria-label="i18n.t('chatbar.back')" @click="dismissable !== false && emit('close')"><Icon name="arrow-left" /></button>
+            :aria-label="i18n.t('chatbar.back')" @click="requestClose"><Icon name="arrow-left" /></button>
           <DialogTitle class="modal-title">{{ title }}</DialogTitle>
           <div class="modal-head-actions">
             <slot name="actions" />
             <button v-if="!page && closeButton" type="button" class="btn ghost icon-only" :disabled="dismissable === false" :aria-label="i18n.t('common.close')"
-              @click="dismissable !== false && emit('close')">
+              @click="requestClose">
               <Icon name="x" />
             </button>
           </div>
