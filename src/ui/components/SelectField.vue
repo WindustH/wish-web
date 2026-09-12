@@ -29,8 +29,10 @@ watch(pageActive, active => { if (!active) open.value = false; });
         <SelectViewport class="control-select-list">
           <SelectItem v-for="option in options" :key="option.value" :value="option" :disabled="option.disabled" :text-value="option.label" :data-value="option.value" class="control-select-option">
             <span class="select-option-label"><span v-if="option.annotation" class="select-option-annotation">{{ option.annotation }}</span><ProviderIcon v-if="option.brand" :brand="option.brand" /><SelectItemText>{{ option.label }}</SelectItemText></span>
-            <InfoHint v-if="option.description" :text="option.description" :label="option.description" :focusable="false" />
-            <SelectItemIndicator><Check :size="15" aria-hidden="true" /></SelectItemIndicator>
+            <span class="select-option-trailing">
+              <InfoHint v-if="option.description" :text="option.description" :label="option.description" :focusable="false" />
+              <span class="select-option-check"><SelectItemIndicator><Check :size="15" aria-hidden="true" /></SelectItemIndicator></span>
+            </span>
           </SelectItem>
         </SelectViewport>
       </SelectContent>
@@ -42,4 +44,7 @@ watch(pageActive, active => { if (!active) open.value = false; });
 .select-option-label { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .select-option-label > span:last-child { overflow: hidden; text-overflow: ellipsis; }
 .select-option-annotation { flex: none; max-width: 10rem; padding: 2px 6px; border-radius: 4px; background: var(--bg); color: var(--fg-subtle); font-size: 10px; line-height: 1.4; white-space: normal; }
+.select-option-trailing { display: inline-flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
+.select-option-check { display: inline-flex; align-items: center; justify-content: center; width: 15px; flex: none; }
+.select-option-check :deep(svg) { display: block; }
 </style>
