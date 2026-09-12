@@ -11,7 +11,7 @@ import { useDialogFocus } from '../composables/useDialogFocus';
 const focus = useDialogFocus();
 const pageActive = usePageActivity();
 
-withDefaults(defineProps<{ open: boolean; title: string; wide?: boolean; page?: boolean; contentClass?: string; dismissable?: boolean }>(), { dismissable: true });
+withDefaults(defineProps<{ open: boolean; title: string; wide?: boolean; page?: boolean; contentClass?: string; dismissable?: boolean; closeButton?: boolean }>(), { dismissable: true, closeButton: true });
 const emit = defineEmits<{ close: [] }>();
 </script>
 
@@ -29,7 +29,7 @@ const emit = defineEmits<{ close: [] }>();
           <DialogTitle class="modal-title">{{ title }}</DialogTitle>
           <div class="modal-head-actions">
             <slot name="actions" />
-            <button v-if="!page" type="button" class="btn ghost icon-only" :disabled="dismissable === false" :aria-label="i18n.t('common.close')"
+            <button v-if="!page && closeButton" type="button" class="btn ghost icon-only" :disabled="dismissable === false" :aria-label="i18n.t('common.close')"
               @click="dismissable !== false && emit('close')">
               <Icon name="x" />
             </button>

@@ -10,7 +10,7 @@ import { fieldHint, tr } from './fields';
 import { openConfigDialog } from './config-dialog';
 const props = withDefaults(defineProps<{ path: string[]; title: string; brand?: string; enabled?: boolean }>(), { enabled: undefined });
 const emit = defineEmits<{ 'update:enabled': [value: boolean]; remove: [] }>();
-const hint = computed(() => /^\d+$/.test(props.path.at(-1)!) ? '' : fieldHint(props.path));
+const hint = computed(() => /^\d+$/.test(props.path.at(-1)!) || props.path.at(-2) === 'models' ? '' : fieldHint(props.path));
 const open = inject(openConfigDialog)!;
 </script>
 
