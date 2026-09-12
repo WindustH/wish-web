@@ -104,7 +104,7 @@ export const cfg = Object.freeze({
     monoFontStack: "'Maple Mono NF CN', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace",
     maxContentWidth: '46rem',         // chat column readability cap
     iconSize: 18,                     // default icon px
-    sidebarWidth: 56,                 // desktop vertical bar px
+    sidebarWidth: 48,                 // desktop vertical bar px
     sessionListWidth: 256,            // desktop list pane px (default; user-resizable)
     sessionListWidthMin: 200,
     sessionListWidthMax: 520,
