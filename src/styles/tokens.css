@@ -37,7 +37,7 @@
   --space-xl: 24px; --space-xxl: 32px;
   --icon: 18px;
   --w-sidebar: 56px; --w-list: 256px;
-  --h-topbar: 56px; --h-bottombar: 56px; --h-session-row: 40px;
+  --h-topbar: 56px; --h-bottombar: 44px; --h-session-row: 40px;
   --max-content: 46rem;
   --dur-fast: 140ms; --dur: 240ms; --dur-slow: 400ms;
   --ease-out: cubic-bezier(.2,.8,.2,1);
