@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ChevronDown, Plus, Trash2 } from '@lucide/vue';
+import { ChevronDown, Trash2 } from '@lucide/vue';
 import { isObject, pointer } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigEditor, ConfigObject, ProviderPreset } from '../../core/config-editor';
 import { fieldLabel, optionalFields, tr } from './fields';
@@ -31,7 +31,7 @@ const advanced = computed(() => Object.entries(advancedDefaults.value).filter(([
   if (field === 'image_edit_path') return protocol.value === 'openai_images';
   return true;
 }));
-const authRequired = computed(() => props.value.enabled !== false && !props.value.auth);
+const authRequired = computed(() => props.value.enabled !== false);
 const fieldPath = (field: string) => [...props.path, field];
 function addAdvanced(field: string) { props.editor.set(fieldPath(field), structuredClone(advancedDefaults.value[field]!)); }
 </script>
@@ -51,29 +51,18 @@ function addAdvanced(field: string) { props.editor.set(fieldPath(field), structu
     <section class="preset-section" data-preset-section="authentication">
       <header><h4>{{ profile.aws ? 'AWS SigV4' : profile.codex ? tr('ChatGPT 账户认证', 'ChatGPT account authentication') : tr('身份验证', 'Authentication') }}</h4></header>
       <p v-if="profile.note && !profile.local && !profile.workspace" class="cfg-hint">{{ profile.note }}</p>
-      <template v-if="value.auth">
-        <p class="cfg-hint">{{ tr('当前使用自定义认证覆盖预设认证。', 'Custom authentication currently overrides preset authentication.') }}</p>
-        <ConfigNode :value="value.auth" :path="fieldPath('auth')" :editor="editor" :catalog="catalog" />
-        <button type="button" class="btn ghost sm" @click="editor.remove(fieldPath('auth'))">{{ tr('恢复预设认证', 'Restore preset authentication') }}</button>
-      </template>
-      <template v-else>
-        <ConfigNode v-if="preset.api_key_supported" :value="value.api_key ?? ''" :path="fieldPath('api_key')" :title="profile.keyLabel" :help="profile.keyHint" :required="preset.api_key_required" :required-active="authRequired" :editor="editor" :catalog="catalog" />
-        <template v-if="profile.local">
-          <p class="cfg-hint">{{ tr('此预设默认不发送认证信息。若服务已启用认证，请配置对应的认证方式。', 'This preset sends no authentication by default. Configure authentication if enabled by your server.') }}</p>
-          <button type="button" class="btn ghost sm" @click="editor.set(fieldPath('auth'), { type: 'bearer', token: '' })"><Plus :size="15" />{{ tr('配置认证', 'Configure authentication') }}</button>
-        </template>
-      </template>
+      <ConfigNode v-if="preset.api_key_supported" :value="value.api_key ?? ''" :path="fieldPath('api_key')" :title="profile.keyLabel" :help="profile.keyHint" :required="preset.api_key_required" :required-active="authRequired" :editor="editor" :catalog="catalog" />
+      <p v-if="profile.local" class="cfg-hint">{{ tr('此预设不发送认证信息。', 'This preset sends no authentication information.') }}</p>
       <ConfigNode v-for="field in credentialFields.filter(field => field !== 'workspace_id')" :key="field" :value="credentials[field] ?? ''" :path="[...path, 'credentials', field]" :title="credentialPresentation(field)?.title" :help="credentialPresentation(field)?.hint" :required="preset.required_credentials.includes(field)" :required-active="value.enabled !== false" :editor="editor" :catalog="catalog" />
       <template v-if="profile.codex">
         <div class="cfg-field"><label>{{ tr('账户 ID 来源', 'Account ID source') }}</label><SelectField :model-value="String(codex.account_id_source || 'jwt_claim')" :aria-label="tr('账户 ID 来源', 'Account ID source')" :options="['jwt_claim', 'explicit'].map(value => ({ value, ...settingOption(['account_id_source'], value) }))" @update:model-value="setAccountSource" /></div>
         <ConfigNode v-if="codex.account_id_source === 'explicit'" :value="codex.account_id ?? ''" :path="[...path, 'codex', 'account_id']" title="ChatGPT Account ID" :required="true" :required-active="value.enabled !== false" :editor="editor" :catalog="catalog" />
       </template>
-      <p v-if="preset.api_key_supported || credentialFields.length || value.auth" class="cfg-hint preset-secret-help">{{ tr('凭据支持 ${环境变量名}；未编辑时保留已保存的值。', 'Credentials accept ${ENV_VAR}; saved values are preserved when left unchanged.') }}</p>
+      <p v-if="preset.api_key_supported || credentialFields.length" class="cfg-hint preset-secret-help">{{ tr('凭据支持 ${环境变量名}；未编辑时保留已保存的值。', 'Credentials accept ${ENV_VAR}; saved values are preserved when left unchanged.') }}</p>
     </section>
     <ConfigLink :path="fieldPath('models')" :title="fieldLabel(fieldPath('models'))" />
     <details class="cfg-nested cfg-provider-advanced">
       <summary><ChevronDown :size="16" /><span>{{ tr('高级设置', 'Advanced settings') }}</span></summary>
-      <button v-if="!value.auth && !profile.local" type="button" class="btn ghost" @click="editor.set(fieldPath('auth'), { type: 'bearer', token: '' })"><Plus :size="15" />{{ tr('覆盖认证方式', 'Override authentication') }}</button>
       <div v-for="[field] in advanced.filter(([field]) => field in value)" :key="field" class="cfg-property" :class="{ 'cfg-property-removable': field !== 'compat' }">
         <template v-if="field in value">
           <ConfigLink v-if="isObject(value[field])" :path="fieldPath(field)" :title="fieldLabel(fieldPath(field))" />
