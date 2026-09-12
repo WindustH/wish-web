@@ -31,7 +31,7 @@ function revealPath(path: string[]) {
   editing.value = [{ path: parent, title: parent.length === 3 && isObject(provider)
     ? String(provider.id) : fieldLabel(parent) }];
 }
-defineExpose({ revealPath });
+defineExpose({ revealPath, validate: () => !!form.value?.reportValidity() && (!dialogForm.value || dialogForm.value.reportValidity()) });
 const { draft, busy, error, dirty, saved, epoch, restartState } = editor;
 const failure = computed(() => configFailure(error.value, editor.errorStage.value));
 const confirmAction = ref<'reload' | 'discard'>();
@@ -116,7 +116,7 @@ async function confirmSave(restart: boolean) {
           <div class="cfg-savebar-inner">
             <span role="status">{{ tr('有未保存的修改', 'You have unsaved changes') }}</span>
             <div class="cfg-savebar-actions">
-              <button type="button" class="btn ghost" :disabled="busy" @click="request('discard')"><RotateCcw :size="16" />{{ tr('撤销修改', 'Discard changes') }}</button>
+              <button type="button" class="btn ghost" :disabled="busy" @click="request('discard')"><RotateCcw :size="16" />{{ tr('放弃修改', 'Discard changes') }}</button>
               <button type="submit" :form="`config-${owner}`" class="btn primary" :disabled="busy"><Save :size="16" />{{ busy ? tr('正在保存…', 'Saving…') : tr('保存配置', 'Save configuration') }}</button>
             </div>
           </div>
@@ -139,6 +139,6 @@ async function confirmSave(restart: boolean) {
       </template>
     </Modal>
     <DialogRoot :open="!!restartReview" @update:open="!$event && (restartReview = undefined)"><DialogPortal v-if="pageActive"><DialogOverlay class="cfg-dialog-overlay" /><DialogContent class="cfg-dialog cfg-restart-dialog"><DialogTitle>{{ tr('这些修改需要重启后生效', 'These changes require a restart') }}</DialogTitle><DialogDescription>{{ tr('配置尚未保存。立即重启会中断此服务正在处理的请求；核心服务的运行中会话会停止，稍后可继续。', 'The configuration has not been saved. Restarting interrupts requests handled by this service; running Core sessions stop and can be continued later.') }}</DialogDescription><ul><li v-for="field in restartReview?.restart_required" :key="field">{{ field.split('/').filter(Boolean).map(label).join(' › ') }}</li></ul><p v-if="restartReview?.restart_required.some(field => field.includes('/listen/') || field.includes('/auth/'))">{{ tr('更改监听地址或认证信息后，可能需要更新连接设置。', 'Changing the listen address or authentication may require updating connection settings.') }}</p><p v-if="!restartReview?.restart_supported">{{ tr('此平台不支持从网页重启，请保存后自行重启。', 'Restarting from the Web is unavailable on this platform. Save and restart manually.') }}</p><div class="cfg-dialog-actions"><button class="btn ghost" @click="restartReview = undefined">{{ tr('取消保存', 'Cancel save') }}</button><button class="btn" @click="confirmSave(false)">{{ tr('保存，稍后重启', 'Save, restart later') }}</button><button class="btn primary" :disabled="!restartReview?.restart_supported" @click="confirmSave(true)">{{ tr('保存并立即重启', 'Save and restart now') }}</button></div></DialogContent></DialogPortal></DialogRoot>
-    <DialogRoot :open="!!confirmAction" @update:open="!$event && (confirmAction = undefined)"><DialogPortal v-if="pageActive"><DialogOverlay class="cfg-dialog-overlay" /><DialogContent class="cfg-dialog"><DialogTitle>{{ tr('放弃尚未保存的修改？', 'Discard unsaved changes?') }}</DialogTitle><DialogDescription>{{ confirmAction === 'reload' ? tr('重新读取会用文件中的配置替换当前草稿。', 'Reloading replaces your draft with the configuration on disk.') : tr('所有未保存的修改都会撤销，包括刚输入的密钥。', 'All unsaved changes, including newly entered credentials, will be discarded.') }}</DialogDescription><div class="cfg-dialog-actions"><button class="btn ghost" @click="confirmAction = undefined">{{ tr('继续编辑', 'Keep editing') }}</button><button class="btn danger" @click="confirm">{{ tr('放弃修改', 'Discard changes') }}</button></div><button class="cfg-dialog-close btn ghost" :aria-label="tr('关闭', 'Close')" @click="confirmAction = undefined"><X :size="18" /></button></DialogContent></DialogPortal></DialogRoot>
+    <DialogRoot :open="!!confirmAction" @update:open="!$event && (confirmAction = undefined)"><DialogPortal v-if="pageActive"><DialogOverlay class="cfg-dialog-overlay" /><DialogContent class="cfg-dialog"><DialogTitle>{{ tr('放弃尚未保存的修改？', 'Discard unsaved changes?') }}</DialogTitle><DialogDescription>{{ confirmAction === 'reload' ? tr('重新读取会用文件中的配置替换当前草稿。', 'Reloading replaces your draft with the configuration on disk.') : tr('所有未保存的修改都会被放弃，包括刚输入的密钥。', 'All unsaved changes, including newly entered credentials, will be discarded.') }}</DialogDescription><div class="cfg-dialog-actions"><button class="btn ghost" @click="confirmAction = undefined">{{ tr('继续编辑', 'Keep editing') }}</button><button class="btn danger" @click="confirm">{{ tr('放弃修改', 'Discard changes') }}</button></div><button class="cfg-dialog-close btn ghost" :aria-label="tr('关闭', 'Close')" @click="confirmAction = undefined"><X :size="18" /></button></DialogContent></DialogPortal></DialogRoot>
   </div>
 </template>

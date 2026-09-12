@@ -10,12 +10,14 @@ const props = defineProps<{ modelValue: string; options: SelectOption[]; placeho
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 const pageActive = usePageActivity();
 const open = ref(false);
+const unavailable = computed(() => props.disabled || !props.options.some(option => !option.disabled));
+watch(unavailable, value => { if (value) open.value = false; });
 const selected = computed(() => props.options.find(option => option.value === props.modelValue));
 watch(pageActive, active => { if (!active) open.value = false; });
 </script>
 
 <template>
-  <SelectRoot v-model:open="open" :model-value="selected" by="value" :disabled="disabled" @update:model-value="option => emit('update:modelValue', (option as SelectOption).value)">
+  <SelectRoot v-model:open="open" :model-value="selected" by="value" :disabled="unavailable" @update:model-value="option => emit('update:modelValue', (option as SelectOption).value)">
     <SelectTrigger v-bind="$attrs" class="control-select">
       <SelectValue :placeholder="placeholder">{{ selected?.label || placeholder }}</SelectValue>
       <SelectIcon as-child><ChevronDown :size="16" aria-hidden="true" /></SelectIcon>
