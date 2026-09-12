@@ -34,14 +34,14 @@
 .shell.mobile { padding-bottom: env(safe-area-inset-bottom); }
 .mobile-secondary-header { display: flex; flex: none; align-items: center; gap: 8px; min-height: 44px; padding: 4px 12px; border-bottom: 1px solid var(--line); font-size: 14px; }
 .session-list-edge { position: relative; width: 0; flex: none; z-index: 25; }
-.session-list-toggle { position: absolute; top: 50%; right: 0; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 48px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--edge-icon, var(--fg-subtle)); cursor: pointer; transition: color var(--dur-fast); }
-.session-list-toggle::before { content: ''; position: absolute; inset: 0 0 0 8px; background: var(--edge-tab, var(--bg-hover)); clip-path: polygon(100% 0, 100% 100%, 15% 77%, 0 66%, 0 34%, 15% 23%); transition: background var(--dur-fast); }
-.session-list-toggle svg { position: relative; justify-self: end; margin-right: 2px; }
+.session-list-toggle { position: absolute; top: 50%; right: 0; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 68px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--edge-icon, var(--fg-subtle)); cursor: pointer; transition: color var(--dur-fast); }
+.session-list-toggle::before { content: ''; position: absolute; inset: 0 0 0 12px; background: var(--edge-tab, var(--bg-hover)); border-radius: 100% 0 0 100% / 50% 0 0 50%; transition: background var(--dur-fast); }
+.session-list-toggle svg { position: relative; justify-self: end; margin-right: 1px; }
 .session-list-toggle:hover { color: var(--edge-icon, var(--fg)); }
 .session-list-toggle:hover::before { background: var(--edge-tab, var(--bg-active)); }
 .session-list-toggle[aria-expanded="false"] { right: auto; left: 0; }
-.session-list-toggle[aria-expanded="false"]::before { inset: 0 8px 0 0; transform: scaleX(-1); }
-.session-list-toggle[aria-expanded="false"] svg { justify-self: start; margin: 0 0 0 2px; }
+.session-list-toggle[aria-expanded="false"]::before { inset: 0 12px 0 0; transform: scaleX(-1); }
+.session-list-toggle[aria-expanded="false"] svg { justify-self: start; margin: 0 0 0 1px; }
 .list-resize { position: absolute; inset: 0 auto 0 -4px; width: 7px; cursor: col-resize; touch-action: none; }
 .list-resize::after { content: ''; position: absolute; inset-block: 0; left: 3px; width: 1px; background: var(--edge-line, transparent); transition: background var(--dur-fast); }
 /* The divider and its tab are one resize affordance. */
@@ -63,3 +63,9 @@ html.resizing .chatlog, html.resizing .sl-scroll { pointer-events: none; }
     width: 100%; max-width: var(--mobile-content-width); margin-inline: auto;
   }
 }
+
+.shell.desktop .sessions-pane { transition: width var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out); overflow: hidden; }
+.shell.desktop .sessions-pane.is-collapsed { width: 0; opacity: 0; border-right: 0; pointer-events: none; visibility: hidden; transition: width var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out), visibility 0s var(--dur); }
+html.resizing .sessions-pane { transition: none; }
+.session-list-toggle svg { transition: transform var(--dur) var(--ease-out); }
+.session-list-toggle[aria-expanded="false"] svg { transform: rotate(180deg); }

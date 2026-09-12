@@ -27,7 +27,7 @@ onMounted(applySavedListWidth);
 <template>
   <div class="sessions-split">
     <template v-if="!isMobile || showList">
-      <SessionList v-show="showList" id="session-list" />
+      <SessionList v-show="!isMobile || showList" :class="{ 'is-collapsed': !isMobile && !showList }" id="session-list" />
     </template>
     <div v-if="!isMobile" class="session-list-edge">
       <Hint text="↔"><div v-show="showList" class="list-resize" role="separator" aria-orientation="vertical"
