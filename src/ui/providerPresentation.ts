@@ -11,7 +11,7 @@ const billing: Record<string, [string, string]> = {
   token_plan: ['Token Plan', 'Token Plan'], payg_workspace: ['workspace · 按量付费', 'workspace · Pay as you go'],
   subscription: ['订阅', 'Subscription'], local: ['本地运行', 'Local'],
 };
-export const providerName = (name: string) => i18n.locale.value === 'zh' ? names[name] || name : name;
+export const providerName = (name: string) => ['Z.ai', 'Z AI', 'Z.AI'].includes(name) ? 'Z.AI' : i18n.locale.value === 'zh' ? names[name] || name : name;
 export function presetDescription(preset: ProviderPreset) {
   const zh = i18n.locale.value === 'zh';
   const region = zh ? regions[preset.region] || preset.region : preset.region.toUpperCase();
@@ -24,5 +24,5 @@ export const presetLabel = (preset: ProviderPreset) => `${providerName(preset.pr
 // remain authoritative in the backend preset catalog.
 export function presetBrand(id: string) {
   const prefix = id.split('_')[0];
-  return ({ mimo: 'MiMo', zai: 'Z.ai', zhipu: 'Zhipu', siliconflow: 'SiliconFlow', qwen: 'Qwen', kimi: 'Kimi', tencent: 'Tencent Hunyuan (TokenHub)', openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google Gemini', aws: 'AWS Bedrock', minimax: 'MiniMax', openrouter: 'OpenRouter', huggingface: 'Hugging Face Router', opencode: 'OpenCode', mistral: 'Mistral', xai: 'xAI', groq: 'Groq', cerebras: 'Cerebras', ollama: 'Ollama', lm: 'LM Studio', vllm: 'vLLM', deepseek: 'DeepSeek' } as Record<string, string>)[prefix];
+  return ({ mimo: 'MiMo', zai: 'Z.AI', zhipu: 'Zhipu', siliconflow: 'SiliconFlow', qwen: 'Qwen', kimi: 'Kimi', tencent: 'Tencent Hunyuan (TokenHub)', openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google Gemini', aws: 'AWS Bedrock', minimax: 'MiniMax', openrouter: 'OpenRouter', huggingface: 'Hugging Face Router', opencode: 'OpenCode', mistral: 'Mistral', xai: 'xAI', groq: 'Groq', cerebras: 'Cerebras', ollama: 'Ollama', lm: 'LM Studio', vllm: 'vLLM', deepseek: 'DeepSeek' } as Record<string, string>)[prefix];
 }

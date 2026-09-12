@@ -25,7 +25,7 @@ import lmstudio from '@lobehub/icons-static-svg/icons/lmstudio.svg?url';
 import vllm from '@lobehub/icons-static-svg/icons/vllm.svg?url';
 
 const props = defineProps<{ brand?: string }>();
-const icons: Record<string, string> = { DeepSeek: deepseek, MiMo: mimo, 'Z.ai': zai, Zhipu: zai, SiliconFlow: silicon, Qwen: qwen, Kimi: kimi, 'Tencent Hunyuan (TokenHub)': hunyuan, OpenAI: openai, Anthropic: anthropic, 'Google Gemini': gemini, 'AWS Bedrock': bedrock, MiniMax: minimax, OpenRouter: openrouter, 'Hugging Face Router': huggingface, OpenCode: opencode, Mistral: mistral, xAI: xai, Groq: groq, Cerebras: cerebras, Ollama: ollama, 'LM Studio': lmstudio, vLLM: vllm };
+const icons: Record<string, string> = { DeepSeek: deepseek, MiMo: mimo, 'Z.AI': zai, 'Z.ai': zai, Zhipu: zai, SiliconFlow: silicon, Qwen: qwen, Kimi: kimi, 'Tencent Hunyuan (TokenHub)': hunyuan, OpenAI: openai, Anthropic: anthropic, 'Google Gemini': gemini, 'AWS Bedrock': bedrock, MiniMax: minimax, OpenRouter: openrouter, 'Hugging Face Router': huggingface, OpenCode: opencode, Mistral: mistral, xAI: xai, Groq: groq, Cerebras: cerebras, Ollama: ollama, 'LM Studio': lmstudio, vLLM: vllm };
 const source = computed(() => props.brand ? icons[props.brand] : undefined);
 const maskImage = computed(() => `url("${source.value}")`);
 </script>

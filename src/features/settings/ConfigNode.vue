@@ -11,7 +11,7 @@ import { openConfigDialog } from './config-dialog';
 import AddProvider from './AddProvider.vue';
 import PresetProvider from './PresetProvider.vue';
 import { protocolPresentation } from '../../ui/protocolPresentation';
-import { presetLabel } from '../../ui/providerPresentation';
+import { presetLabel, presetBrand } from '../../ui/providerPresentation';
 
 const props = withDefaults(defineProps<{
   value: Json;
@@ -178,7 +178,7 @@ function itemTitle(item: Json, index: number) {
     <div v-else-if="selectOptions" class="cfg-input-wrap">
       <SelectField :id="pointer(path)" :aria-describedby="hintId" :model-value="String(value)" :placeholder="tr('未选择', 'Not selected')"
         :disabled="!selectOptions.some(option => option !== '')"
-        :options="[...(value && !selectOptions.includes(String(value)) ? [String(value)] : []), ...selectOptions].filter(option => option !== '').map(option => ({ value: option, label: displayOption(option), brand: key === 'protocol' ? protocolPresentation(option).brand : undefined }))" @update:model-value="setValue" />
+        :options="[...(value && !selectOptions.includes(String(value)) ? [String(value)] : []), ...selectOptions].filter(option => option !== '').map(option => ({ value: option, label: displayOption(option), brand: key === 'protocol' ? protocolPresentation(option).brand : key === 'preset' ? presetBrand(option) : undefined, annotation: key === 'protocol' ? protocolPresentation(option).annotation : undefined }))" @update:model-value="setValue" />
       <button v-if="required !== true && value && selectOptions.includes('')" type="button" class="btn ghost" :aria-label="`${tr('清空', 'Clear')} ${name}`" @click="setValue('')">{{ tr('清空', 'Clear') }}</button>
     </div>
     <div v-else class="cfg-input-wrap">
