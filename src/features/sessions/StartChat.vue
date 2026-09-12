@@ -155,8 +155,8 @@ async function send(text: string, attachments: AttachmentInput[]) {
   :deep(.composer-mobile-actions .composer-start-selection) { flex: 1; min-width: 0; padding: 0; }
   .mobile-home .start-mark { font-size: 28px; text-align: left; margin-bottom: 16px; }
   .start-mark { font-size: 36px; margin-bottom: 24px; }
-  :deep(.composer-start) { min-height: 0; padding: 10px; }
-  :deep(.composer-start .composer-editor), :deep(.composer-start textarea) { min-height: 44px; }
+  :deep(.composer-start) { min-height: 0; padding: 10px 10px 14px; }
+  :deep(.composer-start .composer-editor), :deep(.composer-start textarea) { min-height: 36px; }
 }
 @media (max-height: 500px) { .start-surface { padding-block: 8px; } .start-mark { display: none; } }
 </style>

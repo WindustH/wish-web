@@ -55,7 +55,7 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
         </RouterView>
       </div>
     </div>
-    <nav class="bbar" :aria-label="i18n.t('app.name')">
+    <nav class="bbar" :inert="isMobile && composerFocused" :aria-label="i18n.t('app.name')">
       <Hint :text="item.label()" v-for="item in nav" :key="item.id"><button class="nav-btn" :class="{ active: isActive(item.id) }"
         :aria-current="isActive(item.id) ? 'page' : undefined" :aria-label="item.label()" @click="go(item)">
         <Icon :name="item.icon" />
