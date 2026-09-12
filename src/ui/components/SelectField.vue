@@ -6,7 +6,7 @@ import { Check, ChevronDown } from '@lucide/vue';
 import { usePageActivity } from '../composables/usePageActivity';
 
 defineOptions({ inheritAttrs: false });
-export interface SelectOption { value: string; label: string; brand?: string; disabled?: boolean }
+export interface SelectOption { value: string; label: string; brand?: string; annotation?: string; disabled?: boolean }
 const props = defineProps<{ modelValue: string; options: SelectOption[]; placeholder?: string; disabled?: boolean }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 const pageActive = usePageActivity();
@@ -27,7 +27,7 @@ watch(pageActive, active => { if (!active) open.value = false; });
       <SelectContent class="control-select-popover" position="popper" :side-offset="5" :collision-padding="12">
         <SelectViewport class="control-select-list">
           <SelectItem v-for="option in options" :key="option.value" :value="option" :disabled="option.disabled" :text-value="option.label" :data-value="option.value" class="control-select-option">
-            <span class="select-option-label"><ProviderIcon v-if="option.brand" :brand="option.brand" /><SelectItemText>{{ option.label }}</SelectItemText></span>
+            <span class="select-option-label"><span v-if="option.annotation" class="select-option-annotation">{{ option.annotation }}</span><ProviderIcon v-if="option.brand" :brand="option.brand" /><SelectItemText>{{ option.label }}</SelectItemText></span>
             <SelectItemIndicator><Check :size="15" aria-hidden="true" /></SelectItemIndicator>
           </SelectItem>
         </SelectViewport>
@@ -39,4 +39,5 @@ watch(pageActive, active => { if (!active) open.value = false; });
 <style scoped>
 .select-option-label { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .select-option-label > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.select-option-annotation { flex: none; max-width: 10rem; padding: 2px 6px; border-radius: 4px; background: var(--bg); color: var(--fg-subtle); font-size: 10px; line-height: 1.4; white-space: normal; }
 </style>
