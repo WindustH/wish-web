@@ -135,9 +135,9 @@ function itemTitle(item: Json, index: number) {
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <p v-if="!value.length" class="cfg-hint">{{ tr('尚未添加项目。', 'No items yet.') }}</p>
     <div v-for="(item, index) in value" :key="index" class="cfg-array-item" :class="{ 'cfg-array-row': isObject(item), 'cfg-array-scalar': item === null || typeof item !== 'object' }">
-      <ConfigLink v-if="isObject(item)" :path="[...path, String(index)]" :title="itemTitle(item, index)" :brand="itemBrand(item)" :enabled="path[0] === 'providerd' && key === 'providers' ? item.enabled !== false : undefined" @update:enabled="editor.set([...path, String(index), 'enabled'], $event)" />
+      <ConfigLink v-if="isObject(item)" :path="[...path, String(index)]" :title="itemTitle(item, index)" :brand="itemBrand(item)" :enabled="path[0] === 'providerd' && key === 'providers' ? item.enabled !== false : undefined" @update:enabled="editor.set([...path, String(index), 'enabled'], $event)" @remove="editor.remove([...path, String(index)])" />
       <ConfigNode v-else :value="item" :path="[...path, String(index)]" :title="`${name} ${index + 1}`" :editor="editor" :catalog="catalog" />
-      <button type="button" class="btn ghost cfg-remove" :aria-label="`${tr('删除', 'Remove')} ${itemTitle(item, index)}`" @click="editor.remove([...path, String(index)])"><Trash2 :size="16" />{{ tr('删除', 'Remove') }}</button>
+      <button v-if="!(isObject(item) && path[0] === 'providerd' && key === 'providers')" type="button" class="btn ghost cfg-remove" :aria-label="`${tr('删除', 'Remove')} ${itemTitle(item, index)}`" @click="editor.remove([...path, String(index)])"><Trash2 :size="16" />{{ tr('删除', 'Remove') }}</button>
     </div>
     <button v-if="key === 'providers' && path[0] === 'providerd'" type="button" class="btn" @click="addProviderOpen = true"><Plus :size="16" />{{ tr('添加模型提供商', 'Add provider') }}</button>
     <button v-else type="button" class="btn" @click="addItem"><Plus :size="16" />{{ tr('添加', 'Add') }}{{ name }}</button>
