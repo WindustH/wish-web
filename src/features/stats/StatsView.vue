@@ -67,8 +67,8 @@ onDeactivated(stats.stopAuto);
           <div class="statistics-table-wrap"><table class="table statistics-table">
             <thead><tr><th>{{ tx('提供商', 'Provider') }}</th><th>{{ tx('模型', 'Model') }}</th><th>{{ i18n.t('stats.tokensIn') }}</th><th>{{ i18n.t('stats.tokensOut') }}</th><th>{{ i18n.t('stats.tokensTotal') }}</th></tr></thead>
             <tbody><tr v-for="row in rows" :key="JSON.stringify([row.provider, row.model])">
-              <td>{{ row.provider ?? tx('未记录', 'Not recorded') }}</td><td>{{ row.model ?? tx('未记录', 'Not recorded') }}</td>
-              <td>{{ fmtTokens(row.totals.tokens.input_tokens) }}</td><td>{{ fmtTokens(row.totals.tokens.output_tokens) }}</td><td>{{ fmtTokens(row.totals.tokens.total_tokens) }}</td>
+              <td :data-label="tx('提供商', 'Provider')">{{ row.provider ?? tx('未记录', 'Not recorded') }}</td><td :data-label="tx('模型', 'Model')">{{ row.model ?? tx('未记录', 'Not recorded') }}</td>
+              <td :data-label="i18n.t('stats.tokensIn')">{{ fmtTokens(row.totals.tokens.input_tokens) }}</td><td :data-label="i18n.t('stats.tokensOut')">{{ fmtTokens(row.totals.tokens.output_tokens) }}</td><td :data-label="i18n.t('stats.tokensTotal')">{{ fmtTokens(row.totals.tokens.total_tokens) }}</td>
             </tr><tr v-if="!rows.length"><td colspan="5" class="hint">{{ tx('还没有用量记录。', 'No usage records yet.') }}</td></tr></tbody>
           </table></div>
         </section>
@@ -111,7 +111,8 @@ onDeactivated(stats.stopAuto);
 <style scoped>
 .statistics-page { padding: 0 clamp(20px, 3vw, 40px) 32px; }
 .statistics-page > * { width: 100%; max-width: 1100px; margin-inline: auto; }
-.statistics-body { padding: 0; }
+.statistics-body { padding: 0; min-width: 0; }
+.statistics-usage { min-width: 0; }
 .statistics-toolbar { display: flex; flex: none; align-items: center; justify-content: end; gap: 12px; padding-block: 10px; }
 .statistics-grid { display: grid; gap: 20px; min-width: 0; }
 .statistics-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; min-width: 0; }
@@ -130,7 +131,7 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 .distribution-legend { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; font-size: 13px; }
 .distribution-legend li { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .distribution-legend i { width: 8px; height: 8px; flex: none; border-radius: 2px; }
-.distribution-legend span { overflow-wrap: anywhere; }
+.distribution-legend span { min-width: 0; overflow-wrap: anywhere; }
 .distribution-legend strong { font-weight: 500; margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .statistics-detail h2 { font-size: 14px; margin-bottom: 12px; }
 .statistics-detail h3 { font-size: 12px; color: var(--fg-muted); margin: 14px 0 8px; }
@@ -150,4 +151,17 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 .storage-bar { display: flex; overflow: hidden; border-radius: 4px; height: 10px; background: var(--bg-raised); margin: 10px 0 12px; }
 .storage-bar span { flex: none; }
 @media (max-width: 450px) { .model-share { grid-template-columns: minmax(100px, 130px) minmax(0, 1fr); gap: 10px; } .model-share :deep(.usage-canvas) { height: 140px; } }
+@media (max-width: 599px) {
+  .statistics-page { padding-inline: 12px; }
+  .statistics-toolbar { flex-wrap: wrap; gap: 6px; }
+  .statistics-usage { padding: 16px 12px; }
+  .model-share { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .model-share :deep(.usage-canvas) { height: 180px; }
+  .statistics-table { white-space: normal; }
+  .statistics-table thead { display: none; }
+  .statistics-table tbody, .statistics-table tr { display: block; }
+  .statistics-table tr { padding-block: 10px; border-bottom: 1px solid var(--line); }
+  .statistics-table td { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border: 0; overflow-wrap: anywhere; text-align: right; }
+  .statistics-table td::before { content: attr(data-label); flex: none; color: var(--fg-muted); }
+}
 </style>

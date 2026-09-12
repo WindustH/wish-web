@@ -57,7 +57,7 @@
 .menu-pop { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px; min-width: 180px; box-shadow: var(--shadow-pop); z-index: 70; animation: menu-in var(--dur-fast) var(--ease-out); }
 .menu-item { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 0; background: none; color: var(--fg); border-radius: 4px; cursor: pointer; }
 .menu-item:hover, .menu-item[data-highlighted] { background: var(--bg-hover); }
-.toast-region { position: fixed; bottom: calc(var(--h-bottombar) + 16px); left: 50%; transform: translateX(-50%); z-index: 90; display: flex; flex-direction: column; gap: 8px; pointer-events: none; max-width: calc(100vw - 32px); }
+.toast-region { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 16px); left: 50%; transform: translateX(-50%); z-index: 90; display: flex; flex-direction: column; gap: 8px; pointer-events: none; max-width: calc(100vw - 32px); }
 .desktop .toast-region { bottom: 24px; }
 .toast { background: var(--bg-raised); color: var(--fg); border: 1px solid var(--line); padding: 8px 12px; border-radius: var(--radius); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; box-shadow: var(--shadow-pop); }
 .toast-enter-active, .toast-leave-active { transition: opacity var(--dur-fast), transform var(--dur-fast); }
