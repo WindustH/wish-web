@@ -34,8 +34,8 @@
 .shell.mobile { padding-bottom: env(safe-area-inset-bottom); }
 .mobile-secondary-header { display: flex; flex: none; align-items: center; gap: 8px; min-height: 44px; padding: 4px 12px; border-bottom: 1px solid var(--line); font-size: 14px; }
 .session-list-edge { position: relative; width: 0; flex: none; z-index: 25; }
-.session-list-toggle { position: absolute; top: 50%; right: 0; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 68px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--edge-icon, var(--fg-subtle)); cursor: pointer; transition: color var(--dur-fast); }
-.session-list-toggle::before { content: ''; position: absolute; inset: 0 0 0 12px; background: var(--edge-tab, var(--bg-hover)); border-radius: 100% 0 0 100% / 50% 0 0 50%; transition: background var(--dur-fast); }
+.session-list-toggle { position: absolute; top: 50%; right: 0; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 56px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--edge-icon, var(--fg-subtle)); cursor: pointer; transition: color var(--dur-fast); }
+.session-list-toggle::before { content: ''; position: absolute; inset: 0 0 0 12px; background: var(--edge-tab, var(--bg-hover)); clip-path: path("M 12 0 C 12 10 0 10 0 20 L 0 36 C 0 46 12 46 12 56 Z"); transition: background var(--dur-fast); }
 .session-list-toggle svg { position: relative; justify-self: end; margin-right: 1px; }
 .session-list-toggle:hover { color: var(--edge-icon, var(--fg)); }
 .session-list-toggle:hover::before { background: var(--edge-tab, var(--bg-active)); }
