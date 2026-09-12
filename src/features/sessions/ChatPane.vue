@@ -39,7 +39,10 @@ const modelOpen = ref(false);
 const reasoningOpen = ref(false);
 watch(id, () => { modelOpen.value = false; reasoningOpen.value = false; });
 
-const closeTab = () => router.push({ name: 'chat', params: { id: id.value } });
+const closeTab = (ownerPath = route.fullPath) => {
+  if (router.currentRoute.value.fullPath !== ownerPath) return;
+  return router.push({ name: 'chat', params: { id: id.value } });
+};
 const goTab = (t: string) => {
   if (tab.value === t) { if (isMobile.value) closeTab(); else panelClose.value?.(); }
   else router.push({ name: `chat-${t}`, params: { id: id.value } });
@@ -80,7 +83,9 @@ const goTab = (t: string) => {
     </div>
     <ChatLog :session-id="id" :mobile="isMobile" />
     <Composer :session-id="id" :mobile="isMobile" />
-    <RouterView @close="closeTab" />
+    <RouterView v-slot="{ Component, route: panelRoute }">
+      <component :is="Component" :key="panelRoute.fullPath" @close="closeTab(panelRoute.fullPath)" />
+    </RouterView>
     <ModelSettings v-if="modelOpen" :session-id="id" @close="modelOpen = false" />
     <ReasoningSettings v-if="reasoningOpen" :session-id="id" @close="reasoningOpen = false" />
   </div>

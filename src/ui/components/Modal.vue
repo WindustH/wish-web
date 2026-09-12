@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, inject, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { usePageActivity } from '../composables/usePageActivity';
 // Centered confirm/content modal on Reka primitives (title/description
 // wired for a11y). While `dismissable` is false no path closes it — Esc,
@@ -18,9 +18,9 @@ const emit = defineEmits<{ close: [] }>();
 const closing = ref(false);
 const bubble = computed(() => !props.page && !!props.contentClass?.split(' ').includes('session-window'));
 const panelClose = inject(sessionPanelCloseKey, null);
-watch(bubble, value => {
+watch([bubble, pageActive], ([value, active]) => {
   if (!panelClose) return;
-  if (value) panelClose.value = requestClose;
+  if (value && active) panelClose.value = requestClose;
   else if (panelClose.value === requestClose) panelClose.value = null;
 }, { immediate: true });
 onBeforeUnmount(() => { if (panelClose?.value === requestClose) panelClose.value = null; });
@@ -31,6 +31,8 @@ function opened(event: Event) {
 function outside(event: Event) {
   if (!props.dismissable || (bubble.value && (event.target as Element)?.closest?.('[data-session-panel]'))) event.preventDefault();
 }
+watch(pageActive, active => { if (!active) closing.value = false; }, { flush: 'sync' });
+watch([pageActive, bubble], async ([active]) => { if (active) { await nextTick(); positionBubble(); } });
 const anchorStyle = ref<Record<string, string>>({});
 function positionBubble() {
   if (!bubble.value) return;
@@ -43,12 +45,12 @@ function positionBubble() {
 onMounted(() => { positionBubble(); window.addEventListener('resize', positionBubble); });
 onBeforeUnmount(() => window.removeEventListener('resize', positionBubble));
 function requestClose() {
-  if (!props.dismissable || closing.value) return;
+  if (!pageActive.value || !props.dismissable || closing.value) return;
   if (!props.page && props.contentClass?.split(' ').includes('session-window')) closing.value = true;
   else emit('close');
 }
 function finishClose(event: AnimationEvent) {
-  if (closing.value && event.target === event.currentTarget) emit('close');
+  if (pageActive.value && closing.value && event.target === event.currentTarget) emit('close');
 }
 </script>
 
