@@ -162,7 +162,12 @@ function itemTitle(item: Json, index: number) {
       <p v-if="hint" :id="hintId" class="cfg-hint">{{ hint }}</p>
     </div>
     <SwitchRoot v-if="typeof value === 'boolean'" :id="pointer(path)" :aria-describedby="hintId" :model-value="value" class="cfg-switch" @update:model-value="editor.set(path, $event)"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot>
-    <SelectField v-else-if="selectOptions" :id="pointer(path)" :aria-describedby="hintId" :model-value="String(value)" :options="[...(selectOptions.includes(String(value)) ? [] : [String(value)]), ...selectOptions].map(option => ({ value: option, label: option === '' ? tr('未选择', 'Not selected') : displayOption(option) }))" @update:model-value="setValue" />
+    <div v-else-if="selectOptions" class="cfg-input-wrap">
+      <SelectField :id="pointer(path)" :aria-describedby="hintId" :model-value="String(value)" :placeholder="tr('未选择', 'Not selected')"
+        :disabled="!selectOptions.some(option => option !== '')"
+        :options="[...(value && !selectOptions.includes(String(value)) ? [String(value)] : []), ...selectOptions].filter(option => option !== '').map(option => ({ value: option, label: displayOption(option) }))" @update:model-value="setValue" />
+      <button v-if="required !== true && value && selectOptions.includes('')" type="button" class="btn ghost" :aria-label="`${tr('清空', 'Clear')} ${name}`" @click="setValue('')">{{ tr('清空', 'Clear') }}</button>
+    </div>
     <div v-else class="cfg-input-wrap">
       <input class="input" :id="pointer(path)" :aria-describedby="hintId" :type="inputType" :value="inputValue" :autocomplete="secret ? 'new-password' : 'off'" :spellcheck="false"
         :aria-required="required || undefined"

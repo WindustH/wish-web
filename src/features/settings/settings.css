@@ -5,7 +5,8 @@
 .settings-main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .settings-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; scroll-padding-top: var(--settings-anchor-offset); }
 .settings-panels, .settings-results { padding: 0 8px 32px 0; }
-.settings-actions { flex: none; }
+.settings-actions { flex: none; display: flex; justify-content: center; padding: 0 8px; }
+.settings-actions:has(.cfg-savebar) { padding-block: 12px max(16px, env(safe-area-inset-bottom)); }
 .settings-search { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 7px; padding: 0 8px; margin-bottom: 14px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--bg-raised); color: var(--fg-subtle); }
 .settings-search > svg { flex: none; }
 .settings-search input { width: 100%; border: 0 !important; background: transparent !important; padding: 8px 0 !important; }
@@ -50,7 +51,7 @@
 .cfg-field-label small { display: inline; color: var(--fg-muted); margin-left: 8px; font-size: 12px; }
 .cfg-property + .cfg-property { border-top: 1px solid var(--line); }
 .cfg-input-wrap, .cfg-inline { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.cfg-input-wrap input, .cfg-inline input, .cfg-inline .control-select { flex: 1; width: 100%; }
+.cfg-input-wrap .control-select, .cfg-input-wrap input, .cfg-inline input, .cfg-inline .control-select { flex: 1; width: 100%; }
 .cfg-switch { flex: 0 0 auto; justify-self: end; width: 42px; height: 24px; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--bg-sunken); cursor: pointer; }
 .cfg-switch[data-state="checked"] { background: var(--accent); border-color: var(--accent); }
 .cfg-switch-thumb { display: block; width: 18px; height: 18px; background: var(--fg-muted); border-radius: 50%; transform: translateX(0); transition: transform 160ms ease, background 160ms ease; }
@@ -70,8 +71,8 @@
 .cfg-remove-field { margin-bottom: 8px; font-size: 12px; color: var(--fg-muted); }
 .cfg-add-field { margin-top: 16px; display: grid; gap: 8px; }
 .cfg-add-field > label { font-size: 13px; color: var(--fg-muted); }
-.cfg-savebar { padding: 10px var(--settings-gutter); border-top: 1px solid var(--line-strong); background: var(--bg-raised); }
-.cfg-savebar-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 1100px; margin-inline: auto; }
+.cfg-savebar { width: fit-content; max-width: 100%; padding: 10px 12px 10px 18px; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--bg-raised); box-shadow: var(--shadow-pop); }
+.cfg-savebar-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .cfg-savebar-inner > span { font-size: 13px; font-weight: 500; }
 .cfg-savebar-actions { display: flex; flex: none; gap: 10px; }
 .cfg-savebar-enter-active { transition: opacity 160ms ease, transform 160ms var(--ease-out); }
@@ -109,7 +110,7 @@
   .cfg-heading { flex-wrap: wrap; gap: 12px; }
   .cfg-field { grid-template-columns: minmax(0, 1fr); gap: 9px; }
   .cfg-field:has(> .cfg-switch) { grid-template-columns: minmax(0, 1fr) auto; }
-  .cfg-savebar { padding-block: 10px; }
+  .cfg-savebar { padding: 10px 12px; }
   .cfg-savebar-inner { flex-wrap: wrap; gap: 10px; }
   .cfg-savebar-actions { margin-left: auto; }
   .cfg-savebar-actions .btn { min-height: 40px; }
@@ -167,3 +168,5 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.cfg-leave-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
+import Modal from '../../ui/components/Modal.vue';
 import { Monitor, Server, Network, Search, X, ChevronDown } from '@lucide/vue';
 import ConfigEditor from './ConfigEditor.vue';
 import UiSettings from './UiSettings.vue';
@@ -7,6 +9,51 @@ import { fieldHint, fieldLabel, tr } from './fields';
 import { configEditors, errorText, pointer } from '../../core/config-editor';
 import type { ConfigOwner, Json } from '../../core/config-editor';
 import './settings.css';
+
+const leaveOpen = ref(false);
+const leaving = ref(false);
+const leaveError = ref('');
+let resolveLeave: ((allow: boolean) => void) | undefined;
+const dirtyEditors = computed(() => Object.values(configEditors).filter(editor => editor.dirty.value));
+function finishLeave(allow: boolean) {
+  leaveOpen.value = false;
+  resolveLeave?.(allow);
+  resolveLeave = undefined;
+}
+onBeforeRouteLeave(() => {
+  if (!dirtyEditors.value.length) return true;
+  // A second navigation cancels the older pending target.
+  resolveLeave?.(false);
+  leaveError.value = '';
+  leaveOpen.value = true;
+  return new Promise<boolean>(resolve => { resolveLeave = resolve; });
+});
+async function leaveWith(action: 'save' | 'discard') {
+  if (Object.values(configEditors).some(editor => editor.busy.value)) return;
+  leaving.value = true;
+  leaveError.value = '';
+  try {
+    for (const editor of dirtyEditors.value) {
+      if (action === 'discard') { editor.discard(); continue; }
+      const view = editor.owner === 'wishd' ? coreEditor.value : providerEditor.value;
+      if (!view?.validate()) {
+        finishLeave(false);
+        tab.value = editor.owner;
+        return;
+      }
+      if (!await editor.preview() || !await editor.save()) {
+        leaveError.value = errorText(editor.error.value || 'Configuration could not be saved.');
+        return;
+      }
+    }
+    finishLeave(true);
+  } finally { leaving.value = false; }
+}
+function beforeUnload(event: BeforeUnloadEvent) {
+  if (dirtyEditors.value.length) { event.preventDefault(); event.returnValue = ''; }
+}
+onMounted(() => window.addEventListener('beforeunload', beforeUnload));
+onBeforeUnmount(() => { window.removeEventListener('beforeunload', beforeUnload); resolveLeave?.(false); });
 
 const tab = ref('ui');
 const visited = ref(new Set(['ui']));
@@ -148,5 +195,15 @@ onBeforeUnmount(() => { observer.disconnect(); cancelAnimationFrame(frame); });
         <div id="settings-actions" class="settings-actions" />
       </div>
     </div>
+    <Modal :open="leaveOpen" :title="tr('保存修改后离开？', 'Save changes before leaving?')" :dismissable="!leaving" @close="finishLeave(false)">
+      <p>{{ tr('配置尚未保存。请选择保存或放弃修改，也可以取消跳转继续编辑。', 'Your configuration has unsaved changes. Save or discard them, or cancel navigation to keep editing.') }}</p>
+      <p class="cfg-hint">{{ tr('需要重启才能生效的配置将保存，服务可稍后重启。', 'Changes requiring a restart will be saved; you can restart the service later.') }}</p>
+      <p v-if="leaveError" class="cfg-notice cfg-error" role="alert">{{ leaveError }}</p>
+      <template #footer><div class="cfg-leave-actions">
+        <button class="btn ghost" :disabled="leaving" @click="finishLeave(false)">{{ tr('取消跳转', 'Cancel navigation') }}</button>
+        <button class="btn" :disabled="leaving" @click="leaveWith('discard')">{{ tr('放弃修改并离开', 'Discard and leave') }}</button>
+        <button class="btn primary" :disabled="leaving" @click="leaveWith('save')">{{ tr('保存并离开', 'Save and leave') }}</button>
+      </div></template>
+    </Modal>
   </div>
 </template>
