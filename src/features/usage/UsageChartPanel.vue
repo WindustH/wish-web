@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import UsagePlot from './UsagePlot.vue';
-import Hint from '../../ui/components/Hint.vue';
-import { Info, RefreshCw } from '@lucide/vue';
+import InfoHint from '../../ui/components/InfoHint.vue';
+import { RefreshCw } from '@lucide/vue';
 import { i18n } from '../../core/i18n/index.js';
 import { cfg } from '../../core/config.js';
 import { fmtTokens } from '../../core/util/fmt.js';
@@ -37,7 +37,7 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
         <div class="usage-metrics" :aria-label="tx('统计指标', 'Metric')">
           <button class="btn ghost sm" :aria-pressed="metric === 'tps'" @click="metric = 'tps'">{{ tx('输出速度', 'Output speed') }}</button>
           <button class="btn ghost sm" :aria-pressed="metric === 'tokens'" @click="metric = 'tokens'">{{ tx('Token 消耗', 'Token usage') }}</button>
-          <Hint :text="tx('TPS = 输出 Token ÷ 首个至最后一个流式输出片段的时间。仅计入成功且有完整采样的调用，不包含首个输出前的等待、工具执行或其他 agent loop 环节。', 'TPS = output tokens / time from the first to the last streamed output delta. Only successful, timed calls count; time to first output, tools and other agent-loop work are excluded.')"><button class="btn ghost icon-only sm" :aria-label="tx('计算方式', 'Calculation')"><Info :size="15" /></button></Hint>
+          <InfoHint :label="tx('计算方式', 'Calculation')" :text="tx('TPS = 输出 Token ÷ 首个至最后一个流式输出片段的时间。仅计入成功且有完整采样的调用，不包含首个输出前的等待、工具执行或其他 agent loop 环节。', 'TPS = output tokens / time from the first to the last streamed output delta. Only successful, timed calls count; time to first output, tools and other agent-loop work are excluded.')" />
         </div>
         <div class="usage-range" :aria-label="tx('时间范围', 'Time range')">
           <button v-for="period in [['day', tx('过去一天', 'Past day')], ['week', tx('过去一周', 'Past week')]]" :key="period[0]" class="btn ghost sm" :aria-pressed="range === period[0]" @click="emit('range', period[0]!)">{{ period[1] }}</button>
