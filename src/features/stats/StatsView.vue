@@ -146,7 +146,17 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 .storage-legend small { color: var(--fg-muted); font-size: 11px; }
 .storage-legend strong { margin-left: 0; min-width: 65px; text-align: right; }
 @media (max-width: 899px) { .statistics-footer { grid-template-columns: 1fr; gap: 0; } }
-@media (min-width: 900px) { .statistics-usage > .statistics-values { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 900px) {
+  .statistics-body :deep(.usage-charts) { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .statistics-body :deep(.usage-chart-card:first-child) { grid-column: 1; grid-row: 1; }
+  .statistics-body :deep(.usage-chart-card:last-child) { grid-column: 1; grid-row: 2; }
+  .statistics-usage { grid-column: 2; grid-row: 1 / span 2; }
+  .statistics-usage > .statistics-values { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .model-share { grid-template-columns: minmax(100px, 140px) minmax(0, 1fr); gap: 12px; }
+  .model-share :deep(.usage-canvas) { height: 140px; }
+  .statistics-table { white-space: normal; table-layout: fixed; }
+  .statistics-table th, .statistics-table td { overflow-wrap: anywhere; padding-inline: 6px; }
+}
 @media (max-width: 450px) { .statistics-detail .statistics-values { grid-template-columns: 1fr; } }
 .storage-bar { display: flex; overflow: hidden; border-radius: 4px; height: 10px; background: var(--bg-raised); margin: 10px 0 12px; }
 .storage-bar span { flex: none; }
