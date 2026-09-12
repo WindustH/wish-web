@@ -134,12 +134,11 @@ export function optionalFields(path: string[]): ObjectShape {
   if (key === 'default_model') return { reasoning_effort: '' };
   if (path.at(-2) === 'models') return modelFields;
   if (key === 'compat') return compatFields;
-  if (path.at(-2) === 'providers') return { api_key: '', input_count: { mode: 'provider_preflight', may_bill: false, timeout_ms: 30000 }, dialect: { allow_unverified_overrides: false, contract_version: 1 } };
-  if (path[0] === 'providerd' && path.at(-2) === 'endpoints') return { path: '', model_list: modelList, image_edit_path: '', codex };
+  if (path.at(-2) === 'providers') return { base_url: '', path: '', auth: { type: 'none' }, headers: {}, query: {}, model_list: modelList, image_edit_path: '', codex, api_key: '', input_count: { mode: 'provider_preflight', may_bill: false, timeout_ms: 30000 }, dialect: { allow_unverified_overrides: false, contract_version: 1 } };
   if (key === 'model_list') return { base_url: '', auth: { type: 'none' }, generic: { items_pointer: '/data', id_pointer: '/id' } };
   if (key === 'generic') return modelMappingFields;
   if (path.at(-2) === 'policies') return { http_url: '', https_url: '', all_url: '', auth: { type: 'basic', username: '', password: '' } };
-  if (key === 'auth' && path.includes('endpoints')) return authFields;
+  if (key === 'auth' && (path.includes('endpoints') || path.includes('providers'))) return authFields;
   if (key === 'codex') return { account_id: '' };
   if (key === 'input_count') return { request_path: '' };
   return {};
@@ -149,8 +148,7 @@ export function isMap(path: string[]) {
 }
 export function newArrayEntry(path: string[]): Json {
   const key = path.at(-1);
-  if (key === 'providers') return { id: '', preset: '', protocol: '', endpoint: '', api_key: '', credentials: {}, proxy_policy: 'inherit', enabled: true, allow_any_model: false, model_id_max_bytes: 512, models: {}, compat: {} };
-  if (key === 'endpoints' && path[0] === 'providerd') return { id: '', protocol: '', base_url: '', proxy_policy: 'inherit', auth: { type: 'none' }, headers: {}, query: {} };
+  if (key === 'providers') return { id: '', preset: '', protocol: '', base_url: '', headers: {}, query: {}, api_key: '', credentials: {}, proxy_policy: 'inherit', enabled: true, allow_any_model: false, model_id_max_bytes: 512, models: {}, compat: {} };
   if (key === 'endpoints') return { id: '', base_url: '', proxy_policy: 'inherit' };
   if (key === 'policies') return { id: '', source: 'disabled' };
   if (key === 'bindings') return { id: '', display_name: '', credential: { source: 'env', name: '' } };
@@ -181,10 +179,7 @@ export function optionsFor(path: string[], root: ConfigObject, catalog?: ConfigC
   if (key === 'protocol' && path.at(-2) === 'model_list') return ['auto', 'openai_models', 'anthropic_models', 'google_models', 'bedrock_models', 'generic_json'];
   if (key === 'protocol' && path.includes('providers') && catalog) return ['', ...(catalog.presets.find(p => p.id === object.preset)?.protocols || catalog.protocols)];
   if (key === 'protocol' && path[0] === 'providerd' && catalog) return ['', ...catalog.protocols];
-  if (key === 'endpoint' && path[0] === 'providerd') {
-    const endpoints = atPath(root, ['providerd', 'endpoints']);
-    return ['', ...(Array.isArray(endpoints) ? endpoints.filter(isObject).map(e => String(e.id)) : [])];
-  }
+
   if (['proxy_policy', 'default_policy', 'artifact_policy'].includes(key) && path[0] === 'providerd') {
     const policies = atPath(root, ['providerd', 'proxy', 'policies']);
     return [...(key === 'default_policy' ? [] : ['inherit']), ...(Array.isArray(policies) ? policies.filter(isObject).map(p => String(p.id)) : [])];

@@ -43,7 +43,7 @@ const catalogError = shallowRef<unknown>();
 const catalogBusy = ref(false);
 const root = computed(() => props.owner === 'providerd' ? draft.value?.providerd : draft.value);
 const order = props.owner === 'providerd'
-  ? ['providers', 'endpoints', 'proxy', 'upstream', 'listen', 'auth', 'http', 'model_catalog_cache_ttl_s']
+  ? ['providers', 'proxy', 'upstream', 'listen', 'auth', 'http', 'model_catalog_cache_ttl_s']
   : ['wishd', 'streaming', 'agent', 'compaction', 'images', 'attachments', 'queue', 'retry', 'shell'];
 const fields = computed(() => isObject(root.value) ? Object.keys(root.value).sort((a, b) => {
   const ai = order.indexOf(a), bi = order.indexOf(b);

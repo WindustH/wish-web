@@ -12,7 +12,7 @@ const credentials = computed(() => isObject(props.value.credentials) ? props.val
 const credentialFields = computed(() => [...props.preset.required_credentials, ...props.preset.optional_credentials]);
 const advancedDefaults = computed<ConfigObject>(() => ({ model_id_max_bytes: 512, compat: {}, ...optionalFields(props.path) }));
 const advanced = computed(() => Object.entries(advancedDefaults.value).filter(([field]) => field !== 'api_key'));
-const authRequired = computed(() => props.value.enabled !== false);
+const authRequired = computed(() => props.value.enabled !== false && !props.value.auth);
 const fieldPath = (field: string) => [...props.path, field];
 function addAdvanced(field: string) { props.editor.set(fieldPath(field), structuredClone(advancedDefaults.value[field]!)); }
 </script>
