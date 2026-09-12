@@ -22,23 +22,33 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
       lineStyle: { width: 2 }, itemStyle: { color: style.colors[(item.colorIndex ?? index) % style.colors.length] }, emphasis: { focus: 'series' } })),
   };
 }
-export function calendarOptions(days: [string, number][], style: ChartStyle, locale: string): EChartsCoreOption {
-  const max = Math.max(1, ...days.map(day => day[1]));
+export interface HeatData { buckets: { start_ms: number; total_tokens: number }[]; bucketMs: number; offsetMinutes: number }
+export function calendarOptions(heat: HeatData, style: ChartStyle, locale: string, width = 800): EChartsCoreOption {
+  const rows = width < 500 ? 14 : 7;
+  const columns = Math.ceil(heat.buckets.length / rows);
+  const max = Math.max(1, ...heat.buckets.map(bucket => bucket.total_tokens));
+  const date = (at: number, time = false) => new Date(at + heat.offsetMinutes * 60_000).toLocaleString(locale, {
+    timeZone: 'UTC', month: 'numeric', day: 'numeric', ...(time ? { hour: '2-digit' as const, minute: '2-digit' as const } : {}) });
+  const interval = heat.bucketMs < 86_400_000;
   return {
     animation: false,
     textStyle: { fontFamily: style.font, color: style.foreground },
+    grid: { top: 30, left: 2, right: 2, bottom: 2 },
     tooltip: { confine: true, renderMode: 'richText', backgroundColor: style.surface, borderColor: style.line,
       textStyle: { color: style.foreground, fontFamily: style.font, fontSize: 12 },
-      formatter: (params: any) => `${params.value[0]}\n${new Intl.NumberFormat(locale).format(params.value[1])} Token` },
-    visualMap: { show: false, type: 'piecewise', pieces: [
+      formatter: (params: any) => {
+        const bucket = heat.buckets[params.data[3]]!;
+        return `${date(bucket.start_ms, interval)}${interval ? ' – ' + date(bucket.start_ms + heat.bucketMs, true) : ''}\n${new Intl.NumberFormat(locale).format(bucket.total_tokens)} Token`;
+      } },
+    xAxis: { type: 'category', position: 'top', data: Array.from({ length: columns }, (_, i) => i),
+      axisLine: { show: false }, axisTick: { show: false }, splitArea: { show: false },
+      axisLabel: { color: style.muted, fontSize: 10, hideOverlap: true, interval: Math.max(0, Math.ceil(columns / 5) - 1), formatter: (column: string) => date(heat.buckets[Number(column) * rows]!.start_ms, heat.buckets.length * heat.bucketMs <= 86_400_000) } },
+    yAxis: { type: 'category', inverse: true, data: Array.from({ length: rows }, (_, i) => i), show: false },
+    visualMap: { show: false, dimension: 2, type: 'piecewise', pieces: [
       { value: 0, color: style.heat[0] },
       ...[0, 1, 2, 3].map(index => ({ gt: max * index / 4, lte: max * (index + 1) / 4, color: style.heat[index + 1] }))
     ] },
-    calendar: { top: 28, left: 34, right: days.length < 90 ? undefined : 8, bottom: 4, cellSize: [days.length < 90 ? 18 : 'auto', 15], range: [days[0]?.[0], days.at(-1)?.[0]],
-      splitLine: { show: false }, itemStyle: { borderWidth: 0, color: 'transparent' },
-      yearLabel: { show: false }, monthLabel: { color: style.muted, fontSize: 11, nameMap: locale.startsWith('zh') ? 'ZH' : 'EN', margin: 10 },
-      dayLabel: { firstDay: 1, color: style.muted, fontSize: 10, margin: 7, nameMap: locale.startsWith('zh') ? ['日','一','二','三','四','五','六'] : ['S','M','T','W','T','F','S'] } },
-    series: [{ type: 'heatmap', coordinateSystem: 'calendar', data: days,
+    series: [{ type: 'heatmap', data: heat.buckets.map((bucket, index) => [Math.floor(index / rows), index % rows, bucket.total_tokens, index]),
       itemStyle: { borderColor: style.surface, borderWidth: 2, borderRadius: 3 }, emphasis: { itemStyle: { borderColor: style.foreground, borderWidth: 1 } } }],
   };
 }

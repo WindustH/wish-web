@@ -14,6 +14,7 @@ export interface UsageSeriesResponse {
   groups: { samples: { at_ms: number; tps: number; attempt_id: string }[]; provider: string | null; model: string | null; window: Omit<UsageBucket, 'start_ms'>; buckets: UsageBucket[] }[];
 }
 export interface UsageDailyResponse {
-  query: { days: number; end_date: string; tz_offset_minutes: number; tz_label: string; first_day_start_ms: number; last_day_start_ms: number };
+  query: { days: number; end_date: string; tz_offset_minutes: number; tz_label: string; first_day_start_ms: number; last_day_start_ms: number; bucket_ms: number };
+  buckets: { start_ms: number; total_tokens: number }[];
   days: { date: string; input_tokens: number; output_tokens: number; total_tokens: number; attempts: number }[];
 }

@@ -98,7 +98,7 @@ export const zh = {
   'entry.toolCall': '工具调用',
   'entry.toolResult': 'Tool Result',
   'entry.system': 'System Message',
-  'entry.stoppedByUser': '用户已停止',
+  'entry.stopped': '已停止',
   'entry.interruption': '已中断',
   'entry.backgroundTerminal': '后台任务结束',
   'entry.showDetail': '查看详情',

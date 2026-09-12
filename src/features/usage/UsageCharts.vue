@@ -17,6 +17,7 @@ const series = createUsageResource((input: { sessionId?: string; query: SeriesQu
 const calendar = createUsageResource((input: { sessionId?: string; query: DailyQuery }, signal) => usageDaily(input.sessionId, input.query, { signal }));
 const data = computed(() => series.data.value && chartData(series.data.value, timezone.value));
 const days = computed(() => calendar.data.value?.days.map(day => [day.date, day.total_tokens] as [string, number]) ?? null);
+const heat = computed(() => calendar.data.value ? { buckets: calendar.data.value.buckets, bucketMs: calendar.data.value.query.bucket_ms, offsetMinutes: calendar.data.value.query.tz_offset_minutes } : null);
 let timer: ReturnType<typeof setInterval> | undefined;
 let calendarReadAt = 0;
 function readSeries(clear = false) {
@@ -48,7 +49,7 @@ onScopeDispose(stop);
 defineExpose({ refresh });
 </script>
 <template>
-  <UsageChartPanel :data="data" :days="days" :loading="series.loading.value" :calendar-loading="calendar.loading.value"
+  <UsageChartPanel :data="data" :days="days" :heat="heat" :loading="series.loading.value" :calendar-loading="calendar.loading.value"
     :error="series.error.value" :calendar-error="calendar.error.value" :range="range" :calendar-range="calendarRange"
-    @range="changeRange" @calendar-range="changeCalendarRange" @refresh="refresh" @retry-calendar="readCalendar()" />
+    @range="changeRange" @calendar-range="changeCalendarRange" @refresh="refresh" @retry-calendar="readCalendar()"><template #between><slot /></template></UsageChartPanel>
 </template>
