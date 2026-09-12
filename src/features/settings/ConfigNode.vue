@@ -84,7 +84,7 @@ const modelNumber = computed(() => modelField.value && ['context_window_tokens',
 const modelBoolean = computed(() => modelField.value && ['supports_client_tools', 'supports_reasoning'].includes(key.value));
 const object = computed<Record<string, Json> | undefined>(() => isObject(props.value)
   ? isModel.value ? { ...Object.fromEntries(modelFields.map(field => [field, field === 'reasoning_efforts' ? {} : null])), ...modelDefaults.value, ...props.value }
-    : key.value === 'models' ? { ...Object.fromEntries(Object.keys(upstreamForProvider.value).map(id => [id, {}])), ...props.value } : props.value
+    : props.path.length === 3 && props.path[0] === 'providerd' && props.path[1] === 'providers' ? { proxy_enabled: true, ...props.value } : key.value === 'models' ? { ...Object.fromEntries(Object.keys(upstreamForProvider.value).map(id => [id, {}])), ...props.value } : props.value
   : undefined);
 function removeOverride() {
   if (atPath(props.editor.draft.value!, props.path) !== undefined) props.editor.remove(props.path);
@@ -229,24 +229,26 @@ function itemTitle(item: Json, index: number) {
     <button v-else type="button" class="btn" @click="addItem"><Plus :size="16" />{{ tr('添加', 'Add') }}{{ name }}</button>
     <AddProvider v-if="addProviderOpen" :catalog="catalog" @close="addProviderOpen = false" @select="addProvider" />
   </div>
+  <div v-else-if="object && path.join('/') === 'providerd/proxy'" class="cfg-object cfg-proxy" :data-config-path="pointer(path)">
+    <p class="cfg-hint cfg-group-hint">{{ hint }}</p>
+    <ConfigNode :value="object.enabled ?? true" :path="[...path, 'enabled']" :editor="editor" :catalog="catalog" :title="tr('启用代理', 'Enable proxy')" :help="tr('关闭后，提供商请求和资源下载均直接连接。', 'When off, provider requests and resource downloads connect directly.')" />
+    <div class="cfg-property"><div class="cfg-field"><label :for="pointer([...path, 'mode'])">{{ tr('代理模式', 'Proxy mode') }}</label><SelectField segmented :id="pointer([...path, 'mode'])" :aria-label="tr('代理模式', 'Proxy mode')" :model-value="String(object.mode)" :options="[{value: 'environment', label: tr('环境变量', 'Environment')}, {value: 'manual', label: tr('自定义代理', 'Custom proxy')}]" @update:model-value="editor.set([...path, 'mode'], $event)" /></div></div>
+    <div v-if="object.mode === 'manual'" class="cfg-property"><ConfigNode :value="object.url ?? ''" :path="[...path, 'url']" :editor="editor" :catalog="catalog" :required="object.enabled === true" :title="tr('代理地址', 'Proxy URL')" :help="tr('填写 HTTP 或 HTTPS 代理地址；支持在地址中包含用户名和密码。', 'Enter an HTTP or HTTPS proxy URL; credentials can be included in the URL.')" /></div>
+  </div>
   <PresetProvider v-else-if="object && providerPreset" :value="object" :path="path" :preset="providerPreset" :editor="editor" :catalog="catalog!" />
   <div v-else-if="object" class="cfg-object" :data-config-path="pointer(path)">
     <div v-if="modelField && key === 'reasoning_efforts'" class="cfg-field-label">{{ name }} <small v-if="sourceLabel">{{ sourceLabel }}</small></div>
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <template v-for="(child, field) in object" :key="field">
-      <div v-if="!(path.length === 3 && path[0] === 'providerd' && path[1] === 'providers' && field === 'enabled')" class="cfg-property" :class="{ 'cfg-property-removable': (isMap(path) || field in optional) && key !== 'models' && field !== 'proxy_policy' }">
-        <details v-if="path.length === 3 && path[0] === 'providerd' && path[1] === 'providers' && field === 'proxy_policy'" class="cfg-nested">
-          <summary><ChevronDown :size="16" /><span>{{ fieldLabel([...path, field]) }}</span><small>{{ settingOption([...path, field], String(child)).label }}</small></summary>
-          <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" />
-        </details>
-        <ConfigNode v-else-if="isModel && child !== null && typeof child === 'object'" :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" />
+      <div v-if="!(path.length === 3 && path[0] === 'providerd' && path[1] === 'providers' && field === 'enabled')" class="cfg-property" :class="{ 'cfg-property-removable': (isMap(path) || field in optional) && key !== 'models' && field !== 'proxy_enabled' }">
+        <ConfigNode v-if="isModel && child !== null && typeof child === 'object'" :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" />
         <ConfigLink v-else-if="(path[0] === 'providerd' && path[1] === 'providers') && (isObject(child) || (Array.isArray(child) && child.some(isObject)))" :path="[...path, field]" :title="isMap(path) ? field : fieldLabel([...path, field])" :menu="key === 'models'" :removable="atPath(editor.draft.value!, [...path, field]) !== undefined" :remove-label="field in upstreamForProvider ? tr('清除覆盖', 'Clear overrides') : tr('删除', 'Delete')" @remove="removeField([...path, field])" />
         <details v-else-if="child !== null && typeof child === 'object'" class="cfg-nested" :open="isMap(path)">
           <summary><ChevronDown :size="16" /><span>{{ isMap(path) ? field : fieldLabel([...path, field]) }}</span><small v-if="Array.isArray(child)">{{ child.length }}</small></summary>
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
         </details>
         <ConfigNode v-else :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
-        <Hint v-if="(isMap(path) || field in optional) && key !== 'models' && field !== 'proxy_policy' && (atPath(editor.draft.value!, [...path, field]) !== undefined)" :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : fieldLabel([...path, field])}`" @click="removeField([...path, field])"><Trash2 :size="15" /></button></Hint>
+        <Hint v-if="(isMap(path) || field in optional) && key !== 'models' && field !== 'proxy_enabled' && (atPath(editor.draft.value!, [...path, field]) !== undefined)" :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : fieldLabel([...path, field])}`" @click="removeField([...path, field])"><Trash2 :size="15" /></button></Hint>
       </div>
     </template>
     <AddOptionalSetting v-if="!isMap(path)" :options="available.map(field => ({ value: field, label: label(field) }))" @add="addKey = $event; addField()" />
