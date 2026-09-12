@@ -256,13 +256,13 @@ function resizeKeys(e: KeyboardEvent) {
       <span>{{ i18n.t('chat.capError') }}</span>
       <button class="btn ghost sm" @click="() => chat.reloadCapabilities()">{{ i18n.t('common.retry') }}</button>
     </div>
-    <div v-if="mobile && start" class="composer-start-selection"><slot name="selection" /></div>
     <div v-if="mobile" class="composer-mobile-actions">
       <Hint :text="i18n.t('chat.image')"><button class="btn ghost icon-only"
         :aria-label="i18n.t('chat.image')" @click="attach('image')"><Icon name="image" /></button></Hint>
       <Hint :text="i18n.t('chat.attach')"><button class="btn ghost icon-only"
         :aria-label="i18n.t('chat.attach')" @click="attach('file')"><Icon name="paperclip" /></button></Hint>
-      <div class="grow" />
+      <div v-if="start" class="composer-start-selection"><slot name="selection" /></div>
+      <div v-else class="grow" />
       <Hint :text="i18n.t(running ? 'chat.stop' : 'chat.send')"><button class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
         :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')"
         @click="running ? onStop() : submit()">

@@ -145,10 +145,10 @@ async function send(text: string, attachments: AttachmentInput[]) {
 @media (max-width: 899px) {
   .start-chat { padding: 48px 16px 16px; }
   .start-surface { padding-block: 16px 8vh; }
-  .mobile-home { display: block; padding: 20px 16px 24px; }
-  .mobile-home .start-surface { margin: 0 auto; padding: 0; }
+  .mobile-home { flex-direction: column; justify-content: flex-start; padding: 24px 16px; }
+  .mobile-home .start-surface { flex-shrink: 0; margin: auto; padding: 0; }
+  :deep(.composer-mobile-actions .composer-start-selection) { flex: 1; min-width: 0; padding: 0; }
   .mobile-home .start-mark { font-size: 28px; text-align: left; margin-bottom: 16px; }
-  .mobile-home :deep(.composer-start) { min-height: 170px; }
   .start-mark { font-size: 36px; margin-bottom: 24px; }
   :deep(.composer-start) { min-height: 0; padding: 10px; }
   :deep(.composer-start .composer-editor), :deep(.composer-start textarea) { min-height: 44px; }
