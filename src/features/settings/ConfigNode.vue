@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from '../../ui/components/Hint.vue';
 import { computed, inject, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { ChevronDown, Plus, Trash2 } from '@lucide/vue';
@@ -148,7 +149,7 @@ function itemTitle(item: Json, index: number) {
   <div v-else-if="object" class="cfg-object" :data-config-path="pointer(path)">
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <template v-for="(child, field) in object" :key="field">
-      <div v-if="!(path.length === 3 && path[0] === 'providerd' && path[1] === 'providers' && field === 'enabled')" class="cfg-property">
+      <div v-if="!(path.length === 3 && path[0] === 'providerd' && path[1] === 'providers' && field === 'enabled')" class="cfg-property" :class="{ 'cfg-property-removable': (isMap(path) || field in optional) && field !== 'proxy_policy' }">
         <details v-if="path.length === 3 && path[0] === 'providerd' && path[1] === 'providers' && field === 'proxy_policy'" class="cfg-nested">
           <summary><ChevronDown :size="16" /><span>{{ fieldLabel([...path, field]) }}</span><small>{{ settingOption([...path, field], String(child)).label }}</small></summary>
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" />
@@ -159,7 +160,7 @@ function itemTitle(item: Json, index: number) {
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
         </details>
         <ConfigNode v-else :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
-        <button v-if="(isMap(path) || field in optional) && field !== 'proxy_policy'" type="button" class="btn ghost cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : fieldLabel([...path, field])}`" @click="editor.remove([...path, field])"><Trash2 :size="15" /><span>{{ tr('移除设置', 'Remove override') }}</span></button>
+        <Hint v-if="(isMap(path) || field in optional) && field !== 'proxy_policy'" :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : fieldLabel([...path, field])}`" @click="editor.remove([...path, field])"><Trash2 :size="15" /></button></Hint>
       </div>
     </template>
     <AddOptionalSetting v-if="!isMap(path)" :options="available.map(field => ({ value: field, label: label(field) }))" @add="addKey = $event; addField()" />
