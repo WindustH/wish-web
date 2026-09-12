@@ -131,9 +131,6 @@
 .cfg-edit-row > div { flex: 1; min-width: 0; }
 .cfg-edit-row strong { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
 .cfg-edit-row > button { flex: none; }
-.cfg-window-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; width: 100%; }
-.cfg-window-actions .grow { flex: 1; }
-.cfg-window-actions .cfg-hint { margin: 0; }
 .cfg-editor-window .cfg-field:first-child { padding-top: 0; }
 .cfg-nested h4 { margin: 0 0 8px; font-size: 13px; font-weight: 500; }
 
@@ -177,3 +174,5 @@
 .cfg-property-removable > .cfg-remove-field { margin: 16px 0 0; }
 .cfg-property-removable > :first-child { min-width: 0; }
 .cfg-provider-advanced > .cfg-property { padding-block: 4px; }
+
+.cfg-window-status { font-size: 11px; color: var(--fg-subtle); }
