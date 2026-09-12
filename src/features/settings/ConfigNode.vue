@@ -3,7 +3,7 @@ import { resolvedEffort } from '../sessions/reasoningLabels';
 import type { ModelInfo } from '../../core/provider-catalog';
 import { upstreamModelsKey } from './upstream-models';
 import Hint from '../../ui/components/Hint.vue';
-import { computed, inject, ref } from 'vue';
+import { computed, inject, nextTick, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { ChevronDown, Plus, Trash2 } from '@lucide/vue';
 import { atPath, isObject, pointer } from '../../core/config-editor';
@@ -97,6 +97,21 @@ const secret = computed(() => isSecret(props.path, props.value));
 const selectOptions = computed(() => optionsFor(props.path, props.editor.draft.value!, props.catalog));
 const inputValue = computed(() => props.value === '<redacted>' ? '' : String(props.value ?? ''));
 const addKey = ref('');
+const addingEntry = ref(false);
+const entryInput = ref<HTMLInputElement>();
+const entryButton = ref<HTMLButtonElement>();
+async function beginEntry() {
+  addingEntry.value = true;
+  await nextTick();
+  entryInput.value?.focus();
+}
+async function cancelEntry() {
+  addingEntry.value = false;
+  addKey.value = '';
+  addError.value = '';
+  await nextTick();
+  entryButton.value?.focus();
+}
 const mapValueType = ref('string');
 const addError = ref('');
 const addProviderOpen = ref(false);
@@ -179,6 +194,10 @@ function addField() {
   if (key.value === 'models') openDialog({ path: [...props.path, field], title: field });
   addKey.value = '';
   addError.value = '';
+  addingEntry.value = false;
+  if (isMap(props.path) && key.value !== 'models') {
+    void nextTick(() => document.getElementById(pointer([...props.path, field]))?.focus());
+  }
 }
 function addItem() {
   ensureModelOverride([...props.path, String(Array.isArray(props.value) ? props.value.length : 0)]);
@@ -186,6 +205,7 @@ function addItem() {
   const index = (props.value as Json[]).length;
   props.editor.append(props.path, entry);
   if (isObject(entry)) openDialog({ path: [...props.path, String(index)], title: itemTitle(entry, index) });
+  else void nextTick(() => document.getElementById(pointer([...props.path, String(index)]))?.focus());
 }
 function itemBrand(item: Json) {
   if (props.path[0] !== 'providerd' || key.value !== 'providers' || !isObject(item)) return undefined;
@@ -231,15 +251,17 @@ function itemTitle(item: Json, index: number) {
     </template>
     <AddOptionalSetting v-if="!isMap(path)" :options="available.map(field => ({ value: field, label: label(field) }))" @add="addKey = $event; addField()" />
     <div v-if="isMap(path)" class="cfg-add-field">
-      <label :for="`add-${pointer(path)}`">{{ isMap(path) ? tr('添加项目', 'Add entry') : tr('添加可选设置', 'Add optional setting') }}</label>
-      <div class="cfg-inline">
-        <input class="input" v-if="isMap(path)" :id="`add-${pointer(path)}`" v-model="addKey" :placeholder="key === 'models' ? tr('模型名称，例如 model-name', 'Model ID, e.g. model-name') : tr('名称', 'Name')" @keydown.enter.prevent="addField" />
-        <SelectField v-else :id="`add-${pointer(path)}`" v-model="addKey" :placeholder="tr('选择设置', 'Choose setting')" :options="available.map(field => ({ value: field, label: label(field) }))" />
-        <SelectField v-if="key === 'reasoning_efforts'" v-model="mapValueType" :aria-label="tr('值的类型', 'Value type')" :options="[{ value: 'string', label: tr('强度名称', 'Effort name') }, { value: 'number', label: tr('Token 数量', 'Token budget') }]" />
-        <button type="button" class="btn" :disabled="!addKey.trim()" @click="addField"><Plus :size="16" />{{ tr('添加', 'Add') }}</button>
-      </div>
-      <p v-if="addKey && !isMap(path) && fieldHint([...path, addKey])" class="cfg-hint">{{ fieldHint([...path, addKey]) }}</p>
-      <p v-if="addError" class="cfg-error" role="alert">{{ addError }}</p>
+      <button v-if="!addingEntry" ref="entryButton" type="button" class="btn" :data-add-entry="pointer(path)" @click="beginEntry"><Plus :size="16" />{{ key === 'models' ? tr('添加模型', 'Add model') : tr('添加项目', 'Add entry') }}</button>
+      <template v-else>
+        <label :for="`add-${pointer(path)}`">{{ key === 'models' ? tr('模型名称', 'Model ID') : tr('名称', 'Name') }}</label>
+        <div class="cfg-inline cfg-entry-input" @keydown.esc.stop.prevent="cancelEntry">
+          <input ref="entryInput" class="input" :id="`add-${pointer(path)}`" v-model="addKey" :placeholder="key === 'models' ? tr('模型名称，例如 model-name', 'Model ID, e.g. model-name') : tr('名称', 'Name')" @keydown.enter.prevent="addField" />
+          <SelectField v-if="key === 'reasoning_efforts'" v-model="mapValueType" :aria-label="tr('值的类型', 'Value type')" :options="[{ value: 'string', label: tr('强度名称', 'Effort name') }, { value: 'number', label: tr('Token 数量', 'Token budget') }]" />
+          <button type="button" class="btn" :disabled="!addKey.trim()" @click="addField">{{ tr('确认', 'Confirm') }}</button>
+          <button type="button" class="btn ghost" @click="cancelEntry">{{ tr('取消', 'Cancel') }}</button>
+        </div>
+        <p v-if="addError" class="cfg-error" role="alert">{{ addError }}</p>
+      </template>
     </div>
   </div>
   <div v-else class="cfg-field" :class="{ 'cfg-field-compact': arrayItem }" :data-config-path="pointer(path)">

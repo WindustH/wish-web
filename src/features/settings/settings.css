@@ -46,7 +46,7 @@
 .cfg-content { min-width: 0; }
 .cfg-content fieldset, .cfg-editor-window fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .cfg-field { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr); align-items: center; gap: 20px; padding: 14px 0; }
-.cfg-field-label { min-width: 0; }
+.cfg-field-label { min-width: 0; font: 500 14px/1.5 var(--font); }
 .cfg-field-label label { font-weight: 500; overflow-wrap: anywhere; }
 .cfg-field-label small { display: inline; color: var(--fg-muted); margin-left: 8px; font-size: 12px; }
 .cfg-property + .cfg-property { border-top: 1px solid var(--line); }
@@ -57,9 +57,9 @@
 .cfg-switch-thumb { display: block; width: 18px; height: 18px; background: var(--fg-muted); border-radius: 50%; transform: translateX(0); transition: transform 160ms ease, background 160ms ease; }
 .cfg-switch[data-state="checked"] .cfg-switch-thumb { transform: translateX(17px); background: var(--bg); }
 .cfg-object { min-width: 0; }
-.cfg-nested { padding: 12px 0; }
+.cfg-nested { padding: 14px 0; }
 .cfg-nested > .cfg-object, .cfg-nested > .cfg-array { margin: 10px 0 0 12px; border-left: 2px solid var(--line); padding-left: 16px; }
-.config-editor summary { display: flex; align-items: center; gap: 8px; list-style: none; cursor: pointer; padding: 5px 0; font-weight: 500; overflow-wrap: anywhere; }
+.config-editor summary { display: flex; align-items: center; gap: 8px; list-style: none; cursor: pointer; padding: 0; font: 500 14px/1.5 var(--font); overflow-wrap: anywhere; }
 .config-editor summary::-webkit-details-marker { display: none; }
 .config-editor summary > svg { flex-shrink: 0; transform: rotate(-90deg); transition: transform 160ms ease; }
 .config-editor details[open] > summary > svg { transform: rotate(0deg); }
@@ -70,6 +70,9 @@
 .cfg-remove { margin-top: 8px; color: var(--fg-muted); font-size: 13px; }
 .cfg-remove-field { margin-bottom: 8px; font-size: 12px; color: var(--fg-muted); }
 .cfg-add-field { margin-block: 24px 16px; padding-top: 16px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.cfg-add-field > .btn { justify-self: start; }
+.cfg-entry-input { flex-wrap: wrap; }
+.cfg-entry-input input, .cfg-entry-input .control-select { flex: 1 1 140px; width: auto; }
 .cfg-add-field > label { font-size: 13px; color: var(--fg-muted); }
 .cfg-savebar { width: fit-content; max-width: 100%; padding: 10px 12px 10px 18px; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--bg-raised); box-shadow: var(--shadow-pop); }
 .cfg-savebar-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
@@ -127,11 +130,10 @@
 .cfg-restart-dialog ul { padding-left: 20px; font-size: 13px; line-height: 1.8; }
 .cfg-restart-dialog .cfg-dialog-actions { flex-wrap: wrap; }
 
-.cfg-edit-row { display: flex; align-items: center; gap: 16px; padding: 10px 0; min-width: 0; }
+.cfg-edit-row { display: flex; align-items: center; gap: 16px; padding: 14px 0; min-width: 0; }
 .cfg-edit-row > div { flex: 1; min-width: 0; }
-.cfg-edit-row strong { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.cfg-edit-row strong { font: 500 14px/1.5 var(--font); overflow-wrap: anywhere; }
 .cfg-edit-row > button { flex: none; }
-.cfg-editor-window .cfg-field:first-child { padding-top: 0; }
 .cfg-nested h4 { margin: 0 0 8px; font-size: 13px; font-weight: 500; }
 
 .cfg-array-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
@@ -173,4 +175,4 @@
 .cfg-property-removable { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: start; }
 .cfg-property-removable > .cfg-remove-field { margin: 16px 0 0; }
 .cfg-property-removable > :first-child { min-width: 0; }
-.cfg-provider-advanced > .cfg-property { padding-block: 4px; }
+.cfg-property > .cfg-object { padding-block: 14px; }

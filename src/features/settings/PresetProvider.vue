@@ -77,14 +77,14 @@ function addAdvanced(field: string) { props.editor.set(fieldPath(field), structu
 </template>
 
 <style scoped>
-.preset-section { margin-block: 12px; padding-block: 12px; border-top: 1px solid var(--line); }
+.preset-section { margin-block: 14px; padding-block: 14px; border-top: 1px solid var(--line); }
 .preset-section header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.preset-section h4 { margin: 0; font-size: 13px; font-weight: 600; }
+.preset-section h4 { margin: 0; font: 600 14px/1.5 var(--font); }
 .preset-section header a { font-size: 11px; color: var(--fg-subtle); text-underline-offset: 3px; }
 .preset-section header a:hover { color: var(--accent); }
 .preset-protocol { margin: 10px 0 6px; font-size: 12px; color: var(--fg-subtle); }
 .preset-address { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0 0; font-size: 11px; color: var(--fg-subtle); }
 .preset-address code { overflow-wrap: anywhere; }
 .preset-secret-help { margin-bottom: 0; }
-.preset-section :deep(.cfg-field) { padding-block: 12px; }
+.preset-section :deep(.cfg-field) { padding-block: 14px; }
 </style>
