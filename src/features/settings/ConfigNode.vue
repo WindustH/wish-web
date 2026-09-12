@@ -183,7 +183,7 @@ function itemTitle(item: Json, index: number) {
     </div>
     <SwitchRoot v-if="typeof value === 'boolean'" :id="pointer(path)" :aria-describedby="hintId" :model-value="value" class="cfg-switch" @update:model-value="editor.set(path, $event)"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot>
     <div v-else-if="selectOptions" class="cfg-input-wrap">
-      <SelectField :id="pointer(path)" :aria-describedby="hintId" :model-value="String(value)" :placeholder="tr('未选择', 'Not selected')"
+      <SelectField :id="pointer(path)" :aria-describedby="hintId" :searchable="key === 'preset' || key === 'protocol'" :search-placeholder="tr('搜索名称…', 'Search names…')" :empty-text="tr('没有匹配的选项', 'No matching options')" :model-value="String(value)" :placeholder="tr('未选择', 'Not selected')"
         :disabled="!selectOptions.some(option => option !== '')"
         :options="[...(value && !selectOptions.includes(String(value)) ? [String(value)] : []), ...selectOptions].filter(option => option !== '').map(option => ({ value: option, label: displayOption(option), description: settingOption(path, option).description, brand: key === 'protocol' ? protocolPresentation(option).brand : key === 'preset' ? presetBrand(option) : undefined, annotation: key === 'protocol' ? protocolPresentation(option).annotation : undefined }))" @update:model-value="setValue" />
       <button v-if="required !== true && value && selectOptions.includes('')" type="button" class="btn ghost" :aria-label="`${tr('清空', 'Clear')} ${name}`" @click="setValue('')">{{ tr('清空', 'Clear') }}</button>

@@ -11,8 +11,8 @@ All 48 built-in presets were checked against the backend catalog and `auth_for` 
 - Qwen workspace variants: workspace ID before authentication; region and workspace determine the connection.
 - MiniMax Token Plan: Subscription Key instead of a pay-as-you-go API key.
 - Other Coding Plan / Token Plan variants: channel-specific labels, addresses and instructions; no claims about prices or guaranteed eligibility.
-- Ollama, LM Studio and vLLM: service address first, no-auth default, explicit authentication configuration when needed. The address refers to the backend machine.
-- Existing custom authentication stays visible and overrides preset authentication. Named required credentials remain required as specified by the backend. Unrelated new Codex/image-edit overrides are hidden, but existing overrides remain editable.
+- Ollama, LM Studio and vLLM: service address first, fixed no-auth preset. The address refers to the backend machine.
+- Preset authentication cannot be overridden. Named required credentials remain required as specified by the backend. Unrelated new Codex/image-edit overrides are hidden, but existing overrides remain editable.
 
 ## Primary documentation
 
@@ -40,7 +40,7 @@ Some vendor pages are client-rendered or failed retrieval (MiMo, Tencent, vLLM r
 
 ## Verification
 
-Browser scenario `wish-test/web/scenarios-preset-profiles.mjs` opens all 48 presets through an isolated real backend, checks specialized forms, Codex option tooltips, local authentication and preservation of masked credentials after saving. Mobile dark-mode checks cover Codex, AWS and local authentication. Build and backend regression evidence is in the coordination deployment directory.
+Browser scenario `wish-test/web/scenarios-preset-profiles.mjs` opens all 48 presets through an isolated real backend, checks specialized forms, Codex option tooltips, fixed preset authentication and preservation of masked credentials after saving. Mobile dark-mode checks cover Codex, AWS and local authentication. Build and backend regression evidence is in the coordination deployment directory.
 
 Model catalog changes: overriding a preset service address also changes its default model-catalog host. Explicit model-list configuration remains authoritative.
 
@@ -51,3 +51,5 @@ provider-specific option. Migrate older source files with
 `wish/scripts/global-model-limit.py INPUT.toml OUTPUT.toml`; it preserves the
 largest previous effective limit. Removing a visible schema default is valid
 even when the source file has no explicit override.
+
+Preset authentication is fixed by the preset. Only its declared API Key, Access Token or named credentials can be configured. An explicit provider auth object is accepted only for custom providers without a preset.
