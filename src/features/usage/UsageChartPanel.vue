@@ -19,9 +19,9 @@ const tx = (zh: string, en: string) => i18n.locale.value === 'zh' ? zh : en;
 const num = (value: number) => new Intl.NumberFormat(i18n.locale.value, { maximumFractionDigits: 2 }).format(value);
 const keyOf = (provider: string | null, model: string | null) => JSON.stringify([provider, model]);
 const models = computed(() => (props.data?.models ?? []).map((model, index) => ({ ...model, key: keyOf(model.provider, model.model), color: `var(--chart-${index % 6 + 1})`, label: `${model.model ?? 'Unknown model'} · ${model.provider ?? 'Unknown provider'}` })));
-const series = computed(() => models.value.filter(model => !hidden.value.has(model.key)).map(model => ({ key: model.key, label: model.label, colorIndex: models.value.indexOf(model), points: model.points.map(point => [point.at, metric.value === 'tps' ? point.tps : point.tokens] as [number, number | null]) })));
+const series = computed(() => models.value.filter(model => !hidden.value.has(model.key)).map(model => ({ key: model.key, label: model.label, colorIndex: models.value.indexOf(model), points: metric.value === 'tps' ? model.samples.map(point => [point.at_ms, point.tps] as [number, number | null]) : model.points.map(point => [point.at, point.tokens] as [number, number | null]) })));
 const hasPoints = computed(() => series.value.some(model => model.points.some(point => point[1] !== null && (metric.value === 'tps' || point[1] > 0))));
-const tableRows = computed(() => models.value.filter(model => !hidden.value.has(model.key)).flatMap(model => model.points.filter(point => point.attempts > 0).map(point => ({ ...point, key: model.key + ':' + point.at, label: model.label }))));
+const tableRows = computed(() => models.value.filter(model => !hidden.value.has(model.key)).flatMap(model => (metric.value === 'tps' ? model.samples.map(sample => ({ at: sample.at_ms, tps: sample.tps, tokens: null, attempts: 1, attemptId: sample.attempt_id })) : model.points.filter(point => point.attempts > 0)).map(point => ({ ...point, key: model.key + ':' + ('attemptId' in point ? point.attemptId : point.at), label: model.label }))));
 const pageCount = computed(() => Math.max(1, Math.ceil(tableRows.value.length / pageSize)));
 const currentPage = computed(() => Math.min(tablePage.value, pageCount.value - 1));
 const visibleRows = computed(() => tableRows.value.slice(currentPage.value * pageSize, (currentPage.value + 1) * pageSize));
@@ -37,7 +37,7 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
         <div class="usage-metrics" :aria-label="tx('统计指标', 'Metric')">
           <button class="btn ghost sm" :aria-pressed="metric === 'tps'" @click="metric = 'tps'">{{ tx('输出速度', 'Output speed') }}</button>
           <button class="btn ghost sm" :aria-pressed="metric === 'tokens'" @click="metric = 'tokens'">{{ tx('Token 消耗', 'Token usage') }}</button>
-          <InfoHint :label="tx('计算方式', 'Calculation')" :text="tx('TPS = 输出 Token ÷ 首个至最后一个流式输出片段的时间。仅计入成功且有完整采样的调用，不包含首个输出前的等待、工具执行或其他 agent loop 环节。', 'TPS = output tokens / time from the first to the last streamed output delta. Only successful, timed calls count; time to first output, tools and other agent-loop work are excluded.')" />
+          <InfoHint :label="tx('计算方式', 'Calculation')" :text="tx('TPS = 输出 Token ÷ 首个至最后一个流式输出片段的时间。每个点代表一次请求；仅计入成功且有完整采样的调用，不包含首个输出前的等待、工具执行或其他 agent loop 环节。', 'TPS = output tokens / time from the first to the last streamed output delta. Each point represents one request. Only successful, timed calls count; time to first output, tools and other agent-loop work are excluded.')" />
         </div>
         <div class="usage-range" :aria-label="tx('时间范围', 'Time range')">
           <button v-for="period in [['day', tx('过去一天', 'Past day')], ['week', tx('过去一周', 'Past week')]]" :key="period[0]" class="btn ghost sm" :aria-pressed="range === period[0]" @click="emit('range', period[0]!)">{{ period[1] }}</button>
@@ -56,11 +56,11 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
         <UsagePlot v-if="hasPoints" :series="series" :unit="metric === 'tps' ? 'Token/s' : 'Token'" :label="tx('分模型用量曲线；下方可展开数据表。', 'Usage by model; a data table is available below.')" />
         <div v-else class="usage-empty">{{ !series.length && models.length ? tx('请选择要显示的模型。', 'Select a model to display.') : metric === 'tps' ? tx('这段时间还没有有效的 TPS 采样。', 'No valid TPS samples in this period.') : tx('这段时间没有用量记录。', 'No usage recorded in this period.') }}</div>
         <footer class="usage-chart-meta">
-          <span>{{ metric === 'tps' ? tx(`${num(data.samples)} 次有效采样 / ${num(data.attempts)} 条用量记录`, `${num(data.samples)} timed samples / ${num(data.attempts)} usage records`) : tx('包含失败请求已报告的用量', 'Includes reported usage from failed requests') }}</span>
+          <span>{{ metric === 'tps' ? tx(`${num(data.samples)} 次有效采样`, `${num(data.samples)} timed samples`) : tx('包含失败请求已报告的用量', 'Includes reported usage from failed requests') }}</span>
           <button v-if="models.length" class="btn ghost sm" :aria-expanded="table" @click="table = !table">{{ tx('数据表', 'Data table') }}</button>
         </footer>
         <div v-if="table" class="usage-data-table"><table class="table"><thead><tr><th>{{ tx('时间', 'Time') }}</th><th>{{ tx('模型', 'Model') }}</th><th>Token</th><th>Token/s</th></tr></thead><tbody>
-          <tr v-for="point in visibleRows" :key="point.key"><td>{{ new Date(point.at).toLocaleString(i18n.locale.value) }}</td><td>{{ point.label }}</td><td>{{ num(point.tokens) }}</td><td>{{ point.tps == null ? '—' : num(point.tps) }}</td></tr>
+          <tr v-for="point in visibleRows" :key="point.key"><td>{{ new Date(point.at).toLocaleString(i18n.locale.value) }}</td><td>{{ point.label }}</td><td>{{ point.tokens == null ? '—' : num(point.tokens) }}</td><td>{{ point.tps == null ? '—' : num(point.tps) }}</td></tr>
         </tbody></table></div>
         <div v-if="table && pageCount > 1" class="usage-chart-meta"><button class="btn ghost sm" :disabled="currentPage === 0" @click="tablePage = currentPage - 1">{{ tx('上一页', 'Previous') }}</button><span>{{ currentPage + 1 }} / {{ pageCount }}</span><button class="btn ghost sm" :disabled="currentPage + 1 >= pageCount" @click="tablePage = currentPage + 1">{{ tx('下一页', 'Next') }}</button></div>
       </template>

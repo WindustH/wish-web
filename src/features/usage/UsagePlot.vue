@@ -2,15 +2,17 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import ChartCanvas from './ChartCanvas.vue';
 import { calendarOptions, lineOptions, pieOptions, type ChartStyle, type PlotSeries } from './chartOptions';
+import { usePageActivity } from '../../ui/composables/usePageActivity';
 import { theme } from '../../core/theme/index.js';
 import { i18n } from '../../core/i18n/index.js';
 const props = defineProps<{ pie?: { name: string; value: number }[]; series?: PlotSeries[]; days?: [string, number][]; unit?: string; label: string }>();
 const root = ref<HTMLElement>();
+const active = usePageActivity();
 const style = ref<ChartStyle>();
 let calendarObserver: ResizeObserver | undefined;
 let previousScrollMax = 0;
 function readStyle() {
-  if (!root.value) return;
+  if (!active.value || !root.value?.isConnected) return;
   const css = getComputedStyle(root.value);
   const value = (name: string) => css.getPropertyValue(name).trim();
   style.value = { foreground: value('--fg'), muted: value('--fg-subtle'), line: value('--line'), surface: value('--bg-raised'), font: value('--font'),
@@ -30,7 +32,7 @@ onMounted(async () => {
   }
 });
 onBeforeUnmount(() => calendarObserver?.disconnect());
-watch(theme.resolved, async () => { await nextTick(); readStyle(); });
+watch([theme.resolved, active], async () => { await nextTick(); readStyle(); });
 const option = computed(() => style.value && (props.pie ? pieOptions(props.pie, style.value, i18n.locale.value) : props.days
   ? calendarOptions(props.days, style.value, i18n.locale.value)
   : lineOptions(props.series ?? [], style.value, i18n.locale.value, props.unit ?? 'Token/s')));
