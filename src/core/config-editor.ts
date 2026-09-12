@@ -22,6 +22,8 @@ export interface ProviderPreset {
   provider: string;
   region: string;
   billing: string;
+  base_url: string;
+  protocol_base_urls?: Record<string, string>;
   protocols: string[];
   api_key_supported: boolean;
   api_key_required: boolean;

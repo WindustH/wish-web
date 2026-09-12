@@ -11,6 +11,7 @@ import { openConfigDialog } from './config-dialog';
 import AddProvider from './AddProvider.vue';
 import PresetProvider from './PresetProvider.vue';
 import { protocolPresentation } from '../../ui/protocolPresentation';
+import { settingOption } from './option-help';
 import { presetLabel, presetBrand } from '../../ui/providerPresentation';
 
 const props = withDefaults(defineProps<{
@@ -19,12 +20,13 @@ const props = withDefaults(defineProps<{
   editor: ConfigEditor;
   catalog?: ConfigCatalog;
   title?: string;
+  help?: string;
   required?: boolean;
   requiredActive?: boolean;
 }>(), { required: undefined, requiredActive: undefined });
 const openDialog = inject(openConfigDialog)!;
 const arrayItem = computed(() => /^\d+$/.test(props.path.at(-1)!));
-const hint = computed(() => arrayItem.value ? '' : fieldHint(props.path));
+const hint = computed(() => props.help ?? (arrayItem.value ? '' : fieldHint(props.path)));
 const hintId = computed(() => hint.value ? `help-${pointer(props.path)}`
   : arrayItem.value && fieldHint(props.path.slice(0, -1)) ? `help-${pointer(props.path.slice(0, -1))}` : undefined);
 const key = computed(() => props.path.at(-1)!);
@@ -77,7 +79,6 @@ function setValue(value: Json) {
 function addProvider(preset?: ProviderPreset) {
   const entry = newArrayEntry(props.path);
   if (!isObject(entry) || !Array.isArray(props.value)) throw new Error('Provider editor must be an array');
-  entry.allow_any_model = true;
   if (preset) {
     const ids = new Set(props.value.filter(isObject).map(item => item.id));
     let id = preset.id, suffix = 2;
@@ -97,7 +98,7 @@ function displayOption(value: string) {
   if (key.value === 'protocol') return protocolPresentation(value).label;
   if (key.value === 'default_reasoning_effort') return value;
   const preset = key.value === 'preset' && props.catalog?.presets.find(item => item.id === value);
-  return preset ? presetLabel(preset) : optionLabel(value);
+  return preset ? presetLabel(preset) : settingOption(props.path, value).label;
 }
 function addField() {
   const field = addKey.value.trim();
@@ -134,7 +135,7 @@ function itemTitle(item: Json, index: number) {
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <p v-if="!value.length" class="cfg-hint">{{ tr('尚未添加项目。', 'No items yet.') }}</p>
     <div v-for="(item, index) in value" :key="index" class="cfg-array-item" :class="{ 'cfg-array-row': isObject(item), 'cfg-array-scalar': item === null || typeof item !== 'object' }">
-      <ConfigLink v-if="isObject(item)" :path="[...path, String(index)]" :title="itemTitle(item, index)" :brand="itemBrand(item)" />
+      <ConfigLink v-if="isObject(item)" :path="[...path, String(index)]" :title="itemTitle(item, index)" :brand="itemBrand(item)" :enabled="path[0] === 'providerd' && key === 'providers' ? item.enabled !== false : undefined" @update:enabled="editor.set([...path, String(index), 'enabled'], $event)" />
       <ConfigNode v-else :value="item" :path="[...path, String(index)]" :title="`${name} ${index + 1}`" :editor="editor" :catalog="catalog" />
       <button type="button" class="btn ghost cfg-remove" :aria-label="`${tr('删除', 'Remove')} ${itemTitle(item, index)}`" @click="editor.remove([...path, String(index)])"><Trash2 :size="16" />{{ tr('删除', 'Remove') }}</button>
     </div>
@@ -146,14 +147,18 @@ function itemTitle(item: Json, index: number) {
   <div v-else-if="object" class="cfg-object" :data-config-path="pointer(path)">
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <template v-for="(child, field) in object" :key="field">
-      <div class="cfg-property">
-        <ConfigLink v-if="(path[0] === 'providerd' && path[1] === 'providers') && (isObject(child) || (Array.isArray(child) && child.some(isObject)))" :path="[...path, field]" :title="isMap(path) ? field : fieldLabel([...path, field])" />
+      <div v-if="!(path.length === 3 && path[0] === 'providerd' && path[1] === 'providers' && field === 'enabled')" class="cfg-property">
+        <details v-if="path.length === 3 && path[0] === 'providerd' && path[1] === 'providers' && field === 'proxy_policy'" class="cfg-nested">
+          <summary><ChevronDown :size="16" /><span>{{ fieldLabel([...path, field]) }}</span><small>{{ settingOption([...path, field], String(child)).label }}</small></summary>
+          <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" />
+        </details>
+        <ConfigLink v-else-if="(path[0] === 'providerd' && path[1] === 'providers') && (isObject(child) || (Array.isArray(child) && child.some(isObject)))" :path="[...path, field]" :title="isMap(path) ? field : fieldLabel([...path, field])" />
         <details v-else-if="child !== null && typeof child === 'object'" class="cfg-nested" :open="isMap(path)">
           <summary><ChevronDown :size="16" /><span>{{ isMap(path) ? field : fieldLabel([...path, field]) }}</span><small v-if="Array.isArray(child)">{{ child.length }}</small></summary>
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
         </details>
         <ConfigNode v-else :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
-        <button v-if="isMap(path) || field in optional" type="button" class="btn ghost cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : fieldLabel([...path, field])}`" @click="editor.remove([...path, field])"><Trash2 :size="15" /><span>{{ tr('移除设置', 'Remove override') }}</span></button>
+        <button v-if="(isMap(path) || field in optional) && field !== 'proxy_policy'" type="button" class="btn ghost cfg-remove-field" :aria-label="`${tr('移除', 'Remove')} ${isMap(path) ? field : fieldLabel([...path, field])}`" @click="editor.remove([...path, field])"><Trash2 :size="15" /><span>{{ tr('移除设置', 'Remove override') }}</span></button>
       </div>
     </template>
     <div v-if="available.length || isMap(path)" class="cfg-add-field">
@@ -178,7 +183,7 @@ function itemTitle(item: Json, index: number) {
     <div v-else-if="selectOptions" class="cfg-input-wrap">
       <SelectField :id="pointer(path)" :aria-describedby="hintId" :model-value="String(value)" :placeholder="tr('未选择', 'Not selected')"
         :disabled="!selectOptions.some(option => option !== '')"
-        :options="[...(value && !selectOptions.includes(String(value)) ? [String(value)] : []), ...selectOptions].filter(option => option !== '').map(option => ({ value: option, label: displayOption(option), brand: key === 'protocol' ? protocolPresentation(option).brand : key === 'preset' ? presetBrand(option) : undefined, annotation: key === 'protocol' ? protocolPresentation(option).annotation : undefined }))" @update:model-value="setValue" />
+        :options="[...(value && !selectOptions.includes(String(value)) ? [String(value)] : []), ...selectOptions].filter(option => option !== '').map(option => ({ value: option, label: displayOption(option), description: settingOption(path, option).description, brand: key === 'protocol' ? protocolPresentation(option).brand : key === 'preset' ? presetBrand(option) : undefined, annotation: key === 'protocol' ? protocolPresentation(option).annotation : undefined }))" @update:model-value="setValue" />
       <button v-if="required !== true && value && selectOptions.includes('')" type="button" class="btn ghost" :aria-label="`${tr('清空', 'Clear')} ${name}`" @click="setValue('')">{{ tr('清空', 'Clear') }}</button>
     </div>
     <div v-else class="cfg-input-wrap">
