@@ -58,6 +58,9 @@ function setInput(event: Event) {
 }
 function setValue(value: Json) {
   if (Object.is(props.value, value)) return;
+  if (props.path.at(-2) === 'credentials' && atPath(props.editor.draft.value!, props.path.slice(0, -1)) === undefined) {
+    props.editor.set(props.path.slice(0, -1), {});
+  }
   props.editor.set(props.path, value);
   if (key.value === 'preset' && props.path.at(-3) === 'providers') {
     const parent = props.path.slice(0, -1);
@@ -75,7 +78,8 @@ function setValue(value: Json) {
       props.editor.set([...parent, 'base_url'], '');
     }
     props.editor.set([...parent, 'api_key'], '');
-    props.editor.set([...parent, 'credentials'], Object.fromEntries((preset?.required_credentials || []).map(name => [name, ''])));
+    if (preset?.required_credentials.length) props.editor.set([...parent, 'credentials'], Object.fromEntries(preset.required_credentials.map(name => [name, ''])));
+    else if (atPath(props.editor.draft.value!, [...parent, 'credentials']) !== undefined) props.editor.remove([...parent, 'credentials']);
   }
 }
 function addProvider(preset?: ProviderPreset) {
@@ -89,7 +93,7 @@ function addProvider(preset?: ProviderPreset) {
     entry.preset = preset.id;
     for (const field of ['base_url', 'auth', 'headers', 'query']) delete entry[field];
     entry.protocol = preset.protocols[0]!;
-    entry.credentials = Object.fromEntries(preset.required_credentials.map(name => [name, '']));
+    if (preset.required_credentials.length) entry.credentials = Object.fromEntries(preset.required_credentials.map(name => [name, '']));
   }
   const index = props.value.length;
   props.editor.append(props.path, entry);
