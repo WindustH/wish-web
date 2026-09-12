@@ -1,5 +1,5 @@
 import type { EChartsCoreOption } from 'echarts/core';
-export interface PlotSeries { key: string; label: string; colorIndex?: number; extendMean?: boolean; points: [number, number | null][] }
+export interface PlotSeries { key: string; label: string; colorIndex?: number; extendMean?: boolean; points: [number, number | null, number?][] }
 export interface ChartStyle { foreground: string; muted: string; line: string; surface: string; font: string; colors: string[]; heat: string[] }
 export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: string, unit: string): EChartsCoreOption {
   const format = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
@@ -26,9 +26,9 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
     yAxis: { type: 'value', min: 0, name: unit, nameTextStyle: { color: style.muted, align: 'left' }, axisLabel: { color: style.muted, formatter: (value: number) => new Intl.NumberFormat('en', { notation: 'compact' }).format(value) },
       splitLine: { lineStyle: { color: style.line } } },
     series: series.map((item, index) => {
-      const samples = item.points.filter((point): point is [number, number] => point[1] != null);
+      const samples = item.points.filter((point): point is [number, number, number] => point[1] != null);
       const mean = samples.length ? samples.reduce((sum, point) => sum + point[1], 0) / samples.length : 0;
-      // f(t) = mean + sum((TPS_i - mean) * phi((t - t_i) / sigma)).
+      // Each Gaussian integrates to (TPS_i - mean) * duration_i in Token.
       // Scale time by each model's typical sampling gap, not the full chart span.
       const ordered = [...samples].sort((a, b) => a[0] - b[0]);
       const gaps = ordered.slice(1).map((point, i) => point[0] - ordered[i]![0]).filter(gap => gap > 0).sort((a, b) => a - b);
@@ -37,16 +37,16 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
       // Include points near observations so short bursts do not disappear
       // between uniformly spaced drawing coordinates in a long time range.
       for (let i = 0; i < ordered.length; i += Math.max(1, Math.ceil(ordered.length / 96))) {
-        for (const offset of [-4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4]) {
+        for (const offset of [-8, -6, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 6, 8]) {
           const at = ordered[i]![0] + offset * sigma;
           if (at >= left && at <= right) timesToDraw.add(at);
         }
       }
       const data = item.extendMean && samples.length ? [...timesToDraw].sort((a, b) => a - b).map(at => {
         let value = mean;
-        for (const [time, tps] of ordered) {
+        for (const [time, tps, durationMs] of ordered) {
           const z = (at - time) / sigma;
-          value += (tps - mean) * Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
+          value += (tps - mean) * (durationMs / sigma) * Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
         }
         return { value: [at, value], fitted: true, symbolSize: 0 };
       }) : item.points;
