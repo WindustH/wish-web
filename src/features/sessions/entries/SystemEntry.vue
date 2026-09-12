@@ -28,6 +28,6 @@ const text = computed(() => (props.item.entry.payload?.content ?? [])
 </template>
 
 <style scoped>
-.stop-marker { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+.stop-marker { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--err); }
 .stop-marker :deep(svg) { width: 14px; height: 14px; }
 </style>
