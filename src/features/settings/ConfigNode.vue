@@ -237,7 +237,7 @@ function itemTitle(item: Json, index: number) {
     <div v-if="object.mode === 'manual'" class="cfg-property"><ConfigNode :value="object.url ?? ''" :path="[...path, 'url']" :editor="editor" :catalog="catalog" :required="object.enabled === true" :title="tr('代理地址', 'Proxy URL')" :help="tr('填写 HTTP 或 HTTPS 代理地址；支持在地址中包含用户名和密码。', 'Enter an HTTP or HTTPS proxy URL; credentials can be included in the URL.')" /></div>
   </div>
   <PresetProvider v-else-if="object && providerPreset" :value="object" :path="path" :preset="providerPreset" :editor="editor" :catalog="catalog!" />
-  <div v-else-if="object" class="cfg-object" :data-config-path="pointer(path)">
+  <div v-else-if="object" class="cfg-object" :class="{ 'cfg-model-list': key === 'models' }" :data-config-path="pointer(path)">
     <div v-if="modelField && key === 'reasoning_efforts'" class="cfg-field-label">{{ name }} <small v-if="sourceLabel">{{ sourceLabel }}</small></div>
     <p v-if="hint" :id="hintId" class="cfg-hint cfg-group-hint">{{ hint }}</p>
     <template v-for="(child, field) in object" :key="field">
