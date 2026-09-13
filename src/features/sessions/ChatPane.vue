@@ -55,9 +55,9 @@ const goTab = (t: string) => {
       <button v-if="isMobile" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')"
         @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
       <div class="chat-title">
-        <span class="name">{{ snapshot?.name || id.slice(0, 8) }}</span>
+        <span v-if="!snapshot" class="chat-skeleton title-skeleton" :aria-label="i18n.t('sessions.loading')" role="status" /><span v-else class="name">{{ snapshot.name || id.slice(0, 8) }}</span>
         <span v-if="queue > 0" class="queue-badge">{{ i18n.t('chat.queuedN', { n: queue }) }}</span>
-        <span class="model-selection">
+        <span v-if="!snapshot" class="chat-skeleton model-skeleton" aria-hidden="true" /><span v-else class="model-selection">
         <Hint :text="i18n.t('model.chipTitle')"><button class="model-chip" :aria-expanded="modelOpen" @click="modelOpen = true">
           <span>{{ snapshot?.model?.replace(/[-_]/g, ' ').toUpperCase() || '—' }}</span>
         </button></Hint>

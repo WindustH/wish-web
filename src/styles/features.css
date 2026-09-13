@@ -250,3 +250,17 @@ html.resizing-composer, html.resizing-composer * { cursor: row-resize !important
   .work-status-enter-active, .work-status-leave-active, .live-work-enter-active, .live-work-leave-active { transition: none; }
   .work-spinner { animation: none; }
 }
+
+.chat-skeleton { display: block; flex: none; border-radius: 6px; background: var(--bg-active); animation: chat-breathe 1.6s ease-in-out infinite; }
+.title-skeleton { width: clamp(90px, 18vw, 180px); height: 20px; }
+.model-skeleton { width: clamp(64px, 12vw, 120px); height: 14px; }
+.history-skeleton { max-width: var(--max-content); margin: 20px auto; padding-inline: 40px; }
+.skeleton-user { width: 42%; height: 36px; margin: 0 0 36px auto; }
+.skeleton-reply { display: grid; gap: 12px; }
+.skeleton-reply > span { height: 16px; width: 86%; }
+.skeleton-reply > span:nth-child(2) { width: 72%; animation-delay: 100ms; }
+.skeleton-reply > span:last-child { width: 48%; animation-delay: 200ms; }
+.older-skeleton { width: 90px; height: 14px; }
+@keyframes chat-breathe { 0%, 100% { opacity: .4; } 50% { opacity: .9; } }
+@media (max-width: 899px) { .history-skeleton { max-width: var(--mobile-content-width); padding-inline: 28px; } }
+@media (prefers-reduced-motion: reduce) { .chat-skeleton { animation: none; opacity: .6; } }
