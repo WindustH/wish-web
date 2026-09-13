@@ -115,6 +115,10 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
           if (!aborted && !terminal) onFrame?.(frame);
         }
         if (heldCr) buf += '\r';
+        // A stream that keeps sending bytes but never a blank-line frame
+        // boundary would grow `buf` without limit; treat it as a broken
+        // connection and reconnect instead of buffering forever.
+        if (buf.length > 1 << 20) throw new Error('SSE frame exceeded 1MiB');
         if (aborted || terminal) { reader.cancel().catch(() => {}); return; }
       }
       if (aborted || terminal) return;
