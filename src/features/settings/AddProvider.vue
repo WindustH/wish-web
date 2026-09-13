@@ -17,7 +17,7 @@ function add() { if (selected.value) emit('select', props.catalog!.presets.find(
 </script>
 
 <template>
-  <Modal :open="true" :title="tr('添加提供商', 'Add provider')" @close="emit('close')">
+  <Modal :open="true" compact :title="tr('添加提供商', 'Add provider')" @close="emit('close')">
     <PickerList v-model="selected" :items="items" :placeholder="tr('搜索提供商、地区或套餐…', 'Search providers, regions or plans…')" />
     <p v-if="!catalog" class="hint">{{ tr('预设尚未读取，可先配置自定义提供商。', 'Presets have not loaded; custom configuration is available.') }}</p>
     <template #footer><div class="provider-picker-actions"><button type="button" class="btn ghost provider-custom" @click="emit('select')">{{ tr('自定义提供商', 'Custom provider') }}</button><button class="btn ghost" @click="emit('close')">{{ tr('取消', 'Cancel') }}</button><button class="btn primary" :disabled="!selected" @click="add">{{ tr('添加', 'Add') }}</button></div></template>

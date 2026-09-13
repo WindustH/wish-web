@@ -53,6 +53,11 @@
 .modal-body > :last-child { margin-bottom: 0; }
 .modal-body .field:last-child { margin-bottom: 0; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--line); flex: none; }
+/* Compact cards (confirmations, small forms): title joins the content flow
+   and the actions follow it — no head/footer bands. */
+.modal-card.compact .modal-body { padding: 14px 16px 0; }
+.modal-flow-title { font: 600 14px/1.5 var(--font); margin: 0 0 6px; }
+.modal-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; padding: 10px 16px 12px; flex: none; }
 .detail-pre { font: 12px/1.85 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 60vh; overflow: auto; }
 .menu-pop { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px; min-width: 180px; box-shadow: var(--shadow-pop); z-index: 70; animation: menu-in var(--dur-fast) var(--ease-out); }
 .menu-item { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 0; background: none; color: var(--fg); border-radius: 4px; cursor: pointer; }
@@ -97,6 +102,7 @@
 @media (max-width: 899px) {
   .btn.icon-only { width: 40px; height: 40px; }
   .modal-head { padding: 12px 16px; } .modal-body { padding: 20px; } .modal-foot { padding: 12px 20px; }
+  .modal-card.compact .modal-body { padding: 14px 16px 0; } .modal-actions { padding: 12px 16px 14px; }
   .modal-head h2 { font-size: 16px; }
   .menu-item { min-height: 44px; }
   .pwa-update { flex-wrap: wrap; }

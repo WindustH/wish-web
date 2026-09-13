@@ -216,6 +216,21 @@ function itemBrand(item: Json) {
 function itemTitle(item: Json, index: number) {
   return isObject(item) && item.id ? String(item.id) : `${tr('项目', 'Item')} ${index + 1}`;
 }
+// A collapsed group still shows what is configured — same goal as the model
+// source labels: current values stay visible without opening the group.
+function groupSummary(value: Json) {
+  if (!isObject(value)) return '';
+  const parts: string[] = [];
+  for (const [field, item] of Object.entries(value)) {
+    if (item === null || typeof item === 'object') continue;
+    const text = String(item) === '' ? tr('未设置', 'Not set')
+      : isSecret([...props.path, field], item) ? tr('已设置', 'Set')
+      : String(item);
+    parts.push(`${fieldLabel([...props.path, field])} ${text}`);
+    if (parts.length >= 3) break;
+  }
+  return parts.join(' · ');
+}
 </script>
 
 <template>
@@ -246,7 +261,7 @@ function itemTitle(item: Json, index: number) {
         <ConfigNode v-if="isModel && child !== null && typeof child === 'object'" :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" />
         <ConfigLink v-else-if="key === 'models' && isObject(child)" :path="[...path, field]" :title="isMap(path) ? field : fieldLabel([...path, field])" :menu="key === 'models'" :removable="atPath(editor.draft.value!, [...path, field]) !== undefined" :remove-label="field in upstreamForProvider ? tr('清除覆盖', 'Clear overrides') : tr('删除', 'Delete')" @remove="removeField([...path, field])" />
         <AnimatedDetails v-else-if="child !== null && typeof child === 'object'" class="cfg-nested" :open="isMap(path)">
-          <summary><ChevronDown :size="16" /><span>{{ isMap(path) ? field : fieldLabel([...path, field]) }}</span><small v-if="Array.isArray(child)">{{ child.length }}</small></summary>
+          <summary><ChevronDown :size="16" /><span>{{ isMap(path) ? field : fieldLabel([...path, field]) }}</span><small v-if="Array.isArray(child)">{{ child.length }}</small><small v-else-if="groupSummary(child)" class="cfg-summary">{{ groupSummary(child) }}</small></summary>
           <ConfigNode :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
         </AnimatedDetails>
         <ConfigNode v-else :value="child" :path="[...path, field]" :editor="editor" :catalog="catalog" :title="isMap(path) ? field : undefined" />
@@ -272,9 +287,9 @@ function itemTitle(item: Json, index: number) {
     <div class="cfg-field-label">
       <label :for="pointer(path)">{{ name }}<span v-if="required !== undefined" class="cfg-requirement">{{ required ? tr('必填', 'Required') : tr('可选', 'Optional') }}</span></label>
       <small v-if="unit(key) && !name.includes(unit(key))">{{ unit(key) }}</small>
-      <SettingHint v-if="hint" :id="hintId" :text="hint" :label="name" />
       <small v-if="sourceLabel">{{ sourceLabel }}</small>
     </div>
+    <SettingHint v-if="hint" :id="hintId" :text="hint" :label="name" />
     <SelectField v-if="modelBoolean" :id="pointer(path)" :aria-describedby="hintId" :model-value="value === null ? '' : String(value)" placeholder=""
       :options="[{ value: 'true', label: tr('支持', 'Supported') }, { value: 'false', label: tr('不支持', 'Not supported') }]"
       @update:model-value="setValue($event === 'true')" />

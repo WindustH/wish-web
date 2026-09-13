@@ -61,7 +61,7 @@ async function save() {
 </script>
 
 <template>
-  <Modal :open="true" :title="i18n.t(`manage.${kind}`)" :dismissable="!busy" @close="emit('close')">
+  <Modal :open="true" compact :title="i18n.t(`manage.${kind}`)" :dismissable="!busy" @close="emit('close')">
     <form id="session-list-action" @submit.prevent="save">
       <p class="sl-action-name">{{ target.name || target.id.slice(0, 8) }}</p>
       <input v-if="kind === 'rename'" v-model="name" class="input" :aria-label="i18n.t('manage.rename')" :disabled="busy" />
@@ -85,7 +85,9 @@ async function save() {
 </template>
 
 <style scoped>
-.sl-action-name { margin: 0 0 16px; color: var(--fg-subtle); overflow-wrap: anywhere; }
+.sl-action-name { margin: 0 0 4px; color: var(--fg-subtle); overflow-wrap: anywhere; }
+form > p { margin: 0 0 4px; }
+form > :last-child { margin-bottom: 0; }
 .sl-tag-editor { display: flex; flex-direction: column; gap: 10px; }
 .sl-tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
 .sl-tag-editor .hint { font-size: 12px; line-height: 1.5; }

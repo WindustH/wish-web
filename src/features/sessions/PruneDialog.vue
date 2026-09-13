@@ -132,7 +132,7 @@ async function execute() {
 </script>
 
 <template>
-  <Modal :open="open" :title="i18n.t('manage.prune')" :dismissable="!dialogBusy" @close="emit('close')">
+  <Modal :open="open" compact :title="i18n.t('manage.prune')" :dismissable="!dialogBusy" @close="emit('close')">
     <p class="hint">{{ i18n.t('prune.desc') }}</p>
     <div class="seg" role="radiogroup" style="margin:12px 0 8px">
       <button v-for="d in DAYS" :key="d" role="radio" :aria-checked="days === d" :disabled="dialogBusy"
