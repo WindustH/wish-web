@@ -38,9 +38,9 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
       <div v-if="calendarError" class="load-error" role="alert">{{ calendarError }}<button class="btn ghost sm" @click="emit('retryCalendar')">{{ i18n.t('common.retry') }}</button></div>
       <div v-if="calendarLoading && !days" class="usage-empty" role="status">{{ tx('正在读取用量…', 'Loading usage…') }}</div>
       <template v-if="days">
-        <p class="usage-calendar-summary"><strong>{{ fmtTokens(dailyTotal) }}</strong> Token <span>· {{ tx(`${activeDays} 天有用量记录`, `${activeDays} days with usage`) }}</span></p>
+        <div class="usage-calendar-summary"><span><strong>{{ fmtTokens(dailyTotal) }}</strong> Token <span>· {{ tx(`${activeDays} 天有用量记录`, `${activeDays} days with usage`) }}</span></span><UsageRangePicker :model-value="calendarRange" @update:model-value="emit('calendarRange', $event)" /></div>
         <UsagePlot v-if="heat" :heat="heat" @columns="emit('calendarColumns', $event)" :label="tx(`所选日期共消耗 ${num(dailyTotal)} Token，${activeDays} 天有用量记录。`, `${num(dailyTotal)} tokens over ${activeDays} active days in the selected range.`)" />
-        <footer class="usage-chart-meta"><UsageRangePicker :model-value="calendarRange" @update:model-value="emit('calendarRange', $event)" /><span>{{ data?.timezone }}</span><button class="btn ghost sm" :aria-expanded="dailyTable" @click="dailyTable = !dailyTable">{{ tx('每日数据', 'Daily data') }}</button><div class="usage-heat-legend"><span>{{ tx('少', 'Less') }}</span><i v-for="index in [0,1,2,3,4]" :key="index" :style="{ background: `var(--heat-${index})` }" /><span>{{ tx('多', 'More') }}</span></div></footer>
+        <footer class="usage-chart-meta usage-calendar-meta"><span class="usage-calendar-meta-info"><span>{{ data?.timezone }}</span><button class="btn ghost sm" :aria-expanded="dailyTable" @click="dailyTable = !dailyTable">{{ tx('每日数据', 'Daily data') }}</button></span><div class="usage-heat-legend"><span>{{ tx('少', 'Less') }}</span><i v-for="index in [0,1,2,3,4]" :key="index" :style="{ background: `var(--heat-${index})` }" /><span>{{ tx('多', 'More') }}</span></div></footer>
         <div v-if="dailyTable" class="usage-data-table"><table class="table"><thead><tr><th>{{ tx('日期', 'Date') }}</th><th>Token</th></tr></thead><tbody><tr v-for="day in [...days].reverse()" :key="day[0]"><td>{{ day[0] }}</td><td>{{ num(day[1]) }}</td></tr></tbody></table></div>
       </template>
       <UsageRangePicker v-if="!days" :model-value="calendarRange" @update:model-value="emit('calendarRange', $event)" />
@@ -101,8 +101,11 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
 .usage-empty { min-height: 160px; display: grid; place-items: center; text-align: center; color: var(--fg-subtle); font-size: 13px; }
 .usage-chart-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 8px; color: var(--fg-subtle); font-size: 11px; }
 .usage-chart-meta.align-end { justify-content: flex-end; }
-.usage-calendar-summary { margin: 4px 0 12px; font-size: 12px; color: var(--fg-subtle); }
+.usage-calendar-summary { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; margin: 4px 0 12px; font-size: 12px; color: var(--fg-subtle); }
+.usage-calendar-summary > span:first-child { min-width: 0; }
+.usage-calendar-summary :deep(.usage-range-picker) { margin-left: auto; }
 .usage-calendar-summary strong { font-size: 21px; color: var(--fg); font-weight: 600; }
+.usage-calendar-meta-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .usage-calendar-period { font-size: 12px; color: var(--fg-subtle); }
 .usage-heat-legend { display: flex; align-items: center; gap: 4px; }
 .usage-heat-legend i { width: 11px; height: 11px; border-radius: 2px; }
