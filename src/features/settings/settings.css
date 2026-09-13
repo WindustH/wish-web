@@ -105,7 +105,8 @@
   .settings-category-button > svg:last-child, .settings-subitems { display: none; }
   .settings-category-button.active { color: var(--accent); background: var(--accent-soft); }
   .settings-main { order: 1; min-height: 0; }
-  .settings-panels, .settings-results { padding-right: 0; }
+  .settings-scroll { margin-right: calc(-1 * var(--settings-gutter)); }
+  .settings-panels, .settings-results { padding-right: var(--settings-gutter); }
   .ui-settings .setting-row { grid-template-columns: minmax(0, 1fr); gap: 9px; }
   .ui-settings .setting-row:has(> [role="switch"]) { grid-template-columns: minmax(0, 1fr) auto; }
   .cfg-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
@@ -185,8 +186,8 @@
   .settings-sidebar { display: flex; flex-direction: column; overflow: hidden; width: 228px; padding: 20px 14px; border-right: 1px solid var(--line); background: var(--bg-sunken); }
   .settings-sidebar > .settings-search { flex: none; position: relative; margin-bottom: 6px; }
   .settings-sidebar > .settings-categories { flex: 1; min-height: 0; overflow-y: auto; padding-block: 14px 18px; mask-image: linear-gradient(to bottom, transparent, black 14px, black calc(100% - 18px), transparent); }
-  .settings-main { padding: 54px 22px 0 28px; }
-  .settings-panels, .settings-results { padding-right: 12px; }
+  .settings-main { padding: 54px 0 0 28px; }
+  .settings-panels, .settings-results { padding-right: 34px; }
   .settings-category-button.active { background: var(--bg-active); }
   .settings-close { position: absolute; right: 16px; top: 12px; z-index: 2; }
   .settings-page .ui-settings .setting-row { align-items: center; }
