@@ -23,19 +23,28 @@ export function onListResizePointerDown(e: PointerEvent) {
   const startX = e.clientX;
   const startW = document.querySelector('.sessions-pane')?.getBoundingClientRect().width
     ?? cfg.design.sessionListWidth;
+  const widthAt = (ev: PointerEvent) => clamp(startW + (ev.clientX - startX));
 
-  const move = (ev: PointerEvent) => {
-    document.documentElement.style.setProperty('--w-list', `${clamp(startW + (ev.clientX - startX))}px`);
-  };
-  const up = (ev: PointerEvent) => {
-    target.releasePointerCapture?.(ev.pointerId);
+  // Drag end listens on window: the 7px handle can lose pointer capture (or
+  // leave the document) mid-drag, and a pointerup delivered anywhere else
+  // would leave `resizing` on <html>, where it keeps .chatlog and .sl-scroll
+  // at pointer-events: none — the whole page looks frozen. A release outside
+  // the window delivers no pointerup at all, so the next move with the
+  // button already up ends the drag too (same recovery as ChatLog).
+  function end(ev: PointerEvent) {
+    if (ev.pointerId !== e.pointerId) return;
     document.documentElement.classList.remove('resizing');
-    target.removeEventListener('pointermove', move);
-    target.removeEventListener('pointerup', up);
-    target.removeEventListener('pointercancel', up);
-    tryPlatform('storage')?.set(KEY, String(clamp(startW + (ev.clientX - startX))));
-  };
-  target.addEventListener('pointermove', move);
-  target.addEventListener('pointerup', up);
-  target.addEventListener('pointercancel', up);
+    window.removeEventListener('pointermove', move, true);
+    window.removeEventListener('pointerup', end, true);
+    window.removeEventListener('pointercancel', end, true);
+    tryPlatform('storage')?.set(KEY, String(widthAt(ev)));
+  }
+  function move(ev: PointerEvent) {
+    if (ev.pointerId !== e.pointerId) return;
+    if (!(ev.buttons & 1)) { end(ev); return; }
+    document.documentElement.style.setProperty('--w-list', `${widthAt(ev)}px`);
+  }
+  window.addEventListener('pointermove', move, true);
+  window.addEventListener('pointerup', end, true);
+  window.addEventListener('pointercancel', end, true);
 }
