@@ -468,8 +468,14 @@ export const chat = (() => {
         if (myEpoch !== epoch) return null;
         const deliveryId = d.resource_id ?? d.id;
         sentRun.value = { sessionId: id, deliveryId };
+        // The synthetic row carries the caption and the image count so the
+        // dock renders the same thing the reload path will (placeholder for
+        // empty text, 📷 indicator for attachments) until the control-plane
+        // projection catches up.
+        const queuedImages = blocks.filter((b) => b.type === 'image').length;
         applyDeliveryUpsert({ id: deliveryId, target_session_id: id, state: 'queued',
-          enqueue_seq: d.enqueue_seq, text });
+          enqueue_seq: d.enqueue_seq, text,
+          ...(queuedImages ? { attachments: queuedImages } : {}) });
         return deliveryId;
       }
 
@@ -800,7 +806,9 @@ export const chat = (() => {
     }
     if (terminalDeliveries.has(body.id)) return; // reordered after its terminal twin
     const kept = prev.filter((d) => d.id !== body.id);
-    const item = { ...body, text: body.text ?? known?.text ?? '' };
+    const item = { ...body,
+      text: body.text ?? known?.text ?? '',
+      ...(body.attachments == null && known?.attachments != null ? { attachments: known.attachments } : {}) };
     deliveries.value = [...kept, item].sort((a, b) => a.enqueue_seq - b.enqueue_seq);
   }
 
@@ -846,10 +854,12 @@ export const chat = (() => {
     try {
       const page = await api.deliveriesList(id, { state: 'queued', limit: 20 }, { signal: epochCtrl?.signal });
       if (myEpoch !== epoch) return;
-      const known = new Map(deliveries.value.map((d) => [d.id, d.text]));
+      const known = new Map(deliveries.value.map((d) => [d.id, d]));
       const resident = new Map(entries.value.filter((e) => e.delivery_id).map((e) => [e.delivery_id, entryText(e)]));
       deliveries.value = (page.items ?? [])
-        .map((d) => ({ ...d, text: known.get(d.id) ?? resident.get(d.id) ?? '' }))
+        .map((d) => ({ ...d,
+          text: known.get(d.id)?.text ?? resident.get(d.id) ?? '',
+          ...(d.attachments == null && known.get(d.id)?.attachments != null ? { attachments: known.get(d.id).attachments } : {}) }))
         .sort((a, b) => a.enqueue_seq - b.enqueue_seq);
     } catch (err) {
       if (myEpoch === epoch) error.value = err;

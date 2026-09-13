@@ -19,6 +19,17 @@ import Icon from '../../ui/components/Icon.vue';
 
 const props = defineProps<{ items: any[]; refill: (text: string) => void }>();
 
+// Attachment indicator: the control-plane projection exposes the count (or
+// the payload blocks) once worker1's attachments projection lands; the
+// synthetic row carries a plain count. Files are not images — only the
+// camera count shows.
+const imageCount = (item: any): number => {
+  const a = item.attachments;
+  if (typeof a === 'number') return a;
+  if (Array.isArray(a)) return a.filter((x) => x?.type !== 'file').length;
+  return 0;
+};
+
 const GRACE_MS = 400;
 const firstSeen = new Map<string, number>();
 const now = ref(Date.now());
@@ -53,11 +64,16 @@ async function edit(item: any) {
 <template>
   <div class="queue-dock" :class="{ quiet: shown.length === 0 }" role="list" :aria-label="i18n.t('chat.queueTitle')">
     <div v-for="item in shown" :key="item.id" class="queue-item" role="listitem">
+      <span v-if="imageCount(item)" class="queue-images" aria-hidden="true">📷×{{ imageCount(item) }}</span>
       <span class="queue-text">{{ item.text || i18n.t('chat.queueUntitled') }}</span>
-      <!-- Edit refills the composer with the original text; without it (a
-           reload under the deferred-entry backend, which exposes no queued
-           payload yet) there is nothing true to refill — only remove works. -->
-      <Hint v-if="item.text" :text="i18n.t('chat.queueEdit')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.queueEdit')"
+      <!-- Edit refills the composer with the original text. It is hidden when
+           the text is unknown (reload under the deferred-entry backend, which
+           exposes no queued payload yet) and when the row carries images:
+           refilling the caption alone would silently drop the attachments
+           from the resent message. Remove always works. Re-enable once the
+           projection carries per-item blob references the composer can
+           re-attach. -->
+      <Hint v-if="item.text && !imageCount(item)" :text="i18n.t('chat.queueEdit')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.queueEdit')"
         @click="edit(item)"><Icon name="pencil" /></button></Hint>
       <Hint :text="i18n.t('chat.queueRemove')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.queueRemove')"
         @click="remove(item)"><Icon name="x" /></button></Hint>
