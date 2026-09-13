@@ -27,7 +27,8 @@ const textContent = (key: string) => rows.value.get(key)!.title;
     <slot name="status" />
     <!-- Reka caches virtual rows by index. A changed result set must reset
          both memoized options and the measured group offsets/scroll position. -->
-    <ListboxContent :key="JSON.stringify(filtered)" class="picker-list" :style="{ height: `min(${listHeight}px, 48dvh, 380px)` }" :aria-label="placeholder">
+    <div class="picker-viewport" :style="{ height: `min(${listHeight}px, 48dvh, 380px)` }">
+    <ListboxContent :key="JSON.stringify(filtered)" class="picker-list" :aria-label="placeholder">
       <ListboxVirtualizer :options="keys" :estimate-size="estimate" :text-content="textContent" :overscan="5">
         <template #default="{ option, virtualItem }">
           <ListboxItem :value="option" :data-choice-key="option" :disabled="rows.get(option)!.disabled" class="picker-option" :style="{ height: `${estimate(virtualItem.index)}px` }" @select="emit('select', option)">
@@ -44,6 +45,7 @@ const textContent = (key: string) => rows.value.get(key)!.title;
       <p v-if="!keys.length" class="hint">{{ i18n.t('picker.empty') }}</p>
       <slot name="after" />
     </ListboxContent>
+    </div>
   </ListboxRoot>
 </template>
 
@@ -52,7 +54,9 @@ const textContent = (key: string) => rows.value.get(key)!.title;
 .picker-search { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 6px; margin-bottom: 10px; }
 .picker-search:focus-within { border-color: var(--accent); }
 .picker-search input { flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; outline: none; font: inherit; }
-.picker-list { overflow: auto; overscroll-behavior: contain; }
+.picker-viewport { transition: height 240ms cubic-bezier(.2,.7,.2,1); overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .picker-viewport { transition: none; } }
+.picker-list { height: 100%; overflow: auto; overscroll-behavior: contain; }
 .picker-option { width: 100%; outline: none; cursor: pointer; }
 .picker-option[data-disabled] { opacity: .5; cursor: default; }
 .picker-group { display: flex; align-items: center; gap: 8px; height: 32px; font-size: 12px; color: var(--fg-subtle); padding-inline: 10px; }

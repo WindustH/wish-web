@@ -77,7 +77,6 @@ export const en = {
   'chat.image': 'Image',
   'chat.interrupt': 'Interrupt',
   'chat.jumpLatest': 'Jump to latest',
-  'chat.generationChanged': 'Context compacted to a new generation; history is unchanged',
   'chat.capError': 'Failed to read model capabilities',
   'chat.stopFailed': 'Stop failed',
   'chat.loadingOlder': 'Loading earlier messages…',

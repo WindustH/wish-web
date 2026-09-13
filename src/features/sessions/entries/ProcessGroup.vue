@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { unfold, fold, cancelFold } from '../../../ui/motion/fold';
+
 import CopyButton from '../../../ui/components/CopyButton.vue';
 // One thumbnail covering a consecutive run of reasoning / tool calls /
 // tool results (mixed-entry tool calls fold in here too). Collapsed by
@@ -56,6 +58,7 @@ const stepIcon = (s: any) => s.kind === 'entry' ? 'wrench' : s.block?.type === '
       <span>{{ i18n.t('proc.title') }}</span><span class="proc-count">{{ steps.length }} {{ i18n.t('proc.stepsUnit') }}</span>
       <Icon class="proc-chevron" :class="{ expanded: open }" name="chevron-down" />
     </button>
+    <Transition :css="false" @enter="unfold" @leave="fold" @enter-cancelled="cancelFold" @leave-cancelled="cancelFold">
     <div v-if="open" class="proc-steps">
       <button v-for="(s, i) in steps" :key="i" class="proc-step"
         :data-seq="s.kind === 'entry' ? s.entry.seq : s.fromSeq" @click="detail = s">
@@ -66,6 +69,7 @@ const stepIcon = (s: any) => s.kind === 'entry' ? 'wrench' : s.block?.type === '
         <span class="pv">{{ preview(s) }}</span>
       </button>
     </div>
+    </Transition>
     <Modal :open="!!detail" :title="detail ? detailTitle(detail) : ''" wide @close="detail = null">
       <template #actions><CopyButton v-if="detail" :text="detailText(detail)" /></template>
       <template v-if="detail">

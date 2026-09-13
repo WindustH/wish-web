@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AnimatedDetails from '../../ui/components/AnimatedDetails.vue';
 import { computed } from 'vue';
 import { ChevronDown, Trash2 } from '@lucide/vue';
 import { isObject, pointer } from '../../core/config-editor';
@@ -60,19 +61,19 @@ function addAdvanced(field: string) { props.editor.set(fieldPath(field), structu
       </template>
       <p v-if="preset.api_key_supported || credentialFields.length" class="cfg-hint preset-secret-help">{{ tr('凭据支持 ${环境变量名}；未编辑时保留已保存的值。', 'Credentials accept ${ENV_VAR}; saved values are preserved when left unchanged.') }}</p>
     </section>
-    <details class="cfg-nested cfg-inline-models"><summary><ChevronDown :size="16" /><span>{{ fieldLabel(fieldPath('models')) }}</span></summary><ConfigNode :value="value.models ?? {}" :path="fieldPath('models')" :editor="editor" :catalog="catalog" /></details>
-    <details class="cfg-nested cfg-provider-advanced">
+    <AnimatedDetails class="cfg-nested cfg-inline-models"><summary><ChevronDown :size="16" /><span>{{ fieldLabel(fieldPath('models')) }}</span></summary><ConfigNode :value="value.models ?? {}" :path="fieldPath('models')" :editor="editor" :catalog="catalog" /></AnimatedDetails>
+    <AnimatedDetails class="cfg-nested cfg-provider-advanced">
       <summary><ChevronDown :size="16" /><span>{{ tr('高级设置', 'Advanced settings') }}</span></summary>
       <div v-for="[field] in advanced.filter(([field]) => field in value)" :key="field" class="cfg-property cfg-property-removable">
         <template v-if="field in value">
-          <details v-if="isObject(value[field])" class="cfg-nested"><summary><ChevronDown :size="16" /><span>{{ fieldLabel(fieldPath(field)) }}</span></summary><ConfigNode :value="value[field]!" :path="fieldPath(field)" :editor="editor" :catalog="catalog" /></details>
+          <AnimatedDetails v-if="isObject(value[field])" class="cfg-nested"><summary><ChevronDown :size="16" /><span>{{ fieldLabel(fieldPath(field)) }}</span></summary><ConfigNode :value="value[field]!" :path="fieldPath(field)" :editor="editor" :catalog="catalog" /></AnimatedDetails>
           <ConfigNode v-else :value="value[field]!" :path="fieldPath(field)" :editor="editor" :catalog="catalog" />
           <Hint :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除设置', 'Remove override')} ${fieldLabel(fieldPath(field))}`" @click="editor.remove(fieldPath(field))"><Trash2 :size="15" /></button></Hint>
         </template>
 
       </div>
       <AddOptionalSetting :options="advanced.filter(([field]) => !(field in value)).map(([field]) => ({ value: field, label: fieldLabel(fieldPath(field)) }))" @add="addAdvanced" />
-    </details>
+    </AnimatedDetails>
   </div>
 </template>
 

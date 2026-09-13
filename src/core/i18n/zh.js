@@ -77,7 +77,6 @@ export const zh = {
   'chat.image': '图片',
   'chat.interrupt': '中断',
   'chat.jumpLatest': '回到最新',
-  'chat.generationChanged': '上下文已压缩切换到新版本,历史保持完整',
   'chat.capError': '模型能力读取失败',
   'chat.stopFailed': '停止失败',
   'chat.loadingOlder': '正在加载更早的消息…',
