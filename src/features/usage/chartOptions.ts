@@ -54,7 +54,7 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
         return { value: [at, value], fitted: true, symbolSize: 0 };
       }) : item.points;
       return { id: item.key, name: item.label, type: 'line', data,
-      smooth: item.extendMean ? 0.25 : 0.25, smoothMonotone: 'x', connectNulls: false, showSymbol: !item.extendMean, symbol: 'circle', symbolSize: 4,
+      smooth: 0.25, smoothMonotone: 'x', connectNulls: false, showSymbol: !item.extendMean, symbol: 'circle', symbolSize: 4,
       lineStyle: { width: 2 }, itemStyle: { color: style.colors[(item.colorIndex ?? index) % style.colors.length] }, emphasis: { focus: 'series' } }; }),
   };
 }

@@ -1,7 +1,7 @@
 import type { DailyQuery, SeriesQuery } from './types';
 export type UsageRange = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'custom';
 export interface RangeSelection { period: UsageRange; start?: string; end?: string }
-export const rangeDays = { day: 1, week: 7, month: 30, quarter: 90, year: 365 };
+const rangeDays = { day: 1, week: 7, month: 30, quarter: 90, year: 365 };
 export function localDate(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
 /** Dates are sent with the same explicit fixed offset used by the backend. */
 export function usageQueries(range: UsageRange | RangeSelection, now = Date.now(), offsetMinutes = -new Date(now).getTimezoneOffset()): { series: SeriesQuery; daily: DailyQuery; timezone: string } {

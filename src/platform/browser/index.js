@@ -14,4 +14,5 @@ export function registerBrowserPlatform() {
   use('fs', browserFs);
   use('share', browserShare);
   use('app', browserApp);
+  window.addEventListener('beforeinstallprompt', browserApp.captureInstallPrompt);
 }

@@ -11,12 +11,10 @@ export declare function historySearch(id: string, params: any, opts?: any): Prom
 export declare function sessionInterrupt(id: string): Promise<any>;
 export declare function sessionCompact(id: string): Promise<any>;
 export declare function sessionPrune(id: string, body?: any): Promise<any>;
-export declare function daemonStatus(): Promise<any>;
+export declare function daemonStatus(opts?: { signal?: AbortSignal }): Promise<any>;
 export declare function providerConfigs(opts?: any): Promise<any>;
 export declare function providerSummaries(opts?: any): Promise<any>;
 export declare function providerModels(id: string, opts?: any): Promise<any>;
-export declare function streamingGet(opts?: any): Promise<any>;
-export declare function streamingPut(enabled: boolean, opts?: any): Promise<any>;
 export declare function uploadSessionBlob(sid: string, bytes: ArrayBuffer | Uint8Array, opts?: any): Promise<any>;
 export declare function uploadSessionImage(sid: string, bytes: ArrayBuffer | Uint8Array, opts?: any): Promise<any>;
 export declare function sessionCapabilities(id: string, opts?: any): Promise<any>;
@@ -30,3 +28,12 @@ export declare function configEffective(): Promise<{ wishd: { default_model?: { 
 export declare function sessionsList(params: { limit?: number; order?: string }): Promise<{ items: any[] }>;
 
 export declare function rememberDefaultModel(value: { provider: string; model: string; reasoning_effort?: string }): Promise<void>;
+
+export declare function historyPage(id: string, params: any, opts?: any): Promise<any>;
+export declare function deliveriesList(id: string, params?: any, opts?: any): Promise<any>;
+export declare function deliveryGet(id: string, opts?: any): Promise<any>;
+export declare function deliveryCancel(id: string): Promise<any>;
+export declare function runGet(id: string, opts?: any): Promise<any>;
+export declare function daemonVersion(opts?: { signal?: AbortSignal }): Promise<{ name: string; version: string }>;
+export declare function usageTotals(opts?: { signal?: AbortSignal }): Promise<import('../state/statsSlice').UsageSnapshot>;
+export declare function storageStatus(opts?: { signal?: AbortSignal }): Promise<import('../state/statsSlice').StorageSnapshot>;

@@ -7,7 +7,6 @@ import { blobUrl } from '../../../core/api/endpoints.js';
 import { fmtTokens } from '../../../core/util/fmt.js';
 import Markdown from '../../../ui/components/Markdown.vue';
 import CopyButton from '../../../ui/components/CopyButton.vue';
-import Icon from '../../../ui/components/Icon.vue';
 
 const props = defineProps<{ item: any }>();
 const texts = computed(() => (props.item.blocks || []).filter((b: any) => b.type === 'text'));
