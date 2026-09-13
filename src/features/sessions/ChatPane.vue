@@ -5,10 +5,11 @@ import Hint from '../../ui/components/Hint.vue';
 // Chat surface: top bar (desktop three actions / mobile back+menu), log,
 // composer, and child-route dialogs (mobile subpages). Opening session
 // actions never rebuilds the conversation.
-import { computed, provide, shallowRef, ref, watch } from 'vue';
+import { computed, provide, shallowRef, ref, watch, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMedia } from '../../ui/composables/useMedia.js';
 import { i18n } from '../../core/i18n/index.js';
+import { bus } from '../../core/bus.js';
 import { chat } from '../../core/state/chatSlice.js';
 import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
@@ -30,6 +31,12 @@ const tab = computed(() => {
   const n = route.name as string;
   return n === 'chat-info' ? 'info' : n === 'chat-search' ? 'search' : n === 'chat-manage' ? 'manage' : null;
 });
+
+const offSessionGone = bus.on('chat.sessionGone', (goneId: string) => {
+  if (id.value !== goneId) return;
+  void router.replace(isMobile.value ? sessionParent.value : '/sessions');
+});
+onUnmounted(offSessionGone);
 
 watch(id, (next) => { if (next) chat.open(next); }, { immediate: true });
 
