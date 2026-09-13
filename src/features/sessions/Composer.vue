@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import Hint from '../../ui/components/Hint.vue';
-import { attachmentLimits, hasImagePreview, type AttachmentInput, type PickedAttachment } from '../../core/attachments.js';
+import { attachmentDraftsFor, attachmentLimits, hasImagePreview, saveAttachmentDrafts, type AttachmentInput, type PickedAttachment } from '../../core/attachments.js';
 import { fmtBytes } from '../../core/util/fmt.js';
 // Correctness rules preserved from the audited implementation:
 //  · IME-safe Enter (composition strokes never send);
 //  · in-flight guard, no implicit stop from the keyboard;
 //  · input NOT cleared while sending — only the exact sent payload on success;
 //    stale receipts (session switched) never touch drafts/attachments;
-//  · drafts per-session, persisted at the input event itself;
-//  · object URLs revoked on remove/send/switch/unmount.
+//  · drafts per-session — text persisted at the input event itself,
+//    attachments mirrored to the per-session draft store in
+//    core/attachments.js — both restored on session switch and return;
+//  · object URLs revoked when an attachment leaves for good (remove/send).
 import { computed, nextTick, ref, watch, onBeforeUnmount } from 'vue';
 import { cfg } from '../../core/config.js';
 import { i18n } from '../../core/i18n/index.js';
@@ -32,7 +34,8 @@ const sendOnEnter = computed(() => prefs.sendOnEnter.value);
 
 const composerEl = ref<HTMLElement | null>(null);
 const ta = ref<HTMLTextAreaElement | null>(null);
-defineExpose({ focus: () => ta.value?.focus() });
+function fill(v: string) { setTextOwned(v); void nextTick(() => ta.value?.focus()); }
+defineExpose({ focus: () => ta.value?.focus(), fill });
 const sizing = useComposerHeight(composerEl);
 const height = computed(() => sizing.height());
 const attachmentStrip = ref<HTMLElement | null>(null);
@@ -47,15 +50,19 @@ watch(attachmentStrip, (el, _, onCleanup) => {
 }, { flush: 'post' });
 
 const text = ref(chat.getDraft(props.sessionId));
-const attachments = ref<Attachment[]>([]);
+const attachments = ref<Attachment[]>(attachmentDraftsFor<Attachment>(props.sessionId));
 const readingAttachments = ref(0);
 let attachmentEpoch = 0;
 const sidRef = ref(props.sessionId);
 sidRef.value = props.sessionId;
 
 const running = computed(() => stream.value?.active);
-const busy = computed(() => running.value || sending.value);
-const canSend = computed(() => (text.value.trim().length > 0 || attachments.value.length > 0) && !busy.value && !readingAttachments.value && !props.disabled);
+// A running loop no longer blocks sending: the message queues and is
+// consumed at the next turn boundary (see chatSlice.send).
+const canSend = computed(() => (text.value.trim().length > 0 || attachments.value.length > 0) && !sending.value && !readingAttachments.value && !props.disabled);
+// While running, the round button stays the stop control; a separate send
+// appears as soon as there is something to queue.
+const queueable = computed(() => running.value && (text.value.trim().length > 0 || attachments.value.length > 0));
 
 const capsFailed = computed(() => caps.value?.status === 'error');
 const capsData = computed(() => caps.value?.status === 'ok' ? caps.value.data : null);
@@ -71,13 +78,14 @@ function setTextOwned(v: string) {
 watch(() => props.sessionId, (id) => {
   attachmentEpoch++;
   readingAttachments.value = 0;
+  saveAttachmentDrafts(sidRef.value, attachments.value);   // this conversation keeps its unsent draft
   sidRef.value = id;   // ownership FIRST: drafts/attachments must never leak across sessions (audit A1)
-  const prev = attachments.value;
-  attachments.value = [];
-  revokeAll(prev);
+  attachments.value = attachmentDraftsFor<Attachment>(id);   // …and the target's draft comes back
   text.value = chat.getDraft(id);
 }, { flush: 'sync' });
-onBeforeUnmount(() => { attachmentEpoch++; revokeAll(attachments.value); });
+// Unmount keeps the stored draft (and its object URLs) alive for the return
+// visit; revoking here would break the restored preview.
+onBeforeUnmount(() => { attachmentEpoch++; });
 
 watch([text, () => props.mobile], async () => {
   await nextTick();
@@ -145,6 +153,7 @@ async function readAttachments(files: PickedAttachment[]) {
         kind: file.kind, name: file.name, mime: file.mime, bytes,
         localUrl: URL.createObjectURL(new Blob([bytes], { type: file.mime })),
       }];
+      saveAttachmentDrafts(sidRef.value, attachments.value);
     }
   } catch (error) {
     if (epoch === attachmentEpoch) toast('Could not read attachment: ' + String(error));
@@ -157,10 +166,11 @@ function removeAttachment(i: number) {
   const attachment = attachments.value[i];
   if (attachment?.localUrl) URL.revokeObjectURL(attachment.localUrl);
   attachments.value = attachments.value.filter((_, j) => j !== i);
+  saveAttachmentDrafts(sidRef.value, attachments.value);
 }
 
 async function submit() {
-  if (sending.value || running.value) return;
+  if (sending.value) return;
   if (!canSend.value) return;
   const owner = props.sessionId;
   const payload = text.value, sent = attachments.value;
@@ -168,9 +178,15 @@ async function submit() {
   try {
     const receipt = await (props.sendMessage ? props.sendMessage(payload, sent) : chat.send(payload, sent));
     if (!receipt) return;   // stale: never accepted — everything survives
-    if (sidRef.value !== owner) { chat.setDraft('', owner); revokeAll(sent); return; }
+    if (sidRef.value !== owner) {
+      chat.setDraft('', owner);
+      saveAttachmentDrafts(owner, attachmentDraftsFor<Attachment>(owner).filter((i) => !sent.includes(i)));
+      revokeAll(sent);
+      return;
+    }
     if (text.value === payload) { text.value = ''; chat.setDraft('', owner); }
     attachments.value = attachments.value.filter((i) => !sent.includes(i));
+    saveAttachmentDrafts(owner, attachments.value);
     revokeAll(sent);
   } catch (e: any) {
     if (sidRef.value === owner) toast(String(e?.detail || e?.message || e));
@@ -190,7 +206,7 @@ function onKeydown(e: KeyboardEvent) {
   const plain = !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
   const mod = e.ctrlKey || e.metaKey;
   if ((sendOnEnter.value && plain) || (!sendOnEnter.value && mod)) {
-    if (!running.value && !sending.value) { e.preventDefault(); submit(); }
+    if (!sending.value) { e.preventDefault(); submit(); }
   }
 }
 
@@ -268,6 +284,10 @@ function resizeKeys(e: KeyboardEvent) {
         :placeholder="running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')"
         :aria-label="i18n.t('chat.placeholder')" v-model="text"
         @input="setTextOwned(($event.target as HTMLTextAreaElement).value)" @keydown="onKeydown" @paste="onPaste" />
+      <Hint v-if="mobile && queueable" :text="i18n.t('chat.queueSend')"><button class="send-btn" :disabled="sending"
+        :aria-label="i18n.t('chat.queueSend')" @click="submit()">
+        <Icon v-if="sending" name="loader-circle" class="spin" /><Icon v-else name="send" />
+      </button></Hint>
       <Hint v-if="mobile" :text="i18n.t(running ? 'chat.stop' : 'chat.send')"><button class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
         :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')"
         @click="running ? onStop() : submit()">
@@ -277,6 +297,10 @@ function resizeKeys(e: KeyboardEvent) {
     </div>
     <div v-if="!mobile" class="composer-footer">
       <span class="composer-hint">{{ i18n.t(sendOnEnter ? 'composer.enterSends' : 'composer.modEnterSends') }}</span>
+      <Hint v-if="queueable" :text="i18n.t('chat.queueSend')"><button class="send-btn" :disabled="sending"
+        :aria-label="i18n.t('chat.queueSend')" @click="submit()">
+        <Icon v-if="sending" name="loader-circle" class="spin" /><Icon v-else name="send" />
+      </button></Hint>
       <Hint :text="i18n.t(running ? 'chat.stop' : 'chat.send')"><button class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
         :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')"
         @click="running ? onStop() : submit()">
