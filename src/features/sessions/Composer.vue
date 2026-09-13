@@ -220,19 +220,34 @@ function startComposerDrag(e: PointerEvent) {
   t.setPointerCapture(e.pointerId);
   const y = e.clientY, h0 = height.value;
   document.documentElement.classList.add('resizing-composer');
-  const move = (ev: PointerEvent) => sizing.change(h0 + y - ev.clientY);
-  const finish = (nextHeight: number) => {
-    sizing.commit(nextHeight);
+  const heightAt = (ev: PointerEvent) => h0 + y - ev.clientY;
+
+  // Drag end listens on window: the handle can lose pointer capture (the
+  // composer re-renders mid-drag while a run streams) or leave the document,
+  // and a pointerup delivered anywhere else would leave `resizing-composer`
+  // on <html>, where its user-select: none makes the whole page look frozen.
+  // A release outside the window delivers no pointerup at all, so the next
+  // move with the button already up ends the drag too (same recovery as the
+  // session-list edge). pointercancel keeps reverting to the pre-drag height;
+  // the class comes off before commit so a storage failure cannot strand it.
+  function release(ev: PointerEvent, commitHeight: number) {
+    if (ev.pointerId !== e.pointerId) return;
     document.documentElement.classList.remove('resizing-composer');
-    t.removeEventListener('pointermove', move);
-    t.removeEventListener('pointerup', up);
-    t.removeEventListener('pointercancel', cancel);
-  };
-  const up = (ev: PointerEvent) => finish(h0 + y - ev.clientY);
-  const cancel = () => finish(h0);
-  t.addEventListener('pointermove', move);
-  t.addEventListener('pointerup', up);
-  t.addEventListener('pointercancel', cancel);
+    window.removeEventListener('pointermove', move, true);
+    window.removeEventListener('pointerup', up, true);
+    window.removeEventListener('pointercancel', cancel, true);
+    sizing.commit(commitHeight);
+  }
+  function up(ev: PointerEvent) { release(ev, heightAt(ev)); }
+  function cancel(ev: PointerEvent) { release(ev, h0); }
+  function move(ev: PointerEvent) {
+    if (ev.pointerId !== e.pointerId) return;
+    if (!(ev.buttons & 1)) { up(ev); return; }
+    sizing.change(heightAt(ev));
+  }
+  window.addEventListener('pointermove', move, true);
+  window.addEventListener('pointerup', up, true);
+  window.addEventListener('pointercancel', cancel, true);
 }
 
 function resizeKeys(e: KeyboardEvent) {
