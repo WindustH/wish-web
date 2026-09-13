@@ -144,8 +144,17 @@ function search() {
   }
   matches.value = found;
 }
+// The mutation observer stays armed while the settings page is merely
+// cached (KeepAlive), and every keystroke in a config field is a
+// characterData mutation. Rescans are pointless unless the page is active
+// AND a query is showing matches, and bursts coalesce into one scan.
 function scheduleSearch() {
-  if (searching.value && !frame) frame = requestAnimationFrame(search);
+  if (!pageActive.value || !searching.value) return;
+  clearTimeout(frame);
+  frame = setTimeout(() => {
+    frame = 0;
+    if (pageActive.value && searching.value) search();
+  }, 300) as unknown as number;
 }
 watch(() => [configEditors.wishd.draft.value, configEditors.providerd.draft.value], scheduleSearch);
 watch(query, async () => { await nextTick(); search(); if (searching.value) scroll.value!.scrollTo({ top: 0, behavior: 'instant' }); });
@@ -186,7 +195,7 @@ watch(panels, element => {
     observer.observe(element, { childList: true, characterData: true, subtree: true });
   }
 }, { flush: 'post' });
-onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); });
+onBeforeUnmount(() => { observer?.disconnect(); clearTimeout(frame); });
 </script>
 
 <template>

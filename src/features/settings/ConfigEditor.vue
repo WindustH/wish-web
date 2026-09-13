@@ -89,7 +89,12 @@ watch(upstreamTarget, async (target, _, onCleanup) => {
     if (!summary.model_catalog_available) return;
     const cursors = new Set<string>();
     let cursor: string | undefined;
+    // The catalog is paged but not trusted to terminate; cap the walk at
+    // the same depth the session list caps its authoritative rebuild.
+    const maxPages = 80;
+    let pages = 0;
     do {
+      if (++pages > maxPages) throw new Error(`Upstream model catalog exceeded ${maxPages} pages`);
       const page = await providerModels(id, { signal: controller.signal, query: { cursor } });
       for (const model of page.upstream_models) {
         const { id: modelId, allowed_for_provider: _allowed, display_name: _name, description: _description,

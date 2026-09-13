@@ -13,7 +13,15 @@ const active = usePageActivity();
 const style = ref<ChartStyle>();
 let calendarObserver: ResizeObserver | undefined;
 const width = ref(800);
-watch(width, value => { if (props.heat) emit('columns', Math.max(1, Math.floor((value - 4) / 18))); });
+// The calendar bucket count derives from width; refetching only makes sense
+// when that count actually changes, and resize bursts settle first.
+const columns = computed(() => Math.max(1, Math.floor((width.value - 4) / 18)));
+let columnTimer: ReturnType<typeof setTimeout> | undefined;
+watch(columns, value => {
+  if (!props.heat) return;
+  clearTimeout(columnTimer);
+  columnTimer = setTimeout(() => emit('columns', value), 200);
+});
 function readStyle() {
   if (!active.value || !root.value?.isConnected) return;
   const css = getComputedStyle(root.value);
@@ -29,7 +37,7 @@ onMounted(async () => {
     calendarObserver.observe(root.value);
   }
 });
-onBeforeUnmount(() => calendarObserver?.disconnect());
+onBeforeUnmount(() => { calendarObserver?.disconnect(); clearTimeout(columnTimer); });
 watch([theme.resolved, active], async () => { await nextTick(); readStyle(); });
 const layout = computed(() => props.heat ? calendarLayout(props.heat.buckets.length, width.value) : undefined);
 const option = computed(() => style.value && (props.pie ? pieOptions(props.pie, style.value, i18n.locale.value) : props.heat
