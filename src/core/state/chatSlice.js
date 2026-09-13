@@ -73,6 +73,7 @@ export const chat = (() => {
   const deadStreams = new Set();        // URLs that returned 404/410/401/403 —
                                         // never re-attached within this lifecycle
   let offSessionSync = null;
+  let offDeliverySync = null;
   let reconcileTimer = null;
   let pollTimer = null;
   let pollTickBusy = false;
@@ -99,6 +100,7 @@ export const chat = (() => {
     stopStream();
     deadStreams.clear();
     offSessionSync?.(); offSessionSync = null;
+    offDeliverySync?.(); offDeliverySync = null;
     clearTimeout(reconcileTimer); reconcileTimer = null;
     clearInterval(pollTimer); pollTimer = null;
     pollTickBusy = false;
@@ -149,6 +151,8 @@ export const chat = (() => {
       const tail = (page.items ?? []).slice().reverse();
       if (version === historyVersion.value) applyPage(tail, page.has_more ?? false);
       offSessionSync = (await import('./syncSlice.js')).sync.subscribeSession(id, onSessionSync);
+      offDeliverySync = bindDeliverySync();
+      refreshDeliveries(id);
       await reattachIfRunning(id);
     } catch (err) {
       if (stale() || err?.name === 'AbortError') return;
@@ -325,6 +329,7 @@ export const chat = (() => {
     for (const e of fresh) byKey.set(entryKey(e), e);
     const merged = [...byKey.values()].sort((a, b) => sortKey(a) - sortKey(b));
     entries.value = merged;
+    seedQueueTexts(fresh);
     settleStreamEcho();
     const seqs = merged.map((e) => e.seq).filter((s) => s != null);
     if (seqs.length) {
@@ -423,7 +428,6 @@ export const chat = (() => {
     const id = sessionId.value;
     if (!id) throw new Error('no active session');
     if (sending.value) throw new Error('send already in flight');
-    if (stream.value.active) throw new Error('a run is already active');
     const myEpoch = epoch;
     const sig = epochCtrl?.signal;
     sending.value = true;
@@ -434,6 +438,24 @@ export const chat = (() => {
         signal: sig,
         capabilities: capabilities.value?.status === 'ok' ? capabilities.value.data : undefined,
       });
+      if (myEpoch !== epoch) return null;
+
+      // A running loop consumes a new message at its next completed turn
+      // boundary, and the durable user entry is written atomically at
+      // enqueue: queue it (dock lists it), pull the entry into the log, and
+      // leave the live run's stream untouched.
+      if (stream.value.active) {
+        const d = await api.messageSend(id, {
+          content: text, ...(blocks.length ? { blocks } : {}),
+        }, { signal: sig });
+        if (myEpoch !== epoch) return null;
+        const deliveryId = d.resource_id ?? d.id;
+        sentRun.value = { sessionId: id, deliveryId };
+        applyDeliveryUpsert({ id: deliveryId, target_session_id: id, state: 'queued',
+          enqueue_seq: d.enqueue_seq, text });
+        void fetchNewer();
+        return deliveryId;
+      }
 
       // A new message belongs at the live tail, even when the reader came
       // here through an old search result. Keep that history range contiguous.
@@ -727,11 +749,85 @@ export const chat = (() => {
     }
   }
 
+  // ── pending queue (dock) ────────────────────────────────────────────────
+  // deliveries holds the open session's QUEUED items in enqueue order; the
+  // protocol writes each queued message's durable entry at enqueue, so its
+  // text is joined from history and kept on the item (survives reloads and
+  // history-window moves). Control-plane delivery upserts keep the list
+  // live — enqueue, cancel and turn-boundary consumption — without polling.
+  function bindDeliverySync() {
+    const offs = [
+      bus.on('upsert.delivery', (u) => applyDeliveryUpsert(u.body)),
+      bus.on('tombstone.delivery', (t) => {
+        if (deliveries.value.some((d) => d.id === t.id)) {
+          deliveries.value = deliveries.value.filter((d) => d.id !== t.id);
+        }
+      }),
+    ];
+    return () => { for (const off of offs) off(); };
+  }
+
+  function applyDeliveryUpsert(body) {
+    const id = sessionId.value;
+    if (!id || body?.target_session_id !== id) return;
+    const prev = deliveries.value;
+    const known = prev.find((d) => d.id === body.id);
+    const kept = prev.filter((d) => d.id !== body.id);
+    if (body.state !== 'queued') {
+      if (known) deliveries.value = kept;
+      return;
+    }
+    const item = { ...body, text: body.text ?? known?.text ?? '' };
+    deliveries.value = [...kept, item].sort((a, b) => a.enqueue_seq - b.enqueue_seq);
+  }
+
+  function entryText(e) {
+    return (e.payload?.content ?? []).filter((b) => b.type === 'text').map((b) => b.text ?? '').join('\n');
+  }
+
+  // The queue item's own entry arriving in a history page is the durable
+  // source of its display text.
+  function seedQueueTexts(fresh) {
+    if (!deliveries.value.length || !fresh.length) return;
+    let changed = false;
+    const next = deliveries.value.map((d) => {
+      if (d.text) return d;
+      const e = fresh.find((x) => x.delivery_id === d.id);
+      if (!e) return d;
+      changed = true;
+      return { ...d, text: entryText(e) };
+    });
+    if (changed) deliveries.value = next;
+  }
+
+  // Cancel one queued delivery (dock remove, or edit's take-back). Returns
+  // false when it had already left the queue (consumed by the running loop).
+  async function cancelQueued(deliveryId) {
+    const myEpoch = epoch;
+    let cancelled = true;
+    try {
+      await api.deliveryCancel(deliveryId);
+    } catch (err) {
+      if (err?.status !== 409) throw err;
+      cancelled = false;
+    }
+    if (myEpoch !== epoch) return cancelled;
+    if (deliveries.value.some((d) => d.id === deliveryId)) {
+      deliveries.value = deliveries.value.filter((d) => d.id !== deliveryId);
+    }
+    return cancelled;
+  }
+
   async function refreshDeliveries(id) {
     const myEpoch = epoch;
     try {
-      const page = await api.deliveriesList(id, { limit: 20 }, { signal: epochCtrl?.signal });
-      if (myEpoch === epoch) deliveries.value = page.items;
+      const page = await api.deliveriesList(id, { state: 'queued', limit: 20 }, { signal: epochCtrl?.signal });
+      if (myEpoch !== epoch) return;
+      const known = new Map(deliveries.value.map((d) => [d.id, d.text]));
+      const resident = new Map(entries.value.filter((e) => e.delivery_id).map((e) => [e.delivery_id, entryText(e)]));
+      deliveries.value = (page.items ?? [])
+        .map((d) => ({ ...d, text: known.get(d.id) ?? resident.get(d.id) ?? '' }))
+        .sort((a, b) => a.enqueue_seq - b.enqueue_seq);
     } catch (err) {
       if (myEpoch === epoch) error.value = err;
     }
@@ -769,7 +865,7 @@ export const chat = (() => {
     loadingOlder, loadingNewer, loadingInitial, locating, historyVersion, error, stream, sending, sentRun, capabilities,
     pendingSeq, deliveries, phase, isActive,
     open, close, reload, reloadCapabilities, jumpToLatest, loadOlder, fetchNewer,
-    send, interrupt, refreshDeliveries,
+    send, interrupt, refreshDeliveries, cancelQueued,
     setDraft, getDraft, locate, cancelLocate, clearPendingSeq,
   };
 })();

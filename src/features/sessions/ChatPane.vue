@@ -15,6 +15,7 @@ import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
 import ChatLog from './ChatLog.vue';
 import Composer from './Composer.vue';
+import QueueDock from './QueueDock.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
 import { useResolvedEffort } from './useResolvedEffort';
@@ -41,6 +42,9 @@ onUnmounted(offSessionGone);
 watch(id, (next) => { if (next) chat.open(next); }, { immediate: true });
 
 const snapshot = computed(() => chat.snapshot.value);
+const queued = computed(() => chat.deliveries.value);
+const composerRef = ref<{ fill: (v: string) => void } | null>(null);
+const onQueueEdit = (text: string) => composerRef.value?.fill(text);
 const { effort, error: effortError } = useResolvedEffort(snapshot);
 const queue = computed(() => snapshot.value?.queue ?? 0);
 const modelOpen = ref(false);
@@ -90,7 +94,12 @@ const goTab = (t: string) => {
       </Menu>
     </div>
     <ChatLog :session-id="id" :mobile="isMobile" />
-    <Composer :session-id="id" :mobile="isMobile" />
+    <div class="queue-dock-anchor">
+      <Transition name="queue-dock">
+        <QueueDock v-if="queued.length > 0" :items="queued" :refill="onQueueEdit" />
+      </Transition>
+    </div>
+    <Composer ref="composerRef" :session-id="id" :mobile="isMobile" />
     <RouterView v-slot="{ Component, route: panelRoute }">
       <component :is="Component" :key="panelRoute.fullPath" @close="closeTab(panelRoute.fullPath)" />
     </RouterView>

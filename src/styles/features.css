@@ -107,6 +107,27 @@
   .history-target .proc-head { animation: none; box-shadow: 0 0 0 2px var(--accent-soft); }
 }
 /* Desktop writing desk: explicit height and draggable separator. Mobile grows with content. */
+/* Queue dock: floats above the composer over the log (zero-height anchor
+   keeps the column layout untouched). Desktop aligns with the composer's
+   padded left edge; mobile centers it. */
+.queue-dock-anchor { position: relative; height: 0; flex: none; }
+.queue-dock {
+  position: absolute; bottom: 10px; left: 24px; z-index: 6;
+  display: flex; flex-direction: column; gap: 4px;
+  width: max-content; max-width: min(480px, calc(100% - 48px));
+  max-height: min(320px, 40vh); overflow-y: auto; overscroll-behavior: contain;
+  padding: 6px; border: 1px solid var(--line-strong); border-radius: var(--radius);
+  background: var(--bg-raised); box-shadow: var(--shadow-pop);
+}
+.queue-item { display: flex; align-items: center; gap: 2px; min-width: 0; padding: 3px 6px; border-radius: 4px; background: var(--bg); }
+.queue-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.queue-item .btn.icon-only { width: 28px; height: 28px; flex: none; }
+.queue-dock-enter-active, .queue-dock-leave-active { transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+.queue-dock-enter-from, .queue-dock-leave-to { opacity: 0; transform: translateY(6px); }
+@media (prefers-reduced-motion: reduce) { .queue-dock-enter-active, .queue-dock-leave-active { transition: none; } }
+@media (max-width: 899px) {
+  .queue-dock { left: 0; right: 0; margin-inline: auto; max-width: calc(100% - 24px); }
+}
 .composer { position: relative; flex: none; min-height: 0; border-top: 1px solid var(--line-strong); background: var(--bg-raised); display: flex; flex-direction: column; }
 .composer.desktop { padding: 0 24px 12px; transition: height var(--dur-fast) var(--ease-out); }
 .resizing-composer .composer.desktop { transition: none; }

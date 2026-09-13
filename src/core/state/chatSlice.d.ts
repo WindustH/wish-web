@@ -11,6 +11,8 @@ export interface ChatApi {
   oldestSeq: ShallowRef<number | null>;
   newestSeq: ShallowRef<number | null>;
   historyVersion: ShallowRef<number>;
+  // Queued deliveries for the open session (enqueue order, text joined
+  // from history); kept live by control-plane delivery upserts.
   deliveries: ShallowRef<any[]>;
   locating: ShallowRef<boolean>;
   isActive: ShallowRef<boolean>;
@@ -39,6 +41,8 @@ export interface ChatApi {
   setDraft(text: string, id?: string): void;
   reloadCapabilities(): Promise<void>;
   refreshDeliveries(): Promise<void>;
+  // Cancel one queued delivery; false when it had already left the queue.
+  cancelQueued(deliveryId: string): Promise<boolean>;
   cancelLocate(): void;
   clearPendingSeq(): void;
 }
