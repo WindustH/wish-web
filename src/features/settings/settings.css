@@ -58,7 +58,7 @@
 .cfg-switch[data-state="checked"] .cfg-switch-thumb { transform: translateX(17px); background: var(--bg); }
 .cfg-object { min-width: 0; }
 .cfg-nested { padding: 14px 0; }
-.cfg-nested > .cfg-object, .cfg-nested > .cfg-array { margin: 10px 0 0 12px; border-left: 2px solid var(--line); padding-left: 16px; }
+.cfg-nested > .cfg-object, .cfg-nested > .cfg-array { margin: 10px 0 0; }
 .config-editor summary { display: flex; align-items: center; gap: 8px; list-style: none; cursor: pointer; padding: 0; font: 500 14px/1.5 var(--font); overflow-wrap: anywhere; }
 .config-editor summary::-webkit-details-marker { display: none; }
 .config-editor summary > svg { flex-shrink: 0; transform: rotate(-90deg); transition: transform 160ms ease; }
@@ -117,7 +117,6 @@
   .cfg-savebar-inner { flex-wrap: wrap; gap: 10px; }
   .cfg-savebar-actions { margin-left: auto; }
   .cfg-savebar-actions .btn { min-height: 40px; }
-  .cfg-nested > .cfg-object, .cfg-nested > .cfg-array { margin-left: 0; padding-left: 12px; }
   .cfg-array-item { padding: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -219,3 +218,7 @@
   .cfg-input-wrap > .btn { flex: none; padding-inline: 6px; }
   .ui-settings .setting-row > .choice-capsule { flex: none; margin-left: auto; }
 }
+
+.cfg-model-list > .cfg-group-hint { margin: 0 0 8px; padding-bottom: 0; }
+.cfg-model-list > .cfg-property > .cfg-edit-row { padding-block: 8px; }
+.cfg-model-list > .cfg-add-field { margin: 8px 0 0; padding-top: 12px; }
