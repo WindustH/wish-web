@@ -7,7 +7,15 @@ const open = new Map<string, Set<string>>();
 export const expandedBefore = (sessionId: string, key: string) => open.get(sessionId)?.has(key) ?? false;
 export const setExpanded = (sessionId: string, key: string, value: boolean) => {
   let set = open.get(sessionId);
-  if (!set) { set = new Set<string>(); open.set(sessionId, set); }
+  if (!set) {
+    set = new Set<string>();
+    open.set(sessionId, set);
+    while (open.size > 32) {
+      const oldest = open.keys().next().value;
+      if (oldest === undefined || oldest === sessionId) break;
+      open.delete(oldest);
+    }
+  }
   if (value) set.add(key); else set.delete(key);
 };
 export const dropExpandedSession = (sessionId: string) => { open.delete(sessionId); };
