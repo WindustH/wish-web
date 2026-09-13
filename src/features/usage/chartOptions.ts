@@ -99,7 +99,10 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
 export function pieOptions(items: PieSlice[], style: ChartStyle, locale: string): EChartsCoreOption {
   let container: HTMLElement;
   return {
-    animation: true, animationDuration: 0, animationDurationUpdate: 260, animationEasingUpdate: 'cubicOut', color: style.colors,
+    // No pie animation at all: every stats refresh rebuilds the slice list,
+    // which replays an expand tween even when the shares barely moved.
+    // Lines and the heatmap keep their update transitions.
+    animation: false, color: style.colors,
     tooltip: { trigger: 'item', confine: false, renderMode: 'html', backgroundColor: style.surface, borderColor: style.line,
       className: 'usage-pie-tooltip',
       appendTo: (chartContainer: HTMLElement) => { container = chartContainer; return document.body; },
