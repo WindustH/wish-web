@@ -8,7 +8,7 @@ import AssistantEntry from './entries/AssistantEntry.vue';
 import SystemEntry from './entries/SystemEntry.vue';
 import ProcessGroup from './entries/ProcessGroup.vue';
 
-const props = defineProps<{ item: any; forced?: boolean }>();
+const props = defineProps<{ item: any; forced?: boolean; session?: string }>();
 const comp = computed<Component>(() =>
   props.item.type === 'process' ? ProcessGroup
   : props.item.entry?.kind === 'user_message' ? UserEntry
@@ -19,5 +19,5 @@ const comp = computed<Component>(() =>
   <div v-if="item.type === 'entry' && item.entry?.seq != null" class="entry-anchor" :data-seq="item.entry.seq">
     <component :is="comp" :item="item" />
   </div>
-  <component :is="comp" v-else :item="item" :forced="forced" />
+  <component :is="comp" v-else :item="item" :forced="forced" :session="session" />
 </template>

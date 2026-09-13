@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { unfold, fold, cancelFold } from '../../../ui/motion/fold';
+import { expandedBefore, setExpanded } from '../expandState';
 
 import CopyButton from '../../../ui/components/CopyButton.vue';
 // One thumbnail covering a consecutive run of reasoning / tool calls /
@@ -12,10 +13,13 @@ import { firstLine } from '../../../core/util/fmt.js';
 import Icon from '../../../ui/components/Icon.vue';
 import Modal from '../../../ui/components/Modal.vue';
 
-const props = defineProps<{ item: any; forced?: boolean }>();
-const open = ref(false);
+const props = defineProps<{ item: any; forced?: boolean; session?: string }>();
+// Expansion survives virtualizer recycling: pruned rows destroy their
+// component, and an open group must not fold itself shut on scroll.
+const open = ref(!!props.session && expandedBefore(props.session, props.item.key));
 const detail = ref<any>(null);
 watch(() => props.forced, (forced) => { if (forced) open.value = true; }, { immediate: true });
+watch(open, (value) => { if (props.session) setExpanded(props.session, props.item.key, value); });
 
 const steps = computed(() => props.item.steps ?? []);
 
