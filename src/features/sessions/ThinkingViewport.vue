@@ -41,11 +41,12 @@ watch(() => props.text, () => {
 <style scoped>
 .thinking-fold { display: grid; grid-template-rows: 1fr; opacity: 1; transition: grid-template-rows 220ms ease, opacity 220ms ease; }
 .thinking-fold.collapsed { grid-template-rows: 0fr; opacity: 0; }
-.thinking-clip { min-height: 0; overflow: hidden; }
+.thinking-clip { min-height: 0; overflow: hidden; mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 12px), transparent); }
 .thinking-fold.collapsed .live-reasoning { visibility: hidden; transition: visibility 0s 220ms; }
 @media (prefers-reduced-motion: reduce) { .thinking-fold, .thinking-fold.collapsed .live-reasoning { transition: none; } }
 .live-reasoning {
   max-height: min(240px, 30dvh);
+  padding-block: 12px;
   overflow-y: auto;
   overscroll-behavior: contain;
   white-space: pre-wrap;
