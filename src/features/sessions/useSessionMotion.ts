@@ -1,5 +1,6 @@
 import { nextTick, onBeforeUnmount } from 'vue';
 import { useRouter, type RouteLocationNormalized } from 'vue-router';
+import { navigationDeadline } from '../../ui/motion/navDeadline';
 
 export function useSessionMotion() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export function useSessionMotion() {
     if (!page(to) || !page(from) || page(to) === page(from) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const chatOnly = !!to.params.id && !!from.params.id;
     pending = { path: to.fullPath, revision: current, chatOnly };
-    await fade(elements(chatOnly), 0, 50);
+    await navigationDeadline(fade(elements(chatOnly), 0, 50));
     if (current !== revision) return false;
   });
   const removeAfter = router.afterEach(async (to, _from, failure) => {

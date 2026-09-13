@@ -60,7 +60,7 @@ onDeactivated(stats.stopAuto);
 </script>
 
 <template>
-  <div class="page statistics-page">
+  <div class="page statistics-page" data-scroll-preserve>
     <div class="statistics-toolbar"><span v-if="updatedAt" class="hint">{{ tx('更新于', 'Updated at') }} {{ fmtDateTime(updatedAt) }}</span><Hint :text="i18n.t('stats.refresh')"><button class="btn ghost icon-only" :disabled="loading" :aria-label="i18n.t('stats.refresh')" @click="refresh"><RefreshCw :size="17" /></button></Hint></div>
     <div class="statistics-body">
       <p v-if="error" class="load-error" role="alert">{{ errorMessage }}<span v-if="updatedAt">{{ tx('下方保留上次成功读取的数据。', 'The last successful snapshot remains below.') }}</span></p>
