@@ -318,7 +318,7 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
       <div v-if="running" class="live-row" aria-live="polite">
         <div v-if="streamText" class="live-text">{{ streamText }}</div>
         <ThinkingViewport v-else-if="streamReasoning" :key="sessionId" :text="streamReasoning" :tool="streamState?.currentTool" />
-        <div v-else class="hint">
+        <div v-else class="live-status">
           <span v-if="streamToolCount">{{ i18n.t('entry.toolCall') }} ×{{ streamToolCount }} · </span>{{ i18n.t('chat.thinking') }}
         </div>
       </div>
