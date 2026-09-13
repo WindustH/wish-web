@@ -458,9 +458,9 @@ export const chat = (() => {
       if (myEpoch !== epoch) return null;
 
       // A running loop consumes a new message at its next completed turn
-      // boundary, and the durable user entry is written atomically at
-      // enqueue: queue it (dock lists it), pull the entry into the log, and
-      // leave the live run's stream untouched.
+      // boundary. While it sits queued only the dock lists it; the durable
+      // entry is written when the loop drains the delivery, so it reaches
+      // the log through the same history path as the turn's own output.
       if (stream.value.active) {
         const d = await api.messageSend(id, {
           content: text, ...(blocks.length ? { blocks } : {}),
@@ -470,7 +470,6 @@ export const chat = (() => {
         sentRun.value = { sessionId: id, deliveryId };
         applyDeliveryUpsert({ id: deliveryId, target_session_id: id, state: 'queued',
           enqueue_seq: d.enqueue_seq, text });
-        void fetchNewer();
         return deliveryId;
       }
 
