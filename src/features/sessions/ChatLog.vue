@@ -29,6 +29,13 @@ const groups = computed(() => groupEntries(chat.entries.value));
 const streamState = computed(() => chat.stream.value);
 const running = computed(() => streamState.value?.active);
 const runFailure = computed(() => !running.value && chat.snapshot.value?.last_error);
+// A daemon restart can leave the session interrupted with queued deliveries
+// that wait for the user (resume_requires_user). Render that honestly —
+// stopped marker + resume path — instead of a live-run spinner.
+const stoppedResume = computed(() => {
+  const snap = chat.snapshot.value;
+  return !running.value && snap?.phase === 'interrupted' && (snap.queue ?? 0) > 0;
+});
 const streamText = computed(() => streamState.value?.text || '');
 const streamReasoning = computed(() => streamState.value?.reasoning || '');
 const workStatus = computed(() => {
@@ -340,6 +347,11 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
         </Transition></div>
       </div>
       </Transition>
+      <Transition name="live-work">
+      <div v-if="stoppedResume" :key="sessionId" class="live-row" role="status">
+        <div class="work-status-slot"><div class="live-status stop-marker"><Icon name="square" />{{ i18n.t('chat.resumeHint', { n: chat.snapshot.value?.queue ?? 0 }) }}</div></div>
+      </div>
+      </Transition>
       <div v-if="runFailure" class="chat-run-error" role="alert">
         <strong>{{ i18n.t('chat.runFailed') }}</strong>
         <p>{{ runFailure.message }}</p>
@@ -354,6 +366,7 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
 </template>
 
 <style scoped>
+.live-status.stop-marker { color: var(--err); }
 .chat-run-error { margin: 16px auto; padding: 12px 16px; max-width: var(--max-content); border: 1px solid var(--err-border); border-radius: var(--radius); background: var(--err-bg); color: var(--err); overflow-wrap: anywhere; }
 .chat-run-error strong { color: var(--err); font-size: 13px; }
 .chat-run-error p { margin: 6px 0; font-size: 13px; }
