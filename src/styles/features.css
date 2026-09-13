@@ -69,7 +69,7 @@
 .fold { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 18px 40px; }
 .fold-chip, .proc-head, .thinking-tool, .live-status, .stop-marker { display: inline-flex; align-items: center; gap: 8px; padding: 7px 0; border: 0; background: transparent; color: var(--fg-subtle); font: 400 13px/1.6 var(--font); text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer; transition: color var(--dur-fast); }
 .fold-chip:hover, .proc-head:hover { color: var(--accent); }
-.fold-chip .icon, .proc-head .icon, .thinking-tool .icon, .stop-marker .icon { flex: none; width: 14px; height: 14px; }
+.fold-chip .icon, .proc-head .icon, .thinking-tool .icon, .live-status .icon, .stop-marker .icon { flex: none; width: 14px; height: 14px; }
 .proc-group, .entry.system { padding: 0 0 18px 40px; }
 .proc-head { max-width: 100%; }
 .proc-count { padding: 0 6px; border-radius: 3px; background: var(--bg-sunken); font-variant-numeric: tabular-nums; }
@@ -238,3 +238,15 @@ html.resizing-composer, html.resizing-composer * { cursor: row-resize !important
 }
 
 .live-status, .stop-marker { cursor: default; }
+
+.work-status-slot { position: relative; min-height: 35px; }
+.work-status-enter-active, .work-status-leave-active, .live-work-enter-active, .live-work-leave-active { transition: opacity 180ms ease, transform 180ms ease; }
+.work-status-leave-active { position: absolute; inset: 0 auto auto 0; }
+.work-status-enter-from, .live-work-enter-from { opacity: 0; transform: translateY(5px); }
+.work-status-leave-to, .live-work-leave-to { opacity: 0; transform: translateY(-5px); }
+.work-spinner { animation: work-spin 1.2s linear infinite; }
+@keyframes work-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .work-status-enter-active, .work-status-leave-active, .live-work-enter-active, .live-work-leave-active { transition: none; }
+  .work-spinner { animation: none; }
+}
