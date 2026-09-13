@@ -318,7 +318,7 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
 <template>
   <div class="chatlog-wrap">
     <div v-if="chat.loadingOlder.value" class="history-loading" role="status" :aria-label="i18n.t('sessions.loading')"><span class="chat-skeleton older-skeleton" aria-hidden="true" /></div>
-    <div ref="scrollEl" class="chatlog" :data-following="stick" tabindex="0" @scroll.passive="onScroll"
+    <div ref="scrollEl" class="chatlog" data-scroll-preserve :data-following="stick" tabindex="0" @scroll.passive="onScroll"
       @wheel.passive="onWheel" @touchstart.passive="onTouchStart" @touchmove.passive="onTouchMove"
       @keydown="onKeydown" @pointerdown="onPointerDown" :data-scrollbar-held="scrollbarHeld">
 

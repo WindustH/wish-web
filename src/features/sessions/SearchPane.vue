@@ -115,7 +115,7 @@ onUnmounted(() => {
         {{ i18n.t('search.action') }}
       </button>
     </div>
-    <div class="history-search-content">
+    <div class="history-search-content" data-scroll-preserve>
     <div v-if="state.status === 'waiting' || (state.status === 'busy' && !(state.items ?? []).length)" class="search-status" role="status"><Spinner />{{ i18n.locale.value === 'zh' ? '正在搜索历史…' : 'Searching history…' }}</div>
     <div v-else-if="state.status === 'error'" class="load-error" role="alert">
       <span>{{ state.error?.localized ? i18n.t(state.error.localized) : String(state.error?.detail || state.error?.message || state.error) }}</span>

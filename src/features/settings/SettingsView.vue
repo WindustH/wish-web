@@ -202,7 +202,7 @@ onBeforeUnmount(() => { observer?.disconnect(); clearTimeout(frame); });
   <DialogRoot :open="pageActive" :unmount-on-hide="false" :modal="false">
     <div v-if="!mobile && pageActive" class="settings-overlay" aria-hidden="true" />
     <DialogContent as-child :aria-modal="!mobile || undefined" :aria-describedby="undefined" @open-auto-focus.prevent @close-auto-focus.prevent @escape-key-down="event => { event.preventDefault(); if (!mobile) closeSettings(); }" @interact-outside="event => { event.preventDefault(); if (!mobile) closeSettings(); }">
-  <div class="page settings-page">
+  <div class="page settings-page" data-scroll-preserve>
     <DialogTitle class="visually-hidden">{{ tr('设置', 'Settings') }}</DialogTitle>
     <button v-if="!mobile" class="btn ghost icon-only settings-close" :aria-label="tr('关闭设置', 'Close settings')" @click="closeSettings"><X :size="20" /></button>
     <div class="settings-shell">
@@ -216,7 +216,7 @@ onBeforeUnmount(() => { observer?.disconnect(); clearTimeout(frame); });
         </nav>
       </aside>
       <div class="settings-main">
-        <div ref="scroll" class="settings-scroll">
+        <div ref="scroll" class="settings-scroll" data-scroll-preserve>
           <div v-if="searching" class="settings-results">
             <p v-if="pendingSearch" role="status" class="cfg-hint">{{ tr('正在读取配置…', 'Loading settings…') }}</p>
             <p v-for="error in searchErrors" :key="error" role="alert" class="cfg-notice cfg-error">{{ error }}</p>

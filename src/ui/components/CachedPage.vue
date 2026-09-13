@@ -20,8 +20,11 @@ watch(() => router.currentRoute.value.matched[0], record => {
   if (record === props.route.matched[0]) { active.value = true; return; }
   if (!active.value) return;
   // Capture before KeepAlive detaches the DOM and layout observers see zeros.
+  // Only registered scroll containers (data-scroll-preserve) are visited: a
+  // full-tree walk cost O(elements) on every section leave, which on very
+  // large viewports with expanded groups meant thousands of nodes.
   positions.clear();
-  for (const el of root.value!.querySelectorAll<HTMLElement>('*')) {
+  for (const el of root.value!.querySelectorAll<HTMLElement>('[data-scroll-preserve]')) {
     if (el.dataset.following !== 'true' && (el.scrollTop || el.scrollLeft)) positions.set(el, { top: el.scrollTop, left: el.scrollLeft });
   }
   active.value = false;
