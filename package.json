@@ -10,7 +10,8 @@
     "build": "vue-tsc --noEmit && vite build",
     "typecheck": "vue-tsc --noEmit",
     "start": "node serve.mjs",
-    "selftest:api": "node tools/selftest-api.mjs"
+    "selftest:api": "node tools/selftest-api.mjs",
+    "test": "node --test tools/"
   },
   "engines": {
     "node": ">=22.19.0"
