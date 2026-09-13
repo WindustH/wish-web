@@ -67,10 +67,10 @@
 .entry .meta .copy-btn .icon { width: 14px; height: 14px; }
 .assistant-img, .detail-img { max-width: min(320px, 100%); border-radius: var(--radius); margin: 8px 0; display: block; }
 .fold { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 18px 40px; }
-.fold-chip, .proc-head { display: inline-flex; align-items: center; gap: 8px; padding: 7px 0; border: 0; background: transparent; color: var(--fg-subtle); font-size: 11px; cursor: pointer; transition: color var(--dur-fast); }
+.fold-chip, .proc-head, .thinking-tool, .live-status, .stop-marker { display: inline-flex; align-items: center; gap: 8px; padding: 7px 0; border: 0; background: transparent; color: var(--fg-subtle); font: 400 13px/1.6 var(--font); text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer; transition: color var(--dur-fast); }
 .fold-chip:hover, .proc-head:hover { color: var(--accent); }
-.fold-chip .icon, .proc-head .icon { width: 14px; height: 14px; }
-.proc-group { padding: 0 0 18px 40px; }
+.fold-chip .icon, .proc-head .icon, .thinking-tool .icon, .stop-marker .icon { flex: none; width: 14px; height: 14px; }
+.proc-group, .entry.system { padding: 0 0 18px 40px; }
 .proc-head { max-width: 100%; }
 .proc-count { padding: 0 6px; border-radius: 3px; background: var(--bg-sunken); font-variant-numeric: tabular-nums; }
 .proc-summary { font-size: 10px; }
@@ -194,7 +194,7 @@ html.resizing-composer, html.resizing-composer * { cursor: row-resize !important
   .entry { padding-bottom: 28px; }
   .entry.user .bubble { max-width: 94%; }
   .entry .meta { gap: 6px; font-size: 11px; }
-  .proc-group, .fold, .live-row { padding-left: 28px; }
+  .proc-group, .entry.system, .fold, .live-row { padding-left: 28px; }
   .proc-head { gap: 6px; } .proc-summary { display: none; }
   .page-head { padding: 10px 16px; }
   .setting-row { gap: 16px; }
@@ -236,3 +236,5 @@ html.resizing-composer, html.resizing-composer * { cursor: row-resize !important
   }
   .chatlog-inner, .live-row { max-width: var(--mobile-content-width); }
 }
+
+.live-status, .stop-marker { cursor: default; }
