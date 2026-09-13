@@ -205,7 +205,7 @@ async function confirmSave(restart: boolean) {
         <p v-if="target.path[3] === 'models' && !upstreamTarget" class="cfg-hint">{{ tr('Provider 连接配置尚未保存。保存配置后会自动获取上游模型列表。', 'The provider connection is not saved yet. Its upstream model catalog will load after saving.') }}</p>
         <p v-if="target.path[3] === 'models' && upstreamBusy" class="cfg-hint">{{ tr('正在读取上游模型列表…', 'Loading upstream model catalog…') }}</p>
         <p v-else-if="target.path[3] === 'models' && upstreamError" class="cfg-error" role="alert">{{ tr('上游模型列表读取失败：', 'Could not load upstream model catalog: ') }}{{ errorText(upstreamError) }}</p>
-        <p v-else-if="target.path[3] === 'models' && upstreamModels" class="cfg-hint">{{ tr('上游模型列表仅用于展示。只有明确修改的字段会保存为覆盖值。', 'Upstream metadata is display-only. Only fields you edit are saved as overrides.') }}</p>
+        <p v-else-if="target.path[3] === 'models' && upstreamModels" class="cfg-hint">{{ tr('仅保存明确修改的字段。', 'Only edited fields are saved as overrides.') }}</p>
         <fieldset :disabled="busy"><ConfigNode :key="`${epoch}-${target.path.join('/')}`" :value="atPath(draft, target.path) ?? {}" :path="target.path" :editor="editor" :catalog="catalog" /></fieldset>
       </form>
 

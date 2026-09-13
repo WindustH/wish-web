@@ -25,7 +25,7 @@ export function presetProfile(p: ProviderPreset) {
   const aws = p.id === 'aws_bedrock';
   const workspace = p.required_credentials.includes('workspace_id');
   let keyLabel = `${brand} API Key`;
-  let keyHint = tr(`填写 ${brand} 平台签发、适用于当前地区和套餐的 API Key。`, `Use a ${brand} API key for this region and plan.`);
+  let keyHint = '';
   let note = '';
   let documentation = docs[p.provider];
   if (codex) {
