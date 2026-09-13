@@ -328,7 +328,7 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
         <div v-if="streamText" class="live-text">{{ streamText }}</div>
         <ThinkingViewport v-else-if="streamReasoning" :key="sessionId" :text="streamReasoning" :tool="streamState?.currentTool" />
         <div class="work-status-slot"><Transition name="work-status">
-          <div :key="workStatus" class="live-status" role="status"><Icon :class="{ 'work-spinner': !streamState?.currentTool }" :name="streamState?.currentTool ? 'wrench' : 'loader-circle'" /><span>{{ workStatus }}</span></div>
+          <div :key="workStatus" class="live-status" role="status"><Icon class="work-spinner" name="loader-circle" /><span>{{ workStatus }}</span></div>
         </Transition></div>
       </div>
       </Transition>
