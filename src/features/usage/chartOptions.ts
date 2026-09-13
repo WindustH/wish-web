@@ -108,6 +108,10 @@ export function pieOptions(items: PieSlice[], style: ChartStyle, locale: string)
       appendTo: (chartContainer: HTMLElement) => { container = chartContainer; return document.body; },
       extraCssText: 'max-width:min(320px,calc(100vw - 24px));white-space:normal;overflow-wrap:anywhere;box-sizing:border-box;',
       position: (point: number[], _params: unknown, _dom: unknown, _rect: unknown, size: { contentSize: number[] }) => {
+        // The first show positions the tooltip before `appendTo` has run
+        // and captured the chart container; fall back to the plain offset
+        // until then instead of throwing.
+        if (!container) return [point[0]! + 12, point[1]! + 12];
         const bounds = container.getBoundingClientRect();
         return [Math.max(12 - bounds.left, Math.min(point[0]! + 12, window.innerWidth - bounds.left - size.contentSize[0]! - 12)),
           Math.max(12 - bounds.top, Math.min(point[1]! + 12, window.innerHeight - bounds.top - size.contentSize[1]! - 12))];
