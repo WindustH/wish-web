@@ -139,7 +139,7 @@ export const sessions = (() => {
     if (agentCustom != null && agentCustom !== '') body.agent_custom = agentCustom;
     const snap = await api.sessionCreate(body);
     // The new row's position depends on the active collection (filters,
-    // pinned_first ordering) — the server is the single sorting authority.
+    // ordering) — the server is the single sorting authority.
     if (anyFilterActive.value) await rebuild();
     else items.value = [snapToListRow(snap), ...items.value.filter((s) => s.id !== snap.id)];
     return snap;
@@ -152,7 +152,7 @@ export const sessions = (() => {
   }
 
   // Metadata write (decision-json-metadata): `changes` touches only the
-  // defined keys (pinned/archived/tags); the rest of the object is carried
+  // defined keys (archived/tags); the rest of the object is carried
   // from the row we read, and the PATCH carries If-Match at that revision.
   // A 409 propagates to the caller (conflict toast + refresh) — no blind
   // retry that would overwrite concurrent extension keys.
