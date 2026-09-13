@@ -35,7 +35,7 @@ const storageRows = computed(() => storage.value ? [
   { name: tx('执行输出', 'Execution output'), value: storage.value.bytes.executions },
   { name: tx('服务数据', 'Service data'), value: storage.value.bytes.service_data },
 ] : []);
-const memoryTotal = computed(() => memory.value?.resident_bytes ?? memory.value?.rss_bytes ?? 0);
+const memoryTotal = computed(() => memory.value?.rss_bytes ?? 0);
 const memoryRows = computed(() => {
   const snapshot = memory.value;
   if (!snapshot?.rss_bytes) return [];
@@ -46,10 +46,12 @@ const memoryRows = computed(() => {
   const allocated = Math.min(snapshot.allocated_bytes ?? 0, resident);
   const metadata = Math.min(snapshot.metadata_bytes ?? 0, resident - allocated);
   const spare = Math.max(0, resident - allocated - metadata);
+  const other = Math.max(0, snapshot.rss_bytes - resident);
   return [
     { name: tx('在用', 'In use'), value: allocated },
     { name: tx('元数据', 'Metadata'), value: metadata },
     { name: tx('缓存与空闲', 'Cache and free'), value: spare },
+    { name: tx('其他占用', 'Other memory'), value: other },
   ];
 });
 const color = (index: number) => `var(--chart-${index % 6 + 1})`;
