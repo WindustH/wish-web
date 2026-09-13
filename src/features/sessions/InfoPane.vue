@@ -14,6 +14,7 @@ defineEmits<{ close: [] }>();
 const isMobile = useMedia('(max-width: 899px)');
 
 const snapshot = computed(() => chat.snapshot.value);
+const buildId = __BUILD_ID__;
 const usage = ref<UsageSnapshot | null>(null);
 const err = ref<any>(null);
 let alive = true;
@@ -57,6 +58,7 @@ const tokens = computed(() => usage.value?.statistics.totals.tokens ?? null);
       <div><dt>{{ i18n.t('info.queue') }}</dt><dd>{{ snapshot.queue ?? 0 }}</dd></div>
       <div><dt>{{ i18n.t('info.createdAt') }}</dt><dd>{{ fmtDateTime(snapshot.created_at) }}</dd></div>
       <div><dt>{{ i18n.t('info.updatedAt') }}</dt><dd>{{ fmtDateTime(snapshot.updated_at) }}</dd></div>
+      <div class="info-full info-build"><dt>{{ i18n.t('info.build') }}</dt><dd>{{ buildId }}</dd></div>
     </dl>
     <section v-if="snapshot?.agent_custom?.trim()" class="info-instructions">
       <h4>{{ i18n.t('info.agentCustom') }}</h4>
