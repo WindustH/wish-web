@@ -19,12 +19,13 @@ import Icon from '../../ui/components/Icon.vue';
 
 const props = defineProps<{ items: any[]; refill: (text: string, attachments?: any[]) => void }>();
 
-// Attachment indicator: queued rows carry per-item references (kind, blob
-// id, MIME) from the control-plane projection. Files are not images — only
-// the camera count shows.
-const imageCount = (item: any): number => {
+// Attachment indicator: queued rows carry per-item references from the
+// control-plane projection; the dock only consumes "has an image" (files do
+// not count) and renders one image glyph — the composer picker's own icon —
+// never a count.
+const hasImages = (item: any): boolean => {
   const a = item.attachments;
-  return Array.isArray(a) ? a.filter((x) => x?.kind === 'image').length : 0;
+  return Array.isArray(a) && a.some((x) => x?.kind === 'image');
 };
 const refillable = (item: any): boolean =>
   Boolean(item.text) || (Array.isArray(item.attachments) && item.attachments.length > 0);
@@ -63,7 +64,7 @@ async function edit(item: any) {
 <template>
   <div class="queue-dock" :class="{ quiet: shown.length === 0 }" role="list" :aria-label="i18n.t('chat.queueTitle')">
     <div v-for="item in shown" :key="item.id" class="queue-item" role="listitem">
-      <span v-if="imageCount(item)" class="queue-images" aria-hidden="true">📷×{{ imageCount(item) }}</span>
+      <Hint :text="i18n.t('chat.hasImages')"><span v-if="hasImages(item)" class="queue-images" :title="i18n.t('chat.hasImages')" role="img" :aria-label="i18n.t('chat.hasImages')"><Icon name="image" /></span></Hint>
       <span class="queue-text">{{ item.text || i18n.t('chat.queueUntitled') }}</span>
       <!-- Edit refills the composer with the original text plus re-downloaded
            attachments (the projection carries per-item blob references), so

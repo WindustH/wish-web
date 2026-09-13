@@ -83,6 +83,7 @@ export const en = {
   'chat.queueEdit': 'Edit queued message',
   'chat.queueRemove': 'Remove queued message',
   'chat.queueUntitled': 'Queued message',
+  'chat.hasImages': 'Has images',
   'chat.queueConsumed': 'Message was already picked up by the running reply',
   'chat.stopFailed': 'Stop failed',
   'chat.loadingOlder': 'Loading earlier messages…',

@@ -132,7 +132,8 @@
 .queue-dock.quiet { opacity: 0; visibility: hidden; }
 .queue-item { display: flex; align-items: center; gap: 2px; min-width: 0; padding: 5px 6px 5px 10px; border-radius: 6px; }
 .queue-item:hover { background: var(--bg-hover); }
-.queue-images { flex: none; font-size: 12px; color: var(--fg-muted); }
+.queue-images { flex: none; display: inline-flex; align-items: center; color: var(--fg-muted); }
+.queue-images .icon { width: 13px; height: 13px; }
 .queue-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
 /* Small glyphs (~12px) but the button keeps its full box: the hot zone stays
    a comfortable touch target; only the drawn icon steps down a size. */

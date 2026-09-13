@@ -83,6 +83,7 @@ export const zh = {
   'chat.queueEdit': '编辑排队消息',
   'chat.queueRemove': '删除排队消息',
   'chat.queueUntitled': '已排队消息',
+  'chat.hasImages': '含图片',
   'chat.queueConsumed': '消息已被运行中的回复处理,未能取回',
   'chat.stopFailed': '停止失败',
   'chat.loadingOlder': '正在加载更早的消息…',
