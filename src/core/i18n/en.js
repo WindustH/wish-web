@@ -131,6 +131,7 @@ export const en = {
   'info.storage': 'Storage',
   'info.agentCustom': 'Session instructions',
   'info.createdAt': 'Created',
+  'info.build': 'Build',
   'info.updatedAt': 'Updated',
   'info.refresh': 'Refresh',
   'search.title': 'History search',

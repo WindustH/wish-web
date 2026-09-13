@@ -131,6 +131,7 @@ export const zh = {
   'info.storage': '存储',
   'info.agentCustom': '会话指令',
   'info.createdAt': '创建于',
+  'info.build': '构建',
   'info.updatedAt': '更新于',
   'info.refresh': '刷新',
   'search.title': '历史搜索',

@@ -1,4 +1,12 @@
+import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
+
+// Short source revision, surfaced in the UI so "did this deploy reach me?"
+// is answerable at a glance (info panel build row).
+const buildId = (() => {
+  try { return execSync('git rev-parse HEAD').toString().trim().slice(0, 12); }
+  catch { return 'dev'; }
+})();
 import vue from '@vitejs/plugin-vue';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -41,6 +49,7 @@ export default defineConfig({
       },
     }),
   ],
+  define: { __BUILD_ID__: JSON.stringify(buildId) },
   build: { target: 'es2022', manifest: true },
   server: {
     proxy: {
