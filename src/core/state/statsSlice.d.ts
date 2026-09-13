@@ -19,6 +19,16 @@ export interface StatusSnapshot {
   queue: { active_sessions: number; ready_sessions: number; pending_items: number; compacting_sessions: number };
   uptime_ms: number;
 }
+export interface MemorySnapshot {
+  authority: string;
+  observed_at: string;
+  allocator: 'jemalloc' | 'system';
+  rss_bytes: number;
+  allocated_bytes?: number;
+  metadata_bytes?: number;
+  resident_bytes?: number;
+  retained_bytes?: number;
+}
 export interface StorageSnapshot {
   bytes: { session_data: number; blobs: number; executions: number; service_data: number; total: number };
   counts: { executions: number; blobs: number; image_jobs: number; context_generations: number };
@@ -27,6 +37,7 @@ export declare const stats: {
   usage: ShallowRef<UsageSnapshot | null>;
   status: ShallowRef<StatusSnapshot | null>;
   storage: ShallowRef<StorageSnapshot | null>;
+  memory: ShallowRef<MemorySnapshot | null>;
   version: ShallowRef<{ name: string; version: string } | null>;
   updatedAt: ShallowRef<number | null>;
   loading: ShallowRef<boolean>;

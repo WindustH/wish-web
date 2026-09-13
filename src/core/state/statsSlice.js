@@ -9,6 +9,7 @@ export const stats = (() => {
   const status = shallowRef(null);
   const usage = shallowRef(null);
   const storage = shallowRef(null);
+  const memory = shallowRef(null);
   const version = shallowRef(null);
   const loading = shallowRef(false);
   const error = shallowRef(null);
@@ -27,12 +28,14 @@ export const stats = (() => {
     error.value = null;
     pending = Promise.all([
       api.daemonStatus(options), api.usageTotals(options), api.storageStatus(options), api.daemonVersion(options),
-    ]).then(([st, us, sg, ver]) => {
+      api.runtimeMemory(options).catch(() => null),
+    ]).then(([st, us, sg, ver, mem]) => {
       if (own !== epoch) return;
       status.value = st;
       usage.value = us;
       storage.value = sg;
       version.value = ver;
+      memory.value = mem;
       updatedAt.value = Date.now();
     }).catch(cause => {
       if (own !== epoch) return;
@@ -61,5 +64,5 @@ export const stats = (() => {
     autoTimer = setInterval(refresh, cfg.stats.refreshMs);
   }
   bus.on('invalidate.daemon', () => { if (autoTimer !== null) void refresh(); });
-  return { status, usage, storage, version, loading, error, updatedAt, refresh, startAuto, stopAuto };
+  return { status, usage, storage, memory, version, loading, error, updatedAt, refresh, startAuto, stopAuto };
 })();

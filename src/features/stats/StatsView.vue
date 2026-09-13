@@ -12,7 +12,7 @@ const UsagePlot = defineAsyncComponent(() => import('../usage/UsagePlot.vue'));
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 const charts = ref<{ refresh: () => void }>();
 function refresh() { void stats.refresh(); charts.value?.refresh(); }
-const { status, usage, storage, version, loading, error, updatedAt } = stats;
+const { status, usage, storage, memory, version, loading, error, updatedAt } = stats;
 const totals = computed(() => usage.value?.statistics.totals);
 const rows = computed(() => usage.value?.statistics.by_provider_model ?? []);
 const errorMessage = computed(() => error.value instanceof Error ? error.value.message : String(error.value));
@@ -35,6 +35,23 @@ const storageRows = computed(() => storage.value ? [
   { name: tx('执行输出', 'Execution output'), value: storage.value.bytes.executions },
   { name: tx('服务数据', 'Service data'), value: storage.value.bytes.service_data },
 ] : []);
+const memoryTotal = computed(() => memory.value?.resident_bytes ?? memory.value?.rss_bytes ?? 0);
+const memoryRows = computed(() => {
+  const snapshot = memory.value;
+  if (!snapshot?.rss_bytes) return [];
+  const resident = snapshot.resident_bytes;
+  if (!resident || snapshot.allocator !== 'jemalloc') {
+    return [{ name: tx('进程驻留内存', 'Process resident memory'), value: snapshot.rss_bytes }];
+  }
+  const allocated = Math.min(snapshot.allocated_bytes ?? 0, resident);
+  const metadata = Math.min(snapshot.metadata_bytes ?? 0, resident - allocated);
+  const spare = Math.max(0, resident - allocated - metadata);
+  return [
+    { name: tx('在用', 'In use'), value: allocated },
+    { name: tx('元数据', 'Metadata'), value: metadata },
+    { name: tx('缓存与空闲', 'Cache and free'), value: spare },
+  ];
+});
 const color = (index: number) => `var(--chart-${index % 6 + 1})`;
 onActivated(stats.startAuto);
 onDeactivated(stats.stopAuto);
@@ -100,6 +117,16 @@ onDeactivated(stats.stopAuto);
           </ul>
         </section>
         </div>
+        <section v-if="memory && memory.rss_bytes" class="card statistics-detail statistics-memory">
+          <h2>{{ i18n.t('stats.memory') }}</h2>
+          <div class="storage-summary"><span>{{ tx('进程驻留内存', 'Process resident memory') }}</span><Hint :text="`${number(memory.rss_bytes)} B`"><strong>{{ fmtBytes(memory.rss_bytes) }}</strong></Hint></div>
+          <div class="storage-bar" role="img" :aria-label="memoryRows.map(item => `${item.name}: ${fmtBytes(item.value)}`).join(', ')">
+            <span v-for="(item,index) in memoryRows" :key="item.name" :style="{ width: `${memoryTotal ? item.value / memoryTotal * 100 : 0}%`, background: color(index) }" />
+          </div>
+          <ul class="distribution-legend storage-legend">
+            <li v-for="(item,index) in memoryRows" :key="index"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><small>{{ percent(memoryTotal ? item.value / memoryTotal : 0) }}</small><Hint :text="`${number(item.value)} B`"><strong>{{ fmtBytes(item.value) }}</strong></Hint></li>
+          </ul>
+        </section>
 
       </div>
     </div>

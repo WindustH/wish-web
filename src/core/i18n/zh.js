@@ -185,6 +185,7 @@ export const zh = {
   'stats.usage': 'Token 用量',
   'stats.byModel': '按模型',
   'stats.storage': '存储',
+  'stats.memory': '内存',
   'stats.uptime': '运行时长',
   'stats.sessions': '会话数',
   'stats.runs': '运行数',

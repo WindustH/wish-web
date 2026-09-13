@@ -185,6 +185,7 @@ export const en = {
   'stats.usage': 'Token usage',
   'stats.byModel': 'By model',
   'stats.storage': 'Storage',
+  'stats.memory': 'Memory',
   'stats.uptime': 'Uptime',
   'stats.sessions': 'Sessions',
   'stats.runs': 'Runs',
