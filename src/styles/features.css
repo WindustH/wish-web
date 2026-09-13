@@ -27,7 +27,10 @@
   .sl-row { min-height: 44px; }
 }
 .phase-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg-subtle); flex: none; }
-.phase-dot.running { background: var(--accent); } .phase-dot.queued { background: var(--warn); } .phase-dot.compacting { background: var(--ok); }
+.phase-dot.queued { background: var(--warn); }
+.phase-dot.running, .phase-dot.compacting { background: transparent; border: 1px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+.phase-dot.compacting { border-top-color: var(--ok); }
+@media (prefers-reduced-motion: reduce) { .phase-dot.running, .phase-dot.compacting { animation: none; border: 1px solid var(--accent); } .phase-dot.compacting { border: 1px solid var(--ok); } }
 .sl-state { padding: 24px 12px; color: var(--fg-subtle); font-size: 13px; display: flex; gap: 8px; align-items: center; justify-content: center; }
 .sl-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 12px; }
 /* Conversation: a bounded reading column inside an independently scrolling viewport. */
