@@ -12,6 +12,7 @@ import { cfg } from '../../core/config.js';
 import { i18n } from '../../core/i18n/index.js';
 import { announce } from '../../ui/live.js';
 import { groupEntries } from './grouping.js';
+import { dropExpandedSession } from './expandState';
 import HistoryItem from './HistoryItem.vue';
 import ThinkingViewport from './ThinkingViewport.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity';
@@ -239,7 +240,7 @@ watch(() => chat.pendingSeq.value, async (seq) => {
   if (owns(gen)) chat.clearPendingSeq();
 });
 const forcedOpen = ref(new Set<string>());
-watch(() => chat.sessionId.value, () => { forcedOpen.value = new Set(); });
+watch(() => chat.sessionId.value, (_, prev) => { forcedOpen.value = new Set(); if (prev) dropExpandedSession(prev); });
 
 onUnmounted(() => { if (targetTimer) clearTimeout(targetTimer); });
 
@@ -337,7 +338,8 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
                 && (groups[v.index] as any).steps.some((s: any) => (s.kind === 'entry' ? s.entry.seq : s.fromSeq) === targetSeq)) }"
           :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }">
           <HistoryItem v-if="groups[v.index]" :item="groups[v.index]!"
-            :forced="groups[v.index]!.type === 'process' && forcedOpen.has(groups[v.index]!.key)" />
+            :forced="groups[v.index]!.type === 'process' && forcedOpen.has(groups[v.index]!.key)"
+            :session="sessionId" />
         </div>
       </div>
       <Transition name="live-work">
