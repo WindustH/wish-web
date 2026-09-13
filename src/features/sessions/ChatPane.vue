@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { sessionParent } from "../../router";
 import { sessionPanelCloseKey } from '../../ui/composables/sessionPanel';
 import Hint from '../../ui/components/Hint.vue';
 // Chat surface: top bar (desktop three actions / mobile back+menu), log,
@@ -53,7 +54,7 @@ const goTab = (t: string) => {
   <div class="chat-pane">
     <div class="chatbar">
       <button v-if="isMobile" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')"
-        @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
+        @click="router.push(sessionParent)"><Icon name="arrow-left" /></button>
       <div class="chat-title">
         <span v-if="!snapshot" class="chat-skeleton title-skeleton" :aria-label="i18n.t('sessions.loading')" role="status" /><span v-else class="name">{{ snapshot.name || id.slice(0, 8) }}</span>
         <span v-if="queue > 0" class="queue-badge">{{ i18n.t('chat.queuedN', { n: queue }) }}</span>
