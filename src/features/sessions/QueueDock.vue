@@ -17,18 +17,17 @@ import { toast } from '../../ui/toast.js';
 import Hint from '../../ui/components/Hint.vue';
 import Icon from '../../ui/components/Icon.vue';
 
-const props = defineProps<{ items: any[]; refill: (text: string) => void }>();
+const props = defineProps<{ items: any[]; refill: (text: string, attachments?: any[]) => void }>();
 
-// Attachment indicator: the control-plane projection exposes the count (or
-// the payload blocks) once worker1's attachments projection lands; the
-// synthetic row carries a plain count. Files are not images — only the
-// camera count shows.
+// Attachment indicator: queued rows carry per-item references (kind, blob
+// id, MIME) from the control-plane projection. Files are not images — only
+// the camera count shows.
 const imageCount = (item: any): number => {
   const a = item.attachments;
-  if (typeof a === 'number') return a;
-  if (Array.isArray(a)) return a.filter((x) => x?.type !== 'file').length;
-  return 0;
+  return Array.isArray(a) ? a.filter((x) => x?.kind === 'image').length : 0;
 };
+const refillable = (item: any): boolean =>
+  Boolean(item.text) || (Array.isArray(item.attachments) && item.attachments.length > 0);
 
 const GRACE_MS = 400;
 const firstSeen = new Map<string, number>();
@@ -55,7 +54,7 @@ async function remove(item: any) {
 async function edit(item: any) {
   try {
     const cancelled = await chat.cancelQueued(item.id);
-    if (cancelled) props.refill(item.text || '');
+    if (cancelled) props.refill(item.text || '', item.attachments);
     else toast(i18n.t('chat.queueConsumed'));
   } catch (e: any) { toast(String(e?.detail || e?.message || e)); }
 }
@@ -66,14 +65,10 @@ async function edit(item: any) {
     <div v-for="item in shown" :key="item.id" class="queue-item" role="listitem">
       <span v-if="imageCount(item)" class="queue-images" aria-hidden="true">📷×{{ imageCount(item) }}</span>
       <span class="queue-text">{{ item.text || i18n.t('chat.queueUntitled') }}</span>
-      <!-- Edit refills the composer with the original text. It is hidden when
-           the text is unknown (reload under the deferred-entry backend, which
-           exposes no queued payload yet) and when the row carries images:
-           refilling the caption alone would silently drop the attachments
-           from the resent message. Remove always works. Re-enable once the
-           projection carries per-item blob references the composer can
-           re-attach. -->
-      <Hint v-if="item.text && !imageCount(item)" :text="i18n.t('chat.queueEdit')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.queueEdit')"
+      <!-- Edit refills the composer with the original text plus re-downloaded
+           attachments (the projection carries per-item blob references), so
+           it is available whenever there is anything to refill. -->
+      <Hint v-if="refillable(item)" :text="i18n.t('chat.queueEdit')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.queueEdit')"
         @click="edit(item)"><Icon name="pencil" /></button></Hint>
       <Hint :text="i18n.t('chat.queueRemove')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.queueRemove')"
         @click="remove(item)"><Icon name="x" /></button></Hint>

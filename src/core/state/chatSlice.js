@@ -468,14 +468,15 @@ export const chat = (() => {
         if (myEpoch !== epoch) return null;
         const deliveryId = d.resource_id ?? d.id;
         sentRun.value = { sessionId: id, deliveryId };
-        // The synthetic row carries the caption and the image count so the
-        // dock renders the same thing the reload path will (placeholder for
-        // empty text, 📷 indicator for attachments) until the control-plane
-        // projection catches up.
-        const queuedImages = blocks.filter((b) => b.type === 'image').length;
+        // The synthetic row mirrors the server projection's shape (text plus
+        // per-item attachment references) so the dock and edit refill behave
+        // the same before and after the control-plane upsert lands.
         applyDeliveryUpsert({ id: deliveryId, target_session_id: id, state: 'queued',
           enqueue_seq: d.enqueue_seq, text,
-          ...(queuedImages ? { attachments: queuedImages } : {}) });
+          ...(uploaded.length ? { attachments: uploaded.map((u) => ({
+            kind: u.type, blob_id: u.blob_id, mime_type: u.mime_type,
+            ...(u.filename ? { filename: u.filename } : {}),
+          })) } : {}) });
         return deliveryId;
       }
 
@@ -858,7 +859,7 @@ export const chat = (() => {
       const resident = new Map(entries.value.filter((e) => e.delivery_id).map((e) => [e.delivery_id, entryText(e)]));
       deliveries.value = (page.items ?? [])
         .map((d) => ({ ...d,
-          text: known.get(d.id)?.text ?? resident.get(d.id) ?? '',
+          text: known.get(d.id)?.text ?? d.text ?? resident.get(d.id) ?? '',
           ...(d.attachments == null && known.get(d.id)?.attachments != null ? { attachments: known.get(d.id).attachments } : {}) }))
         .sort((a, b) => a.enqueue_seq - b.enqueue_seq);
     } catch (err) {
