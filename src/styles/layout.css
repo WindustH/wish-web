@@ -69,10 +69,3 @@ html.resizing .chatlog, html.resizing .sl-scroll { pointer-events: none; }
 html.resizing .sessions-pane { transition: none; }
 .session-list-toggle svg { transition: transform var(--dur) var(--ease-out); }
 .session-list-toggle[aria-expanded="false"] svg { transform: rotate(180deg); }
-
-/* Frozen visual layers never receive input or duplicate live session state. */
-.session-paper-layer { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); pointer-events: none; will-change: transform; }
-.session-paper-layer > * { flex: 1; min-height: 0; }
-
-.sessions-split { position: relative; isolation: isolate; overflow: hidden; }
-.content-pane { isolation: isolate; }
