@@ -61,7 +61,7 @@ function addAdvanced(field: string) { props.editor.set(fieldPath(field), structu
       </template>
       <p v-if="preset.api_key_supported || credentialFields.length" class="cfg-hint preset-secret-help">{{ tr('凭据支持 ${环境变量名}；未编辑时保留已保存的值。', 'Credentials accept ${ENV_VAR}; saved values are preserved when left unchanged.') }}</p>
     </section>
-    <AnimatedDetails class="cfg-nested cfg-inline-models"><summary><ChevronDown :size="16" /><span>{{ fieldLabel(fieldPath('models')) }}</span></summary><ConfigNode :value="value.models ?? {}" :path="fieldPath('models')" :editor="editor" :catalog="catalog" /></AnimatedDetails>
+    <AnimatedDetails class="cfg-nested cfg-inline-models"><summary><ChevronDown :size="16" /><span>{{ fieldLabel(fieldPath('models')) }}</span><small class="cfg-summary">{{ Object.keys(value.models ?? {}).length }}</small></summary><ConfigNode :value="value.models ?? {}" :path="fieldPath('models')" :editor="editor" :catalog="catalog" /></AnimatedDetails>
     <AnimatedDetails class="cfg-nested cfg-provider-advanced">
       <summary><ChevronDown :size="16" /><span>{{ tr('高级设置', 'Advanced settings') }}</span></summary>
       <div v-for="[field] in advanced.filter(([field]) => field in value)" :key="field" class="cfg-property cfg-property-removable">
@@ -78,7 +78,7 @@ function addAdvanced(field: string) { props.editor.set(fieldPath(field), structu
 </template>
 
 <style scoped>
-.preset-section { margin-block: 14px; padding-block: 14px; border-top: 1px solid var(--line); }
+.preset-section { margin-block: 10px; padding-block: 10px; border-top: 1px solid var(--line); }
 .preset-section header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .preset-section h4 { margin: 0; font: 600 14px/1.5 var(--font); }
 .preset-section header a { font-size: 11px; color: var(--fg-subtle); text-underline-offset: 3px; }

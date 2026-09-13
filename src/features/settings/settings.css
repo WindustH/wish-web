@@ -25,51 +25,58 @@
 .settings-result:hover, .settings-result:focus-visible { background: var(--bg-hover); }
 .settings-result small, .settings-result > span { color: var(--fg-subtle); font-size: 12px; line-height: 1.7; }
 .settings-result strong { font-size: 13px; font-weight: 500; }
-.cfg-section h2 { font: 600 18px/1.6 var(--font); margin: 0 0 12px; }
-.cfg-section + .cfg-section { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line-strong); }
+.cfg-section h2 { font: 600 15px/1.5 var(--font); margin: 0 0 8px; }
+.cfg-section + .cfg-section { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .cfg-section:focus { outline: none; }
-.ui-settings .setting-row { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr); gap: 20px; padding: 14px 0; }
+.ui-settings .setting-row { display: grid; grid-template-columns: fit-content(260px) minmax(0, 1fr); gap: 4px 24px; padding: 10px 0; }
 .ui-settings .setting-row + .setting-row { border-top: 1px solid var(--line); }
-.ui-settings .setting-row > :last-child { justify-self: end; }
-.ui-settings .setting-row > .control-select { width: 100%; }
+.ui-settings .setting-row > :is(.control-select, .choice-capsule, .btn),
+.cfg-field > :is(.control-select, .choice-capsule, .btn) { justify-self: start; }
+.ui-settings .setting-row > .control-select { width: auto; max-width: 100%; }
+.cfg-field > .cfg-hint, .ui-settings .setting-row > .cfg-hint { grid-column: 1 / -1; grid-row: 2; margin: 0; font-size: 12px; line-height: 1.5; }
+
 .ui-settings .setting-row label { font-weight: 500; }
 .settings-page input, .cfg-editor-window input { font: 400 13px/1.5 var(--font); max-width: 100%; }
 .cfg-switch:focus-visible { outline: none; border-color: var(--accent); }
-.cfg-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 36px; margin-bottom: 16px; }
-.cfg-group-hint { padding-bottom: 12px; }
+.cfg-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 30px; margin-bottom: 10px; }
+.cfg-group-hint { padding-bottom: 8px; }
 .cfg-hint { color: var(--fg-subtle); font-size: 13px; line-height: 1.7; margin: 6px 0 0; overflow-wrap: anywhere; }
 .cfg-layout { min-width: 0; }
 .cfg-sections { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 8px; }
 .cfg-sections button { text-align: left; padding: 7px 10px 7px 35px; border: 0; border-radius: 6px; background: transparent; color: var(--fg-subtle); font: inherit; font-size: 13px; cursor: pointer; transition: color var(--dur-fast), background var(--dur-fast); }
 .cfg-sections button:hover { color: var(--fg); background: var(--bg-hover); }
 .cfg-sections button.active { color: var(--fg); background: var(--bg-active); font-weight: 500; }
-.cfg-content { min-width: 0; }
+.cfg-content { min-width: 0; max-width: 720px; }
 .cfg-content fieldset, .cfg-editor-window fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-.cfg-field { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr); align-items: center; gap: 20px; padding: 14px 0; }
+.cfg-field { display: grid; grid-template-columns: fit-content(260px) minmax(0, 1fr); align-items: center; gap: 4px 24px; padding: 10px 0; }
 .cfg-field-label { min-width: 0; font: 500 14px/1.5 var(--font); }
 .cfg-field-label label { font-weight: 500; overflow-wrap: anywhere; }
 .cfg-field-label small { display: inline; color: var(--fg-muted); margin-left: 8px; font-size: 12px; }
 .cfg-property + .cfg-property { border-top: 1px solid var(--line); }
 .cfg-input-wrap, .cfg-inline { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.cfg-input-wrap .control-select, .cfg-input-wrap input, .cfg-inline input, .cfg-inline .control-select { flex: 1; width: 100%; }
-.cfg-switch { flex: 0 0 auto; justify-self: end; width: 42px; height: 24px; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--bg-sunken); cursor: pointer; }
+.cfg-input-wrap input, .cfg-inline input { flex: 1 1 auto; width: auto; min-width: 0; }
+.cfg-input-wrap input[type='number'], .cfg-inline input[type='number'] { flex: 0 0 auto; width: 9ch; }
+.cfg-input-wrap .control-select, .cfg-inline .control-select { flex: 0 1 auto; width: auto; max-width: 100%; }
+.cfg-switch { flex: 0 0 auto; justify-self: start; width: 42px; height: 24px; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--bg-sunken); cursor: pointer; }
 .cfg-switch[data-state="checked"] { background: var(--accent); border-color: var(--accent); }
 .cfg-switch-thumb { display: block; width: 18px; height: 18px; background: var(--fg-muted); border-radius: 50%; transform: translateX(0); transition: transform 160ms ease, background 160ms ease; }
 .cfg-switch[data-state="checked"] .cfg-switch-thumb { transform: translateX(17px); background: var(--bg); }
 .cfg-object { min-width: 0; }
-.cfg-nested { padding: 14px 0; }
+.cfg-nested { padding: 10px 0; }
 .cfg-nested > .cfg-object, .cfg-nested > .cfg-array { margin: 10px 0 0 12px; padding-left: 16px; }
 .config-editor summary { display: flex; align-items: center; gap: 8px; list-style: none; cursor: pointer; padding: 0; font: 500 14px/1.5 var(--font); overflow-wrap: anywhere; }
 .config-editor summary::-webkit-details-marker { display: none; }
 .config-editor summary > svg { flex-shrink: 0; transform: rotate(-90deg); transition: transform 160ms ease; }
 .config-editor details[open] > summary > svg { transform: rotate(0deg); }
 .config-editor summary small { font-weight: 400; color: var(--fg-muted); }
-.cfg-array { display: grid; gap: 12px; justify-items: stretch; }
+.config-editor summary .cfg-summary { margin-left: auto; font-weight: 400; color: var(--fg-muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.config-editor details[open] > summary .cfg-summary { display: none; }
+.cfg-array { display: grid; gap: 8px; justify-items: stretch; }
 .cfg-array > .btn { justify-self: start; }
-.cfg-array-item { padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius); min-width: 0; background: var(--bg-raised); }
+.cfg-array-item { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); min-width: 0; background: var(--bg-raised); }
 .cfg-remove { margin-top: 8px; color: var(--fg-muted); font-size: 13px; }
 .cfg-remove-field { margin-bottom: 8px; font-size: 12px; color: var(--fg-muted); }
-.cfg-add-field { margin-block: 24px 16px; padding-top: 16px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.cfg-add-field { margin-block: 12px 4px; padding-top: 12px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
 .cfg-add-field > .btn { justify-self: start; }
 .cfg-entry-input { flex-wrap: wrap; }
 .cfg-entry-input input, .cfg-entry-input .control-select { flex: 1 1 140px; width: auto; }
@@ -126,12 +133,12 @@
   .cfg-switch-thumb, .config-editor summary > svg { transition: none; }
 }
 
-.cfg-heading-actions { justify-content: flex-end; }
+.cfg-heading-actions { justify-content: flex-end; padding-right: 44px; }
 .cfg-restart-dialog { width: min(580px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; }
 .cfg-restart-dialog ul { padding-left: 20px; font-size: 13px; line-height: 1.8; }
 .cfg-restart-dialog .cfg-dialog-actions { flex-wrap: wrap; }
 
-.cfg-edit-row { display: flex; align-items: center; gap: 16px; padding: 14px 0; min-width: 0; }
+.cfg-edit-row { display: flex; align-items: center; gap: 16px; padding: 10px 0; min-width: 0; }
 .cfg-edit-row > div { flex: 1; min-width: 0; }
 .cfg-edit-row strong { font: 500 14px/1.5 var(--font); overflow-wrap: anywhere; }
 .cfg-edit-row > button { flex: none; }
@@ -176,7 +183,7 @@
 .cfg-property-removable { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: start; }
 .cfg-property-removable > .cfg-remove-field { margin: 16px 0 0; }
 .cfg-property-removable > :first-child { min-width: 0; }
-.cfg-property > .cfg-object { padding-block: 14px; }
+.cfg-property > .cfg-object { padding-block: 10px; }
 
 @media (min-width: 900px) {
   .settings-route-host { position: absolute; width: 0; height: 0; }
@@ -186,7 +193,7 @@
   .settings-sidebar { display: flex; flex-direction: column; overflow: hidden; width: 228px; padding: 20px 14px; border-right: 1px solid var(--line); background: var(--bg-sunken); }
   .settings-sidebar > .settings-search { flex: none; position: relative; margin-bottom: 6px; }
   .settings-sidebar > .settings-categories { flex: 1; min-height: 0; overflow-y: auto; padding-block: 14px 18px; mask-image: linear-gradient(to bottom, transparent, black 14px, black calc(100% - 18px), transparent); }
-  .settings-main { padding: 54px 0 0 28px; }
+  .settings-main { padding: 14px 0 0 28px; }
   .settings-panels, .settings-results { padding-right: 34px; }
   .settings-category-button.active { background: var(--bg-active); }
   .settings-close { position: absolute; right: 16px; top: 12px; z-index: 2; }
@@ -219,6 +226,9 @@
   .cfg-input-wrap > input, .cfg-input-wrap > .control-select { min-width: 0; }
   .cfg-input-wrap > .btn { flex: none; padding-inline: 6px; }
   .ui-settings .setting-row > .choice-capsule { flex: none; margin-left: auto; }
+  /* The hint icon stays beside its label instead of drifting to the row end. */
+  .cfg-field:has(> .setting-help-icon) > .cfg-field-label, .ui-settings .setting-row:has(> .setting-help-icon) > div:first-child { flex: 0 1 auto; }
+  .ui-settings .setting-row:has(> .setting-help-icon) > .btn { margin-left: auto; }
 }
 
 .cfg-model-list > .cfg-group-hint { margin: 0 0 8px; padding-bottom: 0; }

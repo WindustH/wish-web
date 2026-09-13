@@ -179,7 +179,7 @@ watch(() => chat.sessionId.value, () => {
       <p class="hint">{{ i18n.t('manage.deleteDesc') }}</p>
     </section>
 
-    <Modal :open="!!confirming" :title="i18n.t(`manage.${confirming?.kind ?? 'rename'}`)" :dismissable="!busy" @close="confirming = null">
+    <Modal :open="!!confirming" compact :title="i18n.t(`manage.${confirming?.kind ?? 'rename'}`)" :dismissable="!busy" @close="confirming = null">
       <p v-if="confirming?.kind === 'delete'">{{ i18n.t('manage.deleteConfirm') }}</p>
       <p v-else-if="confirming?.kind !== 'rename'">{{ i18n.t('manage.confirmBody') }}</p>
       <input v-if="confirming?.kind === 'rename'" v-model="renameText" class="input" type="text"

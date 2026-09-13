@@ -225,7 +225,7 @@ onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); });
         <div id="settings-actions" class="settings-actions" />
       </div>
     </div>
-    <Modal :open="leaveOpen" :title="tr('保存修改后离开？', 'Save changes before leaving?')" :dismissable="!leaving" @close="finishLeave(false)">
+    <Modal :open="leaveOpen" compact :title="tr('保存修改后离开？', 'Save changes before leaving?')" :dismissable="!leaving" @close="finishLeave(false)">
       <p>{{ tr('配置尚未保存。请选择保存或放弃修改，也可以取消跳转继续编辑。', 'Your configuration has unsaved changes. Save or discard them, or cancel navigation to keep editing.') }}</p>
       <p class="cfg-hint">{{ tr('需要重启才能生效的配置将保存，服务可稍后重启。', 'Changes requiring a restart will be saved; you can restart the service later.') }}</p>
       <p v-if="leaveError" class="cfg-notice cfg-error" role="alert">{{ leaveError }}</p>
