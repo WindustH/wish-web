@@ -59,7 +59,6 @@ function clearPreferences() {
 
 <template>
   <div class="ui-settings">
-    <div class="cfg-heading"><SettingHint :text="tr('修改后立即生效，只保存在当前浏览器。', 'Changes apply immediately and are saved in this browser only.')" /></div>
     <SettingsSections prefix="ui" :sections="sections">
       <template #before><p v-if="problem" class="cfg-notice cfg-error" role="alert">{{ problem }}</p><p v-if="notice" class="cfg-notice" role="status">{{ notice }}</p></template>
       <template #default="{ section }">

@@ -58,7 +58,7 @@
 .cfg-switch[data-state="checked"] .cfg-switch-thumb { transform: translateX(17px); background: var(--bg); }
 .cfg-object { min-width: 0; }
 .cfg-nested { padding: 14px 0; }
-.cfg-nested > .cfg-object, .cfg-nested > .cfg-array { margin: 10px 0 0; }
+.cfg-nested > .cfg-object, .cfg-nested > .cfg-array { margin: 10px 0 0 12px; padding-left: 16px; }
 .config-editor summary { display: flex; align-items: center; gap: 8px; list-style: none; cursor: pointer; padding: 0; font: 500 14px/1.5 var(--font); overflow-wrap: anywhere; }
 .config-editor summary::-webkit-details-marker { display: none; }
 .config-editor summary > svg { flex-shrink: 0; transform: rotate(-90deg); transition: transform 160ms ease; }
@@ -117,6 +117,7 @@
   .cfg-savebar-inner { flex-wrap: wrap; gap: 10px; }
   .cfg-savebar-actions { margin-left: auto; }
   .cfg-savebar-actions .btn { min-height: 40px; }
+  .cfg-nested > .cfg-object, .cfg-nested > .cfg-array { margin-left: 0; padding-left: 12px; }
   .cfg-array-item { padding: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -212,7 +213,7 @@
   .setting-help-icon { display: inline-flex; }
   .cfg-field, .config-bubble .cfg-field, .ui-settings .setting-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
   .cfg-field > .cfg-field-label, .ui-settings .setting-row > div:first-child { flex: 1 1 85px; min-width: 0; }
-  .cfg-field > .cfg-input-wrap, .cfg-field > .control-select, .ui-settings .setting-row > .control-select { flex: 1.6 1 150px; min-width: min(150px, 100%); max-width: 100%; width: auto; }
+  .cfg-field > .cfg-input-wrap, .cfg-field > .control-select, .ui-settings .setting-row > .control-select { flex: 0.8 1 75px; min-width: min(75px, 100%); max-width: 100%; width: auto; }
   .cfg-field > .cfg-switch, .ui-settings .setting-row > .cfg-switch { flex: none; margin-left: auto; }
   .cfg-input-wrap > input, .cfg-input-wrap > .control-select { min-width: 0; }
   .cfg-input-wrap > .btn { flex: none; padding-inline: 6px; }
