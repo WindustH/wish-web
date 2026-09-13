@@ -112,7 +112,7 @@ export const chat = (() => {
     // the sheet path changes, e.g. search → chat after a hit jump) must
     // NEVER discard the resident window. The explicit reload path is
     // reload() — used by the error Retry button (round-3 #4 + round-4 C2).
-    if (sessionId.value === id) return;
+    if (sessionId.value === id && error.value?.status !== 404 && error.value?.status !== 410) return;
     teardown();                       // bumps epoch (invalidates all old paths)
     await openInner(id);
   }
@@ -153,6 +153,7 @@ export const chat = (() => {
     } catch (err) {
       if (stale() || err?.name === 'AbortError') return;
       error.value = err;
+      if (err?.status === 404 || err?.status === 410) bus.emit('chat.sessionGone', id);
     } finally {
       if (!stale()) loadingInitial.value = false;
     }
@@ -306,7 +307,10 @@ export const chat = (() => {
         noteGeneration(snap);
       }
     } catch (err) {
-      if (myEpoch === epoch) error.value = err;
+      if (myEpoch === epoch) {
+        error.value = err;
+        if (err?.status === 404 || err?.status === 410) bus.emit('chat.sessionGone', id);
+      }
     }
     await fetchNewer();
     if (myEpoch !== epoch) return;
