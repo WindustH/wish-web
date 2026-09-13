@@ -34,6 +34,7 @@ function outside(event: Event) {
   const target = (event as CustomEvent).detail?.originalEvent?.target as Node | undefined;
   if (!props.dismissable || (props.floating && target && props.anchor?.contains(target)) || (bubble.value && (event.target as Element)?.closest?.('[data-session-panel]'))) event.preventDefault();
 }
+watch(() => props.open, open => { if (open) closing.value = false; });
 watch(pageActive, active => { if (!active) closing.value = false; }, { flush: 'sync' });
 watch([pageActive, bubble], async ([active]) => { if (active) { await nextTick(); positionBubble(); } });
 const anchorStyle = ref<Record<string, string>>({});
@@ -70,8 +71,8 @@ onMounted(() => { positionBubble(); window.addEventListener('resize', positionBu
 onBeforeUnmount(() => { window.removeEventListener('resize', positionBubble); window.removeEventListener('scroll', positionBubble, true); });
 function requestClose() {
   if (!pageActive.value || !props.dismissable || closing.value) return;
-  if (bubble.value) closing.value = true;
-  else emit('close');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) emit('close');
+  else closing.value = true;
 }
 function finishClose(event: AnimationEvent) {
   if (pageActive.value && closing.value && event.target === event.currentTarget) emit('close');

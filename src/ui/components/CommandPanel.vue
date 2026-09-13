@@ -1,26 +1,37 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
 import { X } from '@lucide/vue';
 import { i18n } from '../../core/i18n/index.js';
 import { useDialogLayer } from '../composables/useDialogLayer';
 import { useDialogFocus } from '../composables/useDialogFocus';
 
-defineProps<{ title: string; busy?: boolean }>();
+const props = defineProps<{ title: string; busy?: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 const focus = useDialogFocus();
 const layer = useDialogLayer();
+const closing = ref(false);
+function close() {
+  if (props.busy || closing.value) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) emit('close');
+  else closing.value = true;
+}
+function finished(event: AnimationEvent) {
+  if (closing.value && event.target === event.currentTarget) emit('close');
+}
+defineExpose({ close });
 </script>
 
 <template>
-  <DialogRoot :open="true" @update:open="open => { if (!open && !busy) emit('close'); }">
+  <DialogRoot :open="!closing" @update:open="open => { if (!open) close(); }">
     <DialogPortal>
       <DialogOverlay class="modal-overlay" :style="{ zIndex: layer }" />
-      <DialogContent class="command-panel" :style="{ zIndex: layer + 1 }" :aria-describedby="undefined" :aria-busy="busy"
+      <DialogContent @animationend="finished" class="command-panel" :style="{ zIndex: layer + 1 }" :aria-describedby="undefined" :aria-busy="busy"
         @open-auto-focus="focus.opened" @close-auto-focus="focus.closed"
         @escape-key-down="event => { if (busy) event.preventDefault(); }"
         @interact-outside="event => { if (busy) event.preventDefault(); }">
         <DialogTitle class="visually-hidden">{{ title }}</DialogTitle>
-        <button class="command-close btn ghost icon-only" :aria-label="i18n.t('common.close')" :disabled="busy" @click="emit('close')"><X :size="18" /></button>
+        <button class="command-close btn ghost icon-only" :aria-label="i18n.t('common.close')" :disabled="busy" @click="close"><X :size="18" /></button>
         <slot />
       </DialogContent>
     </DialogPortal>
@@ -35,5 +46,6 @@ const layer = useDialogLayer();
 .command-panel :deep(.picker-list) { min-height: 0; flex-shrink: 1; margin-block: 8px; padding-inline: 8px; }
 .command-panel :deep(.command-status) { flex: none; margin: 0; padding: 8px 16px; font-size: 12px; }
 .command-panel :deep(.load-error) { margin: 0; padding: 8px; font-size: 12px; }
+.command-panel[data-state="closed"] { animation: popup-fade-out 120ms ease-in; }
 @keyframes command-in { from { opacity: 0; transform: translate(-50%, -6px); } to { opacity: 1; transform: translate(-50%, 0); } }
 </style>

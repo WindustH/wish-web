@@ -9,6 +9,7 @@ import CommandPanel from '../../ui/components/CommandPanel.vue';
 import PickerList, { type PickerItem } from '../../ui/components/PickerList.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 
+const panel = ref<InstanceType<typeof CommandPanel>>();
 const props = defineProps<{ sessionId?: string; selection?: ModelSelection }>();
 const emit = defineEmits<{ close: []; select: [value: ModelSelection] }>();
 const { snapshot, loading, saving, error, conflict, reload, save } = useSessionSelection(toRef(props, 'sessionId'), toRef(props, 'selection'), value => emit('select', value));
@@ -70,17 +71,17 @@ const choices = computed<EffortItem[]>(() => {
 async function apply(value: string) {
   if (loading.value || saving.value || metadataBusy.value || !snapshot.value) return;
   const current = key(snapshot.value.reasoning_effort);
-  if (value === current) { emit('close'); return; }
+  if (value === current) { panel.value?.close(); return; }
   const choice = choices.value.find(item => item.key === value);
   if (!choice || choice.disabled) return;
   const body = { reasoning_effort: choice.effort };
-  if (await save(body)) emit('close');
+  if (await save(body)) panel.value?.close();
   else selected.value = current;
 }
 </script>
 
 <template>
-  <CommandPanel :title="i18n.t('reasoning.title')" :busy="saving" @close="emit('close')">
+  <CommandPanel ref="panel" :title="i18n.t('reasoning.title')" :busy="saving" @close="emit('close')">
     <PickerList v-model="selected" v-model:query="query" :items="choices" :icons="false" :placeholder="i18n.t('reasoning.search')" :disabled="loading || saving || metadataBusy" @select="apply">
       <template #status>
         <div v-if="error" class="command-status load-error" role="alert">{{ conflict ? i18n.t('model.conflict') : errorText(error) }}<button class="btn ghost sm" :disabled="loading || saving" @click="reload">{{ i18n.t('common.retry') }}</button></div>

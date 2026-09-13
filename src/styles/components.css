@@ -168,3 +168,9 @@
 @media (max-width: 899px) {
   .session-window.modal-page > .modal-body { width: 100%; max-width: var(--mobile-content-width); margin-inline: auto; }
 }
+
+/* Presence keeps these surfaces mounted for their exit animation. */
+@keyframes popup-fade-out { from { opacity: 1; } to { opacity: 0; } }
+.modal-overlay[data-state="closed"], .modal-card[data-state="closed"],
+.menu-pop[data-state="closed"], .control-select-popover[data-state="closed"],
+.control-tooltip[data-state="closed"] { animation: popup-fade-out 120ms ease-in; }

@@ -226,3 +226,5 @@
 .cfg-model-list > .cfg-add-field { margin: 8px 0 0; padding-top: 12px; }
 
 .modal-card.cfg-parent-window { width: min(780px, calc(100vw - 32px)); }
+
+.cfg-dialog-overlay[data-state="closed"], .cfg-dialog[data-state="closed"] { animation: popup-fade-out 120ms ease-in; }

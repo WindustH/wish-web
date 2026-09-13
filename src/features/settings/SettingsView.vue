@@ -20,6 +20,15 @@ const mobile = useMedia('(max-width: 899px)');
 let returnPath = typeof window.history.state.back === 'string' ? window.history.state.back : '/sessions';
 const removeNavigationListener = router.afterEach((to, from, failure) => { if (!failure && to.meta.section === 'settings' && from.meta.section !== 'settings' && from.matched.length) returnPath = from.fullPath; });
 onBeforeUnmount(removeNavigationListener);
+const removeExitAnimation = router.beforeResolve(async (to, from) => {
+  if (from.meta.section !== 'settings' || to.meta.section === 'settings' || mobile.value || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  await Promise.all([...document.querySelectorAll<HTMLElement>('.settings-page, .settings-overlay')].map(node => new Promise<void>(resolve => {
+    const animation = node.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: 'ease-in' });
+    animation.onfinish = () => resolve();
+    animation.oncancel = () => resolve();
+  })));
+});
+onBeforeUnmount(removeExitAnimation);
 function closeSettings() { void router.push(returnPath); }
 const leaveOpen = ref(false);
 const leaving = ref(false);

@@ -11,6 +11,7 @@ import CommandPanel from '../../ui/components/CommandPanel.vue';
 import PickerList from '../../ui/components/PickerList.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 
+const panel = ref<InstanceType<typeof CommandPanel>>();
 const props = defineProps<{ sessionId?: string; selection?: ModelSelection }>();
 const emit = defineEmits<{ close: []; select: [value: ModelSelection] }>();
 const { snapshot, loading, saving, error, conflict, reload, save } = useSessionSelection(toRef(props, 'sessionId'), toRef(props, 'selection'), value => emit('select', value));
@@ -37,16 +38,16 @@ const visionChoices = computed(() => new Set(choices.value.filter(choice => choi
 async function apply(value: string) {
   if (loading.value || saving.value || !snapshot.value) return;
   const current = key(snapshot.value.provider, snapshot.value.model);
-  if (value === current) { emit('close'); return; }
+  if (value === current) { panel.value?.close(); return; }
   const choice = choices.value.find(item => item.key === value);
   if (!choice) return;
-  if (await save({ provider: choice.provider, model: choice.model })) emit('close');
+  if (await save({ provider: choice.provider, model: choice.model })) panel.value?.close();
   else selected.value = current;
 }
 </script>
 
 <template>
-  <CommandPanel :title="i18n.t('model.title')" :busy="saving" @close="emit('close')">
+  <CommandPanel ref="panel" :title="i18n.t('model.title')" :busy="saving" @close="emit('close')">
     <PickerList v-model="selected" :items="choices" :placeholder="i18n.t('model.search')" :disabled="saving || loading" @select="apply">
       <template #suffix="{ itemKey }"><Hint :text="i18n.t('model.visionHint')" v-if="visionChoices.has(itemKey)"><span class="model-vision"><Image :size="13" aria-hidden="true" />{{ i18n.t('model.vision') }}</span></Hint></template>
       <template #status>
