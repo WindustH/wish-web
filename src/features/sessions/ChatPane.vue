@@ -43,8 +43,8 @@ watch(id, (next) => { if (next) chat.open(next); }, { immediate: true });
 
 const snapshot = computed(() => chat.snapshot.value);
 const queued = computed(() => chat.deliveries.value);
-const composerRef = ref<{ fill: (v: string) => void } | null>(null);
-const onQueueEdit = (text: string) => composerRef.value?.fill(text);
+const composerRef = ref<{ fill: (v: string, attachments?: any[]) => void } | null>(null);
+const onQueueEdit = (text: string, attachments?: any[]) => composerRef.value?.fill(text, attachments);
 const { effort, error: effortError } = useResolvedEffort(snapshot);
 const queue = computed(() => snapshot.value?.queue ?? 0);
 const modelOpen = ref(false);

@@ -15,6 +15,7 @@ import { computed, nextTick, ref, watch, onBeforeUnmount } from 'vue';
 import { cfg } from '../../core/config.js';
 import { i18n } from '../../core/i18n/index.js';
 import { chat } from '../../core/state/chatSlice.js';
+import { blobUrl } from '../../core/api/endpoints.js';
 import { prefs } from '../../core/state/prefsSlice.js';
 import { platform } from '../../platform/index.js';
 import { toast } from '../../ui/toast.js';
@@ -34,7 +35,33 @@ const sendOnEnter = computed(() => prefs.sendOnEnter.value);
 
 const composerEl = ref<HTMLElement | null>(null);
 const ta = ref<HTMLTextAreaElement | null>(null);
-function fill(v: string) { setTextOwned(v); void nextTick(() => ta.value?.focus()); }
+function fill(v: string, attachments?: any[]) {
+  setTextOwned(v);
+  void nextTick(() => ta.value?.focus());
+  if (attachments?.length) void refillAttachments(attachments);
+}
+
+// Re-attach a queued message's attachments: the delivery projection carries
+// each item's blob id, so the bytes are re-downloaded from the blob store
+// and become ordinary draft attachments again (space-checked like a pick).
+async function refillAttachments(items: any[]) {
+  const epoch = attachmentEpoch;
+  for (const item of items) {
+    try {
+      const response = await fetch(blobUrl(item.blob_id));
+      if (!response.ok) throw new Error(`blob ${item.blob_id}: ${response.status}`);
+      const bytes = await response.arrayBuffer();
+      if (epoch !== attachmentEpoch || !hasAttachmentSpace(item.kind)) continue;
+      attachments.value = [...attachments.value, {
+        kind: item.kind, name: item.filename, mime: item.mime_type, bytes,
+        localUrl: URL.createObjectURL(new Blob([bytes], { type: item.mime_type })),
+      }];
+      saveAttachmentDrafts(sidRef.value, attachments.value);
+    } catch (error) {
+      toast('Could not restore attachment: ' + String((error as Error)?.message ?? error));
+    }
+  }
+}
 defineExpose({ focus: () => ta.value?.focus(), fill });
 const sizing = useComposerHeight(composerEl);
 const height = computed(() => sizing.height());
