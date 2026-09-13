@@ -28,7 +28,7 @@ import * as api from '../api/endpoints.js';
 const EMPTY_STREAM = () => ({
   active: false, phase: 'idle', activity: 'working',   // idle|pending|streaming|finalizing
   deliveryId: null, runId: null, model: null,
-  text: '', reasoning: '', toolCalls: {}, currentTool: null, usage: null,
+  text: '', reasoning: '', toolCalls: {}, currentTool: null, usage: null, committedEntryId: null,
   gap: false, error: null, startedAt: 0,
 });
 
@@ -320,6 +320,13 @@ export const chat = (() => {
     throw new Error('chat entry has no canonical seq or optimistic id');
   };
 
+  function settleStreamEcho() {
+    const s = stream.value;
+    if (s.committedEntryId && entries.value.some(entry => entry.id === s.committedEntryId)) {
+      stream.value = { ...s, text: '', reasoning: '', toolCalls: {}, usage: null, committedEntryId: null };
+    }
+  }
+
   function mergeItems(fresh) {
     if (!fresh.length) return 0;
     const cur = entries.value;
@@ -331,6 +338,7 @@ export const chat = (() => {
     for (const e of fresh) byKey.set(entryKey(e), e);
     const merged = [...byKey.values()].sort((a, b) => sortKey(a) - sortKey(b));
     entries.value = merged;
+    settleStreamEcho();
     const seqs = merged.map((e) => e.seq).filter((s) => s != null);
     if (seqs.length) {
       const lo = Math.min(...seqs), hi = Math.max(...seqs);
@@ -563,7 +571,7 @@ export const chat = (() => {
         if (data.run_id && !s.runId) stream.value = { ...s, runId: data.run_id };
         break;
       case 'response_start':
-        stream.value = { ...s, phase: 'streaming', activity: 'working', currentTool: null, model: data.model ?? s.model };
+        stream.value = { ...s, phase: 'streaming', activity: 'working', text: '', reasoning: '', toolCalls: {}, usage: null, committedEntryId: null, currentTool: null, model: data.model ?? s.model };
         break;
       case 'response_text_delta':
         stream.value = { ...s, phase: 'streaming', activity: 'writing', currentTool: null, text: cap(s.text + (data.delta ?? '')) };
@@ -582,7 +590,7 @@ export const chat = (() => {
         stream.value = { ...s, usage: data.usage ?? s.usage };
         break;
       case 'response_retry':
-        stream.value = { ...s, phase: 'streaming', activity: 'retrying', currentTool: null };
+        stream.value = { ...s, phase: 'streaming', activity: 'retrying', text: '', reasoning: '', toolCalls: {}, usage: null, committedEntryId: null, currentTool: null };
         break;
       case 'response_error':
         stream.value = { ...s, error: `${data.code ?? 'error'}: ${data.message ?? ''}` };
@@ -593,7 +601,8 @@ export const chat = (() => {
         fetchNewer();
         break;
       case 'response_complete':
-        stream.value = { ...s, phase: 'finalizing' };
+        stream.value = { ...s, phase: 'finalizing', committedEntryId: data.entry_id };
+        settleStreamEcho();
         scheduleReconcile();
         break;
       default:
