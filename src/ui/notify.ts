@@ -41,6 +41,10 @@ export function installBackgroundNotify() {
     if (!id || seenRuns.has(id)) return;
     if (RUN_FAIL_STATES.has(u.body.state)) {
       seenRuns.add(id);
+      if (seenRuns.size > 400) {
+        let evict = 200;
+        for (const seen of seenRuns) { seenRuns.delete(seen); if (--evict === 0) break; }
+      }
       maybeNotify(i18n.t('notify.runFailed'), `wish-run-${id}`);
       announce(i18n.t('notify.runFailed'));
     }

@@ -19,8 +19,16 @@ export const attachmentLimits = capabilities => ({
 const attachmentDrafts = new Map();
 export function attachmentDraftsFor(sessionId) { return attachmentDrafts.get(sessionId) ?? []; }
 export function saveAttachmentDrafts(sessionId, attachments) {
-  if (attachments.length) attachmentDrafts.set(sessionId, [...attachments]);
-  else attachmentDrafts.delete(sessionId);
+  if (attachments.length) {
+    attachmentDrafts.set(sessionId, [...attachments]);
+    // In-memory only, but unbounded sessions would still grow it; evict the
+    // oldest session beyond a generous working set.
+    while (attachmentDrafts.size > 32) {
+      const oldest = attachmentDrafts.keys().next().value;
+      if (oldest === undefined || oldest === sessionId) break;
+      attachmentDrafts.delete(oldest);
+    }
+  } else attachmentDrafts.delete(sessionId);
 }
 
 export async function uploadAttachments(sessionId, attachments, { signal, capabilities } = {}) {
