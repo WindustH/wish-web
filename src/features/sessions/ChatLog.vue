@@ -7,6 +7,7 @@ import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { ArrowDown } from '@lucide/vue';
 import { chat } from '../../core/state/chatSlice.js';
+import { chatWorkIndicator } from './phaseIndicator';
 import { cfg } from '../../core/config.js';
 import { i18n } from '../../core/i18n/index.js';
 import { announce } from '../../ui/live.js';
@@ -29,13 +30,14 @@ const groups = computed(() => groupEntries(chat.entries.value));
 const streamState = computed(() => chat.stream.value);
 const running = computed(() => streamState.value?.active);
 const runFailure = computed(() => !running.value && chat.snapshot.value?.last_error);
-// A daemon restart can leave the session interrupted with queued deliveries
-// that wait for the user (resume_requires_user). Render that honestly —
-// stopped marker + resume path — instead of a live-run spinner.
-const stoppedResume = computed(() => {
-  const snap = chat.snapshot.value;
-  return !running.value && snap?.phase === 'interrupted' && (snap.queue ?? 0) > 0;
-});
+// One mapping keeps the live rows mutually exclusive: a stream wins, then the
+// independent compacting phase (never a fake run), then the honest
+// daemon-interrupted-with-queue marker (resume_requires_user).
+const workIndicator = computed(() => chatWorkIndicator({
+  running: running.value,
+  phase: chat.snapshot.value?.phase,
+  queue: chat.snapshot.value?.queue,
+}));
 const streamText = computed(() => streamState.value?.text || '');
 const streamReasoning = computed(() => streamState.value?.reasoning || '');
 const workStatus = computed(() => {
@@ -339,7 +341,7 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
         </div>
       </div>
       <Transition name="live-work">
-      <div v-if="running" :key="sessionId" class="live-row" aria-live="polite">
+      <div v-if="workIndicator === 'run'" :key="sessionId" class="live-row" aria-live="polite">
         <div v-if="streamText" class="live-text">{{ streamText }}</div>
         <ThinkingViewport v-else-if="streamReasoning" :key="sessionId" :text="streamReasoning" :tool="streamState?.currentTool" />
         <div class="work-status-slot"><Transition name="work-status">
@@ -348,7 +350,12 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
       </div>
       </Transition>
       <Transition name="live-work">
-      <div v-if="stoppedResume" :key="sessionId" class="live-row" role="status">
+      <div v-if="workIndicator === 'compacting'" :key="sessionId" class="live-row" role="status">
+        <div class="work-status-slot"><div class="live-status"><Icon class="work-spinner" name="loader-circle" /><span>{{ i18n.t('chat.compacting') }}</span></div></div>
+      </div>
+      </Transition>
+      <Transition name="live-work">
+      <div v-if="workIndicator === 'stoppedResume'" :key="sessionId" class="live-row" role="status">
         <div class="work-status-slot"><div class="live-status stop-marker"><Icon name="square" />{{ i18n.t('chat.resumeHint', { n: chat.snapshot.value?.queue ?? 0 }) }}</div></div>
       </div>
       </Transition>

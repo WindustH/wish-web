@@ -297,6 +297,7 @@ export const zh = {
   'settings.streaming': '流式输出(守护)',
   'settings.streamingToggle': '逐字流式输出',
   'chat.working': '正在处理…',
+  'chat.compacting': '正在压缩上下文',
   'chat.resumeHint': '运行已停止,队列中还有 {n} 条消息——发送消息即可恢复',
   'chat.writing': '正在输出回复…',
   'chat.retrying': '正在重试…',
