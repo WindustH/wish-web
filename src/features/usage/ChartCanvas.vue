@@ -17,7 +17,11 @@ function draw() {
   if (!mounted || !active.value || !host.value?.clientWidth || !host.value?.clientHeight) return;
   chart ??= init(host.value, undefined, { renderer: 'canvas' });
   chart.resize();
-  chart.setOption(props.option, { notMerge: true });
+  // Merge instead of a full replace: unchanged components (axes, grid,
+  // stable-id series) transition in place with the update animation, and
+  // series that left the selection are disposed. A notMerge swap would
+  // tear the chart down and redraw everything from scratch on each change.
+  chart.setOption(props.option, { replaceMerge: ['series'] });
 }
 function schedule() { cancelAnimationFrame(frame); frame = requestAnimationFrame(draw); }
 function dispose() { cancelAnimationFrame(frame); chart?.dispose(); chart = undefined; }

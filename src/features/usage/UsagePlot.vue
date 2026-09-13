@@ -6,7 +6,7 @@ import { calendarLayout, calendarOptions, lineOptions, pieOptions, type ChartSty
 import { usePageActivity } from '../../ui/composables/usePageActivity';
 import { theme } from '../../core/theme/index.js';
 import { i18n } from '../../core/i18n/index.js';
-const props = defineProps<{ pie?: PieSlice[]; series?: PlotSeries[]; heat?: HeatData; unit?: string; label: string }>();
+const props = defineProps<{ pie?: PieSlice[]; series?: PlotSeries[]; heat?: HeatData; unit?: string; label: string; refreshing?: boolean }>();
 const emit = defineEmits<{ columns: [value: number] }>();
 const root = ref<HTMLElement>();
 const active = usePageActivity();
@@ -37,12 +37,13 @@ const option = computed(() => style.value && (props.pie ? pieOptions(props.pie, 
   : lineOptions(props.series ?? [], style.value, i18n.locale.value, props.unit ?? 'Token/s')));
 </script>
 <template>
-  <div ref="root" class="usage-plot" :class="{ 'usage-calendar': heat }" :data-cell-size="layout?.cell" :data-rows="layout?.rows" :data-columns="layout?.columns">
+  <div ref="root" class="usage-plot" :class="{ 'usage-calendar': heat, refreshing }" :data-cell-size="layout?.cell" :data-rows="layout?.rows" :data-columns="layout?.columns">
     <ChartCanvas v-if="option" :option="option" :label="label" :style="layout ? { height: `${layout.canvasHeight}px` } : undefined" />
   </div>
 </template>
 <style scoped>
-.usage-plot { min-width: 0; }
+.usage-plot { min-width: 0; transition: opacity .18s ease; }
+.usage-plot.refreshing { opacity: .55; }
 .usage-calendar { overflow: hidden; }
 .usage-calendar :deep(.usage-canvas) { min-width: 0; }
 </style>

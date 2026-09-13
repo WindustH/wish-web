@@ -11,7 +11,7 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
   const left = times.length ? times.reduce((a, b) => Math.min(a, b), Infinity) - padding : 0;
   const right = times.length ? times.reduce((a, b) => Math.max(a, b), -Infinity) + padding : 0;
   return {
-    animation: false,
+    animation: true, animationDuration: 0, animationDurationUpdate: 260, animationEasingUpdate: 'cubicOut',
     textStyle: { fontFamily: style.font, color: style.foreground },
     grid: { left: 8, right: 18, top: 24, bottom: 8, containLabel: true },
     tooltip: { trigger: 'axis', confine: true, renderMode: 'richText', backgroundColor: style.surface, borderColor: style.line,
@@ -74,7 +74,7 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
     timeZone: 'UTC', month: 'numeric', day: 'numeric', ...(time ? { hour: '2-digit' as const, minute: '2-digit' as const } : {}) });
   const interval = heat.bucketMs !== 86_400_000;
   return {
-    animation: false,
+    animation: true, animationDuration: 0, animationDurationUpdate: 260, animationEasingUpdate: 'cubicOut',
     textStyle: { fontFamily: style.font, color: style.foreground },
     grid: { top: 30, left: (width - layout.width) / 2, width: layout.width, height: layout.height },
     tooltip: { confine: true, renderMode: 'richText', backgroundColor: style.surface, borderColor: style.line,
@@ -99,7 +99,7 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
 export function pieOptions(items: PieSlice[], style: ChartStyle, locale: string): EChartsCoreOption {
   let container: HTMLElement;
   return {
-    animation: false, color: style.colors,
+    animation: true, animationDuration: 0, animationDurationUpdate: 260, animationEasingUpdate: 'cubicOut', color: style.colors,
     tooltip: { trigger: 'item', confine: false, renderMode: 'html', backgroundColor: style.surface, borderColor: style.line,
       className: 'usage-pie-tooltip',
       appendTo: (chartContainer: HTMLElement) => { container = chartContainer; return document.body; },
