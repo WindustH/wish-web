@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { unfold, fold, cancelFold } from "../../ui/motion/fold";
 import Modal from '../../ui/components/Modal.vue';
 // Server-side history search with generational guards; jumping locates the
 // seq through the bounded window (never a full scan); errors surface.
@@ -121,12 +122,14 @@ onUnmounted(() => {
       <button class="btn ghost sm" @click="run">{{ i18n.t('common.retry') }}</button>
     </div>
     <div v-else-if="state.status === 'done' && !(state.items ?? []).length" class="hint">{{ i18n.t('search.empty') }}</div>
-    <div v-else class="search-results">
+    <div class="search-results">
+<TransitionGroup :css="false" @enter="unfold" @leave="fold" @enter-cancelled="cancelFold" @leave-cancelled="cancelFold">
       <button v-for="hit in state.items ?? []" :key="hit.seq" class="search-result" :disabled="locating !== null" :aria-busy="locating === hit.seq" @click="jump(hit)">
         <span class="sr-meta">#{{ hit.seq }} · {{ hit.kind }} · {{ fmtDateTime(hit.created_at) }}</span>
         <span v-if="locating === hit.seq" class="search-status" role="status"><Spinner />{{ i18n.locale.value === 'zh' ? '正在定位这条消息…' : 'Locating this message…' }}</span>
         <span class="sr-snippet">{{ hit.snippet }}</span>
       </button>
+</TransitionGroup>
       <button v-if="state.more" class="btn ghost" :disabled="state.status === 'busy' || locating !== null" @click="more">{{ i18n.t('search.more') }}</button>
     </div>
     </div>

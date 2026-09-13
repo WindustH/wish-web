@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { unfold, fold, cancelFold } from "../../ui/motion/fold";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { onBeforeRouteLeave, useRouter } from 'vue-router';
 import { DialogRoot, DialogContent, DialogTitle } from 'reka-ui';
@@ -202,7 +203,9 @@ onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); });
             <p v-if="pendingSearch" role="status" class="cfg-hint">{{ tr('正在读取配置…', 'Loading settings…') }}</p>
             <p v-for="error in searchErrors" :key="error" role="alert" class="cfg-notice cfg-error">{{ error }}</p>
             <p v-if="!pendingSearch" role="status" class="cfg-hint">{{ matches.length ? tr(`找到 ${matches.length} 项配置`, `${matches.length} settings found`) : tr('没有匹配的配置。可尝试搜索名称或说明中的关键词。', 'No matching settings. Try a keyword from a name or explanation.') }}</p>
+<TransitionGroup :css="false" @enter="unfold" @leave="fold" @enter-cancelled="cancelFold" @leave-cancelled="cancelFold">
             <button v-for="match in matches" :key="`${match.owner}:${match.id}`" class="settings-result" @click="select(match)"><small>{{ categories.find(c => c.id === match.owner)!.label }} · {{ match.section }}</small><strong>{{ match.label }}</strong><span>{{ match.hint }}</span></button>
+</TransitionGroup>
           </div>
           <div ref="panels" v-show="!searching" class="settings-panels">
             <div v-if="visited.has('ui') || searching" v-show="tab === 'ui'" data-settings-panel="ui"><UiSettings /></div>

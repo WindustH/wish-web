@@ -67,8 +67,6 @@ sync.start();
 
 // Malformed control-plane frame → one visible toast per occurrence.
 watch(sync.protocolError, (err) => { if (err) toast(i18n.t('sync.protocolError')); });
-// Generation cutover (compaction switch) → one clear message.
-bus.on('chat.generationChanged', () => toast(i18n.t('chat.generationChanged')));
 
 // keep-awake while a run is active (mobile setting)
 {

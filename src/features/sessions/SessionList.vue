@@ -2,7 +2,7 @@
 import Hint from '../../ui/components/Hint.vue';
 // Session list with client query (server filter), tag chip, virtualized
 // rows (TanStack) and endless next-page loading — data unbounded, DOM bounded.
-import { computed, ref, watch, onMounted } from 'vue';
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute } from 'vue-router';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { cfg } from '../../core/config.js';
@@ -21,6 +21,14 @@ const listEl = ref<HTMLElement | null>(null);
 
 const action = ref<{ target: { id: string; name?: string }; kind: 'rename' | 'tags' | 'delete' } | null>(null);
 const rows = computed(() => sessions.items.value);
+const rearranging = ref(false);
+let motionTimer: ReturnType<typeof setTimeout>;
+watch(() => rows.value.map(row => row.id).join(','), () => {
+  rearranging.value = true;
+  clearTimeout(motionTimer);
+  motionTimer = setTimeout(() => { rearranging.value = false; }, 280);
+});
+onBeforeUnmount(() => clearTimeout(motionTimer));
 const activeId = computed(() => route.params.id);
 
 // The state slice owns the search debounce; a second UI timer doubles latency.
@@ -74,19 +82,27 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
         <button class="btn ghost sm" @click="() => sessions.refresh()">{{ i18n.t('common.retry') }}</button>
       </div>
       <div v-else-if="!rows.length" class="sl-state hint">{{ i18n.t('sessions.empty') }}</div>
-      <div v-else :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }">
+      <TransitionGroup tag="div" name="session-filter" :css="rearranging" :class="{ rearranging }" :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }">
         <div v-for="v in virtualizer.getVirtualItems()" :key="rows[v.index]?.id"
           :ref="(el) => el && virtualizer.measureElement(el as HTMLElement)" :data-index="v.index"
           :style="{ position: 'absolute', top: 0, left: 0, width: '100%', paddingBottom: `${cfg.design.sessionRowGap}px`, transform: `translateY(${v.start}px)` }">
           <SessionListRow :row="rows[v.index]" :index="v.index" :active="rows[v.index]?.id === activeId"
             @action="kind => action = { target: { id: rows[v.index]!.id, name: rows[v.index]!.name }, kind }" />
         </div>
-      </div>
+      </TransitionGroup>
     </div>
     <SessionListAction v-if="action" :key="`${action.target.id}:${action.kind}`" :target="action.target" :kind="action.kind" @close="action = null" />
   </div>
 </template>
 
 <style scoped>
+.rearranging { transition: height 240ms cubic-bezier(.2,.7,.2,1); }
+.rearranging > div { transition: transform 240ms cubic-bezier(.2,.7,.2,1); }
+.session-filter-enter-active, .session-filter-leave-active { transition: scale 240ms cubic-bezier(.2,.7,.2,1), opacity 240ms ease !important; transform-origin: top; }
+.session-filter-enter-from, .session-filter-leave-to { scale: 1 0; opacity: 0; }
+.session-filter-leave-active { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .rearranging, .rearranging > div, .session-filter-enter-active, .session-filter-leave-active { transition: none !important; }
+}
 .sl-all-heading { display: flex; align-items: center; gap: 8px; padding: 8px 12px 0; font-size: 14px; }
 </style>
