@@ -190,9 +190,9 @@
   .settings-overlay { position: fixed; inset: 0; z-index: 50; background: var(--scrim); backdrop-filter: blur(3px); animation: fade-in 180ms ease-out; }
   .settings-page { position: fixed; inset: max(5dvh, calc((100dvh - 760px) / 2)) max(24px, calc((100vw - 1040px) / 2)); width: auto; height: min(90dvh, 760px); z-index: 51; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--bg); box-shadow: var(--shadow-pop); animation: settings-enter 180ms ease-out; }
   .settings-shell { gap: 0; padding: 0; max-width: none; margin: 0; }
-  .settings-sidebar { display: flex; flex-direction: column; overflow: hidden; width: 228px; padding: 20px 14px; border-right: 1px solid var(--line); background: var(--bg-sunken); }
+  .settings-sidebar { display: flex; flex-direction: column; overflow: hidden; width: 228px; --settings-rail-pad: 14px; padding: 20px var(--settings-rail-pad); border-right: 1px solid var(--line); background: var(--bg-sunken); }
   .settings-sidebar > .settings-search { flex: none; position: relative; margin-bottom: 6px; }
-  .settings-sidebar > .settings-categories { flex: 1; min-height: 0; overflow-y: auto; padding-block: 14px 18px; mask-image: linear-gradient(to bottom, transparent, black 14px, black calc(100% - 18px), transparent); }
+  .settings-sidebar > .settings-categories { flex: 1; min-height: 0; overflow-y: auto; margin-right: calc(-1 * var(--settings-rail-pad)); padding: 14px var(--settings-rail-pad) 18px; mask-image: linear-gradient(to bottom, transparent, black 14px, black calc(100% - 18px), transparent); }
   .settings-main { padding: 14px 0 0 28px; }
   .settings-panels, .settings-results { padding-right: 34px; }
   .settings-category-button.active { background: var(--bg-active); }

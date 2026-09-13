@@ -10,6 +10,19 @@ export const attachmentLimits = capabilities => ({
   fileCount: capabilities?.attachments?.max_attachments_per_message ?? cfg.composer.maxAttachments,
 });
 
+// Unsent composer attachments, mirrored per session for the page's lifetime
+// (memory only — nothing here survives a reload). The composer stores its
+// live list on every mutation and restores it when the user switches
+// conversations or returns to one, so an unsent image survives A → B → A.
+// Cleared by the composer when the draft is sent or emptied; object URLs of
+// stored items stay alive until that item leaves the store.
+const attachmentDrafts = new Map();
+export function attachmentDraftsFor(sessionId) { return attachmentDrafts.get(sessionId) ?? []; }
+export function saveAttachmentDrafts(sessionId, attachments) {
+  if (attachments.length) attachmentDrafts.set(sessionId, [...attachments]);
+  else attachmentDrafts.delete(sessionId);
+}
+
 export async function uploadAttachments(sessionId, attachments, { signal, capabilities } = {}) {
   const limits = attachmentLimits(capabilities);
   const blocks = [], uploaded = [];
