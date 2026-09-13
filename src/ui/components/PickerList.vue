@@ -19,6 +19,10 @@ const keys = computed(() => filtered.value.map(item => item.key));
 const estimate = (index: number) => rows.value.get(keys.value[index]!)!.heading ? 84 : 52;
 const listHeight = computed(() => Math.max(80, keys.value.reduce((height, _, index) => height + estimate(index), 0)));
 const textContent = (key: string) => rows.value.get(key)!.title;
+// A result-set change must rekey the content, but serializing every row on
+// each keystroke rebuilt the whole list. The query plus the length and the
+// boundary keys identify the set just as uniquely, at O(1).
+const listFingerprint = computed(() => `${query.value}|${filtered.value.length}|${filtered.value[0]?.key ?? ''}|${filtered.value[filtered.value.length - 1]?.key ?? ''}`);
 </script>
 
 <template>
@@ -28,7 +32,7 @@ const textContent = (key: string) => rows.value.get(key)!.title;
     <!-- Reka caches virtual rows by index. A changed result set must reset
          both memoized options and the measured group offsets/scroll position. -->
     <div class="picker-viewport" :style="{ height: `min(${listHeight}px, 48dvh, 380px)` }">
-    <ListboxContent :key="JSON.stringify(filtered)" class="picker-list" :aria-label="placeholder">
+    <ListboxContent :key="listFingerprint" class="picker-list" :aria-label="placeholder">
       <ListboxVirtualizer :options="keys" :estimate-size="estimate" :text-content="textContent" :overscan="5">
         <template #default="{ option, virtualItem }">
           <ListboxItem :value="option" :data-choice-key="option" :disabled="rows.get(option)!.disabled" class="picker-option" :style="{ height: `${estimate(virtualItem.index)}px` }" @select="emit('select', option)">

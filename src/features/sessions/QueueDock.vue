@@ -39,8 +39,13 @@ watch(() => props.items, (items) => {
   for (const it of items) if (!firstSeen.has(it.id)) firstSeen.set(it.id, Date.now());
   for (const id of firstSeen.keys()) if (!live.has(id)) firstSeen.delete(id);
   const pending = [...firstSeen.values()].some((t) => now.value - t < GRACE_MS);
-  if (pending && !ticker) ticker = setInterval(() => { now.value = Date.now(); }, 100);
-  else if (!pending && ticker) { clearInterval(ticker); ticker = null; }
+  if (pending && !ticker) ticker = setInterval(() => {
+    now.value = Date.now();
+    // The ticker exists only to age the grace window. Once nothing is
+    // pending it must stop itself: the queue may then sit unchanged for
+    // minutes, and this watch only fires on a items change.
+    if (![...firstSeen.values()].some((t) => now.value - t < GRACE_MS)) { clearInterval(ticker!); ticker = null; }
+  }, 100);
 }, { immediate: true });
 const shown = computed(() => {
   const horizon = now.value - GRACE_MS;
