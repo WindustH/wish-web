@@ -299,12 +299,15 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
 
 <template>
   <div class="chatlog-wrap">
-    <div v-if="chat.loadingOlder.value" class="history-loading log-loading" role="status">{{ i18n.t('sessions.loading') }}</div>
+    <div v-if="chat.loadingOlder.value" class="history-loading" role="status" :aria-label="i18n.t('sessions.loading')"><span class="chat-skeleton older-skeleton" aria-hidden="true" /></div>
     <div ref="scrollEl" class="chatlog" :data-following="stick" tabindex="0" @scroll.passive="onScroll"
       @wheel.passive="onWheel" @touchstart.passive="onTouchStart" @touchmove.passive="onTouchMove"
       @keydown="onKeydown" @pointerdown="onPointerDown" :data-scrollbar-held="scrollbarHeld">
 
-      <div v-if="chat.loadingInitial.value && !groups.length" class="log-loading">{{ i18n.t('sessions.loading') }}</div>
+      <div v-if="chat.loadingInitial.value && !groups.length" class="history-skeleton" role="status" :aria-label="i18n.t('sessions.loading')" aria-busy="true">
+        <div class="chat-skeleton skeleton-user" aria-hidden="true" />
+        <div class="skeleton-reply" aria-hidden="true"><span v-for="n in 3" :key="n" class="chat-skeleton" /></div>
+      </div>
       <div v-else-if="!groups.length && !running" class="chat-empty hint">{{ i18n.t('chat.empty') }}</div>
       <div class="chatlog-inner" :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }">
         <div v-for="v in virtualizer.getVirtualItems()" :key="groups[v.index]?.key"
