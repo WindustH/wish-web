@@ -728,12 +728,17 @@ export const chat = (() => {
     const myEpoch = epoch;
     try {
       const snap = snapshot.value;
-      if (!force && (!snap || (snap.phase !== 'running' && (snap.queue ?? 0) === 0))) return;
+      // Only an authoritative running phase may open an observation. A
+      // queued backlog alone is not a live run: after a daemon restart the
+      // session sits at phase=interrupted with queued deliveries that wait
+      // for the user (resume_requires_user), and faking "streaming" here
+      // spun an endless working indicator over a stopped run.
+      if (!force && (!snap || snap.phase !== 'running')) return;
       if (!force && stream.value.active) return;
       const runId = typeof snap?.active_run_id === 'string' && snap.active_run_id ? snap.active_run_id : null;
       if (!runId) {
-        // Unknown which run is live: show the running phase honestly and
-        // keep waiting on the control plane (poll safety still reconciles).
+        // The snapshot says running but names no run yet: keep observing
+        // via poll safety until the control plane exposes the run id.
         if (!stream.value.active) {
           stream.value = { ...EMPTY_STREAM(), active: true, phase: 'streaming', startedAt: Date.now() };
           startPollSafety();

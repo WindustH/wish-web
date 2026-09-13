@@ -296,6 +296,7 @@ export const en = {
   'settings.streaming': 'Streaming (daemon)',
   'settings.streamingToggle': 'Token streaming',
   'chat.working': 'Working…',
+  'chat.resumeHint': 'Run stopped — {n} message(s) queued; send a message to resume',
   'chat.writing': 'Writing response…',
   'chat.retrying': 'Retrying…',
   'chat.thinking': 'Thinking…',
