@@ -111,7 +111,7 @@
 }
 /* Desktop writing desk: explicit height and draggable separator. Mobile grows with content. */
 /* Queue dock: an independent quiet panel floating above the composer, at
-   arm's length from it. "Quiet" means the page background color — no
+   arm's length from it — the same raised surface as menu-pop/modals, no
    border, a whisper of shadow, fully rounded — so it reads as a dock over
    the transcript, not as part of the input surface. Rows separate by
    spacing and hover only; the composer itself is untouched. Desktop aligns
@@ -125,7 +125,7 @@
   max-height: min(320px, 40vh); overflow-y: auto; overscroll-behavior: contain;
   padding: 6px;
   border-radius: 10px;
-  background: var(--bg);
+  background: var(--bg-raised);
   box-shadow: 0 2px 10px rgb(0 0 0 / 10%);
   transition: opacity var(--dur-fast) var(--ease-out);
 }
