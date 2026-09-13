@@ -9,7 +9,7 @@ import { i18n } from '../../core/i18n/index.js';
 import { cfg } from '../../core/config.js';
 import { fmtTokens } from '../../core/util/fmt.js';
 import type { UsageChartData } from '../../core/usage/types';
-const props = defineProps<{ data: UsageChartData | null; heat: HeatData | null; days: [string, number][] | null; loading: boolean; calendarLoading: boolean; error: string; calendarError: string; range: RangeSelection; calendarRange: RangeSelection }>();
+const props = defineProps<{ data: UsageChartData | null; heat: HeatData | null; days: [string, number][] | null; loading: boolean; calendarLoading: boolean; error: string; calendarError: string; range: RangeSelection; calendarRange: RangeSelection; rangeSwitching?: boolean; calendarSwitching?: boolean }>();
 const emit = defineEmits<{ range: [value: RangeSelection]; calendarRange: [value: RangeSelection]; refresh: []; retryCalendar: []; calendarColumns: [value: number] }>();
 const metric = ref<'tps' | 'tokens'>('tps');
 const hidden = ref(new Set<string>());
@@ -39,7 +39,7 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
       <div v-if="calendarLoading && !days" class="usage-empty" role="status">{{ tx('正在读取用量…', 'Loading usage…') }}</div>
       <template v-if="days">
         <div class="usage-calendar-summary"><span><strong>{{ fmtTokens(dailyTotal) }}</strong> Token <span>· {{ tx(`${activeDays} 天有用量记录`, `${activeDays} days with usage`) }}</span></span><UsageRangePicker :model-value="calendarRange" @update:model-value="emit('calendarRange', $event)" /></div>
-        <UsagePlot v-if="heat" :heat="heat" @columns="emit('calendarColumns', $event)" :label="tx(`所选日期共消耗 ${num(dailyTotal)} Token，${activeDays} 天有用量记录。`, `${num(dailyTotal)} tokens over ${activeDays} active days in the selected range.`)" />
+        <UsagePlot v-if="heat" :heat="heat" :refreshing="calendarSwitching" @columns="emit('calendarColumns', $event)" :label="tx(`所选日期共消耗 ${num(dailyTotal)} Token，${activeDays} 天有用量记录。`, `${num(dailyTotal)} tokens over ${activeDays} active days in the selected range.`)" />
         <footer class="usage-chart-meta usage-calendar-meta"><span class="usage-calendar-meta-info"><span>{{ data?.timezone }}</span><button class="btn ghost sm" :aria-expanded="dailyTable" @click="dailyTable = !dailyTable">{{ tx('每日数据', 'Daily data') }}</button></span><div class="usage-heat-legend"><span>{{ tx('少', 'Less') }}</span><i v-for="index in [0,1,2,3,4]" :key="index" :style="{ background: `var(--heat-${index})` }" /><span>{{ tx('多', 'More') }}</span></div></footer>
         <div v-if="dailyTable" class="usage-data-table"><table class="table"><thead><tr><th>{{ tx('日期', 'Date') }}</th><th>Token</th></tr></thead><tbody><tr v-for="day in [...days].reverse()" :key="day[0]"><td>{{ day[0] }}</td><td>{{ num(day[1]) }}</td></tr></tbody></table></div>
       </template>
@@ -66,8 +66,10 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
             <strong>{{ metric === 'tokens' ? fmtTokens(model.tokens) : model.tps == null ? '—' : num(model.tps) }}<small>{{ metric === 'tokens' ? 'Token' : 'Token/s' }}</small></strong>
           </button>
         </div>
-        <UsagePlot v-if="hasPoints" :series="series" :unit="metric === 'tps' ? 'Token/s' : 'Token'" :label="tx('分模型用量曲线；下方可展开数据表。', 'Usage by model; a data table is available below.')" />
+        <Transition name="usage-swap">
+        <UsagePlot v-if="hasPoints" :series="series" :refreshing="rangeSwitching" :unit="metric === 'tps' ? 'Token/s' : 'Token'" :label="tx('分模型用量曲线；下方可展开数据表。', 'Usage by model; a data table is available below.')" />
         <div v-else class="usage-empty">{{ !series.length && models.length ? tx('请选择要显示的模型。', 'Select a model to display.') : metric === 'tps' ? tx('这段时间还没有有效的 TPS 采样。', 'No valid TPS samples in this period.') : tx('这段时间没有用量记录。', 'No usage recorded in this period.') }}</div>
+        </Transition>
         <footer class="usage-chart-meta" :class="{ 'align-end': metric === 'tps' }">
           <span v-if="metric === 'tokens'">{{ tx('包含失败请求已报告的用量', 'Includes reported usage from failed requests') }}</span>
           <button v-if="models.length" class="btn ghost sm" :aria-expanded="table" @click="table = !table">{{ tx('数据表', 'Data table') }}</button>
@@ -109,6 +111,8 @@ function toggle(key: string) { const next = new Set(hidden.value); next.has(key)
 .usage-calendar-period { font-size: 12px; color: var(--fg-subtle); }
 .usage-heat-legend { display: flex; align-items: center; gap: 4px; }
 .usage-heat-legend i { width: 11px; height: 11px; border-radius: 2px; }
+.usage-swap-enter-active, .usage-swap-leave-active { transition: opacity .15s ease; }
+.usage-swap-enter-from, .usage-swap-leave-to { opacity: 0; }
 .usage-data-table { max-height: 320px; overflow: auto; font-size: 12px; }
 .usage-data-table table { width: 100%; white-space: nowrap; }
 @media (max-width: 599px) { .usage-chart-card { padding: 12px; } .usage-chart-header { gap: 8px; } .usage-chart-meta { font-size: 10px; } }

@@ -11,6 +11,8 @@ import type { SeriesQuery, DailyQuery } from '../../core/usage/types';
 const props = defineProps<{ sessionId?: string }>();
 const active = usePageActivity();
 const range = ref<RangeSelection>({period:'day'});
+const rangeSwitching = ref(false);
+const calendarSwitching = ref(false);
 const calendarColumns = ref(44);
 const calendarRange = ref<RangeSelection>({period:'year'});
 const timezone = ref(offsetLabel(-new Date().getTimezoneOffset()));
@@ -40,11 +42,13 @@ function start() {
     if (!calendar.loading.value && Date.now() - calendarReadAt >= cfg.stats.calendarRefreshMs) void readCalendar();
   }, cfg.stats.refreshMs);
 }
-function changeRange(value: RangeSelection) { range.value = value; }
-function changeCalendarRange(value: RangeSelection) { calendarRange.value = value; }
+function changeRange(value: RangeSelection) { range.value = value; rangeSwitching.value = true; }
+function changeCalendarRange(value: RangeSelection) { calendarRange.value = value; calendarSwitching.value = true; }
 watch(calendarColumns, () => { if (active.value) void readCalendar(); });
-watch(calendarRange, () => { if (active.value) void readCalendar(true); });
-watch(range, () => { if (active.value) void readSeries(true); });
+// Range switches keep the previous data rendered until the new window arrives
+// (stale-while-revalidate): clearing here would unmount the canvas and flash.
+watch(calendarRange, () => { if (active.value) void readCalendar().finally(() => { if (!calendar.loading.value) calendarSwitching.value = false; }); });
+watch(range, () => { if (active.value) void readSeries().finally(() => { if (!series.loading.value) rangeSwitching.value = false; }); });
 watch(() => props.sessionId, () => { series.reset(); calendar.reset(); if (active.value) { void readSeries(true); void readCalendar(true); } });
 watch(active, value => value ? start() : stop(), { immediate: true });
 onScopeDispose(stop);
@@ -52,6 +56,6 @@ defineExpose({ refresh });
 </script>
 <template>
   <UsageChartPanel :data="data" :days="days" :heat="heat" :loading="series.loading.value" :calendar-loading="calendar.loading.value"
-    :error="series.error.value" :calendar-error="calendar.error.value" :range="range" :calendar-range="calendarRange"
+    :error="series.error.value" :calendar-error="calendar.error.value" :range="range" :calendar-range="calendarRange" :range-switching="rangeSwitching" :calendar-switching="calendarSwitching"
     @calendar-columns="calendarColumns = $event" @range="changeRange" @calendar-range="changeCalendarRange" @refresh="refresh" @retry-calendar="readCalendar()"><template #between><slot /></template></UsageChartPanel>
 </template>
