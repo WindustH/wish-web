@@ -107,6 +107,7 @@ export const en = {
   'entry.stopped': 'Stopped',
   'entry.interruption': 'Interrupted',
   'entry.backgroundTerminal': 'Background task finished',
+  'entry.runFailedNotice': 'Run failed',
   'entry.showDetail': 'Details',
   'entry.hideDetail': 'Hide',
   'entry.usage': 'Input {in} · Output {out} · Total {total} tokens',

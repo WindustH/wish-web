@@ -107,6 +107,7 @@ export const zh = {
   'entry.stopped': '已停止',
   'entry.interruption': '已中断',
   'entry.backgroundTerminal': '后台任务结束',
+  'entry.runFailedNotice': '运行失败',
   'entry.showDetail': '查看详情',
   'entry.hideDetail': '收起',
   'entry.usage': '输入 {in} · 输出 {out} · 总计 {total} Token',

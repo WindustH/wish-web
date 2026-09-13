@@ -9,7 +9,8 @@ const props = defineProps<{ item: any }>();
 const open = ref(false);
 const label = computed(() => i18n.t(props.item.entry.kind === 'run_interrupted'
   ? 'entry.interruption' : props.item.entry.kind === 'background_terminal'
-    ? 'entry.backgroundTerminal' : 'entry.system'));
+    ? 'entry.backgroundTerminal' : props.item.entry.payload?.source === 'wish_run_failed'
+      ? 'entry.runFailedNotice' : 'entry.system'));
 const text = computed(() => (props.item.entry.payload?.content ?? [])
   .map((block: { text?: string }) => block.text ?? '').join('\n') || props.item.entry.payload?.text || '');
 </script>
