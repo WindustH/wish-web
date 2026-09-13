@@ -66,6 +66,6 @@ html.resizing .chatlog, html.resizing .sl-scroll { pointer-events: none; }
 
 .shell.desktop .sessions-pane { transition: width var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out); overflow: hidden; }
 .shell.desktop .sessions-pane.is-collapsed { width: 0; opacity: 0; border-right: 0; pointer-events: none; visibility: hidden; transition: width var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out), visibility 0s var(--dur); }
-html.resizing .sessions-pane { transition: none; }
+html.resizing .shell .sessions-pane { transition: none; }
 .session-list-toggle svg { transition: transform var(--dur) var(--ease-out); }
 .session-list-toggle[aria-expanded="false"] svg { transform: rotate(180deg); }
