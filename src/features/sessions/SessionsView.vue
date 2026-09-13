@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useSessionMotion } from "./useSessionMotion";
+useSessionMotion();
 import Hint from '../../ui/components/Hint.vue';
 // Two-pane shell (desktop): the session list stays mounted while the right
 // side routes between (empty) and chat; chat stays mounted while its
