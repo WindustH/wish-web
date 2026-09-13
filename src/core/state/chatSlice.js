@@ -94,6 +94,7 @@ export const chat = (() => {
     // are discarded (review round-2 #2).
     epoch += 1;
     resetHistoryWork();
+    debouncedInvalidate.cancel();
     epochCtrl?.abort(new Error('session closed')); epochCtrl = null;
     stopStream();
     deadStreams.clear();
@@ -145,7 +146,6 @@ export const chat = (() => {
       ]);
       if (stale()) return;
       snapshot.value = snap;
-      noteGeneration(snap, { silent: true });   // baseline, no toast
       const tail = (page.items ?? []).slice().reverse();
       if (version === historyVersion.value) applyPage(tail, page.has_more ?? false);
       offSessionSync = (await import('./syncSlice.js')).sync.subscribeSession(id, onSessionSync);
@@ -261,22 +261,6 @@ export const chat = (() => {
     }
   }
 
-  let lastGenerationId = null;
-
-  // A generation cutover (compaction switch) invalidates older context:
-  // surface it ONCE per change — never on first open (round-4 #3).
-  function noteGeneration(snap, { silent = false } = {}) {
-    const gid = snap?.generation_id ?? null;
-    if (silent || lastGenerationId == null) {
-      lastGenerationId = gid;
-      return;
-    }
-    if (gid != null && gid !== lastGenerationId) {
-      lastGenerationId = gid;
-      bus.emit('chat.generationChanged', snap.id);
-    }
-  }
-
   function onSessionSync(evt) {
     const id = sessionId.value;
     if (!id) return;
@@ -304,7 +288,6 @@ export const chat = (() => {
       if (myEpoch !== epoch) return;
       if ((snapshot.value?.revision ?? 0) <= snap.revision) {
         snapshot.value = snap;
-        noteGeneration(snap);
       }
     } catch (err) {
       if (myEpoch === epoch) {
@@ -629,7 +612,6 @@ export const chat = (() => {
       const snap = await api.sessionGet(id, { signal: epochCtrl?.signal });
       if (myEpoch !== epoch) return;
       snapshot.value = snap;
-      noteGeneration(snap);
     } catch (err) {
       if (myEpoch === epoch) error.value = err;
     }

@@ -7,7 +7,6 @@ import { i18n } from '../core/i18n/index.js';
 import { toast } from './toast.js';
 
 export const needRefresh = shallowRef(false);
-export const offlineReady = shallowRef(false);
 let updateSW: ((reloadPage?: boolean) => Promise<void>) | null = null;
 
 export async function initPWA() {
@@ -17,7 +16,6 @@ export async function initPWA() {
     updateSW = mod.registerSW({
       immediate: true,
       onNeedRefresh() { needRefresh.value = true; },
-      onOfflineReady() { offlineReady.value = true; },
       onRegisterError(err: unknown) {
         console.error('[pwa] registration error:', err);
         toast(i18n.t('pwa.registerFailed'));

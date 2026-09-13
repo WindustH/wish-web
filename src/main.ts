@@ -8,7 +8,6 @@ import { i18n } from './core/i18n/index.js';
 import { cfg } from './core/config.js';
 import { prefs } from './core/state/prefsSlice.js';
 import { sync } from './core/state/syncSlice.js';
-import { bus } from './core/bus.js';
 import { toast } from './ui/toast.js';
 import { applyTokens } from './ui/applyTokens';
 import { initPWA } from './ui/pwa.js';
@@ -72,8 +71,8 @@ watch(sync.protocolError, (err) => { if (err) toast(i18n.t('sync.protocolError')
 {
   const { chat } = await import('./core/state/chatSlice.js');
   const app = platform('app');
-  watch(chat.stream, (s) => {
-    if (app?.keepAwake && prefs.keepAwake.value) app.keepAwake(Boolean(s?.active));
+  watch([() => chat.stream.value.active, prefs.keepAwake], ([active, enabled]) => {
+    void app.keepAwake(active && enabled);
   });
 }
 

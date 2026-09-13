@@ -8,7 +8,7 @@
 //   notify   { isSupported, permission(), request(), show({title,body,tag}) }
 //   fs       { saveFile({name,mime,bytes}), pickFiles({multiple}) -> [{name,mime,size,read()}] }
 //   share    { isSupported, share({title,text,url}) }
-//   app      { isStandalone(), canInstall(), promptInstall(), keepAwake(bool) }
+//   app      { isHidden(), promptInstall(), keepAwake(bool) }
 
 const adapters = {};
 

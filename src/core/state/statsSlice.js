@@ -15,15 +15,18 @@ export const stats = (() => {
   const updatedAt = shallowRef(null);
   let epoch = 0;
   let pending = null;
+  let controller = null;
   let autoTimer = null;
 
   function refresh() {
     if (pending) return pending;
     const own = epoch;
+    controller = new AbortController();
+    const options = { signal: controller.signal };
     loading.value = true;
     error.value = null;
     pending = Promise.all([
-      api.daemonStatus(), api.usageTotals(), api.storageStatus(), api.daemonVersion(),
+      api.daemonStatus(options), api.usageTotals(options), api.storageStatus(options), api.daemonVersion(options),
     ]).then(([st, us, sg, ver]) => {
       if (own !== epoch) return;
       status.value = st;
@@ -32,11 +35,14 @@ export const stats = (() => {
       version.value = ver;
       updatedAt.value = Date.now();
     }).catch(cause => {
-      if (own === epoch) error.value = cause;
+      if (own !== epoch) return;
+      controller.abort();
+      error.value = cause;
     }).finally(() => {
       if (own !== epoch) return;
       loading.value = false;
       pending = null;
+      controller = null;
     });
     return pending;
   }
@@ -45,6 +51,7 @@ export const stats = (() => {
     clearInterval(autoTimer);
     autoTimer = null;
     epoch++;
+    controller?.abort(); controller = null;
     pending = null;
     loading.value = false;
   }

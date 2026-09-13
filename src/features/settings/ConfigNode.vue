@@ -9,7 +9,7 @@ import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { ChevronDown, Plus, Trash2 } from '@lucide/vue';
 import { atPath, isObject, pointer } from '../../core/config-editor';
 import type { ConfigCatalog, ConfigEditor, Json, ProviderPreset } from '../../core/config-editor';
-import { fieldLabel, fieldHint, isMap, isSecret, label, newArrayEntry, optionalFields, optionLabel, optionsFor, tr, unit } from './fields';
+import { fieldLabel, fieldHint, isMap, isSecret, label, newArrayEntry, optionalFields, optionsFor, tr, unit } from './fields';
 import ConfigLink from './ConfigLink.vue';
 import SettingHint from './SettingHint.vue';
 import AddOptionalSetting from './AddOptionalSetting.vue';

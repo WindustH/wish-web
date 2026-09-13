@@ -46,10 +46,6 @@ export function fmtBytes(b) {
   return b.toFixed(i ? 1 : 0) + ' ' + u[i];
 }
 
-export function parseIso(iso) {
-  return iso ? Date.parse(iso) : null;
-}
-
 export function debounce(fn, ms) {
   let h = null;
   const wrapped = (...args) => {
@@ -73,7 +69,7 @@ export function idemKey(len = 24) {
   return `wui-${out}`.slice(0, Math.max(len, 16));
 }
 
-export function truncate(s, n) {
+function truncate(s, n) {
   if (typeof s !== 'string' || s.length <= n) return s ?? '';
   return s.slice(0, n - 1) + '…';
 }
