@@ -50,6 +50,7 @@ export const daemonStatus = (opts) => get('/status', opts);
 export const daemonVersion = (opts) => get('/version', opts);
 export const usageTotals = (opts) => get('/metrics/usage', opts);
 export const storageStatus = (opts) => get('/storage/status', opts);
+export const runtimeMemory = (opts) => get('/runtime/memory', opts);
 
 // ── models / providers / config ─────────────────────────────────────────
 // ── providerd (separate daemon; catalog reads NEVER go through wishd) ──
