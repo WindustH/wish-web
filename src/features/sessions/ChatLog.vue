@@ -15,6 +15,7 @@ import HistoryItem from './HistoryItem.vue';
 import ThinkingViewport from './ThinkingViewport.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity';
 const pageActive = usePageActivity();
+let pageAway = false;   // the page was deactivated since the last chat-log trigger
 
 const props = defineProps<{ sessionId: string; mobile: boolean }>();
 
@@ -143,7 +144,7 @@ watch(scrollEl, (el, _, cleanup) => {
     releaseScrollbar();
   });
 });
-watch(pageActive, (active) => { if (!active) releaseScrollbar(); });
+watch(pageActive, (active) => { if (!active) { pageAway = true; releaseScrollbar(); } });
 watch(() => props.sessionId, releaseScrollbar);
 
 let loadingOlderBusy = false;
@@ -261,6 +262,8 @@ watch([() => groups.value.length, running, runFailure, pageActive], async () => 
   const gen = epoch;
   await nextTick();
   if (!owns(gen) || !pageActive.value) return;
+  const backFromAway = pageAway;
+  pageAway = false;
   // First landing waits for layout, but must not override an upward gesture
   // made while the initial history request was still loading.
   if (!landed && groups.value.length) {
@@ -279,7 +282,12 @@ watch([() => groups.value.length, running, runFailure, pageActive], async () => 
   }
   if (!stick.value) return;
   const el2 = scrollEl.value;
-  if (el2 && !running.value) el2.scrollTop = el2.scrollHeight;
+  // While a run streams, per-frame following owns the tail — except right
+  // after returning to the page: detaching reset scrollTop to 0 without a
+  // scroll event, so the viewport sits at the top while the virtualizer
+  // still renders the pre-leave offset (an empty-looking log until the next
+  // stream frame, e.g. while a tool runs server-side). Re-land the tail once.
+  if (el2 && (!running.value || backFromAway)) el2.scrollTop = el2.scrollHeight;
 });
 watch(() => props.sessionId, () => { landed = false; direction = undefined; stick.value = true; chained = 0; loadingOlderBusy = false; targetSeq.value = null; });
 watch(streamState, (s) => {
