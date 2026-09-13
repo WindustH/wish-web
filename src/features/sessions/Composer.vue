@@ -158,7 +158,10 @@ async function readAttachments(files: PickedAttachment[]) {
   } catch (error) {
     if (epoch === attachmentEpoch) toast('Could not read attachment: ' + String(error));
   } finally {
-    if (epoch === attachmentEpoch) readingAttachments.value--;
+    // Balanced against this call's increment even when a session switch
+    // abandoned the read (epoch moved): the counter guards THIS composer's
+    // in-flight reads, not any particular session.
+    readingAttachments.value--;
   }
 }
 
