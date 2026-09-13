@@ -48,14 +48,14 @@
 .cfg-sections button.active { color: var(--fg); background: var(--bg-active); font-weight: 500; }
 .cfg-content { min-width: 0; max-width: 720px; }
 .cfg-content fieldset, .cfg-editor-window fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-.cfg-field { display: grid; grid-template-columns: fit-content(260px) minmax(0, 1fr); align-items: center; gap: 4px 24px; padding: 10px 0; }
+.cfg-field { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr); align-items: center; gap: 4px 24px; padding: 10px 0; }
 .cfg-field-label { min-width: 0; font: 500 14px/1.5 var(--font); }
 .cfg-field-label label { font-weight: 500; overflow-wrap: anywhere; }
 .cfg-field-label small { display: inline; color: var(--fg-muted); margin-left: 8px; font-size: 12px; }
 .cfg-property + .cfg-property { border-top: 1px solid var(--line); }
 .cfg-input-wrap, .cfg-inline { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .cfg-input-wrap input, .cfg-inline input { flex: 1 1 auto; width: auto; min-width: 0; }
-.cfg-input-wrap input[type='number'], .cfg-inline input[type='number'] { flex: 0 0 auto; width: 9ch; }
+.cfg-input-wrap input[type='number'], .cfg-inline input[type='number'] { flex: 0 0 auto; width: 15ch; }
 .cfg-input-wrap .control-select, .cfg-inline .control-select { flex: 0 1 auto; width: auto; max-width: 100%; }
 .cfg-switch { flex: 0 0 auto; justify-self: start; width: 42px; height: 24px; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--bg-sunken); cursor: pointer; }
 .cfg-switch[data-state="checked"] { background: var(--accent); border-color: var(--accent); }
@@ -81,6 +81,9 @@
 .cfg-entry-input { flex-wrap: wrap; }
 .cfg-entry-input input, .cfg-entry-input .control-select { flex: 1 1 140px; width: auto; }
 .cfg-add-field > label { font-size: 13px; color: var(--fg-muted); }
+@media (min-width: 900px) {
+  .cfg-input-wrap input:not([type='number']), .cfg-inline input:not([type='number']) { min-width: 12ch; }
+}
 .cfg-savebar { width: fit-content; max-width: 100%; padding: 10px 12px 10px 18px; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--bg-raised); box-shadow: var(--shadow-pop); }
 .cfg-savebar-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .cfg-savebar-inner > span { font-size: 13px; font-weight: 500; }
