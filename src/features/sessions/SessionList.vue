@@ -79,7 +79,7 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
         <button :aria-label="i18n.t('common.remove')" @click="sessions.setTagFilter('')"><Icon name="x" class="sm" /></button>
       </span>
     </div>
-    <div ref="listEl" class="sl-scroll" :aria-busy="sessions.loading.value" @scroll.passive="onListScroll">
+    <div ref="listEl" class="sl-scroll" data-scroll-preserve :aria-busy="sessions.loading.value" @scroll.passive="onListScroll">
       <div v-if="sessions.loading.value && !rows.length" class="sl-state"><Spinner /></div>
       <div v-else-if="sessions.error.value" class="sl-state load-error" role="alert">
         <span>{{ String(sessions.error.value?.detail || sessions.error.value?.message || sessions.error.value) }}</span>

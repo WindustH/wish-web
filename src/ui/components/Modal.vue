@@ -70,8 +70,14 @@ function positionBubble() {
   const top = rect.bottom + 10;
   anchorStyle.value = { right: `${Math.max(16, innerWidth - rect.right - 8)}px`, top: `${top}px`, maxHeight: `calc(100dvh - ${top + 16}px)` };
 }
-onMounted(() => { positionBubble(); window.addEventListener('resize', positionBubble); window.addEventListener('scroll', positionBubble, true); });
-onBeforeUnmount(() => { window.removeEventListener('resize', positionBubble); window.removeEventListener('scroll', positionBubble, true); });
+const trackBubblePosition = () => { positionBubble(); window.addEventListener('resize', positionBubble); window.addEventListener('scroll', positionBubble, true); };
+const untrackBubblePosition = () => { window.removeEventListener('resize', positionBubble); window.removeEventListener('scroll', positionBubble, true); };
+// Only bubble-mode modals follow the window. Detail modals mount inside
+// every virtualized row; unconditional per-row window scroll/resize
+// listeners (capture phase) turned each scroll into a rows-sized fan-out.
+watch(bubble, value => { value ? trackBubblePosition() : untrackBubblePosition(); });
+onMounted(() => { positionBubble(); if (bubble.value) trackBubblePosition(); });
+onBeforeUnmount(() => untrackBubblePosition());
 function requestClose() {
   if (!pageActive.value || !props.dismissable || closing.value) return;
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) emit('close');
