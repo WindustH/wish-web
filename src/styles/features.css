@@ -110,22 +110,23 @@
   .history-target .proc-head { animation: none; box-shadow: 0 0 0 2px var(--accent-soft); }
 }
 /* Desktop writing desk: explicit height and draggable separator. Mobile grows with content. */
-/* Queue dock: the composer's surface grows upward — the dock shares its
-   background, border and top rounding and sits flush on it (bottom edge
-   open, no seam line), so the queued list and the input read as one piece.
-   Rows separate by spacing and hover only. Desktop aligns with the
-   composer's padded left edge with a wider floor; mobile spans the
-   floating composer card's extents. */
+/* Queue dock: an independent quiet panel floating above the composer, at
+   arm's length from it. "Quiet" means the page background color — no
+   border, a whisper of shadow, fully rounded — so it reads as a dock over
+   the transcript, not as part of the input surface. Rows separate by
+   spacing and hover only; the composer itself is untouched. Desktop aligns
+   with the composer's padded left edge (24px) with a 340px width floor;
+   mobile centers at the content width. */
 .queue-dock-anchor { position: relative; height: 0; flex: none; }
 .queue-dock {
-  position: absolute; bottom: -1px; left: 24px; z-index: 6;
+  position: absolute; bottom: 12px; left: 24px; z-index: 6;
   display: flex; flex-direction: column; gap: 2px;
   width: max-content; min-width: 340px; max-width: min(520px, calc(100% - 48px));
   max-height: min(320px, 40vh); overflow-y: auto; overscroll-behavior: contain;
   padding: 6px;
-  border: 1px solid var(--line-strong); border-bottom: 0;
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: var(--bg-raised);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 10%);
   transition: opacity var(--dur-fast) var(--ease-out);
 }
 .queue-dock.quiet { opacity: 0; visibility: hidden; }
@@ -133,15 +134,18 @@
 .queue-item:hover { background: var(--bg-hover); }
 .queue-images { flex: none; font-size: 12px; color: var(--fg-muted); }
 .queue-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
-.queue-item .btn.icon-only { width: 28px; height: 28px; flex: none; }
+/* Small glyphs (~12px) but the button keeps its full box: the hot zone stays
+   a comfortable touch target; only the drawn icon steps down a size. */
+.queue-item .btn.icon-only { width: 28px; height: 28px; flex: none; padding: 0; }
+.queue-item .btn.icon-only .icon { width: 12px; height: 12px; }
 .queue-dock-enter-active, .queue-dock-leave-active { transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
 .queue-dock-enter-from, .queue-dock-leave-to { opacity: 0; transform: translateY(6px); }
 @media (prefers-reduced-motion: reduce) { .queue-dock-enter-active, .queue-dock-leave-active { transition: none; } }
 @media (max-width: 899px) {
   .queue-dock {
-    left: clamp(12px, 2.5vw, 24px); right: clamp(12px, 2.5vw, 24px); margin-inline: auto;
-    min-width: 0; max-width: var(--mobile-content-width); width: auto;
-    bottom: -7px; border-radius: 18px 18px 0 0; box-shadow: 0 5px 20px rgb(0 0 0 / 12%);
+    left: 0; right: 0; margin-inline: auto;
+    min-width: 0; max-width: min(var(--mobile-content-width), calc(100% - 24px)); width: auto;
+    bottom: 6px; /* measured: the pane adds ~12px above the mobile card; 6px lands the gap at 12px */
   }
 }
 .composer { position: relative; flex: none; min-height: 0; border-top: 1px solid var(--line-strong); background: var(--bg-raised); display: flex; flex-direction: column; }
