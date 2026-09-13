@@ -30,10 +30,9 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
       const samples = item.points.filter((point): point is [number, number, number] => point[1] != null);
       const mean = samples.length ? samples.reduce((sum, point) => sum + point[1], 0) / samples.length : 0;
       // Each Gaussian integrates to (TPS_i - mean) * duration_i in Token.
-      // Scale time by each model's typical sampling gap, not the full chart span.
+      // Use one seventh of the displayed x-axis range for every model.
       const ordered = [...samples].sort((a, b) => a[0] - b[0]);
-      const gaps = ordered.slice(1).map((point, i) => point[0] - ordered[i]![0]).filter(gap => gap > 0).sort((a, b) => a - b);
-      const sigma = gaps.length ? gaps[Math.floor(gaps.length / 2)]! : Math.max((right - left) / 40, 1);
+      const sigma = Math.max((right - left) / 7, 1);
       const timesToDraw = new Set(Array.from({ length: 241 }, (_, i) => left + (right - left) * i / 240));
       // Include points near observations so short bursts do not disappear
       // between uniformly spaced drawing coordinates in a long time range.
