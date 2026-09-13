@@ -26,7 +26,7 @@ import { platform } from '../../platform/index.js';
 import * as api from '../api/endpoints.js';
 
 const EMPTY_STREAM = () => ({
-  active: false, phase: 'idle',   // idle|pending|streaming|finalizing
+  active: false, phase: 'idle', activity: 'working',   // idle|pending|streaming|finalizing
   deliveryId: null, runId: null, model: null,
   text: '', reasoning: '', toolCalls: {}, currentTool: null, usage: null,
   gap: false, error: null, startedAt: 0,
@@ -563,26 +563,26 @@ export const chat = (() => {
         if (data.run_id && !s.runId) stream.value = { ...s, runId: data.run_id };
         break;
       case 'response_start':
-        stream.value = { ...s, phase: 'streaming', model: data.model ?? s.model };
+        stream.value = { ...s, phase: 'streaming', activity: 'working', currentTool: null, model: data.model ?? s.model };
         break;
       case 'response_text_delta':
-        stream.value = { ...s, phase: 'streaming', text: cap(s.text + (data.delta ?? '')) };
+        stream.value = { ...s, phase: 'streaming', activity: 'writing', currentTool: null, text: cap(s.text + (data.delta ?? '')) };
         break;
       case 'response_reasoning_summary_delta':
-        stream.value = { ...s, phase: 'streaming', reasoning: cap(s.reasoning + (data.delta ?? '')), currentTool: null };
+        stream.value = { ...s, phase: 'streaming', activity: 'thinking', reasoning: cap(s.reasoning + (data.delta ?? '')), currentTool: null };
         break;
       case 'response_tool_call_delta': {
         const tc = { ...(s.toolCalls || {}) };
         const cur = tc[data.tool_call_id] || { name: data.tool_name, args: '' };
         tc[data.tool_call_id] = { name: data.tool_name ?? cur.name, args: cur.args + (data.json_delta ?? '') };
-        stream.value = { ...s, phase: 'streaming', toolCalls: tc, currentTool: tc[data.tool_call_id].name || 'tool' };
+        stream.value = { ...s, phase: 'streaming', activity: 'tool', toolCalls: tc, currentTool: tc[data.tool_call_id].name || 'tool' };
         break;
       }
       case 'response_usage':
         stream.value = { ...s, usage: data.usage ?? s.usage };
         break;
       case 'response_retry':
-        stream.value = { ...s, phase: 'streaming' };
+        stream.value = { ...s, phase: 'streaming', activity: 'retrying', currentTool: null };
         break;
       case 'response_error':
         stream.value = { ...s, error: `${data.code ?? 'error'}: ${data.message ?? ''}` };

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
 // TanStack owns prepend and measurement anchoring. User intent owns tail
 // following; native scrollbar gestures suspend pagination until release.
@@ -29,7 +30,11 @@ const running = computed(() => streamState.value?.active);
 const runFailure = computed(() => !running.value && chat.snapshot.value?.last_error);
 const streamText = computed(() => streamState.value?.text || '');
 const streamReasoning = computed(() => streamState.value?.reasoning || '');
-const streamToolCount = computed(() => Object.keys(streamState.value?.toolCalls || {}).length);
+const workStatus = computed(() => {
+  const state = streamState.value;
+  if (state?.currentTool) return `${i18n.t('entry.toolCall')} · ${state.currentTool}`;
+  return i18n.t(`chat.${state?.activity || 'working'}`);
+});
 
 const virtualizer = useVirtualizer(
   computed(() => {
@@ -315,13 +320,15 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
             :forced="groups[v.index]!.type === 'process' && forcedOpen.has(groups[v.index]!.key)" />
         </div>
       </div>
-      <div v-if="running" class="live-row" aria-live="polite">
+      <Transition name="live-work">
+      <div v-if="running" :key="sessionId" class="live-row" aria-live="polite">
         <div v-if="streamText" class="live-text">{{ streamText }}</div>
         <ThinkingViewport v-else-if="streamReasoning" :key="sessionId" :text="streamReasoning" :tool="streamState?.currentTool" />
-        <div v-else class="live-status">
-          <span v-if="streamToolCount">{{ i18n.t('entry.toolCall') }} ×{{ streamToolCount }} · </span>{{ i18n.t('chat.thinking') }}
-        </div>
+        <div class="work-status-slot"><Transition name="work-status">
+          <div :key="workStatus" class="live-status" role="status"><Icon :class="{ 'work-spinner': !streamState?.currentTool }" :name="streamState?.currentTool ? 'wrench' : 'loader-circle'" /><span>{{ workStatus }}</span></div>
+        </Transition></div>
       </div>
+      </Transition>
       <div v-if="runFailure" class="chat-run-error" role="alert">
         <strong>{{ i18n.t('chat.runFailed') }}</strong>
         <p>{{ runFailure.message }}</p>

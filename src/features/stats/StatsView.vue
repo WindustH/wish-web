@@ -48,7 +48,6 @@ onDeactivated(stats.stopAuto);
       <Spinner v-if="loading && !updatedAt" />
       <UsageCharts ref="charts">
         <section v-if="totals && usage" class="card statistics-usage">
-          <h2>{{ i18n.t('stats.usage') }}</h2>
           <dl class="statistics-values">
             <div><dt>{{ i18n.t('stats.tokensIn') }} <small>Token</small></dt><Hint :text="number(totals.tokens.input_tokens)"><dd data-stat="input">{{ fmtTokens(totals.tokens.input_tokens) }}</dd></Hint></div>
             <div><dt>{{ i18n.t('stats.tokensOut') }} <small>Token</small></dt><Hint :text="number(totals.tokens.output_tokens)"><dd data-stat="output">{{ fmtTokens(totals.tokens.output_tokens) }}</dd></Hint></div>
