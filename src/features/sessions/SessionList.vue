@@ -23,7 +23,11 @@ const action = ref<{ target: { id: string; name?: string }; kind: 'rename' | 'ta
 const rows = computed(() => sessions.items.value);
 const rearranging = ref(false);
 let motionTimer: ReturnType<typeof setTimeout>;
-watch(() => rows.value.map(row => row.id).join(','), () => {
+// Rearrange motion triggers on an id-set change; building the full joined
+// string on every row patch is wasted work — length plus the boundary ids
+// is a cheap enough fingerprint for a purely cosmetic class toggle.
+const rowFingerprint = () => `${rows.value.length}|${rows.value[0]?.id ?? ''}|${rows.value[rows.value.length - 1]?.id ?? ''}`;
+watch(rowFingerprint, () => {
   rearranging.value = true;
   clearTimeout(motionTimer);
   motionTimer = setTimeout(() => { rearranging.value = false; }, 280);

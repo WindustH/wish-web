@@ -70,13 +70,20 @@ async function request(method, target, { body, query, signal, headers, raw } = {
   // Mutations need an idempotency key (≥16 printable ASCII bytes).
   if (method !== 'GET' && method !== 'HEAD') h['idempotency-key'] ||= idemKey(cfg.api.idempotencyKeyLen);
 
+  // A request that can never settle (sleep/wake, a proxy black hole) would
+  // pin every busy flag behind it forever, so every call carries the
+  // configured timeout alongside the caller's signal. A timeout surfaces as
+  // a retryable network error; a caller abort stays a plain AbortError.
+  const timeout = AbortSignal.timeout(cfg.api.requestTimeoutMs ?? 30_000);
   let res;
   try {
     res = await fetch(url, {
-      method, headers: h, signal,
+      method, headers: h,
+      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       body: raw ? body : body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch (err) {
+    if (timeout.aborted) throw new ApiError(0, 'network', 'network', 'request timed out', true);
     if (err?.name === 'AbortError') throw err;
     throw new ApiError(0, 'network', 'network', String(err?.message || err), true);
   }
