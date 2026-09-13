@@ -74,6 +74,11 @@ export const chat = (() => {
                                         // never re-attached within this lifecycle
   let offSessionSync = null;
   let offDeliverySync = null;
+  let offVisibility = null;
+  // Delivery ids already seen terminal (consumed/cancelled) this session: a
+  // reordered 'queued' upsert arriving AFTER its terminal twin must not
+  // resurrect a row in the dock.
+  const terminalDeliveries = new Set();
   let reconcileTimer = null;
   let pollTimer = null;
   let pollTickBusy = false;
@@ -101,6 +106,8 @@ export const chat = (() => {
     deadStreams.clear();
     offSessionSync?.(); offSessionSync = null;
     offDeliverySync?.(); offDeliverySync = null;
+    offVisibility?.(); offVisibility = null;
+    terminalDeliveries.clear();
     clearTimeout(reconcileTimer); reconcileTimer = null;
     clearInterval(pollTimer); pollTimer = null;
     pollTickBusy = false;
@@ -152,6 +159,12 @@ export const chat = (() => {
       if (version === historyVersion.value) applyPage(tail, page.has_more ?? false);
       offSessionSync = (await import('./syncSlice.js')).sync.subscribeSession(id, onSessionSync);
       offDeliverySync = bindDeliverySync();
+      // Background tabs miss or lose control-plane events (throttled timers,
+      // dropped sockets): returning to the tab re-reads the authoritative
+      // queue so consumed messages cannot linger in the dock.
+      const onVisible = () => { if (document.visibilityState === 'visible') refreshDeliveries(sessionId.value); };
+      document.addEventListener('visibilitychange', onVisible);
+      offVisibility = () => document.removeEventListener('visibilitychange', onVisible);
       refreshDeliveries(id);
       await reattachIfRunning(id);
     } catch (err) {
@@ -299,6 +312,10 @@ export const chat = (() => {
         if (err?.status === 404 || err?.status === 410) bus.emit('chat.sessionGone', id);
       }
     }
+    // A reconnect or cursor reset means control-plane events may have been
+    // lost while offline: re-read the authoritative queue so a consumed
+    // message cannot linger in the dock.
+    refreshDeliveries(id);
     await fetchNewer();
     if (myEpoch !== epoch) return;
     await reattachIfRunning(id);
@@ -777,11 +794,13 @@ export const chat = (() => {
     if (!id || body?.target_session_id !== id) return;
     const prev = deliveries.value;
     const known = prev.find((d) => d.id === body.id);
-    const kept = prev.filter((d) => d.id !== body.id);
     if (body.state !== 'queued') {
-      if (known) deliveries.value = kept;
+      terminalDeliveries.add(body.id);
+      if (known) deliveries.value = prev.filter((d) => d.id !== body.id);
       return;
     }
+    if (terminalDeliveries.has(body.id)) return; // reordered after its terminal twin
+    const kept = prev.filter((d) => d.id !== body.id);
     const item = { ...body, text: body.text ?? known?.text ?? '' };
     deliveries.value = [...kept, item].sort((a, b) => a.enqueue_seq - b.enqueue_seq);
   }
