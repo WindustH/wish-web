@@ -1,6 +1,6 @@
 import type { PieSlice } from './pieDistribution';
 import type { EChartsCoreOption } from 'echarts/core';
-export interface PlotSeries { key: string; label: string; colorIndex?: number; extendMean?: boolean; points: [number, number | null, number?][] }
+export interface PlotSeries { key: string; label: string; colorIndex?: number; extendMean?: boolean; meanTps?: number | null; points: [number, number | null, number?][] }
 export interface ChartStyle { foreground: string; muted: string; line: string; surface: string; font: string; colors: string[]; heat: string[] }
 export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: string, unit: string): EChartsCoreOption {
   const format = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
@@ -28,7 +28,10 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
       splitLine: { lineStyle: { color: style.line } } },
     series: series.map((item, index) => {
       const samples = item.points.filter((point): point is [number, number, number] => point[1] != null);
-      const mean = samples.length ? samples.reduce((sum, point) => sum + point[1], 0) / samples.length : 0;
+      const duration = samples.reduce((sum, point) => sum + (point[2] ?? 0), 0);
+      // Share the headline's backend rate; standalone curves use the same
+      // duration-weighted formula (total output / total generation time).
+      const mean = item.meanTps ?? (duration > 0 ? samples.reduce((sum, point) => sum + point[1] * point[2], 0) / duration : 0);
       // Each Gaussian integrates to (TPS_i - mean) * duration_i in Token.
       // Use one seventh of the displayed x-axis range for every model.
       const ordered = [...samples].sort((a, b) => a[0] - b[0]);
