@@ -16,6 +16,7 @@
 //    run stream is settled from durable state, never re-attached blindly;
 //  · denied (401/403) surfaces an error and stops — never retried.
 import { cfg } from '../config.js';
+import { sendDisposition } from './sendDisposition.ts';
 import { uploadAttachments } from '../attachments.js';
 import { bus } from '../bus.js';
 import { shallowRef, computed } from 'vue';
@@ -457,11 +458,16 @@ export const chat = (() => {
       });
       if (myEpoch !== epoch) return null;
 
-      // A running loop consumes a new message at its next completed turn
-      // boundary. While it sits queued only the dock lists it; the durable
-      // entry is written when the loop drains the delivery, so it reaches
-      // the log through the same history path as the turn's own output.
-      if (stream.value.active) {
+      // A loop that is not idle consumes a new message at its next completed
+      // turn boundary. While it sits queued only the dock lists it; the
+      // durable entry is written when the loop drains the delivery, so it
+      // reaches the log through the same history path as the turn's own
+      // output. The decision reads the authoritative phase, not just the
+      // stream channel: compaction pauses the loop without ending our run
+      // observation, and interrupted sessions show no stream at all —
+      // deciding on stream activity alone double-showed the message (log
+      // plus dock) in exactly those states.
+      if (sendDisposition({ streamActive: stream.value.active, phase: phase.value }) === 'queue') {
         const d = await api.messageSend(id, {
           content: text, ...(blocks.length ? { blocks } : {}),
         }, { signal: sig });
