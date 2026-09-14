@@ -58,9 +58,12 @@ const text = computed(() => (props.item.entry.payload?.content ?? [])
 <style scoped>
 .stop-marker { color: var(--err); }
 .stop-marker :deep(svg) { width: 14px; height: 14px; }
-.notice-chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; margin: 3px 0; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; color: var(--fg-subtle); font: 400 13px/1.6 var(--font); text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer; }
+.notice-chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; margin: 3px 0; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; color: var(--fg-subtle); font: 400 13px/1.6 var(--font); text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer; transition: filter var(--dur-fast); }
 .notice-chip :deep(svg) { width: 14px; height: 14px; flex: none; }
 .notice-chip.warn { color: var(--warn); background: var(--warn-bg); border-color: var(--warn-border); }
 .notice-chip.error { color: var(--err); background: var(--err-bg); border-color: var(--err-border); }
-.notice-chip:hover { color: var(--accent); }
+/* Hover stays inside the chip's own hue: brightening the whole chip reads
+   as emphasis without swapping the foreground to the accent, which clashed
+   (amber chip, orange hover). Applies equally to the warn and error tones. */
+.notice-chip:hover { filter: brightness(1.06); }
 </style>
