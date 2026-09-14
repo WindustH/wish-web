@@ -17,14 +17,24 @@ const props = defineProps<{ item: any; forced?: boolean; session?: string }>();
 // Expansion survives virtualizer recycling: pruned rows destroy their
 // component, and an open group must not fold itself shut on scroll.
 // Expansion must survive regrouping while the run streams: the group key
-// (first step's entry id) shifts when an earlier-seq step joins the head,
-// so the per-session scope uses the run id — stable for the group's whole
-// life. Keyless groups fall back to the item key.
-const scopeKey = props.item.runId != null ? `r${props.item.runId}` : props.item.key;
-const open = ref(!!props.session && expandedBefore(props.session, scopeKey));
+// (first step's entry id) shifts when an earlier-seq step joins the head.
+// The state is therefore written under BOTH identities — the shifting key
+// and the run id (stable for the group's whole life) — and a mount restores
+// from whichever it finds. This also covers the early window where the
+// entry does not carry its run id yet.
+const scopeKey = props.item.key;
+const scopeRun = props.item.runId != null ? `r${props.item.runId}` : null;
+const open = ref(
+  !!props.session &&
+    (expandedBefore(props.session, scopeKey) || (scopeRun != null && expandedBefore(props.session, scopeRun))),
+);
 const detail = ref<any>(null);
 watch(() => props.forced, (forced) => { if (forced) open.value = true; }, { immediate: true });
-watch(open, (value) => { if (props.session) setExpanded(props.session, scopeKey, value); });
+watch(open, (value) => {
+  if (!props.session) return;
+  setExpanded(props.session, scopeKey, value);
+  if (scopeRun != null) setExpanded(props.session, scopeRun, value);
+});
 
 const steps = computed(() => props.item.steps ?? []);
 
