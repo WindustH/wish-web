@@ -6,7 +6,19 @@
 // anything older than 1s. Imports the installed dist directly.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Virtualizer } from '../node_modules/.pnpm/@tanstack+virtual-core@3.17.9/node_modules/@tanstack/virtual-core/dist/esm/index.js';
+import { readdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+// pnpm stores patched instances under a content-hashed directory; resolve it
+// by prefix so the canary survives re-installations and patch rehashes.
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+const pnpmDir = join(repoRoot, 'node_modules', '.pnpm');
+const virtualCoreDist = join(
+  pnpmDir,
+  readdirSync(pnpmDir).find((name) => name.startsWith('@tanstack+virtual-core@3.17.9')),
+  'node_modules', '@tanstack', 'virtual-core', 'dist', 'esm', 'index.js',
+);
+const { Virtualizer } = await import(virtualCoreDist);
 
 function makeVirtualizer(t) {
   const el = { scrollHeight: 1000, clientHeight: 400, scrollTo() {} };
