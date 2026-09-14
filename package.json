@@ -42,5 +42,10 @@
     "vite-plugin-pwa": "1.3.0",
     "vue-tsc": "3.3.11",
     "workbox-window": "7.4.1"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "@tanstack/virtual-core@3.17.9": "patches/@tanstack__virtual-core@3.17.9.patch"
+    }
   }
 }
