@@ -97,7 +97,13 @@ const optional = computed(() => optionalFields(props.path));
 const available = computed(() => Object.keys(optional.value).filter(k => !object.value || !(k in object.value)));
 const secret = computed(() => isSecret(props.path, props.value));
 const selectOptions = computed(() => optionsFor(props.path, props.editor.draft.value!, props.catalog));
-const inputValue = computed(() => props.value === '<redacted>' ? '' : String(props.value ?? ''));
+// An emptied model-number field is a legitimate persisted state ("no
+// override"); the inherited default must not be written back into it while
+// the user edits. The input is bound to inputValue, so once the override is
+// removed the reactive value would re-display the default — cleared keeps
+// the field empty until real input arrives (same as 上下文容量 clearing).
+const cleared = ref(false);
+const inputValue = computed(() => props.value === '<redacted>' || cleared.value ? '' : String(props.value ?? ''));
 const addKey = ref('');
 const addingEntry = ref(false);
 const entryInput = ref<HTMLInputElement>();
@@ -122,7 +128,8 @@ const floatField = computed(() => /ratio$|multiplier|bytes_per_token/.test(key.v
 
 function setInput(event: Event) {
   const input = event.target as HTMLInputElement;
-  if (modelNumber.value && input.value === '') { removeOverride(); input.value = String(modelDefaults.value[key.value] ?? ''); return; }
+  if (modelNumber.value && input.value === '') { removeOverride(); cleared.value = true; return; }
+  cleared.value = false;
   if ((modelNumber.value || typeof props.value === 'number') && !input.checkValidity()) return;
   const value = modelNumber.value || typeof props.value === 'number' ? input.valueAsNumber : input.value;
   // Focusing and leaving a masked field does not clear the existing credential.

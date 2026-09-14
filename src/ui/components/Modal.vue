@@ -33,6 +33,19 @@ function opened(event: Event) {
   if (bubble.value) event.preventDefault();
   else focus.opened(event);
 }
+// A drag that selects text inside a field must stay owned by that field.
+// Without pointer capture the browser hands the selection to the document the
+// moment the pointer crosses the window edge, and with nothing selectable
+// under it (the overlay) the whole selection silently collapses — the user's
+// drag-select just vanishes. Capturing keeps the drag (and the selection)
+// inside the field, clamped at its bounds; dropping text between fields uses
+// the drag-and-drop channel, which pointer capture does not touch.
+function ownFieldDrag(event: Event) {
+  const target = event.target as HTMLElement | null;
+  if (target?.matches?.('input, textarea') && target.isConnected) {
+    try { target.setPointerCapture((event as PointerEvent).pointerId); } catch { /* already gone */ }
+  }
+}
 function outside(event: Event) {
   const target = (event as CustomEvent).detail?.originalEvent?.target as Node | undefined;
   if (!props.dismissable || (props.floating && target && props.anchor?.contains(target)) || (bubble.value && (event.target as Element)?.closest?.('[data-session-panel]'))) event.preventDefault();
@@ -93,7 +106,7 @@ defineExpose({ close: requestClose });
   <DialogRoot :modal="!bubble" :open="open && !closing" @update:open="(v: boolean) => { if (!v) requestClose(); }">
     <DialogPortal v-if="pageActive">
       <DialogOverlay v-if="!bubble" class="modal-overlay" :style="{ zIndex: layer }" />
-      <DialogContent @animationend="finishClose" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'session-bubble': bubble && !floating, 'config-bubble': floating, compact: compactCard }, contentClass]" :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }" :aria-describedby="undefined"
+      <DialogContent @pointerdown.capture="ownFieldDrag" @animationend="finishClose" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'session-bubble': bubble && !floating, 'config-bubble': floating, compact: compactCard }, contentClass]" :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }" :aria-describedby="undefined"
         @escape-key-down="(e: KeyboardEvent) => { if (dismissable === false) e.preventDefault(); }"
         @focus-outside="event => { if (floating) event.preventDefault(); }"
         @interact-outside="outside"
