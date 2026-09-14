@@ -12,7 +12,6 @@ import { cfg } from '../../core/config.js';
 import { i18n } from '../../core/i18n/index.js';
 import { announce } from '../../ui/live.js';
 import { groupEntries } from './grouping.js';
-import { dropExpandedSession } from './expandState';
 import HistoryItem from './HistoryItem.vue';
 import ThinkingViewport from './ThinkingViewport.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity';
@@ -240,7 +239,7 @@ watch(() => chat.pendingSeq.value, async (seq) => {
   if (owns(gen)) chat.clearPendingSeq();
 });
 const forcedOpen = ref(new Set<string>());
-watch(() => chat.sessionId.value, (_, prev) => { forcedOpen.value = new Set(); if (prev) dropExpandedSession(prev); });
+watch(() => chat.sessionId.value, () => { forcedOpen.value = new Set(); });
 
 onUnmounted(() => { if (targetTimer) clearTimeout(targetTimer); });
 

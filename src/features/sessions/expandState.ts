@@ -18,4 +18,3 @@ export const setExpanded = (sessionId: string, key: string, value: boolean) => {
   }
   if (value) set.add(key); else set.delete(key);
 };
-export const dropExpandedSession = (sessionId: string) => { open.delete(sessionId); };
