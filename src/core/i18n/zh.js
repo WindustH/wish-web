@@ -125,6 +125,7 @@ export const zh = {
   'chatbar.manage': '管理',
   'chatbar.back': '返回',
   'chatbar.more': '更多',
+  'info.contextUsage': '上下文占用',
   'info.compactionCount': '压缩次数',
   'info.title': '会话信息',
   'info.model': '模型',

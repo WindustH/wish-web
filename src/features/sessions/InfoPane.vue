@@ -8,6 +8,7 @@ import { i18n } from '../../core/i18n/index.js';
 import { fmtDateTime, fmtTokens } from '../../core/util/fmt.js';
 import type { UsageSnapshot } from '../../core/state/statsSlice.js';
 import { useMedia } from '../../ui/composables/useMedia.js';
+import { contextUsageRow } from './contextUsage';
 
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 defineEmits<{ close: [] }>();
@@ -42,6 +43,7 @@ watch(() => chat.sessionId.value, () => { usage.value = null; refresh(); });
 
 
 const tokens = computed(() => usage.value?.statistics.totals.tokens ?? null);
+const contextUsage = computed(() => contextUsageRow(snapshot.value?.context_usage, fmtTokens));
 </script>
 
 <template>
@@ -53,6 +55,7 @@ const tokens = computed(() => usage.value?.statistics.totals.tokens ?? null);
     <dl v-if="snapshot" class="info-facts">
       <div class="info-full"><dt>{{ i18n.t('info.name') }}</dt><dd>{{ snapshot.name || '—' }}</dd></div>
       <div class="info-full"><dt>{{ i18n.t('info.provider') }}</dt><dd>{{ snapshot.provider || '—' }} / {{ snapshot.model || '—' }}</dd></div>
+      <div v-if="contextUsage"><dt>{{ i18n.t('info.contextUsage') }}</dt><dd><span class="ctx-usage" :class="contextUsage.level">{{ contextUsage.estimated ? '≈' : '' }}{{ contextUsage.pct }}%</span><small class="ctx-fraction">{{ contextUsage.fraction }}</small></dd></div>
       <div><dt>{{ i18n.t('info.compactionCount') }}</dt><dd>{{ snapshot.compaction_count }}</dd></div>
       <div><dt>{{ i18n.t('info.phase') }}</dt><dd>{{ i18n.t(`phase.${snapshot.phase || 'idle'}`) }}</dd></div>
       <div><dt>{{ i18n.t('info.queue') }}</dt><dd>{{ snapshot.queue ?? 0 }}</dd></div>
@@ -80,6 +83,9 @@ const tokens = computed(() => usage.value?.statistics.totals.tokens ?? null);
 .info-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; margin: 0; font-size: 13px; }
 .info-facts > div { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px; align-items: baseline; }
 .info-facts .info-full { grid-column: 1 / -1; }
+.ctx-usage.mid { color: var(--warn); }
+.ctx-usage.high { color: var(--err); }
+.ctx-fraction { margin-left: 6px; color: var(--fg-muted); }
 dt { color: var(--fg-subtle); }
 dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .info-instructions { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
