@@ -9,6 +9,7 @@ import { fmtBytes, fmtDateTime, fmtTokens, fmtUptime } from '../../core/util/fmt
 import Spinner from '../../ui/components/Spinner.vue';
 
 const UsagePlot = defineAsyncComponent(() => import('../usage/UsagePlot.vue'));
+import { memoryDetailRows, memorySegments } from './memorySegments';
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 const charts = ref<{ refresh: () => void }>();
 function refresh() { void stats.refresh(); charts.value?.refresh(); }
@@ -36,24 +37,9 @@ const storageRows = computed(() => storage.value ? [
   { name: tx('服务数据', 'Service data'), value: storage.value.bytes.service_data },
 ] : []);
 const memoryTotal = computed(() => memory.value?.rss_bytes ?? 0);
-const memoryRows = computed(() => {
-  const snapshot = memory.value;
-  if (!snapshot?.rss_bytes) return [];
-  const resident = snapshot.resident_bytes;
-  if (!resident || snapshot.allocator !== 'jemalloc') {
-    return [{ name: tx('进程驻留内存', 'Process resident memory'), value: snapshot.rss_bytes }];
-  }
-  const allocated = Math.min(snapshot.allocated_bytes ?? 0, resident);
-  const metadata = Math.min(snapshot.metadata_bytes ?? 0, resident - allocated);
-  const spare = Math.max(0, resident - allocated - metadata);
-  const other = Math.max(0, snapshot.rss_bytes - resident);
-  return [
-    { name: tx('在用', 'In use'), value: allocated },
-    { name: tx('元数据', 'Metadata'), value: metadata },
-    { name: tx('缓存与空闲', 'Cache and free'), value: spare },
-    { name: tx('其他占用', 'Other memory'), value: other },
-  ];
-});
+const memoryBreakdown = computed(() => memorySegments(memory.value, tx));
+const memoryRows = computed(() => memoryBreakdown.value.segments);
+const memoryDetail = computed(() => memoryDetailRows(memory.value, status.value, fmtBytes, number, tx));
 const color = (index: number) => `var(--chart-${index % 6 + 1})`;
 onActivated(stats.startAuto);
 onDeactivated(stats.stopAuto);
@@ -126,8 +112,12 @@ onDeactivated(stats.stopAuto);
             <span v-for="(item,index) in memoryRows" :key="item.name" :style="{ width: `${memoryTotal ? item.value / memoryTotal * 100 : 0}%`, background: color(index) }" />
           </div>
           <ul class="distribution-legend storage-legend">
-            <li v-for="(item,index) in memoryRows" :key="index"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><small>{{ percent(memoryTotal ? item.value / memoryTotal : 0) }}</small><Hint :text="`${number(item.value)} B`"><strong>{{ fmtBytes(item.value) }}</strong></Hint></li>
+            <li v-for="(item,index) in memoryRows" :key="index"><i :style="{ background: color(index) }" /><span :title="item.note">{{ item.name }}</span><small>{{ percent(memoryTotal ? item.value / memoryTotal : 0) }}</small><Hint :text="`${number(item.value)} B`"><strong>{{ fmtBytes(item.value) }}</strong></Hint></li>
           </ul>
+          <p v-if="memoryBreakdown.partial" class="memory-partial">{{ tx('旧版守护进程:重启升级后可查看完整分解。', 'Older daemon: restart after upgrading to see the full breakdown.') }}</p>
+          <dl v-if="memoryDetail.length" class="memory-detail">
+            <div v-for="row in memoryDetail" :key="row.name"><dt :title="row.note">{{ row.name }}</dt><dd><Hint :text="row.note"><strong>{{ row.value }}</strong></Hint></dd></div>
+          </dl>
         </section>
 
       </div>
@@ -140,6 +130,11 @@ onDeactivated(stats.stopAuto);
 .statistics-page > * { width: 100%; max-width: 1100px; margin-inline: auto; }
 .statistics-body { padding: 0; min-width: 0; }
 .statistics-usage { min-width: 0; }
+.memory-partial { margin: 10px 0 0; font-size: 12px; color: var(--warn); }
+.memory-detail { display: grid; gap: 6px; margin: 14px 0 0; }
+.memory-detail > div { display: grid; grid-template-columns: minmax(96px, fit-content(40%)) minmax(0, 1fr); gap: 4px 16px; align-items: baseline; min-width: 0; }
+.memory-detail dt { font-size: 12px; color: var(--fg-muted); min-width: 0; }
+.memory-detail dd { margin: 0; font-size: 12px; color: var(--fg-muted); overflow-wrap: anywhere; }
 .statistics-toolbar { display: flex; flex: none; align-items: center; justify-content: end; gap: 12px; padding-block: 10px; }
 .statistics-grid { display: grid; gap: 20px; min-width: 0; }
 .statistics-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; min-width: 0; }
