@@ -11,5 +11,4 @@ minimumReleaseAgeExclude:
 # Freeze-family fixes: KeepAlive-detach compensation guards, stale-adjustment
 # expiry and in-range scroll writes (see patches file; tools/virtual-clamped-adjustment.test.mjs).
 patchedDependencies:
-  '@tanstack/virtual-core@3.17.9':
-    path: patches/@tanstack__virtual-core@3.17.9.patch
+  '@tanstack/virtual-core@3.17.9': patches/@tanstack__virtual-core@3.17.9.patch
