@@ -16,10 +16,15 @@ import Modal from '../../../ui/components/Modal.vue';
 const props = defineProps<{ item: any; forced?: boolean; session?: string }>();
 // Expansion survives virtualizer recycling: pruned rows destroy their
 // component, and an open group must not fold itself shut on scroll.
-const open = ref(!!props.session && expandedBefore(props.session, props.item.key));
+// Expansion must survive regrouping while the run streams: the group key
+// (first step's entry id) shifts when an earlier-seq step joins the head,
+// so the per-session scope uses the run id — stable for the group's whole
+// life. Keyless groups fall back to the item key.
+const scopeKey = props.item.runId != null ? `r${props.item.runId}` : props.item.key;
+const open = ref(!!props.session && expandedBefore(props.session, scopeKey));
 const detail = ref<any>(null);
 watch(() => props.forced, (forced) => { if (forced) open.value = true; }, { immediate: true });
-watch(open, (value) => { if (props.session) setExpanded(props.session, props.item.key, value); });
+watch(open, (value) => { if (props.session) setExpanded(props.session, scopeKey, value); });
 
 const steps = computed(() => props.item.steps ?? []);
 
