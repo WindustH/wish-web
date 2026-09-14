@@ -106,7 +106,7 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@tanstack/virtual-core@3.17.9': 9f2b8a225ef881cae3bbb575c241c1e654bbed81f3ef402d838824c4ba096bbf
+  '@tanstack/virtual-core@3.17.9': 36c756b0e38b8696d9d29db12c6de0a53acf60d0688469b24cd73916f64e2d1f
 
 importers:
 
@@ -3205,11 +3205,11 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@tanstack/virtual-core@3.17.9(patch_hash=9f2b8a225ef881cae3bbb575c241c1e654bbed81f3ef402d838824c4ba096bbf)': {}
+  '@tanstack/virtual-core@3.17.9(patch_hash=36c756b0e38b8696d9d29db12c6de0a53acf60d0688469b24cd73916f64e2d1f)': {}
 
   '@tanstack/vue-virtual@3.13.37(vue@3.5.42(typescript@5.9.3))':
     dependencies:
-      '@tanstack/virtual-core': 3.17.9(patch_hash=9f2b8a225ef881cae3bbb575c241c1e654bbed81f3ef402d838824c4ba096bbf)
+      '@tanstack/virtual-core': 3.17.9(patch_hash=36c756b0e38b8696d9d29db12c6de0a53acf60d0688469b24cd73916f64e2d1f)
       vue: 3.5.42(typescript@5.9.3)
 
   '@trickfilm400/rollup-plugin-off-main-thread@3.0.0-pre1':
