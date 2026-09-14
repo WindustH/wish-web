@@ -18,6 +18,8 @@
   --accent-hover: #8e3b27;
   --ok: #4e715b;
   --warn: #8d672a;
+  --warn-bg: #fdf5e4;
+  --warn-border: #e2ce9c;
   --err: #a32d2d;
   --err-bg: #fff0ef;
   --err-border: #e7b7b3;
@@ -63,6 +65,8 @@ html[data-theme='dark'] {
   --accent-hover: #efac91;
   --ok: #96bb9d;
   --warn: #d9b777;
+  --warn-bg: #363020;
+  --warn-border: #6d5c33;
   --err: #ffb4ab;
   --err-bg: #3c2423;
   --err-border: #75413d;

@@ -7,7 +7,7 @@ import {
   Image as ImageIcon, Layers, LoaderCircle, MessageCircle, Monitor, Pencil,
   Plus, RefreshCw, Search, Send, Settings, Settings2, Sparkles, Square,
   Sun, Moon, Terminal, Trash2, Wrench, X, Bell, Keyboard, Accessibility,
-  Smartphone, AppWindow, Info, PanelLeft, Paperclip, Languages,
+  Smartphone, AppWindow, Info, PanelLeft, Paperclip, Languages, TriangleAlert,
 } from '@lucide/vue';
 import { computed, type FunctionalComponent } from 'vue';
 
@@ -24,6 +24,7 @@ const ICONS: Record<string, FunctionalComponent> = {
   bell: Bell, keyboard: Keyboard, accessibility: Accessibility,
   smartphone: Smartphone, 'app-window': AppWindow, info: Info,
   'panel-left': PanelLeft, paperclip: Paperclip, languages: Languages,
+  'triangle-alert': TriangleAlert,
 };
 
 const props = defineProps<{ name: string }>();
