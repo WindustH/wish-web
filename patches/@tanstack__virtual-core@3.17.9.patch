@@ -1,0 +1,109 @@
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -738,7 +738,7 @@
+           : null
+       this._clampedAdjustment =
+         maxAtWrite !== null && target > maxAtWrite + 0.5
+-          ? { target, maxAtWrite }
++          ? { target, maxAtWrite, at: this.now() }
+           : null
+       this._scrollToOffset(this.getScrollOffset(), {
+         adjustments: (this.scrollAdjustments += delta),
+@@ -1047,6 +1047,10 @@
+     ) {
+       return
+     }
++    // A pending retry only matters while the sizer it waited for is still
++    // growing (a few frames). Across a KeepAlive detach no scroll events run
++    // cleanup, so a stale entry would replay an old target on return.
++    if (this.now() - this._clampedAdjustment.at > 1000) {
+       this._clampedAdjustment = null
+       return
+     }
+@@ -1056,7 +1060,7 @@
+       // Still short (the sizer grew only partially): stay pending against
+       // the new max so the next opportunity retries.
+       this._clampedAdjustment =
+-        target > max + 0.5 ? { target, maxAtWrite: max } : null
++        target > max + 0.5 ? { target, maxAtWrite: max, at: this.now() } : null
+       this._scrollToOffset(target, {
+         adjustments: undefined,
+         behavior: undefined,
+@@ -1635,6 +1639,8 @@
+ 
+   resizeItem = (index: number, size: number) => {
+     if (!this.isIndexInRange(index)) return
++    // A detached scroll element (KeepAlive) reports zero boxes; caching those
++    // sizes collapses totalSize and seeds bogus compensations that replay on
+     // the return visit.
+     if (
+       this.scrollElement &&
+@@ -2062,8 +2068,11 @@
+       behavior: ScrollBehavior | undefined
+     },
+   ) => {
++    // Writes must stay inside the scrollable range: compensation math that
+     // drifts negative (detached-phase bookkeeping, shrinking measurements)
+     // would otherwise be recorded as an unreachable position and the
++    // reconciler would keep "correcting" the user back to it.
++    offset = Math.max(0, Math.min(offset, this.getMaxScrollOffset()))
+     // Record the intended logical scroll target so the next scroll event
+     // can reconcile against subpixel rounding by the browser.
+     this._intendedScrollOffset = offset + (adjustments ?? 0)
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -513,10 +513,14 @@
+       if (this._clampedAdjustment === null || !this.scrollElement || !this.options.enabled) {
+         return;
+       }
++      if (this.now() - this._clampedAdjustment.at > 1000) {
++        this._clampedAdjustment = null;
++        return;
++      }
+       const { target, maxAtWrite } = this._clampedAdjustment;
+       const max = this.getMaxScrollOffset();
+       if (max > maxAtWrite + 0.5) {
+-        this._clampedAdjustment = target > max + 0.5 ? { target, maxAtWrite: max } : null;
++        this._clampedAdjustment = target > max + 0.5 ? { target, maxAtWrite: max, at: this.now() } : null;
+         this._scrollToOffset(target, {
+           adjustments: void 0,
+           behavior: void 0
+@@ -856,6 +860,9 @@
+     this.resizeItem = (index, size) => {
+       var _a, _b;
+       if (!this.isIndexInRange(index)) return;
++      if (this.scrollElement && "isConnected" in this.scrollElement && !this.scrollElement.isConnected) {
++        return;
++      }
+       let cachedSize;
+       let itemStart;
+       let key;
+@@ -1132,6 +1139,7 @@
+       adjustments,
+       behavior
+     }) => {
++      offset = Math.max(0, Math.min(offset, this.getMaxScrollOffset()));
+       this._intendedScrollOffset = offset + (adjustments ?? 0);
+       this.options.scrollToFn(offset, { behavior, adjustments }, this);
+     };
+@@ -1150,6 +1158,11 @@
+   // synchronous so the grown transforms commit in the same paint (#1227).
+   applyScrollAdjustment(delta, behavior) {
+     if (delta === 0) return false;
++    if (this.scrollElement && "isConnected" in this.scrollElement && !this.scrollElement.isConnected) {
++      this.scrollAdjustments = 0;
++      this._intendedScrollOffset = null;
++      return false;
++    }
+     if (process.env.NODE_ENV !== "production" && this.options.debug) {
+       console.info("correction", delta);
+     }
+@@ -1160,7 +1173,7 @@
+       const target = this.getScrollOffset() + this.scrollAdjustments + delta;
+       const el = this.scrollElement;
+       const maxAtWrite = el !== null && ("scrollHeight" in el || "document" in el) ? this.getMaxScrollOffset() : null;
+-      this._clampedAdjustment = maxAtWrite !== null && target > maxAtWrite + 0.5 ? { target, maxAtWrite } : null;
++      this._clampedAdjustment = maxAtWrite !== null && target > maxAtWrite + 0.5 ? { target, maxAtWrite, at: this.now() } : null;
+       this._scrollToOffset(this.getScrollOffset(), {
+         adjustments: this.scrollAdjustments += delta,
+         behavior
