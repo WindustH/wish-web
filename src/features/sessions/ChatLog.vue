@@ -13,6 +13,8 @@ import { i18n } from '../../core/i18n/index.js';
 import { announce } from '../../ui/live.js';
 import { groupEntries } from './grouping.js';
 import HistoryItem from './HistoryItem.vue';
+import Markdown from '../../ui/components/Markdown.vue';
+import { splitStreamBlocks, tailThrottleMs, type StreamBlocks } from './streamBlocks';
 import ThinkingViewport from './ThinkingViewport.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity';
 const pageActive = usePageActivity();
@@ -23,7 +25,9 @@ const props = defineProps<{ sessionId: string; mobile: boolean }>();
 let epoch = 0;
 const owns = (gen: number) => gen === epoch;
 watch(() => props.sessionId, () => { epoch++; }, { flush: 'sync' });
-onUnmounted(() => { epoch++; });
+onUnmounted(() => {
+  if (blocksRaf) cancelAnimationFrame(blocksRaf);
+  if (blocksTimer) clearTimeout(blocksTimer); epoch++; });
 
 const scrollEl = ref<HTMLElement | null>(null);
 const groups = computed(() => groupEntries(chat.entries.value));
@@ -39,6 +43,36 @@ const workIndicator = computed(() => chatWorkIndicator({
   queue: chat.snapshot.value?.queue,
 }));
 const streamText = computed(() => streamState.value?.text || '');
+// Live markdown: completed blocks render once through their own Markdown
+// instance (the text prop never changes, so nothing re-parses); only the
+// tail re-renders. Deltas coalesce into one update per frame — or a slow
+// 200ms timer when the tail grows past the guardrail — so a hot stream
+// costs one small parse per frame at most.
+const liveBlocks = ref<StreamBlocks>({ stable: [], tail: '' });
+let blocksPending = false;
+let blocksRaf = 0;
+let blocksTimer: ReturnType<typeof setTimeout> | null = null;
+const applyLiveBlocks = () => {
+  blocksPending = false; blocksRaf = 0; blocksTimer = null;
+  liveBlocks.value = splitStreamBlocks(streamText.value);
+};
+watch(streamText, (text) => {
+  if (!text) {
+    if (blocksRaf) cancelAnimationFrame(blocksRaf);
+    if (blocksTimer) clearTimeout(blocksTimer);
+    blocksPending = false; blocksRaf = 0; blocksTimer = null;
+    liveBlocks.value = { stable: [], tail: '' };
+    return;
+  }
+  if (blocksPending) return;   // deltas landing mid-flight ride the next apply
+  // The very first content applies synchronously: at run start the frame
+  // already carries the stream-opening bookkeeping, and deferring into it
+  // collided into one long task.
+  if (!liveBlocks.value.stable.length && !liveBlocks.value.tail) { applyLiveBlocks(); return; }
+  blocksPending = true;
+  if (tailThrottleMs(liveBlocks.value.tail)) blocksTimer = setTimeout(applyLiveBlocks, 200);
+  else blocksRaf = requestAnimationFrame(applyLiveBlocks);
+});
 const streamReasoning = computed(() => streamState.value?.reasoning || '');
 const workStatus = computed(() => {
   const state = streamState.value;
@@ -343,7 +377,7 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
       </div>
       <Transition name="live-work">
       <div v-if="workIndicator === 'run'" :key="sessionId" class="live-row" aria-live="polite">
-        <div v-if="streamText" class="live-text">{{ streamText }}</div>
+        <div v-if="streamText" class="live-text"><Markdown v-for="(b, i) in liveBlocks.stable" :key="i" :text="b" /><Markdown v-if="liveBlocks.tail" :key="'tail'" :text="liveBlocks.tail" /></div>
         <ThinkingViewport v-else-if="streamReasoning" :key="sessionId" :text="streamReasoning" :tool="streamState?.currentTool" />
         <div class="work-status-slot"><Transition name="work-status">
           <div :key="workStatus" class="live-status" role="status"><Icon class="work-spinner" name="loader-circle" /><span>{{ workStatus }}</span></div>
@@ -360,6 +394,14 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
         <div class="work-status-slot"><div class="live-status stop-marker"><Icon name="square" />{{ i18n.t('chat.resumeHint', { n: chat.snapshot.value?.queue ?? 0 }) }}</div></div>
       </div>
       </Transition>
+      <!-- Font-instance warmup: the first markdown a session renders (live or
+           durable) instantiates the variable fonts at the weights and styles
+           plain transcript text never uses — bold, italic, display headings,
+           mono — and that one-off instantiation is a surprisingly expensive
+           layout (70ms+ measured). Warming it here at page open keeps it out
+           of the first streamed reply. Invisible but laid out; display:none
+           would skip font instantiation entirely. -->
+      <div class="font-warmup" aria-hidden="true"><b>永</b><i>永</i><b><i>永</i></b><span class="warm-display">标题</span><code>code</code></div>
       <div v-if="runFailure" class="chat-run-error" role="alert">
         <strong>{{ i18n.t('chat.runFailed') }}</strong>
         <p>{{ runFailure.message }}</p>
@@ -374,6 +416,16 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
 </template>
 
 <style scoped>
+.font-warmup { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; opacity: 0.01; pointer-events: none; z-index: -1; font: 400 1px/1 var(--prose); }
+.font-warmup .warm-display { font: 600 1px/1 var(--display); }
+.font-warmup code { font: 400 1px/1 var(--mono); }
+.font-warmup { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; opacity: 0.01; pointer-events: none; z-index: -1; font: 400 1px/1 var(--prose); }
+.font-warmup .warm-display { font: 600 1px/1 var(--display); }
+.font-warmup code { font: 400 1px/1 var(--mono); }
+/* The live row keeps pre-wrap for the plain-text fallback; rendered
+   markdown manages its own whitespace (pre inside code blocks). */
+.live-text :deep(.markdown) { white-space: normal; }
+
 .live-status.stop-marker { color: var(--err); }
 .chat-run-error { margin: 16px auto; padding: 12px 16px; max-width: var(--max-content); border: 1px solid var(--err-border); border-radius: var(--radius); background: var(--err-bg); color: var(--err); overflow-wrap: anywhere; }
 .chat-run-error strong { color: var(--err); font-size: 13px; }
