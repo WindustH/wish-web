@@ -21,17 +21,27 @@ const returns=useSettingsReturn(()=>isMobile.value&&editing.value,async()=>{if(a
 async function confirmModelReturn(){return returns.confirm({dirty:()=>modelDirty.value,save:async()=>{const before=JSON.parse(JSON.stringify(props.value.models));if(!apply(false))return false;const saved=await returns.save();if(!saved)props.value.models=before;return saved;},discard:()=>{}});}
 const effortsInput=ref('');
 const standardEfforts=['minimal','low','medium','high','xhigh','max'];
+function sortEfforts(tokens:string[]){
+  const order=['off',...standardEfforts];
+  return [...tokens].sort((a,b)=>{
+    const ia=order.indexOf(a),ib=order.indexOf(b);
+    if(ia!==-1&&ib!==-1)return ia-ib;
+    if(ia!==-1)return -1;
+    if(ib!==-1)return 1;
+    return a.localeCompare(b);
+  });
+}
 const presetEfforts=computed(()=>Object.keys(props.preset?.reasoning_efforts??{}));
 const isCustomEfforts=computed(()=>draft.value.reasoning_efforts!=null);
 const activeEfforts=computed<string[]>(()=>{
   if(draft.value.reasoning_efforts!=null)return Object.keys(draft.value.reasoning_efforts);
   return presetEfforts.value;
 });
-const commonEffortOptions=computed(()=>[...new Set([...standardEfforts,...presetEfforts.value,...activeEfforts.value].filter(Boolean))]);
+const commonEffortOptions=computed(()=>sortEfforts([...new Set([...standardEfforts,...presetEfforts.value,...activeEfforts.value].filter(Boolean))]));
 function isEffortActive(opt:string){return activeEfforts.value.includes(opt);}
 
 function setEffortsList(list:string[]){
-  const tokens=list.map(s=>s.trim()).filter(Boolean);
+  const tokens=sortEfforts(list.map(s=>s.trim()).filter(Boolean));
   if(!tokens.length){
     draft.value.reasoning_efforts={};
     effortsInput.value='';
@@ -117,8 +127,8 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:model.d
         <label>{{tr('上下文窗口','Context window')}}<input class="input" type="number" min="1" :value="draft.context_window_tokens??''" @input="draft.context_window_tokens=($event.target as HTMLInputElement).value?Number(($event.target as HTMLInputElement).value):null"/></label>
         <label>{{tr('最大输出 Token','Maximum output tokens')}}<input class="input" type="number" min="1" :value="draft.max_output_tokens??''" @input="draft.max_output_tokens=($event.target as HTMLInputElement).value?Number(($event.target as HTMLInputElement).value):null"/></label>
         <label>{{tr('思考能力','Reasoning support')}}<SelectField mobile-page :model-value="draft.supports_reasoning==null?'unknown':String(draft.supports_reasoning)" :options="[{value:'unknown',label:tr('未指定','Unspecified')},{value:'true',label:tr('支持','Supported')},{value:'false',label:tr('不支持','Unsupported')}]" @update:model-value="$event==='unknown'?delete draft.supports_reasoning:draft.supports_reasoning=$event==='true'"/></label>
-        <label v-if="draft.supports_reasoning!==false" class="efforts-label">
-          <span>{{tr('支持的思考等级','Supported reasoning efforts')}}</span>
+        <div v-if="draft.supports_reasoning!==false" class="model-field efforts-field">
+          <label for="model-reasoning-efforts">{{tr('支持的思考等级','Supported reasoning efforts')}}</label>
           <div class="efforts-editor">
             <div class="efforts-chips" v-if="commonEffortOptions.length">
               <button
@@ -127,27 +137,28 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:model.d
                 type="button"
                 class="chip effort-chip"
                 :class="{ active: isEffortActive(opt), inherited: !isCustomEfforts && isEffortActive(opt) }"
-                @click.stop="toggleEffort(opt)"
+                @click="toggleEffort(opt)"
               >{{ opt }}</button>
               <button
                 v-if="isCustomEfforts && presetEfforts.length"
                 type="button"
                 class="chip effort-reset"
                 :title="tr('恢复为提供商预设','Reset to provider preset')"
-                @click.stop="resetEfforts"
+                @click="resetEfforts"
               >
                 <Icon name="refresh-cw"/>
                 <span>{{ tr('恢复预设','Reset') }}</span>
               </button>
             </div>
             <input
+              id="model-reasoning-efforts"
               class="input"
               :value="effortsInput"
               @input="onEffortsInput(($event.target as HTMLInputElement).value)"
               :placeholder="effortsPlaceholder"
             />
           </div>
-        </label>
+        </div>
         <label v-if="draft.supports_reasoning!==false">{{tr('默认思考强度','Default reasoning effort')}}<SelectField mobile-page v-if="efforts.length" :model-value="draft.default_reasoning_effort??''" :options="[{value:'',label:tr('上游默认','Upstream default')},...efforts]" @update:model-value="draft.default_reasoning_effort=$event||undefined"/><input v-else class="input" v-model="draft.default_reasoning_effort" :placeholder="tr('上游默认','Upstream default')"/></label>
         <label class="inline"><input type="checkbox" :checked="draft.input_modalities?.includes('image')" @change="draft.input_modalities=($event.target as HTMLInputElement).checked?['text','image']:['text']"/>{{tr('支持图片输入','Supports image input')}}</label>
         <details @toggle="($event.target as HTMLDetailsElement).open&&!advancedChanged&&(advanced=JSON.stringify(draft,null,2))"><summary>{{tr('完整模型属性 JSON','Full model metadata JSON')}}</summary><textarea class="input" rows="10" v-model="advanced" @input="advancedChanged=true"/></details>
@@ -161,28 +172,33 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:model.d
   </div>
 </template>
 <style scoped>
-.models-editor,.model-form{display:grid;gap:14px}.model-actions{display:flex;gap:8px;flex-wrap:wrap}.model-row{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding:8px 0}.model-row:not(:has(~ .model-row)){border-bottom:0}.model-edit{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;align-items:flex-start;border:0;background:transparent;color:inherit;cursor:pointer;text-align:left}.model-edit strong{overflow-wrap:anywhere}.model-edit small{color:var(--fg-subtle);overflow-wrap:anywhere}.model-form label{display:flex;flex-direction:column;gap:6px}.model-form .inline{flex-direction:row;align-items:center}.model-form .input{width:100%;min-width:0}.model-form summary{cursor:pointer}
+.models-editor,.model-form{display:grid;gap:14px}.model-actions{display:flex;gap:8px;flex-wrap:wrap}.model-row{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding:8px 0}.model-row:not(:has(~ .model-row)){border-bottom:0}.model-edit{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;align-items:flex-start;border:0;background:transparent;color:inherit;cursor:pointer;text-align:left}.model-edit strong{overflow-wrap:anywhere}.model-edit small{color:var(--fg-subtle);overflow-wrap:anywhere}
+.model-form label,.model-form .model-field{display:flex;flex-direction:column;gap:6px}.model-form .inline{flex-direction:row;align-items:center}.model-form .input{width:100%;min-width:0}.model-form summary{cursor:pointer}
 .efforts-editor{display:flex;flex-direction:column;gap:8px;min-width:0;width:100%}
-.efforts-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.effort-chip{cursor:pointer;user-select:none;font-family:var(--font-mono,inherit)}
-.effort-chip.active{border-color:var(--accent)}
+.efforts-chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.effort-chip{cursor:pointer;user-select:none;font-family:var(--font-mono,inherit);display:inline-flex;align-items:center;justify-content:center;padding:5px 12px;min-height:28px;font-size:12px;border-radius:6px;transition:color var(--dur-fast),background var(--dur-fast),border-color var(--dur-fast)}
+.effort-chip:hover:not(.active){background:var(--bg-hover);color:var(--fg)}
+.effort-chip.active{color:var(--accent);background:var(--accent-soft);border-color:var(--accent)}
 .effort-chip.inherited{border-style:dashed;opacity:.85}
-.effort-reset{cursor:pointer;user-select:none;color:var(--fg-subtle);border-style:dashed}
-.effort-reset:hover{color:var(--accent);border-color:var(--accent)}
-.effort-reset :deep(.icon){width:12px;height:12px}
+.effort-reset{cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;min-height:28px;font-size:12px;border-radius:6px;color:var(--fg-subtle);border-style:dashed;transition:color var(--dur-fast),border-color var(--dur-fast),background var(--dur-fast)}
+.effort-reset:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.effort-reset :deep(.icon){width:13px;height:13px}
 @media(min-width:900px){
-  .model-form label:not(.inline){display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:16px}
-  .model-form label.efforts-label{align-items:start;padding-top:4px}
+  .model-form label:not(.inline),.model-form .model-field:not(.inline){display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:16px}
+  .model-form .efforts-field{align-items:start;padding-top:4px}
 }
 @media(max-width:899px){
 .model-form{gap:0;background:var(--bg-raised);border-radius:12px;overflow:hidden}
-.model-form>label{padding:12px 14px;gap:8px;font-size:13px}
-.model-form>label+label{border-top:1px solid var(--line)}
+.model-form>label,.model-form>.model-field{padding:12px 14px;gap:8px;font-size:13px}
+.model-form>label+label,.model-form>label+.model-field,.model-form>.model-field+label,.model-form>.model-field+.model-field{border-top:1px solid var(--line)}
 .model-form>details{padding:14px;border-top:1px solid var(--line)}
 .model-form>details textarea{margin-top:12px}
 .model-actions .btn{min-height:44px}
 .model-actions .btn.icon-only{width:44px;height:44px;flex:none}
 .model-row{background:var(--bg-raised);border-radius:10px;padding:12px 10px;gap:4px}
 .model-edit strong{font-size:14px}.model-edit small{font-size:11px}
+.efforts-chips{gap:8px}
+.effort-chip{min-height:36px;padding:6px 14px;font-size:13px}
+.effort-reset{min-height:36px;padding:6px 12px;font-size:13px}
 }
 </style>
