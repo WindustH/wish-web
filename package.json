@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Wish Vue 3 client for wishd and wish-providerd",
+  "description": "Wish Vue 3 client for the unified wish HTTP server",
   "packageManager": "pnpm@12.3.4",
   "scripts": {
     "dev": "vite --host 127.0.0.1",

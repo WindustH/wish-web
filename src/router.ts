@@ -1,5 +1,7 @@
 // Hash routing (works from any static host, no server rewrites).
 import { createRouter, createWebHashHistory } from 'vue-router';
+import SessionsView from './features/sessions/SessionsView.vue';
+import StartChat from './features/sessions/StartChat.vue';
 import { readonly, shallowRef } from 'vue';
 
 declare module 'vue-router' {
@@ -24,12 +26,12 @@ export const router = createRouter({
       // between (empty) and chat; chat stays mounted across its child tabs.
       path: '/',
       meta: { section: 'sessions' },
-      component: () => import('./features/sessions/SessionsView.vue'),
+      component: SessionsView,
       children: [
         { path: '', redirect: '/sessions' },
-        { path: 'sessions', name: 'sessions', component: () => import('./features/sessions/StartChat.vue') },
+        { path: 'sessions', name: 'sessions', component: StartChat },
         { path: 'sessions/all', name: 'all-sessions', component: { render: () => null } },
-        { path: 'new', name: 'new-chat', component: () => import('./features/sessions/StartChat.vue') },
+        { path: 'new', name: 'new-chat', component: StartChat },
         {
           path: 's/:id',
           component: () => import('./features/sessions/ChatPane.vue'),

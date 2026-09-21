@@ -30,7 +30,7 @@ import * as api from '../api/endpoints.js';
 const IDENTITY_FIELDS = new Set(['name', 'updated_at_ms', 'metadata']);
 // metadata accessors — the defined keys only; everything else is the
 // user's own JSON, carried untouched (decision-json-metadata).
-export const metaOf = (row) => row == null ? {} : row.metadata;
+export const metaOf = (row) => row?.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata) ? row.metadata : {};
 export const metaTags = (row) => metaOf(row).tags ?? [];
 
 export const sessions = (() => {
@@ -218,8 +218,8 @@ export const sessions = (() => {
 function snapToListRow(snap) {
   return {
     id: snap.id, name: snap.name, phase: snap.phase,
-    created_at_ms: Date.parse(snap.created_at) || null,
-    updated_at_ms: Date.parse(snap.updated_at) || null,
+    created_at_ms: snap.created_at,
+    updated_at_ms: snap.updated_at,
     pending_items: snap.queue ?? 0,
     revision: snap.revision, resume_requires_user: snap.resume_requires_user,
     metadata: snap.metadata,
@@ -232,7 +232,7 @@ function sessionRowFromSync(body) {
     if (body[k] !== undefined) row[k] = body[k];
   }
   if (body.metadata !== undefined) row.metadata = body.metadata;
-  if (body.updated_at) row.updated_at_ms = Date.parse(body.updated_at) || null;
+  if (body.updated_at) row.updated_at_ms = body.updated_at;
   if (body.updated_at_ms) row.updated_at_ms = body.updated_at_ms;
   if (body.queue !== undefined) row.pending_items = body.queue;
   return row;

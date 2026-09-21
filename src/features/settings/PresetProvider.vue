@@ -1,91 +1,146 @@
 <script setup lang="ts">
-import AnimatedDetails from '../../ui/components/AnimatedDetails.vue';
-import { computed } from 'vue';
-import { ChevronDown, Trash2 } from '@lucide/vue';
-import { isObject, pointer } from '../../core/config-editor';
-import type { ConfigCatalog, ConfigEditor, ConfigObject, ProviderPreset } from '../../core/config-editor';
-import { fieldLabel, optionalFields, tr } from './fields';
-import AddOptionalSetting from './AddOptionalSetting.vue';
-import Hint from '../../ui/components/Hint.vue';
-import SelectField from '../../ui/components/SelectField.vue';
-import { settingOption } from './option-help';
+import { useMedia } from '../../ui/composables/useMedia';
+const isMobile=useMedia('(max-width: 899px)');
+import { computed, ref } from 'vue';
+import { SwitchRoot, SwitchThumb } from 'reka-ui';
+import type { ProviderConfig, ProviderPreset } from '../../core/provider-presets';
 import { presetProfile, credentialPresentation } from './preset-profile';
+import { presetDescription, providerName } from '../../ui/providerPresentation';
 import { protocolPresentation } from '../../ui/protocolPresentation';
-import ConfigNode from './ConfigNode.vue';
+import ProviderIcon from '../../ui/components/ProviderIcon.vue';
+import SelectField from '../../ui/components/SelectField.vue';
+import AnimatedDetails from '../../ui/components/AnimatedDetails.vue';
+import { tr } from './fields';
+import Icon from '../../ui/components/Icon.vue';
+import Hint from '../../ui/components/Hint.vue';
+import Modal from '../../ui/components/Modal.vue';
+import { useSettingsReturn } from './settingsReturn';
+import ProviderModels from './ProviderModels.vue';
+const props=defineProps<{ id:string; value:ProviderConfig; preset?:ProviderPreset; protocols:string[]; initiallyOpen?:boolean; save?:()=>Promise<boolean>; saving?:boolean; saveError?:string }>();
+const emit=defineEmits<{remove:[];protocol:[value:string]}>();
+const editing=ref(props.initiallyOpen??false);
+const mobilePanel=ref('');
+const mobileReturning=ref(false);
+async function backToProvider(){if(await returns.confirm()){mobileReturning.value=true;mobilePanel.value='';}}
+const returns=useSettingsReturn(()=>isMobile.value&&editing.value,async()=>{if(mobilePanel.value)await backToProvider();else if(await returns.confirm())closeEditor();});
+function closeEditor(){editing.value=false;}
+const displayName=computed(()=>props.value.display_name||(props.preset?providerName(props.preset.provider):props.id));
+const panels=computed(()=>[
+ {id:'connection',label:tr('连接','Connection'),value:protocolPresentation(props.value.protocol).label},
+ {id:'auth',label:tr('身份验证','Authentication'),value:props.value.auth==='none'?tr('无需认证','None'):props.value.auth==='sig_v4'?'AWS SigV4':tr('凭据与认证方式','Credentials')},
+ {id:'models',label:tr('模型','Models'),value:String(Object.keys(props.value.models).length)},
+ {id:'advanced',label:tr('高级设置','Advanced settings'),value:''},
+]);
 
-const props = defineProps<{ value: ConfigObject; path: string[]; preset: ProviderPreset; editor: ConfigEditor; catalog: ConfigCatalog }>();
-const profile = computed(() => presetProfile(props.preset));
-const protocol = computed(() => String(props.value.protocol || props.preset.protocols[0]));
-const defaultAddress = computed(() => props.preset.protocol_base_urls?.[protocol.value] || props.preset.base_url);
-const codex = computed(() => isObject(props.value.codex) ? props.value.codex : {});
-function setAccountSource(source: string) {
-  props.editor.set(fieldPath('codex'), { ...structuredClone(optionalFields(props.path).codex as ConfigObject), ...codex.value, account_id_source: source });
+
+const profile=computed(()=>props.preset?presetProfile(props.preset):undefined);
+const connectionCredentials=computed(()=>props.preset?.required_credentials.filter(field=>field==='workspace_id')??[]);
+const credentials=computed(()=>{
+  if(props.value.auth==='sig_v4')return ['region','access_key_id','secret_access_key','session_token'];
+  if(props.value.auth==='none')return [];
+  if(props.value.auth==='bearer' && (props.value.protocol==='codex_responses'||props.preset?.id==='openai_codex'))return ['account_id'];
+  return [];
+});
+const options=(items:string[])=>items.map(value=>({value,...protocolPresentation(value)}));
+const optional=(items:string[])=>[{value:'',label:tr('不使用','Disabled')},...options(items)];
+function parseEnvironment(value:string){return /^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$/.exec(value)?.[1];}
+const keyValue=computed(()=>props.value.api_key_env!=null?'${'+props.value.api_key_env+'}':props.value.api_key==='<redacted>'?'':props.value.api_key??'');
+function setKey(value:string){
+  const environment=parseEnvironment(value);
+  props.value.api_key_env=environment??null;
+  props.value.api_key=environment?null:value||null;
 }
-const credentials = computed(() => isObject(props.value.credentials) ? props.value.credentials : {});
-const credentialFields = computed(() => [...props.preset.required_credentials, ...props.preset.optional_credentials]);
-const advancedDefaults = computed<ConfigObject>(() => optionalFields(props.path));
-const advanced = computed(() => Object.entries(advancedDefaults.value).filter(([field]) => {
-  if (field === 'credentials' || field === 'api_key' || field === 'auth' || (profile.value.local && field === 'base_url')) return false;
-  if (field in props.value) return true;
-  if (field === 'codex') return profile.value.codex;
-  if (field === 'image_edit_path') return protocol.value === 'openai_images';
-  return true;
-}));
-const authRequired = computed(() => props.value.enabled !== false);
-const fieldPath = (field: string) => [...props.path, field];
-function addAdvanced(field: string) { props.editor.set(fieldPath(field), structuredClone(advancedDefaults.value[field]!)); }
+function credentialValue(field:string){
+  if(field in props.value.credentials_env)return '${'+props.value.credentials_env[field]+'}';
+  return props.value.credentials[field]==='<redacted>'?'':props.value.credentials[field]??'';
+}
+function setCredential(field:string,value:string){
+  const environment=parseEnvironment(value);
+  delete props.value.credentials[field];
+  delete props.value.credentials_env[field];
+  if(environment)props.value.credentials_env[field]=environment;
+  else if(value)props.value.credentials[field]=value;
+}
+
 </script>
-
 <template>
-  <div class="cfg-object cfg-preset-provider" :data-config-path="pointer(path)" :data-preset="preset.id">
-    <ConfigNode v-for="field in ['id', 'preset']" :key="field" :value="value[field] ?? ''" :path="fieldPath(field)" :editor="editor" :catalog="catalog" />
-    <section class="preset-section" data-preset-section="connection">
-      <header><h4>{{ tr('连接', 'Connection') }}</h4><a v-if="profile.documentation" :href="profile.documentation" target="_blank" rel="noreferrer">{{ tr('官方说明', 'Official documentation') }}</a></header>
-      <ConfigNode v-if="preset.protocols.length > 1" :value="protocol" :path="fieldPath('protocol')" :editor="editor" :catalog="catalog" />
-      <p v-else class="preset-protocol">{{ protocolPresentation(protocol).label }}</p>
-      <ConfigNode v-if="profile.local" :value="value.base_url || defaultAddress" :path="fieldPath('base_url')" :editor="editor" :catalog="catalog" :help="profile.note" />
-      <p v-else class="preset-address"><span>{{ tr('预设地址', 'Preset address') }}</span><code>{{ defaultAddress }}</code></p>
-      <ConfigNode v-if="profile.workspace" :value="credentials.workspace_id ?? ''" :path="[...path, 'credentials', 'workspace_id']" title="workspace ID" :help="credentialPresentation('workspace_id')?.hint" :required="true" :required-active="value.enabled !== false" :editor="editor" :catalog="catalog" />
-      <ConfigNode :value="value.proxy_enabled ?? true" :path="fieldPath('proxy_enabled')" :editor="editor" :catalog="catalog" />
-      <p v-if="profile.workspace" class="cfg-hint">{{ profile.note }}</p>
-    </section>
-    <section class="preset-section" data-preset-section="authentication">
-      <header><h4>{{ profile.aws ? 'AWS SigV4' : profile.codex ? tr('ChatGPT 账户认证', 'ChatGPT account authentication') : tr('身份验证', 'Authentication') }}</h4></header>
-      <p v-if="profile.note && !profile.local && !profile.workspace" class="cfg-hint">{{ profile.note }}</p>
-      <ConfigNode v-if="preset.api_key_supported" :value="value.api_key ?? ''" :path="fieldPath('api_key')" :title="profile.keyLabel" :help="profile.keyHint" :required="preset.api_key_required" :required-active="authRequired" :editor="editor" :catalog="catalog" />
-      <p v-if="profile.local" class="cfg-hint">{{ tr('此预设不发送认证信息。', 'This preset sends no authentication information.') }}</p>
-      <ConfigNode v-for="field in credentialFields.filter(field => field !== 'workspace_id')" :key="field" :value="credentials[field] ?? ''" :path="[...path, 'credentials', field]" :title="credentialPresentation(field)?.title" :help="credentialPresentation(field)?.hint" :required="preset.required_credentials.includes(field)" :required-active="value.enabled !== false" :editor="editor" :catalog="catalog" />
-      <template v-if="profile.codex">
-        <div class="cfg-field"><label>{{ tr('账户 ID 来源', 'Account ID source') }}</label><SelectField segmented :model-value="String(codex.account_id_source || 'jwt_claim')" :aria-label="tr('账户 ID 来源', 'Account ID source')" :options="['jwt_claim', 'explicit'].map(value => ({ value, ...settingOption(['account_id_source'], value) }))" @update:model-value="setAccountSource" /></div>
-        <ConfigNode v-if="codex.account_id_source === 'explicit'" :value="codex.account_id ?? ''" :path="[...path, 'codex', 'account_id']" title="ChatGPT Account ID" :required="true" :required-active="value.enabled !== false" :editor="editor" :catalog="catalog" />
-      </template>
-      <p v-if="preset.api_key_supported || credentialFields.length" class="cfg-hint preset-secret-help">{{ tr('凭据支持 ${环境变量名}；未编辑时保留已保存的值。', 'Credentials accept ${ENV_VAR}; saved values are preserved when left unchanged.') }}</p>
-    </section>
-    <AnimatedDetails class="cfg-nested cfg-inline-models"><summary><ChevronDown :size="16" /><span>{{ fieldLabel(fieldPath('models')) }}</span><small class="cfg-summary">{{ Object.keys(value.models ?? {}).length }}</small></summary><ConfigNode :value="value.models ?? {}" :path="fieldPath('models')" :editor="editor" :catalog="catalog" /></AnimatedDetails>
-    <AnimatedDetails class="cfg-nested cfg-provider-advanced">
-      <summary><ChevronDown :size="16" /><span>{{ tr('高级设置', 'Advanced settings') }}</span></summary>
-      <div v-for="[field] in advanced.filter(([field]) => field in value)" :key="field" class="cfg-property cfg-property-removable">
-        <template v-if="field in value">
-          <AnimatedDetails v-if="isObject(value[field])" class="cfg-nested"><summary><ChevronDown :size="16" /><span>{{ fieldLabel(fieldPath(field)) }}</span></summary><ConfigNode :value="value[field]!" :path="fieldPath(field)" :editor="editor" :catalog="catalog" /></AnimatedDetails>
-          <ConfigNode v-else :value="value[field]!" :path="fieldPath(field)" :editor="editor" :catalog="catalog" />
-          <Hint :text="tr('移除设置', 'Remove override')"><button type="button" class="btn ghost icon-only cfg-remove-field" :aria-label="`${tr('移除设置', 'Remove override')} ${fieldLabel(fieldPath(field))}`" @click="editor.remove(fieldPath(field))"><Trash2 :size="15" /></button></Hint>
-        </template>
+  <div class="provider-item">
+    <button v-if="isMobile" class="mobile-settings-row provider-navigation" @click="mobilePanel='';editing=true"><ProviderIcon :brand="preset?.provider"/><span>{{displayName}}<small class="row-preview">{{Object.keys(value.models).length}} {{tr('个模型','models')}} · {{value.enabled?tr('已启用','Enabled'):tr('已停用','Disabled')}}</small></span><Icon name="chevron-right"/></button>
+    <header v-else class="provider-heading"><ProviderIcon :brand="preset?.provider"/><div><h2>{{value.display_name||(preset?providerName(preset.provider):id)}}</h2><small>{{id}}<template v-if="preset"> · {{presetDescription(preset)}}</template> · {{value.enabled?tr('已启用','Enabled'):tr('已停用','Disabled')}}</small></div><Hint :text="tr('编辑提供商','Edit provider')"><button class="btn ghost icon-only" :aria-label="tr('编辑提供商 ','Edit provider ')+id" @click="editing=true"><Icon name="pencil"/></button></Hint><Hint :text="tr('删除提供商','Delete provider')"><button class="btn ghost danger icon-only" :aria-label="tr('删除提供商 ','Delete provider ')+id" @click="emit('remove')"><Icon name="trash-2"/></button></Hint></header>
+    <AnimatedDetails v-if="!isMobile" class="provider-models"><summary>{{tr('模型','Models')}} · {{Object.keys(value.models).length}}</summary><ProviderModels :id="id" :value="value" :preset="preset"/></AnimatedDetails>
+    <Modal compact :before-close="isMobile?returns.confirm:undefined" :content-class="isMobile?'settings-editor mobile-settings-page provider-panel':'settings-editor'" :back="isMobile&&mobilePanel?backToProvider:undefined" :page="isMobile" :open="editing" :title="isMobile?(panels.find(p=>p.id===mobilePanel)?.label||displayName):tr('编辑提供商 · ','Edit provider · ')+id" wide @close="closeEditor">
 
+    <p v-if="isMobile&&saveError" class="load-error" role="alert">{{saveError}}</p>
+    <div class="provider-form" :key="isMobile?mobilePanel:'desktop'" :class="{'mobile-fields':isMobile,'returning':mobileReturning}">
+      <label v-show="!isMobile||!mobilePanel" class="provider-name">{{tr('显示名称','Display name')}}<input class="input" :value="value.display_name??''" :placeholder="preset?providerName(preset.provider):id" @input="value.display_name=($event.target as HTMLInputElement).value||null"/></label>
+    <label v-if="!isMobile" class="inline"><input type="checkbox" v-model="value.enabled"/>{{tr('启用此提供商','Enable provider')}}</label>
+    <div v-else v-show="!mobilePanel" class="mobile-settings-list">
+      <div class="mobile-settings-row"><span>{{tr('启用此提供商','Enable provider')}}</span><SwitchRoot v-model="value.enabled" class="cfg-switch" :aria-label="tr('启用此提供商','Enable provider')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
+    </div>
+    <nav v-if="isMobile&&!mobilePanel" class="mobile-settings-list"><button v-for="panel in panels" :key="panel.id" class="mobile-settings-row" @click="mobileReturning=false;mobilePanel=panel.id"><span>{{panel.label}}</span><small>{{panel.value}}</small><Icon name="chevron-right"/></button></nav>
+    <button v-if="isMobile&&!mobilePanel" class="btn danger mobile-provider-remove" @click="editing=false;emit('remove')"><Icon name="trash-2"/>{{tr('删除提供商','Delete provider')}}</button>
+    <ProviderModels v-if="isMobile&&mobilePanel==='models'" :id="id" :value="value" :preset="preset"/>
+    <section v-show="!isMobile||mobilePanel==='connection'" class="preset-section">
+      <header v-if="!isMobile"><h3>{{tr('连接','Connection')}}</h3><a v-if="profile?.documentation" :href="profile.documentation" target="_blank" rel="noreferrer">{{tr('官方说明','Documentation')}}</a></header>
+      <label>{{tr('协议','Protocol')}}<SelectField mobile-page :aria-label="id+' '+tr('协议','Protocol')" :model-value="value.protocol" :options="options([...new Set([...(preset?.protocols??protocols),value.protocol])])" @update:model-value="emit('protocol',$event)"/></label>
+      <label v-if="!isMobile" class="inline"><input type="checkbox" v-model="value.proxy_enabled"/>{{tr('使用服务器代理配置','Use server proxy configuration')}}</label>
+      <div v-else class="mobile-settings-row"><span>{{tr('使用服务器代理配置','Use server proxy configuration')}}</span><SwitchRoot v-model="value.proxy_enabled" class="cfg-switch" :aria-label="tr('使用服务器代理配置','Use server proxy configuration')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
+      <label>{{tr('服务地址','Base URL')}}<input class="input" v-model="value.base_url"/></label>
+      <label>{{tr('请求路径','Request path')}}<input class="input" v-model="value.path"/></label>
+      <label v-for="field in connectionCredentials" :key="field">{{credentialPresentation(field)?.title||field}}<input class="input" :value="credentialValue(field)" :placeholder="value.credentials[field]==='<redacted>'?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" autocomplete="off" @input="setCredential(field,($event.target as HTMLInputElement).value)"/></label>
+      <p v-if="profile?.note"  class="hint">{{profile.note}}</p>
+    </section>
+    <section v-show="!isMobile||mobilePanel==='auth'" class="preset-section">
+      <h3>{{tr('身份验证','Authentication')}}</h3>
+      <p v-if="value.auth!=='none'" class="hint">{{tr('直接填写凭据，或填写 ${ENV_NAME} 引用服务器环境变量。','Enter credentials directly, or use ${ENV_NAME} to reference a server environment variable.')}}</p>
+      <label>{{tr('认证方式','Authentication method')}}<SelectField mobile-page v-model="value.auth" :aria-label="id+' '+tr('认证方式','Authentication method')" :options="[{value:'none',label:tr('无需认证','None')},{value:'bearer',label:'Bearer token'},{value:'anthropic_key',label:'Anthropic API Key'},{value:'google_key',label:'Google API Key'},{value:'sig_v4',label:'AWS SigV4'}]"/></label>
+      <template v-if="!['none','sig_v4'].includes(value.auth)">
+        <label>{{profile?.keyLabel||'API Key'}}<input class="input" :type="value.api_key_env!=null?'text':'password'" :value="keyValue" :placeholder="value.api_key==='<redacted>'?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" autocomplete="new-password" @input="setKey(($event.target as HTMLInputElement).value)"/><small v-if="profile?.keyHint" class="hint">{{profile.keyHint}}</small></label>
+      </template>
+      <template v-for="field in credentials" :key="field">
+        <label>{{credentialPresentation(field)?.title||field}}
+          <input class="input" :type="field in value.credentials_env?'text':'password'" :value="credentialValue(field)" :placeholder="value.credentials[field]==='<redacted>'?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" :aria-label="credentialPresentation(field)?.title||field" autocomplete="new-password" @input="setCredential(field,($event.target as HTMLInputElement).value)"/>
+        </label>
+      </template>
+    </section>
+    <AnimatedDetails v-show="!isMobile||mobilePanel==='advanced'" :open="isMobile" class="preset-section"><summary>{{tr('高级设置','Advanced settings')}}</summary>
+      <div class="advanced-fields">
+      <label>{{tr('模型列表协议','Catalog protocol')}}<SelectField mobile-page :model-value="value.model_list??''" :options="optional(['openai_models','openai_codex_models','anthropic_models','google_models','qwen_models','bedrock_models'])" @update:model-value="value.model_list=$event||null"/></label>
+      <label>{{tr('模型列表地址','Catalog base URL')}}<input class="input" :value="value.model_list_base_url??''" @input="value.model_list_base_url=($event.target as HTMLInputElement).value||null"/></label>
+      <label>{{tr('模型列表路径','Catalog path')}}<input class="input" :value="value.model_list_path??''" @input="value.model_list_path=($event.target as HTMLInputElement).value||null"/></label>
+      <label>{{tr('Token 计数协议','Token count protocol')}}<SelectField mobile-page :model-value="value.token_count??''" :options="optional(['openai_responses','anthropic_messages','google_generate_content'])" @update:model-value="value.token_count=$event||null"/></label>
+      <label>{{tr('上游压缩协议','Upstream compaction protocol')}}<SelectField mobile-page :model-value="value.compaction??''" :options="optional(['openai_responses','openai_responses_streamed'])" @update:model-value="value.compaction=$event||null"/></label>
+      <slot/>
       </div>
-      <AddOptionalSetting :options="advanced.filter(([field]) => !(field in value)).map(([field]) => ({ value: field, label: fieldLabel(fieldPath(field)) }))" @add="addAdvanced" />
     </AnimatedDetails>
+    <a v-if="isMobile&&mobilePanel==='connection'&&profile?.documentation" class="provider-documentation" :href="profile.documentation" target="_blank" rel="noreferrer">{{tr('官方说明','Documentation')}}<Icon name="external-link"/></a>
+    <p v-if="!isMobile&&preset?.unsupported_protocols.length" class="hint">{{tr('图片生成协议尚未接入新后端；此处配置用于模型对话。','Image generation protocols are not connected to the new backend; these presets configure model conversations.')}}</p>
+    </div>
+    <template v-if="!isMobile" #footer><span class="hint">{{tr('修改保留在设置草稿中，保存后生效。','Changes remain in the settings draft until saved.')}}</span><button class="btn primary" @click="editing=false">{{tr('完成','Done')}}</button></template>
+    </Modal>
   </div>
 </template>
-
 <style scoped>
-.preset-section { margin-block: 10px; padding-block: 10px; border-top: 1px solid var(--line); }
-.preset-section header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.preset-section h4 { margin: 0; font: 600 14px/1.5 var(--font); }
-.preset-section header a { font-size: 11px; color: var(--fg-subtle); text-underline-offset: 3px; }
-.preset-section header a:hover { color: var(--accent); }
-.preset-protocol { margin: 10px 0 6px; font-size: 12px; color: var(--fg-subtle); }
-.preset-address { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0 0; font-size: 11px; color: var(--fg-subtle); }
-.preset-address code { overflow-wrap: anywhere; }
-.preset-secret-help { margin-bottom: 0; }
-.preset-section :deep(.cfg-field) { padding-block: 14px; }
+.provider-item{min-width:0;padding:16px 0;border-bottom:1px solid var(--line)}.provider-heading{display:flex;align-items:center;gap:12px}.provider-heading>div{flex:1;min-width:0}.provider-heading h2{font-size:15px;margin:0}.provider-heading small{color:var(--fg-subtle)}.preset-section{display:grid;gap:14px;border-top:1px solid var(--line);padding-top:16px;margin-top:16px}.preset-section>header{display:flex;justify-content:space-between;align-items:center}.preset-section h3{font-size:14px;margin:0}.preset-section label{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:8px 16px;min-width:0}.preset-section label>small{grid-column:2}.preset-section label.inline{display:flex;flex-direction:row;justify-content:flex-start}.preset-section p{margin:0}.advanced-fields{display:grid;gap:14px;padding-top:14px;min-width:0}.provider-models{margin-top:12px}.provider-models :deep(.models-editor){padding-top:12px}.provider-models>summary{cursor:pointer;color:var(--fg-muted);font-size:13px}.provider-name{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:8px 16px}.provider-form>.inline{margin-top:12px}.inline{display:flex;align-items:center;gap:8px;margin-top:16px}.preset-section summary{cursor:pointer;font-weight:500}.model-properties{display:grid;gap:12px;padding:12px;background:var(--bg-sunken);border-radius:8px}.model-properties h4{margin:0}.input{width:100%;min-width:0}a,.hint{font-size:12px;color:var(--fg-subtle)}
+@media(max-width:599px){.provider-name{grid-template-columns:1fr}.preset-section label{grid-template-columns:minmax(0,1fr)}.preset-section label>small{grid-column:1}.provider-heading{gap:8px;flex-wrap:wrap}.provider-heading>div{flex-basis:calc(100% - 48px)}.provider-heading small{overflow-wrap:anywhere}}
+@media(min-width:900px){.preset-section{gap:10px;padding-top:12px;margin-top:12px}.preset-section .inline{margin-top:0}.provider-form>.inline{margin-top:10px}.advanced-fields{gap:10px;padding-top:10px}}
+@media(max-width:899px){.provider-item{padding:0;border:0;background:var(--bg-raised);border-radius:12px;margin-bottom:10px}.provider-navigation{width:100%}.provider-form>.provider-name{display:block;background:var(--bg-raised);padding:12px;border-radius:12px;margin-bottom:16px}.provider-name .input{margin-top:8px}.mobile-provider-remove{width:100%;margin-top:8px;min-height:44px}}
+@media(max-width:899px){
+ .provider-panel .preset-section{padding:0;gap:0;overflow:hidden}
+ .provider-panel .preset-section>header{padding:0 14px}
+ .provider-panel .preset-section>header:not(:has(a)){display:none}
+ .provider-panel .preset-section label{padding:12px 14px}
+ .provider-panel .preset-section .hint{padding:12px 14px}
+ .provider-panel .preset-section .mobile-settings-row{border-block:1px solid var(--line)}
+ .provider-panel .advanced-fields{gap:0}
+}
+@media(max-width:899px){
+ .provider-form.mobile-fields{animation:provider-panel-in 180ms var(--ease-out)}
+ .provider-form.mobile-fields.returning{animation-name:provider-panel-back}
+}
+@keyframes provider-panel-in{from{opacity:.4;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes provider-panel-back{from{opacity:.4;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+.provider-documentation{display:flex;align-items:center;gap:6px;width:fit-content;padding:12px 14px;line-height:1.5;text-decoration:none}
+.provider-documentation .icon{width:14px;height:14px}
+.provider-documentation:hover{color:var(--fg)}
 </style>

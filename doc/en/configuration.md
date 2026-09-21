@@ -1,31 +1,15 @@
-# Configuration and daily use
+# Configuration
 
-[Documentation](README.md) · [中文](../zh/configuration.md)
+[Documentation](README.md)
 
-## Browser preferences
+The frontend uses the single `wish` HTTP backend, built by the sibling `wish-server` crate.
+The browser talks only to `/api`; `serve.mjs` proxies it to `WISH_UPSTREAM`
+(default `http://127.0.0.1:9780`). Old wishd/providerd routes and persisted formats are not supported.
 
-Theme (system/light/dark), interface language, send-on-Enter, failure notifications and screen wake behavior are browser preferences. They do not alter daemon TOML. The language remains a dropdown so the locale list can grow. Screen wake requests require browser support and may be released by the browser when hidden.
+Settings edits `/api/config` using `{revision,config}`. Provider and default-session changes apply without restart; in-flight calls keep their existing provider client. Conflicting saves return 409. Reload explicitly before retrying.
 
-Settings use a compact desktop modal and a mobile secondary page with bottom tabs. Narrow screens put explanations behind an information hint. Provider/model sub-editors keep their parent visible. Fixed, small choices may use segmented controls; extensible catalogs use searchable pickers. Mobile searchable pickers do not automatically summon the keyboard.
+Providers specify protocol, base URL, path, authentication, API-key environment variable, optional catalog/count/compaction protocols and configured models. Manual model properties are available in the full JSON editor. Secret header values are redacted and retain their value when submitted unchanged. Credentials never appear in GET responses.
 
-## Backend configuration
+Defaults include provider/model, reasoning, output limit, working directory, shell, streaming, instructions and compaction budgets. They apply when creating a session. Existing sessions keep their configuration. Listen address, data directory and bearer-token variable are startup settings: edit the file and restart. Changing an environment variable also requires restarting the process.
 
-Wishd and provider configuration are independent revisioned drafts. Read the editable document, stage ordered JSON Patch operations, preview validation/restart requirements, then save with the original revision. A conflict requires reloading and reviewing the changes. Secrets that were not edited keep their stored values or environment references. Drafts, including secrets, stay in page memory rather than browser storage.
-
-Selecting a provider preset supplies defaults and queries its upstream model list when supported. Model capabilities shown in the form can come from user overrides, the upstream list or protocol defaults. Unavailable values remain blank. Saving a form must not turn merely displayed upstream values into permanent overrides.
-
-Proxy configuration is shared: enable/disable, environment mode or manual URL. Each provider has its own enable/disable switch. Image downloads follow the shared setting; there is no named policy list or separate image proxy selector.
-
-## Sessions and attachments
-
-New conversations use the selected/default provider, model and reasoning effort. Existing conversations retain their selection until explicitly changed. Mobile conversation pages return to the home or full-list page from which they were opened. Missing pages replace the invalid history entry with a session entry page.
-
-The image action chooses images; the attachment action chooses files. Files are uploaded before the message is sent. Images may be provided natively to a capable model; file attachments are represented by a verified local path for tool processing. A supplied image path is not a request to view the same image again merely for confirmation.
-
-Markdown is rendered without raw HTML, sanitized, and external links open in a new tab with `noopener noreferrer`. Code blocks offer copying. Stopping a conversation is reflected using the backend's persisted stop operation, displayed in red.
-
-## Statistics
-
-Global charts use persisted global usage contributions, including deleted sessions. Session statistics remain scoped to their own session. Input/output/cache-read counts use Token units; cache hit rate is cache-read input Token divided by total input Token. Missing telemetry is not converted into fabricated measurements.
-
-Time ranges include a day, week, month, three months, year and custom dates. The heatmap uses square cells and seven rows, with duration derived from range and available columns. Usage timestamps belong to requests, not individual Token emission times. TPS is total measured output divided by total valid generation duration. The fitted line uses this same mean and Gaussian deviations with standard deviation equal to one seventh of the displayed range. Small pie slices may be enlarged or grouped for legibility; labels retain real counts and proportions. A single-model pie is omitted.
+UI appearance preferences and drafts use browser storage, separate from backend configuration.

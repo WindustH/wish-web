@@ -1,4 +1,4 @@
-import type { ProviderPreset } from '../../core/config-editor';
+import type { ProviderPreset } from '../../core/provider-presets';
 import { providerName } from '../../ui/providerPresentation';
 import { tr } from './fields';
 
@@ -31,7 +31,7 @@ export function presetProfile(p: ProviderPreset) {
   if (codex) {
     keyLabel = 'Access Token';
     keyHint = tr('填写 ChatGPT 登录得到的 Access Token。当前预设连接 Codex 订阅接口，不使用 OpenAI Platform API Key。', 'Use the Access Token from ChatGPT sign-in. This preset connects to the Codex subscription endpoint, not OpenAI Platform API-key billing.');
-    note = tr('Wish 当前不会发起登录或自动刷新 Token；Token 过期后需要更新。账户 ID 默认从 Token 解析，也可手动指定。', 'Wish does not currently initiate sign-in or refresh tokens. Replace an expired token. The account ID is read from the token unless explicitly configured.');
+    note = tr('Wish 当前不会发起登录或自动刷新 Token；Token 过期后需要更新。请同时配置账户 ID。', 'Wish does not currently initiate sign-in or refresh tokens. Replace an expired token. Configure the account ID alongside the token.');
     documentation = 'https://developers.openai.com/codex/auth/';
   } else if (aws) {
     note = tr('此预设使用 AWS SigV4 签名。地区决定 Bedrock 服务地址；临时凭据必须同时填写 Session Token。', 'This preset uses AWS SigV4 signing. The region determines the Bedrock host; temporary credentials also require a Session Token.');
@@ -77,9 +77,10 @@ export function presetProfile(p: ProviderPreset) {
   return { local, codex, aws, workspace, keyLabel, keyHint, note, documentation };
 }
 export const credentialPresentation = (field: string) => ({
-  region: { title: 'AWS Region', hint: tr('填写 Bedrock 所在地区，例如 us-east-1。', 'Bedrock region, for example us-east-1.') },
+  account_id: { title: tr('账户 ID','Account ID'), hint: tr('填写提供商账户 ID。','Enter the provider account ID.') },
+  region: { title: tr('AWS 地区', 'AWS Region'), hint: tr('填写 Bedrock 所在地区，例如 us-east-1。', 'Bedrock region, for example us-east-1.') },
   access_key_id: { title: 'Access Key ID', hint: tr('与 Secret Access Key 配对的 AWS 凭据 ID。', 'AWS credential ID paired with the Secret Access Key.') },
   secret_access_key: { title: 'Secret Access Key', hint: tr('用于为 Bedrock 请求生成 AWS SigV4 签名。', 'Used to sign Bedrock requests with AWS SigV4.') },
   session_token: { title: 'Session Token', hint: tr('使用临时 AWS 凭据时填写，需与上面两项来自同一组凭据。', 'Required for temporary AWS credentials; must belong to the same credential set above.') },
-  workspace_id: { title: 'workspace ID', hint: tr('填写当前地区的 workspace ID。', 'Enter the workspace ID in the selected region.') },
+  workspace_id: { title: tr('工作空间 ID', 'workspace ID'), hint: tr('填写当前地区的 workspace ID。', 'Enter the workspace ID in the selected region.') },
 } as Record<string, { title: string; hint: string }>)[field];

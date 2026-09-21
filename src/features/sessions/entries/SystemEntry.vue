@@ -3,10 +3,20 @@ import { computed, ref } from 'vue';
 import { i18n } from '../../../core/i18n/index.js';
 import Modal from '../../../ui/components/Modal.vue';
 import CopyButton from '../../../ui/components/CopyButton.vue';
+import ProcessDetail from './ProcessDetail.vue';
 import Icon from '../../../ui/components/Icon.vue';
 
 const props = defineProps<{ item: any }>();
 const open = ref(false);
+const background = computed(() => props.item.entry.payload?.background);
+const backgroundOutput = computed(() => props.item.entry.payload?.result?.output);
+const backgroundFailed = computed(() => backgroundOutput.value?.process?.status === 'killed' || backgroundOutput.value?.error || backgroundOutput.value?.process?.error || (backgroundOutput.value?.process?.exit_code != null && backgroundOutput.value.process.exit_code !== 0));
+const backgroundLabel = computed(() => {
+  const zh=i18n.locale.value==='zh';
+  if(backgroundOutput.value?.process?.status==='killed')return zh?'后台 Shell 已终止':'Background shell terminated';
+  if(backgroundFailed.value)return zh?'后台 Shell 执行失败':'Background shell failed';
+  return zh?'后台 Shell 已完成':'Background shell completed';
+});
 
 // Transcript notices come in two severities plus the neutral system chip:
 // red = a turn failed outright (wish_run_failed), amber = the backend is
@@ -34,7 +44,7 @@ const tone = computed(() => (source.value === 'wish_run_failed'
   ? 'error' : WARN_SOURCES.has(source.value) ? 'warn' : 'system'));
 const iconName = computed(() => (tone.value === 'error'
   ? 'x' : tone.value === 'warn' ? 'triangle-alert' : 'circle-dot'));
-const label = computed(() => i18n.t(props.item.entry.kind === 'run_interrupted'
+const label = computed(() => props.item.entry.kind === 'developer_message' ? 'Developer Message' : i18n.t(props.item.entry.kind === 'run_interrupted'
   ? 'entry.interruption' : props.item.entry.kind === 'background_terminal'
     ? 'entry.backgroundTerminal' : SOURCE_LABELS[source.value] ?? 'entry.system'));
 const text = computed(() => (props.item.entry.payload?.content ?? [])
@@ -44,10 +54,12 @@ const text = computed(() => (props.item.entry.payload?.content ?? [])
 <template>
   <div class="entry system">
     <div class="body">
-      <span v-if="item.entry.kind === 'run_interrupted'" class="stop-marker" role="status"><Icon name="square" />{{ i18n.t('entry.stopped') }}</span>
+      <button v-if="background" class="fold-chip" @click="open=true"><Icon name="terminal"/>{{backgroundLabel}}</button>
+      <span v-else-if="item.entry.kind === 'run_interrupted'" class="stop-marker" role="status"><Icon name="square" />{{ i18n.t('entry.stopped') }}</span>
       <button v-else-if="tone !== 'system'" class="notice-chip" :class="tone" @click="open = true"><Icon :name="iconName" />{{ label }}</button>
       <button v-else class="fold-chip" @click="open = true"><Icon name="circle-dot" />{{ label }}</button>
-      <Modal :open="open" :title="label" wide @close="open = false">
+      <ProcessDetail v-if="open && item.entry.payload?.background" :step="{kind:'entry',entry:item.entry}" @close="open=false"/>
+      <Modal v-else :open="open" :title="label" wide @close="open = false">
         <pre class="detail-pre">{{ text }}</pre>
         <CopyButton :text="text" />
       </Modal>

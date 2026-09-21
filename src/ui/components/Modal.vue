@@ -14,10 +14,10 @@ import { useDialogFocus } from '../composables/useDialogFocus';
 const focus = useDialogFocus();
 const pageActive = usePageActivity();
 
-const props = withDefaults(defineProps<{ open: boolean; title: string; wide?: boolean; page?: boolean; contentClass?: string; dismissable?: boolean; closeButton?: boolean; floating?: boolean; anchor?: HTMLElement; compact?: boolean }>(), { dismissable: true, closeButton: true });
+const props = withDefaults(defineProps<{ open: boolean; title: string; beforeClose?: () => boolean | Promise<boolean>; layer?: number; wide?: boolean; page?: boolean; back?: () => void; contentClass?: string; dismissable?: boolean; closeButton?: boolean; floating?: boolean; anchor?: HTMLElement; compact?: boolean }>(), { dismissable: true, closeButton: true });
 const emit = defineEmits<{ close: [] }>();
 const closing = ref(false);
-const layer = useDialogLayer(() => props.floating ? 64 : 60);
+const layer = useDialogLayer(() => props.layer ?? (props.floating ? 64 : 60));
 const bubble = computed(() => props.floating || (!props.page && !!props.contentClass?.split(' ').includes('session-window')));
 // Compact cards drop the head and footer bands: the title joins the content
 // flow and the actions follow it. Page sheets keep their head (back button).
@@ -48,7 +48,7 @@ function ownFieldDrag(event: Event) {
 }
 function outside(event: Event) {
   const target = (event as CustomEvent).detail?.originalEvent?.target as Node | undefined;
-  if (!props.dismissable || (props.floating && target && props.anchor?.contains(target)) || (bubble.value && (event.target as Element)?.closest?.('[data-session-panel]'))) event.preventDefault();
+  if ((target instanceof Element && target.closest('.pwa-update')) || !props.dismissable || (props.floating && target && props.anchor?.contains(target)) || (bubble.value && (event.target as Element)?.closest?.('[data-session-panel]'))) event.preventDefault();
 }
 watch(() => props.open, open => { if (open) closing.value = false; });
 watch(pageActive, active => { if (!active) closing.value = false; }, { flush: 'sync' });
@@ -91,8 +91,15 @@ const untrackBubblePosition = () => { window.removeEventListener('resize', posit
 watch(bubble, value => { value ? trackBubblePosition() : untrackBubblePosition(); });
 onMounted(() => { positionBubble(); if (bubble.value) trackBubblePosition(); });
 onBeforeUnmount(() => untrackBubblePosition());
-function requestClose() {
+let checkingClose = false;
+async function requestClose() {
   if (!pageActive.value || !props.dismissable || closing.value) return;
+  if (checkingClose) return;
+  if (props.beforeClose) {
+    checkingClose = true;
+    try { if (!await props.beforeClose()) return; } finally { checkingClose = false; }
+    if (!pageActive.value) return;
+  }
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) emit('close');
   else closing.value = true;
 }
@@ -107,14 +114,14 @@ defineExpose({ close: requestClose });
     <DialogPortal v-if="pageActive">
       <DialogOverlay v-if="!bubble" class="modal-overlay" :style="{ zIndex: layer }" />
       <DialogContent @pointerdown.capture="ownFieldDrag" @animationend="finishClose" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'session-bubble': bubble && !floating, 'config-bubble': floating, compact: compactCard }, contentClass]" :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }" :aria-describedby="undefined"
-        @escape-key-down="(e: KeyboardEvent) => { if (dismissable === false) e.preventDefault(); }"
+        @escape-key-down="(e: KeyboardEvent) => { if (dismissable === false) e.preventDefault(); else if (page && back) { e.preventDefault(); back(); } }"
         @focus-outside="event => { if (floating) event.preventDefault(); }"
         @interact-outside="outside"
         @pointer-down-outside="outside">
         <DialogTitle v-if="bubble && !floating" class="visually-hidden">{{ title }}</DialogTitle>
         <div v-else-if="!compactCard" class="modal-head">
           <button v-if="page" type="button" class="btn ghost icon-only" :disabled="dismissable === false"
-            :aria-label="i18n.t('chatbar.back')" @click="requestClose"><Icon name="arrow-left" /></button>
+            :aria-label="i18n.t('chatbar.back')" @click="back ? back() : requestClose()"><Icon name="arrow-left" /></button>
           <DialogTitle class="modal-title">{{ title }}</DialogTitle>
           <div class="modal-head-actions">
             <slot name="actions" />
@@ -125,7 +132,10 @@ defineExpose({ close: requestClose });
           </div>
         </div>
         <div class="modal-body">
-          <DialogTitle v-if="compactCard" class="modal-flow-title">{{ title }}</DialogTitle>
+          <template v-if="compactCard">
+            <DialogTitle :class="$slots['compact-heading'] ? 'visually-hidden' : 'modal-flow-title'">{{ title }}</DialogTitle>
+            <slot name="compact-heading" />
+          </template>
           <slot />
         </div>
         <div v-if="$slots.footer" :class="compactCard ? 'modal-actions' : 'modal-foot'">

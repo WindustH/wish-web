@@ -6,7 +6,8 @@ export function useResolvedEffort(selection: Ref<ModelSelection | undefined>) {
   const fallback = ref<string>();
   const error = ref<unknown>();
   let controller: AbortController | undefined;
-  watch(() => [selection.value?.provider, selection.value?.model, selection.value?.reasoning_effort], async () => {
+  // Snapshot polling replaces the object; resolve only when selection fields change.
+  watch([() => selection.value?.provider, () => selection.value?.model, () => selection.value?.reasoning_effort], async () => {
     controller?.abort(); controller = new AbortController();
     const signal = controller.signal, current = selection.value;
     fallback.value = undefined; error.value = undefined;

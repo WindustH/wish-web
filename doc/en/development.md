@@ -1,35 +1,18 @@
-# Development and verification
+# Development
 
-[Documentation](README.md) · [中文](../zh/development.md)
+[Documentation](README.md)
 
-## Repository workflow
-
-Use the checked-in `./pnpmw` wrapper and frozen lockfile. Vue SFCs and TypeScript run in strict mode with unused locals/parameters checked. Some core modules remain JavaScript with `.d.ts` interfaces; update implementations and declarations together. Avoid introducing a second state store or backend compatibility branch for a coordinated contract change.
+The frontend uses the single `wish` HTTP backend, built by the sibling `wish-server` crate.
+The browser talks only to `/api`; `serve.mjs` proxies it to `WISH_UPSTREAM`
+(default `http://127.0.0.1:9780`). Old wishd/providerd routes and persisted formats are not supported.
 
 ```sh
+./pnpmw install --frozen-lockfile
+WISH_UPSTREAM=http://127.0.0.1:9780 ./pnpmw dev
 ./pnpmw typecheck
 ./pnpmw build
+node --test tools/*.test.mjs
+node tools/selftest-api.mjs http://127.0.0.1:8790
 ```
 
-The build creates `dist/`, a Vite asset manifest and PWA files. Keep `node_modules/`, `.cache/` and `dist/` untracked. Third-party licenses and bundled-font sources are listed in `THIRD_PARTY.md` and asset source manifests.
-
-## Tests
-
-Behavior tests live in the sibling `wish-test` repository. They use real Rust binaries, temporary configuration/data and a local fake upstream; paid-provider tests are explicit opt-in.
-
-```sh
-cd ../wish-test
-python3 run_tests.py
-python3 web/launch.py --check
-bash web/run-scale.sh
-```
-
-For a focused browser scenario, build Wish/Web first, run `python3 web/launch.py 180`, then pass its printed local Web URL and an output directory to `node web/scenarios-missing-pages.mjs URL OUTPUT`. Other focused scripts in `web/` use the same pattern where documented. Touch the printed stop-file when finished; the launcher also cleans up on its deadline. Each test must clean up owned sessions/processes on failure as well as success.
-
-Regression selection should cover the affected owner: API/proxy separation, config revision conflicts, stream retry/handoff, stale session callbacks, list virtualization, responsive navigation, focus/animation and chart ranges. Do not replace real backend behavior with a browser fixture when testing the contract itself.
-
-## Adding functionality
-
-Add endpoint behavior to the correct backend, expose only the Web calls needed, normalize data in core, and keep rendering in feature/shared UI modules. Prefer existing Reka UI focus/dialog behavior, TanStack virtualization and shared range/chart helpers. Cancel asynchronous reads on scope changes. Preserve session-scoped drafts and never redirect a new session because an old request failed.
-
-Update both language guides and verify links/examples against source. Backend public APIs are documented in the Wish repository; Web documentation should explain ownership and user behavior without copying an entire API schema.
+Backend process/API checks live in `../wish-test/tests/test_wish_server.py`; run `python3 -m unittest tests.test_wish_server -v` from wish-test. They use temporary databases and a local mock upstream, without Rust internal tests. `/selftest?auto=1` (hash route) runs read-only browser checks. Do not test against production sessions when mutation is unnecessary.

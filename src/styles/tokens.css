@@ -1,17 +1,19 @@
-/* Neutral reading surfaces with a restrained clay accent. Geometry is supplied by applyTokens from cfg.design. */
+/* Warm paper in light mode; neutral gray in dark mode. Shared surface roles keep the same hierarchy. Geometry is supplied by applyTokens from cfg.design. */
 :root {
-  --bg: #fcfcfb;
-  --bg-raised: #ffffff;
-  --bg-sunken: #f3f3f0;
-  --bg-hover: #eaeae6;
-  --bg-active: #e2e2dd;
-  --bg-inset: #efefec;
-  --fg: #22221f;
-  --fg-muted: #51514c;
-  --fg-subtle: #686862;
-  --fg-faint: #999992;
-  --line: #e4e4df;
-  --line-strong: #c9c9c2;
+  --bg: #eee9df;
+  --bg-raised: #f5f1e8;
+  --bg-overlay: #faf6ed;
+  --bg-control: #eee9df;
+  --bg-sunken: #e4ded2;
+  --bg-hover: #e5ded1;
+  --bg-active: #d9d0c0;
+  --bg-inset: #e8e1d5;
+  --fg: #302d28;
+  --fg-muted: #575148;
+  --fg-subtle: #71695e;
+  --fg-faint: #938a7c;
+  --line: #d9d1c3;
+  --line-strong: #b9af9f;
   --accent: #a64a33;
   --accent-fg: #fffaf5;
   --accent-soft: #f3e6df;
@@ -23,7 +25,7 @@
   --err: #a32d2d;
   --err-bg: #fff0ef;
   --err-border: #e7b7b3;
-  --user-bubble: #eeeee9;
+  --user-bubble: #e2dbce;
   --user-bubble-fg: var(--fg);
   --focus-ring: #a64a33;
   --scrim: rgb(18 18 16 / 32%);
@@ -35,6 +37,8 @@
   --font: 'Montserrat Variable', 'Sarasa Gothic SC', system-ui, sans-serif;
   --message-size: 16px;
   --mono: 'Maple Mono NF CN', ui-monospace, monospace;
+  /* Mean A–Z/a–z ink height: Montserrat 400 / Maple Mono 400 ≈ 0.944. */
+  --mono-scale: .944;
   --space-xs: 4px; --space-s: 8px; --space-m: 12px; --space-l: 16px;
   --space-xl: 24px; --space-xxl: 32px;
   --icon: 18px;
@@ -47,18 +51,20 @@
   color-scheme: light;
 }
 html[data-theme='dark'] {
-  --bg: #20201e;
-  --bg-raised: #2b2b28;
-  --bg-sunken: #171716;
-  --bg-hover: #343431;
-  --bg-active: #3d3d39;
-  --bg-inset: #1b1b19;
-  --fg: #f0efea;
-  --fg-muted: #c5c4bd;
-  --fg-subtle: #adaca4;
-  --fg-faint: #85847c;
-  --line: #363633;
-  --line-strong: #55554f;
+  --bg: #202020;
+  --bg-raised: #292929;
+  --bg-overlay: #303030;
+  --bg-control: #242424;
+  --bg-sunken: #171717;
+  --bg-hover: #393939;
+  --bg-active: #444444;
+  --bg-inset: #1b1b1b;
+  --fg: #efefef;
+  --fg-muted: #c4c4c4;
+  --fg-subtle: #acacac;
+  --fg-faint: #848484;
+  --line: #3d3d3d;
+  --line-strong: #555555;
   --accent: #df947a;
   --accent-fg: #291d17;
   --accent-soft: #42332b;
@@ -70,7 +76,7 @@ html[data-theme='dark'] {
   --err: #ffb4ab;
   --err-bg: #3c2423;
   --err-border: #75413d;
-  --user-bubble: #30302d;
+  --user-bubble: #303030;
   --focus-ring: #df947a;
   --scrim: rgb(0 0 0 / 60%);
   --shadow-pop: 0 16px 48px rgb(0 0 0 / 28%), 0 2px 8px rgb(0 0 0 / 15%);
@@ -81,10 +87,10 @@ html[data-theme='dark'] {
 :root {
   --chart-1: #3a68bd; --chart-2: #aa4d78; --chart-3: #23817e;
   --chart-4: #8b6bb1; --chart-5: #a36b25; --chart-6: #69813e;
-  --heat-0: #eeefeb; --heat-1: #c5decb; --heat-2: #8abc99; --heat-3: #4c9764; --heat-4: #27733f;
+  --heat-0: #e2dbce; --heat-1: #c5decb; --heat-2: #8abc99; --heat-3: #4c9764; --heat-4: #27733f;
 }
 html[data-theme='dark'] {
   --chart-1: #82acff; --chart-2: #eb93b9; --chart-3: #6ecac4;
   --chart-4: #baa0e8; --chart-5: #e5b568; --chart-6: #b0ca7a;
-  --heat-0: #353732; --heat-1: #355641; --heat-2: #457b53; --heat-3: #68aa72; --heat-4: #9bd19b;
+  --heat-0: #363636; --heat-1: #355641; --heat-2: #457b53; --heat-3: #68aa72; --heat-4: #9bd19b;
 }

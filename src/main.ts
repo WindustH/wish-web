@@ -42,7 +42,7 @@ theme.init({
 watch(theme.resolved, (r) => {
   document.documentElement.dataset.theme = r;
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) (meta as HTMLMetaElement).content = r === 'dark' ? '#20201e' : '#fcfcfb';
+  if (meta) (meta as HTMLMetaElement).content = r === 'dark' ? '#202020' : '#eee9df';
 }, { immediate: true });
 
 // i18n: persisted locale + <html lang> sync

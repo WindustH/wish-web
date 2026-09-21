@@ -37,7 +37,7 @@ export default defineConfig({
       workbox: {
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
-        navigateFallbackDenylist: [/^\/wishd-api(?:\/|$)/, /^\/providerd-api(?:\/|$)/, /^\/healthz$/],
+        navigateFallbackDenylist: [/^\/api(?:\/|$)/, /^\/healthz$/],
         cleanupOutdatedCaches: true,
         // Fontsource splits CJK by unicode range. Cache only requested shards;
         // precaching the complete font families would download unused glyphs.
@@ -53,8 +53,7 @@ export default defineConfig({
   build: { target: 'es2022', manifest: true },
   server: {
     proxy: {
-      '/wishd-api': { target: 'http://127.0.0.1:9780', rewrite: (path) => path.slice('/wishd-api'.length) },
-      '/providerd-api': { target: 'http://127.0.0.1:9781', rewrite: (path) => path.slice('/providerd-api'.length) },
+      '/api': { target: process.env.WISH_UPSTREAM || 'http://127.0.0.1:9780', headers: process.env.WISH_HTTP_TOKEN ? { Authorization: `Bearer ${process.env.WISH_HTTP_TOKEN}` } : {} },
     },
   },
 });

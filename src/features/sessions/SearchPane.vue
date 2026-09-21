@@ -48,16 +48,16 @@ async function run() {
 // "More" continues THE QUERY THAT PRODUCED THIS LIST — never whatever is in
 // the input right now (audit A4).
 async function more() {
-  const cursor = state.value.cursor;
+  const limit = (state.value.items?.length ?? 0) + 20;
   const query = state.value.query;
-  if (!cursor || !query || state.value.status === 'busy' || locating.value !== null) return;
+  if (!query || state.value.status === 'busy' || locating.value !== null) return;
   const sid = chat.sessionId.value;
   const my = ++gen;
   state.value = { ...state.value, status: 'busy' };
   try {
-    const res = await api.historySearch(sid!, { q: query, order: 'desc', before: cursor, limit: 20 });
+    const res = await api.historySearch(sid!, { q: query, order: 'desc', limit });
     if (my !== gen || !owns(sid)) return;
-    state.value = { status: 'done', query, items: [...(state.value.items ?? []), ...(res.items ?? [])], cursor: res.next_cursor ?? null, more: res.has_more };
+    state.value = { status: 'done', query, items: res.items ?? [], cursor: res.next_cursor ?? null, more: res.has_more };
   } catch (e) {
     if (my !== gen || !owns(sid)) return;
     state.value = { status: 'error', items: state.value.items ?? [], error: e };

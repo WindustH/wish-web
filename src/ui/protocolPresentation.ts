@@ -1,5 +1,12 @@
+import { i18n } from '../core/i18n/index.js';
 // Display metadata only; option values always retain the backend protocol ID.
 const protocols: Record<string, { label: string; brand: string; annotation?: string }> = {
+  plaintext_responses: { label: 'Responses · Plaintext reasoning', brand: 'OpenAI' },
+  codex_responses: { label: 'Codex Responses', brand: 'OpenAI' },
+  bedrock_converse: { label: 'Bedrock Converse', brand: 'AWS Bedrock' },
+  kimi_k2_chat: { label: 'Kimi K2 Chat', brand: 'Kimi' },
+  kimi_k3_chat: { label: 'Kimi K3 Chat', brand: 'Kimi' },
+  tokenhub_chat: { label: 'Tencent TokenHub Chat', brand: 'Tencent Hunyuan (TokenHub)' },
   openai_chat: { label: 'OpenAI Chat', brand: 'OpenAI' },
   openai_chat_completions: { label: 'OpenAI Chat Completions', brand: 'OpenAI' },
   openai_responses: { label: 'OpenAI Responses', brand: 'OpenAI' },
@@ -28,4 +35,22 @@ const protocols: Record<string, { label: string; brand: string; annotation?: str
   minimax_messages: { label: 'MiniMax Messages', brand: 'MiniMax', annotation: 'Anthropic Messages' },
   hunyuan_chat: { label: 'Tencent Hunyuan Chat', brand: 'Tencent Hunyuan (TokenHub)', annotation: 'OpenAI Chat' },
 };
-export const protocolPresentation = (id: string) => protocols[id] ?? { label: id, brand: '' };
+const extra: Record<string, {label:string;brand:string;annotation?:string}> = {
+  openai_codex_models: {label:'OpenAI Codex Models',brand:'OpenAI'},
+  anthropic_models: {label:'Anthropic Models',brand:'Anthropic'},
+  google_models: {label:'Google Gemini Models',brand:'Google Gemini'},
+  qwen_models: {label:'Qwen Models',brand:'Qwen'},
+  bedrock_models: {label:'AWS Bedrock Models',brand:'AWS Bedrock'},
+  openai_responses_streamed: {label:'OpenAI Responses · Streaming compaction',brand:'OpenAI'},
+  qwen_messages: {label:'Qwen Messages',brand:'Qwen'},
+  kimi_messages: {label:'Kimi Messages',brand:'Kimi'},
+  tokenhub_messages: {label:'Tencent TokenHub Messages',brand:'Tencent Hunyuan (TokenHub)'},
+  mistral_chat: {label:'Mistral Chat',brand:'Mistral'},
+};
+export function protocolPresentation(id: string) {
+  const item = protocols[id] ?? extra[id] ?? {label:id,brand:''};
+  const description = i18n.locale.value === 'zh'
+    ? {plaintext_responses:'OpenAI Responses · 明文思考', openai_responses_streamed:'OpenAI Responses · 流式压缩'}[id as 'plaintext_responses' | 'openai_responses_streamed']
+    : undefined;
+  return {...item,label:description ?? item.label};
+}

@@ -34,7 +34,7 @@ export function useSessionMotion() {
     const current = ++revision;
     pending = undefined;
     stop();
-    if (!page(to) || !page(from) || page(to) === page(from) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (matchMedia('(max-width: 899px)').matches || !page(to) || !page(from) || page(to) === page(from) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const chatOnly = !!to.params.id && !!from.params.id;
     pending = { path: to.fullPath, revision: current, chatOnly };
     await navigationDeadline(fade(elements(chatOnly), 0, 50));

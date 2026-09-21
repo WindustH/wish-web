@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { usePageActivity } from '../../ui/composables/usePageActivity';
-const pageActive = usePageActivity();
 import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { SwitchRoot, SwitchThumb, DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from 'reka-ui';
+import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { Download, Activity } from '@lucide/vue';
 import { cfg } from '../../core/config.js';
 import { theme } from '../../core/theme/index.js';
@@ -16,6 +14,7 @@ import { tr } from './fields';
 import SettingHint from './SettingHint.vue';
 import SettingsSections from './SettingsSections.vue';
 import SelectField from '../../ui/components/SelectField.vue';
+import Modal from '../../ui/components/Modal.vue';
 
 const sections = computed(() => [
   { id: 'appearance', zh: '外观与语言', en: 'Appearance and language' },
@@ -63,8 +62,8 @@ function clearPreferences() {
       <template #before><p v-if="problem" class="cfg-notice cfg-error" role="alert">{{ problem }}</p><p v-if="notice" class="cfg-notice" role="status">{{ notice }}</p></template>
       <template #default="{ section }">
         <template v-if="section === 'appearance'">
-          <div class="setting-row"><div><label for="ui-theme">{{ tr('主题', 'Theme') }}</label></div><SelectField segmented id="ui-theme" :model-value="mode" :options="[{ value: 'auto', icon: 'monitor', label: tr('跟随系统', 'Follow system') }, { value: 'light', icon: 'sun', label: tr('浅色', 'Light') }, { value: 'dark', icon: 'moon', label: tr('深色', 'Dark') }]" @update:model-value="theme.setMode" /></div>
-          <div class="setting-row"><div><label for="ui-language">{{ tr('界面语言', 'Language') }}</label></div><SelectField id="ui-language" :model-value="locale" :options="[{ value: 'zh', label: '中文' }, { value: 'en', label: 'English' }]" @update:model-value="i18n.setLocale" /></div>
+          <div class="setting-row"><div><label for="ui-theme">{{ tr('主题', 'Theme') }}</label></div><SelectField mobile-page segmented id="ui-theme" :model-value="mode" :options="[{ value: 'auto', icon: 'monitor', label: tr('跟随系统', 'Follow system') }, { value: 'light', icon: 'sun', label: tr('浅色', 'Light') }, { value: 'dark', icon: 'moon', label: tr('深色', 'Dark') }]" @update:model-value="theme.setMode" /></div>
+          <div class="setting-row"><div><label for="ui-language">{{ tr('界面语言', 'Language') }}</label></div><SelectField mobile-page id="ui-language" :model-value="locale" :options="[{ value: 'zh', label: '中文' }, { value: 'en', label: 'English' }]" @update:model-value="i18n.setLocale" /></div>
         </template>
         <template v-if="section === 'input'">
           <div v-if="desktop" class="setting-row"><div><label for="send-on-enter">{{ tr('按 Enter 发送消息', 'Send with Enter') }}</label></div><SettingHint id="send-on-enter-hint" :text="sendOnEnter ? tr('按 Shift + Enter 换行。', 'Press Shift + Enter for a new line.') : tr('按 Enter 换行，按 Ctrl / ⌘ + Enter 发送。', 'Press Enter for a new line; Ctrl / ⌘ + Enter to send.')" /><SwitchRoot id="send-on-enter" aria-describedby="send-on-enter-hint" :model-value="sendOnEnter" class="cfg-switch" @update:model-value="prefs.setSendOnEnter"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
@@ -79,6 +78,6 @@ function clearPreferences() {
       </template>
       <template #after><p class="cfg-hint">Wish {{ cfg.meta.appVersion }}</p></template>
     </SettingsSections>
-    <DialogRoot v-model:open="clearOpen"><DialogPortal v-if="pageActive"><DialogOverlay class="cfg-dialog-overlay" /><DialogContent class="cfg-dialog"><DialogTitle>{{ tr('清除本地数据？', 'Clear local data?') }}</DialogTitle><DialogDescription>{{ tr('将移除这个浏览器保存的界面偏好和消息草稿。', 'Remove interface preferences and message drafts saved in this browser.') }}</DialogDescription><div class="cfg-dialog-actions"><button class="btn ghost" @click="clearOpen = false">{{ tr('取消', 'Cancel') }}</button><button class="btn danger" @click="clearPreferences">{{ tr('确认清除', 'Clear local data') }}</button></div></DialogContent></DialogPortal></DialogRoot>
+    <Modal compact :open="clearOpen" :title="tr('清除本地数据？','Clear local data?')" @close="clearOpen=false"><p>{{tr('将移除这个浏览器保存的界面偏好和消息草稿。','Remove interface preferences and message drafts saved in this browser.')}}</p><template #footer><button class="btn ghost" @click="clearOpen=false">{{tr('取消','Cancel')}}</button><button class="btn danger" @click="clearPreferences">{{tr('确认清除','Clear local data')}}</button></template></Modal>
   </div>
 </template>

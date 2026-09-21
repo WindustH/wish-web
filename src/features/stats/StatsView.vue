@@ -14,15 +14,25 @@ const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'
 const charts = ref<{ refresh: () => void }>();
 function refresh() { void stats.refresh(); charts.value?.refresh(); }
 const { status, usage, storage, memory, version, loading, error, updatedAt } = stats;
-const totals = computed(() => usage.value?.statistics.totals);
+const hiddenModels = ref(new Set<string>());
+function toggleModel(key:string){const next=new Set(hiddenModels.value);next.has(key)?next.delete(key):next.add(key);hiddenModels.value=next;}
+const modelKey = (row: {provider: string | null; model: string | null}) => JSON.stringify([row.provider,row.model]);
 const rows = computed(() => usage.value?.statistics.by_provider_model ?? []);
+const selectedRows = computed(() => rows.value.filter(row=>!hiddenModels.value.has(modelKey(row))));
+const totals = computed(() => selectedRows.value.reduce((sum,row)=>{
+  sum.tokens.input_tokens+=row.totals.tokens.input_tokens;
+  sum.tokens.output_tokens+=row.totals.tokens.output_tokens;
+  sum.cache.read_input_tokens+=row.totals.cache.read_input_tokens;
+  return sum;
+},{tokens:{input_tokens:0,output_tokens:0},cache:{read_input_tokens:0}}));
+const totalTokens = computed(()=>usage.value?.statistics.totals.tokens.total_tokens??0);
 const errorMessage = computed(() => error.value instanceof Error ? error.value.message : String(error.value));
 const tx = (zh: string, en: string) => i18n.locale.value === 'zh' ? zh : en;
 const number = (value: number) => new Intl.NumberFormat(i18n.locale.value).format(value);
 const percent = (value: number | null) => value == null ? '—' : new Intl.NumberFormat(i18n.locale.value, { style: 'percent', maximumFractionDigits: 1 }).format(value);
 const models = computed(() => {
   const values = new Map<string, number>();
-  for (const row of rows.value) {
+  for (const row of selectedRows.value) {
     const name = row.model ?? tx('未记录', 'Not recorded');
     values.set(name, (values.get(name) ?? 0) + row.totals.tokens.total_tokens);
   }
@@ -53,6 +63,13 @@ onDeactivated(stats.stopAuto);
       <Spinner v-if="loading && !updatedAt" />
       <UsageCharts ref="charts">
         <section v-if="totals && usage" class="card statistics-usage">
+          <div class="statistics-models" role="group" :aria-label="tx('用量统计模型','Usage model')">
+            <button v-for="(row,index) in rows" :key="modelKey(row)" class="statistics-model" :aria-pressed="!hiddenModels.has(modelKey(row))" @click="toggleModel(modelKey(row))">
+              <i class="statistics-model-dot" :style="{background:color(index)}"/>
+              <span>{{row.model??tx('未记录','Not recorded')}}<small>{{row.provider??tx('未记录','Not recorded')}}</small></span>
+              <small class="statistics-model-share">{{percent(totalTokens>0?row.totals.tokens.total_tokens/totalTokens:0)}}</small>
+            </button>
+          </div>
           <dl class="statistics-values">
             <div><dt>{{ i18n.t('stats.tokensIn') }} <small>Token</small></dt><Hint :text="number(totals.tokens.input_tokens)"><dd data-stat="input">{{ fmtTokens(totals.tokens.input_tokens) }}</dd></Hint></div>
             <div><dt>{{ i18n.t('stats.tokensOut') }} <small>Token</small></dt><Hint :text="number(totals.tokens.output_tokens)"><dd data-stat="output">{{ fmtTokens(totals.tokens.output_tokens) }}</dd></Hint></div>
@@ -66,14 +83,6 @@ onDeactivated(stats.stopAuto);
               <li v-for="(item,index) in slices" :key="index"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><strong>{{ percent(item.share) }}</strong></li>
             </ul>
           </div>
-          <h3>{{ i18n.t('stats.byModel') }}</h3>
-          <div class="statistics-table-wrap"><table class="table statistics-table">
-            <thead><tr><th>{{ tx('提供商', 'Provider') }}</th><th>{{ tx('模型', 'Model') }}</th><th>{{ i18n.t('stats.tokensIn') }}</th><th>{{ i18n.t('stats.tokensOut') }}</th><th>{{ i18n.t('stats.tokensTotal') }}</th></tr></thead>
-            <tbody><tr v-for="row in rows" :key="JSON.stringify([row.provider, row.model])">
-              <td :data-label="tx('提供商', 'Provider')">{{ row.provider ?? tx('未记录', 'Not recorded') }}</td><td :data-label="tx('模型', 'Model')">{{ row.model ?? tx('未记录', 'Not recorded') }}</td>
-              <td :data-label="i18n.t('stats.tokensIn')">{{ fmtTokens(row.totals.tokens.input_tokens) }}</td><td :data-label="i18n.t('stats.tokensOut')">{{ fmtTokens(row.totals.tokens.output_tokens) }}</td><td :data-label="i18n.t('stats.tokensTotal')">{{ fmtTokens(row.totals.tokens.total_tokens) }}</td>
-            </tr><tr v-if="!rows.length"><td colspan="5" class="hint">{{ tx('还没有用量记录。', 'No usage records yet.') }}</td></tr></tbody>
-          </table></div>
         </section>
       </UsageCharts>
       <div class="statistics-grid">
@@ -82,9 +91,8 @@ onDeactivated(stats.stopAuto);
           <h2>{{ tx('服务状态', 'Service status') }}</h2>
           <dl class="statistics-values">
             <div><dt>{{ tx('已保存会话', 'Stored sessions') }}</dt><dd>{{ number(status.counts.sessions) }}</dd></div>
-            <div><dt>{{ tx('累计运行记录', 'Recorded runs') }}</dt><dd>{{ number(status.counts.runs) }}</dd></div>
             <div><dt>{{ tx('本次启动已运行', 'Uptime since startup') }}</dt><dd>{{ fmtUptime(status.uptime_ms) }}</dd></div>
-            <div><dt>wishd {{ tx('版本', 'version') }}</dt><dd>{{ version?.version ?? '—' }}</dd></div>
+            <div><dt>wish {{ tx('版本', 'version') }}</dt><dd>{{ version?.version ?? '—' }}</dd></div>
           </dl>
           <h3>{{ i18n.t('stats.queue') }}</h3>
           <dl class="statistics-values">
@@ -126,10 +134,20 @@ onDeactivated(stats.stopAuto);
 </template>
 
 <style scoped>
-.statistics-page { padding: 0 clamp(20px, 3vw, 40px) 32px; }
+.statistics-page { padding: 0 clamp(24px, 4vw, 64px) 32px; }
 .statistics-page > * { width: 100%; max-width: 1100px; margin-inline: auto; }
 .statistics-body { padding: 0; min-width: 0; }
 .statistics-usage { min-width: 0; }
+.statistics-models { display:flex; align-items:stretch; flex-wrap:wrap; gap:6px 12px; margin-bottom:16px; min-width:0; }
+.statistics-model { display:flex; align-items:center; gap:7px; max-width:100%; min-width:0; padding:7px 8px; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--fg-subtle); font:inherit; font-size:12px; text-align:left; cursor:pointer; }
+.statistics-model:hover { background:var(--bg-hover); }
+.statistics-model[aria-pressed='true'] { color:var(--fg); }
+.statistics-model[aria-pressed='false'] { opacity:.45; }
+.statistics-model .statistics-model-share { align-self:flex-end; margin-left:8px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.statistics-model:focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
+.statistics-model span { min-width:0; overflow-wrap:anywhere; }
+.statistics-model small { display:block; margin-top:2px; font-size:10px; color:var(--fg-subtle); }
+.statistics-model-dot { width:7px; height:7px; border-radius:50%; flex:none; }
 .memory-partial { margin: 10px 0 0; font-size: 12px; color: var(--warn); }
 .memory-detail { display: grid; gap: 6px; margin: 14px 0 0; }
 .memory-detail > div { display: grid; grid-template-columns: minmax(96px, fit-content(40%)) minmax(0, 1fr); gap: 4px 16px; align-items: baseline; min-width: 0; }
@@ -138,7 +156,7 @@ onDeactivated(stats.stopAuto);
 .statistics-toolbar { display: flex; flex: none; align-items: center; justify-content: end; gap: 12px; padding-block: 10px; }
 .statistics-grid { display: grid; gap: 20px; min-width: 0; }
 .statistics-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; min-width: 0; }
-.statistics-grid .card { padding: 16px 0; min-width: 0; border-radius: 0; border: 0; border-top: 1px solid var(--line-strong); background: transparent; }
+.statistics-grid .card { padding: 20px; min-width: 0; border-radius: 0; border: 0; border-top: 1px solid var(--line-strong); background: transparent; }
 h2 { font: 600 16px/1.5 var(--font); margin: 0 0 16px; }
 h3 { font-size: 14px; margin: 16px 0 12px; font-weight: 500; }
 .statistics-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; margin: 0; }
@@ -148,7 +166,7 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 .statistics-table-wrap { overflow-x: auto; }
 .statistics-table { width: 100%; white-space: nowrap; }
 .load-error { margin-bottom: 20px; }
-@media (max-width: 899px) { .statistics-page { padding: 0 20px 32px; } .statistics-grid .card { padding: 16px 0; } .statistics-grid { gap: 0; } }
+@media (max-width: 899px) { .statistics-page { padding: 0 20px 32px; } .statistics-grid .card { padding: 16px; } .statistics-grid { gap: 0; } }
 .model-share { display: grid; grid-template-columns: minmax(120px, 180px) minmax(0, 1fr); gap: 16px; align-items: center; }
 .model-share :deep(.usage-canvas) { height: 180px; }
 .distribution-legend { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; font-size: 13px; }
@@ -185,7 +203,7 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 .storage-bar span { flex: none; }
 @media (max-width: 450px) { .model-share { grid-template-columns: minmax(100px, 130px) minmax(0, 1fr); gap: 10px; } .model-share :deep(.usage-canvas) { height: 140px; } }
 @media (max-width: 599px) {
-  .statistics-page { padding-inline: 12px; }
+  .statistics-page { padding-inline: 20px; }
   .statistics-toolbar { flex-wrap: wrap; gap: 6px; }
   .statistics-usage { padding: 16px 12px; }
   .model-share { grid-template-columns: minmax(0, 1fr); gap: 12px; }

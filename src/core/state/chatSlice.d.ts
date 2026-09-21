@@ -42,6 +42,7 @@ export interface ChatApi {
   reloadCapabilities(): Promise<void>;
   refreshDeliveries(): Promise<void>;
   // Cancel one queued delivery; false when it had already left the queue.
+  moveQueued(deliveryId: string, before: string | null): Promise<void>;
   cancelQueued(deliveryId: string): Promise<boolean>;
   cancelLocate(): void;
   clearPendingSeq(): void;

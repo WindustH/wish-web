@@ -1,29 +1,19 @@
 # Deployment
 
-[Documentation](README.md) · [中文](../zh/deployment.md)
+[Documentation](README.md)
 
-Build with `./pnpmw build`, then copy `dist/` and `serve.mjs` into an immutable release directory. Include `THIRD_PARTY.md` and `doc/` when distributing the application. Start with `node serve.mjs`.
+The frontend uses the single `wish` HTTP backend, built by the sibling `wish-server` crate.
+The browser talks only to `/api`; `serve.mjs` proxies it to `WISH_UPSTREAM`
+(default `http://127.0.0.1:9780`). Old wishd/providerd routes and persisted formats are not supported.
 
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `PORT` | `8790` | HTTP port |
-| `LISTEN_HOST` | `127.0.0.1` | Listening interface |
-| `ALLOWED_HOSTS` | loopback authorities | Additional comma-separated `host:port` values |
-| `WISHD_UPSTREAM` | `http://127.0.0.1:9780` | Runtime API upstream |
-| `PROVIDERD_UPSTREAM` | `http://127.0.0.1:9781` | Provider API upstream |
-| `WISHD_TOKEN` | empty | Bearer token injected only into runtime requests |
-| `PROVIDERD_TOKEN` | empty | Bearer token injected only into provider requests |
-
-For LAN use, explicitly set the listening interface and allowed authority:
+Build the backend with `cargo build --release --manifest-path ../wish-server/Cargo.toml`; run `wish --config /absolute/path/config.json`.
 
 ```sh
-LISTEN_HOST=0.0.0.0 ALLOWED_HOSTS=192.168.1.20:8790 node serve.mjs
+./pnpmw install --frozen-lockfile
+./pnpmw build
+WISH_UPSTREAM=http://127.0.0.1:9780 node serve.mjs
 ```
 
-The host allowlist is not login authentication. Put authentication/TLS at a trusted reverse proxy if serving outside a trusted network. The bundled server serves HTTP and compares mutation origins to `http://Host`; do not assume HTTPS termination works without adjusting the same-origin proxy configuration. Another static server can serve `dist/` and implement both API proxy routes directly.
+Production needs only `dist/` and `serve.mjs`; node_modules is not required. Node 22.19+ is supported. Default WebUI address: http://127.0.0.1:8790. If the backend requires authentication, set WISH_HTTP_TOKEN in the WebUI server environment; the proxy injects it server-side.
 
-The two upstream URLs accept HTTP(S) and path prefixes. Each token goes only to its own daemon. Cross-origin mutations and unrecognized hosts are rejected before proxying. SSE must remain streamed without buffering, and disconnects must release the upstream request. `/healthz` confirms the Web server; check the two proxied `/health/ready` endpoints separately for backend readiness.
-
-PWA updates prompt before activating a new worker. API calls are never cached by the service worker; static assets are cached, and font shards are fetched on demand. Clipboard, installation, notifications and wake locks depend on browser permissions and secure-context support; plain LAN HTTP may restrict them.
-
-For releases, record commit IDs and artifact hashes. Replace the release symlink atomically and restart only the Web service for frontend-only changes. Backend releases must wait for active runs and background executions to finish, or use an explicitly agreed interruption. Preserve configuration, session data and attachment files. Retain the previous immutable release for rollback; do not restore an old database over newer user work.
+For LAN access set LISTEN_HOST=0.0.0.0 and ALLOWED_HOSTS to the exact host:port users open (comma-separated). Keep the backend on loopback. The UI grants the trusted user server-side shell access; there is no multi-user authorization model. SIGTERM lets wish cancel execution, preserve partial output and flush storage. Stop the old daemons before replacing them; choose a fresh data directory, without schema migrations.
