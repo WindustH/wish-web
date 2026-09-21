@@ -270,7 +270,7 @@ export const zh = {
   'selftest.storage': '平台存储',
   'selftest.api': 'API 连通 (/version)',
   'selftest.sessions': 'API 会话列表',
-  'selftest.sse': 'SSE 控制流 (/sync/events)',
+  'selftest.sse': 'SSE 控制流 (/events)',
   'selftest.vendor': 'vendor 资源完整性',
   'selftest.sw': 'Service Worker',
   'selftest.swUnsupported': '环境不支持(不算失败)',

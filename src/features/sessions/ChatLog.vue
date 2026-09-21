@@ -430,5 +430,5 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
 .chat-run-error { margin: 16px auto; padding: 12px 16px; max-width: var(--max-content); border: 1px solid var(--err-border); border-radius: var(--radius); background: var(--err-bg); color: var(--err); overflow-wrap: anywhere; }
 .chat-run-error strong { color: var(--err); font-size: 13px; }
 .chat-run-error p { margin: 6px 0; font-size: 13px; }
-.chat-run-error small { color: inherit; font: 12px/1.6 var(--mono); }
+.chat-run-error small { color: inherit; font: calc(1em * var(--mono-scale))/1.6 var(--mono); }
 </style>

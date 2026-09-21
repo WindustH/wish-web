@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { useMobileNavigationMotion } from './ui/composables/useMobileNavigationMotion';
+useMobileNavigationMotion();
 import Hint from './ui/components/Hint.vue';
-import { computed, shallowRef, watch } from 'vue';
-import { TooltipProvider } from 'reka-ui';
-import { useRoute, useRouter } from 'vue-router';
+import { computed, provide, shallowRef, watch } from 'vue';
+import { TooltipProvider, DialogRoot, DialogPortal, DialogContent, DialogTitle } from 'reka-ui';
+import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
 import { useMedia } from './ui/composables/useMedia.js';
 import Icon from './ui/components/Icon.vue';
 import ToastHost from './ui/components/ToastHost.vue';
@@ -15,12 +17,16 @@ import { sessionLocation } from './router.js';
 const route = useRoute();
 const router = useRouter();
 const isMobile = useMedia('(max-width: 899px)');
-const backgroundRoute = shallowRef(router.currentRoute.value);
+const backgroundRoute = shallowRef(router.currentRoute.value.meta.section === 'settings' ? router.resolve('/sessions') as unknown as RouteLocationNormalizedLoaded : router.currentRoute.value);
 const settingsRoute = shallowRef(router.currentRoute.value.meta.section === 'settings' ? router.currentRoute.value : undefined);
 watch(() => router.currentRoute.value, current => {
-  if (current.meta.section === 'settings') settingsRoute.value = current;
+  if (current.meta.section === 'settings') {
+    settingsRoute.value = current;
+    if (!backgroundRoute.value.matched.length) backgroundRoute.value = router.resolve('/sessions') as unknown as RouteLocationNormalizedLoaded;
+  }
   else backgroundRoute.value = current;
 }, { flush: 'sync' });
+provide('closeSettings', () => router.push(backgroundRoute.value.fullPath));
 const settingsOpen = computed(() => route.meta.section === 'settings');
 const online = computed(() => sync.online.value);
 
@@ -30,14 +36,14 @@ const nav = [
   { id: 'settings', icon: 'settings', path: '/settings', label: () => i18n.t('nav.settings'), bottom: true },
 ];
 const top = nav.filter((n) => !n.bottom);
-const isActive = (section: string) => route.meta.section === section;
+const isActive = (section: string) => section !== 'settings' && (settingsOpen.value ? backgroundRoute.value.meta.section : route.meta.section) === section;
 const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? sessionLocation.value : item.path);
 </script>
 
 <template>
   <TooltipProvider :delay-duration="450" :skip-delay-duration="150">
   <div class="shell" :class="isMobile ? 'mobile' : 'desktop'">
-    <nav :inert="settingsOpen && !isMobile" :aria-hidden="settingsOpen && !isMobile || undefined" class="vbar" :aria-label="i18n.t('app.name')">
+    <nav class="vbar" :aria-label="i18n.t('app.name')">
       <RouterLink :to="sessionLocation" class="brand-mark" aria-label="Wish">w<span>.</span></RouterLink>
       <Hint :text="item.label()" v-for="item in top" :key="item.id"><button class="nav-btn" :class="{ active: isActive(item.id) }"
         :aria-current="isActive(item.id) ? 'page' : undefined" :aria-label="item.label()" @click="go(item)">
@@ -45,21 +51,21 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
       </button></Hint>
       <div class="spacer" />
       <Hint :text="item.label()" v-for="item in nav.filter((n) => n.bottom)" :key="item.id"><button class="nav-btn"
-        :class="{ active: isActive(item.id) }" :aria-current="isActive(item.id) ? 'page' : undefined" :aria-label="item.label()"
+        :aria-expanded="settingsOpen" aria-haspopup="dialog" :aria-label="item.label()"
         @click="go(item)">
         <Icon :name="item.icon" />
       </button></Hint>
     </nav>
     <div class="main">
       <div class="main-col">
-        <header v-if="isMobile && ['stats', 'settings'].includes(String(route.meta.section))" class="mobile-secondary-header">
+        <header v-if="isMobile && route.meta.section === 'stats'" class="mobile-secondary-header">
           <button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')" @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
           <span>{{ i18n.t(route.meta.section === 'stats' ? 'nav.stats' : 'nav.settings') }}</span>
         </header>
         <div v-if="!online" class="offline-banner" role="status">{{ i18n.t('settings.offline') }}</div>
         <RouterView v-if="backgroundRoute.meta.section !== 'settings'" :route="backgroundRoute" v-slot="{ Component, route: pageRoute }">
           <KeepAlive :max="4">
-            <CachedPage :inert="settingsOpen && !isMobile" :aria-hidden="settingsOpen && !isMobile || undefined" v-if="Component" v-show="!settingsOpen || !isMobile" :key="pageRoute.matched[0].path" :view="Component" :route="pageRoute" />
+            <CachedPage v-if="Component" v-show="!settingsOpen || !isMobile" :key="pageRoute.matched[0].path" :view="Component" :route="pageRoute" />
           </KeepAlive>
         </RouterView>
         <RouterView v-if="settingsRoute" :route="settingsRoute" v-slot="{ Component, route: pageRoute }">
@@ -67,12 +73,18 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
         </RouterView>
       </div>
     </div>
-    <div v-if="needRefresh" class="pwa-update" role="alert">
-      <span>{{ i18n.t('pwa.updateAvailable') }}</span>
+    <DialogRoot v-model:open="needRefresh" :modal="false"><DialogPortal>
+    <DialogContent class="pwa-update" :aria-describedby="undefined" @interact-outside.prevent @open-auto-focus.prevent>
+      <DialogTitle as-child><span>{{ i18n.t('pwa.updateAvailable') }}</span></DialogTitle>
       <button class="btn" @click="refreshApp()">{{ i18n.t('pwa.reload') }}</button>
       <button class="btn ghost" @click="needRefresh = false">{{ i18n.t('pwa.later') }}</button>
-    </div>
+    </DialogContent>
+    </DialogPortal></DialogRoot>
     <ToastHost />
   </div>
   </TooltipProvider>
 </template>
+
+<style>
+@media (min-width: 900px) { .settings-route-host { display: contents !important; } }
+</style>

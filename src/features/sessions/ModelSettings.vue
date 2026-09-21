@@ -22,7 +22,7 @@ watch(snapshot, value => { selected.value = value ? key(value.provider, value.mo
 const choices = computed(() => catalog.groups.value.flatMap(group => {
   const { provider } = group;
   const brand = presetBrand(provider.preset);
-  const title = brand ? `${providerName(brand)} · ${provider.id}` : provider.id;
+  const title = provider.display_name ? `${provider.display_name} · ${provider.id}` : brand ? `${providerName(brand)} · ${provider.id}` : provider.id;
   const models = [...group.models];
   if (snapshot.value?.provider === provider.id && !models.some(model => model.id === snapshot.value!.model)) {
     models.unshift({ id: snapshot.value.model, source: 'current' });

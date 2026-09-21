@@ -1,7 +1,6 @@
 // HTTP client. DOM-free (fetch + AbortController only) so shells reuse it.
 // All errors normalize to ApiError {status, code, title, detail, retryable}.
 import { cfg } from '../config.js';
-import { idemKey } from '../util/fmt.js';
 
 export class ApiError extends Error {
   constructor(status, code, title, detail, retryable) {
@@ -15,8 +14,7 @@ export class ApiError extends Error {
   }
 }
 
-// Each backend owns its base URL. Shells can set the two absolute bases
-// independently; browsers resolve the relative defaults against their origin.
+// One backend base URL; browsers resolve the relative default against their origin.
 function createClient(initialBase) {
   let baseUrl = initialBase;
   let resolvedBase = null;
@@ -49,12 +47,12 @@ function createClient(initialBase) {
 }
 
 export const { get, post, patch, put, del, api, absUrl, getBaseUrl, setBaseUrl } = createClient(cfg.api.baseUrl);
-export const providerd = createClient(cfg.api.providerdBaseUrl);
+
 
 async function problemFromBody(body, status) {
   try {
     const j = typeof body === 'string' ? JSON.parse(body) : body;
-    return new ApiError(j.status ?? status, j.code, j.title, j.detail, j.retryable);
+    return new ApiError(status, status === 409 ? "state_conflict" : String(status), j.error?.message ?? j.title ?? "HTTP error", j.error?.message ?? j.detail ?? JSON.stringify(j), status >= 500);
   } catch { return null; }
 }
 
@@ -67,8 +65,7 @@ async function request(method, target, { body, query, signal, headers, raw } = {
   }
   const h = { ...(headers || {}) };
   if (body !== undefined && !raw) h['content-type'] = 'application/json';
-  // Mutations need an idempotency key (≥16 printable ASCII bytes).
-  if (method !== 'GET' && method !== 'HEAD') h['idempotency-key'] ||= idemKey(cfg.api.idempotencyKeyLen);
+
 
   // A request that can never settle (sleep/wake, a proxy black hole) would
   // pin every busy flag behind it forever, so every call carries the

@@ -70,7 +70,7 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
         <input v-model="query" type="search" @compositionstart="composing = true"
           @compositionend="composing = false; sessions.setQuery(query)" :placeholder="i18n.t('sessions.search')" :aria-label="i18n.t('sessions.search')" />
       </div>
-      <Hint :text="i18n.t('sessions.new')"><button class="btn primary icon-only" :aria-label="i18n.t('sessions.new')"
+      <Hint :text="i18n.t('sessions.new')"><button class="btn primary icon-only sl-add" :aria-label="i18n.t('sessions.new')"
         @click="openNewSession()"><Icon name="plus" /></button></Hint>
     </div>
     <div v-if="sessions.tagFilter.value" class="sl-filters" role="group" :aria-label="i18n.t('sessions.filter.group')">

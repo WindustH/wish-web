@@ -84,7 +84,7 @@
 @media (min-width: 900px) {
   .cfg-input-wrap input:not([type='number']), .cfg-inline input:not([type='number']) { min-width: 12ch; }
 }
-.cfg-savebar { width: fit-content; max-width: 100%; padding: 10px 12px 10px 18px; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--bg-raised); box-shadow: var(--shadow-pop); }
+.cfg-savebar { width: fit-content; max-width: 100%; padding: 10px 12px 10px 18px; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--bg-overlay); box-shadow: var(--shadow-pop); }
 .cfg-savebar-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .cfg-savebar-inner > span { font-size: 13px; font-weight: 500; }
 .cfg-savebar-actions { display: flex; flex: none; gap: 10px; }
@@ -94,7 +94,7 @@
 .cfg-notice p { margin: 7px 0; }
 .cfg-error { color: var(--err); }
 .cfg-dialog-overlay { position: fixed; inset: 0; background: var(--scrim); z-index: 300; animation: cfg-fade 160ms ease; }
-.cfg-dialog { position: fixed; z-index: 301; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(480px, calc(100vw - 32px)); padding: 28px; border-radius: 14px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); box-shadow: var(--shadow-pop); animation: cfg-fade 160ms ease; }
+.cfg-dialog { position: fixed; z-index: 301; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(480px, calc(100vw - 32px)); padding: 28px; border-radius: 14px; background: var(--bg-overlay); color: var(--fg); border: 1px solid var(--line); box-shadow: var(--shadow-pop); animation: cfg-fade 160ms ease; }
 .cfg-dialog h2 { font: 600 22px/1.5 var(--display); margin: 0 24px 12px 0; }
 .cfg-dialog p { color: var(--fg-muted); line-height: 1.7; }
 .cfg-dialog-close { position: absolute; top: 12px; right: 12px; }
@@ -189,11 +189,10 @@
 .cfg-property > .cfg-object { padding-block: 10px; }
 
 @media (min-width: 900px) {
-  .settings-route-host { position: absolute; width: 0; height: 0; }
   .settings-overlay { position: fixed; inset: 0; z-index: 50; background: var(--scrim); backdrop-filter: blur(3px); animation: fade-in 180ms ease-out; }
-  .settings-page { position: fixed; inset: max(5dvh, calc((100dvh - 760px) / 2)) max(24px, calc((100vw - 1040px) / 2)); width: auto; height: min(90dvh, 760px); z-index: 51; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--bg); box-shadow: var(--shadow-pop); animation: settings-enter 180ms ease-out; }
+  .settings-page { position: fixed; inset: max(5dvh, calc((100dvh - 760px) / 2)) max(24px, calc((100vw - 1040px) / 2)); width: auto; height: min(90dvh, 760px); z-index: 51; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--bg-raised); box-shadow: var(--shadow-pop); animation: settings-enter 180ms ease-out; }
   .settings-shell { gap: 0; padding: 0; max-width: none; margin: 0; }
-  .settings-sidebar { display: flex; flex-direction: column; overflow: hidden; width: 228px; --settings-rail-pad: 14px; padding: 20px var(--settings-rail-pad); border-right: 1px solid var(--line); background: var(--bg-sunken); }
+  .settings-sidebar { display: flex; flex-direction: column; overflow: hidden; width: 228px; --settings-rail-pad: 14px; padding: 20px var(--settings-rail-pad); border-right: 1px solid var(--line); background: var(--bg); }
   .settings-sidebar > .settings-search { flex: none; position: relative; margin-bottom: 6px; }
   .settings-sidebar > .settings-categories { flex: 1; min-height: 0; overflow-y: auto; margin-right: calc(-1 * var(--settings-rail-pad)); padding: 14px var(--settings-rail-pad) 18px; mask-image: linear-gradient(to bottom, transparent, black 14px, black calc(100% - 18px), transparent); }
   .settings-main { padding: 14px 0 0 28px; }
@@ -241,3 +240,59 @@
 .modal-card.cfg-parent-window { width: min(780px, calc(100vw - 32px)); }
 
 .cfg-dialog-overlay[data-state="closed"], .cfg-dialog[data-state="closed"] { animation: popup-fade-out 120ms ease-in; }
+
+/* Common form and section rhythm across settings pages and editors. */
+.settings-fields { display: grid; gap: 14px; }
+.settings-group + .settings-group { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+@media (min-width: 900px) {
+  .settings-editor.modal-card { width: min(720px, 90vw); }
+  .native-settings .cfg-section h2 { font-size: 14px; font-weight: 600; }
+  .native-settings .cfg-section + .cfg-section { margin-top: 20px; padding-top: 18px; }
+  .native-settings .provider-settings > .hint { margin: 0 0 12px; font-size: 12px; color: var(--fg-subtle); }
+}
+@media (max-width: 899px) {
+  .settings-group + .settings-group { margin-top: 0; padding-top: 14px; }
+  .settings-editor.modal-page > .modal-body { padding: 16px; }
+}
+
+/* Mobile settings use navigation rows and focused editing pages. */
+@media(max-width:899px){
+ .mobile-settings-page.modal-page { background:var(--bg-sunken); }
+ .mobile-settings-page > .modal-head { background:var(--bg); min-height:54px; padding:6px 8px; }
+ .mobile-settings-page .modal-title { font-size:17px; }
+ .mobile-settings-page > .modal-body { padding:20px 16px max(24px,env(safe-area-inset-bottom)); }
+ .mobile-settings-list { margin:0 0 16px; padding:0; border-radius:12px; background:var(--bg-raised); overflow:hidden; }
+ .mobile-settings-row { width:100%; display:flex; align-items:center; gap:12px; min-height:52px; padding:13px 14px; border:0; background:transparent; color:var(--fg); text-align:left; font:inherit; font-size:14px; }
+ button.mobile-settings-row { cursor:pointer; }
+ button.mobile-settings-row:active { background:var(--bg-hover); }
+ .mobile-settings-row + .mobile-settings-row { border-top:1px solid var(--line); }
+ .mobile-settings-row > span { flex:1; min-width:0; }
+ .mobile-settings-row > small { max-width:52%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--fg-subtle); font-size:12px; }
+ .mobile-settings-row > .icon:last-child { flex:none; width:16px; color:var(--fg-subtle); }
+ .mobile-settings-row .row-preview { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--fg-subtle); font-size:12px; margin-top:4px; font-weight:400; }
+ .mobile-group-caption { margin:0 12px 8px; font-size:12px; color:var(--fg-subtle); }
+ .mobile-group-note { margin:8px 12px 20px; font-size:12px; color:var(--fg-subtle); line-height:1.6; }
+ .mobile-settings-list + .mobile-group-note { margin-top:-8px; }
+ .mobile-fields label { display:block; padding:12px 14px; font-size:13px; }
+ .mobile-fields label + label { border-top:1px solid var(--line); }
+ .mobile-fields label > :is(input,textarea,.control-select) { margin-top:8px; width:100%; min-width:0; }
+ .mobile-text-editor { width:100%; min-height:50dvh; resize:vertical; font-size:16px; line-height:1.7; }
+ .mobile-readonly > div { padding:13px 14px; }
+ .mobile-readonly > div + div { border-top:1px solid var(--line); }
+ .mobile-readonly dt { color:var(--fg-subtle); font-size:12px; margin-bottom:5px; }
+ .mobile-readonly dd { margin:0; font-size:14px; overflow-wrap:anywhere; }
+ .mobile-save { color:var(--accent); font-weight:600; min-height:40px; }
+ .mobile-choice-search { width:100%; margin-bottom:16px; min-height:42px; }
+ .mobile-choice[aria-pressed='true'] { color:var(--accent); }
+ .mobile-choice > svg:last-child { flex:none; }
+ .provider-panel .preset-section { margin:0; padding:14px; border:0; border-radius:12px; background:var(--bg-raised); }
+ .provider-panel .preset-section > h3,.provider-panel .preset-section > summary { display:none; }
+ .provider-panel .preset-section > header h3 { display:none; }
+ .provider-panel .preset-section label { display:block; }
+ .provider-panel .preset-section label > :is(.input,.control-select) { margin-top:8px; }
+ .provider-panel .preset-section label.inline { display:flex; }
+ .provider-panel .advanced-fields { padding-top:0; }
+}
+.settings-editor.compact .modal-body { padding:16px 18px 0; }
+.settings-editor.compact .modal-flow-title { margin-bottom:16px; }
+.settings-editor.compact .modal-actions { padding:12px 18px 14px; align-items:center; }

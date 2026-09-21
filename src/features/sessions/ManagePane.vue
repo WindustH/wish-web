@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Session management window: tags (metadata JSON — other keys ride along untouched),
-// rename, prune dialog (frozen cutoff), danger actions with centered
+// rename, context clearing, forking and deletion with centered
 // confirm modals (busy locks all dismiss paths; failures keep the modal).
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -8,8 +8,8 @@ import * as api from '../../core/api/endpoints.js';
 import { chat } from '../../core/state/chatSlice.js';
 import { sessions } from '../../core/state/sessionsSlice.js';
 import { i18n } from '../../core/i18n/index.js';
+import AskContext from './AskContext.vue';
 import Modal from '../../ui/components/Modal.vue';
-import PruneDialog from './PruneDialog.vue';
 import { useMedia } from '../../ui/composables/useMedia.js';
 
 defineEmits<{ close: [] }>();
@@ -21,7 +21,6 @@ const err = ref<any>(null);
 const busy = ref(false);
 const confirming = ref<any>(null);
 const confirmErr = ref<string | null>(null);
-const pruneOpen = ref(false);
 const renameText = ref('');
 const tagInput = ref('');
 let epoch = 0;
@@ -66,7 +65,7 @@ async function run(action: () => Promise<unknown>) {
 }
 
 async function runConfirm() {
-  const kind = confirming.value?.kind as 'rename' | 'compact' | 'interrupt' | 'delete' | undefined;
+  const kind = confirming.value?.kind as 'rename' | 'compact' | 'interrupt' | 'delete' | 'clear' | 'fork' | undefined;
   if (!kind) return;
   const target = chat.sessionId.value;
   const gen = epoch;
@@ -76,6 +75,8 @@ async function runConfirm() {
     if (kind === 'rename') await sessions.rename(target!, renameText.value.trim());
     else if (kind === 'compact') await api.sessionCompact(target!);
     else if (kind === 'interrupt') await api.sessionInterrupt(target!);
+    else if (kind === 'clear') { await api.sessionClearContext(target!); await chat.reload(); }
+    else if (kind === 'fork') { const copy=await api.sessionFork(target!); await router.push('/s/'+copy.id); }
     else if (kind === 'delete') await performDelete(target!);
     if (owns(target, gen)) confirming.value = null;
   } catch (e: any) {
@@ -127,7 +128,6 @@ async function performDelete(target: string) {
 watch(() => chat.sessionId.value, () => {
   epoch++;
   busy.value = false;
-  pruneOpen.value = false;
   err.value = null;
   confirmErr.value = null;
   confirming.value = null;
@@ -137,13 +137,14 @@ watch(() => chat.sessionId.value, () => {
 </script>
 
 <template>
-  <Modal :open="true" content-class="session-window session-manage-window" :dismissable="!busy && !confirming && !pruneOpen" :title="i18n.t('manage.title')" :page="isMobile" @close="$emit('close')">
+  <Modal :open="true" content-class="session-window session-manage-window" :dismissable="!busy && !confirming" :title="i18n.t('manage.title')" :page="isMobile" @close="$emit('close')">
     <div v-if="err?.code === 'state_conflict'" class="warn-note" role="alert">{{ i18n.t('manage.busy') }}</div>
     <div v-else-if="err" class="load-error" role="alert">
       <span>{{ String(err?.detail || err?.message || err) }}</span>
       <button class="btn ghost sm" @click="refresh()">{{ i18n.t('common.retry') }}</button>
     </div>
 
+    <AskContext v-if="chat.sessionId.value" :key="chat.sessionId.value" :session-id="chat.sessionId.value"/>
     <section class="setting-row">
       <h4>{{ i18n.t('manage.tags') }}</h4>
       <div class="tags-editor">
@@ -168,7 +169,8 @@ watch(() => chat.sessionId.value, () => {
         <button class="btn ghost" :disabled="busy" @click="confirming = { kind: 'interrupt' }">
           {{ i18n.t('manage.interrupt') }}
         </button>
-        <button class="btn ghost" :disabled="busy" @click="pruneOpen = true">{{ i18n.t('manage.prune') }}</button>
+        <button class="btn ghost" :disabled="busy || snapshot?.running" @click="confirming = { kind: 'clear' }">{{ i18n.locale.value==='zh'?'清空当前上下文（保留历史）':'Clear context (keep history)' }}</button>
+        <button class="btn ghost" :disabled="busy || snapshot?.running" @click="confirming = { kind: 'fork' }">{{ i18n.locale.value==='zh'?'复制当前上下文为新会话':'Fork current context' }}</button>
       </div>
     </section>
 
@@ -179,7 +181,7 @@ watch(() => chat.sessionId.value, () => {
       <p class="hint">{{ i18n.t('manage.deleteDesc') }}</p>
     </section>
 
-    <Modal :open="!!confirming" compact :title="i18n.t(`manage.${confirming?.kind ?? 'rename'}`)" :dismissable="!busy" @close="confirming = null">
+    <Modal :open="!!confirming" compact :title="['clear','fork'].includes(confirming?.kind)?(i18n.locale.value==='zh'?'确认操作':'Confirm'):i18n.t(`manage.${confirming?.kind ?? 'rename'}`)" :dismissable="!busy" @close="confirming = null">
       <p v-if="confirming?.kind === 'delete'">{{ i18n.t('manage.deleteConfirm') }}</p>
       <p v-else-if="confirming?.kind !== 'rename'">{{ i18n.t('manage.confirmBody') }}</p>
       <input v-if="confirming?.kind === 'rename'" v-model="renameText" class="input" type="text"
@@ -193,7 +195,7 @@ watch(() => chat.sessionId.value, () => {
       </template>
     </Modal>
 
-    <PruneDialog :open="pruneOpen" :session-id="chat.sessionId.value!" @close="pruneOpen = false" @done="() => refresh()" />
+
   </Modal>
 </template>
 

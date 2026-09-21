@@ -1,20 +1,13 @@
 # Troubleshooting
 
-[Documentation](README.md) · [中文](../zh/troubleshooting.md)
+[Documentation](README.md)
 
-| Symptom | Check |
-| --- | --- |
-| Web does not start | Build `dist/index.html`; inspect Node version, port and server log |
-| HTTP 421 | Add the actual browser `host:port` to `ALLOWED_HOSTS` |
-| HTTP 403 on writes | Verify Origin, same-origin proxying and daemon authentication |
-| Provider list fails but sessions work | Check `/providerd-api`, its upstream URL/token and provider daemon readiness |
-| Session requests fail | Check `/wishd-api/health/ready`, network and runtime logs |
-| Missing-session link redirects | Expected: deleted/nonexistent sessions return to a session entry page |
-| Upstream model values are blank | The catalog and protocol supplied no value; blank is not an invented default |
-| New model choice does not update an old session | Expected: existing sessions retain their model selection |
-| Interrupted/failed run | Inspect run error and tool history; distinguish transport retry from completed tool execution |
-| Chart differs from raw point | TPS curves are fitted; data-table values are measured samples |
-| Old assets after release | Apply the PWA update; do not clear backend data to refresh the browser |
-| Clipboard/install/wake unavailable | Check secure context, browser support and permissions |
+The frontend uses the single `wish` HTTP backend, built by the sibling `wish-server` crate.
+The browser talks only to `/api`; `serve.mjs` proxies it to `WISH_UPSTREAM`
+(default `http://127.0.0.1:9780`). Old wishd/providerd routes and persisted formats are not supported.
 
-Use `/selftest` for browser API diagnostics. It is a diagnostics page, not a production telemetry source. Capture failing request status/code and the relevant session/run ID without publishing credentials or full configuration. Browser errors, transport failures and backend validation failures should stay distinguishable.
+Check `/healthz` on the WebUI, `/health` on wish, and `/api/version` through the proxy. A 421 means the requested Host is absent from ALLOWED_HOSTS. A 401 means WISH_HTTP_TOKEN does not match the backend token. A 409 usually means an active session or stale configuration revision; wait for interruption cleanup or reload settings.
+
+Check provider protocol/base URL/path and backend credential environment variables if calls fail. Catalog support is optional: configured model IDs remain usable without it. A disconnected SSE stream triggers snapshot reconciliation, not another model request. A process crash can leave unfinished state requiring inspection; the backend does not silently retry tool side effects.
+
+After deployment, reload the page and accept the PWA update. Use browser selftest and the read-only API script to distinguish stale frontend assets from backend/proxy failures.

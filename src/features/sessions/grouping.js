@@ -12,13 +12,13 @@ export function groupEntries(entries) {
   const items = [];
   let group = null;
 
-  const sameRun = (a, b) => a == null || b == null || a === b;
   const openGroup = (firstStep, runId) => {
     group = { type: 'process', key: firstStep.key, steps: [firstStep], runId: runId ?? null };
     return group;
   };
   const pushGroupStep = (step, runId) => {
-    if (group && !sameRun(group.runId, runId)) flushGroup();
+    // Backend run boundaries do not interrupt visually consecutive work.
+    // Only rendered conversation content below closes the group.
     if (!group) openGroup(step, runId);
     else group.steps.push(step);
   };

@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 // Static + API-proxy server for wish-web (hardened per decisions 23 / task 7).
 //   · compiled static files from ./dist (build with ./pnpmw build)
-//   · /wishd-api/* → wishd (default http://127.0.0.1:9780), streamed so SSE works
-//   · /providerd-api/* → wish-providerd (default http://127.0.0.1:9781)
-//   · independent bearer injection: WISHD_TOKEN and PROVIDERD_TOKEN
+//   · /api/* → wish (WISH_UPSTREAM; default http://127.0.0.1:9780)
+//   · server-side bearer injection: WISH_HTTP_TOKEN
 // Hardening:
 //   · explicit Host allowlist — DNS rebinding / foreign-Host requests
 //     are rejected BEFORE any proxying or token injection;
@@ -25,8 +24,7 @@ const ROOT = fileURLToPath(new URL('./dist', import.meta.url));
 await stat(join(ROOT, 'index.html'));
 
 const BACKENDS = [
-  { prefix: '/wishd-api', base: process.env.WISHD_UPSTREAM || 'http://127.0.0.1:9780', token: process.env.WISHD_TOKEN || '' },
-  { prefix: '/providerd-api', base: process.env.PROVIDERD_UPSTREAM || 'http://127.0.0.1:9781', token: process.env.PROVIDERD_TOKEN || '' },
+  { prefix: '/api', base: (process.env.WISH_UPSTREAM || 'http://127.0.0.1:9780').replace(/\/+$/, '') + '/api', token: process.env.WISH_HTTP_TOKEN || '' },
 ].map(backend => {
   const url = new URL(backend.base);
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
@@ -154,5 +152,5 @@ function proxyApi(req, res, url, backend) {
 }
 
 server.listen(PORT, LISTEN_HOST, () => {
-  console.log(`wish-web listening on ${LISTEN_HOST}:${PORT}; wishd and providerd API routes enabled`);
+  console.log(`wish-web listening on ${LISTEN_HOST}:${PORT}; wish API routes enabled`);
 });

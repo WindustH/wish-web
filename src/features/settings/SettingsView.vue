@@ -1,250 +1,257 @@
 <script setup lang="ts">
-import { unfold, fold, cancelFold } from "../../ui/motion/fold";
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { onBeforeRouteLeave, useRouter } from 'vue-router';
-import { DialogRoot, DialogContent, DialogTitle } from 'reka-ui';
-import { usePageActivity } from '../../ui/composables/usePageActivity';
+import { ref, computed, inject, provide, onMounted } from 'vue';
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
+import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
+import Icon from '../../ui/components/Icon.vue';
 import { useMedia } from '../../ui/composables/useMedia';
-import Modal from '../../ui/components/Modal.vue';
-import { Monitor, Server, Network, Search, X, ChevronDown } from '@lucide/vue';
-import ConfigEditor from './ConfigEditor.vue';
-import UiSettings from './UiSettings.vue';
-import { fieldHint, fieldLabel, tr } from './fields';
-import { configEditors, errorText, pointer } from '../../core/config-editor';
-import type { ConfigOwner, Json } from '../../core/config-editor';
-import './settings.css';
-
-const router = useRouter();
+import { usePageActivity } from '../../ui/composables/usePageActivity';
+import { useDialogFocus } from '../../ui/composables/useDialogFocus';
+const isMobile = useMedia('(max-width: 899px)');
 const pageActive = usePageActivity();
-const mobile = useMedia('(max-width: 899px)');
-let returnPath = typeof window.history.state.back === 'string' ? window.history.state.back : '/sessions';
-const removeNavigationListener = router.afterEach((to, from, failure) => { if (!failure && to.meta.section === 'settings' && from.meta.section !== 'settings' && from.matched.length) returnPath = from.fullPath; });
-onBeforeUnmount(removeNavigationListener);
-const removeExitAnimation = router.beforeResolve(async (to, from) => {
-  if (from.meta.section !== 'settings' || to.meta.section === 'settings' || mobile.value || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  await Promise.all([...document.querySelectorAll<HTMLElement>('.settings-page, .settings-overlay')].map(node => new Promise<void>(resolve => {
-    const animation = node.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: 'ease-in' });
-    animation.onfinish = () => resolve();
-    animation.oncancel = () => resolve();
-  })));
-});
-onBeforeUnmount(removeExitAnimation);
-function closeSettings() { void router.push(returnPath); }
-const leaveOpen = ref(false);
-const leaving = ref(false);
-const leaveError = ref('');
-let resolveLeave: ((allow: boolean) => void) | undefined;
-const dirtyEditors = computed(() => Object.values(configEditors).filter(editor => editor.dirty.value));
-function finishLeave(allow: boolean) {
-  leaveOpen.value = false;
-  resolveLeave?.(allow);
-  resolveLeave = undefined;
+const focus = useDialogFocus();
+function handleOutside(event: CustomEvent) {
+  if ((event.detail.originalEvent.target as Element)?.closest?.('.pwa-update')) event.preventDefault();
 }
-onBeforeRouteLeave(() => {
-  if (!dirtyEditors.value.length) return true;
-  // A second navigation cancels the older pending target.
-  resolveLeave?.(false);
-  leaveError.value = '';
-  leaveOpen.value = true;
-  return new Promise<boolean>(resolve => { resolveLeave = resolve; });
-});
-async function leaveWith(action: 'save' | 'discard') {
-  if (Object.values(configEditors).some(editor => editor.busy.value)) return;
-  leaving.value = true;
-  leaveError.value = '';
-  try {
-    for (const editor of dirtyEditors.value) {
-      if (action === 'discard') { editor.discard(); continue; }
-      const view = editor.owner === 'wishd' ? coreEditor.value : providerEditor.value;
-      if (!view?.validate()) {
-        finishLeave(false);
-        tab.value = editor.owner;
-        return;
-      }
-      if (!await editor.preview() || !await editor.save()) {
-        leaveError.value = errorText(editor.error.value || 'Configuration could not be saved.');
-        return;
-      }
-    }
-    finishLeave(true);
-  } finally { leaving.value = false; }
-}
-function beforeUnload(event: BeforeUnloadEvent) {
-  if (dirtyEditors.value.length) { event.preventDefault(); event.returnValue = ''; }
-}
-onMounted(() => window.addEventListener('beforeunload', beforeUnload));
-onBeforeUnmount(() => { window.removeEventListener('beforeunload', beforeUnload); resolveLeave?.(false); });
-
-const tab = ref('ui');
-const visited = ref(new Set(['ui']));
-const categoryScroll = new Map<string, number>();
-const expanded = ref(true);
-const coreEditor = ref<InstanceType<typeof ConfigEditor>>();
-const providerEditor = ref<InstanceType<typeof ConfigEditor>>();
-const scroll = ref<HTMLElement>();
-const panels = ref<HTMLElement>();
-const query = ref('');
-const categories = computed(() => [
-  { id: 'ui', label: tr('界面', 'Interface'), icon: Monitor },
-  { id: 'wishd', label: tr('核心', 'Core'), icon: Server },
-  { id: 'providerd', label: tr('提供商', 'Provider'), icon: Network },
+const closeSettings = inject<() => unknown>('closeSettings')!;
+const sections = computed(() => [
+  {id:'service', icon:'settings', label:tr('服务与会话','Service & sessions')},
+  {id:'providers', icon:'bot', label:tr('提供商','Providers')},
+  {id:'ui', icon:'settings-2', label:tr('界面','Interface')},
 ]);
-type Match = { owner: string; id: string; label: string; hint: string; section: string; path?: string[] };
-const matches = ref<Match[]>([]);
-const pendingSearch = computed(() => Object.values(configEditors).some(editor => editor.busy.value && !editor.draft.value));
-const searchErrors = computed(() => categories.value.filter(category => category.id !== 'ui').flatMap(category => {
-  const error = configEditors[category.id as 'wishd' | 'providerd'].error.value;
-  return error ? [`${category.label}: ${errorText(error)}`] : [];
-}));
-const searching = computed(() => !!query.value.trim());
-let observer: MutationObserver;
-let frame = 0;
-function search() {
-  frame = 0;
-  const words = query.value.toLocaleLowerCase().trim().split(/\s+/);
-  const found: Match[] = [];
-  if (searching.value) for (const panel of panels.value!.querySelectorAll<HTMLElement>('[data-settings-panel]')) {
-    const owner = panel.dataset.settingsPanel!;
-    if (owner !== 'ui') continue;
-    for (const field of panel.querySelectorAll<HTMLElement>('.cfg-field, .setting-row')) {
-      const control = field.querySelector<HTMLElement>('input[id], select[id], button[id], a');
-      const label = field.querySelector('label')?.textContent?.trim() || field.querySelector('.setting-row > div > span')?.textContent?.trim();
-      if (!label || !control) continue;
-      const hint = field.querySelector('.cfg-hint')?.textContent?.trim() || '';
-      const section = field.closest('.cfg-section')?.querySelector('h2')?.textContent?.trim() || '';
-      const groups: string[] = [];
-      for (let parent = field.parentElement; parent && parent !== panel; parent = parent.parentElement) {
-        if (parent.tagName === 'DETAILS') groups.unshift(parent.querySelector(':scope > summary')!.textContent!.trim());
-      }
-      const context = [section, ...groups].join(' · ');
-      const category = categories.value.find(c => c.id === owner)!.label;
-      if (words.every(word => `${category} ${context} ${label} ${hint} ${control.id}`.toLocaleLowerCase().includes(word))) {
-        // Only labels, explanations and field paths are indexed; credential values are never searched.
-        found.push({ owner, id: control.id, label, hint, section: context });
-      }
-    }
-  }
-  if (searching.value) for (const owner of ['wishd', 'providerd'] as ConfigOwner[]) {
-    const draft = configEditors[owner].draft.value;
-    if (!draft) continue;
-    const category = categories.value.find(c => c.id === owner)!.label;
-    function visit(value: Json, path: string[]) {
-      if (value !== null && typeof value === 'object') {
-        for (const [key, child] of Object.entries(value)) visit(child, [...path, key]);
-        return;
-      }
-      const label = fieldLabel(path), hint = fieldHint(path), id = pointer(path);
-      const section = path.slice(0, -1).map((_, index) => fieldLabel(path.slice(0, index + 1))).join(' · ');
-      // Search schema names and descriptions only, never credential values.
-      if (words.every(word => `${category} ${section} ${label} ${hint} ${id}`.toLocaleLowerCase().includes(word))) {
-        found.push({ owner, id, label, hint, section, path });
-      }
-    }
-    visit(draft, []);
-  }
-  matches.value = found;
-}
-// The mutation observer stays armed while the settings page is merely
-// cached (KeepAlive), and every keystroke in a config field is a
-// characterData mutation. Rescans are pointless unless the page is active
-// AND a query is showing matches, and bursts coalesce into one scan.
-function scheduleSearch() {
-  if (!pageActive.value || !searching.value) return;
-  clearTimeout(frame);
-  frame = setTimeout(() => {
-    frame = 0;
-    if (pageActive.value && searching.value) search();
-  }, 300) as unknown as number;
-}
-watch(() => [configEditors.wishd.draft.value, configEditors.providerd.draft.value], scheduleSearch);
-watch(query, async () => { await nextTick(); search(); if (searching.value) scroll.value!.scrollTo({ top: 0, behavior: 'instant' }); });
-watch(tab, async (next, previous) => {
-  categoryScroll.set(previous, scroll.value!.scrollTop);
-  visited.value.add(next);
-  await nextTick();
-  if (tab.value === next) scroll.value!.scrollTo({ top: categoryScroll.get(next) ?? 0, behavior: 'instant' });
-});
-function selectCategory(id: string) {
-  expanded.value = tab.value === id && !searching.value ? !expanded.value : true;
-  tab.value = id;
-  query.value = '';
-}
-async function select(match: Match) {
-  query.value = '';
-  tab.value = match.owner;
-  expanded.value = true;
-  await nextTick();
-  if (!document.getElementById(match.id) && match.path) {
-    (match.owner === 'wishd' ? coreEditor.value : providerEditor.value)!.revealPath(match.path);
-    await nextTick();
-  }
-  const field = document.getElementById(match.id)!;
-  for (let parent = field.parentElement; parent; parent = parent.parentElement) {
-    if (parent instanceof HTMLDetailsElement) parent.open = true;
-  }
-  await nextTick();
-  field.focus({ preventScroll: true });
-  const row = field.closest('.cfg-field, .setting-row')!;
-  const viewport = row.closest<HTMLElement>('.modal-body') || scroll.value!;
-  viewport.scrollTo({ top: viewport.scrollTop + row.getBoundingClientRect().top - viewport.getBoundingClientRect().top - 20, behavior: 'instant' });
-}
-watch(panels, element => {
-  observer?.disconnect();
-  if (element) {
-    observer = new MutationObserver(scheduleSearch);
-    observer.observe(element, { childList: true, characterData: true, subtree: true });
-  }
-}, { flush: 'post' });
-onBeforeUnmount(() => { observer?.disconnect(); clearTimeout(frame); });
-</script>
+import { get, put } from '../../core/api/client.js';
+import { errorText } from '../../core/config-editor';
+import { tr, compactionFields } from './fields';
+import UiSettings from './UiSettings.vue';
+import MobileSessionSettings from './MobileSessionSettings.vue';
+import Modal from '../../ui/components/Modal.vue';
+import './settings.css';
+import { theme } from '../../core/theme/index.js';
+import { prefs } from '../../core/state/prefsSlice.js';
+import { i18n } from '../../core/i18n/index.js';
+import { settingsReturnKey, type ReturnChange } from './settingsReturn';
+import AddProvider from './AddProvider.vue';
+import PresetProvider from './PresetProvider.vue';
+import SelectField from '../../ui/components/SelectField.vue';
+import { presetLabel } from '../../ui/providerPresentation';
+import type { ConfigCatalog, ProviderPreset } from '../../core/provider-presets';
+const newProviderId=ref('');
+const catalog=ref<ConfigCatalog>({presets:[]}),adding=ref(false);
+const findPreset=(id?:string)=>catalog.value.presets.find(p=>p.id===id);
 
+const route=useRoute(),router=useRouter();
+const desktopSection=ref('service');
+const mobileSection=computed(()=>sections.value.some(item=>item.id===route.query.section)?String(route.query.section):'');
+const tab=computed(()=>isMobile.value?mobileSection.value:desktopSection.value);
+function selectSection(id:string){if(isMobile.value)router.push({path:'/settings',query:{section:id}});else desktopSection.value=id;}
+function backToCategories(){router.replace({path:'/settings'});}
+const draft=ref<any>(),revision=ref(''),source=ref(''),busy=ref(false),error=ref(''),notice=ref('');
+const advanced=ref<Record<string,string>>({}),advancedPending=ref<Record<string,boolean>>({});
+const serverDirty=computed(()=>!!draft.value&&(JSON.stringify(draft.value)!==source.value||Object.values(advancedPending.value).some(Boolean)));
+const preferenceValue=()=>({mode:theme.mode.value,locale:i18n.locale.value,sendOnEnter:prefs.sendOnEnter.value,notifyOnFailure:prefs.notifyOnFailure.value,keepAwake:prefs.keepAwake.value});
+const preferenceSource=ref(JSON.stringify(preferenceValue()));
+const dirty=computed(()=>serverDirty.value||(isMobile.value&&JSON.stringify(preferenceValue())!==preferenceSource.value));
+function restorePreferences(){const value=JSON.parse(preferenceSource.value);theme.setMode(value.mode);i18n.setLocale(value.locale);prefs.setSendOnEnter(value.sendOnEnter);prefs.setNotifyOnFailure(value.notifyOnFailure);prefs.setKeepAwake(value.keepAwake);}
+async function save(){if(serverDirty.value&&!await saveConfig())return false;preferenceSource.value=JSON.stringify(preferenceValue());return true;}
+const protocolOptions=['openai_responses','plaintext_responses','codex_responses','openai_chat','deepseek_chat','qwen_chat','kimi_k2_chat','kimi_k3_chat','zai_chat','minimax_chat','mimo_chat','tokenhub_chat','mistral_chat','anthropic_messages','deepseek_messages','qwen_messages','kimi_messages','zai_messages','minimax_messages','mimo_messages','tokenhub_messages','google_generate_content','google_vertex_generate_content','google_interactions','bedrock_converse','mistral_conversations'];
+function accept(value:any){draft.value=value.config;revision.value=value.revision;source.value=JSON.stringify(value.config);advanced.value={};advancedPending.value={};for(const [id,p]of Object.entries(value.config.providers))advanced.value[id]=JSON.stringify(p,null,2);}
+async function load(){busy.value=true;error.value='';try{const [configuration,presets]=await Promise.all([get('/config'),get('/provider-presets')]);catalog.value=presets;accept(configuration);}catch(e){error.value=errorText(e);}finally{busy.value=false;}}
+async function saveConfig(){for(const id of Object.keys(advancedPending.value)){if(advancedPending.value[id]&&!applyAdvanced(id))return false;}busy.value=true;error.value='';notice.value='';try{accept(await put('/config',{revision:revision.value,config:draft.value}));notice.value=tr('已保存并生效。正在运行的调用继续使用原配置。','Saved and applied. In-flight calls retain their configuration.');return true;}catch(e){error.value=errorText(e);return false;}finally{busy.value=false;}}
+function addProvider(preset?:ProviderPreset){
+  const base=preset?.id||'custom';let id=base;let suffix=2;while(draft.value.providers[id])id=`${base}-${suffix++}`;
+  const first=preset?.protocols[0];
+  draft.value.providers[id]=preset&&first?JSON.parse(JSON.stringify(preset.variants[first])):{enabled:true,proxy_enabled:true,protocol:'openai_chat',base_url:'',path:'/v1/chat/completions',auth:'bearer',api_key:null,api_key_env:null,models:{},headers:{},credentials:{},credentials_env:{}};
+  newProviderId.value=id;adding.value=false;
+}
+function changeProtocol(id:string,protocol:string){
+  const provider=draft.value.providers[id],preset=findPreset(provider.preset),variant=preset?.variants[protocol];
+  if(variant){for(const field of ['base_url','path','auth','model_list','model_list_path','model_list_base_url','token_count','compaction'])provider[field]=(variant as any)[field]??null;}
+  provider.protocol=protocol;
+}
+const providerOptions=computed(()=>Object.entries(draft.value?.providers??{}).map(([id,value])=>{const p=findPreset((value as any).preset);return {value:id,label:(value as any).display_name?`${(value as any).display_name} · ${id}`:p?`${id} · ${presetLabel(p)}`:id,brand:p?.provider};}));
+const modelOptions=computed(()=>{const models=draft.value?.providers[draft.value?.defaults.provider]?.models??{};return [...new Set([...Object.keys(models),draft.value?.defaults.model].filter(Boolean))].map(id=>({value:id,label:models[id]?.display_name?`${models[id].display_name} · ${id}`:id}));});
+const effortOptions=computed(()=>{const provider=draft.value?.providers[draft.value?.defaults.provider];const model=provider?.models?.[draft.value?.defaults.model];return [...new Set([...Object.keys(model?.reasoning_efforts??findPreset(provider?.preset)?.reasoning_efforts??{}),draft.value?.defaults.reasoning?.effort].filter(Boolean))].map(value=>({value,label:value}));});
+function applyAdvanced(id:string){try{const value=JSON.parse(advanced.value[id]!);if(!value||typeof value!=='object'||Array.isArray(value))throw new Error(tr('提供商配置必须是 JSON 对象。','Provider configuration must be a JSON object.'));draft.value.providers[id]=value;advancedPending.value[id]=false;error.value='';return true;}catch(e){error.value=errorText(e);return false;}}
+
+const discard=ref(false);
+async function discardChanges(){discard.value=false;await load();}
+const leave=ref(false),leaveBusy=ref(false),leaveError=ref('');
+let answer:((value:boolean)=>void)|undefined;
+let pendingChange:ReturnChange|undefined;
+const nestedReturns=new Map<symbol,()=>Promise<void>>();
+function confirmReturn(change?:ReturnChange):Promise<boolean>{
+  if(!(change?.dirty?.()??dirty.value))return Promise.resolve(true);
+  if(answer)return Promise.resolve(false);
+  pendingChange=change;leaveError.value='';leave.value=true;
+  return new Promise(resolve=>{answer=resolve;});
+}
+function finishReturn(value:boolean){leave.value=false;const resolve=answer;answer=undefined;pendingChange=undefined;resolve?.(value);}
+function resolveLeave(value:boolean){
+  if(leaveBusy.value)return;
+  if(value){if(pendingChange?.discard)pendingChange.discard();else {if(source.value)accept({config:JSON.parse(source.value),revision:revision.value});if(isMobile.value)restorePreferences();}}
+  finishReturn(value);
+}
+async function saveAndReturn(){
+  if(leaveBusy.value)return;leaveBusy.value=true;leaveError.value='';
+  try{if(await (pendingChange?.save??save)())finishReturn(true);else leaveError.value=error.value||tr('保存未完成，请检查输入后重试。','Could not save. Check the fields and retry.');}
+  catch(e){leaveError.value=errorText(e);}finally{leaveBusy.value=false;}
+}
+provide(settingsReturnKey,{confirm:confirmReturn,save,register:(key,back)=>{if(back)nestedReturns.set(key,back);else nestedReturns.delete(key);}});
+async function guardReturn(){
+  if(isMobile.value&&nestedReturns.size){await [...nestedReturns.values()].at(-1)!();return false;}
+  return confirmReturn();
+}
+onBeforeRouteLeave(guardReturn);
+onBeforeRouteUpdate((to,from)=>isMobile.value&&to.query.section!==from.query.section?guardReturn():true);
+onMounted(load);
+</script>
 <template>
-  <DialogRoot :open="pageActive" :unmount-on-hide="false" :modal="false">
-    <div v-if="!mobile && pageActive" class="settings-overlay" aria-hidden="true" />
-    <DialogContent as-child :aria-modal="!mobile || undefined" :aria-describedby="undefined" @open-auto-focus.prevent @close-auto-focus.prevent @escape-key-down="event => { event.preventDefault(); if (!mobile) closeSettings(); }" @interact-outside="event => { event.preventDefault(); if (!mobile) closeSettings(); }">
-  <div class="page settings-page" data-scroll-preserve>
-    <DialogTitle class="visually-hidden">{{ tr('设置', 'Settings') }}</DialogTitle>
-    <button v-if="!mobile" class="btn ghost icon-only settings-close" :aria-label="tr('关闭设置', 'Close settings')" @click="closeSettings"><X :size="20" /></button>
-    <div class="settings-shell">
-      <aside class="settings-sidebar">
-        <div class="settings-search"><Search :size="16" /><input v-model="query" type="search" :placeholder="tr('搜索配置', 'Search settings')" :aria-label="tr('搜索配置', 'Search settings')" @keydown.esc="query = ''" @keydown.down.prevent="scroll?.querySelector<HTMLButtonElement>('.settings-result')?.focus()" @keydown.enter.prevent="matches.length === 1 ? select(matches[0]!) : scroll?.querySelector<HTMLButtonElement>('.settings-result')?.focus()" /><button v-if="query" type="button" :aria-label="tr('清除搜索', 'Clear search')" @click="query = ''"><X :size="15" /></button></div>
-        <nav class="settings-categories" :aria-label="tr('设置分类', 'Settings categories')">
-          <div v-for="category in categories" :key="category.id" class="settings-category">
-            <button type="button" class="settings-category-button" :data-settings-owner="category.id" :class="{ active: tab === category.id }" :aria-expanded="tab === category.id && expanded && !searching" :aria-controls="`settings-contents-${category.id}`" @click="selectCategory(category.id)"><component :is="category.icon" :size="17" /><span>{{ category.label }}</span><ChevronDown :size="14" /></button>
-            <div v-show="tab === category.id && expanded && !searching" :id="`settings-contents-${category.id}`" class="settings-subitems" />
-          </div>
-        </nav>
-      </aside>
-      <div class="settings-main">
-        <div ref="scroll" class="settings-scroll" data-scroll-preserve>
-          <div v-if="searching" class="settings-results">
-            <p v-if="pendingSearch" role="status" class="cfg-hint">{{ tr('正在读取配置…', 'Loading settings…') }}</p>
-            <p v-for="error in searchErrors" :key="error" role="alert" class="cfg-notice cfg-error">{{ error }}</p>
-            <p v-if="!pendingSearch" role="status" class="cfg-hint">{{ matches.length ? tr(`找到 ${matches.length} 项配置`, `${matches.length} settings found`) : tr('没有匹配的配置。可尝试搜索名称或说明中的关键词。', 'No matching settings. Try a keyword from a name or explanation.') }}</p>
-<TransitionGroup :css="false" @enter="unfold" @leave="fold" @enter-cancelled="cancelFold" @leave-cancelled="cancelFold">
-            <button v-for="match in matches" :key="`${match.owner}:${match.id}`" class="settings-result" @click="select(match)"><small>{{ categories.find(c => c.id === match.owner)!.label }} · {{ match.section }}</small><strong>{{ match.label }}</strong><span>{{ match.hint }}</span></button>
-</TransitionGroup>
-          </div>
-          <div ref="panels" v-show="!searching" class="settings-panels">
-            <div v-if="visited.has('ui') || searching" v-show="tab === 'ui'" data-settings-panel="ui"><UiSettings /></div>
-            <div v-if="visited.has('wishd') || searching" v-show="tab === 'wishd'" data-settings-panel="wishd"><ConfigEditor ref="coreEditor" owner="wishd" :active="tab === 'wishd' && !searching" /></div>
-            <div v-if="visited.has('providerd') || searching" v-show="tab === 'providerd'" data-settings-panel="providerd"><ConfigEditor ref="providerEditor" owner="providerd" :active="tab === 'providerd' && !searching" /></div>
-          </div>
-        </div>
-        <div id="settings-actions" class="settings-actions" />
+  <DialogRoot :open="pageActive" :modal="!isMobile" @update:open="open => { if (!open && !isMobile) closeSettings(); }">
+  <DialogPortal :disabled="isMobile">
+    <DialogOverlay v-if="!isMobile" class="settings-overlay"/>
+    <DialogContent as-child :aria-describedby="undefined" @open-auto-focus="focus.opened" @close-auto-focus="focus.closed" @interact-outside="handleOutside">
+  <div class="page native-settings">
+    <aside v-show="!isMobile||!mobileSection" class="settings-sidebar">
+      <header class="settings-heading settings-home-heading">
+      <button v-if="isMobile" class="btn ghost icon-only settings-back" :aria-label="tr('返回','Back')" @click="closeSettings"><Icon name="arrow-left"/></button>
+      <DialogTitle class="settings-title">{{tr('设置','Settings')}}</DialogTitle>
+      </header>
+      <nav :aria-label="tr('设置分类','Settings categories')">
+        <button v-for="item in sections" :key="item.id" class="settings-section" :class="{selected:!isMobile&&tab===item.id}" :aria-current="tab===item.id?'page':undefined" @click="selectSection(item.id)"><Icon :name="item.icon"/><span>{{item.label}}<small v-if="isMobile" class="category-description">{{item.id==='service'?tr('默认模型、提示词与上下文','Model, instructions and context'):item.id==='providers'?tr('连接、认证与模型管理','Connections, credentials and models'):tr('外观、通知与本地偏好','Appearance, notifications and preferences')}}</small></span><Icon v-if="isMobile" name="chevron-right" class="section-chevron"/></button>
+      </nav>
+    </aside>
+    <section v-show="!isMobile||mobileSection" :key="isMobile?mobileSection:'desktop'" class="settings-detail">
+    <header class="settings-heading"><button v-if="isMobile" class="btn ghost icon-only" :aria-label="tr('返回设置','Back to settings')" @click="backToCategories"><Icon name="arrow-left"/></button><h2>{{sections.find(item=>item.id===tab)?.label}}</h2><button v-if="!isMobile" class="btn ghost icon-only" :aria-label="tr('关闭设置','Close settings')" @click="closeSettings"><Icon name="x"/></button></header>
+    <div class="settings-content" data-scroll-preserve>
+    <p v-if="error" class="load-error" role="alert">{{error}}</p><p v-if="notice && tab!=='ui'" role="status">{{notice}}</p>
+    <UiSettings v-if="tab==='ui'"/>
+    <template v-else-if="draft">
+      <MobileSessionSettings v-if="isMobile&&tab==='service'" :config="draft" :providers="providerOptions" :models="modelOptions" :efforts="effortOptions" :save="save" :busy="busy" :error="error"/>
+      <fieldset :disabled="busy" v-else-if="tab==='service'" class="settings-form">
+        <section class="settings-group"><h2>{{tr('默认会话','Session defaults')}}</h2><p class="settings-default-note">{{tr('保存后仅用于新建会话，不会更改已有会话的配置。','Saved defaults apply only to new sessions. Existing sessions keep their configuration.')}}</p><div class="settings-fields">
+        <label>{{tr('提供商','Provider')}}<SelectField v-model="draft.defaults.provider" :options="providerOptions" :placeholder="providerOptions.length?tr('选择提供商','Choose a provider'):tr('请先添加提供商','Add a provider first')" :aria-label="tr('默认提供商','Default provider')" searchable :search-placeholder="tr('搜索提供商','Search providers')"/></label>
+        <label>{{tr('模型 ID','Model ID')}}<SelectField v-if="modelOptions.length" v-model="draft.defaults.model" :options="modelOptions" searchable :aria-label="tr('默认模型','Default model')"/><input v-else class="input" v-model="draft.defaults.model"/></label>
+        <label>{{tr('默认思考强度','Default reasoning effort')}}<SelectField v-if="effortOptions.length" :model-value="draft.defaults.reasoning?.effort??''" :options="[{value:'',label:tr('上游默认','Upstream default')},...effortOptions]" @update:model-value="draft.defaults.reasoning={...draft.defaults.reasoning,effort:$event||null}"/><input v-else class="input" :value="draft.defaults.reasoning?.effort??''" @input="draft.defaults.reasoning={...draft.defaults.reasoning,effort:($event.target as HTMLInputElement).value||null}"/></label>
+        <label>{{tr('工作目录（绝对路径）','Working directory (absolute path)')}}<input class="input" v-model="draft.defaults.cwd"/></label>
+        <label>{{tr('固定提示词','Instructions')}}<textarea class="input" rows="6" v-model="draft.defaults.instructions"/></label>
+        <template v-if="draft.defaults.compaction"><label v-for="field in compactionFields()" :key="field.key">{{field.label}}<input class="input" type="number" min="1" v-model.number="draft.defaults.compaction[field.key]"/></label></template>
+        </div></section><section class="settings-group"><h2>{{tr('启动参数','Startup settings')}}</h2><p class="hint">{{tr('以下参数在配置文件中修改，重启后生效。','Edit these in the configuration file and restart.')}}</p>
+        <dl><dt>{{tr('监听地址','Listen')}}</dt><dd>{{draft.listen}}</dd><dt>{{tr('数据目录','Data directory')}}</dt><dd>{{draft.data_dir}}</dd><dt>{{tr('访问令牌环境变量','Bearer token environment variable')}}</dt><dd>{{draft.bearer_token_env||'—'}}</dd></dl></section>
+      </fieldset>
+      <div v-else class="provider-settings">
+        <p v-if="!isMobile" class="hint">{{tr('选择预置服务商后填写密钥，也可以使用服务器环境变量。保存后对新的模型调用生效。','Choose a provider preset and enter credentials or server environment variables. Saved changes apply to new calls.')}}</p>
+        <PresetProvider v-for="(provider,id) in draft.providers" :key="id" :id="String(id)" :initially-open="id===newProviderId" :value="provider" :preset="findPreset(provider.preset)" :protocols="protocolOptions" :save="save" :saving="busy" :save-error="error" :disabled="busy" @remove="delete draft.providers[id];delete advancedPending[id]" @protocol="changeProtocol(String(id),$event)">
+          <details @toggle="($event.target as HTMLDetailsElement).open&&!advancedPending[id]&&(advanced[id]=JSON.stringify(provider,null,2))"><summary>{{tr('完整配置 JSON','Full configuration JSON')}}</summary><textarea class="input code" rows="16" v-model="advanced[id]" @input="advancedPending[id]=true"/><button v-if="!isMobile" class="btn" @click="applyAdvanced(String(id))">{{tr('应用到表单','Apply to form')}}</button></details>
+        </PresetProvider>
+        <button class="btn primary icon-only add-provider" :class="{'provider-add-card':isMobile}" :aria-label="tr('添加提供商','Add provider')" :title="tr('添加提供商','Add provider')" :disabled="busy" @click="adding=true"><Icon name="plus"/></button>
       </div>
+
+    </template><button v-else class="btn" :disabled="busy" @click="load">{{tr('重新载入','Reload')}}</button>
     </div>
-    <Modal :open="leaveOpen" compact :title="tr('保存修改后离开？', 'Save changes before leaving?')" :dismissable="!leaving" @close="finishLeave(false)">
-      <p>{{ tr('配置尚未保存。请选择保存或放弃修改，也可以取消跳转继续编辑。', 'Your configuration has unsaved changes. Save or discard them, or cancel navigation to keep editing.') }}</p>
-      <p class="cfg-hint">{{ tr('需要重启才能生效的配置将保存，服务可稍后重启。', 'Changes requiring a restart will be saved; you can restart the service later.') }}</p>
-      <p v-if="leaveError" class="cfg-notice cfg-error" role="alert">{{ leaveError }}</p>
-      <template #footer><div class="cfg-leave-actions">
-        <button class="btn ghost" :disabled="leaving" @click="finishLeave(false)">{{ tr('不离开', 'Stay') }}</button>
-        <button class="btn" :disabled="leaving" @click="leaveWith('discard')">{{ tr('放弃修改并离开', 'Discard and leave') }}</button>
-        <button class="btn primary" :disabled="leaving" @click="leaveWith('save')">{{ tr('保存并离开', 'Save and leave') }}</button>
-      </div></template>
-    </Modal>
+      <footer v-if="draft&&tab!=='ui'&&!isMobile"><button class="btn" :disabled="busy||!dirty" @click="discard=true">{{tr('放弃修改','Discard changes')}}</button><button class="btn primary icon-only" :aria-label="tr('保存并生效','Save & apply')" :title="tr('保存并生效','Save & apply')" :disabled="busy||!dirty" @click="save"><Icon name="save"/></button></footer>
+    </section>
+
+    <AddProvider v-if="adding" :catalog="catalog" @close="adding=false" @select="addProvider"/>
+    <Modal compact :open="discard" :title="tr('放弃修改？','Discard changes?')" @close="discard=false"><p>{{tr('丢弃未保存的修改，恢复已保存的配置。','Discard unsaved changes and restore the saved configuration.')}}</p><template #footer><button class="btn" @click="discard=false">{{tr('继续编辑','Keep editing')}}</button><button class="btn danger" @click="discardChanges">{{tr('放弃修改','Discard changes')}}</button></template></Modal>
+    <Modal compact :layer="120" :dismissable="!leaveBusy" :open="leave" :title="isMobile?tr('保存修改？','Save changes?'):tr('尚未保存','Unsaved changes')" @close="resolveLeave(false)"><p>{{tr('返回前是否保存已进行的修改？','Save your changes before returning?')}}</p><p v-if="leaveError" class="load-error" role="alert">{{leaveError}}</p><template #footer><button class="btn ghost" :disabled="leaveBusy" @click="resolveLeave(false)">{{tr('继续编辑','Keep editing')}}</button><button class="btn danger" :disabled="leaveBusy" @click="resolveLeave(true)">{{tr('放弃修改','Discard')}}</button><button class="btn primary" :disabled="leaveBusy" @click="saveAndReturn"><Icon v-if="leaveBusy" name="loader-circle" class="spinner"/>{{leaveBusy?tr('保存中…','Saving…'):tr('保存并返回','Save & return')}}</button></template></Modal>
   </div>
     </DialogContent>
+  </DialogPortal>
   </DialogRoot>
 </template>
+<style scoped>
+.native-settings { width: 100%; height: 100%; min-height: 0; max-width: 1000px; margin: 0 auto; overflow: hidden; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.settings-content { flex: 1; min-height: 0; overflow: auto; padding: 0 24px 24px; }
+.add-provider { margin-top: 16px; }
+.settings-form { display: grid; gap: 0; margin: 0; padding: 0; min-width: 0; border: 0; }
+.settings-form label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.settings-form label:has(input[type=checkbox]) { flex-direction: row; align-items: center; }
+.settings-default-note { margin: -4px 0 14px; font-size: 12px; line-height: 1.6; color: var(--fg-subtle); }
+.settings-form h2 { font-size: 14px; margin: 0 0 12px; font-weight: 600; }
+.provider-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.settings-form dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; }
+.settings-form dd { margin: 0; overflow-wrap: anywhere; }
+.code { font-family: var(--mono); font-size: calc(1em * var(--mono-scale)); line-height: 1.8; padding: .75em; width: 100%; }
+footer { flex: none; display: flex; gap: 12px; border-top: 1px solid var(--line); padding: 12px 24px max(12px, env(safe-area-inset-bottom)); }
+.input { min-width: 0; max-width: 100%; }
+@media (max-width: 899px) {
+  .settings-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .settings-sidebar { width: 100%; padding: 12px 16px; }
+}
+@media (max-width: 599px) {
+  .settings-content { padding: 0 16px 16px; }
+  .settings-form { padding: 0; }
+  .settings-form dl { grid-template-columns: 1fr; }
+  footer { padding-inline: 16px; }
+}
+ .settings-sidebar { flex: none; padding: 24px 16px; border-bottom: 1px solid var(--line); }
+.settings-title { margin: 0 12px 20px; font-size: 18px; font-weight: 600; }
+.settings-sidebar nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.settings-section { display: flex; align-items: center; gap: 12px; border: 0; background: transparent; color: var(--fg-muted); padding: 12px; border-radius: 8px; text-align: left; cursor: pointer; font: inherit; }
+.settings-section:hover { background: var(--bg-hover); }
+.settings-section.selected { background: var(--bg-active); color: var(--fg); }
+.settings-detail { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.settings-heading { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 8px; flex: none; }
+.settings-heading h2 { margin: 0; font-size: 20px; font-weight: 600; }
+.settings-overlay { position: fixed; inset: 0; z-index: 50; background: var(--scrim); backdrop-filter: blur(4px); }
+@media (min-width: 900px) {
+  .native-settings { position: fixed; z-index: 51; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(960px, 90vw); height: min(720px, 86dvh); max-width: none; display: flex; flex-direction: row; margin: 0; padding: 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-pop); }
+  .settings-sidebar { width: 180px; border-bottom: 0; border-right: 1px solid var(--line); background: var(--bg); padding: 20px 12px; }
+  .settings-sidebar nav { flex-direction: column; gap: 4px; }
+  .settings-title { margin: 0 8px 14px; font-size: 16px; }
+  .settings-section { padding: 9px 8px; gap: 8px; }
+  .settings-heading h2 { font-size: 18px; }
+  .settings-heading { padding: 16px 20px 10px; }
+  .settings-content { padding: 0 20px 16px; }
+  .settings-form { background: transparent; padding: 0; margin-top: 0; }
+  .settings-form label { display: grid; grid-template-columns: 170px minmax(0, 1fr); align-items: center; gap: 16px; }
+  .settings-form label:has(textarea) { align-items: start; }
+  footer { padding: 10px 20px; }
+  :deep(.cfg-content) { max-width: none; }
+  :deep(.ui-settings .setting-row) { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding-block: 10px; }
+  :deep(.ui-settings .setting-row > :is(.control-select, .choice-capsule, .btn, .cfg-switch)) { justify-self: end; }
+  :deep(.cfg-section + .cfg-section) { margin-top: 16px; padding-top: 14px; }
+
+}
+@media (max-width: 899px) {
+  .native-settings { background: var(--bg-sunken); padding:0; }
+  .settings-sidebar { display: block; position: relative; border: 0; padding: 0 16px 24px; overflow: auto; }
+  .settings-title { position: static; width: auto; height: auto; clip-path: none; overflow: visible; margin: 0; padding: 0; font-size: 17px; background: transparent; border: 0; }
+  .settings-home-heading { margin: 0 -16px 20px; }
+  .settings-sidebar nav { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg-raised); }
+  .settings-section { min-height: 56px; padding: 14px 16px; border-radius: 0; color: var(--fg); }
+  .settings-section + .settings-section { border-top: 1px solid var(--line); }
+  .settings-section span { flex: 1; }
+  .section-chevron { color: var(--fg-subtle); width: 16px; }
+  .settings-heading { justify-content: flex-start; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--bg); }
+  .settings-heading h2 { font-size: 18px; }
+  .settings-content { padding: 16px; }
+  .settings-form { margin: 0; gap: 16px; }
+  .settings-group { padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-raised); }
+  .provider-settings { border-radius: 12px; background: var(--bg-raised); padding: 12px; }
+  footer { background: var(--bg); }
+  :deep(.ui-settings .cfg-section) { padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-raised); }
+}
+@media(max-width:899px){
+  .settings-title { margin:0; text-align:left; font-size:17px; }
+  .settings-heading { min-height:54px; padding:6px 8px; }
+  .settings-heading h2 { font-size:17px; }
+  .settings-content { padding:20px 16px 24px; }
+  .settings-section { padding:14px; gap:12px; }
+  .settings-section > .icon:first-child { box-sizing:content-box; padding:8px; background:var(--bg-inset); border-radius:9px; color:var(--fg-muted); }
+  .category-description { display:block; margin-top:3px; font-size:12px; color:var(--fg-subtle); font-weight:400; }
+  .provider-settings { padding:0; background:transparent; }
+  .add-provider.provider-add-card { width:100%; height:74px; margin-top:0; border:0; border-radius:12px; background:var(--bg-raised); color:var(--fg-muted); }
+  .add-provider.provider-add-card:hover { background:var(--bg-hover); color:var(--fg); }
+  :deep(.ui-settings .cfg-section) { padding:0; border:0; background:transparent; }
+  :deep(.ui-settings .cfg-section h2) { padding:0 12px; font-size:12px; color:var(--fg-subtle); font-weight:500; margin-bottom:8px; }
+  :deep(.ui-settings .setting-row) { margin:0; padding:12px; min-height:52px; background:var(--bg-raised); gap:8px; }
+  :deep(.ui-settings .setting-row:nth-child(2)) { border-radius:12px 12px 0 0; }
+  :deep(.ui-settings .setting-row:last-child) { border-radius:0 0 12px 12px; }
+  :deep(.ui-settings .setting-row > div:first-child) { flex:1; }
+  :deep(.ui-settings .setting-row .setting-help-icon) { display:none; }
+  :deep(.ui-settings .cfg-section + .cfg-section) { margin-top:24px; padding-top:0; border:0; }
+}
+@media(min-width:900px){.settings-home-heading{display:block;padding:0 8px;margin-bottom:20px}.settings-home-heading .settings-title{margin:0}.native-settings{animation:settings-enter 180ms var(--ease-out)}}
+
+</style>

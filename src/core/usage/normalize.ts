@@ -1,9 +1,10 @@
 import type { UsageChartData, UsageSeriesResponse } from './types';
 
-/** Preserve server-side weights and nulls; chart smoothing is visual only. */
+/** Preserve backend samples and nulls; TPS points are never fitted or interpolated. */
 export function chartData(response: UsageSeriesResponse, timezone: string): UsageChartData {
   return {
     samples: response.coverage.stream_samples,
+    truncated: response.sampling.truncated,
     attempts: response.coverage.attempts_with_usage,
     timezone,
     models: response.groups.map(group => ({

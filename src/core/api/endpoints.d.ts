@@ -10,7 +10,6 @@ export declare function sessionUpdateModel(id: string, body: any, ifMatchRevisio
 export declare function historySearch(id: string, params: any, opts?: any): Promise<any>;
 export declare function sessionInterrupt(id: string): Promise<any>;
 export declare function sessionCompact(id: string): Promise<any>;
-export declare function sessionPrune(id: string, body?: any): Promise<any>;
 export declare function daemonStatus(opts?: { signal?: AbortSignal }): Promise<any>;
 export declare function providerConfigs(opts?: any): Promise<any>;
 export declare function providerSummaries(opts?: any): Promise<any>;
@@ -23,7 +22,7 @@ export declare function messageSend(id: string, body: any, opts?: any): Promise<
 export declare function usageSeries(sessionId: string | undefined, params: import('../usage/types').SeriesQuery, opts?: { signal?: AbortSignal }): Promise<import('../usage/types').UsageSeriesResponse>;
 export declare function usageDaily(sessionId: string | undefined, params: import('../usage/types').DailyQuery, opts?: { signal?: AbortSignal }): Promise<import('../usage/types').UsageDailyResponse>;
 
-export declare function configEffective(): Promise<{ wishd: { default_model?: { provider: string; model: string; reasoning_effort?: string } } }>;
+export declare function configEffective(): Promise<{ defaults: {provider:string;model:string;reasoning?:{effort?:string};instructions:string;cwd:string;shell:boolean} }>;
 
 export declare function sessionsList(params: { limit?: number; order?: string }): Promise<{ items: any[] }>;
 
@@ -31,9 +30,10 @@ export declare function rememberDefaultModel(value: { provider: string; model: s
 
 export declare function historyPage(id: string, params: any, opts?: any): Promise<any>;
 export declare function deliveriesList(id: string, params?: any, opts?: any): Promise<any>;
-export declare function deliveryGet(id: string, opts?: any): Promise<any>;
-export declare function deliveryCancel(id: string): Promise<any>;
-export declare function runGet(id: string, opts?: any): Promise<any>;
 export declare function daemonVersion(opts?: { signal?: AbortSignal }): Promise<{ name: string; version: string }>;
 export declare function usageTotals(opts?: { signal?: AbortSignal }): Promise<import('../state/statsSlice').UsageSnapshot>;
 export declare function storageStatus(opts?: { signal?: AbortSignal }): Promise<import('../state/statsSlice').StorageSnapshot>;
+
+export declare function sessionClearContext(id:string):Promise<any>;
+export declare function sessionFork(id:string):Promise<any>;
+export declare function cancelQueuedInput(id:string,entry:string):Promise<any>;

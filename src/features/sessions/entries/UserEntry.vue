@@ -16,6 +16,7 @@ const imageSrc = (block: any) => block.blob_id ? blobUrl(block.blob_id) : `data:
 
 <template>
   <div class="entry user">
+    <div v-if="joined.trim()" class="message-actions"><CopyButton :text="joined" /></div>
     <div class="bubble">
       <div v-for="(b, i) in textBlocks" :key="i">{{ b.text }}</div>
       <template v-for="(file, i) in attachments" :key="i">
@@ -30,6 +31,5 @@ const imageSrc = (block: any) => block.blob_id ? blobUrl(block.blob_id) : `data:
         </Hint>
       </template>
     </div>
-    <div v-if="joined.trim()" class="meta"><CopyButton :text="joined" /></div>
   </div>
 </template>

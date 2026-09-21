@@ -1,4 +1,4 @@
-import { providerConfigs, providerModels, providerSummaries } from './api/endpoints.js';
+import { providerConfigs, providerModels } from './api/endpoints.js';
 
 export interface ModelInfo {
   id: string;
@@ -11,6 +11,7 @@ export interface ModelInfo {
   reasoning_efforts?: Record<string, string | number>;
 }
 export interface ProviderInfo {
+  display_name?: string | null;
   id: string;
   preset: string;
   enabled: boolean;
@@ -21,13 +22,8 @@ export interface ProviderInfo {
 }
 
 export async function readProviders(signal?: AbortSignal): Promise<ProviderInfo[]> {
-  const [response, runtime] = await Promise.all([providerConfigs({ signal }), providerSummaries({ signal })]);
-  const summaries = new Map<string, Pick<ProviderInfo, 'model_catalog_available' | 'reasoning_efforts' | 'reasoning_efforts_source'>>(runtime.providers.map((provider: { id: string; model_catalog_available: boolean }) => [provider.id, provider]));
-  return response.providers.filter((provider: ProviderInfo) => provider.enabled).map((provider: ProviderInfo) => {
-    const summary = summaries.get(provider.id);
-    if (!summary) throw new Error(`Provider configuration is not active: ${provider.id}`);
-    return { ...provider, ...summary };
-  });
+  const response = await providerConfigs({ signal });
+  return response.providers.filter((provider: ProviderInfo) => provider.enabled);
 }
 
 export const configuredModels = (provider: ProviderInfo): ModelInfo[] => Object.entries(provider.models).map(([id, metadata]) => ({ ...metadata, id, source: 'configured' }));

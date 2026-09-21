@@ -31,20 +31,24 @@ function apply() { if(valid.value) { emit('update:modelValue',{period:'custom',s
     <SelectField :model-value="modelValue.period" :options="options" :aria-label="tx('时间范围','Time range')" @update:model-value="select" />
     <button v-if="modelValue.period==='custom'" class="btn ghost sm" :aria-label="tx('修改日期范围','Edit date range')" @click="select('custom')">{{ tx('修改','Edit') }}</button>
   </div>
-  <Modal :open="open" :title="tx('自定义日期范围','Custom date range')" @close="open=false">
-    <form class="usage-date-form" @submit.prevent="apply">
+  <Modal compact content-class="date-range-dialog" :open="open" :title="tx('自定义日期范围','Custom date range')" @close="open=false">
+    <form id="usage-date-form" class="usage-date-form" @submit.prevent="apply">
       <label>{{ tx('开始日期','Start date') }}<input v-model="start" class="input" type="date" required :min="earliest()" :max="end || today()" /></label>
       <label>{{ tx('结束日期','End date') }}<input v-model="end" class="input" type="date" required :min="start || earliest()" :max="today()" /></label>
       <p class="hint">{{ tx('包含开始和结束日期，最多选择 366 天。','Includes both dates, up to 366 days.') }}</p>
-      <button class="btn primary" type="submit" :disabled="!valid">{{ tx('应用','Apply') }}</button>
+
     </form>
+    <template #footer><button class="btn ghost" @click="open=false">{{tx('取消','Cancel')}}</button><button class="btn primary" type="submit" form="usage-date-form" :disabled="!valid">{{tx('应用','Apply')}}</button></template>
   </Modal>
 </template>
 <style scoped>
 .usage-range-picker { display:flex; align-items:center; gap:4px; min-width:0; max-width:100%; }
 .usage-range-picker :deep(.control-select) { width: auto; max-width: min(260px, 100%); min-width: 0; min-height: 32px; padding: 4px 10px; font-size:12px; }
 .usage-range-picker :deep(.control-select) { flex: 1; }
-.usage-date-form { display:grid; gap:16px; }
+.usage-date-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 12px; margin-top:12px; }
+.usage-date-form .hint { grid-column:1/-1; margin:0; font-size:12px; color:var(--fg-subtle); }
+.usage-date-form input { width:100%; min-width:0; }
+@media(max-width:359px){.usage-date-form { grid-template-columns:minmax(0,1fr); }}
 .usage-date-form label { display:grid; gap:6px; }
 .usage-date-form .btn { justify-self:end; }
 </style>

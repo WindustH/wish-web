@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 真实连接诊断（全部只读）：核心模块加载、i18n/主题切换、平台存储、
-// wishd /version 与 /sessions 读、providerd 直连健康与目录读、
-// /sync/events SSE 收到首个事件后立即关闭 reader。
+// wish /version 与 /sessions 读、模型提供方目录读、
+// /events SSE 收到首个事件后立即关闭 reader。
 //
 // 约束：不创建会话、不调用模型、不修改任何后端配置；失败如实显示为
 // fail 并带中文人话，绝不伪造 pass。离开页面或重新运行会取消在飞的
@@ -16,7 +16,7 @@ import { theme } from '../../core/theme/index.js';
 import { cfg } from '../../core/config.js';
 import { platform } from '../../platform/index.js';
 import { createSse } from '../../core/api/sse.js';
-import { get, providerd, absUrl } from '../../core/api/client.js';
+import { get, absUrl } from '../../core/api/client.js';
 import Icon from '../../ui/components/Icon.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 
@@ -28,7 +28,7 @@ const running = ref(false);
 
 // 本页新增的检查没有 i18n 词条（其余沿用 selftest.* 字典键）。
 const LABELS: Record<string, string> = {
-  'selftest.providerd': 'providerd 直连健康与目录',
+  'selftest.providerd': '模型提供方目录',
 };
 const label = (key: string) => LABELS[key] ?? i18n.t(key);
 
@@ -177,9 +177,9 @@ const CHECKS: Check[] = [
   {
     key: 'selftest.api',
     run: async () => {
-      const v = await getJson({ get }, '/version', '读取 wishd /version ');
+      const v = await getJson({ get }, '/version', '读取 wish /version ');
       if (!v || !v.name) throw new Error('/version 响应缺少 name');
-      return `wishd ${v.name} ${v.version ?? '?'}`;
+      return `wish ${v.name} ${v.version ?? '?'}`;
     },
   },
   {
@@ -193,12 +193,9 @@ const CHECKS: Check[] = [
   {
     key: 'selftest.providerd',
     run: async () => {
-      const ver = await getJson(providerd, '/version', '读取 providerd /version ');
-      if (!ver || !ver.name) throw new Error('providerd /version 响应缺少 name');
-      const configs = await getJson(providerd, '/provider-configs', '读取 provider 目录 ');
-      const providers = configs?.providers;
-      if (!Array.isArray(providers)) throw new Error('provider-configs 响应缺少 providers 数组');
-      return `${ver.name} ${ver.version ?? '?'} · 目录 ${providers.length} 个 provider`;
+      const configs = await getJson({ get }, '/providers', '读取 provider 目录 ');
+      if (!Array.isArray(configs.items)) throw new Error('响应缺少 items 数组');
+      return `目录 ${configs.items.length} 个 provider`;
     },
   },
   {
@@ -209,7 +206,7 @@ const CHECKS: Check[] = [
         let off: () => void = () => {};
         const timer = setTimeout(() => finish(new Error(`首个事件超时（>${SSE_FIRST_EVENT_MS / 1000} 秒）`)), SSE_FIRST_EVENT_MS);
         const sse = createSse({
-          url: absUrl('/sync/events'),
+          url: absUrl('/events'),
           firstTimeoutMs: cfg.sse.firstFrameTimeoutMs,
           headers: {},
           onFrame: (f: { event?: string }) => { if (f.event) finish(undefined, f.event); },

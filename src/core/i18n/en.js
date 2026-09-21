@@ -270,7 +270,7 @@ export const en = {
   'selftest.storage': 'Platform storage',
   'selftest.api': 'API connectivity (/version)',
   'selftest.sessions': 'API session list',
-  'selftest.sse': 'SSE control stream (/sync/events)',
+  'selftest.sse': 'SSE control stream (/events)',
   'selftest.vendor': 'Vendor asset integrity',
   'selftest.sw': 'Service Worker',
   'selftest.swUnsupported': 'Unsupported here (not a failure)',

@@ -4,13 +4,15 @@ import Icon from './Icon.vue';
 import ProviderIcon from './ProviderIcon.vue';
 import InfoHint from './InfoHint.vue';
 import { computed, ref, watch } from 'vue';
+import Modal from './Modal.vue';
+import { i18n } from '../../core/i18n/index.js';
 import { ToggleGroupRoot, ToggleGroupItem, SelectRoot, SelectTrigger, SelectValue, SelectIcon, SelectPortal, SelectContent, SelectViewport, SelectItem, SelectItemText, SelectItemIndicator } from 'reka-ui';
 import { Check, ChevronDown } from '@lucide/vue';
 import { usePageActivity } from '../composables/usePageActivity';
 
 defineOptions({ inheritAttrs: false });
 export interface SelectOption { value: string; label: string; icon?: string; brand?: string; annotation?: string; description?: string; disabled?: boolean }
-const props = defineProps<{ modelValue: string; options: SelectOption[]; placeholder?: string; disabled?: boolean; searchable?: boolean; segmented?: boolean; searchPlaceholder?: string; emptyText?: string }>();
+const props = defineProps<{ mobilePage?: boolean; pickerTitle?: string; modelValue: string; options: SelectOption[]; placeholder?: string; disabled?: boolean; searchable?: boolean; segmented?: boolean; searchPlaceholder?: string; emptyText?: string }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 const pageActive = usePageActivity();
 const mobile = useMedia('(max-width: 899px)');
@@ -35,6 +37,14 @@ watch(pageActive, active => { if (!active) open.value = false; });
   <ToggleGroupRoot v-if="segmented && options.length <= 3 && options.length > 1" v-bind="$attrs" type="single" class="choice-capsule" :model-value="modelValue" :disabled="unavailable" @update:model-value="value => { if (value) emit('update:modelValue', String(value)); }">
     <ToggleGroupItem v-for="option in options" :key="option.value" :value="option.value" :disabled="option.disabled" :aria-label="option.label" :title="option.label"><Icon v-if="option.icon" :name="option.icon" /><template v-else>{{ option.label }}</template></ToggleGroupItem>
   </ToggleGroupRoot>
+  <template v-else-if="mobilePage && mobile">
+    <button v-bind="$attrs" type="button" class="control-select" :disabled="unavailable" aria-haspopup="dialog" :aria-expanded="open" @click="open=true"><span class="select-option-label"><ProviderIcon v-if="selected?.brand" :brand="selected.brand"/><span>{{selected?.label||placeholder||'—'}}</span></span><Icon name="chevron-right"/></button>
+    <Modal page content-class="mobile-settings-page mobile-choice-page" :open="open" :title="pickerTitle||String($attrs['aria-label']|| (i18n.locale.value==='zh'?'选择选项':'Choose an option'))" @close="open=false">
+      <input v-if="searchable" v-model="query" class="input mobile-choice-search" type="search" :placeholder="searchPlaceholder" :aria-label="searchPlaceholder"/>
+      <div class="mobile-settings-list"><button v-for="option in filtered" :key="option.value" type="button" class="mobile-settings-row mobile-choice" :disabled="option.disabled" :aria-pressed="option.value===modelValue" @click="emit('update:modelValue',option.value);open=false"><ProviderIcon v-if="option.brand" :brand="option.brand"/><span>{{option.label}}<small v-if="option.annotation" class="row-preview">{{option.annotation}}</small></span><Check v-if="option.value===modelValue" :size="18"/></button></div>
+      <p v-if="!filtered.length" class="mobile-group-note">{{emptyText||(i18n.locale.value==='zh'?'没有匹配的选项':'No matching options')}}</p>
+    </Modal>
+  </template>
   <SelectRoot v-else v-model:open="open" :model-value="selected" by="value" :disabled="unavailable" @update:model-value="option => emit('update:modelValue', (option as SelectOption).value)">
     <SelectTrigger v-bind="$attrs" class="control-select">
       <SelectValue :placeholder="placeholder"><span class="select-option-label"><ProviderIcon v-if="selected?.brand" :brand="selected.brand" /><span>{{ selected?.label || placeholder }}</span></span></SelectValue>

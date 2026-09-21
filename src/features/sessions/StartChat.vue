@@ -17,7 +17,6 @@ import Composer from './Composer.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
 import Icon from '../../ui/components/Icon.vue';
-import Menu from '../../ui/components/Menu.vue';
 
 const route = useRoute(), router = useRouter();
 const mobile = useMedia('(max-width: 899px)');
@@ -44,7 +43,7 @@ async function readDefaultModel() {
   try {
     const config = await api.configEffective();
     if (generation !== defaultGeneration) return;
-    defaultModel.value = config.wishd.default_model ?? undefined;
+    defaultModel.value = config.defaults.model ? { provider:config.defaults.provider, model:config.defaults.model, reasoning_effort:config.defaults.reasoning?.effort } : undefined;
     defaultReady.value = true;
   } catch (error) {
     if (generation === defaultGeneration) defaultError.value = error;
@@ -107,11 +106,9 @@ async function send(text: string, attachments: AttachmentInput[]) {
 <template>
   <div class="start-chat" :class="{ 'mobile-home': mobile && route.name === 'sessions' }">
     <button v-if="mobile && route.name !== 'sessions'" class="btn ghost icon-only start-back" :aria-label="i18n.t('chatbar.back')" @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
-    <div v-if="mobile && route.name === 'sessions'" class="home-menu">
-      <Menu :label="i18n.locale.value === 'zh' ? '更多' : 'More'" :items="[
-        { key: '/stats', label: i18n.t('nav.stats'), icon: 'chart-column' },
-        { key: '/settings', label: i18n.t('nav.settings'), icon: 'settings' },
-      ]" @select="router.push($event)"><Icon name="ellipsis-vertical" /></Menu>
+    <div v-if="mobile && route.name === 'sessions'" class="home-actions">
+      <button class="btn ghost icon-only" :aria-label="i18n.t('nav.stats')" @click="router.push('/stats')"><Icon name="chart-column"/></button>
+      <button class="btn ghost icon-only" :aria-label="i18n.t('nav.settings')" @click="router.push('/settings')"><Icon name="settings"/></button>
     </div>
     <div class="start-surface">
       <div class="start-mark" aria-hidden="true">W<span>.</span></div>
@@ -146,14 +143,17 @@ async function send(text: string, attachments: AttachmentInput[]) {
 .start-model-controls { display: inline-flex; width: max-content; max-width: 100%; align-items: center; min-width: 0; gap: 3px; }
 .start-model-controls button { font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .start-model-controls .model-chip { flex: 0 1 auto; max-width: min(38vw, 320px); }
-.home-menu { position: absolute; top: 8px; right: 12px; z-index: 1; }
+.home-actions { position: absolute; top: 8px; right: 12px; z-index: 1; display: flex; align-items: center; gap: 2px; }
+.home-actions .btn { width: 44px; height: 44px; }
 .start-back { position: absolute; top: 8px; left: 8px; }
 .start-empty { display: flex; align-items: center; gap: 8px; }
 :deep(.composer-start) { border: 1px solid var(--line-strong); border-radius: 16px; background: var(--bg-raised); box-shadow: 0 4px 24px #0000000a; padding: 10px 14px 12px; min-height: 188px; }
+:deep(.composer-start.desktop) { padding: 10px 16px; }
+:deep(.composer-start:focus-within) { border-color: var(--accent); }
 :deep(.composer-start .composer-editor) { min-height: 80px; }
 :deep(.composer-start .composer-toolbar) { padding: 0; gap: 6px; }
 :deep(.composer-start .composer-footer) { padding: 4px 0 0; }
-:deep(.composer-start textarea) { min-height: 80px; }
+:deep(.composer-start.desktop textarea) { height: auto; min-height: 80px; align-self: stretch; }
 :deep(.composer-start-selection) { padding: 2px 4px 8px; }
 @media (max-width: 899px) {
   .start-chat { padding: 48px 16px 16px; }
@@ -163,8 +163,9 @@ async function send(text: string, attachments: AttachmentInput[]) {
   :deep(.composer-mobile-actions .composer-start-selection) { flex: 1; min-width: 0; padding: 0; }
   .mobile-home .start-mark { font-size: 28px; text-align: left; margin-bottom: 16px; }
   .start-mark { font-size: 36px; margin-bottom: 24px; }
-  :deep(.composer-start) { min-height: 0; padding: 10px 10px 14px; }
-  :deep(.composer-start .composer-editor), :deep(.composer-start textarea) { min-height: 36px; }
+  :deep(.composer-start) { min-height: 0; padding: 12px 12px 14px; }
+  :deep(.composer-start .composer-mobile-actions) { margin-bottom: 12px; }
+  :deep(.composer-start.mobile .composer-editor), :deep(.composer-start.mobile textarea) { min-height: 72px; }
 }
 @media (max-height: 500px) { .start-surface { padding-block: 8px; } .start-mark { display: none; } }
 </style>

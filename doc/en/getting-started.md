@@ -1,27 +1,13 @@
 # Getting started
 
-[Documentation](README.md) · [中文](../zh/getting-started.md)
+[Documentation](README.md)
 
-Wish Web is the browser client for `wishd` and `wish-providerd`. Run both daemons before using session or provider features. The browser reaches each daemon through a separate same-origin proxy; Wish Web does not store conversations itself.
+The frontend uses the single `wish` HTTP backend, built by the sibling `wish-server` crate.
+The browser talks only to `/api`; `serve.mjs` proxies it to `WISH_UPSTREAM`
+(default `http://127.0.0.1:9780`). Old wishd/providerd routes and persisted formats are not supported.
 
-## Build and run
+Start the backend and WebUI as described in [deployment](deployment.md). Configure a provider and model in Settings; API keys reference environment variables available to the backend process. Enter a message on the start page to create a session and start execution.
 
-Use Node.js 22.19.0 or newer and Corepack. From this repository:
+The session menu supports rename, tags, fork, manual compaction, clear active context and deletion. Interrupt a running session before changing its model/configuration or cancelling a queued input. Clearing active context keeps historical messages searchable. Images are native image inputs; file attachments are exposed by local path to the shell tool.
 
-```sh
-./pnpmw install --frozen-lockfile
-./pnpmw build
-node serve.mjs
-```
-
-Open `http://127.0.0.1:8790`. Defaults are `wishd` on port 9780 and `wish-providerd` on port 9781. `./pnpmw` keeps dependencies and package-manager caches inside the checkout. The deployment only needs `dist/` and `serve.mjs`; it does not need `node_modules`.
-
-For development, run `./pnpmw dev`. Vite proxies `/wishd-api` and `/providerd-api` to the local default daemon ports. Its development proxy does not read the production server's token/environment settings; configure `vite.config.ts` when a different development backend is required.
-
-## First conversation
-
-Open Settings → Providers, add a preset or custom provider, supply its credentials and save. Choose a model in the new-conversation toolbar and send a message. The new conversation's selected model becomes the backend default for future conversations. Changing a model inside an existing conversation affects that conversation only.
-
-Desktop navigation keeps the session list beside the conversation. On mobile, the home page combines a composer and recent sessions; View all sessions opens the full list. Statistics and settings are available from the home menu. Browser language and theme preferences are local to that browser.
-
-An unavailable daemon produces a request error. A missing session or unknown page redirects to a session entry page. See [Troubleshooting](troubleshooting.md) for connectivity and model failures.
+Use the history search window to find older messages after compaction. Statistics show recorded usage; providers that omit usage leave those observations unknown.

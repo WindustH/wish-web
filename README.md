@@ -12,12 +12,12 @@ Wish 的 Vue 3 客户端，提供会话、提供商配置与用量统计。桌�
 
 ## Quick start / 快速开始
 
-Requires Node.js 22.19.0+ and Corepack. Start `wishd` (9780) and `wish-providerd` (9781), then:
+Requires Node.js 22.19.0+ and Corepack. Start the new single `wish` backend (9780), then:
 
 ```sh
 ./pnpmw install --frozen-lockfile
 ./pnpmw build
-node serve.mjs
+WISH_UPSTREAM=http://127.0.0.1:9780 node serve.mjs
 ```
 
 Open / 打开 `http://127.0.0.1:8790`.
