@@ -9,7 +9,7 @@ export function useMobileNavigationMotion() {
   let revision = 0;
   function depth(route: RouteLocationNormalized) {
     if (route.meta.section === 'settings') return route.query.section ? 4 : 3;
-    if (route.params.id) return route.name === 'chat' ? 2 : 3;
+    if (route.params.id) return 2;
     if (route.name === 'sessions' || route.name === 'new-chat') return 0;
     return 1;
   }
@@ -17,10 +17,17 @@ export function useMobileNavigationMotion() {
     const current = ++revision;
     for (const animation of animations) animation.cancel();
     animations.clear();
-    if (failure || to.fullPath === from.fullPath || !matchMedia('(max-width: 899px)').matches || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (
+      failure ||
+      to.fullPath === from.fullPath ||
+      (to.params.id && from.params.id && to.params.id === from.params.id) ||
+      !matchMedia('(max-width: 899px)').matches ||
+      matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) return;
     await nextTick();
     if (current !== revision) return;
-    const distance = depth(to) === depth(from) ? 0 : depth(to) > depth(from) ? 24 : -24;
+    if (depth(to) === depth(from)) return;
+    const distance = depth(to) > depth(from) ? 24 : -24;
     const nodes = to.meta.section === 'settings'
       ? document.querySelectorAll<HTMLElement>(to.query.section ? '.settings-detail' : '.settings-sidebar')
       : document.querySelectorAll<HTMLElement>('.main-col > .route-page');
