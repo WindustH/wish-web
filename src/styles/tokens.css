@@ -5,6 +5,8 @@
   --bg-overlay: #faf6ed;
   --bg-control: #eee9df;
   --bg-sunken: #e4ded2;
+  --rail-bg: #d6cebf;
+  --chatbar-bg: #e4ded2;
   --bg-hover: #e5ded1;
   --bg-active: #d9d0c0;
   --bg-inset: #e8e1d5;
@@ -56,6 +58,8 @@ html[data-theme='dark'] {
   --bg-overlay: #303030;
   --bg-control: #242424;
   --bg-sunken: #171717;
+  --rail-bg: #111111;
+  --chatbar-bg: #292929;
   --bg-hover: #393939;
   --bg-active: #444444;
   --bg-inset: #1b1b1b;

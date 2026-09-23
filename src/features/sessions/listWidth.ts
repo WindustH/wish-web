@@ -6,6 +6,13 @@ import { tryPlatform } from '../../platform/index.js';
 const KEY = 'pref.listWidth';
 const clamp = (w: number) => Math.min(cfg.design.sessionListWidthMax,
   Math.max(cfg.design.sessionListWidthMin, Math.round(w)));
+let cancelActiveResize: (() => void) | undefined;
+
+export function cancelListResize() {
+  cancelActiveResize?.();
+  // Also clear a class left by an interrupted drag from an older page state.
+  document.documentElement.classList.remove('resizing');
+}
 
 export function applySavedListWidth() {
   const saved = Number(tryPlatform('storage')?.get(KEY));
@@ -16,6 +23,7 @@ export function applySavedListWidth() {
 
 export function onListResizePointerDown(e: PointerEvent) {
   if (e.button !== 0) return;
+  cancelListResize();
   e.preventDefault();
   const target = e.currentTarget as HTMLElement;
   target.setPointerCapture(e.pointerId);
@@ -25,26 +33,41 @@ export function onListResizePointerDown(e: PointerEvent) {
     ?? cfg.design.sessionListWidth;
   const widthAt = (ev: PointerEvent) => clamp(startW + (ev.clientX - startX));
 
-  // Drag end listens on window: the 7px handle can lose pointer capture (or
-  // leave the document) mid-drag, and a pointerup delivered anywhere else
-  // would leave `resizing` on <html>, where it keeps .chatlog and .sl-scroll
-  // at pointer-events: none — the whole page looks frozen. A release outside
-  // the window delivers no pointerup at all, so the next move with the
-  // button already up ends the drag too (same recovery as ChatLog).
-  function end(ev: PointerEvent) {
-    if (ev.pointerId !== e.pointerId) return;
+  function finish(save: boolean, value = startW) {
+    if (!cancelActiveResize) return;
+    cancelActiveResize = undefined;
     document.documentElement.classList.remove('resizing');
     window.removeEventListener('pointermove', move, true);
     window.removeEventListener('pointerup', end, true);
-    window.removeEventListener('pointercancel', end, true);
-    tryPlatform('storage')?.set(KEY, String(widthAt(ev)));
+    window.removeEventListener('pointercancel', pointerCancel, true);
+    window.removeEventListener('blur', cancel);
+    document.removeEventListener('visibilitychange', visibility);
+    target.removeEventListener('lostpointercapture', lostCapture);
+    if (target.hasPointerCapture(e.pointerId)) target.releasePointerCapture(e.pointerId);
+    if (save) tryPlatform('storage')?.set(KEY, String(value));
+    else document.documentElement.style.setProperty('--w-list', `${startW}px`);
+  }
+  function end(ev: PointerEvent) {
+    if (ev.pointerId === e.pointerId) finish(true, widthAt(ev));
+  }
+  function cancel() { finish(false); }
+  function pointerCancel(ev: PointerEvent) {
+    if (ev.pointerId === e.pointerId) cancel();
+  }
+  function lostCapture() { finish(false); }
+  function visibility() {
+    if (document.hidden) cancel();
   }
   function move(ev: PointerEvent) {
     if (ev.pointerId !== e.pointerId) return;
     if (!(ev.buttons & 1)) { end(ev); return; }
     document.documentElement.style.setProperty('--w-list', `${widthAt(ev)}px`);
   }
+  cancelActiveResize = () => finish(false);
   window.addEventListener('pointermove', move, true);
   window.addEventListener('pointerup', end, true);
-  window.addEventListener('pointercancel', end, true);
+  window.addEventListener('pointercancel', pointerCancel, true);
+  window.addEventListener('blur', cancel);
+  document.addEventListener('visibilitychange', visibility);
+  target.addEventListener('lostpointercapture', lostCapture);
 }

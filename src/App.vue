@@ -2,7 +2,7 @@
 import { useMobileNavigationMotion } from './ui/composables/useMobileNavigationMotion';
 useMobileNavigationMotion();
 import Hint from './ui/components/Hint.vue';
-import { computed, provide, shallowRef, watch } from 'vue';
+import { computed, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue';
 import { TooltipProvider, DialogRoot, DialogPortal, DialogContent, DialogTitle } from 'reka-ui';
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
 import { useMedia } from './ui/composables/useMedia.js';
@@ -12,20 +12,32 @@ import CachedPage from './ui/components/CachedPage.vue';
 import { i18n } from './core/i18n/index.js';
 import { sync } from './core/state/syncSlice.js';
 import { needRefresh, refreshApp } from './ui/pwa.js';
-import { sessionLocation } from './router.js';
+import { sessionLocation } from './ui/sessionNavigation';
 
 const route = useRoute();
 const router = useRouter();
 const isMobile = useMedia('(max-width: 899px)');
 const backgroundRoute = shallowRef(router.currentRoute.value.meta.section === 'settings' ? router.resolve('/sessions') as unknown as RouteLocationNormalizedLoaded : router.currentRoute.value);
 const settingsRoute = shallowRef(router.currentRoute.value.meta.section === 'settings' ? router.currentRoute.value : undefined);
+const settingsVisible = ref(!!settingsRoute.value);
+let settingsExitTimer: ReturnType<typeof setTimeout> | undefined;
 watch(() => router.currentRoute.value, current => {
   if (current.meta.section === 'settings') {
+    clearTimeout(settingsExitTimer);
+    settingsExitTimer = undefined;
     settingsRoute.value = current;
+    settingsVisible.value = true;
     if (!backgroundRoute.value.matched.length) backgroundRoute.value = router.resolve('/sessions') as unknown as RouteLocationNormalizedLoaded;
   }
-  else backgroundRoute.value = current;
+  else {
+    backgroundRoute.value = current;
+    if (settingsVisible.value) {
+      clearTimeout(settingsExitTimer);
+      settingsExitTimer = setTimeout(() => { settingsVisible.value = false; settingsExitTimer = undefined; }, 220);
+    }
+  }
 }, { flush: 'sync' });
+onBeforeUnmount(() => clearTimeout(settingsExitTimer));
 provide('closeSettings', () => router.push(backgroundRoute.value.fullPath));
 const settingsOpen = computed(() => route.meta.section === 'settings');
 const online = computed(() => sync.online.value);
@@ -69,7 +81,7 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
           </KeepAlive>
         </RouterView>
         <RouterView v-if="settingsRoute" :route="settingsRoute" v-slot="{ Component, route: pageRoute }">
-          <KeepAlive><CachedPage class="settings-route-host" v-if="Component && settingsOpen" :view="Component" :route="pageRoute" /></KeepAlive>
+          <KeepAlive><CachedPage class="settings-route-host" :class="{ 'is-closing': !settingsOpen }" v-if="Component && settingsVisible" :view="Component" :route="pageRoute" /></KeepAlive>
         </RouterView>
       </div>
     </div>
@@ -87,4 +99,6 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
 
 <style>
 @media (min-width: 900px) { .settings-route-host { display: contents !important; } }
+@media (max-width: 899px) { .settings-route-host { position: absolute; inset: 0; z-index: 30; background: transparent; } }
+.settings-route-host.is-closing { pointer-events: none; }
 </style>

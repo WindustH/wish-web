@@ -10,4 +10,4 @@
 
 配置保存携带 revision，会话修改可携带 If-Match。没有旧版幂等键 API。历史查询支持消息类型、时间和元数据过滤；搜索返回有限结果及 has_more，“更多”扩大结果数量。历史浏览通过序号分页，不加载完整历史。
 
-完整路由见 [后端 API](../../../wish-server/docs/api.md)。
+完整路由见 [后端 API](../../../wish-core/docs/server/api.md)。

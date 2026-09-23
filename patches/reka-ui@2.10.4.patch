@@ -1,0 +1,317 @@
+diff --git a/dist/shared/useBodyScrollLock.cjs b/dist/shared/useBodyScrollLock.cjs
+index 29bd24314e544035fd8f9e0c2c820be263784c5d..7a136ae8f454b4f08b104307bb14aac2ca1706ee 100644
+--- a/dist/shared/useBodyScrollLock.cjs
++++ b/dist/shared/useBodyScrollLock.cjs
+@@ -1,6 +1,5 @@
+ const require_rolldown_runtime = require('../rolldown-runtime.cjs');
+ const require_ConfigProvider_ConfigProvider = require('../ConfigProvider/ConfigProvider.cjs');
+-const require_DismissableLayer_context = require('../DismissableLayer/context.cjs');
+ const vue = require_rolldown_runtime.__toESM(require("vue"));
+ const __vueuse_core = require_rolldown_runtime.__toESM(require("@vueuse/core"));
+ const __vueuse_shared = require_rolldown_runtime.__toESM(require("@vueuse/shared"));
+@@ -19,7 +18,6 @@ const useBodyLockStackCount = (0, __vueuse_core.createSharedComposable)(() => {
+ 	const resetBodyStyle = () => {
+ 		document.body.style.paddingRight = "";
+ 		document.body.style.marginRight = "";
+-		if (require_DismissableLayer_context.context.layersWithOutsidePointerEventsDisabled.size === 0) document.body.style.pointerEvents = "";
+ 		document.documentElement.style.removeProperty("--scrollbar-width");
+ 		document.body.style.overflow = initialOverflow.value ?? "";
+ 		__vueuse_shared.isIOS && stopTouchMoveListener?.();
+@@ -53,7 +51,6 @@ const useBodyLockStackCount = (0, __vueuse_core.createSharedComposable)(() => {
+ 		if (__vueuse_shared.isIOS) stopTouchMoveListener = (0, __vueuse_core.useEventListener)(document, "touchmove", (e) => preventDefault(e), { passive: false });
+ 		(0, vue.nextTick)(() => {
+ 			if (!locked.value) return;
+-			document.body.style.pointerEvents = "none";
+ 			document.body.style.overflow = "hidden";
+ 		});
+ 	}, {
+diff --git a/dist/shared/useBodyScrollLock.js b/dist/shared/useBodyScrollLock.js
+index 9f8cda84294c4c4fd58802fa19646e89283f8fde..1597b9cb92e18b9cec255908f17f9b5b6ed12ffe 100644
+--- a/dist/shared/useBodyScrollLock.js
++++ b/dist/shared/useBodyScrollLock.js
+@@ -1,5 +1,4 @@
+ import { injectConfigProviderContext } from "../ConfigProvider/ConfigProvider.js";
+-import { context } from "../DismissableLayer/context.js";
+ import { computed, nextTick, ref, watch } from "vue";
+ import { createSharedComposable, useEventListener } from "@vueuse/core";
+ import { isClient, isIOS, tryOnBeforeUnmount } from "@vueuse/shared";
+@@ -18,7 +17,6 @@ const useBodyLockStackCount = createSharedComposable(() => {
+ 	const resetBodyStyle = () => {
+ 		document.body.style.paddingRight = "";
+ 		document.body.style.marginRight = "";
+-		if (context.layersWithOutsidePointerEventsDisabled.size === 0) document.body.style.pointerEvents = "";
+ 		document.documentElement.style.removeProperty("--scrollbar-width");
+ 		document.body.style.overflow = initialOverflow.value ?? "";
+ 		isIOS && stopTouchMoveListener?.();
+@@ -52,7 +50,6 @@ const useBodyLockStackCount = createSharedComposable(() => {
+ 		if (isIOS) stopTouchMoveListener = useEventListener(document, "touchmove", (e) => preventDefault(e), { passive: false });
+ 		nextTick(() => {
+ 			if (!locked.value) return;
+-			document.body.style.pointerEvents = "none";
+ 			document.body.style.overflow = "hidden";
+ 		});
+ 	}, {
+diff --git a/src/shared/useBodyScrollLock.ts b/src/shared/useBodyScrollLock.ts
+index 3ed2a8b1dc9d895ee2681b969c869655ae10673a..db332e8928ba76a94d5e18d965fb7d873ee4a4d7 100644
+--- a/src/shared/useBodyScrollLock.ts
++++ b/src/shared/useBodyScrollLock.ts
+@@ -7,7 +7,6 @@ import { isClient, isIOS, tryOnBeforeUnmount } from '@vueuse/shared'
+ import { defu } from 'defu'
+ import { computed, nextTick, ref, watch } from 'vue'
+ import { injectConfigProviderContext } from '@/ConfigProvider/ConfigProvider.vue'
+-import { context as dismissableLayerContext } from '@/DismissableLayer/context'
+ 
+ const useBodyLockStackCount = createSharedComposable(() => {
+   const map = ref<Map<string, boolean>>(new Map())
+@@ -30,13 +29,8 @@ const useBodyLockStackCount = createSharedComposable(() => {
+   const resetBodyStyle = () => {
+     document.body.style.paddingRight = ''
+     document.body.style.marginRight = ''
+-    // A mounted `DismissableLayer` with `disableOutsidePointerEvents` may
+-    // still own the body pointer-events lock (e.g. a modal Dialog rendered
+-    // without the Overlay that would hold a scroll lock). Clearing it here
+-    // would make everything behind that layer clickable again (#2784); the
+-    // layer restores it once its last disabling layer is gone.
+-    if (dismissableLayerContext.layersWithOutsidePointerEventsDisabled.size === 0)
+-      document.body.style.pointerEvents = ''
++    // Pointer-event ownership belongs exclusively to DismissableLayer.
++    // Otherwise a layer can capture this scroll lock's `none` as its baseline.
+     document.documentElement.style.removeProperty('--scrollbar-width')
+     document.body.style.overflow = initialOverflow.value ?? ''
+     isIOS && stopTouchMoveListener?.()
+@@ -85,11 +79,10 @@ const useBodyLockStackCount = createSharedComposable(() => {
+       )
+     }
+ 
+-    // let dismissibleLayer set previous pointerEvent first
++    // Apply overflow after the current render.
+     nextTick(() => {
+       if (!locked.value)
+         return
+-      document.body.style.pointerEvents = 'none'
+       document.body.style.overflow = 'hidden'
+     })
+   }, { immediate: true, flush: 'sync' })
+diff --git a/dist/Presence/usePresence.cjs b/dist/Presence/usePresence.cjs
+--- a/dist/Presence/usePresence.cjs
++++ b/dist/Presence/usePresence.cjs
+@@ -11,6 +11,7 @@
+ 	const prevPresentRef = (0, vue.ref)(present);
+ 	const initialState = present.value ? "mounted" : "unmounted";
+ 	let timeoutId;
++	let exitTimeoutId;
+ 	const ownerWindow = node.value?.ownerDocument.defaultView ?? __vueuse_core.defaultWindow;
+ 	const { state, dispatch } = require_shared_useStateMachine.useStateMachine(initialState, {
+ 		mounted: {
+@@ -32,9 +33,22 @@
+ 			node.value?.dispatchEvent(customEvent);
+ 		}
+ 	};
++	const clearExitTimeout = () => {
++		if (exitTimeoutId !== void 0) ownerWindow?.clearTimeout(exitTimeoutId);
++		exitTimeoutId = void 0;
++	};
++	const finishExit = () => {
++		clearExitTimeout();
++		if (state.value === "unmountSuspended" && !present.value) {
++			dispatchCustomEvent("after-leave");
++			dispatch("ANIMATION_END");
++		}
++	};
+ 	(0, vue.watch)(present, async (currentPresent, prevPresent) => {
+ 		const hasPresentChanged = prevPresent !== currentPresent;
+ 		await (0, vue.nextTick)();
++		if (present.value !== currentPresent) return;
++		clearExitTimeout();
+ 		if (hasPresentChanged) {
+ 			const prevAnimationName = prevAnimationNameRef.value;
+ 			const currentAnimationName = getAnimationName(node.value);
+@@ -57,6 +71,12 @@
+ 				if (prevPresent && isAnimating) {
+ 					dispatch("ANIMATION_OUT");
+ 					dispatchCustomEvent("leave");
++					const animationStyle = node.value ? getComputedStyle(node.value) : void 0;
++					const durations = animationStyle?.animationDuration.split(",") ?? [];
++					const delays = animationStyle?.animationDelay.split(",") ?? [];
++					const toMs = (value) => value.trim().endsWith("ms") ? Number.parseFloat(value) : Number.parseFloat(value) * 1e3;
++					const exitMs = Math.max(0, ...durations.map((duration, index) => toMs(duration) + toMs(delays[index % delays.length] || "0s")));
++					exitTimeoutId = ownerWindow?.setTimeout(finishExit, Math.min(5e3, Math.max(250, exitMs + 100)));
+ 				} else {
+ 					dispatch("UNMOUNT");
+ 					dispatchCustomEvent("after-leave");
+@@ -75,6 +95,7 @@
+ 		const isCurrentAnimation = currentAnimationName.includes(CSS.escape(event.animationName));
+ 		const directionName = state.value === "mounted" ? "enter" : "leave";
+ 		if (isCurrentAnimation) {
++			if (state.value === "unmountSuspended") clearExitTimeout();
+ 			dispatchCustomEvent(`after-${directionName}`);
+ 			dispatch("ANIMATION_END");
+ 			if (!prevPresentRef.value) {
+@@ -97,6 +118,7 @@
+ 			newNode.addEventListener("animationcancel", handleAnimationEnd);
+ 			newNode.addEventListener("animationend", handleAnimationEnd);
+ 		} else {
++			clearExitTimeout();
+ 			dispatch("ANIMATION_END");
+ 			if (timeoutId !== void 0) ownerWindow?.clearTimeout(timeoutId);
+ 			oldNode?.removeEventListener("animationstart", handleAnimationStart);
+@@ -109,6 +131,7 @@
+ 		prevAnimationNameRef.value = state.value === "mounted" ? currentAnimationName : "none";
+ 	});
+ 	(0, vue.onUnmounted)(() => {
++		clearExitTimeout();
+ 		watcher();
+ 		stateWatcher();
+ 		if (node.value) {
+diff --git a/dist/Presence/usePresence.js b/dist/Presence/usePresence.js
+--- a/dist/Presence/usePresence.js
++++ b/dist/Presence/usePresence.js
+@@ -10,6 +10,7 @@
+ 	const prevPresentRef = ref(present);
+ 	const initialState = present.value ? "mounted" : "unmounted";
+ 	let timeoutId;
++	let exitTimeoutId;
+ 	const ownerWindow = node.value?.ownerDocument.defaultView ?? defaultWindow;
+ 	const { state, dispatch } = useStateMachine(initialState, {
+ 		mounted: {
+@@ -31,9 +32,22 @@
+ 			node.value?.dispatchEvent(customEvent);
+ 		}
+ 	};
++	const clearExitTimeout = () => {
++		if (exitTimeoutId !== void 0) ownerWindow?.clearTimeout(exitTimeoutId);
++		exitTimeoutId = void 0;
++	};
++	const finishExit = () => {
++		clearExitTimeout();
++		if (state.value === "unmountSuspended" && !present.value) {
++			dispatchCustomEvent("after-leave");
++			dispatch("ANIMATION_END");
++		}
++	};
+ 	watch(present, async (currentPresent, prevPresent) => {
+ 		const hasPresentChanged = prevPresent !== currentPresent;
+ 		await nextTick();
++		if (present.value !== currentPresent) return;
++		clearExitTimeout();
+ 		if (hasPresentChanged) {
+ 			const prevAnimationName = prevAnimationNameRef.value;
+ 			const currentAnimationName = getAnimationName(node.value);
+@@ -56,6 +70,12 @@
+ 				if (prevPresent && isAnimating) {
+ 					dispatch("ANIMATION_OUT");
+ 					dispatchCustomEvent("leave");
++					const animationStyle = node.value ? getComputedStyle(node.value) : void 0;
++					const durations = animationStyle?.animationDuration.split(",") ?? [];
++					const delays = animationStyle?.animationDelay.split(",") ?? [];
++					const toMs = (value) => value.trim().endsWith("ms") ? Number.parseFloat(value) : Number.parseFloat(value) * 1e3;
++					const exitMs = Math.max(0, ...durations.map((duration, index) => toMs(duration) + toMs(delays[index % delays.length] || "0s")));
++					exitTimeoutId = ownerWindow?.setTimeout(finishExit, Math.min(5e3, Math.max(250, exitMs + 100)));
+ 				} else {
+ 					dispatch("UNMOUNT");
+ 					dispatchCustomEvent("after-leave");
+@@ -74,6 +94,7 @@
+ 		const isCurrentAnimation = currentAnimationName.includes(CSS.escape(event.animationName));
+ 		const directionName = state.value === "mounted" ? "enter" : "leave";
+ 		if (isCurrentAnimation) {
++			if (state.value === "unmountSuspended") clearExitTimeout();
+ 			dispatchCustomEvent(`after-${directionName}`);
+ 			dispatch("ANIMATION_END");
+ 			if (!prevPresentRef.value) {
+@@ -96,6 +117,7 @@
+ 			newNode.addEventListener("animationcancel", handleAnimationEnd);
+ 			newNode.addEventListener("animationend", handleAnimationEnd);
+ 		} else {
++			clearExitTimeout();
+ 			dispatch("ANIMATION_END");
+ 			if (timeoutId !== void 0) ownerWindow?.clearTimeout(timeoutId);
+ 			oldNode?.removeEventListener("animationstart", handleAnimationStart);
+@@ -108,6 +130,7 @@
+ 		prevAnimationNameRef.value = state.value === "mounted" ? currentAnimationName : "none";
+ 	});
+ 	onUnmounted(() => {
++		clearExitTimeout();
+ 		watcher();
+ 		stateWatcher();
+ 		if (node.value) {
+diff --git a/src/Presence/usePresence.ts b/src/Presence/usePresence.ts
+--- a/src/Presence/usePresence.ts
++++ b/src/Presence/usePresence.ts
+@@ -13,6 +13,7 @@
+   const prevPresentRef = ref(present)
+   const initialState = present.value ? 'mounted' : 'unmounted'
+   let timeoutId: number | undefined
++  let exitTimeoutId: number | undefined
+   const ownerWindow = node.value?.ownerDocument.defaultView ?? defaultWindow
+ 
+   const { state, dispatch } = useStateMachine(initialState, {
+@@ -38,11 +39,29 @@
+     }
+   }
+ 
++  const clearExitTimeout = () => {
++    if (exitTimeoutId !== undefined)
++      ownerWindow?.clearTimeout(exitTimeoutId)
++    exitTimeoutId = undefined
++  }
++  const finishExit = () => {
++    clearExitTimeout()
++    if (state.value === 'unmountSuspended' && !present.value) {
++      dispatchCustomEvent('after-leave')
++      dispatch('ANIMATION_END')
++    }
++  }
++
+   watch(
+     present,
+     async (currentPresent, prevPresent) => {
+       const hasPresentChanged = prevPresent !== currentPresent
+       await nextTick()
++      // Close/open changes can race across the render tick. Only the latest
++      // state may control Presence or its pointer-blocking layer.
++      if (present.value !== currentPresent)
++        return
++      clearExitTimeout()
+       if (hasPresentChanged) {
+         const prevAnimationName = prevAnimationNameRef.value
+         const currentAnimationName = getAnimationName(node.value)
+@@ -74,6 +93,14 @@
+           if (prevPresent && isAnimating) {
+             dispatch('ANIMATION_OUT')
+             dispatchCustomEvent('leave')
++            // Browsers may cancel or skip animationend (background tabs,
++            // interrupted animations). Always release the layer eventually.
++            const animationStyle = node.value ? getComputedStyle(node.value) : undefined
++            const durations = animationStyle?.animationDuration.split(',') ?? []
++            const delays = animationStyle?.animationDelay.split(',') ?? []
++            const toMs = (value: string) => value.trim().endsWith('ms') ? Number.parseFloat(value) : Number.parseFloat(value) * 1000
++            const exitMs = Math.max(0, ...durations.map((duration, index) => toMs(duration) + toMs(delays[index % delays.length] || '0s')))
++            exitTimeoutId = ownerWindow?.setTimeout(finishExit, Math.min(5000, Math.max(250, exitMs + 100)))
+           }
+           else {
+             dispatch('UNMOUNT')
+@@ -100,6 +127,8 @@
+     )
+     const directionName = state.value === 'mounted' ? 'enter' : 'leave'
+     if (isCurrentAnimation) {
++      if (state.value === 'unmountSuspended')
++        clearExitTimeout()
+       dispatchCustomEvent(`after-${directionName}`)
+       dispatch('ANIMATION_END')
+ 
+@@ -140,6 +169,7 @@
+       else {
+         // Transition to the unmounted state if the node is removed prematurely.
+         // We avoid doing so during cleanup as the node may change but still exist.
++        clearExitTimeout()
+         dispatch('ANIMATION_END')
+ 
+         if (timeoutId !== undefined)
+@@ -159,6 +189,7 @@
+   })
+ 
+   onUnmounted(() => {
++    clearExitTimeout()
+     watcher()
+     stateWatcher()
+     if (node.value) {

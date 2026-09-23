@@ -28,6 +28,7 @@ export function groupEntries(entries) {
   };
 
   for (const entry of entries) {
+    if (entry.kind === 'history_event') continue;
     if (entry.kind === 'tool_result') {
       pushGroupStep({ kind: 'entry', entry, key: entryId(entry) }, entry.run_id);
       continue;

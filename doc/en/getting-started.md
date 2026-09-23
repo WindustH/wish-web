@@ -2,7 +2,7 @@
 
 [Documentation](README.md)
 
-The frontend uses the single `wish` HTTP backend, built by the sibling `wish-server` crate.
+The frontend uses the single `wish` HTTP backend, built by the sibling `wish-core` package.
 The browser talks only to `/api`; `serve.mjs` proxies it to `WISH_UPSTREAM`
 (default `http://127.0.0.1:9780`). Old wishd/providerd routes and persisted formats are not supported.
 

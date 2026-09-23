@@ -2,11 +2,11 @@
 
 [文档目录](README.md)
 
-使用相邻 wish-server 构建单一后端：
+使用相邻 wish-core 构建单一后端：
 
 ```sh
-cargo build --release --manifest-path ../wish-server/Cargo.toml
-../wish-server/target/release/wish --config /absolute/path/config.json
+cargo build --release --manifest-path ../wish-core/Cargo.toml
+../wish-core/target/release/wish --config /absolute/path/config.json
 ./pnpmw install --frozen-lockfile
 ./pnpmw build
 WISH_UPSTREAM=http://127.0.0.1:9780 node serve.mjs

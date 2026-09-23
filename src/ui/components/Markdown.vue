@@ -28,6 +28,10 @@ async function copyCode(event: MouseEvent) {
 
 <style scoped>
 .markdown :deep(.code-block) { position: relative; }
-.markdown :deep(.code-block pre) { padding-top: 2.6rem; }
+.markdown :deep(.code-block pre) {
+  padding-top: 2.6rem;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
 .markdown :deep(.code-copy) { position: absolute; top: 0.35rem; right: 0.4rem; }
 </style>

@@ -53,10 +53,26 @@ const diffs=computed(()=>steps.value.map((step:any)=>({step,edit:fileEdit(step)}
 const relatedResult=computed(()=>detail.value?.block?.type==='tool_call'?steps.value.find((step:any)=>step.kind==='entry'&&step.entry.payload?.tool_call_id===detail.value.block.id):null);
 const preview = (s: any): string => {
   if (s.kind === 'entry') {const value=toolOutput(s);return firstLine(value?.path||value?.text||value?.message||(s.entry.payload?.content || []).map((b:any)=>b.text||'').join('\n'),60);}
-  if(s.block?.type==='tool_call')return firstLine(s.block.arguments?.command||s.block.arguments?.path||s.block.arguments?.operation||'',60);
+  if(s.block?.type==='tool_call')return firstLine(s.block.arguments?.command||s.block.arguments?.text||s.block.arguments?.execution_id||s.block.arguments?.path||s.block.arguments?.operation||'',60);
   return firstLine(s.block?.text || '', 60);
 };
-const stepIcon = (s: any) => s.kind === 'entry' ? 'wrench' : s.block?.type === 'tool_call' ? 'terminal' : 'brain';
+const stepIcon = (s: any) => {
+  if (s.kind === 'entry') {
+    const name = s.entry.payload?.tool_name;
+    if (name?.startsWith('shell_')) return 'terminal';
+    if (name === 'view_image') return 'image';
+    if (name?.startsWith('history_')) return 'search';
+    return 'wrench';
+  }
+  if (s.block?.type === 'tool_call') {
+    const name = s.block.name || s.block.tool_name;
+    if (name?.startsWith('shell_')) return 'terminal';
+    if (name === 'view_image') return 'image';
+    if (name?.startsWith('history_')) return 'search';
+    return 'wrench';
+  }
+  return 'brain';
+};
 </script>
 
 <template>
@@ -87,5 +103,6 @@ const stepIcon = (s: any) => s.kind === 'entry' ? 'wrench' : s.block?.type === '
 
 <style scoped>
 .process-diff-card{display:flex;align-items:center;gap:10px;width:100%;min-width:0;text-align:left;border:1px solid var(--line);border-radius:8px;background:var(--bg-raised);color:var(--fg);padding:12px;margin:8px 0;cursor:pointer;font:inherit;font-size:13px}
-.process-diff-card:hover{background:var(--bg-hover)}.process-diff-card>span:first-of-type{flex:1;min-width:0;overflow-wrap:anywhere}.process-diff-card small{display:block;color:var(--fg-subtle);font-size:11px;margin-top:3px}.process-diff-card>.icon{flex:none;width:16px}.process-diff-count{display:flex;gap:8px;white-space:nowrap;font-size:12px}.process-diff-count b:first-child{color:var(--ok)}.process-diff-count b:last-child{color:var(--err)}
+@media (hover: hover) { .process-diff-card:hover{background:var(--bg-hover)} }
+.process-diff-card>span:first-of-type{flex:1;min-width:0;overflow-wrap:anywhere}.process-diff-card small{display:block;color:var(--fg-subtle);font-size:11px;margin-top:3px}.process-diff-card>.icon{flex:none;width:16px}.process-diff-count{display:flex;gap:8px;white-space:nowrap;font-size:12px}.process-diff-count b:first-child{color:var(--ok)}.process-diff-count b:last-child{color:var(--err)}
 </style>

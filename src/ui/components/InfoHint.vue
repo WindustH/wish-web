@@ -12,6 +12,7 @@ defineProps<{ text: string; label: string; focusable?: boolean }>();
 
 <style scoped>
 .info-hint { display: inline-flex; align-items: center; justify-content: center; padding: 6px; color: var(--fg-subtle); cursor: help; vertical-align: middle; }
-.info-hint:hover, .info-hint:focus-visible { color: var(--fg); }
+.info-hint:focus-visible { color: var(--fg); }
+@media (hover: hover) { .info-hint:hover { color: var(--fg); } }
 .info-hint:focus-visible { outline: none; }
 </style>

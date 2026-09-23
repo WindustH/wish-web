@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { modelLabel } from '../../ui/modelLabel';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, ref, toRef, watch } from 'vue';
 import { Image } from '@lucide/vue';
@@ -28,8 +29,7 @@ const choices = computed(() => catalog.groups.value.flatMap(group => {
     models.unshift({ id: snapshot.value.model, source: 'current' });
   }
   return models.map(model => ({
-    key: key(provider.id, model.id), title: model.display_name || model.id,
-    description: model.display_name ? model.id : model.source === 'current' ? i18n.t('model.currentSuffix') : model.description,
+    key: key(provider.id, model.id), title: modelLabel(model.id),
     vision: model.input_modalities?.includes('image') === true,
     search: model.id, group: title, brand, provider: provider.id, model: model.id,
   }));
@@ -49,8 +49,9 @@ async function apply(value: string) {
 <template>
   <CommandPanel ref="panel" :title="i18n.t('model.title')" :busy="saving" @close="emit('close')">
     <PickerList v-model="selected" :items="choices" :placeholder="i18n.t('model.search')" :disabled="saving || loading" @select="apply">
-      <template #suffix="{ itemKey }"><Hint :text="i18n.t('model.visionHint')" v-if="visionChoices.has(itemKey)"><span class="model-vision"><Image :size="13" aria-hidden="true" />{{ i18n.t('model.vision') }}</span></Hint></template>
+      <template #suffix="{ itemKey }"><Hint :text="i18n.t('model.visionHint')" v-if="visionChoices.has(itemKey)"><span class="model-vision" :aria-label="i18n.t('model.vision')"><Image :size="13" aria-hidden="true" /></span></Hint></template>
       <template #status>
+        <p v-if="snapshot?.running" class="command-status hint">{{ i18n.locale.value === 'zh' ? '修改从下一次模型请求开始生效，当前请求不会中断。' : 'Changes apply to the next model request without interrupting the current one.' }}</p>
         <div v-if="error" class="command-status load-error" role="alert">{{ conflict ? i18n.t('model.conflict') : errorText(error) }}<button class="btn ghost sm" :disabled="loading || saving" @click="reload">{{ i18n.t('common.retry') }}</button></div>
         <div v-if="catalog.error.value" class="command-status load-error" role="alert">{{ errorText(catalog.error.value) }}<button class="btn ghost sm" @click="catalog.reload">{{ i18n.t('common.retry') }}</button></div>
         <p v-if="loading || saving || catalog.pending.value" class="command-status hint" role="status"><Spinner /> {{ saving ? i18n.t('picker.switching') : i18n.t('model.loading') }}</p>

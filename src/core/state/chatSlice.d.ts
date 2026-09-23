@@ -5,6 +5,7 @@ export interface CapabilitiesOk { status: 'ok'; data: any }
 export interface CapabilitiesErr { status: 'error'; error: any }
 
 export interface ChatApi {
+  missingSessionId: ShallowRef<string | null>;
   sessionId: ShallowRef<string | null>;
   snapshot: ShallowRef<any>;
   entries: ShallowRef<any[]>;

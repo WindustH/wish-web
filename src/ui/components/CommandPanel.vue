@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onBeforeUnmount, ref, watch } from "vue";
+import { usePageActivity } from '../composables/usePageActivity';
+const pageActive = usePageActivity();
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
 import { X } from '@lucide/vue';
 import { i18n } from '../../core/i18n/index.js';
@@ -11,20 +13,39 @@ const emit = defineEmits<{ close: [] }>();
 const focus = useDialogFocus();
 const layer = useDialogLayer();
 const closing = ref(false);
+let closeCompleted = false;
+let closeTimer: ReturnType<typeof setTimeout> | undefined;
+function clearCloseTimer() {
+  if (closeTimer !== undefined) clearTimeout(closeTimer);
+  closeTimer = undefined;
+}
+function finishClose() {
+  if (!closing.value || closeCompleted) return;
+  closeCompleted = true;
+  clearCloseTimer();
+  emit('close');
+}
 function close() {
   if (props.busy || closing.value) return;
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) emit('close');
-  else closing.value = true;
+  else {
+    closeCompleted = false;
+    closing.value = true;
+    // An interrupted CSS animation must never leave an invisible modal mounted.
+    closeTimer = setTimeout(finishClose, 300);
+  }
 }
 function finished(event: AnimationEvent) {
-  if (closing.value && event.target === event.currentTarget) emit('close');
+  if (event.target === event.currentTarget && event.animationName === 'popup-fade-out') finishClose();
 }
+watch(pageActive, active => { if (!active) { clearCloseTimer(); closing.value = false; closeCompleted = false; } }, { flush: 'sync' });
+onBeforeUnmount(clearCloseTimer);
 defineExpose({ close });
 </script>
 
 <template>
-  <DialogRoot :open="!closing" @update:open="open => { if (!open) close(); }">
-    <DialogPortal>
+  <DialogRoot :open="pageActive && !closing" @update:open="open => { if (!open) close(); }">
+    <DialogPortal v-if="pageActive">
       <DialogOverlay class="modal-overlay" :style="{ zIndex: layer }" />
       <DialogContent @animationend="finished" class="command-panel" :style="{ zIndex: layer + 1 }" :aria-describedby="undefined" :aria-busy="busy"
         @open-auto-focus="focus.opened" @close-auto-focus="focus.closed"

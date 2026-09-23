@@ -9,11 +9,10 @@ import { fmtBytes, fmtDateTime, fmtTokens, fmtUptime } from '../../core/util/fmt
 import Spinner from '../../ui/components/Spinner.vue';
 
 const UsagePlot = defineAsyncComponent(() => import('../usage/UsagePlot.vue'));
-import { memoryDetailRows, memorySegments } from './memorySegments';
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 const charts = ref<{ refresh: () => void }>();
 function refresh() { void stats.refresh(); charts.value?.refresh(); }
-const { status, usage, storage, memory, version, loading, error, updatedAt } = stats;
+const { status, usage, storage, version, loading, error, updatedAt } = stats;
 const hiddenModels = ref(new Set<string>());
 function toggleModel(key:string){const next=new Set(hiddenModels.value);next.has(key)?next.delete(key):next.add(key);hiddenModels.value=next;}
 const modelKey = (row: {provider: string | null; model: string | null}) => JSON.stringify([row.provider,row.model]);
@@ -30,14 +29,17 @@ const errorMessage = computed(() => error.value instanceof Error ? error.value.m
 const tx = (zh: string, en: string) => i18n.locale.value === 'zh' ? zh : en;
 const number = (value: number) => new Intl.NumberFormat(i18n.locale.value).format(value);
 const percent = (value: number | null) => value == null ? '—' : new Intl.NumberFormat(i18n.locale.value, { style: 'percent', maximumFractionDigits: 1 }).format(value);
-const models = computed(() => {
-  const values = new Map<string, number>();
-  for (const row of selectedRows.value) {
-    const name = row.model ?? tx('未记录', 'Not recorded');
-    values.set(name, (values.get(name) ?? 0) + row.totals.tokens.total_tokens);
-  }
-  return Array.from(values, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-});
+// Keep the button's original color index through filtering and pie sorting.
+const models = computed(() => rows.value.flatMap((row, colorIndex) => {
+  if (hiddenModels.value.has(modelKey(row))) return [];
+  const label = row.model ?? tx('未记录', 'Not recorded');
+  const duplicate = rows.value.some(other => other !== row && other.model === row.model);
+  return [{
+    name: duplicate ? `${label} · ${row.provider ?? tx('未记录', 'Not recorded')}` : label,
+    value: row.totals.tokens.total_tokens,
+    colorIndex,
+  }];
+}));
 const slices = computed(() => pieDistribution(models.value, tx('其他', 'Other')));
 const showPie = computed(() => models.value.filter(item => item.value > 0).length > 1);
 const storageRows = computed(() => storage.value ? [
@@ -46,10 +48,6 @@ const storageRows = computed(() => storage.value ? [
   { name: tx('执行输出', 'Execution output'), value: storage.value.bytes.executions },
   { name: tx('服务数据', 'Service data'), value: storage.value.bytes.service_data },
 ] : []);
-const memoryTotal = computed(() => memory.value?.rss_bytes ?? 0);
-const memoryBreakdown = computed(() => memorySegments(memory.value, tx));
-const memoryRows = computed(() => memoryBreakdown.value.segments);
-const memoryDetail = computed(() => memoryDetailRows(memory.value, status.value, fmtBytes, number, tx));
 const color = (index: number) => `var(--chart-${index % 6 + 1})`;
 onActivated(stats.startAuto);
 onDeactivated(stats.stopAuto);
@@ -80,7 +78,7 @@ onDeactivated(stats.stopAuto);
           <div v-if="showPie" class="model-share">
             <UsagePlot :pie="slices" :label="tx('各模型总 Token 消耗占比', 'Total Token consumption by model')" />
             <ul class="distribution-legend">
-              <li v-for="(item,index) in slices" :key="index"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><strong>{{ percent(item.share) }}</strong></li>
+              <li v-for="(item,index) in slices" :key="index"><i :style="{ background: item.colorIndex == null ? 'var(--fg-subtle)' : color(item.colorIndex) }" /><span>{{ item.name }}</span><strong>{{ percent(item.share) }}</strong></li>
             </ul>
           </div>
         </section>
@@ -113,20 +111,6 @@ onDeactivated(stats.stopAuto);
           </ul>
         </section>
         </div>
-        <section v-if="memory && memory.rss_bytes" class="card statistics-detail statistics-memory">
-          <h2>{{ i18n.t('stats.memory') }}</h2>
-          <div class="storage-summary"><span>{{ tx('进程驻留内存', 'Process resident memory') }}</span><Hint :text="`${number(memory.rss_bytes)} B`"><strong>{{ fmtBytes(memory.rss_bytes) }}</strong></Hint></div>
-          <div class="storage-bar" role="img" :aria-label="memoryRows.map(item => `${item.name}: ${fmtBytes(item.value)}`).join(', ')">
-            <span v-for="(item,index) in memoryRows" :key="item.name" :style="{ width: `${memoryTotal ? item.value / memoryTotal * 100 : 0}%`, background: color(index) }" />
-          </div>
-          <ul class="distribution-legend storage-legend">
-            <li v-for="(item,index) in memoryRows" :key="index"><i :style="{ background: color(index) }" /><span :title="item.note">{{ item.name }}</span><small>{{ percent(memoryTotal ? item.value / memoryTotal : 0) }}</small><Hint :text="`${number(item.value)} B`"><strong>{{ fmtBytes(item.value) }}</strong></Hint></li>
-          </ul>
-          <p v-if="memoryBreakdown.partial" class="memory-partial">{{ tx('旧版守护进程:重启升级后可查看完整分解。', 'Older daemon: restart after upgrading to see the full breakdown.') }}</p>
-          <dl v-if="memoryDetail.length" class="memory-detail">
-            <div v-for="row in memoryDetail" :key="row.name"><dt :title="row.note">{{ row.name }}</dt><dd><Hint :text="row.note"><strong>{{ row.value }}</strong></Hint></dd></div>
-          </dl>
-        </section>
 
       </div>
     </div>
@@ -140,7 +124,7 @@ onDeactivated(stats.stopAuto);
 .statistics-usage { min-width: 0; }
 .statistics-models { display:flex; align-items:stretch; flex-wrap:wrap; gap:6px 12px; margin-bottom:16px; min-width:0; }
 .statistics-model { display:flex; align-items:center; gap:7px; max-width:100%; min-width:0; padding:7px 8px; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--fg-subtle); font:inherit; font-size:12px; text-align:left; cursor:pointer; }
-.statistics-model:hover { background:var(--bg-hover); }
+@media (hover: hover) { .statistics-model:hover { background:var(--bg-hover); } }
 .statistics-model[aria-pressed='true'] { color:var(--fg); }
 .statistics-model[aria-pressed='false'] { opacity:.45; }
 .statistics-model .statistics-model-share { align-self:flex-end; margin-left:8px; white-space:nowrap; font-variant-numeric:tabular-nums; }
@@ -148,11 +132,6 @@ onDeactivated(stats.stopAuto);
 .statistics-model span { min-width:0; overflow-wrap:anywhere; }
 .statistics-model small { display:block; margin-top:2px; font-size:10px; color:var(--fg-subtle); }
 .statistics-model-dot { width:7px; height:7px; border-radius:50%; flex:none; }
-.memory-partial { margin: 10px 0 0; font-size: 12px; color: var(--warn); }
-.memory-detail { display: grid; gap: 6px; margin: 14px 0 0; }
-.memory-detail > div { display: grid; grid-template-columns: minmax(96px, fit-content(40%)) minmax(0, 1fr); gap: 4px 16px; align-items: baseline; min-width: 0; }
-.memory-detail dt { font-size: 12px; color: var(--fg-muted); min-width: 0; }
-.memory-detail dd { margin: 0; font-size: 12px; color: var(--fg-muted); overflow-wrap: anywhere; }
 .statistics-toolbar { display: flex; flex: none; align-items: center; justify-content: end; gap: 12px; padding-block: 10px; }
 .statistics-grid { display: grid; gap: 20px; min-width: 0; }
 .statistics-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; min-width: 0; }

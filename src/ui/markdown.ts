@@ -2,6 +2,7 @@ import MarkdownIt from 'markdown-it';
 import DOMPurify from 'dompurify';
 import { tex } from '@mdit/plugin-tex';
 import temml from 'temml';
+import { createBoundedCache } from '../core/util/boundedCache.js';
 
 const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true, typographer: true });
 markdown.use(tex, {
@@ -21,6 +22,19 @@ markdown.renderer.rules.fence = (tokens, index, options, env, renderer) => {
   return `<div class="code-block"><button class="code-copy btn ghost sm" type="button">${label}</button>${fence(tokens, index, options, env, renderer)}</div>`;
 };
 
+// Large/streaming answers must not retain 500 full intermediate renderings.
+const RENDER_CACHE = createBoundedCache(500, 2_000_000);
+
 export function renderMarkdown(text: string, copyLabel: string): string {
-  return DOMPurify.sanitize(markdown.render(text, { copyLabel }), { ADD_ATTR: ['target'], ADD_TAGS: ['annotation', 'semantics'] });
+  const cacheKey = `${copyLabel}\0${text}`;
+  const cached = RENDER_CACHE.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  const html = DOMPurify.sanitize(
+    markdown.render(text, { copyLabel }),
+    { ADD_ATTR: ['target'], ADD_TAGS: ['annotation', 'semantics'] }
+  );
+
+  RENDER_CACHE.set(cacheKey, html);
+  return html;
 }

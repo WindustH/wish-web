@@ -58,6 +58,7 @@ const contextUsage = computed(() => contextUsageRow(snapshot.value?.context_usag
       <div v-if="contextUsage"><dt>{{ i18n.t('info.contextUsage') }}</dt><dd><span class="ctx-usage" :class="contextUsage.level">{{ contextUsage.estimated ? '≈' : '' }}{{ contextUsage.pct }}%</span><small class="ctx-fraction">{{ contextUsage.fraction }}</small></dd></div>
       <div><dt>{{ i18n.t('info.compactionCount') }}</dt><dd>{{ snapshot.compaction_count }}</dd></div>
       <div><dt>{{ i18n.t('info.phase') }}</dt><dd>{{ i18n.t(`phase.${snapshot.phase || 'idle'}`) }}</dd></div>
+      <div v-if="snapshot.standby_preparing"><dt>{{ i18n.t('info.standby') }}</dt><dd>{{ i18n.t('chat.standbyPreparing') }}</dd></div>
       <div><dt>{{ i18n.t('info.queue') }}</dt><dd>{{ snapshot.queue ?? 0 }}</dd></div>
       <div><dt>{{ i18n.t('info.createdAt') }}</dt><dd>{{ fmtDateTime(snapshot.created_at) }}</dd></div>
       <div><dt>{{ i18n.t('info.updatedAt') }}</dt><dd>{{ fmtDateTime(snapshot.updated_at) }}</dd></div>

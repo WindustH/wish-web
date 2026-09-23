@@ -32,6 +32,15 @@ applyTokens();
 registerBrowserPlatform();
 prefs.load();
 
+// The app supplies its own message actions; unused browser context menus
+// should not appear on right-click or touch hold elsewhere in the UI.
+document.addEventListener('contextmenu', event => event.preventDefault(), true);
+document.addEventListener('selectstart', event => {
+  if (matchMedia('(max-width: 899px)').matches && event.target instanceof Element && event.target.closest('.chatlog')) {
+    event.preventDefault();
+  }
+}, true);
+
 // theme: system watch + apply resolved + meta theme-color sync
 const mq = matchMedia('(prefers-color-scheme: dark)');
 theme.init({
@@ -81,10 +90,7 @@ app.use(router);
 app.mount('#app');
 
 installShortcuts({
-  openNewSession: async () => {
-    const { openNewSession } = await import('./features/sessions/newSession.js');
-    openNewSession();
-  },
+  openNewSession: () => { void router.push('/new'); },
 });
 
 initPWA();

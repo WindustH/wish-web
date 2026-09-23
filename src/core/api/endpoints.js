@@ -32,7 +32,7 @@ export async function sessionUpdateModel(id, body, revision, opts) {
   return sessionView(await patch(path(id), { provider: body.provider ?? current.provider, config }, revisionOptions(revision, opts)));
 }
 export async function historyPage(id, params, opts) {
-  const page = await get(`${path(id)}/history`, { query: params, ...opts });
+  const page = await get(`${path(id)}/history`, { query: { ...params, include_outcomes: true }, ...opts });
   return { items: page.items.map(item => entryView(item, id)), has_more: page.next != null, next_cursor: page.next };
 }
 export async function historySearch(id, params, opts) {
@@ -62,7 +62,6 @@ export async function deliveriesList(id, params, opts) {
 export const moveQueuedInput = (id, entry, before) => patch(`${path(id)}/queue/${entry}`, {before:before == null ? null : Number(before)});
 export const cancelQueuedInput = (id, entry) => del(`${path(id)}/queue/${entry}`);
 export const providerConfigs = async opts => ({providers:(await get('/providers',opts)).items.map(providerView)});
-export const providerSummaries = providerConfigs;
 export const providerModels = async (id,opts) => {const result=await get(`/providers/${encodeURIComponent(id)}/models`,opts);return {...result,models:result.items.map(m=>({...m,display_name:m.name,allowed_for_provider:true}))};};
 export const configEffective = () => get('/defaults');
 export async function rememberDefaultModel(value) {
@@ -84,6 +83,5 @@ export const daemonStatus = opts => get('/status',opts);
 export const usageTotals = opts => get('/usage',opts);
 export const sessionUsage = id => get(`${path(id)}/usage`);
 export const storageStatus = opts => get('/storage',opts);
-export const runtimeMemory = async () => null;
 export const usageSeries = (id,params,opts) => get(id?`${path(id)}/usage/series`:'/usage/series',{query:params,...opts});
 export const usageDaily = (id,params,opts) => get(id?`${path(id)}/usage/daily`:'/usage/daily',{query:params,...opts});

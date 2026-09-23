@@ -2,7 +2,7 @@
 
 [Documentation](README.md)
 
-The frontend uses the single `wish` HTTP backend, built by the sibling `wish-server` crate.
+The frontend uses the single `wish` HTTP backend, built by the sibling `wish-core` package.
 The browser talks only to `/api`; `serve.mjs` proxies it to `WISH_UPSTREAM`
 (default `http://127.0.0.1:9780`). Old wishd/providerd routes and persisted formats are not supported.
 
@@ -12,4 +12,4 @@ The browser talks only to `/api`; `serve.mjs` proxies it to `WISH_UPSTREAM`
 
 History search accepts message-type, time and metadata filters. Search returns bounded ranked results; “more” increases the requested result count. History browsing uses sequence cursors, never a full-history fetch.
 
-See [backend API](../../../wish-server/docs/api.md) for the complete route and payload reference.
+See [backend API](../../../wish-core/docs/server/api.md) for the complete route and payload reference.

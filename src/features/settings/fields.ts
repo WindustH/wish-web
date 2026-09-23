@@ -1,5 +1,5 @@
-import { i18n } from '../../core/i18n/index.js';
-export const tr = (zh: string, en: string) => i18n.locale.value === 'zh' ? zh : en;
+import { tr } from '../../core/i18n/tr';
+export { tr } from '../../core/i18n/tr';
 
 export const compactionFields = () => [
   {key:'trigger_tokens',label:tr('触发压缩的 Token 数','Compaction trigger tokens')},

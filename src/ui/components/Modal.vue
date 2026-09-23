@@ -17,6 +17,18 @@ const pageActive = usePageActivity();
 const props = withDefaults(defineProps<{ open: boolean; title: string; beforeClose?: () => boolean | Promise<boolean>; layer?: number; wide?: boolean; page?: boolean; back?: () => void; contentClass?: string; dismissable?: boolean; closeButton?: boolean; floating?: boolean; anchor?: HTMLElement; compact?: boolean }>(), { dismissable: true, closeButton: true });
 const emit = defineEmits<{ close: [] }>();
 const closing = ref(false);
+let closeCompleted = false;
+let closeTimer: ReturnType<typeof setTimeout> | undefined;
+function clearCloseTimer() {
+  if (closeTimer !== undefined) clearTimeout(closeTimer);
+  closeTimer = undefined;
+}
+function finishClose() {
+  if (!closing.value || closeCompleted || !pageActive.value) return;
+  closeCompleted = true;
+  clearCloseTimer();
+  emit('close');
+}
 const layer = useDialogLayer(() => props.layer ?? (props.floating ? 64 : 60));
 const bubble = computed(() => props.floating || (!props.page && !!props.contentClass?.split(' ').includes('session-window')));
 // Compact cards drop the head and footer bands: the title joins the content
@@ -50,8 +62,8 @@ function outside(event: Event) {
   const target = (event as CustomEvent).detail?.originalEvent?.target as Node | undefined;
   if ((target instanceof Element && target.closest('.pwa-update')) || !props.dismissable || (props.floating && target && props.anchor?.contains(target)) || (bubble.value && (event.target as Element)?.closest?.('[data-session-panel]'))) event.preventDefault();
 }
-watch(() => props.open, open => { if (open) closing.value = false; });
-watch(pageActive, active => { if (!active) closing.value = false; }, { flush: 'sync' });
+watch(() => props.open, open => { if (open) { clearCloseTimer(); closing.value = false; closeCompleted = false; } });
+watch(pageActive, active => { if (!active) { clearCloseTimer(); closing.value = false; closeCompleted = false; } }, { flush: 'sync' });
 watch([pageActive, bubble], async ([active]) => { if (active) { await nextTick(); positionBubble(); } });
 const anchorStyle = ref<Record<string, string>>({});
 function positionBubble() {
@@ -90,7 +102,7 @@ const untrackBubblePosition = () => { window.removeEventListener('resize', posit
 // listeners (capture phase) turned each scroll into a rows-sized fan-out.
 watch(bubble, value => { value ? trackBubblePosition() : untrackBubblePosition(); });
 onMounted(() => { positionBubble(); if (bubble.value) trackBubblePosition(); });
-onBeforeUnmount(() => untrackBubblePosition());
+onBeforeUnmount(() => { untrackBubblePosition(); clearCloseTimer(); });
 let checkingClose = false;
 async function requestClose() {
   if (!pageActive.value || !props.dismissable || closing.value) return;
@@ -101,19 +113,24 @@ async function requestClose() {
     if (!pageActive.value) return;
   }
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) emit('close');
-  else closing.value = true;
+  else {
+    closeCompleted = false;
+    closing.value = true;
+    // Keep the exit animation, but finish even if the browser cancels it.
+    closeTimer = setTimeout(finishClose, 300);
+  }
 }
-function finishClose(event: AnimationEvent) {
-  if (pageActive.value && closing.value && event.target === event.currentTarget) emit('close');
+function onCloseAnimationEnd(event: AnimationEvent) {
+  if (event.target === event.currentTarget && ['popup-fade-out', 'page-out', 'session-panel-out', 'session-bubble-out', 'config-bubble-out'].includes(event.animationName)) finishClose();
 }
 defineExpose({ close: requestClose });
 </script>
 
 <template>
-  <DialogRoot :modal="!bubble" :open="open && !closing" @update:open="(v: boolean) => { if (!v) requestClose(); }">
+  <DialogRoot :modal="!bubble" :open="pageActive && open && !closing" @update:open="(v: boolean) => { if (!v) requestClose(); }">
     <DialogPortal v-if="pageActive">
       <DialogOverlay v-if="!bubble" class="modal-overlay" :style="{ zIndex: layer }" />
-      <DialogContent @pointerdown.capture="ownFieldDrag" @animationend="finishClose" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'session-bubble': bubble && !floating, 'config-bubble': floating, compact: compactCard }, contentClass]" :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }" :aria-describedby="undefined"
+      <DialogContent @pointerdown.capture="ownFieldDrag" @animationend="onCloseAnimationEnd" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'session-bubble': bubble && !floating, 'config-bubble': floating, compact: compactCard }, contentClass]" :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }" :aria-describedby="undefined"
         @escape-key-down="(e: KeyboardEvent) => { if (dismissable === false) e.preventDefault(); else if (page && back) { e.preventDefault(); back(); } }"
         @focus-outside="event => { if (floating) event.preventDefault(); }"
         @interact-outside="outside"

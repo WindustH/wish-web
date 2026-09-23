@@ -20,9 +20,10 @@
 .settings-category-button > svg:last-child { transform: rotate(-90deg); transition: transform var(--dur-fast); }
 .settings-category-button.active { color: var(--fg); font-weight: 600; }
 .settings-category-button[aria-expanded="true"] > svg:last-child { transform: none; }
-.settings-category-button:hover { background: var(--bg-hover); }
+@media (hover: hover) { .settings-category-button:hover { background: var(--bg-hover); } }
 .settings-result { display: grid; gap: 5px; text-align: left; width: 100%; padding: 14px 10px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--fg); font: inherit; cursor: pointer; overflow-wrap: anywhere; }
-.settings-result:hover, .settings-result:focus-visible { background: var(--bg-hover); }
+.settings-result:focus-visible { background: var(--bg-hover); }
+@media (hover: hover) { .settings-result:hover { background: var(--bg-hover); } }
 .settings-result small, .settings-result > span { color: var(--fg-subtle); font-size: 12px; line-height: 1.7; }
 .settings-result strong { font-size: 13px; font-weight: 500; }
 .cfg-section h2 { font: 600 15px/1.5 var(--font); margin: 0 0 8px; }
@@ -44,7 +45,7 @@
 .cfg-layout { min-width: 0; }
 .cfg-sections { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 8px; }
 .cfg-sections button { text-align: left; padding: 7px 10px 7px 35px; border: 0; border-radius: 6px; background: transparent; color: var(--fg-subtle); font: inherit; font-size: 13px; cursor: pointer; transition: color var(--dur-fast), background var(--dur-fast); }
-.cfg-sections button:hover { color: var(--fg); background: var(--bg-hover); }
+@media (hover: hover) { .cfg-sections button:hover { color: var(--fg); background: var(--bg-hover); } }
 .cfg-sections button.active { color: var(--fg); background: var(--bg-active); font-weight: 500; }
 .cfg-content { min-width: 0; max-width: 720px; }
 .cfg-content fieldset, .cfg-editor-window fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
@@ -217,7 +218,8 @@
 @keyframes config-bubble-out { from { opacity: 1; translate: 0 0; scale: 1; } to { opacity: 0; translate: 0 -5px; scale: .97; } }
 
 .setting-help-icon { display: none; align-items: center; justify-content: center; padding: 5px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--fg-subtle); vertical-align: middle; cursor: help; }
-.setting-help-icon:hover, .setting-help-icon:focus-visible { color: var(--fg); }
+.setting-help-icon:focus-visible { color: var(--fg); }
+@media (hover: hover) { .setting-help-icon:hover { color: var(--fg); } }
 @media (max-width: 599px) {
   .setting-help-text { display: none; }
   .setting-help-icon { display: inline-flex; }
@@ -296,3 +298,19 @@
 .settings-editor.compact .modal-body { padding:16px 18px 0; }
 .settings-editor.compact .modal-flow-title { margin-bottom:16px; }
 .settings-editor.compact .modal-actions { padding:12px 18px 14px; align-items:center; }
+
+.provider-json { min-width:0; padding-top:12px; border-top:1px solid var(--line); }
+.provider-json > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:44px; list-style:none; cursor:pointer; font-size:13px; color:var(--fg-muted); }
+.provider-json > summary::-webkit-details-marker { display:none; }
+.provider-json > summary > svg { flex:none; width:16px; height:16px; transition:transform 180ms var(--ease-out); }
+.provider-json[open] > summary > svg { transform:rotate(180deg); }
+.provider-json > textarea { display:block; width:100%; min-width:0; margin-top:8px; }
+.provider-json > button { margin-top:10px; }
+@media(max-width:899px) {
+ .provider-panel .provider-json { padding:0 14px 4px; }
+ .provider-panel .provider-json > summary { min-height:48px; }
+ .provider-panel .provider-json[open] { padding-bottom:14px; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .provider-json > summary > svg { transition:none; }
+}

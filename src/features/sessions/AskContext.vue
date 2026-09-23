@@ -1,55 +1,183 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue';
+import { nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { absUrl } from '../../core/api/client.js';
-import { tr } from '../settings/fields';
-const props = defineProps<{ sessionId: string }>();
-const question = ref(''), answer = ref(''), error = ref(''), busy = ref(false);
+import { prefs } from '../../core/state/prefsSlice.js';
+import Icon from '../../ui/components/Icon.vue';
+import Markdown from '../../ui/components/Markdown.vue';
+import MessageContext from './entries/MessageContext.vue';
+import { readAskResponse } from './readAskResponse.js';
+import { tr } from '../../core/i18n/tr';
+
+const props = defineProps<{ sessionId: string; hidden: boolean; externalInput?: boolean }>();
+const emit = defineEmits<{ cleared: [] }>();
+type AskTurn = { id: number; question: string; answer: string; error: string; busy: boolean };
+const question = ref('');
+const turns = ref<AskTurn[]>([]);
+const busy = ref(false);
+const completed = ref(false);
+const log = ref<HTMLElement | null>(null);
+let nextId = 0;
+let generation = 0;
 let controller: AbortController | undefined;
-onBeforeUnmount(() => controller?.abort());
-async function ask() {
-  if (!question.value.trim() || busy.value) return;
-  const current = new AbortController(); controller = current;
-  answer.value = ''; error.value = ''; busy.value = true;
+let scrollFrame = 0;
+onBeforeUnmount(() => {
+  generation++;
+  controller?.abort();
+  cancelAnimationFrame(scrollFrame);
+});
+
+function clearConversation() {
+  generation++;
+  controller?.abort();
+  controller = undefined;
+  turns.value = [];
+  question.value = '';
+  busy.value = false;
+  completed.value = false;
+  cancelAnimationFrame(scrollFrame);
+  scrollFrame = 0;
+  emit('cleared');
+}
+watch([() => props.hidden, busy, completed], ([hidden, isBusy, isComplete]) => {
+  if (hidden && !isBusy && isComplete) clearConversation();
+});
+
+function contextHistory() {
+  const history = turns.value.filter(turn => !turn.busy && !turn.error && turn.answer.trim())
+    .slice(-32).map(turn => ({ question: turn.question, answer: turn.answer }));
+  const encoder = new TextEncoder();
+  while (history.length && encoder.encode(JSON.stringify(history)).byteLength > 120_000) history.shift();
+  return history;
+}
+
+function atBottom() {
+  const el = log.value;
+  return !el || el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+}
+function followAnswer() {
+  if (!atBottom() || scrollFrame) return;
+  scrollFrame = requestAnimationFrame(() => {
+    scrollFrame = 0;
+    if (log.value) log.value.scrollTop = log.value.scrollHeight;
+  });
+}
+
+function submitQuestion(value?: string) {
+  const text = (value ?? question.value).trim();
+  if (!text || busy.value) return false;
+  const history = contextHistory();
+  const turn = reactive<AskTurn>({ id: ++nextId, question: text, answer: '', error: '', busy: true });
+  turns.value.push(turn);
+  question.value = '';
+  busy.value = true;
+  completed.value = false;
+  void runQuestion(text, history, turn, generation);
+  return true;
+}
+
+async function runQuestion(text: string, history: { question: string; answer: string }[], turn: AskTurn, owner: number) {
+  await nextTick();
+  if (owner !== generation) return;
+  if (log.value) log.value.scrollTop = log.value.scrollHeight;
+  const current = new AbortController();
+  controller = current;
   try {
     const response = await fetch(absUrl(`/sessions/${encodeURIComponent(props.sessionId)}/ask`), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: question.value, stream: true }), signal: current.signal,
+      body: JSON.stringify({ text, stream: true, history }), signal: current.signal,
     });
-    if (!response.ok) { const body = await response.json(); throw new Error(body.error?.message || response.statusText); }
-    const reader = response.body!.getReader(), decoder = new TextDecoder(); let buffer = '', finished = false;
-    try {
-      while (!finished) {
-        const { value, done } = await reader.read(); if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let end: number;
-        while ((end = buffer.indexOf('\n\n')) >= 0) {
-          const frame = buffer.slice(0, end); buffer = buffer.slice(end + 2);
-          const lines = frame.split('\n'), event = lines.find(line => line.startsWith('event:'))?.slice(6).trim();
-          const data = lines.filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n');
-          if (!data) continue;
-          if (event === 'done') { finished = true; break; }
-          const parsed = JSON.parse(data);
-          if (event === 'error') throw new Error(parsed.message);
-          if (parsed.TextDelta) answer.value += parsed.TextDelta.delta;
-          if (parsed.Stop === 'MaxOutputLengthExceeded') error.value = tr('回答达到输出上限。','The answer reached the output limit.');
-        }
-      }
-      if (!finished) throw new Error(tr('响应连接提前结束，已收到的内容保留如下。','The response connection ended early; received content is retained below.'));
-    } finally { await reader.cancel(); }
-  } catch (e: any) { if (!current.signal.aborted) error.value = String(e.message || e); }
-  finally { busy.value = false; controller = undefined; }
+    await readAskResponse(response, (delta: string) => {
+      if (owner !== generation) return;
+      followAnswer();
+      turn.answer += delta;
+    });
+    if (owner === generation) completed.value = true;
+  } catch (error: any) {
+    if (owner === generation) turn.error = current.signal.aborted
+      ? tr('已停止回答。', 'Answer stopped.')
+      : String(error?.message || error);
+  } finally {
+    if (owner === generation) {
+      turn.busy = false;
+      busy.value = false;
+      controller = undefined;
+      followAnswer();
+    }
+  }
+}
+
+function stopAnswer() { controller?.abort(); }
+defineExpose({ submitQuestion, stopAnswer, busy });
+
+function onKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return;
+  const plain = !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
+  const mod = event.ctrlKey || event.metaKey;
+  if ((prefs.sendOnEnter.value && plain) || (!prefs.sendOnEnter.value && mod)) {
+    event.preventDefault();
+    submitQuestion();
+  }
 }
 </script>
+
 <template>
-  <section class="ask-context">
-    <h4>{{tr('无状态问答','Ask about context')}}</h4>
-    <p class="hint">{{tr('基于当前上下文回答一次，不调用工具，不写入会话历史。','Answer once using current context, without tools or changes to session history.')}}</p>
-    <label>{{tr('问题','Question')}}<textarea class="input" rows="3" v-model="question" :disabled="busy"/></label>
-    <div><button v-if="!busy" class="btn" :disabled="!question.trim()" @click="ask">{{tr('提问','Ask')}}</button><button v-else class="btn" @click="controller?.abort()">{{tr('停止回答','Stop answering')}}</button></div>
-    <p v-if="error" role="alert" class="load-error">{{error}}</p>
-    <div v-if="answer" class="answer" aria-live="polite">{{answer}}</div>
+  <section class="ask-context" :class="{ 'external-input': externalInput }">
+    <header class="ask-heading">
+      <div><strong>BTW</strong><span>{{tr('临时对话 · 不写入会话历史','Temporary chat · not saved to session history')}}</span></div>
+      <button v-if="turns.length" type="button" class="btn ghost icon-only ask-clear" :aria-label="tr('清除 BTW 上下文','Clear BTW context')" @click="clearConversation"><Icon name="trash-2" /></button>
+    </header>
+    <div ref="log" class="ask-log chatlog" role="log" :aria-label="tr('BTW 问答','BTW conversation')">
+      <p v-if="!turns.length" class="ask-empty">{{tr('基于当前会话上下文提问','Ask about this session')}}</p>
+      <div v-for="turn in turns" :key="turn.id" class="ask-turn">
+        <MessageContext :text="turn.question" kind="user">
+          <div class="entry user"><div class="bubble">{{turn.question}}</div></div>
+        </MessageContext>
+        <MessageContext :text="turn.answer" kind="assistant">
+          <div class="entry assistant">
+            <div class="body">
+              <Markdown v-if="turn.answer" :text="turn.answer" />
+              <span v-else-if="turn.busy" class="ask-thinking"><Icon name="loader-circle" class="spin" />{{tr('正在回答…','Answering…')}}</span>
+              <p v-if="turn.error" class="ask-error" role="alert">{{turn.error}}</p>
+            </div>
+          </div>
+        </MessageContext>
+      </div>
+    </div>
+    <form v-if="!externalInput" class="ask-composer" @submit.prevent="submitQuestion()">
+      <textarea v-model="question" data-initial-focus rows="2" :aria-label="tr('输入问题','Enter a question')" :placeholder="tr('输入问题…','Ask a question…')" @keydown="onKeydown" />
+      <div class="ask-actions">
+        <button v-if="busy" type="button" class="send-btn stop" :aria-label="tr('停止回答','Stop answering')" @click="stopAnswer"><Icon name="square" /></button>
+        <button v-else type="submit" class="send-btn" :disabled="!question.trim()" :aria-label="tr('发送问题','Send question')"><Icon name="send" /></button>
+      </div>
+    </form>
   </section>
 </template>
+
 <style scoped>
-.ask-context{display:grid;gap:12px}.ask-context h4,.ask-context p{margin:0}.ask-context label{display:grid;gap:6px}.ask-context textarea{width:100%;resize:vertical}.answer{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;background:var(--surface);border:1px solid var(--line);max-height:50vh;overflow:auto}
+.ask-context{display:flex;flex-direction:column;flex:1;min-height:0}
+.ask-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none;padding:10px 22px 6px}
+.ask-heading>div{display:flex;align-items:baseline;gap:8px;min-width:0}
+.ask-heading strong{font-size:14px;line-height:1.5}
+.ask-heading span{color:var(--fg-subtle);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ask-clear{width:30px;min-width:30px;height:30px;min-height:30px;padding:0;color:var(--fg-subtle)}
+.ask-clear .icon{width:15px;height:15px}
+.ask-log{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 22px 16px;background:var(--bg)}
+.ask-empty{margin:0;color:var(--fg-subtle);font-size:13px;line-height:1.7}
+.ask-turn+.ask-turn{margin-top:2px}
+.ask-turn .entry{padding-bottom:14px}
+.ask-turn .entry.user .bubble{max-width:100%}
+.ask-turn .entry.assistant .body{min-width:0}
+.ask-thinking{display:inline-flex;align-items:center;gap:8px;color:var(--fg-subtle);font-size:13px}
+.ask-thinking .icon{width:14px;height:14px}
+.ask-error{margin:8px 0 0;color:var(--err);font-size:13px;line-height:1.6}
+.ask-composer{flex:none;display:flex;flex-direction:column;border-top:1px solid var(--line-strong);background:var(--bg-raised);padding:10px 16px 8px}
+.ask-composer:focus-within{border-top-color:var(--accent)}
+.ask-composer textarea{width:100%;min-height:54px;max-height:120px;resize:none;overflow-y:auto;border:0;outline:0;background:transparent;padding:2px 0 4px;font-size:15px;line-height:1.6}
+.ask-actions{display:flex;align-items:center;justify-content:flex-end;min-height:36px}
+.send-btn{flex:none;display:grid;place-items:center;width:36px;height:36px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--fg-muted);cursor:pointer;transition:background var(--dur-fast),border-color var(--dur-fast),color var(--dur-fast)}
+.send-btn .icon{width:16px;height:16px}
+.send-btn:disabled{color:var(--fg-subtle);cursor:default}
+.send-btn.stop{color:var(--err)}
+@media(hover:hover){.send-btn:hover{background:var(--bg-hover);border-color:var(--line-strong)}}
+@media(max-width:899px){.ask-heading{padding:9px 20px 4px}.ask-log{padding:12px 20px 16px}.ask-turn .entry{padding-bottom:12px}}
 </style>

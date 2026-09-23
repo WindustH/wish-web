@@ -75,7 +75,7 @@ watch(pageActive, active => { if (!active) open.value = false; });
 .choice-capsule { display: inline-flex; align-items: stretch; width: fit-content; max-width: 100%; padding: 3px; gap: 2px; border-radius: 11px; background: var(--bg-sunken); }
 .choice-capsule > button { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; padding: 6px 12px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--fg-subtle); font: inherit; font-size: 13px; cursor: pointer; transition: background 150ms, color 150ms, border-color 150ms; }
 .choice-capsule > button[data-state="on"] { background: var(--bg-active); border-color: var(--line-strong); color: var(--fg); }
-.choice-capsule > button:hover { color: var(--fg); }
+@media (hover: hover) { .choice-capsule > button:hover { color: var(--fg); } }
 .choice-capsule > button:disabled { opacity: .5; cursor: default; }
 
 .select-option-label { display: flex; align-items: center; gap: 9px; min-width: 0; }

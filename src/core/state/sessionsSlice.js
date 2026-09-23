@@ -31,7 +31,6 @@ const IDENTITY_FIELDS = new Set(['name', 'updated_at_ms', 'metadata']);
 // metadata accessors — the defined keys only; everything else is the
 // user's own JSON, carried untouched (decision-json-metadata).
 export const metaOf = (row) => row?.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata) ? row.metadata : {};
-export const metaTags = (row) => metaOf(row).tags ?? [];
 
 export const sessions = (() => {
   const items = shallowRef([]);            // newest first (order=desc)
@@ -109,7 +108,7 @@ export const sessions = (() => {
   }
 
   async function loadMore() {
-    if (loadingMore.value || !hasMore.value || cursor.value == null) return false;
+    if (loading.value || loadingMore.value || !hasMore.value || cursor.value == null) return false;
     const myGen = gen;
     loadingMore.value = true;
     try {
@@ -117,7 +116,7 @@ export const sessions = (() => {
       if (myGen !== gen) return false;
       const seen = new Set(items.value.map((s) => s.id));
       const merged = [...items.value];
-      for (const it of page.items) if (!seen.has(it.id)) merged.push(it);
+      for (const it of page.items) if (!seen.has(it.id)) { seen.add(it.id); merged.push(it); }
       items.value = merged;
       cursor.value = page.next_cursor ?? null;
       hasMore.value = Boolean(page.has_more);
@@ -130,7 +129,24 @@ export const sessions = (() => {
 
   const debouncedSearch = debounce(() => { loadFirst(); }, cfg.sessions.searchDebounceMs);
   function setQuery(q) { if (q === query.value) return; query.value = q; bump(); debouncedSearch(); }
-  function setPhaseFilter(p) { if (p === phaseFilter.value) return; phaseFilter.value = p; bump(); loadFirst(); }  function setTagFilter(t) { if (t === tagFilter.value) return; tagFilter.value = t; bump(); loadFirst(); }  function refresh() { bump(); return loadFirst(); }
+  function setPhaseFilter(p) {
+    if (p === phaseFilter.value) return;
+    phaseFilter.value = p;
+    bump();
+    loadFirst();
+  }
+
+  function setTagFilter(t) {
+    if (t === tagFilter.value) return;
+    tagFilter.value = t;
+    bump();
+    loadFirst();
+  }
+
+  function refresh() {
+    bump();
+    return loadFirst();
+  }
 
   async function create({ name, provider, model, reasoningEffort, agentCustom }) {
     const body = { provider, model };

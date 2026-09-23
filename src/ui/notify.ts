@@ -1,5 +1,5 @@
 // Background notifications (decisions 22): default OFF, user opt-in,
-// document-hidden only, deduped. Failed runs + resume-required flips.
+// document-hidden only, deduped. Resume-required flips.
 import { watch } from 'vue';
 import { prefs } from '../core/state/prefsSlice.js';
 import { sync } from '../core/state/syncSlice.js';
@@ -8,10 +8,7 @@ import { i18n } from '../core/i18n/index.js';
 import { platform } from '../platform/index.js';
 import { announce } from './live.js';
 
-const RUN_FAIL_STATES = new Set(['failed']);   // aborted = user cancel, not a failure
-
 export function installBackgroundNotify() {
-  const seenRuns = new Set<string>();
   const resumePrev = new Map<string, boolean>();
   let snapshotted = false;
 
@@ -26,28 +23,10 @@ export function installBackgroundNotify() {
   // Baseline from the first authoritative snapshot so reconnects neither
   // spam old terminal states nor miss genuine flips.
   bus.on('sync.snapshot', (payload: any) => {
-    for (const r of payload?.runs?.items ?? []) {
-      if (RUN_FAIL_STATES.has(r?.state)) seenRuns.add(r.id);
-    }
     for (const s of payload?.sessions?.items ?? []) {
       resumePrev.set(s.id, Boolean(s.resume_requires_user));
     }
     snapshotted = true;
-  });
-
-  bus.on('upsert.run', (u: any) => {
-    if (!snapshotted) return;
-    const id = u?.body?.id;
-    if (!id || seenRuns.has(id)) return;
-    if (RUN_FAIL_STATES.has(u.body.state)) {
-      seenRuns.add(id);
-      if (seenRuns.size > 400) {
-        let evict = 200;
-        for (const seen of seenRuns) { seenRuns.delete(seen); if (--evict === 0) break; }
-      }
-      maybeNotify(i18n.t('notify.runFailed'), `wish-run-${id}`);
-      announce(i18n.t('notify.runFailed'));
-    }
   });
 
   bus.on('upsert.session', (u: any) => {

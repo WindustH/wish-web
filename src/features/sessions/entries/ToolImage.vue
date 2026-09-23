@@ -13,7 +13,7 @@ function loaded(event:Event){const img=event.target as HTMLImageElement;size.val
 </script>
 <template>
  <figure class="tool-image">
-  <button v-if="url&&!error" class="image-surface" :class="{zoom}" :aria-label="i18n.locale.value==='zh'?'切换原始尺寸':'Toggle original size'" @click="zoom=!zoom"><img :src="url" :alt="path" @load="loaded" @error="error=true"/></button>
+  <button v-if="url&&!error" class="image-surface" :class="{zoom}" :aria-label="i18n.locale.value==='zh'?'切换原始尺寸':'Toggle original size'" @click="zoom=!zoom"><img :src="url" :alt="path" loading="lazy" decoding="async" @load="loaded" @error="error=true"/></button>
   <p v-if="error" role="status">{{i18n.locale.value==='zh'?'图片暂时无法加载。':'Image could not be loaded.'}}</p>
   <p v-else-if="!url">{{i18n.locale.value==='zh'?'正在读取图片…':'Loading image…'}}</p>
   <figcaption><span>{{path}}</span><span>{{size}}</span></figcaption>

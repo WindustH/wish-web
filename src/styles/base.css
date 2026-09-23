@@ -1,5 +1,6 @@
 * { box-sizing: border-box; }
-html, body { height: 100%; -webkit-user-select: none; user-select: none; }
+html, body { height: 100%; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html { overscroll-behavior-y: none; }
 body {
   margin: 0; background: var(--bg); color: var(--fg);
   font: 400 14px/1.65 var(--font);
@@ -15,11 +16,10 @@ button { -webkit-tap-highlight-color: transparent; }
 input, textarea { accent-color: var(--accent); }
 input::placeholder, textarea::placeholder { color: var(--fg-subtle); opacity: 1; }
 a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
+@media (hover: hover) { a:hover { text-decoration: underline; } }
 ::selection { background: var(--accent-soft); color: var(--fg); }
 :focus-visible { outline: none; border-color: var(--accent) !important; }
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible, [role="option"]:focus-visible, [role="menuitem"]:focus-visible { border: 1px solid var(--accent) !important; }
-.eyebrow { display: block; font: 500 11px/1.5 var(--font); letter-spacing: .12em; color: var(--fg-subtle); }
 .hint { font-size: 13px; line-height: 1.75; color: var(--fg-subtle); }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 6px; border: 2px solid var(--bg); }
@@ -43,11 +43,20 @@ html { -webkit-tap-highlight-color: transparent; }
     .live-text .markdown, .live-reasoning, .reasoning-document .markdown,
     .detail-pre, .terminal-output, .raw-tool pre, .history-hit p, .history-hit pre,
     .process-detail .tool-fields dd, .process-detail .tool-error,
-    .diff-line code, .diff-path, .ask-context .answer) {
+    .diff-line code, .diff-path) {
   -webkit-user-select: text;
   user-select: text;
 }
 :is(button, [role="button"], .line-number) {
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* Segment selection on touch screens will have its own message action later. */
+@media (max-width: 899px) {
+  .chatlog, .chatlog * {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none;
+  }
 }
