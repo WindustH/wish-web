@@ -1,4 +1,5 @@
 // Server configuration draft and provider management.
+import { bus } from '../../core/bus.js';
 import { ref, computed } from 'vue';
 import { get, put } from '../../core/api/client.js';
 import { errorText } from '../../core/config-editor';
@@ -140,6 +141,7 @@ export function useConfigDraft() {
     notice.value = '';
     try {
       accept(await put('/config', { revision: revision.value, config: draft.value }));
+      bus.emit('configuration.changed', {});
       notice.value = tr(
         '已保存并生效。正在运行的调用继续使用原配置。',
         'Saved and applied. In-flight calls retain their configuration.'
