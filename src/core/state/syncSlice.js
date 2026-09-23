@@ -27,6 +27,8 @@ export const sync = (() => {
         sessions.clear();
         snapshotRevision.value++;
         bus.emit('sync.snapshot', {});
+      } else if (event.type === 'configuration_changed') {
+        bus.emit('configuration.changed', {});
       } else if (event.type === 'session_deleted') {
         sessions.invalidate(event.id);
         bus.emit('tombstone.session', { id: event.id });

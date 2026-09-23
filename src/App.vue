@@ -2,7 +2,7 @@
 import { useMobileNavigationMotion } from './ui/composables/useMobileNavigationMotion';
 useMobileNavigationMotion();
 import Hint from './ui/components/Hint.vue';
-import { computed, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue';
+import { defineAsyncComponent, computed, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue';
 import { TooltipProvider, DialogRoot, DialogPortal, DialogContent, DialogTitle } from 'reka-ui';
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
 import { useMedia } from './ui/composables/useMedia.js';
@@ -12,8 +12,12 @@ import CachedPage from './ui/components/CachedPage.vue';
 import { i18n } from './core/i18n/index.js';
 import { sync } from './core/state/syncSlice.js';
 import { needRefresh, refreshApp } from './ui/pwa.js';
+import { useProviderGate } from './ui/composables/useProviderGate';
+import { tr } from './core/i18n/tr';
 import { sessionLocation } from './ui/sessionNavigation';
 
+const ProviderSetup = defineAsyncComponent(() => import('./features/onboarding/ProviderSetup.vue'));
+const gate = useProviderGate();
 const route = useRoute();
 const router = useRouter();
 const isMobile = useMedia('(max-width: 899px)');
@@ -54,7 +58,14 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
 
 <template>
   <TooltipProvider :delay-duration="450" :skip-delay-duration="150">
-  <div class="shell" :class="isMobile ? 'mobile' : 'desktop'">
+  <ProviderSetup v-if="gate.state.value === 'required'" @complete="async () => { await router.replace('/new'); await gate.refresh(); }" />
+  <main v-else-if="gate.state.value !== 'ready'" class="provider-gate-status" aria-live="polite">
+    <span class="brand-mark">w<span>.</span></span>
+    <p>{{ gate.state.value === 'error' ? tr('无法读取服务配置', 'Unable to read server configuration') : tr('正在读取配置…', 'Loading configuration…') }}</p>
+    <p v-if="gate.error.value" class="load-error" role="alert">{{ gate.error.value }}</p>
+    <button v-if="gate.state.value === 'error'" class="btn" @click="gate.refresh()">{{tr('重试', 'Retry')}}</button>
+  </main>
+  <div v-else class="shell" :class="isMobile ? 'mobile' : 'desktop'">
     <nav class="vbar" :aria-label="i18n.t('app.name')">
       <RouterLink :to="sessionLocation" class="brand-mark" aria-label="Wish">w<span>.</span></RouterLink>
       <Hint :text="item.label()" v-for="item in top" :key="item.id"><button class="nav-btn" :class="{ active: isActive(item.id) }"
@@ -98,6 +109,7 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
 </template>
 
 <style>
+.provider-gate-status { min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:28px; gap:12px; text-align:center; }
 @media (min-width: 900px) { .settings-route-host { display: contents !important; } }
 @media (max-width: 899px) { .settings-route-host { position: absolute; inset: 0; z-index: 30; background: transparent; } }
 .settings-route-host.is-closing { pointer-events: none; }
