@@ -1,5 +1,3 @@
-import { protocolPresentation } from './protocolPresentation';
-
 // Stable ordering within each brand keeps its regions and plans together.
 export function providerPriority(brand: string): number {
   const preferred: Record<string, number> = {
@@ -11,5 +9,3 @@ export function providerPriority(brand: string): number {
   if (['Ollama', 'LM Studio', 'vLLM'].includes(brand)) return 200;
   return 20;
 }
-export const compareProtocols = (a: string, b: string) =>
-  providerPriority(protocolPresentation(a).brand) - providerPriority(protocolPresentation(b).brand);

@@ -12,7 +12,7 @@ import { fmtDateTime } from '../../core/util/fmt.js';
 import Spinner from '../../ui/components/Spinner.vue';
 import { useMedia } from '../../ui/composables/useMedia.js';
 
-defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: [] }>();
 const router = useRouter();
 const isMobile = useMedia('(max-width: 899px)');
 
@@ -82,7 +82,10 @@ async function jump(hit: any) {
   try {
     const ok = await chat.locate(sid!, hit.seq);
     if (!owns(sid) || my !== gen) return;
-    if (ok) await router.push({ name: 'chat', params: { id: sid! } });
+    if (ok) {
+      if (isMobile.value) await router.push({ name: 'chat', params: { id: sid! } });
+      else emit('close');
+    }
     else state.value = { status: 'error', items: state.value.items ?? [], error: { localized: 'search.locateFailed' } };
   } catch (error) {
     if (owns(sid) && my === gen) state.value = { status: 'error', items: state.value.items ?? [], error };

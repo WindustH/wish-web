@@ -57,17 +57,6 @@ export function debounce(fn, ms) {
   return wrapped;
 }
 
-// Random printable-ASCII idempotency key (wishd requires ≥16 bytes).
-export function idemKey(len = 24) {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.';
-  let out = '';
-  const rnd = new Uint8Array(len);
-  (globalThis.crypto || {}).getRandomValues
-    ? crypto.getRandomValues(rnd)
-    : rnd.forEach((_, i) => (rnd[i] = Math.floor(Math.random() * 256)));
-  for (let i = 0; i < len; i++) out += chars[rnd[i] % chars.length];
-  return `wui-${out}`.slice(0, Math.max(len, 16));
-}
 
 function truncate(s, n) {
   if (typeof s !== 'string' || s.length <= n) return s ?? '';

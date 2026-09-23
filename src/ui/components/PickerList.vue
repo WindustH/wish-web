@@ -41,7 +41,7 @@ const listFingerprint = computed(() => `${query.value}|${filtered.value.length}|
               <ProviderIcon v-if="!rows.get(option)!.group && icons !== false" :brand="rows.get(option)!.brand" />
               <div class="picker-label"><span>{{ rows.get(option)!.title }}</span><small v-if="rows.get(option)!.description">{{ rows.get(option)!.description }}</small></div>
               <slot name="suffix" :item-key="option" />
-              <ListboxItemIndicator class="picker-check"><Check :size="16" /></ListboxItemIndicator>
+              <span class="picker-check"><ListboxItemIndicator><Check :size="16" aria-hidden="true" /></ListboxItemIndicator></span>
             </div>
           </ListboxItem>
         </template>
@@ -71,5 +71,6 @@ const listFingerprint = computed(() => `${query.value}|${filtered.value.length}|
 .picker-label { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .picker-label span, .picker-label small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picker-label small { font-size: 11px; color: var(--fg-subtle); }
-.picker-check { display: flex; flex: none; }
+.picker-check { display: flex; align-items: center; justify-content: center; flex: 0 0 16px; width: 16px; height: 16px; }
+.picker-check :deep(svg) { display: block; }
 </style>

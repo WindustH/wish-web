@@ -16,8 +16,6 @@ export const cfg = Object.freeze({
     // Same-origin reverse proxy (see serve.mjs). Overridable for shells.
     baseUrl: '/api',
     requestTimeoutMs: 30_000,
-    // Mutations require Idempotency-Key ≥16 printable ASCII chars.
-    idempotencyKeyLen: 24,
   },
 
   sse: {
@@ -26,33 +24,23 @@ export const cfg = Object.freeze({
     connectTimeoutMs: 10_000,       // abort + retry if headers take longer
     heartbeatTimeoutMs: 60_000,       // reconnect when silent this long
     firstFrameTimeoutMs: 12_000,      // selftest: first frame must arrive
-    maxBufferedChars: 400_000,        // cap in-memory draft of one streamed turn
   },
 
   sessions: {
     pageSize: 30,                     // sessions list page
     searchDebounceMs: 250,
     rebuildMaxPages: 80,              // authoritative rebuild depth bound (80 × pageSize)
-    phases: ['idle', 'running', 'queued', 'compacting'],
   },
 
   history: {
     pageSize: 40,                     // /history page (also the DOM chunk size)
     reconcileDelayMs: 250,            // wait after response_complete before fetch
     maxDrainPages: 8,                // fetchNewer(): pages per drain burst (safety cap)
-    searchPageSize: 50,               // /history/search page size (contract default)
-    maxSearchPages: 40,               // fetch-older bound while paging search hits
     prefetchOlderTriggerPx: 320,      // load older when scroll within this of top
     fetchNewerTriggerPx: 120,         // load newer (below) when within this of bottom
-    jumpLatestDistancePx: 2000,       // show the jump-to-latest chip past this distance
+    jumpLatestDistancePx: 600,        // show the jump-to-latest chip after a substantial scroll
   },
 
-  windowing: {                        // long-list DOM cap (chunked windowing)
-    enabled: true,
-    chunkSize: 40,                    // entries per chunk (== history.pageSize)
-    keepChunks: 2,                    // chunks kept above/below viewport
-    spacerRecycle: true,
-  },
 
   composer: {
     mobileMinRows: 1,
@@ -76,8 +64,6 @@ export const cfg = Object.freeze({
   stats: {
     refreshMs: 30_000,
     calendarRefreshMs: 300_000,
-    calendarDays: 365,
-    tablePageSize: 50,
   },
 
   i18n: {
@@ -114,8 +100,4 @@ export const cfg = Object.freeze({
     space: { xs: 4, s: 8, m: 12, l: 16, xl: 24, xxl: 32 },
   },
 
-  pwa: {
-    swPath: '/sw.js',
-    register: true,
-  },
 });

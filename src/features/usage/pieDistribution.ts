@@ -1,4 +1,4 @@
-export interface PieItem { name: string; value: number }
+export interface PieItem { name: string; value: number; colorIndex?: number }
 export interface PieSlice extends PieItem { share: number; displayShare: number; members: PieItem[] }
 
 // Give small slices room without letting the display depart too far from usage.

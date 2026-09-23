@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import CopyButton from '../../../ui/components/CopyButton.vue';
+import MessageContext from './MessageContext.vue';
 import Hint from '../../../ui/components/Hint.vue';
 import Icon from '../../../ui/components/Icon.vue';
 import { blobUrl } from '../../../core/api/endpoints.js';
@@ -15,21 +15,22 @@ const imageSrc = (block: any) => block.blob_id ? blobUrl(block.blob_id) : `data:
 </script>
 
 <template>
-  <div class="entry user">
-    <div v-if="joined.trim()" class="message-actions"><CopyButton :text="joined" /></div>
-    <div class="bubble">
-      <div v-for="(b, i) in textBlocks" :key="i">{{ b.text }}</div>
-      <template v-for="(file, i) in attachments" :key="i">
-        <figure v-if="file.type === 'image'" class="message-image">
-          <img :src="imageSrc(file)" :alt="file.filename || ''" loading="lazy" />
-          <figcaption v-if="file.filename">{{ file.filename }}</figcaption>
-        </figure>
-        <Hint v-else :text="file.filename">
-          <a class="attachment-file message-file" :href="blobUrl(file.blob_id)" :download="file.filename || file.blob_id">
-            <Icon name="paperclip" /><div class="attachment-file-label"><span>{{ file.filename || i18n.t('chat.attachment') }}</span><small>{{ fmtBytes(file.byte_count) }}</small></div><Icon name="download" />
-          </a>
-        </Hint>
-      </template>
+  <MessageContext :text="joined" kind="user">
+    <div class="entry user">
+      <div class="bubble">
+        <div v-for="(b, i) in textBlocks" :key="i">{{ b.text }}</div>
+        <template v-for="(file, i) in attachments" :key="i">
+          <figure v-if="file.type === 'image'" class="message-image">
+            <img :src="imageSrc(file)" :alt="file.filename || ''" loading="lazy" />
+            <figcaption v-if="file.filename">{{ file.filename }}</figcaption>
+          </figure>
+          <Hint v-else :text="file.filename">
+            <a class="attachment-file message-file" :href="blobUrl(file.blob_id)" :download="file.filename || file.blob_id">
+              <Icon name="paperclip" /><div class="attachment-file-label"><span>{{ file.filename || i18n.t('chat.attachment') }}</span><small>{{ fmtBytes(file.byte_count) }}</small></div><Icon name="download" />
+            </a>
+          </Hint>
+        </template>
+      </div>
     </div>
-  </div>
+  </MessageContext>
 </template>

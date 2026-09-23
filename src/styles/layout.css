@@ -1,7 +1,7 @@
 .shell { display: flex; height: 100dvh; overflow: hidden; }
 .vbar {
   width: var(--w-sidebar); flex: none; display: flex; flex-direction: column; align-items: center;
-  padding: 10px 0 8px; gap: 4px; border-right: 1px solid var(--line); background: var(--bg-sunken); z-index: 20;
+  padding: 10px 0 8px; gap: 4px; border-right: 1px solid var(--line); background: var(--rail-bg); z-index: 20;
 }
 .brand-mark { font: 600 24px/1 var(--display); letter-spacing: -.08em; color: var(--fg); margin: 0 0 8px; }
 .brand-mark span { color: var(--accent); }
@@ -14,7 +14,7 @@
   transition: background var(--dur-fast), color var(--dur-fast), transform var(--dur-fast);
 }
 .nav-btn .icon { width: 18px; height: 18px; }
-.nav-btn:hover { background: var(--bg-hover); color: var(--fg); }
+@media (hover: hover) { .nav-btn:hover { background: var(--bg-hover); color: var(--fg); } }
 .nav-btn.active { background: var(--bg-raised); color: var(--accent); }
 .nav-btn.active::before { content: ''; position: absolute; left: calc((34px - var(--w-sidebar)) / 2); height: 18px; width: 2px; background: var(--accent); }
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
@@ -37,26 +37,29 @@
 .session-list-toggle { position: absolute; top: 50%; right: 0; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 56px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--edge-icon, var(--fg-subtle)); cursor: pointer; transition: color var(--dur-fast); }
 .session-list-toggle::before { content: ''; position: absolute; inset: 0 0 0 12px; background: var(--edge-tab, var(--bg-hover)); clip-path: path("M 12 0 C 12 10 0 10 0 20 L 0 36 C 0 46 12 46 12 56 Z"); transition: background var(--dur-fast); }
 .session-list-toggle svg { position: relative; justify-self: end; margin-right: 1px; }
-.session-list-toggle:hover { color: var(--edge-icon, var(--fg)); }
-.session-list-toggle:hover::before { background: var(--edge-tab, var(--bg-active)); }
+@media (hover: hover) {
+  .session-list-toggle:hover { color: var(--edge-icon, var(--fg)); }
+  .session-list-toggle:hover::before { background: var(--edge-tab, var(--bg-active)); }
+}
 .session-list-toggle[aria-expanded="false"] { right: auto; left: 0; }
 .session-list-toggle[aria-expanded="false"]::before { inset: 0 12px 0 0; transform: scaleX(-1); }
 .session-list-toggle[aria-expanded="false"] svg { justify-self: start; margin: 0 0 0 1px; }
 .list-resize { position: absolute; inset: 0 auto 0 -4px; width: 7px; cursor: col-resize; touch-action: none; }
 .list-resize::after { content: ''; position: absolute; inset-block: 0; left: 3px; width: 1px; background: var(--edge-line, transparent); transition: background var(--dur-fast); }
 /* The divider and its tab are one resize affordance. */
-.session-list-edge:has(.list-resize:hover), html.resizing .session-list-edge {
+html.resizing .session-list-edge {
   --edge-line: var(--accent);
   --edge-tab: var(--accent);
   --edge-icon: var(--accent-fg);
 }
-html.resizing, html.resizing * { cursor: col-resize !important; user-select: none !important; }
-html.resizing .chatlog, html.resizing .sl-scroll { pointer-events: none; }
-
-@media (max-width: 899px) {
-  html { overscroll-behavior-y: none; }
-  .shell.mobile .chatlog { overscroll-behavior-y: contain; }
+@media (hover: hover) {
+  .session-list-edge:has(.list-resize:hover) {
+    --edge-line: var(--accent);
+    --edge-tab: var(--accent);
+    --edge-icon: var(--accent-fg);
+  }
 }
+html.resizing, html.resizing * { cursor: col-resize !important; user-select: none !important; }
 
 @media (max-width: 899px) {
   .shell.mobile .sessions-pane > :is(.sl-all-heading, .sl-masthead, .sl-filters, .sl-scroll) {

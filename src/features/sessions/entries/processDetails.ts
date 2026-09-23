@@ -11,7 +11,8 @@ export function toolResult(step:any):any {
 }
 export function toolOutput(step:any):any {const result=toolResult(step);return result?.output??result;}
 export function fileEdit(step:any):any {
-  if(step.entry?.payload?.tool_name!=='shell')return null;
+  const name = step.entry?.payload?.tool_name;
+  if(!name?.startsWith('shell_')) return null;
   const value=toolOutput(step);
   return value?.edit??value?.process?.edit??null;
 }

@@ -13,18 +13,27 @@ let chart: EChartsType | undefined;
 let observer: ResizeObserver | undefined;
 let frame = 0;
 let mounted = false;
+let appliedOption: EChartsCoreOption | undefined;
+let width = 0, height = 0;
 function draw() {
   if (!mounted || !active.value || !host.value?.clientWidth || !host.value?.clientHeight) return;
   chart ??= init(host.value, undefined, { renderer: 'canvas' });
-  chart.resize();
+  const nextWidth = host.value.clientWidth, nextHeight = host.value.clientHeight;
+  if (width !== nextWidth || height !== nextHeight) {
+    chart.resize();
+    width = nextWidth; height = nextHeight;
+  }
   // Merge instead of a full replace: unchanged components (axes, grid,
   // stable-id series) transition in place with the update animation, and
   // series that left the selection are disposed. A notMerge swap would
   // tear the chart down and redraw everything from scratch on each change.
-  chart.setOption(props.option, { replaceMerge: ['series'] });
+  if (appliedOption !== props.option) {
+    chart.setOption(props.option, { replaceMerge: ['series'] });
+    appliedOption = props.option;
+  }
 }
 function schedule() { cancelAnimationFrame(frame); frame = requestAnimationFrame(draw); }
-function dispose() { cancelAnimationFrame(frame); chart?.dispose(); chart = undefined; }
+function dispose() { cancelAnimationFrame(frame); chart?.dispose(); chart = undefined; appliedOption = undefined; width = 0; height = 0; }
 onMounted(() => {
   mounted = true;
   observer = new ResizeObserver(schedule);

@@ -8,7 +8,6 @@ import * as api from '../../core/api/endpoints.js';
 import { chat } from '../../core/state/chatSlice.js';
 import { sessions } from '../../core/state/sessionsSlice.js';
 import { i18n } from '../../core/i18n/index.js';
-import AskContext from './AskContext.vue';
 import Modal from '../../ui/components/Modal.vue';
 import { useMedia } from '../../ui/composables/useMedia.js';
 
@@ -144,7 +143,6 @@ watch(() => chat.sessionId.value, () => {
       <button class="btn ghost sm" @click="refresh()">{{ i18n.t('common.retry') }}</button>
     </div>
 
-    <AskContext v-if="chat.sessionId.value" :key="chat.sessionId.value" :session-id="chat.sessionId.value"/>
     <section class="setting-row">
       <h4>{{ i18n.t('manage.tags') }}</h4>
       <div class="tags-editor">

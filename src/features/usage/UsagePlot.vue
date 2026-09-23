@@ -12,13 +12,15 @@ const root = ref<HTMLElement>();
 const active = usePageActivity();
 const style = ref<ChartStyle>();
 let calendarObserver: ResizeObserver | undefined;
-const width = ref(800);
+// The heatmap must not paint using a guessed width while its card is entering
+// the layout: that first oversized frame is visible before ResizeObserver runs.
+const width = ref(0);
 // The calendar bucket count derives from width; refetching only makes sense
 // when that count actually changes, and resize bursts settle first.
-const columns = computed(() => Math.max(1, Math.floor((width.value - 4) / 18)));
+const columns = computed(() => width.value > 0 ? Math.max(1, Math.floor((width.value - 4) / 18)) : 0);
 let columnTimer: ReturnType<typeof setTimeout> | undefined;
 watch(columns, value => {
-  if (!props.heat) return;
+  if (!props.heat || !value) return;
   clearTimeout(columnTimer);
   columnTimer = setTimeout(() => emit('columns', value), 200);
 });
@@ -29,18 +31,23 @@ function readStyle() {
   style.value = { foreground: value('--fg'), muted: value('--fg-subtle'), line: value('--line'), surface: value('--bg-raised'), font: value('--font'),
     colors: [1,2,3,4,5,6].map(index => value(`--chart-${index}`)), heat: [0,1,2,3,4].map(index => value(`--heat-${index}`)) };
 }
+function measureCalendar() {
+  const measured = root.value?.clientWidth ?? 0;
+  if (measured > 0 && measured !== width.value) width.value = measured;
+}
 onMounted(async () => {
   readStyle();
   await nextTick();
   if (props.heat && root.value) {
-    calendarObserver = new ResizeObserver(() => { width.value = root.value!.clientWidth; });
+    calendarObserver = new ResizeObserver(measureCalendar);
     calendarObserver.observe(root.value);
+    measureCalendar();
   }
 });
 onBeforeUnmount(() => { calendarObserver?.disconnect(); clearTimeout(columnTimer); });
-watch([theme.resolved, active], async () => { await nextTick(); readStyle(); });
-const layout = computed(() => props.heat ? calendarLayout(props.heat.buckets.length, width.value) : undefined);
-const option = computed(() => style.value && (props.pie ? pieOptions(props.pie, style.value, i18n.locale.value) : props.heat
+watch([theme.resolved, active], async () => { await nextTick(); readStyle(); if (props.heat) measureCalendar(); });
+const layout = computed(() => props.heat && width.value > 0 ? calendarLayout(props.heat.buckets.length, width.value) : undefined);
+const option = computed(() => style.value && (!props.heat || width.value > 0) && (props.pie ? pieOptions(props.pie, style.value, i18n.locale.value) : props.heat
   ? calendarOptions(props.heat, style.value, i18n.locale.value, width.value)
   : lineOptions(props.series ?? [], style.value, i18n.locale.value, props.unit ?? 'Token/s')));
 </script>

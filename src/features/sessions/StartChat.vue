@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { modelLabel as formatModelLabel } from '../../ui/modelLabel';
 import { resolvedEffort, effortLabel } from './reasoningLabels';
 import { uploadAttachments, type AttachmentInput } from '../../core/attachments.js';
 import Hint from '../../ui/components/Hint.vue';
@@ -72,7 +73,7 @@ const effectiveEffort = computed(() => {
   if (!group || group.loading) return selection.value.reasoning_effort;
   return resolvedEffort(selection.value.reasoning_effort, group.models.find(item => item.id === selection.value.model), group.provider.reasoning_efforts);
 });
-const modelLabel = computed(() => selection.value.model.replace(/[-_]/g, ' ').toUpperCase());
+const modelLabel = computed(() => formatModelLabel(selection.value.model));
 async function send(text: string, attachments: AttachmentInput[]) {
   busy.value = true;
   failed.value = false;

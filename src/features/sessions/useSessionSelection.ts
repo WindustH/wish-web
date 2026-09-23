@@ -3,7 +3,7 @@ import * as api from '../../core/api/endpoints.js';
 import { chat } from '../../core/state/chatSlice.js';
 
 export interface ModelSelection { provider: string; model: string; reasoning_effort?: string }
-interface SelectionSnapshot extends ModelSelection { revision: number }
+interface SelectionSnapshot extends ModelSelection { revision: number; running?: boolean }
 
 // Both selectors share the same revision/ownership rules, but save only their
 // own fields. Late responses cannot update another conversation or dialog.
@@ -19,6 +19,9 @@ export function useSessionSelection(sessionId: Ref<string | undefined>, local?: 
     controller?.abort();
     controller = new AbortController();
     const gen = ++generation, id = sessionId.value;
+    loading.value = false;
+    saving.value = false;
+    error.value = undefined;
     if (local?.value) { snapshot.value = { ...local.value, revision: 0 }; return; }
     if (!id) throw new Error('Selection requires a session or a draft');
     loading.value = true;

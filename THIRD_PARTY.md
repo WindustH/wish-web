@@ -24,7 +24,6 @@ into `dist/`; the deployed client does not fetch libraries from a CDN.
 | @lobehub/icons-static-svg | 1.95.0 | Local monochrome provider icons | MIT |
 | markdown-it | 15.0.1 | Markdown parsing | MIT |
 | dompurify | 3.4.15 | HTML sanitization | MPL-2.0 OR Apache-2.0 |
-| fast-json-patch | 3.1.1 | Ordered configuration draft operations | MIT |
 | workbox-window | 7.4.1 | Service worker registration and update flow | MIT |
 | vite | 8.2.2 | Development server and bundling | MIT |
 | vite-plugin-pwa | 1.3.0 | Static shell precache generation | MIT |

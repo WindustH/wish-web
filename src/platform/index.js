@@ -6,8 +6,7 @@
 // Interfaces (all async/optional unless noted):
 //   storage  { get(key), set(key,value), remove(key), keys(), clear() }
 //   notify   { isSupported, permission(), request(), show({title,body,tag}) }
-//   fs       { saveFile({name,mime,bytes}), pickFiles({multiple}) -> [{name,mime,size,read()}] }
-//   share    { isSupported, share({title,text,url}) }
+//   fs       { pickFiles({multiple}) -> [{name,mime,size,read()}] }
 //   app      { isHidden(), promptInstall(), keepAwake(bool) }
 
 const adapters = {};

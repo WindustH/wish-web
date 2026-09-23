@@ -1,3 +1,4 @@
+import { operationFailure } from './failures.js';
 // Native wish-core values -> display models. No old backend protocol is sent or accepted.
 export function sessionView(value) {
   const { session, status } = value;
@@ -10,10 +11,18 @@ export function sessionView(value) {
     revision: session.revision, created_at: session.created_at, updated_at: session.updated_at,
     created_at_ms: session.created_at, updated_at_ms: session.updated_at,
     resume_requires_user: status.phase === 'Suspended', compaction_count: status.active_generation ?? 0,
+    standby_preparing: Boolean(status.standby_preparing),
+    last_error: operationFailure(status.last_operation),
     agent_custom: status.metadata?.agent_custom, config, descriptor: session, status,
   };
 }
 export function entryView(item, sessionId) {
+  if (item.content.kind === 'event') {
+    const failure = operationFailure({outcome: item.content.value.Finished});
+    return {seq: item.record.sequence, id: `event-${item.record.sequence}`,
+      created_at: item.record.recorded_at, kind: failure ? 'run_error' : 'history_event',
+      payload: {failure, content: []}};
+  }
   const entry = item.content.value;
   const [type, message] = Object.entries(entry.message)[0];
   const result = { seq: item.record.sequence, id: entry.id, run_id: item.record.model_call_id,

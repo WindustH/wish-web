@@ -12,17 +12,26 @@ watch(() => props.tool, tool => {
   if (tool) timer = setTimeout(() => { collapsed.value = true; }, 650);
   else collapsed.value = false;
 }, { immediate: true });
-onUnmounted(() => clearTimeout(timer));
 let following = true;
+let scrollRaf = 0;
 function toggle() { clearTimeout(timer); collapsed.value = !collapsed.value; }
 function trackScroll() {
-  const el = viewport.value!;
+  const el = viewport.value;
+  if (!el) return;
   following = el.scrollHeight - el.clientHeight - el.scrollTop < 24;
 }
 watch(() => props.text, () => {
-  const el = viewport.value;
-  if (el && following) el.scrollTop = el.scrollHeight;
-}, { flush: 'post' });
+  if (!following || scrollRaf) return;
+  scrollRaf = requestAnimationFrame(() => {
+    scrollRaf = 0;
+    const el = viewport.value;
+    if (el && following) el.scrollTop = el.scrollHeight;
+  });
+});
+onUnmounted(() => {
+  clearTimeout(timer);
+  if (scrollRaf) cancelAnimationFrame(scrollRaf);
+});
 </script>
 
 <template>

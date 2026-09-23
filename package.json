@@ -11,7 +11,7 @@
     "typecheck": "vue-tsc --noEmit",
     "start": "node serve.mjs",
     "selftest:api": "node tools/selftest-api.mjs",
-    "test": "node --test tools/"
+    "test": "node --test tools/*.test.mjs"
   },
   "engines": {
     "node": ">=22.19.0"
@@ -26,7 +26,6 @@
     "@tanstack/vue-virtual": "3.13.37",
     "dompurify": "3.4.15",
     "echarts": "6.1.0",
-    "fast-json-patch": "3.1.1",
     "markdown-it": "15.0.1",
     "reka-ui": "2.10.4",
     "temml": "0.13.5",

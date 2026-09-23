@@ -33,18 +33,27 @@ export async function readModels(provider: ProviderInfo, signal?: AbortSignal): 
   // Model overrides are not an allowlist; the runtime owns catalog support.
   if (!provider.model_catalog_available) return configured;
   const models = new Map(configured.map(model => [model.id, model]));
+  for (const model of await readCatalogModels(provider.id, signal)) {
+    if (model.allowed_for_provider) models.set(model.id, { ...model, ...provider.models[model.id], source: 'catalog' });
+  }
+  return [...models.values()];
+}
+
+// Shared by the runtime picker and configuration editor. A malformed upstream
+// cursor must not keep either UI in an endless request loop.
+export async function readCatalogModels(id: string, signal?: AbortSignal) {
+  const models: any[] = [];
   const cursors = new Set<string>();
   let cursor: string | undefined;
   do {
-    const page = await providerModels(provider.id, { signal, query: { cursor } });
-    for (const model of page.models) {
-      if (model.allowed_for_provider) models.set(model.id, { ...model, ...provider.models[model.id], source: 'catalog' });
-    }
+    signal?.throwIfAborted();
+    const page = await providerModels(id, { signal, query: { cursor } });
+    models.push(...page.models);
     cursor = page.next_cursor;
     if (cursor) {
-      if (cursors.has(cursor)) throw new Error(`Model catalog repeated a cursor: ${provider.id}`);
+      if (cursors.has(cursor)) throw new Error(`Model catalog repeated a cursor: ${id}`);
       cursors.add(cursor);
     }
   } while (cursor);
-  return [...models.values()];
+  return models;
 }

@@ -12,7 +12,6 @@ export declare function sessionInterrupt(id: string): Promise<any>;
 export declare function sessionCompact(id: string): Promise<any>;
 export declare function daemonStatus(opts?: { signal?: AbortSignal }): Promise<any>;
 export declare function providerConfigs(opts?: any): Promise<any>;
-export declare function providerSummaries(opts?: any): Promise<any>;
 export declare function providerModels(id: string, opts?: any): Promise<any>;
 export declare function uploadSessionBlob(sid: string, bytes: ArrayBuffer | Uint8Array, opts?: any): Promise<any>;
 export declare function uploadSessionImage(sid: string, bytes: ArrayBuffer | Uint8Array, opts?: any): Promise<any>;
@@ -36,4 +35,5 @@ export declare function storageStatus(opts?: { signal?: AbortSignal }): Promise<
 
 export declare function sessionClearContext(id:string):Promise<any>;
 export declare function sessionFork(id:string):Promise<any>;
+export declare function moveQueuedInput(id: string, entry: string, before: string | number | null): Promise<any>;
 export declare function cancelQueuedInput(id:string,entry:string):Promise<any>;

@@ -2,6 +2,27 @@ import type { PieSlice } from './pieDistribution';
 import type { EChartsCoreOption } from 'echarts/core';
 export interface PlotSeries { key: string; label: string; colorIndex?: number; scatter?: boolean; points: [number, number | null, number?][] }
 export interface ChartStyle { foreground: string; muted: string; line: string; surface: string; font: string; colors: string[]; heat: string[] }
+// Recompute each model's ±2σ band after clipping so extreme spikes cannot
+// mask smaller outliers. Bound the passes; never modify source/aggregate data.
+export function filterTpsOutliers(points: PlotSeries['points']): PlotSeries['points'] {
+  let kept = points.filter(point => point[1] !== null && Number.isFinite(point[1]));
+  for (let pass = 0; pass < 8 && kept.length >= 3; pass++) {
+    let mean = 0;
+    let squaredDeviation = 0;
+    kept.forEach((point, index) => {
+      const value = point[1]!;
+      const delta = value - mean;
+      mean += delta / (index + 1);
+      squaredDeviation += delta * (value - mean);
+    });
+    if (squaredDeviation === 0) break;
+    const radius = 2 * Math.sqrt(Math.max(0, squaredDeviation / kept.length));
+    const next = kept.filter(point => Math.abs(point[1]! - mean) <= radius);
+    if (!next.length || next.length === kept.length) break;
+    kept = next;
+  }
+  return kept;
+}
 export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: string, unit: string): EChartsCoreOption {
   const format = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
   const times = series.flatMap(item => item.points.map(point => point[0]));
@@ -24,7 +45,7 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
       splitLine: { lineStyle: { color: style.line } } },
     series: series.map((item, index) => ({
       id: item.key, name: item.label, type: item.scatter ? 'scatter' : 'line',
-      data: item.points, smooth: false, connectNulls: false,
+      data: item.scatter ? filterTpsOutliers(item.points) : item.points, smooth: false, connectNulls: false,
       showSymbol: true, symbol: 'circle', symbolSize: item.scatter ? 5 : 4,
       lineStyle: { width: 2 }, itemStyle: { color: style.colors[(item.colorIndex ?? index) % style.colors.length], opacity: item.scatter ? .7 : 1 }, emphasis: { focus: 'series' },
     })),
@@ -121,6 +142,6 @@ export function pieOptions(items: PieSlice[], style: ChartStyle, locale: string)
         return content;
       } },
     series: [{ type: 'pie', radius: '82%', stillShowZeroSum: false, label: { show: false },
-      itemStyle: { borderColor: style.surface, borderWidth: 2 }, data: items.map(item => ({ name: item.name, value: item.displayShare, tokens: item.value, share: item.share, members: item.members })) }],
+      itemStyle: { borderColor: style.surface, borderWidth: 2 }, data: items.map(item => ({ name: item.name, itemStyle: { color: item.colorIndex == null ? style.muted : style.colors[item.colorIndex % style.colors.length] }, value: item.displayShare, tokens: item.value, share: item.share, members: item.members })) }],
   };
 }

@@ -42,7 +42,7 @@ const activeDays = computed(() => props.days?.filter(day => day[1] > 0).length ?
         <div class="usage-metrics" :aria-label="tx('统计指标', 'Metric')">
           <button class="btn ghost sm" :aria-pressed="metric === 'tps'" @click="metric = 'tps'">{{ tx('估算 TPS', 'Estimated TPS') }}</button>
           <button class="btn ghost sm" :aria-pressed="metric === 'tokens'" @click="metric = 'tokens'">{{ tx('Token 消耗', 'Token usage') }}</button>
-          <InfoHint :label="tx('计算方式', 'Calculation')" :text="tx('每个流式请求每秒采样一次，按收到的正文、明文思考和工具参数的 UTF-8 字节数 ÷ 4 估算 Token，再除以实际采样时长。包含请求等待和停顿；结束或打断时保留不足一秒的末点。不影响上游报告的用量统计。', 'Each streaming request is sampled every second. Tokens are estimated as received UTF-8 bytes / 4 for text, plaintext reasoning and tool arguments, divided by the actual interval. Includes waiting and stalls, with a partial final interval on completion or interruption. Provider-reported usage is unchanged.')" />
+          <InfoHint :label="tx('计算方式', 'Calculation')" :text="tx('每个流式请求每秒采样一次，按收到的正文、明文思考和工具参数的 UTF-8 字节数 ÷ 4 估算 Token，再除以实际采样时长。包含请求等待和停顿；结束或打断时保留不足一秒的末点。散点按当前时间范围内各模型的均值 ±2σ 逐轮过滤异常值，每轮重新计算，最多 8 轮，仅影响绘图，不改变汇总 TPS 或用量统计。', 'Each streaming request is sampled every second. Tokens are estimated as received UTF-8 bytes / 4 for text, plaintext reasoning and tool arguments, divided by the actual interval. Includes waiting and stalls, with a partial final interval on completion or interruption. Scatter points outside each model’s mean ±2σ in the selected range are iteratively hidden, recalculating after each pass (up to 8 passes). Aggregate TPS and usage are unchanged.')" />
         </div>
         <div class="usage-range">
           <UsageRangePicker :model-value="range" @update:model-value="emit('range', $event)" />
@@ -79,7 +79,7 @@ const activeDays = computed(() => props.days?.filter(day => day[1] > 0).length ?
 .usage-model { min-width: 0; max-width: 100%; display: flex; align-items: center; gap: 7px; padding: 7px 8px; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--fg); text-align: left; }
 
 .usage-model { cursor:pointer; }
-.usage-model:hover { background:var(--bg-hover); }
+@media (hover: hover) { .usage-model:hover { background:var(--bg-hover); } }
 .usage-model[aria-pressed='false'] { opacity:.45; }
 .usage-model:focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
 .usage-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }

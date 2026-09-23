@@ -1,7 +1,6 @@
 // One authoritative statistics snapshot. Refresh only while the page is open;
 // leaving it invalidates pending responses and releases the interval.
 import { cfg } from '../config.js';
-import { bus } from '../bus.js';
 import { shallowRef } from 'vue';
 import * as api from '../api/endpoints.js';
 
@@ -9,7 +8,6 @@ export const stats = (() => {
   const status = shallowRef(null);
   const usage = shallowRef(null);
   const storage = shallowRef(null);
-  const memory = shallowRef(null);
   const version = shallowRef(null);
   const loading = shallowRef(false);
   const error = shallowRef(null);
@@ -28,14 +26,12 @@ export const stats = (() => {
     error.value = null;
     pending = Promise.all([
       api.daemonStatus(options), api.usageTotals(options), api.storageStatus(options), api.daemonVersion(options),
-      api.runtimeMemory(options).catch(() => null),
-    ]).then(([st, us, sg, ver, mem]) => {
+    ]).then(([st, us, sg, ver]) => {
       if (own !== epoch) return;
       status.value = st;
       usage.value = us;
       storage.value = sg;
       version.value = ver;
-      memory.value = mem;
       updatedAt.value = Date.now();
     }).catch(cause => {
       if (own !== epoch) return;
@@ -63,6 +59,5 @@ export const stats = (() => {
     void refresh();
     autoTimer = setInterval(refresh, cfg.stats.refreshMs);
   }
-  bus.on('invalidate.daemon', () => { if (autoTimer !== null) void refresh(); });
-  return { status, usage, storage, memory, version, loading, error, updatedAt, refresh, startAuto, stopAuto };
+  return { status, usage, storage, version, loading, error, updatedAt, refresh, startAuto, stopAuto };
 })();

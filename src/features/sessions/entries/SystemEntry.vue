@@ -77,5 +77,5 @@ const text = computed(() => (props.item.entry.payload?.content ?? [])
 /* Hover stays inside the chip's own hue: brightening the whole chip reads
    as emphasis without swapping the foreground to the accent, which clashed
    (amber chip, orange hover). Applies equally to the warn and error tones. */
-.notice-chip:hover { filter: brightness(1.06); }
+@media (hover: hover) { .notice-chip:hover { filter: brightness(1.06); } }
 </style>

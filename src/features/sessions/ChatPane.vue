@@ -1,21 +1,24 @@
 <script setup lang="ts">
-import { sessionParent } from "../../router";
+import { modelLabel } from '../../ui/modelLabel';
+import { sessionParent } from "../../ui/sessionNavigation";
 import { sessionPanelCloseKey } from '../../ui/composables/sessionPanel';
 import Hint from '../../ui/components/Hint.vue';
 // Chat surface: top bar (desktop three actions / mobile back+menu), log,
 // composer, and child-route dialogs (mobile subpages). Opening session
 // actions never rebuilds the conversation.
-import { computed, provide, shallowRef, ref, watch, onUnmounted } from 'vue';
+import { computed, provide, shallowRef, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMedia } from '../../ui/composables/useMedia.js';
 import { i18n } from '../../core/i18n/index.js';
-import { bus } from '../../core/bus.js';
 import { chat } from '../../core/state/chatSlice.js';
 import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
 import ChatLog from './ChatLog.vue';
 import Composer from './Composer.vue';
 import QueueDock from './QueueDock.vue';
+import InfoPane from './InfoPane.vue';
+import SearchPane from './SearchPane.vue';
+import ManagePane from './ManagePane.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
 import { useResolvedEffort } from './useResolvedEffort';
@@ -28,18 +31,30 @@ const router = useRouter();
 const isMobile = useMedia('(max-width: 899px)');
 
 const id = computed(() => route.params.id as string);
-const tab = computed(() => {
+type SessionTab = 'info' | 'search' | 'manage';
+const routeTab = computed<SessionTab | null>(() => {
   const n = route.name as string;
   return n === 'chat-info' ? 'info' : n === 'chat-search' ? 'search' : n === 'chat-manage' ? 'manage' : null;
 });
+const desktopTab = ref<SessionTab | null>(null);
+const tab = computed(() => isMobile.value ? routeTab.value : desktopTab.value);
 
-const offSessionGone = bus.on('chat.sessionGone', (goneId: string) => {
-  if (id.value !== goneId) return;
-  void router.replace(isMobile.value ? sessionParent.value : '/sessions');
-});
-onUnmounted(offSessionGone);
+// Existing mobile/deep links still open the right panel. On desktop the
+// panel is local UI state, so normalize a child URL to the session URL once.
+watch([isMobile, routeTab, id], ([mobile, child, sessionId]) => {
+  if (!mobile && child && sessionId) {
+    desktopTab.value = child;
+    void router.replace({ name: 'chat', params: { id: sessionId } });
+  }
+}, { immediate: true });
 
 watch(id, (next) => { if (next) chat.open(next); }, { immediate: true });
+
+watch(chat.missingSessionId, (missingId) => {
+  if (missingId && missingId === id.value) {
+    void router.replace({ name: 'new-chat' });
+  }
+});
 
 const snapshot = computed(() => chat.snapshot.value);
 const queued = computed(() => chat.deliveries.value);
@@ -48,15 +63,22 @@ const onQueueEdit = (text: string, attachments?: any[]) => composerRef.value?.fi
 const { effort, error: effortError } = useResolvedEffort(snapshot);
 const modelOpen = ref(false);
 const reasoningOpen = ref(false);
-watch(id, () => { modelOpen.value = false; reasoningOpen.value = false; });
+watch(id, () => { modelOpen.value = false; reasoningOpen.value = false; desktopTab.value = null; });
 
 const closeTab = (ownerPath = route.fullPath) => {
+  if (!isMobile.value) { desktopTab.value = null; return; }
   if (router.currentRoute.value.fullPath !== ownerPath) return;
   return router.push({ name: 'chat', params: { id: id.value } });
 };
-const goTab = (t: string) => {
-  if (tab.value === t) { if (isMobile.value) closeTab(); else panelClose.value?.(); }
-  else router.push({ name: `chat-${t}`, params: { id: id.value } });
+const goTab = (t: SessionTab) => {
+  if (!isMobile.value) {
+    if (desktopTab.value === t) {
+      if (panelClose.value) panelClose.value();
+      else desktopTab.value = null;
+    }
+    else desktopTab.value = t;
+  } else if (routeTab.value === t) closeTab();
+  else void router.push({ name: `chat-${t}`, params: { id: id.value } });
 };
 </script>
 
@@ -69,7 +91,7 @@ const goTab = (t: string) => {
         <span v-if="!snapshot" class="chat-skeleton title-skeleton" :aria-label="i18n.t('sessions.loading')" role="status" /><span v-else class="name">{{ snapshot.name || id.slice(0, 8) }}</span>
         <span v-if="!snapshot" class="chat-skeleton model-skeleton" aria-hidden="true" /><span v-else class="model-selection">
         <Hint :text="i18n.t('model.chipTitle')"><button class="model-chip" :aria-expanded="modelOpen" @click="modelOpen = true">
-          <span>{{ snapshot?.model?.replace(/[-_]/g, ' ').toUpperCase() || '—' }}</span>
+          <span>{{ modelLabel(snapshot?.model || '') || '—' }}</span>
         </button></Hint>
         <span class="selection-dot" aria-hidden="true">·</span>
         <Hint :text="effortError ? String(effortError) : i18n.t('reasoning.title')"><button class="reasoning-chip" :aria-expanded="reasoningOpen" :aria-label="`${i18n.t('reasoning.title')}：${effortLabel(effort)}`" @click="reasoningOpen = true"><span>{{ effortLabel(effort).toUpperCase() }}</span></button></Hint>
@@ -87,7 +109,7 @@ const goTab = (t: string) => {
         { key: 'info', label: i18n.t('chatbar.info') },
         { key: 'search', label: i18n.t('chatbar.search') },
         { key: 'manage', label: i18n.t('chatbar.manage') },
-      ]" :label="i18n.t('chatbar.more')" @select="goTab">
+      ]" :label="i18n.t('chatbar.more')" @select="goTab($event as SessionTab)">
         <Icon name="ellipsis-vertical" />
       </Menu>
     </div>
@@ -99,8 +121,11 @@ const goTab = (t: string) => {
     </div>
     <Composer ref="composerRef" :session-id="id" :mobile="isMobile" />
     <RouterView v-slot="{ Component, route: panelRoute }">
-      <component :is="Component" :key="panelRoute.fullPath" @close="closeTab(panelRoute.fullPath)" />
+      <component :is="Component" v-if="isMobile" :key="panelRoute.fullPath" @close="closeTab(panelRoute.fullPath)" />
     </RouterView>
+    <InfoPane v-if="!isMobile && desktopTab === 'info'" @close="desktopTab = null" />
+    <SearchPane v-if="!isMobile && desktopTab === 'search'" @close="desktopTab = null" />
+    <ManagePane v-if="!isMobile && desktopTab === 'manage'" @close="desktopTab = null" />
     <ModelSettings v-if="modelOpen" :session-id="id" @close="modelOpen = false" />
     <ReasoningSettings v-if="reasoningOpen" :session-id="id" @close="reasoningOpen = false" />
   </div>
