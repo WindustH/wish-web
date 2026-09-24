@@ -1,3 +1,4 @@
+import { orderedUserContent } from './userContent.js';
 import { operationFailure } from './failures.js';
 // Native wish-core values -> display models. No old backend protocol is sent or accepted.
 export function sessionView(value) {
@@ -49,8 +50,12 @@ export function entryView(item, sessionId) {
     case 'UpstreamCompaction': result.payload.content = [{ type: 'text', text: 'Upstream compacted context' }]; break;
     default: result.payload.content = blocks(message.content);
   }
+  if (type === 'User' && Array.isArray(message.metadata?.input_parts)) {
+    result.payload.content = orderedUserContent(message, sessionId, result.payload.content);
+    return result;
+  }
   const files = message.metadata?.attachments?.filter(a => a.kind === 'file') ?? [];
-  if (files.length) result.payload.content.push(...files.map(a => ({ type: 'file', blob_id: `${sessionId}/${a.id}`, filename: a.name })));
+  if (files.length) result.payload.content.push(...files.map(a => ({ type: 'file', blob_id: `${sessionId}/${a.id}`, filename: a.name, byte_count: a.byte_count })));
   return result;
 }
 export function providerView(p) {

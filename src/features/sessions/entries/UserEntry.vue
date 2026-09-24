@@ -1,36 +1,35 @@
 <script setup lang="ts">
+import { userBubbles } from '../../../core/api/userContent.js';
 import { computed } from 'vue';
-import MessageContext from './MessageContext.vue';
-import Hint from '../../../ui/components/Hint.vue';
-import Icon from '../../../ui/components/Icon.vue';
-import { blobUrl } from '../../../core/api/endpoints.js';
-import { fmtBytes } from '../../../core/util/fmt.js';
-import { i18n } from '../../../core/i18n/index.js';
+import UserBubble from './UserBubble.vue';
 const props = defineProps<{ item: any }>();
-const payload = computed(() => props.item.entry?.payload);
-const textBlocks = computed(() => (payload.value?.content || []).filter((b: any) => b.type === 'text'));
-const joined = computed(() => textBlocks.value.map((b: any) => b.text).join('\n\n'));
-const attachments = computed(() => payload.value?.__attachments || (payload.value?.content || []).filter((b: any) => b.type === 'image' || b.type === 'file'));
-const imageSrc = (block: any) => block.blob_id ? blobUrl(block.blob_id) : `data:${block.mime_type};base64,${block.data_base64}`;
+const bubbles = computed(() => userBubbles(props.item.entry?.payload?.content));
+const groups = computed(() => {
+  const result: { files?: any[]; block?: any }[] = [];
+  for (const block of bubbles.value) {
+    if (block.type === 'file') {
+      const last = result.at(-1);
+      if (last?.files) last.files.push(block);
+      else result.push({ files: [block] });
+    } else result.push({ block });
+  }
+  return result;
+});
 </script>
-
 <template>
-  <MessageContext :text="joined" kind="user">
-    <div class="entry user">
-      <div class="bubble">
-        <div v-for="(b, i) in textBlocks" :key="i">{{ b.text }}</div>
-        <template v-for="(file, i) in attachments" :key="i">
-          <figure v-if="file.type === 'image'" class="message-image">
-            <img :src="imageSrc(file)" :alt="file.filename || ''" loading="lazy" />
-            <figcaption v-if="file.filename">{{ file.filename }}</figcaption>
-          </figure>
-          <Hint v-else :text="file.filename">
-            <a class="attachment-file message-file" :href="blobUrl(file.blob_id)" :download="file.filename || file.blob_id">
-              <Icon name="paperclip" /><div class="attachment-file-label"><span>{{ file.filename || i18n.t('chat.attachment') }}</span><small>{{ fmtBytes(file.byte_count) }}</small></div><Icon name="download" />
-            </a>
-          </Hint>
-        </template>
+  <div class="user-message-parts">
+    <template v-for="(group, index) in groups" :key="index">
+      <div v-if="group.files" class="file-group">
+        <UserBubble v-for="(file, fileIndex) in group.files" :key="fileIndex" :block="file" />
       </div>
-    </div>
-  </MessageContext>
+      <UserBubble v-else :block="group.block" />
+    </template>
+  </div>
 </template>
+<style scoped>
+.user-message-parts { display:flex; flex-direction:column; gap:8px; }
+.file-group { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; min-width:0; }
+.file-group :deep(.message-context) { flex:0 1 auto; width:auto; max-width:100%; min-width:0; }
+.file-group :deep(.entry.user .bubble) { width:auto; max-width:100%; }
+.file-group :deep(.message-file) { width:max-content; min-width:min(180px,calc(100vw - 48px)); max-width:min(340px,100%); box-sizing:border-box; }
+</style>

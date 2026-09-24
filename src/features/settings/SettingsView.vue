@@ -13,6 +13,7 @@ import MobileSessionSettings from './MobileSessionSettings.vue';
 import Modal from '../../ui/components/Modal.vue';
 import AddProvider from './AddProvider.vue';
 import PresetProvider from './PresetProvider.vue';
+import ServerProxySettings from './ServerProxySettings.vue';
 import './settings.css';
 import { useConfigDraft } from './useConfigDraft';
 import { useSettingsGuard } from './useSettingsGuard';
@@ -58,6 +59,7 @@ const {
   error,
   notice,
   catalog,
+  proxyEnvironment,
   adding,
   newProviderId,
   advanced,
@@ -131,15 +133,16 @@ onMounted(load);
       </fieldset>
       <div v-else class="provider-settings">
         <p v-if="!isMobile" class="hint">{{tr('选择预置服务商后填写密钥，也可以使用服务器环境变量。保存后对新的模型调用生效。','Choose a provider preset and enter credentials or server environment variables. Saved changes apply to new calls.')}}</p>
-        <PresetProvider v-for="(provider,id) in draft.providers" :key="id" :id="String(id)" :initially-open="id===newProviderId" :value="provider" :preset="findPreset(provider.preset)" :protocols="protocolOptions" :save="save" :saving="busy" :save-error="error" :disabled="busy" @remove="removeProvider(String(id))" @protocol="changeProtocol(String(id),$event)">
+        <ServerProxySettings v-if="draft.proxy" :value="draft.proxy" :environment="proxyEnvironment" />
+        <PresetProvider v-for="(provider,id) in draft.providers" :key="id" :id="String(id)" :initially-open="id===newProviderId" :value="provider" :preset="findPreset(provider.preset)" :protocols="protocolOptions" :save="save" :saving="busy" :save-error="error" :disabled="busy" @remove="removeProvider(String(id))" @protocol="changeProtocol(String(id),$event)" @login-complete="load">
           <details class="provider-json" @toggle="($event.target as HTMLDetailsElement).open&&!advancedPending[id]&&(advanced[id]=JSON.stringify(provider,null,2))"><summary><span>{{tr('完整配置 JSON','Full configuration JSON')}}</span><Icon name="chevron-down"/></summary><textarea class="input code" rows="16" v-model="advanced[id]" @input="advancedPending[id]=true"/><button v-if="!isMobile" class="btn" @click="applyAdvanced(String(id))">{{tr('应用到表单','Apply to form')}}</button></details>
         </PresetProvider>
-        <button class="btn primary icon-only add-provider" :class="{'provider-add-card':isMobile}" :aria-label="tr('添加提供商','Add provider')" :title="tr('添加提供商','Add provider')" :disabled="busy" @click="adding=true"><Icon name="plus"/></button>
+        <button class="btn primary icon-only add-provider" :class="{'provider-add-card':isMobile}" :aria-label="tr('添加提供商','Add provider')" :data-hint="tr('添加提供商','Add provider')" :disabled="busy" @click="adding=true"><Icon name="plus"/></button>
       </div>
 
     </template><button v-else class="btn" :disabled="busy" @click="load">{{tr('重新载入','Reload')}}</button>
     </div>
-      <footer v-if="draft&&tab!=='ui'&&!isMobile"><button class="btn" :disabled="busy||!dirty" @click="discard=true">{{tr('放弃修改','Discard changes')}}</button><button class="btn primary icon-only" :aria-label="tr('保存并生效','Save & apply')" :title="tr('保存并生效','Save & apply')" :disabled="busy||!dirty" @click="save"><Icon name="save"/></button></footer>
+      <footer v-if="draft&&tab!=='ui'&&!isMobile"><button class="btn" :disabled="busy||!dirty" @click="discard=true">{{tr('放弃修改','Discard changes')}}</button><button class="btn primary icon-only" :aria-label="tr('保存并生效','Save & apply')" :data-hint="tr('保存并生效','Save & apply')" :disabled="busy||!dirty" @click="save"><Icon name="save"/></button></footer>
     </section>
 
     <AddProvider v-if="adding" :catalog="catalog" @close="adding=false" @select="addProvider"/>

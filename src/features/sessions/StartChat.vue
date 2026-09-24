@@ -3,7 +3,7 @@ import { modelLabel as formatModelLabel } from '../../ui/modelLabel';
 import { resolvedEffort, effortLabel } from './reasoningLabels';
 import { uploadAttachments, type AttachmentInput } from '../../core/attachments.js';
 import Hint from '../../ui/components/Hint.vue';
-import { computed, nextTick, onActivated, onDeactivated, provide, ref, watch } from 'vue';
+import { computed, nextTick, onActivated, onDeactivated, onScopeDispose, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { sessions } from '../../core/state/sessionsSlice.js';
 import * as api from '../../core/api/endpoints.js';
@@ -12,9 +12,12 @@ import { errorText } from '../../core/config-editor';
 import { useMedia } from '../../ui/composables/useMedia';
 import { pageActivityKey, usePageActivity } from '../../ui/composables/usePageActivity';
 import { useModelCatalog } from './useModelCatalog';
+import { bus } from '../../core/bus.js';
+import { tr } from '../settings/fields';
 import type { ModelSelection } from './useSessionSelection';
 import RecentSessions from './RecentSessions.vue';
 import Composer from './Composer.vue';
+import DirectoryPicker from './DirectoryPicker.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
 import Icon from '../../ui/components/Icon.vue';
@@ -36,6 +39,9 @@ const defaultModel = ref<ModelSelection>();
 const defaultReady = ref(false);
 const defaultError = ref<unknown>();
 const manuallySelected = ref(false);
+const cwd = ref('');
+const defaultCwd = ref('');
+const manuallySetCwd = ref(false);
 let defaultGeneration = 0;
 async function readDefaultModel() {
   const generation = ++defaultGeneration;
@@ -45,11 +51,18 @@ async function readDefaultModel() {
     const config = await api.configEffective();
     if (generation !== defaultGeneration) return;
     defaultModel.value = config.defaults.model ? { provider:config.defaults.provider, model:config.defaults.model, reasoning_effort:config.defaults.reasoning?.effort } : undefined;
+    defaultCwd.value = config.defaults.cwd || '';
+    if (!manuallySetCwd.value) cwd.value = defaultCwd.value;
     defaultReady.value = true;
   } catch (error) {
     if (generation === defaultGeneration) defaultError.value = error;
   }
 }
+const stopConfiguration = bus.on('configuration.changed', () => {
+  void readDefaultModel();
+  void catalog.reload();
+});
+onScopeDispose(stopConfiguration);
 function selectModel(value: ModelSelection) {
   manuallySelected.value = true;
   selection.value = value;
@@ -83,12 +96,17 @@ async function send(text: string, attachments: AttachmentInput[]) {
     if (!created.value) {
       const { provider, model, reasoning_effort } = selection.value;
       const remembered = { provider, model, reasoning_effort: reasoning_effort ?? effectiveEffort.value };
-      await api.rememberDefaultModel(remembered);
-      ++defaultGeneration;
-      defaultModel.value = remembered;
-      defaultReady.value = true;
       const name = [...(text.trim().split('\n')[0] || attachments.find(file => file.name)?.name || '')].slice(0, 60).join('');
-      created.value = (await sessions.create({ provider, model, reasoningEffort: reasoning_effort ?? effectiveEffort.value, name })).id;
+      created.value = (await sessions.create({ provider, model, reasoningEffort: reasoning_effort ?? effectiveEffort.value, name, cwd: cwd.value.trim() })).id;
+      try {
+        await api.rememberDefaultModel(remembered);
+        ++defaultGeneration;
+        defaultModel.value = remembered;
+        defaultReady.value = true;
+      } catch (error) {
+        // The session is already created. A settings conflict must not block its first message.
+        defaultError.value = error;
+      }
     }
     const id = created.value!;
     const capabilities = attachments.length ? await api.sessionCapabilities(id) : undefined;
@@ -96,6 +114,8 @@ async function send(text: string, attachments: AttachmentInput[]) {
     const delivery = await api.messageSend(id, { content: text, ...(blocks.length ? { blocks } : {}) });
     created.value = undefined;
     manuallySelected.value = false;
+    manuallySetCwd.value = false;
+    cwd.value = defaultCwd.value;
     // Completion can arrive after navigation; do not take over another page.
     if (visible.value && ['sessions', 'new-chat'].includes(String(route.name))) await router.push('/s/' + id);
     return delivery.resource_id ?? delivery.id;
@@ -113,7 +133,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
     </div>
     <div class="start-surface">
       <div class="start-mark" aria-hidden="true">W<span>.</span></div>
-      <Composer ref="composer" session-id="new-session" :mobile="mobile" start :send-message="send" :disabled="!selection.model || busy || (!manuallySelected && !defaultReady)">
+      <Composer ref="composer" session-id="new-session" :mobile="mobile" start :send-message="send" :disabled="!selection.model || !cwd.trim() || busy || (!manuallySelected && !defaultReady)">
         <template #selection>
           <div class="start-model-controls model-selection">
             <Hint :text="i18n.t('model.title')"><button class="model-chip" :aria-expanded="modelOpen" :disabled="busy || !!created" @click="modelOpen = true">{{ modelLabel || i18n.t('model.title') }}</button></Hint>
@@ -121,7 +141,9 @@ async function send(text: string, attachments: AttachmentInput[]) {
             <Hint :text="i18n.t('reasoning.title')"><button class="reasoning-chip" :aria-expanded="reasoningOpen" :disabled="!selection.model || busy || !!created" @click="reasoningOpen = true">{{ effortLabel(effectiveEffort).toUpperCase() }}</button></Hint>
           </div>
         </template>
+        <template #footer-start><DirectoryPicker :model-value="cwd" :disabled="busy || !!created" @update:model-value="cwd=$event; manuallySetCwd=true" /></template>
       </Composer>
+      <p v-if="defaultReady && !cwd.trim()" class="hint" role="status">{{ tr('请填写工作目录后发送。','Enter a working directory before sending.') }}</p>
       <div v-if="defaultError" class="load-error" role="alert">{{ errorText(defaultError) }} <button class="btn ghost sm" @click="readDefaultModel">{{ i18n.t('common.retry') }}</button></div>
       <div v-if="catalog.error.value" class="load-error" role="alert">{{ errorText(catalog.error.value) }} <button class="btn ghost sm" @click="catalog.reload">{{ i18n.t('common.retry') }}</button></div>
       <template v-if="!selection.model">
@@ -149,12 +171,11 @@ async function send(text: string, attachments: AttachmentInput[]) {
 .start-back { position: absolute; top: 8px; left: 8px; }
 .start-empty { display: flex; align-items: center; gap: 8px; }
 :deep(.composer-start) { border: 1px solid var(--line-strong); border-radius: 16px; background: var(--bg-raised); box-shadow: 0 4px 24px #0000000a; padding: 10px 14px 12px; min-height: 188px; }
-:deep(.composer-start.desktop) { padding: 10px 16px; }
+:deep(.composer-start.desktop) { --composer-send-clearance: 4px; padding: 10px 16px; }
 :deep(.composer-start:focus-within) { border-color: var(--accent); }
 :deep(.composer-start .composer-editor) { min-height: 80px; }
 :deep(.composer-start .composer-toolbar) { padding: 0; gap: 6px; }
-:deep(.composer-start .composer-footer) { padding: 4px 0 0; }
-:deep(.composer-start.desktop textarea) { height: auto; min-height: 80px; align-self: stretch; }
+:deep(.composer-start.desktop .composer-input) { height: auto; min-height: 80px; align-self: stretch; }
 :deep(.composer-start-selection) { padding: 2px 4px 8px; }
 @media (max-width: 899px) {
   .start-chat { padding: 48px 16px 16px; }
@@ -166,7 +187,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
   .start-mark { font-size: 36px; margin-bottom: 24px; }
   :deep(.composer-start) { min-height: 0; padding: 12px 12px 14px; }
   :deep(.composer-start .composer-mobile-actions) { margin-bottom: 12px; }
-  :deep(.composer-start.mobile .composer-editor), :deep(.composer-start.mobile textarea) { min-height: 72px; }
+  :deep(.composer-start.mobile .composer-editor), :deep(.composer-start.mobile .composer-input) { min-height: 72px; }
 }
 @media (max-height: 500px) { .start-surface { padding-block: 8px; } .start-mark { display: none; } }
 </style>

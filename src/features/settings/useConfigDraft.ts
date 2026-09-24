@@ -2,6 +2,8 @@
 import { bus } from '../../core/bus.js';
 import { ref, computed } from 'vue';
 import { get, put } from '../../core/api/client.js';
+import { requireAvailableModel } from '../../core/api/endpoints.js';
+import { replayConfigChanges } from '../../core/configMerge.js';
 import { errorText } from '../../core/config-editor';
 import { tr } from './fields';
 import { presetLabel } from '../../ui/providerPresentation';
@@ -45,6 +47,7 @@ export function useConfigDraft() {
   const notice = ref('');
 
   const catalog = ref<ConfigCatalog>({ presets: [] });
+  const proxyEnvironment = ref<{ name: string; value: string; redacted: boolean }[]>([]);
   const adding = ref(false);
   const newProviderId = ref('');
 
@@ -103,11 +106,13 @@ export function useConfigDraft() {
     busy.value = true;
     error.value = '';
     try {
-      const [configuration, presets] = await Promise.all([
+      const [configuration, presets, environment] = await Promise.all([
         get('/config'),
         get('/provider-presets'),
+        get('/proxy-environment'),
       ]);
       catalog.value = presets;
+      proxyEnvironment.value = environment.variables;
       accept(configuration);
     } catch (e) {
       error.value = errorText(e);
@@ -140,12 +145,31 @@ export function useConfigDraft() {
     error.value = '';
     notice.value = '';
     try {
-      accept(await put('/config', { revision: revision.value, config: draft.value }));
+      const defaults = draft.value.defaults;
+      const savedDefaults = JSON.parse(source.value).defaults;
+      if (defaults?.provider && defaults?.model &&
+          (defaults.provider !== savedDefaults?.provider || defaults.model !== savedDefaults?.model)) {
+        await requireAvailableModel(
+          { id: defaults.provider, ...draft.value.providers[defaults.provider] },
+          defaults.model
+        );
+      }
+      let saved;
+      let rebased = false;
+      try {
+        saved = await put('/config', { revision: revision.value, config: draft.value });
+      } catch (cause) {
+        if ((cause as { status?: number })?.status !== 409) throw cause;
+        const latest = await get('/config');
+        const merged = replayConfigChanges(JSON.parse(source.value), draft.value, latest.config);
+        saved = await put('/config', { revision: latest.revision, config: merged });
+        rebased = true;
+      }
+      accept(saved);
       bus.emit('configuration.changed', {});
-      notice.value = tr(
-        '已保存并生效。正在运行的调用继续使用原配置。',
-        'Saved and applied. In-flight calls retain their configuration.'
-      );
+      notice.value = rebased
+        ? tr('配置已更新；已合并本地修改并保存。','Configuration changed; local edits were merged and saved.')
+        : tr('已保存并生效。正在运行的调用继续使用原配置。','Saved and applied. In-flight calls retain their configuration.');
       return true;
     } catch (e) {
       error.value = errorText(e);
@@ -216,6 +240,7 @@ export function useConfigDraft() {
     error,
     notice,
     catalog,
+    proxyEnvironment,
     adding,
     newProviderId,
     advanced,

@@ -2,7 +2,9 @@
 export declare function sessionGet(id: string, opts?: any): Promise<any>;
 export declare function sessionUsage(id: string): Promise<any>;
 export declare function blobUrl(sha256: string): string;
+export declare function blobMetadata(reference: string): Promise<{id:string;mime_type:string;byte_count:number}>;
 export declare function sessionCreate(body: any): Promise<any>;
+export declare function requireAvailableModel(provider: any, id: string): Promise<void>;
 export declare function sessionRename(id: string, name: string): Promise<any>;
 export declare function sessionUpdateMeta(id: string, metadata: any, ifMatchRevision?: any, opts?: any): Promise<any>;
 export declare function sessionDelete(id: string, opts?: any): Promise<any>;
@@ -37,3 +39,5 @@ export declare function sessionClearContext(id:string):Promise<any>;
 export declare function sessionFork(id:string):Promise<any>;
 export declare function moveQueuedInput(id: string, entry: string, before: string | number | null): Promise<any>;
 export declare function cancelQueuedInput(id:string,entry:string):Promise<any>;
+
+export function directoriesList(path: string): Promise<{ path: string; parent: string | null; directories: string[] }>;

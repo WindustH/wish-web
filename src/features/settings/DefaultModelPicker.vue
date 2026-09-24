@@ -16,8 +16,9 @@ const choices = computed(() => props.providers.flatMap(provider => {
   const models = props.config.providers[provider.value]?.models ?? {};
   const ids = Object.keys(models);
   if (provider.value === defaults.value.provider && defaults.value.model && !ids.includes(defaults.value.model)) ids.unshift(defaults.value.model);
-  return ids.map(id => ({key: JSON.stringify([provider.value, id]), title: modelLabel(id), search: id,
-    group: provider.label, brand: provider.brand, vision: models[id]?.input_modalities?.includes('image')}));
+  return ids.map(id => ({key: JSON.stringify([provider.value, id]), title: models[id]?.display_name || modelLabel(id), search: id,
+    description: models[id] ? id : `${id} · ${tr('未在配置中','Not configured')}`,
+    disabled: !models[id], group: provider.label, brand: provider.brand, vision: models[id]?.input_modalities?.includes('image')}));
 }));
 const efforts = computed(() => {
   const items = [{key: '', title: tr('上游默认', 'Upstream default')}, ...props.efforts.map(option => ({key:option.value,title:option.label}))];
@@ -39,7 +40,7 @@ function selectEffort(value: string) {
 <template>
   <div class="default-model-control">
     <div class="default-model-chip">
-      <button type="button" :aria-label="tr('默认模型','Default model')" :aria-expanded="open==='model'" @click="open='model'">{{modelLabel(defaults.model || '') || tr('选择模型','Select model')}}</button>
+      <button type="button" :aria-label="tr('默认模型','Default model')" :data-hint="defaults.model || ''" :aria-expanded="open==='model'" @click="open='model'">{{modelLabel(defaults.model || '') || tr('选择模型','Select model')}}</button>
       <span aria-hidden="true">·</span>
       <button type="button" class="effort" :aria-label="tr('默认思考强度','Default reasoning effort')" :aria-expanded="open==='effort'" @click="open='effort'">{{(defaults.reasoning?.effort || tr('默认','Default')).toUpperCase()}}</button>
     </div>

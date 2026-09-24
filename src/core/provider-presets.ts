@@ -9,6 +9,8 @@ export interface ProviderConfig {
   auth: string;
   api_key?: string | null;
   api_key_env?: string | null;
+  refresh_token?: string | null;
+  expires_at?: number | null;
   credentials: Record<string,string>;
   credentials_env: Record<string,string>;
   headers: Record<string,string>;

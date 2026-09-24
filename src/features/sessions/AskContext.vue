@@ -123,11 +123,10 @@ function onKeydown(event: KeyboardEvent) {
 <template>
   <section class="ask-context" :class="{ 'external-input': externalInput }">
     <header class="ask-heading">
-      <div><strong>BTW</strong><span>{{tr('临时对话 · 不写入会话历史','Temporary chat · not saved to session history')}}</span></div>
+      <div><strong>BTW</strong><span>{{tr('临时对话','Temporary chat')}}</span></div>
       <button v-if="turns.length" type="button" class="btn ghost icon-only ask-clear" :aria-label="tr('清除 BTW 上下文','Clear BTW context')" @click="clearConversation"><Icon name="trash-2" /></button>
     </header>
     <div ref="log" class="ask-log chatlog" role="log" :aria-label="tr('BTW 问答','BTW conversation')">
-      <p v-if="!turns.length" class="ask-empty">{{tr('基于当前会话上下文提问','Ask about this session')}}</p>
       <div v-for="turn in turns" :key="turn.id" class="ask-turn">
         <MessageContext :text="turn.question" kind="user">
           <div class="entry user"><div class="bubble">{{turn.question}}</div></div>
@@ -144,7 +143,7 @@ function onKeydown(event: KeyboardEvent) {
       </div>
     </div>
     <form v-if="!externalInput" class="ask-composer" @submit.prevent="submitQuestion()">
-      <textarea v-model="question" data-initial-focus rows="2" :aria-label="tr('输入问题','Enter a question')" :placeholder="tr('输入问题…','Ask a question…')" @keydown="onKeydown" />
+      <textarea v-model="question" data-initial-focus rows="2" :aria-label="tr('输入问题','Enter a question')" :placeholder="tr('顺便问一下…','By the way…')" @keydown="onKeydown" />
       <div class="ask-actions">
         <button v-if="busy" type="button" class="send-btn stop" :aria-label="tr('停止回答','Stop answering')" @click="stopAnswer"><Icon name="square" /></button>
         <button v-else type="submit" class="send-btn" :disabled="!question.trim()" :aria-label="tr('发送问题','Send question')"><Icon name="send" /></button>
@@ -162,7 +161,6 @@ function onKeydown(event: KeyboardEvent) {
 .ask-clear{width:30px;min-width:30px;height:30px;min-height:30px;padding:0;color:var(--fg-subtle)}
 .ask-clear .icon{width:15px;height:15px}
 .ask-log{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 22px 16px;background:var(--bg)}
-.ask-empty{margin:0;color:var(--fg-subtle);font-size:13px;line-height:1.7}
 .ask-turn+.ask-turn{margin-top:2px}
 .ask-turn .entry{padding-bottom:14px}
 .ask-turn .entry.user .bubble{max-width:100%}

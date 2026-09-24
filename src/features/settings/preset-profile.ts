@@ -30,8 +30,8 @@ export function presetProfile(p: ProviderPreset) {
   let documentation = docs[p.provider];
   if (codex) {
     keyLabel = 'Access Token';
-    keyHint = tr('填写 ChatGPT 登录得到的 Access Token。当前预设连接 Codex 订阅接口，不使用 OpenAI Platform API Key。', 'Use the Access Token from ChatGPT sign-in. This preset connects to the Codex subscription endpoint, not OpenAI Platform API-key billing.');
-    note = tr('Wish 当前不会发起登录或自动刷新 Token；Token 过期后需要更新。请同时配置账户 ID。', 'Wish does not currently initiate sign-in or refresh tokens. Replace an expired token. Configure the account ID alongside the token.');
+    keyHint = tr('可以通过 ChatGPT 网页登录；也可以手动填写 Access Token。此预设使用 Codex 订阅接口。', 'Sign in through ChatGPT, or enter an Access Token manually. This preset uses the Codex subscription endpoint.');
+    note = tr('网页登录会自动保存账户 ID 并刷新令牌。回调页面需要在运行 Wish 后端的本机浏览器打开。', 'Browser sign-in saves the account ID and refreshes tokens. Open the callback in a browser on the Wish server machine.');
     documentation = 'https://developers.openai.com/codex/auth/';
   } else if (aws) {
     note = tr('此预设使用 AWS SigV4 签名。地区决定 Bedrock 服务地址；临时凭据必须同时填写 Session Token。', 'This preset uses AWS SigV4 signing. The region determines the Bedrock host; temporary credentials also require a Session Token.');

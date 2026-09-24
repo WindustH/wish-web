@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FadeText from '../../ui/components/FadeText.vue';
 import Hint from '../../ui/components/Hint.vue';
 import { computed } from 'vue';
 import { DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from 'reka-ui';
@@ -20,7 +21,7 @@ const tags = computed<string[]>(() => Array.isArray(props.row.metadata?.tags) ? 
       :aria-current="active ? 'page' : undefined">
       <Hint :text="i18n.t(`phase.${row.phase}`)"><span class="sl-status phase-dot" :class="row.phase" :aria-label="i18n.t(`phase.${row.phase}`)" /></Hint>
       <span class="sl-main">
-        <span class="sl-name">{{ name }}</span>
+        <FadeText class="sl-name" :text="name" />
         <span v-for="tag in tags" :key="tag" class="sl-tag">{{ tag }}</span>
       </span>
     </RouterLink></Hint>

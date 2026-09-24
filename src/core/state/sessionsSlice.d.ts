@@ -19,7 +19,7 @@ export interface SessionsApi {
   refresh(): Promise<void>;
   setQuery(q: string): void;
   setTagFilter(t: string): void;
-  create(s: { name?: string; provider: string; model: string; reasoningEffort?: string; agentCustom?: unknown }): Promise<any>;
+  create(s: { name?: string; provider: string; model: string; reasoningEffort?: string; agentCustom?: unknown; cwd?: string }): Promise<any>;
   rename(id: string, name: string): Promise<any>;
   updateMeta(row: { id: string; revision?: number | null; metadata?: Record<string, unknown> | null }, changes: Record<string, unknown>): Promise<any>;
   dropRow(id: string): void;

@@ -175,7 +175,7 @@ async function edit(item: any) {
 
       <span class="queue-position">{{index+1}}</span>
       <span v-if="hasImages(item)" class="queue-images" role="img" :aria-label="i18n.t('chat.hasImages')"><Icon name="image"/></span>
-      <span class="queue-text" :title="item.text">{{item.text||i18n.t('chat.queueUntitled')}}</span>
+      <span class="queue-text" :data-hint="item.text">{{item.text||i18n.t('chat.queueUntitled')}}</span>
       <Hint v-if="refillable(item)" :text="i18n.t('chat.queueEdit')"><button class="btn ghost icon-only" :disabled="busy||!!moving" :aria-label="i18n.t('chat.queueEdit')" @click="edit(item)"><Icon name="pencil"/></button></Hint>
       <Hint :text="i18n.t('chat.queueRemove')"><button class="btn ghost icon-only" :disabled="busy||!!moving" :aria-label="i18n.t('chat.queueRemove')" @click="remove(item)"><Icon name="x"/></button></Hint>
     </div>

@@ -33,7 +33,7 @@ watch(rowFingerprint, () => {
   clearTimeout(motionTimer);
   motionTimer = setTimeout(() => { rearranging.value = false; }, 280);
 });
-onBeforeUnmount(() => clearTimeout(motionTimer));
+onBeforeUnmount(() => { clearTimeout(motionTimer); clearTimeout(scrollbarTimer); });
 const activeId = computed(() => route.params.id);
 
 // The state slice owns the search debounce; a second UI timer doubles latency.
@@ -52,9 +52,19 @@ const virtualizer = useVirtualizer(
 // Endless pagination, driven by real scroll position (the rendered-index
 // watch alone stalls: once the last VIRTUAL index stops changing, nothing
 // re-fires while the user keeps pinning to the bottom).
+// The scrollbar hides at rest: every scroll shows it again, and it fades once
+// the list has been still for a moment (the CSS owns the fade itself).
+const scrolling = ref(false);
+let scrollbarTimer: ReturnType<typeof setTimeout>;
+function showScrollbar() {
+  scrolling.value = true;
+  clearTimeout(scrollbarTimer);
+  scrollbarTimer = setTimeout(() => { scrolling.value = false; }, 600);
+}
 function onListScroll() {
   const el = listEl.value;
   if (!el) return;
+  showScrollbar();
   const fromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
   if (fromBottom < 400 && sessions.hasMore.value && !sessions.loadingMore.value) sessions.loadMore();
 }
@@ -80,7 +90,7 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
         <button :aria-label="i18n.t('common.remove')" @click="sessions.setTagFilter('')"><Icon name="x" class="sm" /></button>
       </span>
     </div>
-    <div ref="listEl" class="sl-scroll" data-scroll-preserve :aria-busy="sessions.loading.value" @scroll.passive="onListScroll">
+    <div ref="listEl" class="sl-scroll" :class="{ scrolling }" data-scroll-preserve :aria-busy="sessions.loading.value" @scroll.passive="onListScroll">
       <div v-if="sessions.loading.value && !rows.length" class="sl-state"><Spinner /></div>
       <div v-else-if="sessions.error.value" class="sl-state load-error" role="alert">
         <span>{{ String(sessions.error.value?.detail || sessions.error.value?.message || sessions.error.value) }}</span>

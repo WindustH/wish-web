@@ -35,7 +35,7 @@ watch(pageActive, active => { if (!active) open.value = false; });
 
 <template>
   <ToggleGroupRoot v-if="segmented && options.length <= 3 && options.length > 1" v-bind="$attrs" type="single" class="choice-capsule" :model-value="modelValue" :disabled="unavailable" @update:model-value="value => { if (value) emit('update:modelValue', String(value)); }">
-    <ToggleGroupItem v-for="option in options" :key="option.value" :value="option.value" :disabled="option.disabled" :aria-label="option.label" :title="option.label"><Icon v-if="option.icon" :name="option.icon" /><template v-else>{{ option.label }}</template></ToggleGroupItem>
+    <ToggleGroupItem v-for="option in options" :key="option.value" :value="option.value" :disabled="option.disabled" :aria-label="option.label" :data-hint="option.label"><Icon v-if="option.icon" :name="option.icon" /><template v-else>{{ option.label }}</template></ToggleGroupItem>
   </ToggleGroupRoot>
   <template v-else-if="mobilePage && mobile">
     <button v-bind="$attrs" type="button" class="control-select" :disabled="unavailable" aria-haspopup="dialog" :aria-expanded="open" @click="open=true"><span class="select-option-label"><ProviderIcon v-if="selected?.brand" :brand="selected.brand"/><span>{{selected?.label||placeholder||'—'}}</span></span><Icon name="chevron-right"/></button>

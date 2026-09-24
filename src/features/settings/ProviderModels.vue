@@ -15,6 +15,7 @@ import { useSettingsReturn } from './settingsReturn';
 import { tr } from './fields';
 const props=defineProps<{id:string;value:ProviderConfig;preset?:ProviderPreset}>();
 const editing=ref(false),originalId=ref(''),modelId=ref(''),draft=ref<Record<string,any>>({}),error=ref('');
+const allowUnknownId=ref(false);
 const catalogOpen=ref(false),catalogBusy=ref(false),catalogError=ref(''),catalog=ref<any[]>([]);
 const catalogModal=ref<InstanceType<typeof Modal>>();
 let catalogRequest=0;
@@ -106,12 +107,19 @@ const effortsPlaceholder=computed(()=>{
 });
 
 const efforts=computed(()=>[...new Set([...Object.keys(draft.value.reasoning_efforts??props.preset?.reasoning_efforts??{}),draft.value.default_reasoning_effort].filter(Boolean))].map(value=>({value,label:value})));
-function edit(id='',seed:Record<string,any>={}){originalId.value=id;modelId.value=id;draft.value=JSON.parse(JSON.stringify(id?props.value.models[id]:withNewModelDefaults(seed)));effortsInput.value=draft.value.reasoning_efforts?Object.keys(draft.value.reasoning_efforts).join(', '):'';error.value='';advanced.value=JSON.stringify(draft.value,null,2);advancedChanged.value=false;editSource.value=JSON.stringify([modelId.value,draft.value]);editing.value=true;}
+function edit(id='',seed:Record<string,any>={}){originalId.value=id;modelId.value=id;allowUnknownId.value=false;draft.value=JSON.parse(JSON.stringify(id?props.value.models[id]:withNewModelDefaults(seed)));effortsInput.value=draft.value.reasoning_efforts?Object.keys(draft.value.reasoning_efforts).join(', '):'';error.value='';advanced.value=JSON.stringify(draft.value,null,2);advancedChanged.value=false;editSource.value=JSON.stringify([modelId.value,draft.value]);editing.value=true;}
 function apply(close=true){try{
   const id=modelId.value.trim();if(!id)throw new Error(tr('请输入模型 ID。','Enter a model ID.'));
   if(id!==originalId.value&&id in props.value.models)throw new Error(tr('模型 ID 已存在。','Model ID already exists.'));
+  if(!originalId.value&&catalog.value.length&&!catalog.value.some(model=>model.id===id)&&!allowUnknownId.value){
+    const matched=catalog.value.find(model=>modelLabel(model.id).toLowerCase()===id.toLowerCase()||model.name?.toLowerCase()===id.toLowerCase());
+    throw new Error(matched
+      ? tr(`这是显示名。请使用上游模型 ID：${matched.id}`,`That is a display name. Use upstream model ID: ${matched.id}`)
+      : tr('上游目录中没有这个 ID；如确认是自定义模型，请勾选下方选项。','This ID is absent from the upstream catalog. Confirm a custom ID below if intended.'));
+  }
   const value=advancedChanged.value?JSON.parse(advanced.value):draft.value;
   if(!value||typeof value!=='object'||Array.isArray(value))throw new Error(tr('模型属性必须是 JSON 对象。','Model metadata must be a JSON object.'));
+  if(!originalId.value&&allowUnknownId.value&&catalog.value.length&&!catalog.value.some(model=>model.id===id))value.custom_model_id=true;
   for(const field of ['context_window_tokens','max_output_tokens'])if(value[field]!=null&&(!Number.isSafeInteger(value[field])||value[field]<=0))throw new Error(tr('Token 上限必须是正整数。','Token limits must be positive integers.'));
   if(value.reasoning_efforts!=null&&(typeof value.reasoning_efforts!=='object'||Array.isArray(value.reasoning_efforts)))throw new Error(tr('思考等级必须是对象格式。','Reasoning efforts must be an object.'));
   if(originalId.value&&originalId.value!==id)delete props.value.models[originalId.value];props.value.models[id]=value;if(close)editing.value=false;return true;
@@ -141,13 +149,13 @@ function closeCatalog(){
   if(customAfterCatalog){customAfterCatalog=false;void nextTick(()=>edit());}
 }
 defineExpose({openAdd});
-const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLabel(model.id),search:model.id,brand:props.preset?.provider,disabled:!!props.value.models[model.id],description:props.value.models[model.id]?tr('已添加','Already added'):undefined})));
+const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:model.name||modelLabel(model.id),search:model.id,brand:props.preset?.provider,disabled:!!props.value.models[model.id],description:props.value.models[model.id]?`${model.id} · ${tr('已添加','Already added')}`:model.id})));
 </script>
 <template>
   <div class="models-editor">
     <p v-if="!Object.keys(value.models).length" class="hint">{{tr('未配置模型，可手动添加或从上游目录选择。','No configured models. Add one manually or choose from the upstream catalog.')}}</p>
     <div v-for="(model,name) in value.models" :key="name" class="model-row">
-      <button class="model-edit" :aria-label="tr('编辑模型 ','Edit model ')+name" @click="edit(String(name))"><strong>{{modelLabel(String(name))}}</strong><small>{{tr('上下文','Context')}} {{model.context_window_tokens??'—'}} · {{tr('输出','Output')}} {{model.max_output_tokens??'—'}}<template v-if="model.reasoning_efforts"> · {{tr('思考','Reasoning')}} {{Object.keys(model.reasoning_efforts).join('/')}}</template></small></button>
+      <button class="model-edit" :aria-label="tr('编辑模型 ','Edit model ')+name" @click="edit(String(name))"><strong>{{model.display_name || modelLabel(String(name))}}</strong><small>ID: {{name}} · {{tr('上下文','Context')}} {{model.context_window_tokens??'—'}} · {{tr('输出','Output')}} {{model.max_output_tokens??'—'}}<template v-if="model.reasoning_efforts"> · {{tr('思考','Reasoning')}} {{Object.keys(model.reasoning_efforts).join('/')}}</template></small></button>
       <Hint :text="tr('编辑模型','Edit model')"><button class="btn ghost icon-only" :aria-label="tr('编辑模型配置 ','Edit model configuration ')+name" @click="edit(String(name))"><Icon name="pencil"/></button></Hint>
       <Hint :text="tr('删除模型','Delete model')"><button class="btn ghost danger icon-only" :aria-label="tr('删除模型 ','Delete model ')+name" @click="delete value.models[name]"><Icon name="trash-2"/></button></Hint>
     </div>
@@ -155,7 +163,9 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
 
       <div class="model-form">
         <p v-if="error" class="load-error" role="alert">{{error}}</p>
-        <label>{{tr('模型 ID','Model ID')}}<input class="input" v-model="modelId"/></label>
+        <label>{{tr('模型 ID','Model ID')}}<input class="input" v-model="modelId" autocomplete="off" spellcheck="false"/></label>
+        <p class="hint">{{tr('填写上游模型 ID，例如 deepseek-v4.1-flash；显示名称不能用作 ID。','Enter the upstream model ID, such as deepseek-v4.1-flash; the display name is not an ID.')}}</p>
+        <label v-if="!originalId && catalog.length && modelId.trim() && !catalog.some(model=>model.id===modelId.trim())" class="inline"><input type="checkbox" v-model="allowUnknownId"/>{{tr('确认使用目录外的自定义 ID','Use this custom ID outside the catalog')}}</label>
         <label>{{tr('上下文窗口','Context window')}}<input class="input" type="number" min="1" :value="draft.context_window_tokens??''" @input="draft.context_window_tokens=($event.target as HTMLInputElement).value?Number(($event.target as HTMLInputElement).value):null"/></label>
         <label>{{tr('最大输出 Token','Maximum output tokens')}}<input class="input" type="number" min="1" :value="draft.max_output_tokens??''" @input="draft.max_output_tokens=($event.target as HTMLInputElement).value?Number(($event.target as HTMLInputElement).value):null"/></label>
         <label>{{tr('思考能力','Reasoning support')}}<SelectField mobile-page :model-value="draft.supports_reasoning==null?'unknown':String(draft.supports_reasoning)" :options="[{value:'unknown',label:tr('未指定','Unspecified')},{value:'true',label:tr('支持','Supported')},{value:'false',label:tr('不支持','Unsupported')}]" @update:model-value="$event==='unknown'?delete draft.supports_reasoning:draft.supports_reasoning=$event==='true'"/></label>
@@ -175,7 +185,7 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
                 v-if="isCustomEfforts && presetEfforts.length"
                 type="button"
                 class="chip effort-reset"
-                :title="tr('恢复为提供商预设','Reset to provider preset')"
+                :data-hint="tr('恢复为提供商预设','Reset to provider preset')"
                 @click="resetEfforts"
               >
                 <Icon name="refresh-cw"/>
@@ -203,8 +213,8 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
           <h2>{{tr('上游模型目录','Upstream model catalog')}}</h2>
           <div class="catalog-toolbar">
             <button class="btn ghost catalog-custom" @click="openCustom">{{tr('自定义','Custom')}}</button>
-            <button class="btn ghost icon-only" :disabled="catalogBusy" :aria-label="tr('重新读取','Reload')" :title="tr('重新读取','Reload')" @click="readCatalog"><Icon name="refresh-cw" :class="{spin:catalogBusy}"/></button>
-            <button class="btn ghost icon-only" :aria-label="tr('关闭','Close')" :title="tr('关闭','Close')" @click="catalogOpen=false"><Icon name="x"/></button>
+            <button class="btn ghost icon-only" :disabled="catalogBusy" :aria-label="tr('重新读取','Reload')" :data-hint="tr('重新读取','Reload')" @click="readCatalog"><Icon name="refresh-cw" :class="{spin:catalogBusy}"/></button>
+            <button class="btn ghost icon-only" :aria-label="tr('关闭','Close')" :data-hint="tr('关闭','Close')" @click="catalogOpen=false"><Icon name="x"/></button>
           </div>
         </div>
       </template>

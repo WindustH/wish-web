@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FadeText from '../../ui/components/FadeText.vue';
 import { modelLabel } from '../../ui/modelLabel';
 import { sessionParent } from "../../ui/sessionNavigation";
 import { sessionPanelCloseKey } from '../../ui/composables/sessionPanel';
@@ -88,7 +89,7 @@ const goTab = (t: SessionTab) => {
       <button v-if="isMobile" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')"
         @click="router.push(sessionParent)"><Icon name="arrow-left" /></button>
       <div class="chat-title">
-        <span v-if="!snapshot" class="chat-skeleton title-skeleton" :aria-label="i18n.t('sessions.loading')" role="status" /><span v-else class="name">{{ snapshot.name || id.slice(0, 8) }}</span>
+        <span v-if="!snapshot" class="chat-skeleton title-skeleton" :aria-label="i18n.t('sessions.loading')" role="status" /><FadeText v-else class="name" :text="snapshot.name || id.slice(0, 8)" />
         <span v-if="!snapshot" class="chat-skeleton model-skeleton" aria-hidden="true" /><span v-else class="model-selection">
         <Hint :text="i18n.t('model.chipTitle')"><button class="model-chip" :aria-expanded="modelOpen" @click="modelOpen = true">
           <span>{{ modelLabel(snapshot?.model || '') || '—' }}</span>

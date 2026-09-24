@@ -8,6 +8,7 @@ import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, Di
 
 import { sessionPanelCloseKey } from '../composables/sessionPanel';
 import Icon from './Icon.vue';
+import BubbleSurface from './BubbleSurface.vue';
 import { i18n } from '../../core/i18n/index.js';
 import { useDialogLayer } from '../composables/useDialogLayer';
 import { useDialogFocus } from '../composables/useDialogFocus';
@@ -135,6 +136,7 @@ defineExpose({ close: requestClose });
         @focus-outside="event => { if (floating) event.preventDefault(); }"
         @interact-outside="outside"
         @pointer-down-outside="outside">
+        <BubbleSurface v-if="bubble && !floating" class="session-bubble-surface" side="top" :tail-x="24" align-end />
         <DialogTitle v-if="bubble && !floating" class="visually-hidden">{{ title }}</DialogTitle>
         <div v-else-if="!compactCard" class="modal-head">
           <button v-if="page" type="button" class="btn ghost icon-only" :disabled="dismissable === false"
