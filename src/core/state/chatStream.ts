@@ -110,6 +110,10 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
       if (kind === 'ModelStream') {
         const [type, value] = Object.entries(event)[0] as [string, any];
 
+        if (type === 'BlockStart' && value.kind === 'Reasoning') {
+          return { ...current, active: true, phase: 'streaming', activity: 'thinking' };
+        }
+
         if (type === 'TextDelta') {
           return {
             ...current,
@@ -170,7 +174,6 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
       }
 
       if (kind === 'CompactionSummary') {
-        toast(i18n.t('notify.standbySummaryReady', { start: event.source_start, end: event.source_end }));
         return { ...current, standbyPreparing: false };
       }
 

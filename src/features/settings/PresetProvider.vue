@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useMedia } from '../../ui/composables/useMedia';
 const isMobile=useMedia('(max-width: 899px)');
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import type { ProviderConfig, ProviderPreset } from '../../core/provider-presets';
 import { presetProfile, credentialPresentation } from './preset-profile';
@@ -16,12 +16,94 @@ import Hint from '../../ui/components/Hint.vue';
 import Modal from '../../ui/components/Modal.vue';
 import { useSettingsReturn } from './settingsReturn';
 import ProviderModels from './ProviderModels.vue';
+import { get, post } from '../../core/api/client.js';
+import { errorText } from '../../core/config-editor';
 const props=defineProps<{ id:string; value:ProviderConfig; preset?:ProviderPreset; protocols:string[]; initiallyOpen?:boolean; save?:()=>Promise<boolean>; saving?:boolean; saveError?:string }>();
-const emit=defineEmits<{remove:[];protocol:[value:string]}>();
+const emit=defineEmits<{remove:[];protocol:[value:string];loginComplete:[]}>();
 const editing=ref(props.initiallyOpen??false);
 const mobilePanel=ref('');
 const mobileReturning=ref(false);
 const modelEditor=ref<InstanceType<typeof ProviderModels>>();
+const loginBusy=ref(false);
+const loginError=ref('');
+const loginUrl=ref('');
+const loginMessage=ref('');
+const loginCallbackUrl=ref('');
+const loginSubmitting=ref(false);
+let loginPoll: ReturnType<typeof setTimeout>|undefined;
+let loginPopup: Window|null=null;
+onBeforeUnmount(()=>{if(loginPoll)clearTimeout(loginPoll);});
+async function pollChatgptLogin(){
+  try{
+    const result=await get('/providers/'+encodeURIComponent(props.id)+'/chatgpt-login');
+    if(result.status==='complete'){
+      loginBusy.value=false;
+      loginMessage.value=tr('ChatGPT 登录成功，凭据已保存。','ChatGPT sign-in succeeded. Credentials were saved.');
+      emit('loginComplete');
+      return;
+    }
+    if(result.status==='failed'||result.status==='expired'){
+      loginBusy.value=false;
+      loginError.value=result.error||tr('登录未完成，请重试。','Sign-in did not complete. Try again.');
+      return;
+    }
+    loginPoll=setTimeout(pollChatgptLogin,1500);
+  }catch(error){
+    loginBusy.value=false;
+    loginError.value=errorText(error);
+  }
+}
+async function startChatgptLogin(){
+  if(loginSubmitting.value)return;
+  if(loginPoll)clearTimeout(loginPoll);
+  loginPopup?.close();
+  const popup=window.open('','_blank');
+  loginPopup=popup;
+  if(popup)popup.opener=null;
+  loginBusy.value=true;
+  loginError.value='';
+  loginUrl.value='';
+  loginMessage.value='';
+  loginCallbackUrl.value='';
+  try{
+    if(props.save&&!(await props.save())){
+      popup?.close();
+      loginBusy.value=false;
+      loginError.value=tr('请先保存提供商配置。','Save the provider configuration first.');
+      return;
+    }
+    const result=await post('/providers/'+encodeURIComponent(props.id)+'/chatgpt-login',{});
+    loginUrl.value=result.authorization_url;
+    if(popup)popup.location.href=result.authorization_url;
+    loginMessage.value=tr('请在打开的 ChatGPT 页面完成授权。','Complete authorization in the ChatGPT page.');
+    loginPoll=setTimeout(pollChatgptLogin,1500);
+  }catch(error){
+    popup?.close();
+    loginBusy.value=false;
+    loginError.value=errorText(error);
+  }
+}
+async function completeChatgptLogin(){
+  if(loginSubmitting.value||!loginCallbackUrl.value.trim())return;
+  loginSubmitting.value=true;
+  loginError.value='';
+  try{
+    await post('/providers/'+encodeURIComponent(props.id)+'/chatgpt-login/complete',{
+      callback_url:loginCallbackUrl.value.trim(),
+    });
+    if(loginPoll)clearTimeout(loginPoll);
+    loginBusy.value=false;
+    loginMessage.value=tr('ChatGPT 登录成功，凭据已保存。','ChatGPT sign-in succeeded. Credentials were saved.');
+    loginCallbackUrl.value='';
+    loginPopup?.close();
+    loginPopup=null;
+    emit('loginComplete');
+  }catch(error){
+    loginError.value=errorText(error);
+  }finally{
+    loginSubmitting.value=false;
+  }
+}
 function openModelAdd(){modelEditor.value?.openAdd();}
 async function backToProvider(){if(await returns.confirm()){mobileReturning.value=true;mobilePanel.value='';}}
 const returns=useSettingsReturn(()=>isMobile.value&&editing.value,async()=>{if(mobilePanel.value)await backToProvider();else if(await returns.confirm())closeEditor();});
@@ -79,7 +161,7 @@ function setCredential(field:string,value:string){
         <Hint :text="tr('删除提供商','Delete provider')"><button class="btn ghost danger icon-only" :aria-label="tr('删除提供商 ','Delete provider ')+id" @click="emit('remove')"><Icon name="trash-2"/></button></Hint>
       </div>
     </header>
-    <AnimatedDetails v-if="!isMobile" class="provider-models"><summary><span class="provider-models-label"><Icon name="layers"/>{{tr('模型','Models')}}</span><span class="provider-model-count">{{Object.keys(value.models).length}}</span><button type="button" class="btn ghost icon-only provider-model-add" :aria-label="tr('添加模型','Add model')" :title="tr('添加模型','Add model')" @click.stop.prevent="openModelAdd"><Icon name="plus"/></button><Icon name="chevron-down" class="provider-models-chevron"/></summary><ProviderModels ref="modelEditor" :id="id" :value="value" :preset="preset"/></AnimatedDetails>
+    <AnimatedDetails v-if="!isMobile" class="provider-models"><summary><span class="provider-models-label"><Icon name="layers"/>{{tr('模型','Models')}}</span><span class="provider-model-count">{{Object.keys(value.models).length}}</span><button type="button" class="btn ghost icon-only provider-model-add" :aria-label="tr('添加模型','Add model')" :data-hint="tr('添加模型','Add model')" @click.stop.prevent="openModelAdd"><Icon name="plus"/></button><Icon name="chevron-down" class="provider-models-chevron"/></summary><ProviderModels ref="modelEditor" :id="id" :value="value" :preset="preset"/></AnimatedDetails>
     <Modal compact :before-close="isMobile?returns.confirm:undefined" :content-class="isMobile?'settings-editor mobile-settings-page provider-panel':'settings-editor'" :back="isMobile&&mobilePanel?backToProvider:undefined" :page="isMobile" :open="editing" :title="isMobile?(panels.find(p=>p.id===mobilePanel)?.label||displayName):tr('编辑提供商 · ','Edit provider · ')+id" wide @close="closeEditor">
 
     <p v-if="isMobile&&saveError" class="load-error" role="alert">{{saveError}}</p>
@@ -95,8 +177,8 @@ function setCredential(field:string,value:string){
     <section v-show="!isMobile||mobilePanel==='connection'" class="preset-section">
       <header v-if="!isMobile"><h3>{{tr('连接','Connection')}}</h3><a v-if="profile?.documentation" :href="profile.documentation" target="_blank" rel="noreferrer">{{tr('官方说明','Documentation')}}</a></header>
       <label>{{tr('协议','Protocol')}}<SelectField mobile-page :aria-label="id+' '+tr('协议','Protocol')" :model-value="value.protocol" :options="options([...new Set([...(preset?.protocols??protocols),value.protocol])])" @update:model-value="emit('protocol',$event)"/></label>
-      <label v-if="!isMobile" class="inline"><input type="checkbox" v-model="value.proxy_enabled"/>{{tr('使用服务器代理配置','Use server proxy configuration')}}</label>
-      <div v-else class="mobile-settings-row"><span>{{tr('使用服务器代理配置','Use server proxy configuration')}}</span><SwitchRoot v-model="value.proxy_enabled" class="cfg-switch" :aria-label="tr('使用服务器代理配置','Use server proxy configuration')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
+      <label v-if="!isMobile" class="inline"><input type="checkbox" v-model="value.proxy_enabled"/>{{tr('使用代理','Use proxy')}}</label>
+      <div v-else class="mobile-settings-row"><span>{{tr('使用代理','Use proxy')}}</span><SwitchRoot v-model="value.proxy_enabled" class="cfg-switch" :aria-label="tr('使用代理','Use proxy')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
       <label>{{tr('服务地址','Base URL')}}<input class="input" v-model="value.base_url"/></label>
       <label>{{tr('请求路径','Request path')}}<input class="input" v-model="value.path"/></label>
       <label v-for="field in connectionCredentials" :key="field">{{credentialPresentation(field)?.title||field}}<input class="input" :value="credentialValue(field)" :placeholder="value.credentials[field]==='<redacted>'?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" autocomplete="off" @input="setCredential(field,($event.target as HTMLInputElement).value)"/></label>
@@ -114,6 +196,16 @@ function setCredential(field:string,value:string){
           <input class="input" :type="field in value.credentials_env?'text':'password'" :value="credentialValue(field)" :placeholder="value.credentials[field]==='<redacted>'?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" :aria-label="credentialPresentation(field)?.title||field" autocomplete="new-password" @input="setCredential(field,($event.target as HTMLInputElement).value)"/>
         </label>
       </template>
+      <div v-if="profile?.codex" class="chatgpt-login">
+        <button type="button" class="btn primary" :disabled="loginSubmitting||saving" @click="startChatgptLogin"><Icon name="external-link"/>{{loginBusy?tr('重新开始 ChatGPT 登录','Restart ChatGPT sign-in'):tr('通过 ChatGPT 登录','Sign in with ChatGPT')}}</button>
+        <a v-if="loginUrl" :href="loginUrl" target="_blank" rel="noopener noreferrer">{{tr('重新打开登录页面','Open sign-in page again')}}</a>
+        <small v-if="loginMessage" class="hint" role="status">{{loginMessage}}</small>
+        <div v-if="loginBusy" class="chatgpt-manual">
+          <small class="hint">{{tr('远程访问时，授权后若出现 localhost 无法连接，请复制浏览器地址栏中的完整链接并粘贴到这里。','If localhost cannot connect after authorization, copy the full URL from your browser address bar and paste it here.')}}</small>
+          <div class="chatgpt-manual-input"><input v-model.trim="loginCallbackUrl" class="input" type="url" :placeholder="tr('粘贴 localhost 授权链接','Paste the localhost redirect URL')" autocomplete="off" spellcheck="false" @keydown.enter.prevent="completeChatgptLogin"/><button type="button" class="btn" :disabled="!loginCallbackUrl||loginSubmitting" @click="completeChatgptLogin">{{loginSubmitting?tr('验证中…','Verifying…'):tr('完成登录','Complete sign-in')}}</button></div>
+        </div>
+        <small v-if="loginError" class="load-error" role="alert">{{loginError}}</small>
+      </div>
     </section>
     <AnimatedDetails v-show="!isMobile||mobilePanel==='advanced'" :open="isMobile" class="preset-section"><summary>{{tr('高级设置','Advanced settings')}}</summary>
       <div class="advanced-fields">
@@ -128,12 +220,14 @@ function setCredential(field:string,value:string){
     <a v-if="isMobile&&mobilePanel==='connection'&&profile?.documentation" class="provider-documentation" :href="profile.documentation" target="_blank" rel="noreferrer">{{tr('官方说明','Documentation')}}<Icon name="external-link"/></a>
     <p v-if="!isMobile&&preset?.unsupported_protocols.length" class="hint">{{tr('图片生成协议尚未接入新后端；此处配置用于模型对话。','Image generation protocols are not connected to the new backend; these presets configure model conversations.')}}</p>
     </div>
-    <template #actions><button v-if="isMobile&&mobilePanel==='models'" type="button" class="btn ghost icon-only" :aria-label="tr('添加模型','Add model')" :title="tr('添加模型','Add model')" @click="openModelAdd"><Icon name="plus"/></button></template>
+    <template #actions><button v-if="isMobile&&mobilePanel==='models'" type="button" class="btn ghost icon-only" :aria-label="tr('添加模型','Add model')" :data-hint="tr('添加模型','Add model')" @click="openModelAdd"><Icon name="plus"/></button></template>
     <template v-if="!isMobile" #footer><span class="hint">{{tr('修改保留在设置草稿中，保存后生效。','Changes remain in the settings draft until saved.')}}</span><button class="btn primary" @click="editing=false">{{tr('完成','Done')}}</button></template>
     </Modal>
   </div>
 </template>
 <style scoped>
+.chatgpt-login{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}.chatgpt-login .btn{display:inline-flex;align-items:center;gap:7px}.chatgpt-login .hint,.chatgpt-login .load-error{width:100%}
+.chatgpt-manual{width:100%;display:grid;gap:8px}.chatgpt-manual-input{display:flex;gap:8px}.chatgpt-manual-input .input{flex:1;min-width:0}.chatgpt-manual-input .btn{flex:none}@media(max-width:599px){.chatgpt-manual-input{flex-direction:column}}
 .provider-item{min-width:0;margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg-control);overflow:hidden}
 .provider-heading{display:flex;align-items:center;gap:12px;padding:14px 16px}
 .provider-mark{display:grid;place-items:center;flex:none;width:40px;height:40px;border:1px solid var(--line);border-radius:10px;background:var(--bg-raised);color:var(--fg)}

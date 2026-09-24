@@ -44,7 +44,7 @@ export async function uploadAttachments(sessionId, attachments, { signal, capabi
     const blob = await upload(sessionId, attachment.bytes, { signal });
     if (attachment.kind === 'image') images++; else files++;
     if (images > limits.imageCount || files > limits.fileCount) throw new Error('Too many attachments');
-    const block = { type: attachment.kind, blob_id: blob.sha256, ...(attachment.name ? { filename: attachment.name } : {}) };
+    const block = { type: attachment.kind, blob_id: blob.sha256, byte_count: blob.byte_count, ...(attachment.placeholder ? { placeholder: attachment.placeholder } : {}), ...(attachment.name ? { filename: attachment.name } : {}) };
     blocks.push(block);
     uploaded.push({ ...block, mime_type: blob.mime_type, byte_count: blob.byte_count });
   }

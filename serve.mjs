@@ -64,7 +64,7 @@ const server = createServer(async (req, res) => {
     const origin = req.headers.origin ? String(req.headers.origin) : null;
     const fetchSite = req.headers['sec-fetch-site'] ? String(req.headers['sec-fetch-site']) : null;
     if (MUTATION.has(req.method)) {
-      if (origin && origin !== `http://${host}`) return reject(res, 403, 'cross-origin mutation');
+      if (origin && origin !== `http://${host}` && origin !== `https://${host}`) return reject(res, 403, 'cross-origin mutation');
       if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none') {
         return reject(res, 403, `cross-site mutation (${fetchSite})`);
       }

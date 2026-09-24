@@ -7,7 +7,15 @@
 .sl-head { display: flex; align-items: center; gap: 10px; margin: 0; padding: 8px 0; flex: 1; border-bottom: 1px solid var(--line-strong); color: var(--fg-subtle); }
 .sl-head input { background: transparent; border: 0; outline: none; width: 100%; min-width: 0; font-size: 12px; }
 .sl-head:focus-within { border-color: var(--accent); }
-.sl-scroll { flex: 1; overflow-y: auto; min-height: 0; padding: 0 8px; }
+.sl-scroll { flex: 1; overflow-y: auto; min-height: 0; padding: 0 8px; scrollbar-width: thin; scrollbar-color: transparent transparent; transition: scrollbar-color var(--dur-slow) var(--ease-out); }
+/* The list scrollbar stays out of sight at rest: it appears while scrolling, stays while the
+   pointer hovers the list (so it can still be grabbed), and fades back otherwise. The gutter
+   keeps its width throughout, so rows do not shift when the thumb hides. */
+.sl-scroll.scrolling { scrollbar-color: var(--line-strong) transparent; }
+@media (hover: hover) { .sl-scroll:hover { scrollbar-color: var(--line-strong) transparent; } }
+.sl-scroll::-webkit-scrollbar-thumb { background: transparent; transition: background var(--dur-slow) var(--ease-out); }
+.sl-scroll.scrolling::-webkit-scrollbar-thumb { background: var(--line-strong); }
+@media (hover: hover) { .sl-scroll:hover::-webkit-scrollbar-thumb { background: var(--line-strong); } }
 .sl-item { display: flex; align-items: flex-start; min-height: var(--h-session-row); border-radius: var(--radius); color: var(--fg-muted); transition: background var(--dur-fast); }
 .sl-item:has(:focus-visible) { background: var(--bg-hover); }
 @media (hover: hover) { .sl-item:hover { background: var(--bg-hover); } }
@@ -15,7 +23,7 @@
 .sl-row { flex: 1; min-width: 0; min-height: var(--h-session-row); display: flex; align-items: flex-start; gap: 10px; padding: 10px 4px 10px 12px; color: inherit; border-radius: inherit; }
 @media (hover: hover) { .sl-row:hover { text-decoration: none; color: var(--fg); } }
 .sl-main { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; flex: 1; min-width: 0; }
-.sl-name { max-width: 100%; font-size: 13px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-name { max-width: 100%; font-size: 13px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: clip; }
 .sl-tag { max-width: 100%; padding: 1px 5px; border-radius: 4px; background: var(--bg-hover); color: var(--fg-subtle); font-size: 11px; line-height: 16px; overflow-wrap: anywhere; }
 .sl-item.active .sl-tag { background: var(--bg-sunken); }
 @media (hover: hover) { .sl-item:hover .sl-tag { background: var(--bg-sunken); } }
@@ -47,7 +55,7 @@
 .chat-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .chatbar { height: var(--h-topbar); flex: none; display: flex; align-items: center; gap: 8px; padding: 0 20px; border-bottom: 1px solid var(--line); background: var(--chatbar-bg); }
 .chat-title { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
-.chat-title .name { font: 600 19px/1.4 var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-title .name { font: 600 19px/1.4 var(--display); overflow: hidden; text-overflow: clip; white-space: nowrap; }
 .model-selection { display: inline-flex; align-items: center; min-width: 0; max-width: 65%; flex-shrink: 0; gap: 1px; border-radius: 6px; transition: background var(--dur-fast); }
 .selection-dot { color: var(--fg-subtle); flex: none; }
 .model-chip, .reasoning-chip { display: inline-flex; align-items: center; min-width: 0; font-size: 12px; font-weight: 600; color: var(--fg-muted); background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 5px; cursor: pointer; }
@@ -68,6 +76,8 @@
 .entry { padding-bottom: 20px; contain: layout style; }
 .entry.user { display: flex; justify-content: flex-end; align-items: flex-end; gap: 6px; padding-top: 4px; }
 .entry.user .bubble { background: var(--user-bubble); color: var(--user-bubble-fg); border: 0; border-radius: 12px; padding: 12px 16px; max-width: 92%; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--message-size); line-height: 1.8; transition: transform var(--dur) var(--ease-out), background var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out); }
+.entry.user .bubble.attachment-bubble { background: transparent; padding: 0; border-radius: 0; }
+.entry.user .bubble.image-bubble img { border-radius: 12px; }
 .entry.user .bubble img, .proc-step > img { max-width: 100%; border-radius: var(--radius); margin-top: 8px; display: block; }
 .entry.assistant { display: flex; font-size: var(--message-size); }
 .entry .body { flex: 1; min-width: 0; }
@@ -76,6 +86,7 @@
 .message-context.assistant.open .entry.assistant .body { transform: translateY(3px); }
 .message-context.assistant.open .entry.assistant .body::before { opacity: 1; }
 .message-context.user.open .entry.user .bubble { transform: translateY(-4px); background: var(--bg-hover); box-shadow: 0 8px 18px rgb(0 0 0 / 14%); }
+.message-context.user.open .entry.user .bubble.attachment-bubble { background: transparent; box-shadow: none; }
 .entry .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 11px; line-height: 1.6; color: var(--fg-subtle); margin-top: 6px; font-variant-numeric: tabular-nums; }
 
 .entry.user .bubble img:first-child { margin-top: 0; }
@@ -152,16 +163,18 @@
 @media(prefers-reduced-motion:reduce){.queue-row-move,.queue-row-enter-active,.queue-row-leave-active,.queue-dock-enter-active,.queue-dock-leave-active{transition:none}}
 @media(max-width:899px){.queue-dock{left:12px;right:auto;margin-inline:0;min-width:min(220px,calc(100% - 24px));max-width:min(var(--mobile-content-width),calc(100% - 24px));bottom:6px}.queue-dock.collapsed{left:12px;min-width:40px}.queue-item .btn.icon-only{width:36px;height:36px;min-height:36px}.queue-item{min-height:38px;gap:3px}.queue-position{width:12px}}
 .composer { position: relative; flex: none; min-height: 0; border-top: 1px solid var(--line-strong); background: var(--bg-raised); display: flex; flex-direction: column; }
-.composer.desktop { padding: 0 24px 12px; transition: height var(--dur-fast) var(--ease-out); }
+.composer.desktop { --composer-send-clearance: 8px; padding: 0 24px 12px; transition: height var(--dur-fast) var(--ease-out); }
 .resizing-composer .composer.desktop { transition: none; }
 .composer-toolbar { display: flex; align-items: center; flex: none; gap: 8px; padding: 6px 0 0; }
 .composer-toolbar .grow { flex: 1; }
 .composer-editor { display: flex; min-height: 0; }
-.composer.desktop .composer-editor { flex: 1; }
-.composer textarea { min-width: 0; width: 100%; border: 0; background: none; outline: none; resize: none; line-height: 1.8; padding: 2px 0 4px; border-radius: 0; font-size: 15px; }
+/* Let the editable surface cover the footer’s top clearance without moving its buttons. */
+.composer.desktop .composer-editor { flex: 1; margin-bottom: calc(-1 * var(--composer-send-clearance)); }
+.composer .composer-input { min-width: 0; width: 100%; border: 0; background: none; outline: none; resize: none; line-height: 1.8; padding: 2px 0 4px; border-radius: 0; font-size: 15px; }
 .composer:focus-within { border-top-color: var(--accent); }
-.composer.desktop textarea { height: 100%; min-height: 0; overflow-y: auto; }
-.composer-footer { display: flex; flex: none; align-items: center; justify-content: flex-end; gap: 16px; padding-top: 8px; }
+.composer.desktop .composer-input { align-self: stretch; height: auto; min-height: 0; overflow-y: auto; }
+.composer-footer { display: flex; flex: none; align-items: center; justify-content: flex-end; gap: 16px; padding-top: var(--composer-send-clearance); pointer-events: none; }
+.composer-footer > * { pointer-events: auto; }
 .composer .send-btn { flex: none; min-width: 36px; width: 36px; height: 36px; padding: 0; border-radius: 6px; border: 1px solid transparent; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; justify-content: center; background: transparent; color: var(--fg-muted); font-size: 13px; font-weight: 500; transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), transform var(--dur-fast); }
 .composer .send-btn:disabled { color: var(--fg-subtle); cursor: default; }
 @media (hover: hover) {
@@ -186,7 +199,7 @@
 .composer.mobile .composer-editor { width: 100%; align-items: flex-end; gap: 8px; }
 .composer-mobile-actions { display: flex; align-items: center; gap: 6px; padding-bottom: 0; }
 .composer-mobile-actions .grow { flex: 1; }
-.composer.mobile textarea { flex: 1; min-height: 36px; line-height: 1.5; padding: 2px 4px 6px; }
+.composer.mobile .composer-input { flex: 1; min-height: 36px; line-height: 1.5; padding: 2px 4px 6px; }
 .composer-mobile-actions > .btn.icon-only { width: 32px; height: 32px; flex: none; }
 .composer-mobile-actions .icon { width: 18px; height: 18px; }
 .composer.mobile .send-btn { flex: none; min-width: 0; width: 36px; height: 36px; padding: 0; }
@@ -196,6 +209,8 @@
 html.resizing-composer, html.resizing-composer * { cursor: row-resize !important; user-select: none !important; }
 .attach-strip { display: flex; gap: 8px; padding: 8px; overflow-x: auto; }
 .attach-thumb { position: relative; flex: none; }
+.attach-thumb [role="button"] { cursor: pointer; }
+.attach-thumb [role="button"]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 .attach-thumb img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
 .attach-thumb .rm { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; background: var(--fg); color: var(--bg); border: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .attach-thumb .rm .icon { width: 12px; height: 12px; }
@@ -249,7 +264,7 @@ html.resizing-composer, html.resizing-composer * { cursor: row-resize !important
 .info-instructions { flex-direction: column; align-items: stretch; gap: 12px; }
 .info-instructions h4 { margin: 0; font-weight: 500; }
 @media (max-width: 899px) {
-  .composer.mobile textarea, .input, .select, .textarea { font-size: 16px; }
+  .composer.mobile .composer-input, .input, .select, .textarea { font-size: 16px; }
 }
 
 

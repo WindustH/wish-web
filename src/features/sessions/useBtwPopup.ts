@@ -2,7 +2,7 @@ import { nextTick, ref, watch, type Ref } from 'vue';
 
 export function useBtwPopup(
   mobile: Ref<boolean>, pageActive: Ref<boolean>,
-  composerEl: Ref<HTMLElement | null>, ta: Ref<HTMLTextAreaElement | null>,
+  composerEl: Ref<HTMLElement | null>, ta: Ref<{ blur(): void } | null>,
   btwButton: Ref<HTMLButtonElement | null>, btwBubble: Ref<HTMLElement | null>,
 ) {
   const btwOpen = ref(false);
@@ -21,10 +21,14 @@ export function useBtwPopup(
     const inset = mobile.value ? 20 : 8;
     const gap = mobile.value ? 20 : 16;
     const width = Math.min(460, window.innerWidth - inset * 2);
+    const left = Math.max(inset, Math.min(rect.left, window.innerWidth - width - inset));
+    const buttonRect = button.getBoundingClientRect();
+    const tailX = Math.max(18, Math.min(buttonRect.left + buttonRect.width / 2 - left, width - 18));
     btwPosition.value = {
-      left: `${Math.max(inset, Math.min(rect.left, window.innerWidth - width - inset))}px`,
+      left: `${left}px`,
       bottom: `${Math.max(inset, window.innerHeight - rect.top + gap)}px`,
       maxHeight: `${Math.max(80, rect.top - gap - inset)}px`,
+      '--bubble-tail-x': `${tailX}px`,
     };
   }
   function onBtwOutside(event: PointerEvent) {

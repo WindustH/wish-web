@@ -2,7 +2,7 @@
 import { computed, onScopeDispose, ref, shallowRef, toRef, watch } from 'vue';
 import { i18n } from '../../core/i18n/index.js';
 import { errorText } from '../../core/config-editor';
-import { readModels, readProviders, type ModelInfo } from '../../core/provider-catalog';
+import { FALLBACK_EFFORT_LEVELS, readModels, readProviders, type ModelInfo } from '../../core/provider-catalog';
 import { useSessionSelection, type ModelSelection } from './useSessionSelection';
 import { effortLabel, resolvedEffort } from './reasoningLabels';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
@@ -20,21 +20,26 @@ const selected = ref('default'), query = ref('');
 const key = (effort?: string) => effort ? `effort:${effort}` : 'default';
 let controller = new AbortController();
 const providerEfforts = shallowRef<Record<string, string | number>>({});
-const effortSource = ref('');
 const standardLevels = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
-const usingStandardLevels = computed(() => effortSource.value === 'generic' && !metadata.value?.reasoning_efforts);
-const levels = computed(() => {
+const levelList = computed(() => {
   const levels = Object.keys(metadata.value?.reasoning_efforts ?? providerEfforts.value).filter(level => level !== 'none' && level !== 'auto');
   const defaultLevel = metadata.value?.default_reasoning_effort;
   if (defaultLevel && !levels.includes(defaultLevel)) levels.push(defaultLevel);
+  // A catalog model names no levels and most presets claim none: the standard words stay
+  // selectable instead of leaving 'none' the only choice, unless reasoning is declared absent.
+  const standard = !levels.length && metadata.value?.supports_reasoning !== false;
+  if (standard) levels.push(...FALLBACK_EFFORT_LEVELS);
   const order = ['off', ...standardLevels];
-  return levels.sort((a, b) => (order.includes(a) ? order.indexOf(a) : order.length) - (order.includes(b) ? order.indexOf(b) : order.length));
+  levels.sort((a, b) => (order.includes(a) ? order.indexOf(a) : order.length) - (order.includes(b) ? order.indexOf(b) : order.length));
+  return { levels, standard };
 });
+const levels = computed(() => levelList.value.levels);
+const usingStandardLevels = computed(() => levelList.value.standard && !metadataBusy.value);
 function resetChoice() { selected.value = key(resolvedEffort(snapshot.value?.reasoning_effort, metadata.value, providerEfforts.value)); }
 async function loadMetadata() {
   controller.abort(); controller = new AbortController();
   const signal = controller.signal;
-  metadata.value = undefined; providerEfforts.value = {}; effortSource.value = ''; metadataError.value = undefined; metadataBusy.value = false;
+  metadata.value = undefined; providerEfforts.value = {}; metadataError.value = undefined; metadataBusy.value = false;
   if (!snapshot.value) return;
   const { provider, model } = snapshot.value;
   metadataBusy.value = true;
@@ -42,7 +47,7 @@ async function loadMetadata() {
     const providers = await readProviders(signal);
     const selected = providers.find(item => item.id === provider);
     if (!selected) throw new Error(i18n.t('model.providerUnavailable'));
-    if (!signal.aborted) { metadata.value = selected.models[model]; providerEfforts.value = selected.reasoning_efforts; effortSource.value = selected.reasoning_efforts_source; resetChoice(); }
+    if (!signal.aborted) { metadata.value = selected.models[model]; providerEfforts.value = selected.reasoning_efforts; resetChoice(); }
     const info = (await readModels(selected, signal)).find(item => item.id === model);
     if (!signal.aborted) { metadata.value = info; resetChoice(); }
   } catch (cause) {
@@ -91,7 +96,7 @@ async function apply(value: string) {
       <template #after>
         <div v-if="metadataError" class="load-error" role="alert">{{ errorText(metadataError) }}<button class="btn ghost sm" @click="loadMetadata">{{ i18n.t('common.retry') }}</button></div>
         <p v-if="unsupported" class="hint">{{ i18n.t('reasoning.unsupported') }}</p>
-        <p v-else-if="usingStandardLevels && !metadataBusy" class="hint">{{ i18n.t('reasoning.standardHint') }}</p>
+        <p v-else-if="usingStandardLevels" class="hint">{{ i18n.t('reasoning.standardHint') }}</p>
       </template>
     </PickerList>
   </CommandPanel>

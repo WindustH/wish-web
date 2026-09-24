@@ -52,6 +52,7 @@ export function createChatDeliveries({ sessionId, snapshot, stream, error, optio
                 kind: b.type,
                 blob_id: `${id}/${b.blob_id}`,
                 filename: b.filename,
+                placeholder: b.placeholder,
               })),
             },
           ];

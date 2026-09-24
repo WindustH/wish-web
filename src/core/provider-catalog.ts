@@ -21,6 +21,11 @@ export interface ProviderInfo {
   models: Record<string, Omit<ModelInfo, 'id' | 'source'>>;
 }
 
+// Levels offered when neither a model nor its provider names any: four standard words most
+// wires accept, with the last one (`max`) as the resolved default. A model that declares
+// `supports_reasoning: false` never falls back here; 'none' stays a picker choice.
+export const FALLBACK_EFFORT_LEVELS = ['low', 'medium', 'high', 'max'];
+
 export async function readProviders(signal?: AbortSignal): Promise<ProviderInfo[]> {
   const response = await providerConfigs({ signal });
   return response.providers.filter((provider: ProviderInfo) => provider.enabled);

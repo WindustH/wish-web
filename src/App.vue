@@ -2,11 +2,13 @@
 import { useMobileNavigationMotion } from './ui/composables/useMobileNavigationMotion';
 useMobileNavigationMotion();
 import Hint from './ui/components/Hint.vue';
+import HoverHintHost from './ui/components/HoverHintHost.vue';
 import { defineAsyncComponent, computed, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue';
 import { TooltipProvider, DialogRoot, DialogPortal, DialogContent, DialogTitle } from 'reka-ui';
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
 import { useMedia } from './ui/composables/useMedia.js';
 import Icon from './ui/components/Icon.vue';
+import AttachmentPreview from './ui/components/AttachmentPreview.vue';
 import ToastHost from './ui/components/ToastHost.vue';
 import CachedPage from './ui/components/CachedPage.vue';
 import { i18n } from './core/i18n/index.js';
@@ -104,7 +106,9 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
     </DialogContent>
     </DialogPortal></DialogRoot>
     <ToastHost />
+    <AttachmentPreview />
   </div>
+  <HoverHintHost />
   </TooltipProvider>
 </template>
 

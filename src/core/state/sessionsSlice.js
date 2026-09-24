@@ -148,9 +148,10 @@ export const sessions = (() => {
     return loadFirst();
   }
 
-  async function create({ name, provider, model, reasoningEffort, agentCustom }) {
+  async function create({ name, provider, model, reasoningEffort, agentCustom, cwd }) {
     const body = { provider, model };
     if (name) body.name = name;
+    if (cwd != null) body.cwd = cwd;
     if (reasoningEffort) body.reasoning_effort = reasoningEffort;
     if (agentCustom != null && agentCustom !== '') body.agent_custom = agentCustom;
     const snap = await api.sessionCreate(body);

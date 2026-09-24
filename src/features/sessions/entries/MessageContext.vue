@@ -5,10 +5,10 @@ import { platform } from '../../../platform/index.js';
 import Icon from '../../../ui/components/Icon.vue';
 import { toast } from '../../../ui/toast';
 
-const props = defineProps<{ text: string; kind: 'user' | 'assistant' }>();
+const props = defineProps<{ text: string; kind: 'user' | 'assistant'; image?: { src: string; filename?: string } }>();
 const root = ref<HTMLElement | null>(null);
 const menu = ref<HTMLElement | null>(null);
-const copyButton = ref<HTMLButtonElement | null>(null);
+const actionButton = ref<HTMLButtonElement | null>(null);
 const open = ref(false);
 const position = ref({ left: 0, top: 0 });
 let pressTimer: ReturnType<typeof setTimeout> | undefined;
@@ -44,7 +44,7 @@ function onDocumentKeydown(event: KeyboardEvent) {
 }
 
 function showMenu(x: number, y: number, focus = false) {
-  if (!props.text.trim()) return;
+  if (!props.image && !props.text.trim()) return;
   cancelPress();
   closeMenu();
   position.value = {
@@ -56,11 +56,11 @@ function showMenu(x: number, y: number, focus = false) {
   document.addEventListener('keydown', onDocumentKeydown, true);
   window.addEventListener('scroll', closeMenu, true);
   window.addEventListener('resize', closeMenu);
-  if (focus) void nextTick(() => copyButton.value?.focus({ preventScroll: true }));
+  if (focus) void nextTick(() => actionButton.value?.focus({ preventScroll: true }));
 }
 
 function onContextMenu(event: MouseEvent) {
-  if (!props.text.trim()) return;
+  if (!props.image && !props.text.trim()) return;
   event.preventDefault();
   if (open.value && performance.now() < suppressClickUntil) return;
   showMenu(event.clientX, event.clientY);
@@ -74,7 +74,7 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 function onPointerDown(event: PointerEvent) {
-  if (event.pointerType !== 'touch' || !event.isPrimary || !props.text.trim()) return;
+  if (event.pointerType !== 'touch' || !event.isPrimary || (!props.image && !props.text.trim())) return;
   cancelPress();
   pressPointer = event.pointerId;
   pressStart = { x: event.clientX, y: event.clientY };
@@ -96,6 +96,26 @@ function onClickCapture(event: MouseEvent) {
   event.stopPropagation();
 }
 
+async function saveImage() {
+  if (!props.image) return;
+  try {
+    const response = await fetch(props.image.src);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blob = await response.blob();
+    const ext = ({ 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp',
+      'image/avif': 'avif', 'image/svg+xml': 'svg' } as Record<string, string>)[blob.type] || 'png';
+    const filename = props.image.filename?.replace(/[\\/]/g, '_') || `image.${ext}`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = filename;
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    closeMenu();
+  } catch (error) {
+    toast((i18n.locale.value === 'zh' ? '保存图片失败：' : 'Could not save image: ') + String(error));
+  }
+}
+
 async function copyMessage() {
   try {
     await platform('clipboard').writeText(props.text);
@@ -109,7 +129,7 @@ onBeforeUnmount(() => { cancelPress(); closeMenu(); });
 </script>
 
 <template>
-  <div ref="root" class="message-context" :class="[kind, { open }]" :tabindex="text.trim() ? 0 : undefined"
+  <div ref="root" class="message-context" :class="[kind, { open }]" :tabindex="image || text.trim() ? 0 : undefined"
     @contextmenu="onContextMenu" @keydown="onKeydown" @pointerdown="onPointerDown"
     @pointermove="onPointerMove" @pointerup="cancelPress" @pointercancel="cancelPress"
     @click.capture="onClickCapture">
@@ -117,7 +137,10 @@ onBeforeUnmount(() => { cancelPress(); closeMenu(); });
   </div>
   <Teleport to="body">
     <div v-if="open" ref="menu" class="message-context-menu" role="menu" :style="{ left: `${position.left}px`, top: `${position.top}px` }">
-      <button ref="copyButton" type="button" role="menuitem" @click="copyMessage">
+      <button v-if="image" ref="actionButton" type="button" role="menuitem" @click="saveImage">
+        <Icon name="download" />{{ i18n.locale.value === 'zh' ? '保存图片' : 'Save image' }}
+      </button>
+      <button v-else ref="actionButton" type="button" role="menuitem" @click="copyMessage">
         <Icon name="copy" />{{ i18n.locale.value === 'zh' ? '复制消息' : 'Copy message' }}
       </button>
     </div>

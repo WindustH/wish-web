@@ -8,6 +8,7 @@ import Icon from '../../../ui/components/Icon.vue';
 
 const props = defineProps<{ item: any }>();
 const open = ref(false);
+const detailModal = ref<InstanceType<typeof Modal> | null>(null);
 const background = computed(() => props.item.entry.payload?.background);
 const backgroundOutput = computed(() => props.item.entry.payload?.result?.output);
 const backgroundFailed = computed(() => backgroundOutput.value?.process?.status === 'killed' || backgroundOutput.value?.error || backgroundOutput.value?.process?.error || (backgroundOutput.value?.process?.exit_code != null && backgroundOutput.value.process.exit_code !== 0));
@@ -59,15 +60,26 @@ const text = computed(() => (props.item.entry.payload?.content ?? [])
       <button v-else-if="tone !== 'system'" class="notice-chip" :class="tone" @click="open = true"><Icon :name="iconName" />{{ label }}</button>
       <button v-else class="fold-chip" @click="open = true"><Icon name="circle-dot" />{{ label }}</button>
       <ProcessDetail v-if="open && item.entry.payload?.background" :step="{kind:'entry',entry:item.entry}" @close="open=false"/>
-      <Modal v-else :open="open" :title="label" wide @close="open = false">
+      <Modal v-else ref="detailModal" :open="open" :title="label" compact content-class="system-detail" @close="open = false">
+        <div class="system-detail-actions">
+          <CopyButton :text="text" />
+          <button type="button" class="btn ghost icon-only" :aria-label="i18n.t('common.close')" @click="detailModal?.close()"><Icon name="x" /></button>
+        </div>
         <pre class="detail-pre">{{ text }}</pre>
-        <CopyButton :text="text" />
       </Modal>
     </div>
   </div>
 </template>
 
 <style scoped>
+:global(.modal-card.system-detail:not(.modal-page)){width:max-content;max-width:min(94vw,42.5rem)}
+:global(.system-detail.compact .modal-body){position:relative;padding:14px 16px 16px;min-width:min(270px,calc(100vw - 48px))}
+:global(.system-detail .modal-body){overflow:hidden}
+:global(.system-detail .modal-flow-title){padding-right:70px;margin-bottom:10px}
+:global(.system-detail .system-detail-actions){position:absolute;right:12px;top:8px;display:flex;align-items:center;gap:2px}
+:global(.system-detail .system-detail-actions .btn){min-width:28px;width:28px;min-height:28px;height:28px;padding:0}
+:global(.system-detail .modal-body > .detail-pre){margin:0;max-height:calc(84dvh - 140px);overflow:auto;white-space:pre-wrap}
+
 .stop-marker { color: var(--err); }
 .stop-marker :deep(svg) { width: 14px; height: 14px; }
 .notice-chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; margin: 3px 0; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; color: var(--fg-subtle); font: 400 13px/1.6 var(--font); text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer; transition: filter var(--dur-fast); }

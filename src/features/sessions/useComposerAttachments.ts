@@ -1,3 +1,5 @@
+import { shouldAttachPastedText, pastedTextFile } from '../../core/pastedText.js';
+import { attachmentDigest } from '../../core/attachmentDigest.js';
 import { ref, watch, onBeforeUnmount, type Ref } from 'vue';
 import {
   attachmentDraftsFor,
@@ -27,11 +29,13 @@ export function useComposerAttachments(
   limits: Ref<AttachmentLimits>,
 ) {
   let attachmentEpoch = 0;
+  let pastedTextNumber = 0;
   const currentSid = ref(sessionId.value);
   currentSid.value = sessionId.value;
 
   const attachments = ref<Attachment[]>(attachmentDraftsFor<Attachment>(sessionId.value));
   const readingAttachments = ref(0);
+  const deletedAttachments = new Map<string, Attachment>();
 
   const revokeAll = (items: Attachment[]) => {
     for (const i of items) {
@@ -60,7 +64,13 @@ export function useComposerAttachments(
   }
 
   async function refillAttachments(items: any[]) {
-    const epoch = attachmentEpoch;
+    deletedAttachments.clear();
+    const epoch = ++attachmentEpoch;
+    revokeAll(attachments.value);
+    attachments.value = [];
+    saveAttachmentDrafts(currentSid.value, []);
+    readingAttachments.value = 1;
+    try {
     for (const item of items) {
       try {
         const response = await fetch(blobUrl(item.blob_id));
@@ -73,18 +83,20 @@ export function useComposerAttachments(
             kind: item.kind,
             name: item.filename,
             mime: item.mime_type,
+            placeholder: item.placeholder,
             bytes,
             localUrl: URL.createObjectURL(new Blob([bytes], { type: item.mime_type })),
           },
         ];
         saveAttachmentDrafts(currentSid.value, attachments.value);
       } catch (error) {
-        toast('Could not restore attachment: ' + String((error as Error)?.message ?? error));
+        if (epoch === attachmentEpoch) toast('Could not restore attachment: ' + String((error as Error)?.message ?? error));
       }
     }
+    } finally { if (epoch === attachmentEpoch) readingAttachments.value = 0; }
   }
 
-  async function attach(kind: 'image' | 'file') {
+  async function attach(kind: 'image' | 'file', inserted?: (placeholder: string) => void) {
     const epoch = attachmentEpoch;
     try {
       const picked = await platform('fs').pickFiles({
@@ -93,29 +105,40 @@ export function useComposerAttachments(
       });
       if (epoch !== attachmentEpoch) return;
       await readAttachments(
-        picked.map((file: Omit<PickedAttachment, 'kind'>) => ({ ...file, kind })),
+        picked.map((file: Omit<PickedAttachment, 'kind'>) => ({ ...file, kind })), inserted,
       );
     } catch (error) {
       if (epoch === attachmentEpoch) toast('Could not read attachment: ' + String(error));
     }
   }
 
-  function onPaste(event: ClipboardEvent) {
-    const files = Array.from(event.clipboardData?.files ?? []);
+  async function onPaste(event: ClipboardEvent, inserted?: (placeholder: string) => void) {
+    const text = event.clipboardData?.getData('text/plain') ?? '';
+    const files: PickedAttachment[] = Array.from(event.clipboardData?.files ?? []).map(file => ({
+      kind: hasImagePreview(file.type) ? 'image' : 'file',
+      name: file.type.startsWith('image/') ? undefined : file.name || undefined,
+      mime: file.type || 'application/octet-stream',
+      size: file.size,
+      read: () => file.arrayBuffer(),
+    }));
+    if (shouldAttachPastedText(text)) {
+      for (const item of [...attachments.value, ...deletedAttachments.values()]) {
+        const match = /^Pasted Text (\d+)$/.exec(item.name ?? '');
+        if (match) pastedTextNumber = Math.max(pastedTextNumber, Number(match[1]));
+      }
+      const attachment = pastedTextFile(text, `Pasted Text ${++pastedTextNumber}`);
+      // If limits prevent attachment creation, keep the normal text paste.
+      if (attachmentAccepted(attachment)) {
+        event.preventDefault();
+        files.unshift(attachment);
+      }
+    }
     if (!files.length) return;
-    if (!event.clipboardData?.getData('text/plain')) event.preventDefault();
-    void readAttachments(
-      files.map((file) => ({
-        kind: hasImagePreview(file.type) ? ('image' as const) : ('file' as const),
-        name: file.type.startsWith('image/') ? undefined : file.name || undefined,
-        mime: file.type || 'application/octet-stream',
-        size: file.size,
-        read: () => file.arrayBuffer(),
-      })),
-    );
+    if (!text) event.preventDefault();
+    await readAttachments(files, inserted);
   }
 
-  async function readAttachments(files: PickedAttachment[]) {
+  async function readAttachments(files: PickedAttachment[], inserted?: (placeholder: string) => void) {
     const epoch = attachmentEpoch;
     readingAttachments.value++;
     try {
@@ -125,10 +148,19 @@ export function useComposerAttachments(
         const bytes = await file.read();
         if (epoch !== attachmentEpoch) return;
         if (!hasAttachmentSpace(file.kind)) continue;
+        const placeholder = `<${file.pastedText ? 'paste' : file.kind}-${await attachmentDigest(bytes)}>`;
+        if (epoch !== attachmentEpoch) return;
+        if (placeholder && attachments.value.some(item => item.placeholder === placeholder)) {
+          inserted?.(placeholder);
+          continue;
+        }
+        if (placeholder) deletedAttachments.delete(placeholder);
         attachments.value = [
           ...attachments.value,
           {
+            placeholder,
             kind: file.kind,
+            pastedText: file.pastedText,
             name: file.name,
             mime: file.mime,
             bytes,
@@ -136,12 +168,32 @@ export function useComposerAttachments(
           },
         ];
         saveAttachmentDrafts(currentSid.value, attachments.value);
+        if (placeholder) inserted?.(placeholder);
       }
     } catch (error) {
       if (epoch === attachmentEpoch) toast('Could not read attachment: ' + String(error));
     } finally {
-      readingAttachments.value--;
+      if (epoch === attachmentEpoch) readingAttachments.value--;
     }
+  }
+
+  function syncAttachmentTags(previous: string, next: string) {
+    for (let i = attachments.value.length - 1; i >= 0; i--) {
+      const attachment = attachments.value[i]!;
+      const token = attachment.placeholder;
+      if (token && previous.includes(token) && !next.includes(token)) {
+        deletedAttachments.set(token, attachment);
+        removeAttachment(i);
+      }
+    }
+    for (const [token, attachment] of deletedAttachments) {
+      if (!previous.includes(token) && next.includes(token)) {
+        attachments.value.push({ ...attachment, localUrl: URL.createObjectURL(new Blob([attachment.bytes], { type: attachment.mime })) });
+        deletedAttachments.delete(token);
+      }
+    }
+    while (deletedAttachments.size > 100) deletedAttachments.delete(deletedAttachments.keys().next().value!);
+    saveAttachmentDrafts(currentSid.value, attachments.value);
   }
 
   function removeAttachment(i: number) {
@@ -154,6 +206,8 @@ export function useComposerAttachments(
   watch(
     sessionId,
     (id) => {
+      deletedAttachments.clear();
+      pastedTextNumber = 0;
       attachmentEpoch++;
       readingAttachments.value = 0;
       saveAttachmentDrafts(currentSid.value, attachments.value);
@@ -175,6 +229,8 @@ export function useComposerAttachments(
     onPaste,
     removeAttachment,
     refillAttachments,
+    syncAttachmentTags,
+    clearAttachmentUndo: () => deletedAttachments.clear(),
     revokeAll,
   };
 }

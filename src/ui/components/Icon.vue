@@ -2,8 +2,8 @@
 // Lucide icons imported BY NAME (no whole-pack import, no string indexing
 // into the full icon registry — bundle stays minimal).
 import {
-  GripVertical, ArrowLeft, Download, Bot, Brain, ChartColumn, Check, ChevronDown, ChevronLeft, FileDiff, Save, ExternalLink,
-  ChevronRight, ChevronUp, CircleDot, Copy, EllipsisVertical, History,
+  House, Folder, GripVertical, ArrowLeft, Download, Bot, Brain, ChartColumn, Check, ChevronDown, ChevronLeft, FileDiff, Save, ExternalLink,
+  ChevronRight, ChevronUp, CircleDot, Clipboard, Copy, EllipsisVertical, History,
   Image as ImageIcon, Layers, LoaderCircle, MessageCircle, Monitor, Pencil,
   Plus, RefreshCw, Search, Send, Settings, Settings2, Sparkles, Square,
   Sun, Moon, Terminal, Trash2, Wrench, X, Bell, Keyboard, Accessibility,
@@ -12,10 +12,10 @@ import {
 import { computed, type FunctionalComponent } from 'vue';
 
 const ICONS: Record<string, FunctionalComponent> = {
-  'grip-vertical': GripVertical, 'arrow-left': ArrowLeft, download: Download, bot: Bot, brain: Brain, 'chart-column': ChartColumn,
+  house: House, folder: Folder, 'grip-vertical': GripVertical, 'arrow-left': ArrowLeft, download: Download, bot: Bot, brain: Brain, 'chart-column': ChartColumn,
   check: Check, 'chevron-down': ChevronDown, 'chevron-left': ChevronLeft,
   'chevron-right': ChevronRight, 'chevron-up': ChevronUp, 'circle-dot': CircleDot,
-  copy: Copy, 'ellipsis-vertical': EllipsisVertical, history: History,
+  clipboard: Clipboard, copy: Copy, 'ellipsis-vertical': EllipsisVertical, history: History,
   image: ImageIcon, layers: Layers, 'loader-circle': LoaderCircle,
   'message-circle': MessageCircle, monitor: Monitor, pencil: Pencil, plus: Plus,
   'refresh-cw': RefreshCw, search: Search, send: Send, settings: Settings,

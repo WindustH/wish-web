@@ -172,7 +172,6 @@ export const en = {
     'a11y.runDone': 'The reply has finished',
   'chat.notifyFailed': 'Session run failed',
   'notify.needsConfirm': 'Session needs confirmation',
-  'notify.standbySummaryReady': 'Standby summary segment ready (#{start}–#{end})',
   'notify.contextCompacted': 'Context compacted ({n} entries trimmed)',
   'search.more': 'Load more results',
   'manage.meta': 'Organize',

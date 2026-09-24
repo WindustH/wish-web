@@ -10,6 +10,7 @@ import { cfg } from '../config.js';
 
 const GONE_STATUSES = new Set([404, 410]);      // resource no longer exists
 const DENIED_STATUSES = new Set([401, 403]);    // auth failure — never retried
+const MAX_FRAME_CHARS = 16 * 1024 * 1024;
 
 export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extraHeaders }) {
   const stateListeners = new Set();
@@ -118,7 +119,7 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
         // A stream that keeps sending bytes but never a blank-line frame
         // boundary would grow `buf` without limit; treat it as a broken
         // connection and reconnect instead of buffering forever.
-        if (buf.length > 1 << 20) throw new Error('SSE frame exceeded 1MiB');
+        if (buf.length > MAX_FRAME_CHARS) throw new Error('SSE frame exceeded 16MiB');
         if (aborted || terminal) { reader.cancel().catch(() => {}); return; }
       }
       if (aborted || terminal) return;

@@ -172,7 +172,6 @@ export const zh = {
     'a11y.runDone': '本轮回复已完成',
   'chat.notifyFailed': '会话运行失败',
   'notify.needsConfirm': '会话等待确认',
-  'notify.standbySummaryReady': '已生成后台待用摘要分段（#{start}–#{end}）',
   'notify.contextCompacted': '上下文已压缩（裁剪了 {n} 条记录）',
   'search.more': '加载更多结果',
   'manage.meta': '组织',
