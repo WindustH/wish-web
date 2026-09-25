@@ -11,6 +11,8 @@ export declare function sessionDelete(id: string, opts?: any): Promise<any>;
 export declare function sessionUpdateModel(id: string, body: any, ifMatchRevision?: any, opts?: any): Promise<any>;
 export declare function historySearch(id: string, params: any, opts?: any): Promise<any>;
 export declare function sessionInterrupt(id: string): Promise<any>;
+export declare function sessionUpdateConfig(id: string, config: any, revision?: number, opts?: any): Promise<any>;
+export declare function sessionSetShell(id: string, settings: { program: string; args: string[] | null } | null): Promise<any>;
 export declare function sessionCompact(id: string): Promise<any>;
 export declare function daemonStatus(opts?: { signal?: AbortSignal }): Promise<any>;
 export declare function providerConfigs(opts?: any): Promise<any>;

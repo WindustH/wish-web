@@ -19,7 +19,7 @@ import Composer from './Composer.vue';
 import QueueDock from './QueueDock.vue';
 import InfoPane from './InfoPane.vue';
 import SearchPane from './SearchPane.vue';
-import ManagePane from './ManagePane.vue';
+import SessionSettingsPane from './SessionSettingsPane.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
 import { useResolvedEffort } from './useResolvedEffort';
@@ -32,10 +32,10 @@ const router = useRouter();
 const isMobile = useMedia('(max-width: 899px)');
 
 const id = computed(() => route.params.id as string);
-type SessionTab = 'info' | 'search' | 'manage';
+type SessionTab = 'info' | 'search' | 'settings';
 const routeTab = computed<SessionTab | null>(() => {
   const n = route.name as string;
-  return n === 'chat-info' ? 'info' : n === 'chat-search' ? 'search' : n === 'chat-manage' ? 'manage' : null;
+  return n === 'chat-info' ? 'info' : n === 'chat-search' ? 'search' : n === 'chat-settings' ? 'settings' : null;
 });
 const desktopTab = ref<SessionTab | null>(null);
 const tab = computed(() => isMobile.value ? routeTab.value : desktopTab.value);
@@ -103,13 +103,13 @@ const goTab = (t: SessionTab) => {
           :class="{ selected: tab === 'info' }" data-session-panel="info" :aria-pressed="tab === 'info'" @click="goTab('info')"><Icon name="info" /></button></Hint>
         <Hint :text="i18n.t('chatbar.search')"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.search')"
           :class="{ selected: tab === 'search' }" data-session-panel="search" :aria-pressed="tab === 'search'" @click="goTab('search')"><Icon name="search" /></button></Hint>
-        <Hint :text="i18n.t('chatbar.manage')"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.manage')"
-          :class="{ selected: tab === 'manage' }" data-session-panel="manage" :aria-pressed="tab === 'manage'" @click="goTab('manage')"><Icon name="settings-2" /></button></Hint>
+        <Hint :text="i18n.t('chatbar.settings')"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.settings')"
+          :class="{ selected: tab === 'settings' }" data-session-panel="settings" :aria-pressed="tab === 'settings'" @click="goTab('settings')"><Icon name="settings-2" /></button></Hint>
       </template>
       <Menu v-else :items="[
         { key: 'info', label: i18n.t('chatbar.info') },
         { key: 'search', label: i18n.t('chatbar.search') },
-        { key: 'manage', label: i18n.t('chatbar.manage') },
+        { key: 'settings', label: i18n.t('chatbar.settings') },
       ]" :label="i18n.t('chatbar.more')" @select="goTab($event as SessionTab)">
         <Icon name="ellipsis-vertical" />
       </Menu>
@@ -126,7 +126,7 @@ const goTab = (t: SessionTab) => {
     </RouterView>
     <InfoPane v-if="!isMobile && desktopTab === 'info'" @close="desktopTab = null" />
     <SearchPane v-if="!isMobile && desktopTab === 'search'" @close="desktopTab = null" />
-    <ManagePane v-if="!isMobile && desktopTab === 'manage'" @close="desktopTab = null" />
+    <SessionSettingsPane v-if="!isMobile && desktopTab === 'settings'" @close="desktopTab = null" />
     <ModelSettings v-if="modelOpen" :session-id="id" @close="modelOpen = false" />
     <ReasoningSettings v-if="reasoningOpen" :session-id="id" @close="reasoningOpen = false" />
   </div>

@@ -95,7 +95,7 @@ export const zh = {
   'proc.stepsUnit': '步',
   'chatbar.info': '会话信息与统计',
   'chatbar.search': '历史搜索',
-  'chatbar.manage': '管理',
+  'chatbar.settings': '会话设置',
   'chatbar.back': '返回',
   'chatbar.more': '更多',
   'info.contextUsage': '上下文占用',

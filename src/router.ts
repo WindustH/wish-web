@@ -31,7 +31,7 @@ export const router = createRouter({
             { path: '', name: 'chat', component: { render: () => null } },
             { path: 'info', name: 'chat-info', component: () => import('./features/sessions/InfoPane.vue') },
             { path: 'search', name: 'chat-search', component: () => import('./features/sessions/SearchPane.vue') },
-            { path: 'manage', name: 'chat-manage', component: () => import('./features/sessions/ManagePane.vue') },
+            { path: 'settings', name: 'chat-settings', component: () => import('./features/sessions/SessionSettingsPane.vue') },
           ],
         },
       ],
