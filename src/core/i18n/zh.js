@@ -171,7 +171,7 @@ export const zh = {
   'time.older': '更早',
     'a11y.runDone': '本轮回复已完成',
   'chat.notifyFailed': '会话运行失败',
-  'notify.needsConfirm': '会话等待确认',
+  'notify.runFailed': '运行失败：{name}',
   'notify.contextCompacted': '上下文已压缩（裁剪了 {n} 条记录）',
   'notify.compactionTranslationFailed': '无法翻译旧模型的加密压缩历史，后续对话可能缺少部分背景。',
   'search.more': '加载更多结果',
