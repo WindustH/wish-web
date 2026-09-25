@@ -173,6 +173,7 @@ export const zh = {
   'chat.notifyFailed': '会话运行失败',
   'notify.needsConfirm': '会话等待确认',
   'notify.contextCompacted': '上下文已压缩（裁剪了 {n} 条记录）',
+  'notify.compactionTranslationFailed': '无法翻译旧模型的加密压缩历史，后续对话可能缺少部分背景。',
   'search.more': '加载更多结果',
   'manage.meta': '组织',
   'manage.tags': '标签',

@@ -173,6 +173,7 @@ export const en = {
   'chat.notifyFailed': 'Session run failed',
   'notify.needsConfirm': 'Session needs confirmation',
   'notify.contextCompacted': 'Context compacted ({n} entries trimmed)',
+  'notify.compactionTranslationFailed': 'Encrypted history could not be translated. Some earlier context may be missing.',
   'search.more': 'Load more results',
   'manage.meta': 'Organize',
   'manage.tags': 'Tags',

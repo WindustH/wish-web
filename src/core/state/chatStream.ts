@@ -173,8 +173,22 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
         return { ...current, standbyPreparing: true };
       }
 
-      if (kind === 'CompactionSummary') {
+      if (kind === 'CompactionSummary' || kind === 'CompactionSummaryFailed') {
         return { ...current, standbyPreparing: false };
+      }
+
+      if (kind === 'CompactionTranslationStarted') {
+        return { ...current, active: true, phase: 'streaming', activity: 'working' };
+      }
+
+      if (kind === 'CompactionTranslationFailed') {
+        toast(i18n.t('notify.compactionTranslationFailed'));
+        return current;
+      }
+
+      if (kind === 'CompactionTranslationCompleted') {
+        callbacks.onScheduleRefresh();
+        return current;
       }
 
       if (kind === 'ContextCompacted') {
