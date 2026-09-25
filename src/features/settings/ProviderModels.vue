@@ -6,6 +6,7 @@ import { computed, nextTick, onScopeDispose, ref } from 'vue';
 import type { ProviderConfig, ProviderPreset } from '../../core/provider-presets';
 import { readCatalogModels } from '../../core/provider-catalog';
 import { showError } from '../../ui/errorDialog';
+import { peekCached, readCached, writeCached } from '../../core/util/responseCache';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
 import Modal from '../../ui/components/Modal.vue';
@@ -125,15 +126,21 @@ function apply(close=true){try{
   if(value.reasoning_efforts!=null&&(typeof value.reasoning_efforts!=='object'||Array.isArray(value.reasoning_efforts)))throw new Error(tr('思考等级必须是对象格式。','Reasoning efforts must be an object.'));
   if(originalId.value&&originalId.value!==id)delete props.value.models[originalId.value];props.value.models[id]=value;if(close)editing.value=false;return true;
 }catch(e){showError({title:tr('无法应用模型设置','Could not apply the model'),error:e});return false;}}
+// The last catalog shows at once and stays usable while a fresh read runs.
 async function readCatalog(){
   const request=++catalogRequest;
   catalogController?.abort();
   catalogController = new AbortController();
-  catalogOpen.value=true;catalogBusy.value=true;catalogFailed.value=false;
+  const key=`catalog-models:${props.id}`;
+  catalogOpen.value=true;catalogFailed.value=false;
+  const cached=peekCached<any[]>(key)??await readCached<any[]>(key);
+  if(request!==catalogRequest)return;
+  if(cached)catalog.value=cached;
+  catalogBusy.value=!cached;
   try{
     const models = await readCatalogModels(props.id, catalogController.signal);
-    if(request===catalogRequest)catalog.value=models;
-  }catch(e){if(request===catalogRequest){catalogFailed.value=true;showError({title:tr('无法读取模型目录','Could not read the model catalog'),error:e,hint:tr('新添加的提供商需要先保存配置。','Save newly added providers first.'),action:{label:tr('重试','Retry'),run:readCatalog}});}
+    if(request===catalogRequest){catalog.value=models;writeCached(key,models);}
+  }catch(e){if(request===catalogRequest){catalogFailed.value=true;if(!cached)showError({title:tr('无法读取模型目录','Could not read the model catalog'),error:e,hint:tr('新添加的提供商需要先保存配置。','Save newly added providers first.'),action:{label:tr('重试','Retry'),run:readCatalog}});}
   }finally{if(request===catalogRequest)catalogBusy.value=false;}
 }
 function importModel(id:string){
@@ -231,7 +238,7 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
       </template>
       <PickerList :items="choices" :disabled="catalogBusy" :placeholder="tr('搜索模型…','Search models…')" @select="importModel">
         <template #status>
-          <p v-if="catalogFailed" class="catalog-status hint">{{tr('未能读取模型目录，可以点击刷新重试，或使用自定义模型。','The catalog could not be read. Reload to retry, or add a custom model.')}}</p>
+          <p v-if="catalogFailed" class="catalog-status hint">{{catalog.length?tr('刷新失败，显示的是上次读取的目录。','Refresh failed; showing the last catalog read.'):tr('未能读取模型目录，可以点击刷新重试，或使用自定义模型。','The catalog could not be read. Reload to retry, or add a custom model.')}}</p>
           <p v-else-if="catalogBusy" class="catalog-status hint" role="status">{{tr('正在读取…','Loading…')}}</p>
         </template>
       </PickerList>

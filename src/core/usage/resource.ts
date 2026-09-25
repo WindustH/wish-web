@@ -1,7 +1,12 @@
 import { shallowRef } from 'vue';
+import { peekCached, readCached, writeCached } from '../util/responseCache';
 
-/** One owned read: a cancelled or older response cannot replace the current scope. */
-export function createUsageResource<T, Q>(read: (query: Q, signal: AbortSignal) => Promise<T>) {
+/**
+ * One owned read: a cancelled or older response cannot replace the current scope.
+ * With `cache`, a read first shows the last response for the same query, then
+ * replaces it when the fresh one arrives.
+ */
+export function createUsageResource<T, Q>(read: (query: Q, signal: AbortSignal) => Promise<T>, cache?: (query: Q) => { key: string; persist: boolean } | null) {
   const data = shallowRef<T | null>(null);
   const error = shallowRef('');
   const loading = shallowRef(false);
@@ -15,10 +20,18 @@ export function createUsageResource<T, Q>(read: (query: Q, signal: AbortSignal) 
     controller = new AbortController();
     loading.value = true;
     error.value = '';
-    if (clear) data.value = null;
+    const cached = cache?.(query);
+    const hit = cached ? peekCached<T>(cached.key) : undefined;
+    if (hit !== undefined) data.value = hit;
+    else if (clear) data.value = null;
+    // After a reload the memory is empty; IndexedDB may still answer before the network.
+    if (cached && hit === undefined) void readCached<T>(cached.key).then(value => { if (value !== undefined && mine === generation && loading.value) data.value = value; });
     try {
       const result = await read(query, controller.signal);
-      if (mine === generation) data.value = result;
+      if (mine === generation) {
+        data.value = result;
+        if (cached) writeCached(cached.key, result, { persist: cached.persist });
+      }
     } catch (cause) {
       if (mine === generation) error.value = cause instanceof Error ? cause.message : String(cause);
     } finally {

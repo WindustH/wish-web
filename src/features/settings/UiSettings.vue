@@ -2,7 +2,8 @@
 import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
-import { Download, Activity } from '@lucide/vue';
+import { Download, Activity, Sparkles } from '@lucide/vue';
+import { openOnboardingPreview } from '../onboarding/preview';
 import { cfg } from '../../core/config.js';
 import { theme } from '../../core/theme/index.js';
 import { i18n } from '../../core/i18n/index.js';
@@ -10,6 +11,7 @@ import { prefs } from '../../core/state/prefsSlice.js';
 import { platform } from '../../platform/index.js';
 import { showError } from '../../ui/errorDialog';
 import { toast } from '../../ui/toast';
+import { clearCached } from '../../core/util/responseCache';
 import { useMedia } from '../../ui/composables/useMedia';
 import { tr } from './fields';
 import SettingHint from './SettingHint.vue';
@@ -48,6 +50,7 @@ async function install() {
 function clearPreferences() {
   try {
     platform('storage').clear();
+    void clearCached();
     clearOpen.value = false;
     toast(tr('已清除本地设置。下次打开页面时使用默认设置。', 'Local preferences cleared. Defaults will be used when you next open the page.'));
   } catch (error) { showError({ title: tr('无法清除本地数据', 'Could not clear local data'), error }); }
@@ -70,10 +73,11 @@ function clearPreferences() {
         <template v-if="section === 'local'">
           <div class="setting-row"><div><span>{{ tr('安装 Wish', 'Install Wish') }}</span></div><button id="ui-install" class="btn" @click="install"><Download :size="16" />{{ tr('安装', 'Install') }}</button></div>
           <div class="setting-row"><div><span>{{ tr('连接诊断', 'Connection diagnostics') }}</span></div><RouterLink id="ui-diagnostics" class="btn" to="/selftest"><Activity :size="16" />{{ tr('检查连接', 'Check connection') }}</RouterLink></div>
-          <div class="setting-row"><div><span>{{ tr('本地设置', 'Local preferences') }}</span></div><SettingHint :text="tr('清除浏览器保存的偏好和输入草稿。后端会话不受影响。', 'Clear preferences and drafts stored in this browser. Server sessions remain available.')" /><button id="ui-clear-local" class="btn danger" @click="clearOpen = true">{{ tr('清除本地数据', 'Clear local data') }}</button></div>
+          <div class="setting-row"><div><span>{{ tr('首次使用引导', 'First-run setup') }}</span></div><SettingHint :text="tr('预览还没有配置模型时看到的引导流程，不会保存任何配置。', 'Preview the setup shown before any model is configured. Nothing is saved.')" /><button id="ui-onboarding-preview" class="btn" @click="openOnboardingPreview"><Sparkles :size="16" />{{ tr('预览', 'Preview') }}</button></div>
+          <div class="setting-row"><div><span>{{ tr('本地设置', 'Local preferences') }}</span></div><SettingHint :text="tr('清除浏览器保存的偏好、输入草稿和缓存的模型列表与统计。后端会话不受影响。', 'Clear preferences, drafts and cached model lists and statistics stored in this browser. Server sessions remain available.')" /><button id="ui-clear-local" class="btn danger" @click="clearOpen = true">{{ tr('清除本地数据', 'Clear local data') }}</button></div>
         </template>
       </template>
     </SettingsSections>
-    <Modal compact :open="clearOpen" :title="tr('清除本地数据？','Clear local data?')" @close="clearOpen=false"><p>{{tr('将移除这个浏览器保存的界面偏好和消息草稿。','Remove interface preferences and message drafts saved in this browser.')}}</p><template #footer><button class="btn ghost" @click="clearOpen=false">{{tr('取消','Cancel')}}</button><button class="btn danger" @click="clearPreferences">{{tr('确认清除','Clear local data')}}</button></template></Modal>
+    <Modal compact :open="clearOpen" :title="tr('清除本地数据？','Clear local data?')" @close="clearOpen=false"><p>{{tr('将移除这个浏览器保存的界面偏好、消息草稿，以及缓存的模型列表和统计数据。','Remove interface preferences, message drafts, and cached model lists and statistics saved in this browser.')}}</p><template #footer><button class="btn ghost" @click="clearOpen=false">{{tr('取消','Cancel')}}</button><button class="btn danger" @click="clearPreferences">{{tr('确认清除','Clear local data')}}</button></template></Modal>
   </div>
 </template>

@@ -68,7 +68,8 @@ function selectModel(value: ModelSelection) {
   manuallySelected.value = true;
   selection.value = value;
 }
-watch([defaultReady, defaultModel, catalog.pending], () => {
+// Groups too: a cached catalog is replaced quietly when the fresh one arrives.
+watch([defaultReady, defaultModel, catalog.pending, catalog.groups], () => {
   if (!defaultReady.value || manuallySelected.value || created.value) return;
   if (defaultModel.value) {
     selection.value = { ...defaultModel.value };
@@ -78,7 +79,7 @@ watch([defaultReady, defaultModel, catalog.pending], () => {
   const candidates = catalog.groups.value.flatMap(group => group.models.map(model => ({ provider: group.provider.id, model: model.id })));
   candidates.sort((a, b) => a.provider < b.provider ? -1 : a.provider > b.provider ? 1 : a.model < b.model ? -1 : a.model > b.model ? 1 : 0);
   selection.value = candidates[0] ?? { provider: '', model: '' };
-});
+}, { deep: true });
 watch(() => route.name, async name => {
   if (name === 'new-chat' && !mobile.value && visible.value) { await nextTick(); composer.value?.focus(); }
 });
