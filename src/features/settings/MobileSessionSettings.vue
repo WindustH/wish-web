@@ -35,7 +35,7 @@ const returns=useSettingsReturn(()=>!!page.value,async()=>{if(await returns.conf
     <Modal page :before-close="returns.confirm" content-class="mobile-settings-page" :open="!!page" :title="titles[page]||''" @close="page=''">
       <template v-if="page==='instructions'"><p class="mobile-page-note">{{tr('每次新会话都会使用这段提示词。','These instructions are included in every new session.')}}</p><textarea class="input mobile-text-editor" :aria-label="titles.instructions" :placeholder="tr('未设置','Not set')" v-model="defaults.instructions"/></template>
       <template v-if="page==='cwd'"><div class="set-card"><label class="set-row"><span class="set-label"><span>{{tr('绝对路径','Absolute path')}}</span><small>{{tr('Shell 执行命令时的起始目录','Where shell commands start')}}</small></span><input class="input set-mono" v-model="defaults.cwd" autocomplete="off" autocapitalize="off" spellcheck="false"/></label></div></template>
-      <template v-if="page==='shell'"><div class="set-card"><ServerShellSettings :value="config.shell" :catalog="shells"/></div><p class="mobile-page-note after">{{tr('保存后所有会话的下一条命令都会使用新的 Shell，正在运行的命令不受影响。','Saved changes apply to the next command in every session. Running commands are unaffected.')}}</p></template>
+      <template v-if="page==='shell'"><div class="set-card"><ServerShellSettings :value="config.shell" :catalog="shells"/></div><p class="mobile-page-note after">{{tr('保存后，跟随全局设置的会话从下一条命令开始使用新的 Shell；单独设置了 Shell 的会话不受影响。','Saved changes apply to the next command of every session that follows this setting; sessions with their own shell keep it.')}}</p></template>
     </Modal>
   </div>
 </template>

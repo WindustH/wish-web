@@ -163,7 +163,7 @@ onMounted(load);
           </div>
         </section>
         <section v-if="draft.shell" class="set-section">
-          <header class="set-section-head"><h3>Shell</h3><p>{{tr('保存后所有会话的下一条命令都会使用新的 Shell，正在运行的命令不受影响。','Saved changes apply to the next command in every session. Running commands are unaffected.')}}</p></header>
+          <header class="set-section-head"><h3>Shell</h3><p>{{tr('保存后，跟随全局设置的会话从下一条命令开始使用新的 Shell；单独设置了 Shell 的会话不受影响。','Saved changes apply to the next command of every session that follows this setting; sessions with their own shell keep it.')}}</p></header>
           <div class="set-card"><ServerShellSettings :value="draft.shell" :catalog="shells"/></div>
         </section>
       </fieldset>
