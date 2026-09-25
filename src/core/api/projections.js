@@ -46,7 +46,7 @@ export function entryView(item, sessionId) {
     case 'Assistant': result.kind = 'assistant_message'; result.payload.content = blocks(message.content); break;
     case 'Reasoning': result.kind = 'assistant_message'; result.payload.content = [{ type: 'reasoning', display_summary: message.display != null, text: message.display || message.plaintext }]; break;
     case 'ToolUse': result.kind = 'assistant_message'; result.payload.content = [{ type: 'tool_call', id: message.call_id, name: message.name, arguments: message.arguments }]; break;
-    case 'ToolResult': result.kind = 'tool_result'; result.payload = { tool_name: message.name, tool_call_id: message.call_id, result: message.content, content: [{ type: 'text', text: typeof message.content === 'string' ? message.content : JSON.stringify(message.content, null, 2) }] }; break;
+    case 'ToolResult': result.kind = 'tool_result'; result.payload = { tool_name: message.name, tool_call_id: message.call_id, result: message.content, metadata: message.metadata, content: [{ type: 'text', text: typeof message.content === 'string' ? message.content : JSON.stringify(message.content, null, 2) }] }; break;
     case 'UpstreamCompaction': result.payload.content = [{ type: 'text', text: 'Upstream compacted context' }]; break;
     default: result.payload.content = blocks(message.content);
   }
