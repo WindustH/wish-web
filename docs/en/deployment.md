@@ -2,7 +2,7 @@
 
 [Documentation](README.md) · [简体中文](../zh/deployment.md)
 
-Wish Web is a static single-page app plus `serve.mjs`, a small Node.js server with no dependencies. `serve.mjs` serves the built files and forwards `/api` to the Wish server. You also need a running Wish server; see the [Wish server README](https://github.com/WindustH/wish-core#readme).
+Wish Web is a static single-page app plus `serve.ts`, a small Node.js server with no dependencies. `serve.ts` serves the built files and forwards `/api` to the Wish server. You also need a running Wish server; see the [Wish server README](https://github.com/WindustH/wish-core#readme).
 
 ## Build
 
@@ -17,10 +17,10 @@ This type-checks the code and writes the app to `dist/`, including the service w
 
 ## What to deploy
 
-Copy `serve.mjs` and `dist/` into the same directory. `node_modules` is not needed. `serve.mjs` looks for `dist/` next to itself and exits at start-up if `dist/index.html` is missing.
+Copy `serve.ts` and `dist/` into the same directory. `node_modules` is not needed. `serve.ts` looks for `dist/` next to itself and exits at start-up if `dist/index.html` is missing.
 
 ```sh
-WISH_UPSTREAM=http://127.0.0.1:9780 node serve.mjs
+WISH_UPSTREAM=http://127.0.0.1:9780 node serve.ts
 # wish-web listening on 127.0.0.1:8790; wish API routes enabled
 ```
 
@@ -36,7 +36,7 @@ Serve the app at the root of its origin (`https://wish.example.com/`, not a subp
 | `WISH_UPSTREAM` | `http://127.0.0.1:9780` | The Wish server. `/api` is appended, and a path prefix is kept (`http://host/base` → `http://host/base/api`). Only `http` and `https` are accepted. |
 | `WISH_HTTP_TOKEN` | empty | The Wish server's bearer token. Required when the server has `bearer_token_env` set. |
 
-`serve.mjs` reads no other settings.
+`serve.ts` reads no other settings.
 
 ## Security behaviour
 
@@ -49,13 +49,13 @@ Every request goes through these checks before any file is served or any request
 - **Static files.** Paths can't escape `dist/`. Unknown paths without a file extension return `index.html`.
 - **Health check.** `GET /healthz` returns `{"ok":true}`. It is subject to the host check too, and says nothing about the Wish server; check that end to end with `/api/version`.
 
-`serve.mjs` has no login of its own. Anyone who can open an allowed host has full use of the Wish server, including the agent's shell, which runs commands with the Wish process's permissions. Keep it on loopback or a network you trust, or add authentication in a reverse proxy in front of it.
+`serve.ts` has no login of its own. Anyone who can open an allowed host has full use of the Wish server, including the agent's shell, which runs commands with the Wish process's permissions. Keep it on loopback or a network you trust, or add authentication in a reverse proxy in front of it.
 
 ## Access from your local network
 
 ```sh
 LISTEN_HOST=0.0.0.0 ALLOWED_HOSTS=192.168.1.20:8790 \
-WISH_UPSTREAM=http://127.0.0.1:9780 node serve.mjs
+WISH_UPSTREAM=http://127.0.0.1:9780 node serve.ts
 ```
 
 List every address people type in the browser (IP, host name, with port). Keep the Wish server itself on `127.0.0.1`. Over plain HTTP the app works, but the features in the next section are unavailable.
@@ -72,7 +72,7 @@ Browsers allow several features only in a *secure context*: HTTPS, or `http://lo
 | Keep screen awake | No effect |
 | Clipboard | Falls back to an older copy method |
 
-`serve.mjs` doesn't speak TLS; put a reverse proxy in front. With [Caddy](https://caddyserver.com), which obtains certificates automatically:
+`serve.ts` doesn't speak TLS; put a reverse proxy in front. With [Caddy](https://caddyserver.com), which obtains certificates automatically:
 
 ```caddyfile
 wish.example.com {
@@ -81,7 +81,7 @@ wish.example.com {
 ```
 
 ```sh
-LISTEN_HOST=127.0.0.1 ALLOWED_HOSTS=wish.example.com node serve.mjs
+LISTEN_HOST=127.0.0.1 ALLOWED_HOSTS=wish.example.com node serve.ts
 ```
 
 - Add the public name **without a port** to `ALLOWED_HOSTS`: on port 443 browsers send `Host: wish.example.com`. With another public port, add `name:port`.
@@ -90,7 +90,7 @@ LISTEN_HOST=127.0.0.1 ALLOWED_HOSTS=wish.example.com node serve.mjs
 
 ## Connecting to another server directly
 
-Besides the server that serves it, the app can talk straight to any other Wish server: sign out, then enter that server's address and access token on the sign-in page. This lets one deployment, or one installed app, switch between several servers. The requests then bypass `serve.mjs`, so its checks and token injection don't apply:
+Besides the server that serves it, the app can talk straight to any other Wish server: sign out, then enter that server's address and access token on the sign-in page. This lets one deployment, or one installed app, switch between several servers. The requests then bypass `serve.ts`, so its checks and token injection don't apply:
 
 - The other server must require an access token (`bearer_token_env`). Only then does it accept requests from pages on other origins; a server without a token refuses them.
 - A page opened over HTTPS can only reach HTTPS addresses (plain `http://localhost` excepted), so publish the other server over HTTPS through a reverse proxy, with response buffering off for `/api`.
@@ -113,7 +113,7 @@ Environment=LISTEN_HOST=127.0.0.1
 Environment=WISH_UPSTREAM=http://127.0.0.1:9780
 # WISH_HTTP_TOKEN=... in a file readable only by you
 EnvironmentFile=-%h/.config/wish/web.env
-ExecStart=/usr/bin/node serve.mjs
+ExecStart=/usr/bin/node serve.ts
 Restart=on-failure
 
 [Install]
@@ -135,11 +135,11 @@ Use the absolute path of your Node.js binary (`command -v node`): user services 
 | `/assets/*` (file names contain a content hash) | `public, max-age=31536000, immutable` |
 | Everything else from `dist/` (`index.html`, `sw.js`, manifest, icons) | `no-cache` |
 | `/api/*` | whatever the Wish server sends |
-| Rejections from `serve.mjs` (`421`, `403`) | `no-store` |
+| Rejections from `serve.ts` (`421`, `403`) | `no-store` |
 
 After a deploy:
 
-- **With a service worker** (HTTPS or localhost), open tabs show **A new version is ready**. Wish checks, at most every five minutes, when a tab becomes visible again and when its connection to the server is re-established, which happens when `serve.mjs` restarts. **Update now** reloads into the new version.
+- **With a service worker** (HTTPS or localhost), open tabs show **A new version is ready**. Wish checks, at most every five minutes, when a tab becomes visible again and when its connection to the server is re-established, which happens when `serve.ts` restarts. **Update now** reloads into the new version.
 - **Without one** (plain HTTP), reload the page. Reload tabs left open from before the deploy: pages they haven't loaded yet may refer to files the new build no longer has.
 
 Session info → **Build** shows the commit the running client was built from.
@@ -151,7 +151,7 @@ Keep each build in its own directory and point a symlink at the current one:
 ```sh
 ./pnpmw install --frozen-lockfile && ./pnpmw build
 release=~/opt/.wish-web-releases/$(date +%Y%m%d-%H%M)
-mkdir -p "$release" && cp -r dist serve.mjs "$release"/
+mkdir -p "$release" && cp -r dist serve.ts "$release"/
 ln -sfn "$release" ~/opt/wish-web.next && mv -T ~/opt/wish-web.next ~/opt/wish-web
 systemctl --user restart wish-web
 ```

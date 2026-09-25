@@ -9,18 +9,18 @@
   │
 状态模块        core/state：sessions · chat · stats · sync · prefs
   │
-API 层          core/api：endpoints.js → client.js、sse.js；projections.js
+API 层          core/api：endpoints.ts → client.ts、sse.ts；projections.ts
   │             （platform/* 适配层和 Service Worker 与之并列）
   │  同源：静态文件和 /api
-serve.mjs       主机名与来源检查、令牌注入、/api 代理
+serve.ts       主机名与来源检查、令牌注入、/api 代理
   │  /api，附带 Authorization: Bearer <令牌>
 wish            HTTP API · 会话 · 提供商 · SQLite   （wish-core）
 ```
 
 - **页面**负责渲染和处理输入，从状态模块读取数据，通过 API 层发起请求。
 - **状态模块**是模块级的单例，由 Vue 的 ref 组成：`sessions` 管理会话列表，`chat` 管理当前打开的会话（历史、实时输出、队列、草稿），`stats` 对应统计页，`sync` 维护全局事件流，`prefs` 保存界面开关。
-- **API 层**：`endpoints.js` 为每个服务端接口提供一个函数；`client.js` 负责发请求，带 30 秒超时，并把各种失败统一成一种错误类型；`sse.js` 读取事件流；`projections.js` 把服务端的原生数据结构（外部标记的消息、`{session, status}` 对）转换成页面使用的扁平对象，例如把会话阶段归为空闲、运行中、排队或压缩中。
-- **连接**：`core/connection.ts` 决定 API 层连接哪台服务器。默认是页面自身的 `/api`，由 `serve.mjs` 代理。退出并连接其他服务器后，保存的地址成为 API 基址，`client.js` 会给每个请求、事件流和附件下载（`apiFetch`、`ApiImage`）加上访问令牌，因为此时浏览器直接访问那台服务器。
+- **API 层**：`endpoints.ts` 为每个服务端接口提供一个函数；`client.ts` 负责发请求，带 30 秒超时，并把各种失败统一成一种错误类型；`sse.ts` 读取事件流；`projections.ts` 把服务端的原生数据结构（外部标记的消息、`{session, status}` 对）转换成页面使用的扁平对象，例如把会话阶段归为空闲、运行中、排队或压缩中。
+- **连接**：`core/connection.ts` 决定 API 层连接哪台服务器。默认是页面自身的 `/api`，由 `serve.ts` 代理。退出并连接其他服务器后，保存的地址成为 API 基址，`client.ts` 会给每个请求、事件流和附件下载（`apiFetch`、`ApiImage`）加上访问令牌，因为此时浏览器直接访问那台服务器。
 - **平台适配层**把浏览器 API 封装成小接口。启动时注册浏览器实现；如果将来有原生外壳，可以注册自己的实现。
 - **路由**使用 URL 的 hash（`/#/s/<id>`），因此任何静态托管都能用，无需配置重写规则。桌面端的会话信息、历史搜索和会话设置是浮在对话上方的对话框；手机上则是子路由（`/#/s/<id>/info`、`/search`、`/settings`）。
 
@@ -82,7 +82,7 @@ Service Worker 由 `vite-plugin-pwa` 借助 Workbox 生成：
 
 ## 多语言
 
-- `core/i18n/zh.js` 和 `en.js` 包含相同的键，通过 `i18n.t(key, params)` 查找，缺失时回退到英文。只在一处出现的文字直接写成 `tr('中文', 'English')`。
+- `core/i18n/zh.ts` 和 `en.ts` 包含相同的键，通过 `i18n.t(key, params)` 查找，缺失时回退到英文。只在一处出现的文字直接写成 `tr('中文', 'English')`。
 - 界面语言默认为中文，保存在 `localStorage` 中，并同步设置 `<html lang>`。不会根据浏览器语言自动选择。
 - `core/i18n/errorMessages.ts` 负责在错误对话框中翻译服务端的错误信息。
 - 自检页面的详细信息目前只有中文。

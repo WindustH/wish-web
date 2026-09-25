@@ -9,18 +9,18 @@ views           features/*  ui/*
   │
 state slices    core/state: sessions · chat · stats · sync · prefs
   │
-API layer       core/api: endpoints.js → client.js, sse.js; projections.js
+API layer       core/api: endpoints.ts → client.ts, sse.ts; projections.ts
   │             (platform/* adapters and the service worker sit alongside)
   │  same origin: static files and /api
-serve.mjs       host and origin checks, token injection, /api proxy
+serve.ts       host and origin checks, token injection, /api proxy
   │  /api, with Authorization: Bearer <token>
 wish            HTTP API · sessions · providers · SQLite   (wish-core)
 ```
 
 - **Views** render and handle input, reading state slices and calling the API layer.
 - **State slices** are module-level singletons of Vue refs. `sessions` holds the list, `chat` the open session (history, live stream, queue, draft), `stats` the statistics page, `sync` the global event stream, and `prefs` the interface switches.
-- **API layer.** `endpoints.js` has one function per server call. `client.js` performs requests with a 30-second timeout and turns failures into one error type. `sse.js` reads event streams. `projections.js` turns the server's native types (externally tagged messages, `{session, status}` pairs) into the flat objects the views use, for example mapping a session's phase to idle, running, queued or compacting.
-- **Connection.** `core/connection.ts` decides which server the API layer talks to. By default it is the page's own `/api`, proxied by `serve.mjs`. After signing out and connecting to another server, the saved address becomes the API base and `client.js` adds its access token to every request, event stream and attachment download (`apiFetch`, `ApiImage`), since the browser then reaches that server directly.
+- **API layer.** `endpoints.ts` has one function per server call. `client.ts` performs requests with a 30-second timeout and turns failures into one error type. `sse.ts` reads event streams. `projections.ts` turns the server's native types (externally tagged messages, `{session, status}` pairs) into the flat objects the views use, for example mapping a session's phase to idle, running, queued or compacting.
+- **Connection.** `core/connection.ts` decides which server the API layer talks to. By default it is the page's own `/api`, proxied by `serve.ts`. After signing out and connecting to another server, the saved address becomes the API base and `client.ts` adds its access token to every request, event stream and attachment download (`apiFetch`, `ApiImage`), since the browser then reaches that server directly.
 - **Platform adapters** wrap browser APIs behind small interfaces. The browser implementation is registered at start-up; a native shell could register its own.
 - **Routing** uses the URL hash (`/#/s/<id>`), so any static host works without rewrite rules. On desktop, a chat's info, search and settings panels are dialogs over the chat. On a phone they are child routes (`/#/s/<id>/info`, `/search`, `/settings`).
 
@@ -82,7 +82,7 @@ The manifest (`public/manifest.webmanifest`) sets standalone display, the start 
 
 ## Internationalization
 
-- `core/i18n/zh.js` and `en.js` hold the same keys; `i18n.t(key, params)` looks them up, falling back to English. Text used in a single place is written inline as `tr('中文', 'English')`.
+- `core/i18n/zh.ts` and `en.ts` hold the same keys; `i18n.t(key, params)` looks them up, falling back to English. Text used in a single place is written inline as `tr('中文', 'English')`.
 - The language defaults to Chinese, is stored in `localStorage`, and sets `<html lang>`. There is no automatic detection from the browser.
 - `core/i18n/errorMessages.ts` translates server errors for the error dialog.
 - Detail messages on the self-test page are in Chinese only.
