@@ -5,7 +5,7 @@ import { theme } from '../../core/theme/index.js';
 import { prefs } from '../../core/state/prefsSlice.js';
 import { i18n } from '../../core/i18n/index.js';
 import { tr } from './fields';
-import { errorText } from '../../core/config-editor';
+import { showError } from '../../ui/errorDialog';
 import { settingsReturnKey, type ReturnChange } from './settingsReturn';
 
 export interface SettingsGuardOptions {
@@ -13,14 +13,13 @@ export interface SettingsGuardOptions {
   serverDirty: ComputedRef<boolean>;
   source: Ref<string>;
   revision: Ref<string>;
-  error: Ref<string>;
   accept: (value: any) => void;
   load: () => Promise<void>;
   saveConfig: () => Promise<boolean>;
 }
 
 export function useSettingsGuard(options: SettingsGuardOptions) {
-  const { isMobile, serverDirty, source, revision, error, accept, load, saveConfig } = options;
+  const { isMobile, serverDirty, source, revision, accept, load, saveConfig } = options;
 
   const preferenceValue = () => ({
     mode: theme.mode.value,
@@ -61,7 +60,6 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
 
   const leave = ref(false);
   const leaveBusy = ref(false);
-  const leaveError = ref('');
   let answer: ((value: boolean) => void) | undefined;
   let pendingChange: ReturnChange | undefined;
   const nestedReturns = new Map<symbol, () => Promise<void>>();
@@ -70,7 +68,6 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
     if (!(change?.dirty?.() ?? dirty.value)) return Promise.resolve(true);
     if (answer) return Promise.resolve(false);
     pendingChange = change;
-    leaveError.value = '';
     leave.value = true;
     return new Promise((resolve) => {
       answer = resolve;
@@ -105,15 +102,11 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
   async function saveAndReturn() {
     if (leaveBusy.value) return;
     leaveBusy.value = true;
-    leaveError.value = '';
     try {
-      if (await (pendingChange?.save ?? save)()) {
-        finishReturn(true);
-      } else {
-        leaveError.value = error.value || tr('保存未完成，请检查输入后重试。', 'Could not save. Check the fields and retry.');
-      }
+      // A failed save reports its own error; the prompt stays open for another try.
+      if (await (pendingChange?.save ?? save)()) finishReturn(true);
     } catch (e) {
-      leaveError.value = errorText(e);
+      showError({ title: tr('保存失败', 'Could not save'), error: e });
     } finally {
       leaveBusy.value = false;
     }
@@ -148,7 +141,6 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
     discardChanges,
     leave,
     leaveBusy,
-    leaveError,
     confirmReturn,
     resolveLeave,
     saveAndReturn,

@@ -7,6 +7,8 @@ import { replayConfigChanges } from '../../core/configMerge.js';
 import { errorText } from '../../core/config-editor';
 import { tr } from './fields';
 import { providerName } from '../../ui/providerPresentation';
+import { showError } from '../../ui/errorDialog';
+import { toast } from '../../ui/toast';
 import type { ConfigCatalog, ProviderPreset } from '../../core/provider-presets';
 import type { ShellCatalog } from './ServerShellSettings.vue';
 
@@ -117,6 +119,7 @@ export function useConfigDraft() {
       accept(configuration);
     } catch (e) {
       error.value = errorText(e);
+      showError({ title: tr('无法载入设置', 'Could not load settings'), error: e, action: { label: tr('重试', 'Retry'), run: load } });
     } finally {
       busy.value = false;
     }
@@ -134,6 +137,7 @@ export function useConfigDraft() {
       return true;
     } catch (e) {
       error.value = errorText(e);
+      showError({ title: tr('无法应用配置 JSON', 'Could not apply the JSON'), error: e });
       return false;
     }
   }
@@ -171,9 +175,11 @@ export function useConfigDraft() {
       notice.value = rebased
         ? tr('配置已更新；已合并本地修改并保存。','Configuration changed; local edits were merged and saved.')
         : tr('已保存并生效。正在运行的调用继续使用原配置。','Saved and applied. In-flight calls retain their configuration.');
+      toast(notice.value);
       return true;
     } catch (e) {
       error.value = errorText(e);
+      showError({ title: tr('保存失败', 'Could not save'), error: e });
       return false;
     } finally {
       busy.value = false;

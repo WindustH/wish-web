@@ -10,6 +10,7 @@ import { useMedia } from './ui/composables/useMedia.js';
 import Icon from './ui/components/Icon.vue';
 import AttachmentPreview from './ui/components/AttachmentPreview.vue';
 import ToastHost from './ui/components/ToastHost.vue';
+import ErrorDialogHost from './ui/components/ErrorDialogHost.vue';
 import CachedPage from './ui/components/CachedPage.vue';
 import { i18n } from './core/i18n/index.js';
 import { sync } from './core/state/syncSlice.js';
@@ -108,6 +109,8 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
     <AttachmentPreview />
   </div>
   <HoverHintHost />
+  <!-- Outside the shell so onboarding errors are reported too. -->
+  <ErrorDialogHost />
   </TooltipProvider>
 </template>
 

@@ -4,7 +4,9 @@ import { cfg } from '../config.js';
 
 export class ApiError extends Error {
   constructor(status, code, title, detail, retryable) {
-    super(`${title || code || status}: ${detail || ''}`);
+    // Server errors carry one message as both title and detail; say it once.
+    const head = title || code || status;
+    super(!detail || detail === head ? String(head) : `${head}: ${detail}`);
     this.name = 'ApiError';
     this.status = status;
     this.code = code || String(status);

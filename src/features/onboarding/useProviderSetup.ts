@@ -4,6 +4,7 @@ import type { ConfigCatalog, ProviderConfig } from '../../core/provider-presets'
 import { errorText } from '../../core/config-editor';
 import { providerReady } from '../../core/providerReadiness.js';
 import { tr } from '../../core/i18n/tr';
+import { showError } from '../../ui/errorDialog';
 
 const customProvider = (): ProviderConfig => ({ enabled: true, protocol: 'openai_chat',
   base_url: '', path: '/v1/chat/completions', auth: 'bearer', models: {},
@@ -91,8 +92,11 @@ export function useProviderSetup() {
       const saved = await put('/config', { revision: snapshot.value.revision, config }, { signal: controller?.signal });
       snapshot.value = saved;
       return true;
-    } catch (cause) { error.value = errorText(cause); return false; }
-    finally { saving.value = false; }
+    } catch (cause) {
+      error.value = errorText(cause);
+      showError({ title: tr('保存失败', 'Could not save'), error: cause });
+      return false;
+    } finally { saving.value = false; }
   }
   void load();
   onScopeDispose(() => { generation++; controller?.abort(); });

@@ -43,25 +43,14 @@ const preview = computed(() => {
 
 <template>
   <div class="shell-fields">
-    <label>{{ tr('程序', 'Program') }}<SelectField mobile-page picker-title="Shell" v-model="selection" :options="options" /></label>
-    <label v-if="selection === CUSTOM">{{ tr('程序路径', 'Program path') }}<input class="input" v-model.trim="value.program" placeholder="/usr/bin/zsh" autocomplete="off" autocapitalize="off" spellcheck="false" /></label>
-    <label>{{ tr('启动参数', 'Arguments') }}<input class="input" v-model.lazy="argsText" :placeholder="defaultArgs ? tr('默认：', 'Default: ') + defaultArgs : tr('按 Shell 名称自动选择', 'Chosen from the shell name')" autocomplete="off" autocapitalize="off" spellcheck="false" /></label>
-    <p v-if="preview" class="shell-preview"><span>{{ tr('执行方式', 'Runs as') }}</span><code>{{ preview }}</code></p>
+    <label class="set-row"><span class="set-label"><span>{{ tr('程序', 'Program') }}</span><small>{{ tr('执行命令使用的 Shell', 'The shell that runs commands') }}</small></span><SelectField mobile-page picker-title="Shell" v-model="selection" :options="options" /></label>
+    <label v-if="selection === CUSTOM" class="set-row"><span class="set-label"><span>{{ tr('程序路径', 'Program path') }}</span><small>{{ tr('可执行文件的绝对路径', 'Absolute path to the executable') }}</small></span><input class="input set-mono" v-model.trim="value.program" placeholder="/usr/bin/zsh" autocomplete="off" autocapitalize="off" spellcheck="false" /></label>
+    <label class="set-row"><span class="set-label"><span>{{ tr('启动参数', 'Arguments') }}</span><small>{{ tr('留空时按 Shell 类型自动选择', 'Chosen from the shell type when empty') }}</small></span><input class="input set-mono" v-model.lazy="argsText" :placeholder="defaultArgs ? tr('默认：', 'Default: ') + defaultArgs : tr('自动', 'Automatic')" autocomplete="off" autocapitalize="off" spellcheck="false" /></label>
+    <div v-if="preview" class="set-row shell-preview"><span class="set-label"><span>{{ tr('执行方式', 'Runs as') }}</span><small>{{ tr('每条命令实际的启动方式', 'How each command is started') }}</small></span><code>{{ preview }}</code></div>
   </div>
 </template>
 
 <style scoped>
-.shell-fields { display: grid; gap: 12px; }
-.shell-fields label { display: grid; grid-template-columns: 170px minmax(0, 1fr); align-items: center; gap: 16px; min-width: 0; font-size: 13px; }
-.shell-fields input { width: 100%; min-width: 0; font-family: var(--mono); }
-.shell-fields input::placeholder { font-family: var(--font); }
-.shell-preview { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 16px; align-items: baseline; margin: 0; font-size: 12px; color: var(--fg-subtle); }
-.shell-preview code { font-family: var(--mono); color: var(--fg-muted); overflow-wrap: anywhere; }
-@media (max-width: 899px) {
-  .shell-fields { gap: 0; }
-  .shell-fields label { display: block; padding: 12px 14px; }
-  .shell-fields label + label { border-top: 1px solid var(--line); }
-  .shell-fields label > :is(input, .control-select) { margin-top: 8px; }
-  .shell-preview { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-top: 1px solid var(--line); }
-}
+.set-row input::placeholder { font-family: var(--font); }
+.shell-preview code { justify-self: stretch; padding: 7px 10px; border-radius: 8px; background: var(--bg-sunken); color: var(--fg-muted); font: calc(12.5px * var(--mono-scale))/1.6 var(--mono); overflow-wrap: anywhere; }
 </style>
