@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect x="32" y="32" width="448" height="448" rx="104" fill="#f5f1e8"/>
+  <g transform="translate(0 18)">
+    <!-- far wing -->
+    <polygon points="216,306 290,298 228,120" fill="#843822"/>
+    <!-- tail: lower and shorter than the wings -->
+    <polygon points="356,320 324,306 432,232" fill="#a64a33"/>
+    <!-- body -->
+    <polygon points="170,320 262,294 262,374" fill="#a64a33"/>
+    <polygon points="262,294 356,320 262,374" fill="#6f2d1c"/>
+    <!-- neck and head, beak folded down -->
+    <polygon points="170,320 204,308 124,162" fill="#c4674a"/>
+    <polygon points="124,162 84,200 142,180" fill="#d98a6e"/>
+    <!-- near wing, two facets split along its fold -->
+    <polygon points="218,310 264,306 392,104" fill="#d07a5d"/>
+    <polygon points="264,306 318,304 392,104" fill="#a64a33"/>
+  </g>
+</svg>
