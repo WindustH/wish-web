@@ -4,7 +4,7 @@
   padding: 10px 0 8px; gap: 4px; border-right: 1px solid var(--line); background: var(--rail-bg); z-index: 20;
 }
 .brand-mark { display: block; margin: 0 0 8px; }
-.brand-mark img, img.brand-mark { display: block; width: 32px; height: auto; }
+.brand-mark img, img.brand-mark { display: block; width: 24px; height: auto; }
 .vbar .spacer { flex: 1; }
 .nav-btn {
   width: 34px; min-height: 36px; border-radius: var(--radius); display: flex; flex-direction: column;
