@@ -7,6 +7,8 @@ import { stats } from '../../core/state/statsSlice.js';
 import { i18n } from '../../core/i18n/index.js';
 import { fmtBytes, fmtDateTime, fmtTokens, fmtUptime } from '../../core/util/fmt.js';
 import Spinner from '../../ui/components/Spinner.vue';
+import { modelLabel } from '../../ui/modelLabel';
+import { useProviderTitles } from '../../ui/composables/useProviderTitles';
 
 const UsagePlot = defineAsyncComponent(() => import('../usage/UsagePlot.vue'));
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
@@ -15,6 +17,9 @@ function refresh() { void stats.refresh(); charts.value?.refresh(); }
 const { status, usage, storage, version, loading, error, updatedAt } = stats;
 const hiddenModels = ref(new Set<string>());
 function toggleModel(key:string){const next=new Set(hiddenModels.value);next.has(key)?next.delete(key):next.add(key);hiddenModels.value=next;}
+const providerTitle = useProviderTitles();
+const modelName = (model: string | null) => model ? modelLabel(model) : tx('未记录', 'Not recorded');
+const providerLabel = (provider: string | null) => provider ? providerTitle(provider) : tx('未记录', 'Not recorded');
 const modelKey = (row: {provider: string | null; model: string | null}) => JSON.stringify([row.provider,row.model]);
 const rows = computed(() => usage.value?.statistics.by_provider_model ?? []);
 const selectedRows = computed(() => rows.value.filter(row=>!hiddenModels.value.has(modelKey(row))));
@@ -32,10 +37,10 @@ const percent = (value: number | null) => value == null ? '—' : new Intl.Numbe
 // Keep the button's original color index through filtering and pie sorting.
 const models = computed(() => rows.value.flatMap((row, colorIndex) => {
   if (hiddenModels.value.has(modelKey(row))) return [];
-  const label = row.model ?? tx('未记录', 'Not recorded');
+  const label = modelName(row.model);
   const duplicate = rows.value.some(other => other !== row && other.model === row.model);
   return [{
-    name: duplicate ? `${label} · ${row.provider ?? tx('未记录', 'Not recorded')}` : label,
+    name: duplicate ? `${label} · ${providerLabel(row.provider)}` : label,
     value: row.totals.tokens.total_tokens,
     colorIndex,
   }];
@@ -64,7 +69,7 @@ onDeactivated(stats.stopAuto);
           <div class="statistics-models" role="group" :aria-label="tx('用量统计模型','Usage model')">
             <button v-for="(row,index) in rows" :key="modelKey(row)" class="statistics-model" :aria-pressed="!hiddenModels.has(modelKey(row))" @click="toggleModel(modelKey(row))">
               <i class="statistics-model-dot" :style="{background:color(index)}"/>
-              <span>{{row.model??tx('未记录','Not recorded')}}<small>{{row.provider??tx('未记录','Not recorded')}}</small></span>
+              <span>{{modelName(row.model)}}<small>{{providerLabel(row.provider)}}</small></span>
               <small class="statistics-model-share">{{percent(totalTokens>0?row.totals.tokens.total_tokens/totalTokens:0)}}</small>
             </button>
           </div>

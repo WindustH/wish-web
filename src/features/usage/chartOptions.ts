@@ -31,12 +31,34 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
     animation: true, animationDuration: 0, animationDurationUpdate: 260, animationEasingUpdate: 'cubicOut',
     textStyle: { fontFamily: style.font, color: style.foreground },
     grid: { left: 8, right: 18, top: 24, bottom: 8, containLabel: true },
-    tooltip: { trigger: series.some(item => item.scatter) ? 'item' : 'axis', confine: true, renderMode: 'richText', backgroundColor: style.surface, borderColor: style.line,
+    // HTML rather than richText: canvas text is measured with a different font
+    // than it renders with, so the box came out narrower than its text.
+    tooltip: { trigger: series.some(item => item.scatter) ? 'item' : 'axis', confine: true, renderMode: 'html', backgroundColor: style.surface, borderColor: style.line,
+      padding: [10, 12], borderRadius: 8,
+      extraCssText: 'max-width:calc(100% - 24px);white-space:normal;box-sizing:border-box;pointer-events:none;',
       textStyle: { color: style.foreground, fontFamily: style.font, fontSize: 12 },
       formatter: (params: any) => {
         const actual = (Array.isArray(params) ? params : [params]).filter((point: any) => !point.data?.virtual);
         if (!actual.length) return '';
-        return [new Date(actual[0].value[0]).toLocaleString(locale), ...actual.map((point: any) => `${point.seriesName}: ${point.value[1] == null ? '—' : format.format(point.value[1]) + ' ' + unit}`)].join('\n');
+        const content = document.createElement('div');
+        const time = document.createElement('div');
+        time.textContent = new Date(actual[0].value[0]).toLocaleString(locale);
+        time.style.cssText = `font-size:11px;line-height:1.5;color:${style.muted};margin-bottom:4px;`;
+        content.append(time);
+        for (const point of actual) {
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex;align-items:center;gap:6px;line-height:1.6;font-variant-numeric:tabular-nums;';
+          const dot = document.createElement('span');
+          dot.style.cssText = `width:8px;height:8px;border-radius:50%;flex:none;background:${point.color};`;
+          const name = document.createElement('span');
+          name.textContent = point.seriesName;
+          const value = document.createElement('strong');
+          value.textContent = point.value[1] == null ? '—' : `${format.format(point.value[1])} ${unit}`;
+          value.style.cssText = 'margin-left:auto;padding-left:12px;font-weight:600;white-space:nowrap;';
+          row.append(dot, name, value);
+          content.append(row);
+        }
+        return content;
       },
       axisPointer: { type: 'line', lineStyle: { color: style.muted, type: 'dashed' } } },
     xAxis: { type: 'time', boundaryGap: false, axisLine: { lineStyle: { color: style.line } }, axisTick: { show: false },

@@ -139,7 +139,7 @@ function importModel(id:string){
   if(catalogBusy.value||props.value.models[id])return;
   const model=catalog.value.find(item=>item.id===id);
   if(!model)return;
-  props.value.models[id]=withNewModelDefaults({display_name:model.name??id,context_window_tokens:model.context_window,max_output_tokens:model.max_output_tokens??props.preset?.max_output_tokens,supports_reasoning:model.supports_reasoning,default_reasoning_effort:model.default_reasoning_effort,reasoning_efforts:model.reasoning_efforts});
+  props.value.models[id]=withNewModelDefaults({context_window_tokens:model.context_window,max_output_tokens:model.max_output_tokens??props.preset?.max_output_tokens,supports_reasoning:model.supports_reasoning,default_reasoning_effort:model.default_reasoning_effort,reasoning_efforts:model.reasoning_efforts});
   catalogOpen.value=false;
 }
 function openAdd(){if(props.value.model_list)void readCatalog();else edit();}
@@ -149,13 +149,25 @@ function closeCatalog(){
   if(customAfterCatalog){customAfterCatalog=false;void nextTick(()=>edit());}
 }
 defineExpose({openAdd});
-const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:model.name||modelLabel(model.id),search:model.id,brand:props.preset?.provider,disabled:!!props.value.models[model.id],description:props.value.models[model.id]?`${model.id} · ${tr('已添加','Already added')}`:model.id})));
+// Limits read better at the size they were published with: 262144 → 256K, 250000 → 250K.
+function tokenLimit(value:number){
+  for(const [base,unit] of [[1048576,'M'],[1_000_000,'M'],[1024,'K'],[1000,'K']] as const)if(value>=base&&value%base===0)return `${value/base}${unit}`;
+  return new Intl.NumberFormat('en',{notation:'compact',maximumFractionDigits:1}).format(value);
+}
+function modelFacts(model:Record<string,any>){
+  const facts:{label:string;value:string;exact?:string}[]=[];
+  if(model.context_window_tokens!=null)facts.push({label:tr('上下文','Context'),value:tokenLimit(model.context_window_tokens),exact:String(model.context_window_tokens)});
+  if(model.max_output_tokens!=null)facts.push({label:tr('输出','Output'),value:tokenLimit(model.max_output_tokens),exact:String(model.max_output_tokens)});
+  if(model.reasoning_efforts)facts.push({label:tr('思考','Reasoning'),value:Object.keys(model.reasoning_efforts).join(' · ')});
+  return facts;
+}
+const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLabel(model.id),search:model.id,brand:props.preset?.provider,disabled:!!props.value.models[model.id],description:props.value.models[model.id]?tr('已添加','Already added'):undefined})));
 </script>
 <template>
   <div class="models-editor">
     <p v-if="!Object.keys(value.models).length" class="hint">{{tr('未配置模型，可手动添加或从上游目录选择。','No configured models. Add one manually or choose from the upstream catalog.')}}</p>
     <div v-for="(model,name) in value.models" :key="name" class="model-row">
-      <button class="model-edit" :aria-label="tr('编辑模型 ','Edit model ')+name" @click="edit(String(name))"><strong>{{model.display_name || modelLabel(String(name))}}</strong><small>ID: {{name}} · {{tr('上下文','Context')}} {{model.context_window_tokens??'—'}} · {{tr('输出','Output')}} {{model.max_output_tokens??'—'}}<template v-if="model.reasoning_efforts"> · {{tr('思考','Reasoning')}} {{Object.keys(model.reasoning_efforts).join('/')}}</template></small></button>
+      <button class="model-edit" :aria-label="tr('编辑模型 ','Edit model ')+name" @click="edit(String(name))"><span class="model-title"><strong>{{modelLabel(String(name))}}</strong><code>{{name}}</code></span><span v-if="modelFacts(model).length" class="model-facts"><span v-for="fact in modelFacts(model)" :key="fact.label" class="model-fact" :title="fact.exact"><span>{{fact.label}}</span>{{fact.value}}</span></span></button>
       <Hint :text="tr('编辑模型','Edit model')"><button class="btn ghost icon-only" :aria-label="tr('编辑模型配置 ','Edit model configuration ')+name" @click="edit(String(name))"><Icon name="pencil"/></button></Hint>
       <Hint :text="tr('删除模型','Delete model')"><button class="btn ghost danger icon-only" :aria-label="tr('删除模型 ','Delete model ')+name" @click="delete value.models[name]"><Icon name="trash-2"/></button></Hint>
     </div>
@@ -164,7 +176,6 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:model.n
       <div class="model-form">
         <p v-if="error" class="load-error" role="alert">{{error}}</p>
         <label>{{tr('模型 ID','Model ID')}}<input class="input" v-model="modelId" autocomplete="off" spellcheck="false"/></label>
-        <p class="hint">{{tr('填写上游模型 ID，例如 deepseek-v4.1-flash；显示名称不能用作 ID。','Enter the upstream model ID, such as deepseek-v4.1-flash; the display name is not an ID.')}}</p>
         <label v-if="!originalId && catalog.length && modelId.trim() && !catalog.some(model=>model.id===modelId.trim())" class="inline"><input type="checkbox" v-model="allowUnknownId"/>{{tr('确认使用目录外的自定义 ID','Use this custom ID outside the catalog')}}</label>
         <label>{{tr('上下文窗口','Context window')}}<input class="input" type="number" min="1" :value="draft.context_window_tokens??''" @input="draft.context_window_tokens=($event.target as HTMLInputElement).value?Number(($event.target as HTMLInputElement).value):null"/></label>
         <label>{{tr('最大输出 Token','Maximum output tokens')}}<input class="input" type="number" min="1" :value="draft.max_output_tokens??''" @input="draft.max_output_tokens=($event.target as HTMLInputElement).value?Number(($event.target as HTMLInputElement).value):null"/></label>
@@ -228,7 +239,9 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:model.n
   </div>
 </template>
 <style scoped>
-.models-editor,.model-form{display:grid;gap:14px}.model-row{display:flex;align-items:center;gap:8px;padding:8px 0}.model-edit{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;align-items:flex-start;border:0;background:transparent;color:inherit;cursor:pointer;text-align:left}.model-edit strong{overflow-wrap:anywhere}.model-edit small{color:var(--fg-subtle);overflow-wrap:anywhere}
+.models-editor,.model-form{display:grid;gap:14px}.model-row{display:flex;align-items:center;gap:8px;padding:8px 0}.model-edit{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;align-items:flex-start;border:0;background:transparent;color:inherit;cursor:pointer;text-align:left}.model-edit strong{overflow-wrap:anywhere}
+.model-title{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;min-width:0}.model-title code{font-family:var(--mono);font-size:12px;color:var(--fg-subtle);overflow-wrap:anywhere}
+.model-facts{display:flex;flex-wrap:wrap;gap:6px}.model-fact{display:inline-flex;align-items:baseline;gap:6px;padding:2px 8px;border-radius:6px;background:var(--bg-sunken);font-size:12px;line-height:1.6;color:var(--fg-muted);font-variant-numeric:tabular-nums}.model-fact span{color:var(--fg-subtle)}
 .model-form label,.model-form .model-field{display:flex;flex-direction:column;gap:6px}.model-form .inline{flex-direction:row;align-items:center}.model-form .input{width:100%;min-width:0}.model-form summary{cursor:pointer}
 .efforts-editor{display:flex;flex-direction:column;gap:8px;min-width:0;width:100%}
 .efforts-chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -260,7 +273,7 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:model.n
 .model-form>details{padding:14px;border-top:1px solid var(--line)}
 .model-form>details textarea{margin-top:12px}
 .model-row{background:var(--bg-raised);border-radius:10px;padding:12px 10px;gap:4px}
-.model-edit strong{font-size:14px}.model-edit small{font-size:11px}
+.model-edit strong{font-size:14px}.model-title code,.model-fact{font-size:11px}
 .efforts-chips{gap:8px}
 .effort-chip{min-height:36px;padding:6px 14px;font-size:13px}
 .effort-reset{min-height:36px;padding:6px 12px;font-size:13px}
