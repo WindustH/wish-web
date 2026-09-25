@@ -29,7 +29,7 @@ async function finish() { if (await save()) emit('complete'); }
   <main class="provider-setup">
     <div class="setup-content">
       <header>
-        <span class="setup-brand" aria-hidden="true">W<span>.</span></span>
+        <img class="setup-brand" src="/app-icons/mark.svg" alt="" />
         <p class="setup-eyebrow">{{ tr('欢迎使用 WISH', 'WELCOME TO WISH') }}</p>
         <h1>{{ tr('连接你的第一个模型', 'Connect your first model') }}</h1>
         <p class="setup-intro">{{ tr('还没有可用的提供商。完成配置后，就可以开始对话。', 'No provider is ready yet. Set one up to start a conversation.') }}</p>
@@ -60,7 +60,7 @@ async function finish() { if (await save()) emit('complete'); }
 <style scoped>
 .provider-setup{height:100dvh;overflow-y:auto;overscroll-behavior:contain;background:var(--bg);padding:48px 28px;box-sizing:border-box}
 .setup-content{width:min(100%,520px);margin:0 auto;padding-bottom:32px}
-.setup-brand{font-family:var(--font-display);font-size:38px;font-weight:700}.setup-brand span{color:var(--accent)}
+.setup-brand{display:block;width:60px;height:auto}
 .setup-eyebrow{margin:28px 0 10px;font-size:11px;letter-spacing:.12em;color:var(--fg-subtle)}
 h1{font-size:28px;margin:0 0 12px}.setup-intro{color:var(--fg-subtle);line-height:1.7;margin-bottom:28px}
 fieldset{border:0;padding:0;margin:0;display:grid;gap:18px;min-width:0}label{display:grid;gap:8px;font-size:13px}.input{width:100%;box-sizing:border-box;min-height:44px}
