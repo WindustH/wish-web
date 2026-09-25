@@ -81,17 +81,20 @@ const activeDays = computed(() => props.days?.filter(day => day[1] > 0).length ?
 .usage-range { flex-wrap: wrap; gap: 6px; }
 .usage-metrics .btn, .usage-range .btn { white-space: nowrap; }
 .btn[aria-pressed='true'] { background: var(--bg-active); color: var(--fg); }
-.usage-models { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 8px; }
-.usage-model { min-width: 0; max-width: 100%; display: flex; align-items: center; gap: 7px; padding: 7px 8px; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--fg); text-align: left; }
+/* Equal cells line the figures up. */
+.usage-models { display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); gap: 2px 12px; margin-bottom: 8px; }
+.usage-model { min-width: 0; width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 8px; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--fg); text-align: left; }
 
 .usage-model { cursor:pointer; }
 @media (hover: hover) { .usage-model:hover { background:var(--bg-hover); } }
 .usage-model[aria-pressed='false'] { opacity:.45; }
 .usage-model:focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
 .usage-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-.usage-model-name { min-width: 0; font-size: 12px; overflow-wrap: anywhere; }
+.usage-model-name { flex: 1; min-width: 0; font-size: 12px; overflow-wrap: anywhere; }
 .usage-model small { display: block; font-size: 10px; font-weight: 400; color: var(--fg-subtle); }
-.usage-model strong { margin-left: 7px; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.usage-model strong { flex: none; margin-left: auto; padding-left: 6px; text-align: right; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Phones: one compact row per model, provider and unit inline. */
+@media (max-width: 599px) { .usage-models { grid-template-columns: minmax(0, 1fr); gap: 0; } .usage-model { padding: 6px; } .usage-model-name small, .usage-model strong small { display: inline; margin-left: 6px; } .usage-model strong { font-size: 15px; } }
 .load-error { padding: 10px 12px; margin-block: 8px; border: 1px solid var(--err-border); border-radius: 6px; background: var(--err-bg); color: var(--err); font-size: 12px; overflow-wrap: anywhere; }
 .usage-empty { min-height: 160px; display: grid; place-items: center; text-align: center; color: var(--fg-subtle); font-size: 13px; }
 .usage-chart-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 8px; color: var(--fg-subtle); font-size: 11px; }
