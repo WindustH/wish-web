@@ -168,7 +168,7 @@ async function act(kind: 'compact' | 'clear') {
 </template>
 
 <style>
-.modal-card.session-settings-window { width: min(92vw, 30rem); }
+.modal-card.session-settings-window:not(.modal-page) { width: min(92vw, 30rem); }
 .session-settings-intro { margin: 0 0 18px; font-size: 12px; line-height: 1.6; color: var(--fg-subtle); }
 .session-settings-window .set-row.inline { grid-template-columns: minmax(0, 1fr) auto; }
 .session-settings-window .set-number input { width: 11ch; }
