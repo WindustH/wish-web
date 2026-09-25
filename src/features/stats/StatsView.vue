@@ -79,7 +79,7 @@ onDeactivated(stats.stopAuto);
           <div class="statistics-models" role="group" :aria-label="tx('用量统计模型','Usage model')">
             <button v-for="(row,index) in rows" :key="modelKey(row)" class="statistics-model" :aria-pressed="!hiddenModels.has(modelKey(row))" @click="toggleModel(modelKey(row))">
               <i class="statistics-model-dot" :style="{background:color(index)}"/>
-              <span>{{modelName(row.model)}}<small>{{providerLabel(row.provider)}}</small></span>
+              <span>{{modelName(row.model)}}<small>{{providerLabel(row.provider)}}<em class="statistics-model-share-inline"> · {{percent(totalTokens>0?row.totals.tokens.total_tokens/totalTokens:0)}}</em></small></span>
               <small class="statistics-model-share">{{percent(totalTokens>0?row.totals.tokens.total_tokens/totalTokens:0)}}</small>
             </button>
           </div>
@@ -142,14 +142,18 @@ onDeactivated(stats.stopAuto);
 .statistics-page > * { width: 100%; max-width: 1100px; margin-inline: auto; }
 .statistics-body { padding: 0; min-width: 0; }
 .statistics-usage { min-width: 0; }
-.statistics-models { display:flex; align-items:stretch; flex-wrap:wrap; gap:6px 12px; margin-bottom:16px; min-width:0; }
-.statistics-model { display:flex; align-items:center; gap:7px; max-width:100%; min-width:0; padding:7px 8px; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--fg-subtle); font:inherit; font-size:12px; text-align:left; cursor:pointer; }
+/* Equal cells keep names, providers and shares aligned however many models there are. */
+.statistics-models { display:grid; grid-template-columns:repeat(auto-fill, minmax(168px, 1fr)); gap:2px 12px; margin-bottom:16px; min-width:0; }
+.statistics-model { display:flex; align-items:center; gap:8px; width:100%; min-width:0; padding:7px 8px; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--fg-subtle); font:inherit; font-size:12px; text-align:left; cursor:pointer; }
 @media (hover: hover) { .statistics-model:hover { background:var(--bg-hover); } }
 .statistics-model[aria-pressed='true'] { color:var(--fg); }
 .statistics-model[aria-pressed='false'] { opacity:.45; }
-.statistics-model .statistics-model-share { align-self:flex-end; margin-left:8px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.statistics-model .statistics-model-share { flex:none; margin-left:auto; padding-left:6px; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .statistics-model:focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
-.statistics-model span { min-width:0; overflow-wrap:anywhere; }
+.statistics-model span { flex:1; min-width:0; overflow-wrap:anywhere; }
+.statistics-model-share-inline { display:none; font-style:normal; font-variant-numeric:tabular-nums; }
+/* Phones: the share joins the provider line so names keep the full cell width. */
+@media (max-width:599px) { .statistics-models { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:2px 6px; } .statistics-model { padding-inline:6px; } .statistics-model .statistics-model-share { display:none; } .statistics-model-share-inline { display:inline; } }
 .statistics-model small { display:block; margin-top:2px; font-size:10px; color:var(--fg-subtle); }
 .statistics-model-dot { width:7px; height:7px; border-radius:50%; flex:none; }
 .statistics-toolbar { display: flex; flex: none; align-items: center; justify-content: end; gap: 12px; padding-block: 10px; }
@@ -202,7 +206,8 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 .storage-legend strong { min-width: 72px; text-align: right; }
 @media (max-width: 899px) { .statistics-footer { grid-template-columns: 1fr; gap: 16px; } .statistics-grid { margin-top: 16px; } .statistics-panel { padding: 16px; } }
 @media (max-width: 599px) { .queue-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .panel-hero { gap: 12px 32px; } }
-@media (min-width: 700px) {
+/* Two columns only once each card has room for its legends; narrower windows stack them. */
+@media (min-width: 1100px) {
   .statistics-body :deep(.usage-charts) { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
   .statistics-body :deep(.usage-chart-card:first-child) { grid-column: 1; grid-row: 1; }
   .statistics-body :deep(.usage-chart-card:last-child) { grid-column: 1; grid-row: 2; }
