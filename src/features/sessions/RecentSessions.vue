@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { onScopeDispose, ref, watch } from 'vue';
-import { sessionsList } from '../../core/api/endpoints.js';
-import { bus } from '../../core/bus.js';
-import { errorText } from '../../core/config-editor';
-import { i18n } from '../../core/i18n/index.js';
-import { usePageActivity } from '../../ui/composables/usePageActivity';
+import { sessionsList } from '../../core/api/endpoints.ts';
+import { bus } from '../../core/bus.ts';
+import { errorText } from '../../core/config-editor.ts';
+import { i18n } from '../../core/i18n/index.ts';
+import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import SessionListRow from './SessionListRow.vue';
 import SessionListAction from './SessionListAction.vue';
 import Icon from '../../ui/components/Icon.vue';

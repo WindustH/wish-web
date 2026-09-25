@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useSessionMotion } from "./useSessionMotion";
+import { useSessionMotion } from "./useSessionMotion.ts";
 useSessionMotion();
 import Hint from '../../ui/components/Hint.vue';
 // Two-pane shell (desktop): the session list stays mounted while the right
@@ -8,12 +8,12 @@ import Hint from '../../ui/components/Hint.vue';
 // exclusive full views.
 import { computed, onBeforeUnmount, onDeactivated, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useMedia } from '../../ui/composables/useMedia.js';
+import { useMedia } from '../../ui/composables/useMedia.ts';
 import SessionList from './SessionList.vue';
 import SessionListToggle from './SessionListToggle.vue';
-import { prefs } from '../../core/state/prefsSlice.js';
-import { applySavedListWidth, cancelListResize, onListResizePointerDown } from './listWidth.js';
-import { i18n } from '../../core/i18n/index.js';
+import { prefs } from '../../core/state/prefsSlice.ts';
+import { applySavedListWidth, cancelListResize, onListResizePointerDown } from './listWidth.ts';
+import { i18n } from '../../core/i18n/index.ts';
 
 const route = useRoute();
 const router = useRouter();

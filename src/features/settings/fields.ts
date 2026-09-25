@@ -1,5 +1,5 @@
-import { tr } from '../../core/i18n/tr';
-export { tr } from '../../core/i18n/tr';
+import { tr } from '../../core/i18n/tr.ts';
+export { tr } from '../../core/i18n/tr.ts';
 
 export const compactionFields = () => [
   {key:'trigger_tokens',label:tr('触发压缩的 Token 数','Compaction trigger tokens'),hint:tr('输入达到这个大小时开始压缩','Compaction starts when input reaches this size')},

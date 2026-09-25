@@ -1,7 +1,7 @@
 // Readable, localized text for errors raised while loading or saving
 // settings. The server reports plain English messages with no codes, so the
 // Chinese text is matched on those messages; anything unknown is shown as is.
-import { i18n } from './index.js';
+import { i18n } from './index.ts';
 
 type Rule = [RegExp, (...groups: string[]) => string];
 

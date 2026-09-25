@@ -1,5 +1,5 @@
 import { onScopeDispose, type Ref } from 'vue';
-import { cfg } from '../../core/config.js';
+import { cfg } from '../../core/config.ts';
 
 export interface ComposerSizing {
   min: () => number;

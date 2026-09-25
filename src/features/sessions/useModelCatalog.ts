@@ -1,6 +1,6 @@
 import { computed, onScopeDispose, ref } from 'vue';
-import { configuredModels, readModels, readProviders, type ModelInfo, type ProviderInfo } from '../../core/provider-catalog';
-import { peekCached, readCached, writeCached } from '../../core/util/responseCache';
+import { configuredModels, readModels, readProviders, type ModelInfo, type ProviderInfo } from '../../core/provider-catalog.ts';
+import { peekCached, readCached, writeCached } from '../../core/util/responseCache.ts';
 
 export interface ModelGroup { provider: ProviderInfo; models: ModelInfo[]; loading: boolean; error?: unknown }
 type Snapshot = { provider: ProviderInfo; models: ModelInfo[] }[];

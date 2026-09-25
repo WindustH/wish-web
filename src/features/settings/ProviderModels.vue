@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import { modelLabel } from '../../ui/modelLabel';
-import { useMedia } from '../../ui/composables/useMedia';
+import { modelLabel } from '../../ui/modelLabel.ts';
+import { useMedia } from '../../ui/composables/useMedia.ts';
 const isMobile=useMedia('(max-width: 899px)');
 import { computed, nextTick, onScopeDispose, ref } from 'vue';
-import type { ProviderConfig, ProviderPreset } from '../../core/provider-presets';
-import { readCatalogModels } from '../../core/provider-catalog';
-import { showError } from '../../ui/errorDialog';
-import { peekCached, readCached, writeCached } from '../../core/util/responseCache';
+import type { ProviderConfig, ProviderPreset } from '../../core/provider-presets.ts';
+import { readCatalogModels } from '../../core/provider-catalog.ts';
+import { showError } from '../../ui/errorDialog.ts';
+import { peekCached, readCached, writeCached } from '../../core/util/responseCache.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
 import Modal from '../../ui/components/Modal.vue';
 import PickerList from '../../ui/components/PickerList.vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
-import { useSettingsReturn } from './settingsReturn';
-import { tr } from './fields';
+import { useSettingsReturn } from './settingsReturn.ts';
+import { tr } from './fields.ts';
 const props=defineProps<{id:string;value:ProviderConfig;preset?:ProviderPreset}>();
 const editing=ref(false),originalId=ref(''),modelId=ref(''),draft=ref<Record<string,any>>({});
 const allowUnknownId=ref(false);

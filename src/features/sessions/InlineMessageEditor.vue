@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
-import { useAttachmentTokenDrag } from './useAttachmentTokenDrag';
-import { splitAttachmentText } from '../../core/attachmentPlaceholders.js';
-import type { AttachmentInput } from '../../core/attachments.js';
+import { useAttachmentTokenDrag } from './useAttachmentTokenDrag.ts';
+import { splitAttachmentText } from '../../core/attachmentPlaceholders.ts';
+import type { AttachmentInput } from '../../core/attachments.ts';
 const props = defineProps<{ text: string; attachments: AttachmentInput[]; placeholder: string; label: string; scope: string }>();
 const emit = defineEmits<{ 'update:text': [text: string]; keydown: [event: KeyboardEvent]; paste: [event: ClipboardEvent] }>();
 const el = ref<HTMLDivElement | null>(null);

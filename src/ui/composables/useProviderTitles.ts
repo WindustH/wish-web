@@ -1,7 +1,7 @@
 import { ref } from 'vue';
-import { providerConfigs } from '../../core/api/endpoints.js';
-import { presetBrand, providerName } from '../providerPresentation';
-import { readCached, writeCached } from '../../core/util/responseCache';
+import { providerConfigs } from '../../core/api/endpoints.ts';
+import { presetBrand, providerName } from '../providerPresentation.ts';
+import { readCached, writeCached } from '../../core/util/responseCache.ts';
 
 // Usage rows carry only provider IDs. Keep what the names are derived from and
 // resolve at render time so a locale switch renames the brand without a refetch.

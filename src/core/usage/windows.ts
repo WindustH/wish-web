@@ -1,4 +1,4 @@
-import type { DailyQuery, SeriesQuery } from './types';
+import type { DailyQuery, SeriesQuery } from './types.ts';
 export type UsageRange = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'custom';
 export interface RangeSelection { period: UsageRange; start?: string; end?: string }
 /** Totals may also cover everything recorded. */

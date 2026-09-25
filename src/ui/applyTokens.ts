@@ -1,6 +1,6 @@
 // Writes cfg.design into CSS custom properties — single source of truth for
 // every size/duration used by stylesheets. CSS files keep fallback values.
-import { cfg } from '../core/config.js';
+import { cfg } from '../core/config.ts';
 
 export function applyTokens(root = document.documentElement) {
   const d = cfg.design;

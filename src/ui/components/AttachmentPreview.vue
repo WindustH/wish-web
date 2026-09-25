@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onBeforeUnmount, nextTick } from 'vue';
-import { attachmentPreview } from '../attachmentPreview';
-import { apiFetch } from '../../core/api/client.js';
+import { attachmentPreview } from '../attachmentPreview.ts';
+import { apiFetch } from '../../core/api/client.ts';
 import BubbleSurface from './BubbleSurface.vue';
 const panel = ref<HTMLElement | null>(null);
 const position = ref<Record<string, string>>({});

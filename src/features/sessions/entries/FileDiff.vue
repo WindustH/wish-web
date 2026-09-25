@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { parseDiff } from './processDetails';
+import { parseDiff } from './processDetails.ts';
 import CopyButton from '../../../ui/components/CopyButton.vue';
-import { i18n } from '../../../core/i18n/index.js';
+import { i18n } from '../../../core/i18n/index.ts';
 const props=defineProps<{edit:any}>();
 const tx=(zh:string,en:string)=>i18n.locale.value==='zh'?zh:en;
 const lines=computed(()=>parseDiff(props.edit.diff??''));

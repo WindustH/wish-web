@@ -1,4 +1,4 @@
-import { FALLBACK_EFFORT_LEVELS, type ModelInfo } from '../../core/provider-catalog';
+import { FALLBACK_EFFORT_LEVELS, type ModelInfo } from '../../core/provider-catalog.ts';
 export function effortLabel(level?: string) { return level || '…'; }
 // A model pulled from an upstream catalog carries no levels of its own, and most presets claim
 // none: such a selection resolves to the last fallback level (`max`) instead of 'none', so the

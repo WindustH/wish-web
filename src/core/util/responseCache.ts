@@ -1,7 +1,7 @@
 // Last good responses, kept in memory and in IndexedDB, so pages open with the
 // previous data at once and swap in fresh responses when they arrive. Only
 // plain API results belong here (never Vue proxies: IndexedDB clones values).
-import { getBaseUrl } from '../api/client.js';
+import { getBaseUrl } from '../api/client.ts';
 
 const DATABASE = 'wish-response-cache';
 const STORE = 'responses';

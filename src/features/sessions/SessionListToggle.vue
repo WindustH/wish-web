@@ -2,8 +2,8 @@
 import Hint from '../../ui/components/Hint.vue';
 import { computed } from 'vue';
 import { ChevronLeft } from '@lucide/vue';
-import { prefs } from '../../core/state/prefsSlice.js';
-import { i18n } from '../../core/i18n/index.js';
+import { prefs } from '../../core/state/prefsSlice.ts';
+import { i18n } from '../../core/i18n/index.ts';
 
 const { sessionListCollapsed } = prefs;
 const label = computed(() => i18n.t(sessionListCollapsed.value ? 'sessions.expandList' : 'sessions.collapseList'));

@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import FadeText from '../../ui/components/FadeText.vue';
-import { modelLabel } from '../../ui/modelLabel';
-import { sessionParent } from "../../ui/sessionNavigation";
-import { sessionPanelCloseKey } from '../../ui/composables/sessionPanel';
+import { modelLabel } from '../../ui/modelLabel.ts';
+import { sessionParent } from "../../ui/sessionNavigation.ts";
+import { sessionPanelCloseKey } from '../../ui/composables/sessionPanel.ts';
 import Hint from '../../ui/components/Hint.vue';
 // Chat surface: top bar (desktop three actions / mobile back+menu), log,
 // composer, and child-route dialogs (mobile subpages). Opening session
 // actions never rebuilds the conversation.
 import { computed, provide, shallowRef, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useMedia } from '../../ui/composables/useMedia.js';
-import { i18n } from '../../core/i18n/index.js';
-import { chat } from '../../core/state/chatSlice.js';
+import { useMedia } from '../../ui/composables/useMedia.ts';
+import { i18n } from '../../core/i18n/index.ts';
+import { chat } from '../../core/state/chatSlice.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
 import ChatLog from './ChatLog.vue';
@@ -22,8 +22,8 @@ import SearchPane from './SearchPane.vue';
 import SessionSettingsPane from './SessionSettingsPane.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
-import { useResolvedEffort } from './useResolvedEffort';
-import { effortLabel } from './reasoningLabels';
+import { useResolvedEffort } from './useResolvedEffort.ts';
+import { effortLabel } from './reasoningLabels.ts';
 
 const panelClose = shallowRef<(() => void) | null>(null);
 provide(sessionPanelCloseKey, panelClose);

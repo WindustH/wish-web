@@ -1,7 +1,7 @@
 // Desktop-only drag handle that resizes the sessions list pane; width is
 // clamped to cfg.design bounds and persisted per device.
-import { cfg } from '../../core/config.js';
-import { tryPlatform } from '../../platform/index.js';
+import { cfg } from '../../core/config.ts';
+import { tryPlatform } from '../../platform/index.ts';
 
 const KEY = 'pref.listWidth';
 const clamp = (w: number) => Math.min(cfg.design.sessionListWidthMax,

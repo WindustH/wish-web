@@ -1,25 +1,25 @@
 <script setup lang="ts">
-import { useMobileNavigationMotion } from './ui/composables/useMobileNavigationMotion';
+import { useMobileNavigationMotion } from './ui/composables/useMobileNavigationMotion.ts';
 useMobileNavigationMotion();
 import Hint from './ui/components/Hint.vue';
 import HoverHintHost from './ui/components/HoverHintHost.vue';
 import { defineAsyncComponent, computed, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue';
 import { TooltipProvider, DialogRoot, DialogPortal, DialogContent, DialogTitle } from 'reka-ui';
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
-import { useMedia } from './ui/composables/useMedia.js';
+import { useMedia } from './ui/composables/useMedia.ts';
 import Icon from './ui/components/Icon.vue';
 import AttachmentPreview from './ui/components/AttachmentPreview.vue';
 import ToastHost from './ui/components/ToastHost.vue';
 import ErrorDialogHost from './ui/components/ErrorDialogHost.vue';
-import { onboardingPreview, closeOnboardingPreview } from './features/onboarding/preview';
+import { onboardingPreview, closeOnboardingPreview } from './features/onboarding/preview.ts';
 import CachedPage from './ui/components/CachedPage.vue';
-import { i18n } from './core/i18n/index.js';
-import { sync } from './core/state/syncSlice.js';
-import { needRefresh, refreshApp } from './ui/pwa.js';
-import { useProviderGate } from './ui/composables/useProviderGate';
-import { tr } from './core/i18n/tr';
-import { sessionLocation } from './ui/sessionNavigation';
-import { isSignedOut } from './core/connection';
+import { i18n } from './core/i18n/index.ts';
+import { sync } from './core/state/syncSlice.ts';
+import { needRefresh, refreshApp } from './ui/pwa.ts';
+import { useProviderGate } from './ui/composables/useProviderGate.ts';
+import { tr } from './core/i18n/tr.ts';
+import { sessionLocation } from './ui/sessionNavigation.ts';
+import { isSignedOut } from './core/connection.ts';
 import SignOutButton from './features/connection/SignOutButton.vue';
 
 const ProviderSetup = defineAsyncComponent(() => import('./features/onboarding/ProviderSetup.vue'));

@@ -1,4 +1,4 @@
-import { apiFetch, needsAccessToken } from '../core/api/client.js';
+import { apiFetch, needsAccessToken } from '../core/api/client.ts';
 
 /**
  * Click handler for a download link to the backend. A backend reached directly

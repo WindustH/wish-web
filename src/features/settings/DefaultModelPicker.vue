@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { modelLabel } from '../../ui/modelLabel';
+import { modelLabel } from '../../ui/modelLabel.ts';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
 import PickerList from '../../ui/components/PickerList.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
-import { tr } from './fields';
+import { tr } from './fields.ts';
 import type { SelectOption } from '../../ui/components/SelectField.vue';
 const props = defineProps<{ config: any; providers: SelectOption[]; efforts: SelectOption[] }>();
 const effortQuery = ref('');

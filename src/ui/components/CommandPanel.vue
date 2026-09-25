@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from "vue";
-import { usePageActivity } from '../composables/usePageActivity';
+import { usePageActivity } from '../composables/usePageActivity.ts';
 const pageActive = usePageActivity();
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
 import { X } from '@lucide/vue';
-import { i18n } from '../../core/i18n/index.js';
-import { useDialogLayer } from '../composables/useDialogLayer';
-import { useDialogFocus } from '../composables/useDialogFocus';
+import { i18n } from '../../core/i18n/index.ts';
+import { useDialogLayer } from '../composables/useDialogLayer.ts';
+import { useDialogFocus } from '../composables/useDialogFocus.ts';
 
 const props = defineProps<{ title: string; busy?: boolean }>();
 const emit = defineEmits<{ close: [] }>();

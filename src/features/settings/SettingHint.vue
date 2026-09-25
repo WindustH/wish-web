@@ -2,8 +2,8 @@
 import { ref, watch } from 'vue';
 import { Info } from '@lucide/vue';
 import { TooltipRoot, TooltipTrigger, TooltipPortal, TooltipContent } from 'reka-ui';
-import { usePageActivity } from '../../ui/composables/usePageActivity';
-import { tr } from './fields';
+import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import { tr } from './fields.ts';
 
 defineProps<{ id?: string; text: string; label?: string }>();
 const open = ref(false);

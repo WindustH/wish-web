@@ -2,7 +2,7 @@
 // An <img> for backend URLs. A backend reached directly needs its access token,
 // which an <img> cannot send, so those images are fetched and shown as blobs.
 import { ref, watch } from 'vue';
-import { apiFetch, needsAccessToken } from '../../core/api/client.js';
+import { apiFetch, needsAccessToken } from '../../core/api/client.ts';
 
 const props = defineProps<{ src: string }>();
 const url = ref('');

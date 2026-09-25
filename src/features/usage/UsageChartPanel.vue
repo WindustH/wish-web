@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue';
-import { modelColorIndex, modelColorKey } from './modelColors';
+import { modelColorIndex, modelColorKey } from './modelColors.ts';
 import UsageRangePicker from './UsageRangePicker.vue';
-import type { RangeSelection } from '../../core/usage/windows';
+import type { RangeSelection } from '../../core/usage/windows.ts';
 import UsagePlot from './UsagePlot.vue';
-import type { HeatData } from './chartOptions';
+import type { HeatData } from './chartOptions.ts';
 import InfoHint from '../../ui/components/InfoHint.vue';
-import { i18n } from '../../core/i18n/index.js';
-import { fmtTokens } from '../../core/util/fmt.js';
-import type { UsageChartData } from '../../core/usage/types';
-import { modelLabel } from '../../ui/modelLabel';
-import { useProviderTitles } from '../../ui/composables/useProviderTitles';
+import { i18n } from '../../core/i18n/index.ts';
+import { fmtTokens } from '../../core/util/fmt.ts';
+import type { UsageChartData } from '../../core/usage/types.ts';
+import { modelLabel } from '../../ui/modelLabel.ts';
+import { useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
 const props = defineProps<{ data: UsageChartData | null; heat: HeatData | null; days: [string, number][] | null; loading: boolean; calendarLoading: boolean; error: string; calendarError: string; range: RangeSelection; calendarRange: RangeSelection; rangeSwitching?: boolean; calendarSwitching?: boolean }>();
 const emit = defineEmits<{ range: [value: RangeSelection]; calendarRange: [value: RangeSelection]; refresh: []; retryCalendar: []; calendarColumns: [value: number] }>();
 const metric = ref<'tps' | 'tokens'>('tps');

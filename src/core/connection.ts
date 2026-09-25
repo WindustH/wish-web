@@ -2,11 +2,11 @@
 // served the page, reached through its /api proxy, which adds the access token
 // itself. Connecting to another server stores its address and token here, and
 // requests then go to it directly. Signing out forgets both.
-import { tryPlatform } from '../platform/index.js';
-import { cfg } from './config.js';
-import { setAccessToken, setBaseUrl } from './api/client.js';
-import { clearCached } from './util/responseCache';
-import { tr } from './i18n/tr';
+import { tryPlatform } from '../platform/index.ts';
+import { cfg } from './config.ts';
+import { setAccessToken, setBaseUrl } from './api/client.ts';
+import { clearCached } from './util/responseCache.ts';
+import { tr } from './i18n/tr.ts';
 
 type Connection = { baseUrl: string; token: string };
 const CONNECTION = 'connection';

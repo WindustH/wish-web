@@ -4,7 +4,7 @@ import { init, use, type EChartsCoreOption, type EChartsType } from 'echarts/cor
 import { LineChart, ScatterChart, HeatmapChart, PieChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent, CalendarComponent, VisualMapComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
-import { usePageActivity } from '../../ui/composables/usePageActivity';
+import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 use([LineChart, ScatterChart, HeatmapChart, PieChart, GridComponent, TooltipComponent, CalendarComponent, VisualMapComponent, CanvasRenderer]);
 const props = defineProps<{ option: EChartsCoreOption; label: string }>();
 // The data index under the pointer (or tap), null when it leaves.

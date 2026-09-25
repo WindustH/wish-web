@@ -1,8 +1,8 @@
 // Desktop composer height: user preference persisted per device, viewport
 // clamps never overwrite it. Mobile never uses this.
 import { ref, onMounted, onUnmounted, type Ref } from 'vue';
-import { cfg } from '../../core/config.js';
-import { tryPlatform } from '../../platform/index.js';
+import { cfg } from '../../core/config.ts';
+import { tryPlatform } from '../../platform/index.ts';
 
 const HEIGHT_KEY = 'pref.composerHeight';
 

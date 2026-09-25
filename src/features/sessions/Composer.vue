@@ -1,31 +1,31 @@
 <script setup lang="ts">
-import { attachmentPreview, previewAttachment } from '../../ui/attachmentPreview';
-import { attachmentDigestFallback } from '../../core/attachmentDigest.js';
-import { expandPastedText } from '../../core/pastedText.js';
+import { attachmentPreview, previewAttachment } from '../../ui/attachmentPreview.ts';
+import { attachmentDigestFallback } from '../../core/attachmentDigest.ts';
+import { expandPastedText } from '../../core/pastedText.ts';
 import InlineMessageEditor from './InlineMessageEditor.vue';
-import { attachmentsForMessage } from '../../core/attachmentPlaceholders.js';
+import { attachmentsForMessage } from '../../core/attachmentPlaceholders.ts';
 import Hint from '../../ui/components/Hint.vue';
 import {
   attachmentDraftsFor,
   attachmentLimits,
   saveAttachmentDrafts,
   type AttachmentInput,
-} from '../../core/attachments.js';
-import { fmtBytes } from '../../core/util/fmt.js';
+} from '../../core/attachments.ts';
+import { fmtBytes } from '../../core/util/fmt.ts';
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue';
-import { cfg } from '../../core/config.js';
-import { i18n } from '../../core/i18n/index.js';
-import { chat } from '../../core/state/chatSlice.js';
-import { prefs } from '../../core/state/prefsSlice.js';
-import { toast } from '../../ui/toast.js';
+import { cfg } from '../../core/config.ts';
+import { i18n } from '../../core/i18n/index.ts';
+import { chat } from '../../core/state/chatSlice.ts';
+import { prefs } from '../../core/state/prefsSlice.ts';
+import { toast } from '../../ui/toast.ts';
 import Icon from '../../ui/components/Icon.vue';
 import BubbleSurface from '../../ui/components/BubbleSurface.vue';
-import { usePageActivity } from '../../ui/composables/usePageActivity';
+import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import AskContext from './AskContext.vue';
-import { useComposerHeight } from './useComposerHeight.js';
-import { useComposerAttachments, type Attachment } from './useComposerAttachments';
-import { useBtwPopup } from './useBtwPopup';
-import { useComposerDrag } from './useComposerDrag';
+import { useComposerHeight } from './useComposerHeight.ts';
+import { useComposerAttachments, type Attachment } from './useComposerAttachments.ts';
+import { useBtwPopup } from './useBtwPopup.ts';
+import { useComposerDrag } from './useComposerDrag.ts';
 
 const props = defineProps<{
   sessionId: string;

@@ -3,10 +3,10 @@
 // never follows the currently open chat; writes belong to the captured ID.
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import * as api from '../../core/api/endpoints.js';
-import { sessions } from '../../core/state/sessionsSlice.js';
-import { chat } from '../../core/state/chatSlice.js';
-import { i18n } from '../../core/i18n/index.js';
+import * as api from '../../core/api/endpoints.ts';
+import { sessions } from '../../core/state/sessionsSlice.ts';
+import { chat } from '../../core/state/chatSlice.ts';
+import { i18n } from '../../core/i18n/index.ts';
 import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
 const props = defineProps<{ target: { id: string; name?: string }; kind: 'rename' | 'tags' | 'delete' }>();

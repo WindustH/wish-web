@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { i18n } from '../../../core/i18n/index.js';
-import { apiFetch } from '../../../core/api/client.js';
+import { i18n } from '../../../core/i18n/index.ts';
+import { apiFetch } from '../../../core/api/client.ts';
 const props=defineProps<{src:string;mime:string;path:string}>();
 const url=ref(''),error=ref(false),size=ref(''),zoom=ref(false);
 watch(()=>props.src,async(src,_,onCleanup)=>{

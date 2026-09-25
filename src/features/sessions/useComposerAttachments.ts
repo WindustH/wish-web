@@ -1,5 +1,5 @@
-import { shouldAttachPastedText, pastedTextFile } from '../../core/pastedText.js';
-import { attachmentDigest } from '../../core/attachmentDigest.js';
+import { shouldAttachPastedText, pastedTextFile } from '../../core/pastedText.ts';
+import { attachmentDigest } from '../../core/attachmentDigest.ts';
 import { ref, watch, onBeforeUnmount, type Ref } from 'vue';
 import {
   attachmentDraftsFor,
@@ -7,12 +7,12 @@ import {
   saveAttachmentDrafts,
   type AttachmentInput,
   type PickedAttachment,
-} from '../../core/attachments.js';
-import { fmtBytes } from '../../core/util/fmt.js';
-import { blobUrl } from '../../core/api/endpoints.js';
-import { apiFetch } from '../../core/api/client.js';
-import { platform } from '../../platform/index.js';
-import { toast } from '../../ui/toast.js';
+} from '../../core/attachments.ts';
+import { fmtBytes } from '../../core/util/fmt.ts';
+import { blobUrl } from '../../core/api/endpoints.ts';
+import { apiFetch } from '../../core/api/client.ts';
+import { platform } from '../../platform/index.ts';
+import { toast } from '../../ui/toast.ts';
 
 export interface Attachment extends AttachmentInput {
   localUrl: string;

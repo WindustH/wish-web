@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { useMedia } from '../../ui/composables/useMedia';
+import { useMedia } from '../../ui/composables/useMedia.ts';
 const isMobile=useMedia('(max-width: 899px)');
-import { providerPriority } from '../../ui/catalogOrder';
+import { providerPriority } from '../../ui/catalogOrder.ts';
 import { computed, ref } from 'vue';
-import type { ConfigCatalog, ProviderPreset } from '../../core/provider-presets';
-import { presetDescription, providerName } from '../../ui/providerPresentation';
+import type { ConfigCatalog, ProviderPreset } from '../../core/provider-presets.ts';
+import { presetDescription, providerName } from '../../ui/providerPresentation.ts';
 import Modal from '../../ui/components/Modal.vue';
 import PickerList from '../../ui/components/PickerList.vue';
-import { tr } from './fields';
+import { tr } from './fields.ts';
 
 const props = defineProps<{ catalog?: ConfigCatalog }>();
 const emit = defineEmits<{ close: []; select: [preset?: ProviderPreset] }>();

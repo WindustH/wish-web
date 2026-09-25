@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { i18n } from '../../core/i18n/index.js';
-import { platform } from '../../platform/index.js';
-import { renderMarkdown } from '../markdown';
-import { toast } from '../toast';
+import { i18n } from '../../core/i18n/index.ts';
+import { platform } from '../../platform/index.ts';
+import { renderMarkdown } from '../markdown.ts';
+import { toast } from '../toast.ts';
 
 const props = defineProps<{ text: string }>();
 const html = computed(() => renderMarkdown(props.text, i18n.t('common.copy')));

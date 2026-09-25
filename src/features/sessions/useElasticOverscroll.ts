@@ -1,5 +1,5 @@
 import { onScopeDispose, watch, type Ref } from 'vue';
-import { MAX_STRETCH, stepSpring, stretchFromDrag, wheelPixels } from './elasticPhysics.js';
+import { MAX_STRETCH, stepSpring, stretchFromDrag, wheelPixels } from './elasticPhysics.ts';
 
 // Stretch message content at the scroll limits while keeping the viewport,
 // scrollbar and surrounding page fixed. Wheel impulses and the restoring

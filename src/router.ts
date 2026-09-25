@@ -2,7 +2,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import SessionsView from './features/sessions/SessionsView.vue';
 import StartChat from './features/sessions/StartChat.vue';
-import { installSessionNavigation } from './ui/sessionNavigation';
+import { installSessionNavigation } from './ui/sessionNavigation.ts';
 
 declare module 'vue-router' {
   interface RouteMeta {

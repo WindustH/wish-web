@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 import { PopoverRoot, PopoverTrigger, PopoverPortal, PopoverContent, PopoverArrow } from 'reka-ui';
-import { directoriesList } from '../../core/api/endpoints.js';
-import { errorText } from '../../core/config-editor';
-import { usePageActivity } from '../../ui/composables/usePageActivity';
+import { directoriesList } from '../../core/api/endpoints.ts';
+import { errorText } from '../../core/config-editor.ts';
+import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import Icon from '../../ui/components/Icon.vue';
 import BubbleSurface from '../../ui/components/BubbleSurface.vue';
-import { tr } from '../settings/fields';
+import { tr } from '../settings/fields.ts';
 
 const props = defineProps<{ modelValue: string; disabled?: boolean }>();
 const emit = defineEmits<{ 'update:modelValue': [path: string] }>();

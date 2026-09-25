@@ -1,7 +1,7 @@
-import { operationFailure } from '../api/failures.js';
+import { operationFailure } from '../api/failures.ts';
 // Stream event processing and live execution state for chat sessions.
-import { toast } from '../../ui/toast.js';
-import { i18n } from '../i18n/index.js';
+import { toast } from '../../ui/toast.ts';
+import { i18n } from '../i18n/index.ts';
 
 export interface ToolCallData {
   name: string;

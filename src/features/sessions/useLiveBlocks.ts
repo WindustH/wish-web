@@ -1,5 +1,5 @@
 import { ref, watch, onUnmounted, type Ref } from 'vue';
-import { splitStreamBlocks, tailThrottleMs, type StreamBlocks } from './streamBlocks';
+import { splitStreamBlocks, tailThrottleMs, type StreamBlocks } from './streamBlocks.ts';
 
 export function useLiveBlocks(streamText: Ref<string>) {
   const liveBlocks = ref<StreamBlocks>({ stable: [], tail: '' });

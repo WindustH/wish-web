@@ -2,9 +2,9 @@
 // A text segment of an assistant entry (grouping guarantees process blocks
 // live in the adjacent thumbnails, never here).
 import { computed } from 'vue';
-import { i18n } from '../../../core/i18n/index.js';
-import { blobUrl } from '../../../core/api/endpoints.js';
-import { fmtTokens } from '../../../core/util/fmt.js';
+import { i18n } from '../../../core/i18n/index.ts';
+import { blobUrl } from '../../../core/api/endpoints.ts';
+import { fmtTokens } from '../../../core/util/fmt.ts';
 import Markdown from '../../../ui/components/Markdown.vue';
 import MessageContext from './MessageContext.vue';
 import ApiImage from '../../../ui/components/ApiImage.vue';

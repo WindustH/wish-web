@@ -1,7 +1,7 @@
 import { ref, computed, watch, nextTick, type Ref } from 'vue';
-import { cfg } from '../../core/config.js';
-import { chat } from '../../core/state/chatSlice.js';
-import { useElasticOverscroll } from './useElasticOverscroll';
+import { cfg } from '../../core/config.ts';
+import { chat } from '../../core/state/chatSlice.ts';
+import { useElasticOverscroll } from './useElasticOverscroll.ts';
 
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
 

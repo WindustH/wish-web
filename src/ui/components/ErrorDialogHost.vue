@@ -2,8 +2,8 @@
 import { computed, ref } from 'vue';
 import Modal from './Modal.vue';
 import Icon from './Icon.vue';
-import { tr } from '../../core/i18n/tr';
-import { dismissError, useErrorReports } from '../errorDialog';
+import { tr } from '../../core/i18n/tr.ts';
+import { dismissError, useErrorReports } from '../errorDialog.ts';
 
 const reports = useErrorReports();
 const report = computed(() => reports.value[0]);
