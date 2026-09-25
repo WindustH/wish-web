@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="79 122 626 471">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="79 87 626 506">
   <!-- The crane from icon.svg without its tile, for in-app use; keep the two in sync. -->
   <g stroke="#933d22" stroke-width="5" stroke-linejoin="round">
-    <polygon points="127,133 320,376 297,391 255,396" fill="#e0805c"/>
+    <polygon points="180,90 320,376 297,391 255,396" fill="#e0805c"/>
     <polygon points="320,376 365,347 387,278 662,125 460,370 402,322 297,391" fill="#eea07c"/>
     <polygon points="662,125 626,395 590,420 470,440 497,400 460,370" fill="#c9653f"/>
     <polygon points="315,530 395,521 445,512 482,478 480,590" fill="#a84d2f"/>

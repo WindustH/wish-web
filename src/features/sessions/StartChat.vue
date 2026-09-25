@@ -21,6 +21,7 @@ import DirectoryPicker from './DirectoryPicker.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
 import Icon from '../../ui/components/Icon.vue';
+import Wordmark from '../../ui/components/Wordmark.vue';
 
 const route = useRoute(), router = useRouter();
 const mobile = useMedia('(max-width: 899px)');
@@ -132,7 +133,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
       <button class="btn ghost icon-only" :aria-label="i18n.t('nav.settings')" @click="router.push('/settings')"><Icon name="settings"/></button>
     </div>
     <div class="start-surface">
-      <img class="start-mark" src="/app-icons/mark.svg" alt="" />
+      <div class="start-brand" aria-hidden="true"><img class="start-mark" src="/app-icons/mark.svg" alt="" /><Wordmark class="start-wordmark" /></div>
       <Composer ref="composer" session-id="new-session" :mobile="mobile" start :send-message="send" :disabled="!selection.model || !cwd.trim() || busy || (!manuallySelected && !defaultReady)">
         <template #selection>
           <div class="start-model-controls model-selection">
@@ -161,7 +162,9 @@ async function send(text: string, attachments: AttachmentInput[]) {
 <style scoped>
 .start-chat { height: 100%; min-height: 0; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 32px clamp(24px, 5vw, 80px); position: relative; }
 .start-surface { width: 100%; max-width: 740px; margin-block: auto; padding-block: 24px 12vh; }
-.start-mark { display: block; width: 72px; height: auto; margin: 0 auto 28px; }
+.start-brand { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+.start-mark { display: block; width: 64px; height: auto; }
+.start-wordmark { height: 40px; color: var(--fg); }
 .start-model-controls { display: inline-flex; width: max-content; max-width: 100%; align-items: center; min-width: 0; gap: 3px; }
 .start-model-controls button { font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .start-model-controls .model-chip { flex: 0 1 auto; max-width: min(38vw, 320px); }
@@ -182,11 +185,15 @@ async function send(text: string, attachments: AttachmentInput[]) {
   .mobile-home { flex-direction: column; justify-content: flex-start; padding: 52px 24px 24px; }
   .mobile-home .start-surface { flex-shrink: 0; margin: auto; padding: 0; }
   :deep(.composer-mobile-actions .composer-start-selection) { flex: 1; min-width: 0; padding: 0; }
-  .mobile-home .start-mark { width: 48px; margin: 0 0 16px; }
-  .start-mark { width: 60px; margin-bottom: 24px; }
+  .start-brand { gap: 12px; margin-bottom: 24px; }
+  .start-mark { width: 52px; }
+  .start-wordmark { height: 32px; }
+  .mobile-home .start-brand { margin-bottom: 16px; }
+  .mobile-home .start-mark { width: 44px; }
+  .mobile-home .start-wordmark { height: 28px; }
   :deep(.composer-start) { min-height: 0; padding: 12px 12px 14px; }
   :deep(.composer-start .composer-mobile-actions) { margin-bottom: 12px; }
   :deep(.composer-start.mobile .composer-editor), :deep(.composer-start.mobile .composer-input) { min-height: 72px; }
 }
-@media (max-height: 500px) { .start-surface { padding-block: 8px; } .start-mark { display: none; } }
+@media (max-height: 500px) { .start-surface { padding-block: 8px; } .start-brand { display: none; } }
 </style>
