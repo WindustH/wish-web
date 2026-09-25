@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect x="32" y="32" width="448" height="448" rx="104" fill="#f5f1e8"/>
   <!-- Origami crane in three-quarter view, lit from the upper left. Faces are drawn back to front; the head is the neck tip inside-reverse-folded across a crease, so it tucks between the neck layers. -->
-  <g transform="translate(256 258) scale(0.5) translate(-392 -357.5)" stroke="#933d22" stroke-width="4" stroke-linejoin="round">
-    <polygon points="127,133 320,376 297,391 255,396" fill="#e0805c"/>
+  <g transform="translate(256 258) scale(0.5) translate(-392 -340)" stroke="#933d22" stroke-width="4" stroke-linejoin="round">
+    <polygon points="180,90 320,376 297,391 255,396" fill="#e0805c"/>
     <polygon points="320,376 365,347 387,278 662,125 460,370 402,322 297,391" fill="#eea07c"/>
     <polygon points="662,125 626,395 590,420 470,440 497,400 460,370" fill="#c9653f"/>
     <polygon points="315,530 395,521 445,512 482,478 480,590" fill="#a84d2f"/>
