@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { pieDistribution } from '../usage/pieDistribution';
+import { pieDistribution } from '../usage/pieDistribution.ts';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, defineAsyncComponent, onActivated, onDeactivated, provide, ref } from 'vue';
-import { modelColorIndex, modelColorKey } from '../usage/modelColors';
+import { modelColorIndex, modelColorKey } from '../usage/modelColors.ts';
 import UsageRangePicker from '../usage/UsageRangePicker.vue';
 import { RefreshCw } from '@lucide/vue';
-import { stats } from '../../core/state/statsSlice.js';
-import { i18n } from '../../core/i18n/index.js';
-import { fmtBytes, fmtDateTime, fmtTokens, fmtUptime } from '../../core/util/fmt.js';
+import { stats } from '../../core/state/statsSlice.ts';
+import { i18n } from '../../core/i18n/index.ts';
+import { fmtBytes, fmtDateTime, fmtTokens, fmtUptime } from '../../core/util/fmt.ts';
 import Spinner from '../../ui/components/Spinner.vue';
-import { modelLabel } from '../../ui/modelLabel';
-import { useProviderTitles } from '../../ui/composables/useProviderTitles';
+import { modelLabel } from '../../ui/modelLabel.ts';
+import { useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
 
 const UsagePlot = defineAsyncComponent(() => import('../usage/UsagePlot.vue'));
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));

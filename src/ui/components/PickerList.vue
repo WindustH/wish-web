@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { ListboxRoot, ListboxFilter, ListboxContent, ListboxItem, ListboxVirtualizer, ListboxItemIndicator } from 'reka-ui';
 import { Check, Search } from '@lucide/vue';
-import { i18n } from '../../core/i18n/index.js';
+import { i18n } from '../../core/i18n/index.ts';
 import ProviderIcon from './ProviderIcon.vue';
 
 export interface PickerItem { key: string; title: string; description?: string; search?: string; group?: string; brand?: string; alwaysVisible?: boolean; disabled?: boolean }

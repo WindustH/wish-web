@@ -1,12 +1,12 @@
 // Navigation guard and unsaved changes confirmation for settings view.
 import { ref, computed, provide, type Ref, type ComputedRef } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router';
-import { theme } from '../../core/theme/index.js';
-import { prefs } from '../../core/state/prefsSlice.js';
-import { i18n } from '../../core/i18n/index.js';
-import { tr } from './fields';
-import { showError } from '../../ui/errorDialog';
-import { settingsReturnKey, type ReturnChange } from './settingsReturn';
+import { theme } from '../../core/theme/index.ts';
+import { prefs } from '../../core/state/prefsSlice.ts';
+import { i18n } from '../../core/i18n/index.ts';
+import { tr } from './fields.ts';
+import { showError } from '../../ui/errorDialog.ts';
+import { settingsReturnKey, type ReturnChange } from './settingsReturn.ts';
 
 export interface SettingsGuardOptions {
   isMobile: Ref<boolean>;

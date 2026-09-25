@@ -1,5 +1,5 @@
 import { ref, watch, onUnmounted, nextTick, type Ref } from 'vue';
-import { chat } from '../../core/state/chatSlice.js';
+import { chat } from '../../core/state/chatSlice.ts';
 import type { Virtualizer } from '@tanstack/vue-virtual';
 
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)));

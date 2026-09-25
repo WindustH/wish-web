@@ -2,10 +2,10 @@
 import Hint from './Hint.vue';
 import { onUnmounted, ref } from 'vue';
 import Icon from './Icon.vue';
-import { i18n } from '../../core/i18n/index.js';
+import { i18n } from '../../core/i18n/index.ts';
 
-import { platform } from '../../platform/index.js';
-import { toast } from '../toast';
+import { platform } from '../../platform/index.ts';
+import { toast } from '../toast.ts';
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 onUnmounted(() => clearTimeout(timer));

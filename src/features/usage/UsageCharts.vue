@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, ref, watch } from 'vue';
 import UsageChartPanel from './UsageChartPanel.vue';
-import { usePageActivity } from '../../ui/composables/usePageActivity';
-import { createUsageResource } from '../../core/usage/resource';
-import { chartData } from '../../core/usage/normalize';
-import { usageQueries, offsetLabel, type RangeSelection } from '../../core/usage/windows';
-import { usageDaily, usageSeries } from '../../core/api/endpoints.js';
-import { cfg } from '../../core/config.js';
-import type { SeriesQuery, DailyQuery } from '../../core/usage/types';
+import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import { createUsageResource } from '../../core/usage/resource.ts';
+import { chartData } from '../../core/usage/normalize.ts';
+import { usageQueries, offsetLabel, type RangeSelection } from '../../core/usage/windows.ts';
+import { usageDaily, usageSeries } from '../../core/api/endpoints.ts';
+import { cfg } from '../../core/config.ts';
+import type { SeriesQuery, DailyQuery } from '../../core/usage/types.ts';
 const props = defineProps<{ sessionId?: string }>();
 const active = usePageActivity();
 const range = ref<RangeSelection>({period:'day'});

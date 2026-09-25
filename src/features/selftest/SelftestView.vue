@@ -11,12 +11,12 @@
 //     ms, detail }] }
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { i18n } from '../../core/i18n/index.js';
-import { theme } from '../../core/theme/index.js';
-import { cfg } from '../../core/config.js';
-import { platform } from '../../platform/index.js';
-import { createSse } from '../../core/api/sse.js';
-import { get, absUrl } from '../../core/api/client.js';
+import { i18n } from '../../core/i18n/index.ts';
+import { theme } from '../../core/theme/index.ts';
+import { cfg } from '../../core/config.ts';
+import { platform } from '../../platform/index.ts';
+import { createSse } from '../../core/api/sse.ts';
+import { get, absUrl } from '../../core/api/client.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 
@@ -102,8 +102,8 @@ const CHECKS: Check[] = [
       // core/platform module of the shipped graph, so a broken or partial
       // asset deployment fails here instead of silently loading nothing.
       const modules = {
-        ...import.meta.glob('../../core/**/*.js'),
-        ...import.meta.glob('../../platform/**/*.js'),
+        ...import.meta.glob('../../core/**/*.ts'),
+        ...import.meta.glob('../../platform/**/*.ts'),
       };
       const entries = Object.entries(modules);
       if (entries.length < 8) throw new Error(`模块图只有 ${entries.length} 个入口`);

@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import { modelLabel as formatModelLabel } from '../../ui/modelLabel';
-import { resolvedEffort, effortLabel } from './reasoningLabels';
-import { uploadAttachments, type AttachmentInput } from '../../core/attachments.js';
+import { modelLabel as formatModelLabel } from '../../ui/modelLabel.ts';
+import { resolvedEffort, effortLabel } from './reasoningLabels.ts';
+import { uploadAttachments, type AttachmentInput } from '../../core/attachments.ts';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, nextTick, onActivated, onDeactivated, onScopeDispose, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { sessions } from '../../core/state/sessionsSlice.js';
-import * as api from '../../core/api/endpoints.js';
-import { i18n } from '../../core/i18n/index.js';
-import { errorText } from '../../core/config-editor';
-import { useMedia } from '../../ui/composables/useMedia';
-import { pageActivityKey, usePageActivity } from '../../ui/composables/usePageActivity';
-import { useModelCatalog } from './useModelCatalog';
-import { bus } from '../../core/bus.js';
-import { tr } from '../settings/fields';
-import type { ModelSelection } from './useSessionSelection';
+import { sessions } from '../../core/state/sessionsSlice.ts';
+import * as api from '../../core/api/endpoints.ts';
+import { i18n } from '../../core/i18n/index.ts';
+import { errorText } from '../../core/config-editor.ts';
+import { useMedia } from '../../ui/composables/useMedia.ts';
+import { pageActivityKey, usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import { useModelCatalog } from './useModelCatalog.ts';
+import { bus } from '../../core/bus.ts';
+import { tr } from '../settings/fields.ts';
+import type { ModelSelection } from './useSessionSelection.ts';
 import RecentSessions from './RecentSessions.vue';
 import Composer from './Composer.vue';
 import DirectoryPicker from './DirectoryPicker.vue';
@@ -121,7 +121,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
     cwd.value = defaultCwd.value;
     // Completion can arrive after navigation; do not take over another page.
     if (visible.value && ['sessions', 'new-chat'].includes(String(route.name))) await router.push('/s/' + id);
-    return delivery.resource_id ?? delivery.id;
+    return delivery.id;
   } catch (error) { failed.value = true; throw error; }
   finally { busy.value = false; }
 }

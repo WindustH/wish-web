@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { i18n } from '../../../core/i18n/index.js';
+import { i18n } from '../../../core/i18n/index.ts';
 defineProps<{ item: any }>();
 </script>
 <template>

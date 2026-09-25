@@ -1,7 +1,7 @@
 // Settings errors are reported in one dialog instead of inline text, so a
 // failure is noticed wherever the user is (including nested editor pages).
 import { shallowRef } from 'vue';
-import { describeError } from '../core/i18n/errorMessages';
+import { describeError } from '../core/i18n/errorMessages.ts';
 
 export interface ErrorReport {
   id: number;

@@ -1,11 +1,11 @@
 // "Notify me when a run fails": while the page is in the background, a system
 // notification for each run that ends in failure. Off by default.
-import { prefs } from '../core/state/prefsSlice.js';
-import { bus } from '../core/bus.js';
-import { i18n } from '../core/i18n/index.js';
-import { createRunFailureWatch } from '../core/runFailures.js';
-import { platform } from '../platform/index.js';
-import { announce } from './live.js';
+import { prefs } from '../core/state/prefsSlice.ts';
+import { bus } from '../core/bus.ts';
+import { i18n } from '../core/i18n/index.ts';
+import { createRunFailureWatch } from '../core/runFailures.ts';
+import { platform } from '../platform/index.ts';
+import { announce } from './live.ts';
 
 export function installBackgroundNotify() {
   const failures = createRunFailureWatch();

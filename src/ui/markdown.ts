@@ -2,7 +2,7 @@ import MarkdownIt from 'markdown-it';
 import DOMPurify from 'dompurify';
 import { tex } from '@mdit/plugin-tex';
 import temml from 'temml';
-import { createBoundedCache } from '../core/util/boundedCache.js';
+import { createBoundedCache } from '../core/util/boundedCache.ts';
 
 const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true, typographer: true });
 markdown.use(tex, {

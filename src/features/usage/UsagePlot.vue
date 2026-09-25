@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { PieSlice } from './pieDistribution';
+import type { PieSlice } from './pieDistribution.ts';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import ChartCanvas from './ChartCanvas.vue';
-import { calendarLayout, calendarOptions, lineOptions, pieOptions, type ChartStyle, type PlotSeries, type HeatData } from './chartOptions';
-import { usePageActivity } from '../../ui/composables/usePageActivity';
-import { theme } from '../../core/theme/index.js';
-import { i18n } from '../../core/i18n/index.js';
+import { calendarLayout, calendarOptions, lineOptions, pieOptions, type ChartStyle, type PlotSeries, type HeatData } from './chartOptions.ts';
+import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import { theme } from '../../core/theme/index.ts';
+import { i18n } from '../../core/i18n/index.ts';
 const props = defineProps<{ pie?: PieSlice[]; series?: PlotSeries[]; heat?: HeatData; unit?: string; label: string; refreshing?: boolean }>();
 const emit = defineEmits<{ columns: [value: number]; hover: [index: number | null] }>();
 const root = ref<HTMLElement>();

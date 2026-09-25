@@ -1,4 +1,4 @@
-import { i18n } from '../core/i18n/index.js';
+import { i18n } from '../core/i18n/index.ts';
 // Display metadata only; option values always retain the backend protocol ID.
 const protocols: Record<string, { label: string; brand: string; annotation?: string }> = {
   plaintext_responses: { label: 'Responses · Plaintext reasoning', brand: 'OpenAI' },

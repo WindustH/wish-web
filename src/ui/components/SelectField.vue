@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { useMedia } from '../composables/useMedia';
+import { useMedia } from '../composables/useMedia.ts';
 import Icon from './Icon.vue';
 import ProviderIcon from './ProviderIcon.vue';
 import InfoHint from './InfoHint.vue';
 import { computed, ref, watch } from 'vue';
 import Modal from './Modal.vue';
-import { i18n } from '../../core/i18n/index.js';
+import { i18n } from '../../core/i18n/index.ts';
 import { ToggleGroupRoot, ToggleGroupItem, SelectRoot, SelectTrigger, SelectValue, SelectIcon, SelectPortal, SelectContent, SelectViewport, SelectItem, SelectItemText, SelectItemIndicator } from 'reka-ui';
 import { Check, ChevronDown } from '@lucide/vue';
-import { usePageActivity } from '../composables/usePageActivity';
+import { usePageActivity } from '../composables/usePageActivity.ts';
 
 defineOptions({ inheritAttrs: false });
 export interface SelectOption { value: string; label: string; icon?: string; brand?: string; annotation?: string; description?: string; disabled?: boolean }

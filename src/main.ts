@@ -1,20 +1,20 @@
 // Bootstrap: platform → core (theme/i18n/prefs/sync) → Vue app.
 import { createApp, watch } from 'vue';
-import { registerBrowserPlatform } from './platform/browser/index.js';
-import { tryPlatform } from './platform/index.js';
-import { platform } from './platform/index.js';
-import { theme } from './core/theme/index.js';
-import { i18n } from './core/i18n/index.js';
-import { cfg } from './core/config.js';
-import { prefs } from './core/state/prefsSlice.js';
-import { sync } from './core/state/syncSlice.js';
-import { toast } from './ui/toast.js';
-import { applyTokens } from './ui/applyTokens';
-import { initPWA } from './ui/pwa.js';
-import { installShortcuts } from './ui/shortcuts.js';
+import { registerBrowserPlatform } from './platform/browser/index.ts';
+import { tryPlatform } from './platform/index.ts';
+import { platform } from './platform/index.ts';
+import { theme } from './core/theme/index.ts';
+import { i18n } from './core/i18n/index.ts';
+import { cfg } from './core/config.ts';
+import { prefs } from './core/state/prefsSlice.ts';
+import { sync } from './core/state/syncSlice.ts';
+import { toast } from './ui/toast.ts';
+import { applyTokens } from './ui/applyTokens.ts';
+import { initPWA } from './ui/pwa.ts';
+import { installShortcuts } from './ui/shortcuts.ts';
 import App from './App.vue';
-import { router } from './router.js';
-import { applyConnection, isSignedOut } from './core/connection';
+import { router } from './router.ts';
+import { applyConnection, isSignedOut } from './core/connection.ts';
 
 import '@fontsource-variable/montserrat';
 import '@fontsource-variable/bitter';
@@ -71,7 +71,7 @@ watch(theme.resolved, (r) => {
 // before the control plane starts streaming.
 // Signed out, the sign-in page picks a server first.
 if (!isSignedOut()) {
-  const { installBackgroundNotify } = await import('./ui/notify.js');
+  const { installBackgroundNotify } = await import('./ui/notify.ts');
   installBackgroundNotify();
   sync.start();
 }
@@ -81,7 +81,7 @@ watch(sync.protocolError, (err) => { if (err) toast(i18n.t('sync.protocolError')
 
 // keep-awake while a run is active (mobile setting)
 {
-  const { chat } = await import('./core/state/chatSlice.js');
+  const { chat } = await import('./core/state/chatSlice.ts');
   const app = platform('app');
   watch([() => chat.stream.value.active, prefs.keepAwake], ([active, enabled]) => {
     void app.keepAwake(active && enabled);

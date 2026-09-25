@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { modelLabel } from '../../ui/modelLabel';
+import { modelLabel } from '../../ui/modelLabel.ts';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, ref, toRef, watch } from 'vue';
 import { Image } from '@lucide/vue';
-import { i18n } from '../../core/i18n/index.js';
-import { errorText } from '../../core/config-editor';
-import { presetBrand, providerName } from '../../ui/providerPresentation';
-import { useSessionSelection, type ModelSelection } from './useSessionSelection';
-import { useModelCatalog } from './useModelCatalog';
+import { i18n } from '../../core/i18n/index.ts';
+import { errorText } from '../../core/config-editor.ts';
+import { presetBrand, providerName } from '../../ui/providerPresentation.ts';
+import { useSessionSelection, type ModelSelection } from './useSessionSelection.ts';
+import { useModelCatalog } from './useModelCatalog.ts';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
 import PickerList from '../../ui/components/PickerList.vue';
 import Spinner from '../../ui/components/Spinner.vue';

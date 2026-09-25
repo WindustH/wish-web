@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onActivated, onBeforeUnmount, provide, readonly, ref, shallowReactive, watch, type VNode } from 'vue';
 import { routeLocationKey, routerViewLocationKey, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
-import { pageActivityKey } from '../composables/usePageActivity';
+import { pageActivityKey } from '../composables/usePageActivity.ts';
 
 const props = defineProps<{ view: VNode; route: RouteLocationNormalizedLoaded }>();
 const router = useRouter();

@@ -3,9 +3,9 @@ import { computed, ref } from 'vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
-import { useMedia } from '../../ui/composables/useMedia';
-import { useSettingsReturn } from './settingsReturn';
-import { tr } from './fields';
+import { useMedia } from '../../ui/composables/useMedia.ts';
+import { useSettingsReturn } from './settingsReturn.ts';
+import { tr } from './fields.ts';
 
 type ProxyConfig = {
   mode: 'environment' | 'manual' | 'direct';

@@ -1,4 +1,4 @@
-import { useMedia } from './useMedia';
+import { useMedia } from './useMedia.ts';
 // Controlled dialogs have no Reka DialogTrigger. Remember the real opener so
 // Escape/Close returns the keyboard to the action that opened the surface.
 let lastInputWasKeyboard = true;

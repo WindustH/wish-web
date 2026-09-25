@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue';
-import { usePageActivity } from '../composables/usePageActivity';
+import { usePageActivity } from '../composables/usePageActivity.ts';
 // Centered confirm/content modal on Reka primitives (title/description
 // wired for a11y). While `dismissable` is false no path closes it — Esc,
 // overlay, close button are all suppressed; the owner resolves the busy work.
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from 'reka-ui';
 
-import { sessionPanelCloseKey } from '../composables/sessionPanel';
+import { sessionPanelCloseKey } from '../composables/sessionPanel.ts';
 import Icon from './Icon.vue';
 import BubbleSurface from './BubbleSurface.vue';
-import { i18n } from '../../core/i18n/index.js';
-import { useDialogLayer } from '../composables/useDialogLayer';
-import { useDialogFocus } from '../composables/useDialogFocus';
+import { i18n } from '../../core/i18n/index.ts';
+import { useDialogLayer } from '../composables/useDialogLayer.ts';
+import { useDialogFocus } from '../composables/useDialogFocus.ts';
 const focus = useDialogFocus();
 const pageActive = usePageActivity();
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import Icon from './Icon.vue';
-import { usePageActivity } from '../composables/usePageActivity';
+import { usePageActivity } from '../composables/usePageActivity.ts';
 import { DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuContent, DropdownMenuItem } from 'reka-ui';
 
 defineProps<{ items: Array<{ key: string; label: string; icon?: string; danger?: boolean }>; label?: string }>();

@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { unfold, fold, cancelFold } from '../../../ui/motion/fold';
-import { expandedBefore, setExpanded } from '../expandState';
+import { unfold, fold, cancelFold } from '../../../ui/motion/fold.ts';
+import { expandedBefore, setExpanded } from '../expandState.ts';
 
 import ProcessDetail from './ProcessDetail.vue';
-import { fileEdits, parseDiff, toolOutput } from './processDetails';
+import { fileEdits, parseDiff, toolOutput } from './processDetails.ts';
 // One thumbnail covering a consecutive run of reasoning / tool calls /
 // tool results (mixed-entry tool calls fold in here too). Collapsed by
 // default; expanded shows the true ordered sequence.
 import { computed, ref, watch } from 'vue';
-import { i18n } from '../../../core/i18n/index.js';
-import { firstLine } from '../../../core/util/fmt.js';
+import { i18n } from '../../../core/i18n/index.ts';
+import { firstLine } from '../../../core/util/fmt.ts';
 import Icon from '../../../ui/components/Icon.vue';
 
 const props = defineProps<{ item: any; forced?: boolean; session?: string }>();

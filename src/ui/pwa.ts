@@ -3,9 +3,9 @@
 // registerSW returns the official updateSW(reloadPage?). Every failure path
 // is user-visible (console AND toast) — nothing is swallowed (round-3 #3).
 import { shallowRef, watch } from 'vue';
-import { i18n } from '../core/i18n/index.js';
-import { toast } from './toast.js';
-import { sync } from '../core/state/syncSlice.js';
+import { i18n } from '../core/i18n/index.ts';
+import { toast } from './toast.ts';
+import { sync } from '../core/state/syncSlice.ts';
 
 export const needRefresh = shallowRef(false);
 let updateSW: ((reloadPage?: boolean) => Promise<void>) | null = null;

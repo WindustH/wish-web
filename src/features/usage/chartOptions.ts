@@ -1,4 +1,4 @@
-import type { PieSlice } from './pieDistribution';
+import type { PieSlice } from './pieDistribution.ts';
 import type { EChartsCoreOption } from 'echarts/core';
 export interface PlotSeries { key: string; label: string; colorIndex?: number; scatter?: boolean; points: [number, number | null, number?][] }
 export interface ChartStyle { foreground: string; muted: string; line: string; surface: string; font: string; colors: string[]; heat: string[] }

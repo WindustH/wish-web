@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue';
-import { peekCached, readCached, writeCached } from '../util/responseCache';
+import { peekCached, readCached, writeCached } from '../util/responseCache.ts';
 
 /**
  * One owned read: a cancelled or older response cannot replace the current scope.

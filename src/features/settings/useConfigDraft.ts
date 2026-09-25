@@ -1,15 +1,15 @@
 // Server configuration draft and provider management.
-import { bus } from '../../core/bus.js';
+import { bus } from '../../core/bus.ts';
 import { ref, computed } from 'vue';
-import { get, put } from '../../core/api/client.js';
-import { requireAvailableModel } from '../../core/api/endpoints.js';
-import { replayConfigChanges } from '../../core/configMerge.js';
-import { errorText } from '../../core/config-editor';
-import { tr } from './fields';
-import { providerName } from '../../ui/providerPresentation';
-import { showError } from '../../ui/errorDialog';
-import { toast } from '../../ui/toast';
-import type { ConfigCatalog, ProviderPreset } from '../../core/provider-presets';
+import { get, put } from '../../core/api/client.ts';
+import { requireAvailableModel } from '../../core/api/endpoints.ts';
+import { replayConfigChanges } from '../../core/configMerge.ts';
+import { errorText } from '../../core/config-editor.ts';
+import { tr } from './fields.ts';
+import { providerName } from '../../ui/providerPresentation.ts';
+import { showError } from '../../ui/errorDialog.ts';
+import { toast } from '../../ui/toast.ts';
+import type { ConfigCatalog, ProviderPreset } from '../../core/provider-presets.ts';
 import type { ShellCatalog } from './ServerShellSettings.vue';
 
 export const PROTOCOL_OPTIONS = [

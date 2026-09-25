@@ -3,17 +3,17 @@
 // New sessions keep taking the defaults from Settings → Service & sessions.
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
-import { get } from '../../core/api/client.js';
-import * as api from '../../core/api/endpoints.js';
-import { chat } from '../../core/state/chatSlice.js';
-import { i18n } from '../../core/i18n/index.js';
-import { tr } from '../../core/i18n/tr';
+import { get } from '../../core/api/client.ts';
+import * as api from '../../core/api/endpoints.ts';
+import { chat } from '../../core/state/chatSlice.ts';
+import { i18n } from '../../core/i18n/index.ts';
+import { tr } from '../../core/i18n/tr.ts';
 import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
-import { useMedia } from '../../ui/composables/useMedia.js';
-import { showError } from '../../ui/errorDialog';
-import { toast } from '../../ui/toast';
-import { compactionFields } from '../settings/fields';
+import { useMedia } from '../../ui/composables/useMedia.ts';
+import { showError } from '../../ui/errorDialog.ts';
+import { toast } from '../../ui/toast.ts';
+import { compactionFields } from '../settings/fields.ts';
 import ServerShellSettings, { type ShellCatalog } from '../settings/ServerShellSettings.vue';
 import '../settings/settings.css';
 

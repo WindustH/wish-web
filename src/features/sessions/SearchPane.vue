@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { unfold, fold, cancelFold } from "../../ui/motion/fold";
+import { unfold, fold, cancelFold } from "../../ui/motion/fold.ts";
 import Modal from '../../ui/components/Modal.vue';
 // Server-side history search with generational guards; jumping locates the
 // seq through the bounded window (never a full scan); errors surface.
 import { onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import * as api from '../../core/api/endpoints.js';
-import { chat } from '../../core/state/chatSlice.js';
-import { i18n } from '../../core/i18n/index.js';
-import { fmtDateTime } from '../../core/util/fmt.js';
+import * as api from '../../core/api/endpoints.ts';
+import { chat } from '../../core/state/chatSlice.ts';
+import { i18n } from '../../core/i18n/index.ts';
+import { fmtDateTime } from '../../core/util/fmt.ts';
 import Spinner from '../../ui/components/Spinner.vue';
-import { useMedia } from '../../ui/composables/useMedia.js';
+import { useMedia } from '../../ui/composables/useMedia.ts';
 
 const emit = defineEmits<{ close: [] }>();
 const router = useRouter();

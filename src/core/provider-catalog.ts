@@ -1,4 +1,4 @@
-import { providerConfigs, providerModels } from './api/endpoints.js';
+import { providerConfigs, providerModels } from './api/endpoints.ts';
 
 export interface ModelInfo {
   id: string;

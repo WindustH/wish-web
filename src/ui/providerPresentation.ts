@@ -1,5 +1,5 @@
-import { i18n } from '../core/i18n/index.js';
-import type { ProviderPreset } from '../core/provider-presets';
+import { i18n } from '../core/i18n/index.ts';
+import type { ProviderPreset } from '../core/provider-presets.ts';
 
 const names: Record<string, string> = {
   MiMo: '小米 MiMo', Zhipu: '智谱', SiliconFlow: '硅基流动', Qwen: '通义千问',

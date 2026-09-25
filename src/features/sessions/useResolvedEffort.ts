@@ -1,8 +1,8 @@
 import { computed, onScopeDispose, ref, watch, type Ref } from 'vue';
-import { readModels, readProviders } from '../../core/provider-catalog';
-import type { ModelSelection } from './useSessionSelection';
-import { resolvedEffort } from './reasoningLabels';
-export function useResolvedEffort(selection: Ref<ModelSelection | undefined>) {
+import { readModels, readProviders } from '../../core/provider-catalog.ts';
+import type { ModelSelection } from './useSessionSelection.ts';
+import { resolvedEffort } from './reasoningLabels.ts';
+export function useResolvedEffort(selection: Readonly<Ref<ModelSelection | null | undefined>>) {
   const fallback = ref<string>();
   const error = ref<unknown>();
   let controller: AbortController | undefined;

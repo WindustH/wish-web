@@ -4,8 +4,8 @@ import { ref } from 'vue';
 import Hint from '../../ui/components/Hint.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
-import { tr } from '../../core/i18n/tr';
-import { serverName, signOut } from '../../core/connection';
+import { tr } from '../../core/i18n/tr.ts';
+import { serverName, signOut } from '../../core/connection.ts';
 
 defineProps<{ buttonClass?: string }>();
 const confirming = ref(false);

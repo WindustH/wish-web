@@ -1,22 +1,23 @@
 <script setup lang="ts">
-import { displayFailure } from '../../core/api/failures.js';
+import { displayFailure } from '../../core/api/failures.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { ArrowDown } from '@lucide/vue';
-import { chat } from '../../core/state/chatSlice.js';
-import { chatWorkIndicator } from './phaseIndicator';
-import { i18n } from '../../core/i18n/index.js';
-import { announce } from '../../ui/live.js';
-import { groupEntries } from './grouping.js';
+import { chat } from '../../core/state/chatSlice.ts';
+import { chatWorkIndicator } from './phaseIndicator.ts';
+import { i18n } from '../../core/i18n/index.ts';
+import { announce } from '../../ui/live.ts';
+import { groupEntries, type GroupItem } from './grouping.ts';
+import type { EntryView } from '../../core/api/projections.ts';
 import HistoryItem from './HistoryItem.vue';
 import Markdown from '../../ui/components/Markdown.vue';
 import ThinkingViewport from './ThinkingViewport.vue';
-import { usePageActivity } from '../../ui/composables/usePageActivity';
-import { useLiveBlocks } from './useLiveBlocks';
-import { useChatScroll } from './useChatScroll';
-import { useSearchLocate } from './useSearchLocate';
+import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import { useLiveBlocks } from './useLiveBlocks.ts';
+import { useChatScroll } from './useChatScroll.ts';
+import { useSearchLocate } from './useSearchLocate.ts';
 
 const props = defineProps<{ sessionId: string; mobile: boolean }>();
 
@@ -40,10 +41,12 @@ const runFailure = computed(() => {
 const requestFailure = computed(() => displayFailure(chat.error.value));
 // Keep status cards inside the measured list so its size matches the scroll
 // container's actual content height.
+// History rows, then a closing row for a failed request or run.
+type ChatRow = GroupItem<EntryView> | { type: 'status_request_error' | 'status_run_error'; key: string };
 const groups = computed(() => {
-  const items = groupEntries(chat.entries.value);
-  if (requestFailure.value) items.push({ type: 'status_request_error', key: `request-error:${props.sessionId}` } as any);
-  if (runFailure.value) items.push({ type: 'status_run_error', key: `run-error:${props.sessionId}` } as any);
+  const items: ChatRow[] = groupEntries(chat.entries.value);
+  if (requestFailure.value) items.push({ type: 'status_request_error', key: `request-error:${props.sessionId}` });
+  if (runFailure.value) items.push({ type: 'status_run_error', key: `run-error:${props.sessionId}` });
   return items;
 });
 
@@ -128,6 +131,14 @@ const { targetSeq, forcedOpen } = useSearchLocate(
     measureScroll();
   },
 );
+// Whether a row holds the history entry a search result points at.
+function holdsTarget(row: ChatRow | undefined) {
+  const seq = targetSeq.value;
+  if (seq == null || !row) return false;
+  if (row.type === 'entry') return row.entry.seq === seq;
+  if (row.type === 'process') return row.steps.some(step => (step.kind === 'entry' ? step.entry.seq : step.fromSeq) === seq);
+  return false;
+}
 
 // Stream end → one polite announcement
 watch(running, (now, was) => {
@@ -181,11 +192,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
         <div v-for="v in virtualizer.getVirtualItems()" :key="groups[v.index]?.key" class="chat-virtual-row"
           :ref="measureElement"
           :data-index="v.index"
-          :class="{ 'status-error-row': groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error', 'history-target': targetSeq != null
-            && (groups[v.index]?.type === 'entry'
-              ? groups[v.index]!.entry.seq === targetSeq
-              : groups[v.index]?.type === 'process'
-                && (groups[v.index] as any).steps.some((s: any) => (s.kind === 'entry' ? s.entry.seq : s.fromSeq) === targetSeq)) }"
+          :class="{ 'status-error-row': groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error', 'history-target': holdsTarget(groups[v.index]) }"
           :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }">
           <HistoryItem v-if="groups[v.index]?.type === 'entry' || groups[v.index]?.type === 'process'" :item="groups[v.index]!"
             :forced="groups[v.index]!.type === 'process' && forcedOpen.has(groups[v.index]!.key)"

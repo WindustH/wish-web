@@ -2,19 +2,19 @@
 import Modal from '../../ui/components/Modal.vue';
 // Session details and usage; requests belong to this mounted session.
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue';
-import * as api from '../../core/api/endpoints.js';
-import { chat } from '../../core/state/chatSlice.js';
-import { i18n } from '../../core/i18n/index.js';
-import { tr } from '../../core/i18n/tr';
-import { fmtDateTime, fmtTokens } from '../../core/util/fmt.js';
-import type { UsageSnapshot } from '../../core/state/statsSlice.js';
-import { useMedia } from '../../ui/composables/useMedia.js';
-import { useProviderTitles } from '../../ui/composables/useProviderTitles';
-import { modelLabel } from '../../ui/modelLabel';
-import { presetBrand } from '../../ui/providerPresentation';
+import * as api from '../../core/api/endpoints.ts';
+import { chat } from '../../core/state/chatSlice.ts';
+import { i18n } from '../../core/i18n/index.ts';
+import { tr } from '../../core/i18n/tr.ts';
+import { fmtDateTime, fmtTokens } from '../../core/util/fmt.ts';
+import type { UsageSnapshot } from '../../core/state/statsSlice.ts';
+import { useMedia } from '../../ui/composables/useMedia.ts';
+import { useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
+import { modelLabel } from '../../ui/modelLabel.ts';
+import { presetBrand } from '../../ui/providerPresentation.ts';
 import ProviderIcon from '../../ui/components/ProviderIcon.vue';
-import { contextGauge } from './contextUsage';
-import { useModelCatalog } from './useModelCatalog';
+import { contextGauge } from './contextUsage.ts';
+import { useModelCatalog } from './useModelCatalog.ts';
 
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 defineEmits<{ close: [] }>();

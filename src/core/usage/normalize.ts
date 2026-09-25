@@ -1,4 +1,4 @@
-import type { UsageChartData, UsageSeriesResponse } from './types';
+import type { UsageChartData, UsageSeriesResponse } from './types.ts';
 
 /** Preserve backend samples and nulls; TPS points are never fitted or interpolated. */
 export function chartData(response: UsageSeriesResponse, timezone: string): UsageChartData {

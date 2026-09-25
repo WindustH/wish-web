@@ -3,8 +3,8 @@
 import { ref } from 'vue';
 import Wordmark from '../../ui/components/Wordmark.vue';
 import Icon from '../../ui/components/Icon.vue';
-import { tr } from '../../core/i18n/tr';
-import { checkConnection, connect, lastAddress } from '../../core/connection';
+import { tr } from '../../core/i18n/tr.ts';
+import { checkConnection, connect, lastAddress } from '../../core/connection.ts';
 
 const address = ref(lastAddress());
 const token = ref('');

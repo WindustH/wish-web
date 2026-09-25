@@ -1,11 +1,11 @@
 import { computed, onScopeDispose, ref, shallowRef } from 'vue';
-import { get, put } from '../../core/api/client.js';
-import type { ConfigCatalog, ProviderConfig } from '../../core/provider-presets';
-import { errorText } from '../../core/config-editor';
-import { providerReady } from '../../core/providerReadiness.js';
-import { tr } from '../../core/i18n/tr';
-import { showError } from '../../ui/errorDialog';
-import { toast } from '../../ui/toast';
+import { get, put } from '../../core/api/client.ts';
+import type { ConfigCatalog, ProviderConfig } from '../../core/provider-presets.ts';
+import { errorText } from '../../core/config-editor.ts';
+import { providerReady } from '../../core/providerReadiness.ts';
+import { tr } from '../../core/i18n/tr.ts';
+import { showError } from '../../ui/errorDialog.ts';
+import { toast } from '../../ui/toast.ts';
 
 const customProvider = (): ProviderConfig => ({ enabled: true, protocol: 'openai_chat',
   base_url: '', path: '/v1/chat/completions', auth: 'bearer', models: {},

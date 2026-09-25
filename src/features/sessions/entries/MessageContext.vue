@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref } from 'vue';
-import { i18n } from '../../../core/i18n/index.js';
-import { apiFetch } from '../../../core/api/client.js';
-import { platform } from '../../../platform/index.js';
+import { i18n } from '../../../core/i18n/index.ts';
+import { apiFetch } from '../../../core/api/client.ts';
+import { platform } from '../../../platform/index.ts';
 import Icon from '../../../ui/components/Icon.vue';
-import { toast } from '../../../ui/toast';
+import { toast } from '../../../ui/toast.ts';
 
 const props = defineProps<{ text: string; kind: 'user' | 'assistant'; image?: { src: string; filename?: string } }>();
 const root = ref<HTMLElement | null>(null);

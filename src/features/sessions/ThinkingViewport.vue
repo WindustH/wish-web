@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onUnmounted, ref, watch } from 'vue';
-import { i18n } from '../../core/i18n/index.js';
+import { i18n } from '../../core/i18n/index.ts';
 import Icon from '../../ui/components/Icon.vue';
 
 const props = defineProps<{ text: string; tool?: string | null }>();

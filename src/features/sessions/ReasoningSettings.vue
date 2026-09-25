@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, ref, shallowRef, toRef, watch } from 'vue';
-import { i18n } from '../../core/i18n/index.js';
-import { errorText } from '../../core/config-editor';
-import { FALLBACK_EFFORT_LEVELS, readModels, readProviders, type ModelInfo } from '../../core/provider-catalog';
-import { useSessionSelection, type ModelSelection } from './useSessionSelection';
-import { effortLabel, resolvedEffort } from './reasoningLabels';
+import { i18n } from '../../core/i18n/index.ts';
+import { errorText } from '../../core/config-editor.ts';
+import { FALLBACK_EFFORT_LEVELS, readModels, readProviders, type ModelInfo } from '../../core/provider-catalog.ts';
+import { useSessionSelection, type ModelSelection } from './useSessionSelection.ts';
+import { effortLabel, resolvedEffort } from './reasoningLabels.ts';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
 import PickerList, { type PickerItem } from '../../ui/components/PickerList.vue';
 import Spinner from '../../ui/components/Spinner.vue';

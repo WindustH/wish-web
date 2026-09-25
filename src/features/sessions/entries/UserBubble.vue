@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import MessageContext from './MessageContext.vue';
-import { attachmentPreview, previewAttachment } from '../../../ui/attachmentPreview';
+import { attachmentPreview, previewAttachment } from '../../../ui/attachmentPreview.ts';
 import Hint from '../../../ui/components/Hint.vue';
 import Icon from '../../../ui/components/Icon.vue';
 import ApiImage from '../../../ui/components/ApiImage.vue';
-import { downloadApiFile } from '../../../ui/download';
-import { blobMetadata, blobUrl } from '../../../core/api/endpoints.js';
+import { downloadApiFile } from '../../../ui/download.ts';
+import { blobMetadata, blobUrl } from '../../../core/api/endpoints.ts';
 import { ref, watch } from 'vue';
-import { fmtBytes } from '../../../core/util/fmt.js';
-import { i18n } from '../../../core/i18n/index.js';
+import { fmtBytes } from '../../../core/util/fmt.ts';
+import { i18n } from '../../../core/i18n/index.ts';
 const props = defineProps<{ block: any }>();
 const fileBytes = ref<number | null>(null);
 watch(() => [props.block.blob_id, props.block.byte_count], async ([reference, known], _, onCleanup) => {

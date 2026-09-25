@@ -14,9 +14,9 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vue-tsc --noEmit && vite build",
     "typecheck": "vue-tsc --noEmit",
-    "start": "node serve.mjs",
-    "selftest:api": "node tools/selftest-api.mjs",
-    "test": "node --test tools/*.test.mjs"
+    "start": "node serve.ts",
+    "selftest:api": "node tools/selftest-api.ts",
+    "test": "node --test tools/*.test.ts"
   },
   "engines": {
     "node": ">=22.19.0"

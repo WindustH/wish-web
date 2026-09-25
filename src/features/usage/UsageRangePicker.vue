@@ -2,8 +2,8 @@
 import { computed, ref } from 'vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import Modal from '../../ui/components/Modal.vue';
-import { i18n } from '../../core/i18n/index.js';
-import { localDate, type RangeSelection, type TotalsRange } from '../../core/usage/windows';
+import { i18n } from '../../core/i18n/index.ts';
+import { localDate, type RangeSelection, type TotalsRange } from '../../core/usage/windows.ts';
 // `allowAll` adds an all-time choice for totals; charts always need a window.
 const props = defineProps<{ modelValue: RangeSelection | TotalsRange; allowAll?: boolean }>();
 const emit = defineEmits<{ 'update:modelValue': [value: any] }>();

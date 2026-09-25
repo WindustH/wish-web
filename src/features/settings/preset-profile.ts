@@ -1,6 +1,6 @@
-import type { ProviderPreset } from '../../core/provider-presets';
-import { providerName } from '../../ui/providerPresentation';
-import { tr } from './fields';
+import type { ProviderPreset } from '../../core/provider-presets.ts';
+import { providerName } from '../../ui/providerPresentation.ts';
+import { tr } from './fields.ts';
 
 // Presentation only: protocols, required fields and addresses come from the catalog.
 // Authentication notes were checked against the implementation and official docs;

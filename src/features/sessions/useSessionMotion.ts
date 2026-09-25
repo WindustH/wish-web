@@ -1,6 +1,6 @@
 import { nextTick, onBeforeUnmount } from 'vue';
 import { useRouter, type RouteLocationNormalized } from 'vue-router';
-import { navigationDeadline } from '../../ui/motion/navDeadline';
+import { navigationDeadline } from '../../ui/motion/navDeadline.ts';
 
 export function useSessionMotion() {
   const router = useRouter();

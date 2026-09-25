@@ -8,9 +8,9 @@
 // await, and by then the row's removal (local or via the delivery SSE) has
 // unmounted this dock — Vue drops emits on unmounted instances.
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
-import { i18n } from '../../core/i18n/index.js';
-import { chat } from '../../core/state/chatSlice.js';
-import { toast } from '../../ui/toast.js';
+import { i18n } from '../../core/i18n/index.ts';
+import { chat } from '../../core/state/chatSlice.ts';
+import { toast } from '../../ui/toast.ts';
 import Hint from '../../ui/components/Hint.vue';
 import Icon from '../../ui/components/Icon.vue';
 

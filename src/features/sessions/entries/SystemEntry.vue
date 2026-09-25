@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { i18n } from '../../../core/i18n/index.js';
+import { i18n } from '../../../core/i18n/index.ts';
 import Modal from '../../../ui/components/Modal.vue';
 import CopyButton from '../../../ui/components/CopyButton.vue';
 import ProcessDetail from './ProcessDetail.vue';

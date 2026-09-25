@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { userBubbles } from '../../../core/api/userContent.js';
+import { userBubbles } from '../../../core/api/userContent.ts';
 import { computed } from 'vue';
 import UserBubble from './UserBubble.vue';
 const props = defineProps<{ item: any }>();

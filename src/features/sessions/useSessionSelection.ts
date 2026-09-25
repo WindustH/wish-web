@@ -1,6 +1,6 @@
 import { computed, onScopeDispose, ref, shallowRef, watch, type Ref } from 'vue';
-import * as api from '../../core/api/endpoints.js';
-import { chat } from '../../core/state/chatSlice.js';
+import * as api from '../../core/api/endpoints.ts';
+import { chat } from '../../core/state/chatSlice.ts';
 
 export interface ModelSelection { provider: string; model: string; reasoning_effort?: string }
 interface SelectionSnapshot extends ModelSelection { revision: number; running?: boolean }

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { tr } from '../../core/i18n/tr';
-import { providerName, presetDescription } from '../../ui/providerPresentation';
-import { protocolPresentation } from '../../ui/protocolPresentation';
-import { PROTOCOL_OPTIONS } from '../settings/useConfigDraft';
+import { tr } from '../../core/i18n/tr.ts';
+import { providerName, presetDescription } from '../../ui/providerPresentation.ts';
+import { protocolPresentation } from '../../ui/protocolPresentation.ts';
+import { PROTOCOL_OPTIONS } from '../settings/useConfigDraft.ts';
 import SelectField from '../../ui/components/SelectField.vue';
 import Icon from '../../ui/components/Icon.vue';
-import { useProviderSetup } from './useProviderSetup';
+import { useProviderSetup } from './useProviderSetup.ts';
 const props = defineProps<{ preview?: boolean }>();
 const emit = defineEmits<{ complete: []; exit: [] }>();
 const { snapshot, catalog, loading, saving, error, choice, id, model, provider, preset, choose, load, save, setSecret, secretValue } = useProviderSetup({ preview: props.preview });
