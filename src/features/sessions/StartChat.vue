@@ -164,7 +164,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
 .start-surface { width: 100%; max-width: 740px; margin-block: auto; padding-block: 24px 12vh; }
 .start-brand { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
 .start-mark { display: block; width: 64px; height: auto; }
-.start-wordmark { height: 40px; color: var(--fg); }
+.start-wordmark { height: 36px; color: var(--fg); }
 .start-model-controls { display: inline-flex; width: max-content; max-width: 100%; align-items: center; min-width: 0; gap: 3px; }
 .start-model-controls button { font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .start-model-controls .model-chip { flex: 0 1 auto; max-width: min(38vw, 320px); }
@@ -187,10 +187,10 @@ async function send(text: string, attachments: AttachmentInput[]) {
   :deep(.composer-mobile-actions .composer-start-selection) { flex: 1; min-width: 0; padding: 0; }
   .start-brand { gap: 12px; margin-bottom: 24px; }
   .start-mark { width: 52px; }
-  .start-wordmark { height: 32px; }
+  .start-wordmark { height: 30px; }
   .mobile-home .start-brand { margin-bottom: 16px; }
   .mobile-home .start-mark { width: 44px; }
-  .mobile-home .start-wordmark { height: 28px; }
+  .mobile-home .start-wordmark { height: 26px; }
   :deep(.composer-start) { min-height: 0; padding: 12px 12px 14px; }
   :deep(.composer-start .composer-mobile-actions) { margin-bottom: 12px; }
   :deep(.composer-start.mobile .composer-editor), :deep(.composer-start.mobile .composer-input) { min-height: 72px; }
