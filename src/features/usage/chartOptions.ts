@@ -128,55 +128,15 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
   };
 }
 
-export function pieOptions(items: PieSlice[], style: ChartStyle, locale: string): EChartsCoreOption {
-  let container: HTMLElement;
+export function pieOptions(items: PieSlice[], style: ChartStyle, _locale: string): EChartsCoreOption {
   return {
     // No pie animation at all: every stats refresh rebuilds the slice list,
     // which replays an expand tween even when the shares barely moved.
     // Lines and the heatmap keep their update transitions.
     animation: false, color: style.colors,
-    tooltip: { trigger: 'item', confine: false, renderMode: 'html', backgroundColor: style.surface, borderColor: style.line,
-      className: 'usage-pie-tooltip',
-      appendTo: (chartContainer: HTMLElement) => { container = chartContainer; return document.body; },
-      extraCssText: 'max-width:min(320px,calc(100vw - 24px));white-space:normal;overflow-wrap:anywhere;box-sizing:border-box;',
-      position: (point: number[], _params: unknown, _dom: unknown, _rect: unknown, size: { contentSize: number[] }) => {
-        // The first show positions the tooltip before `appendTo` has run
-        // and captured the chart container; fall back to the plain offset
-        // until then instead of throwing.
-        if (!container) return [point[0]! + 12, point[1]! + 12];
-        const bounds = container.getBoundingClientRect();
-        return [Math.max(12 - bounds.left, Math.min(point[0]! + 12, window.innerWidth - bounds.left - size.contentSize[0]! - 12)),
-          Math.max(12 - bounds.top, Math.min(point[1]! + 12, window.innerHeight - bounds.top - size.contentSize[1]! - 12))];
-      },
-      padding: [10, 12], borderRadius: 8,
-      textStyle: { color: style.foreground, fontFamily: style.font, fontSize: 12 },
-      formatter: (p: any) => {
-        const content = document.createElement('div');
-        const name = document.createElement('div');
-        name.style.cssText = 'display:flex;align-items:center;gap:6px;line-height:1.6;';
-        const dot = document.createElement('span');
-        dot.style.cssText = `width:8px;height:8px;border-radius:50%;flex:none;background:${p.color};`;
-        const label = document.createElement('span');
-        label.textContent = p.name;
-        name.append(dot, label);
-        const amount = document.createElement('div');
-        amount.style.cssText = 'display:flex;align-items:baseline;gap:6px;margin-top:2px;font-variant-numeric:tabular-nums;';
-        const value = document.createElement('strong');
-        value.textContent = `${new Intl.NumberFormat(locale).format(p.data.tokens)} Token`;
-        value.style.cssText = 'font-weight:600;';
-        const share = document.createElement('span');
-        share.textContent = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 2 }).format(p.data.share);
-        share.style.cssText = `color:${style.muted};`;
-        amount.append(value, share);
-        content.append(name, amount);
-        if (p.data.members.length > 1) {
-          const members = document.createElement('div');
-          members.textContent = p.data.members.map((item: { name: string }) => item.name).join('、');
-          members.style.cssText = `margin-top:4px;font-size:11px;line-height:1.5;color:${style.muted};`;
-          content.append(members);
-        }
-        return content;
-      } },
+    // The hovered slice is described in the donut's hole by the page, so no
+    // floating tooltip lands on the legend beside it.
+    tooltip: { show: false },
     // A donut with separated, softly rounded slices; the card places the total
     // in the hole. Hovering lifts a slice and dims the rest.
     series: [{ type: 'pie', radius: ['60%', '92%'], padAngle: 1.5, minAngle: 3, stillShowZeroSum: false, label: { show: false }, labelLine: { show: false },

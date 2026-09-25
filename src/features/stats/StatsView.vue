@@ -2,7 +2,8 @@
 import { pieDistribution } from '../usage/pieDistribution';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, defineAsyncComponent, onActivated, onDeactivated, provide, ref } from 'vue';
-import { modelColorKey } from '../usage/modelColors';
+import { modelColorIndex, modelColorKey } from '../usage/modelColors';
+import UsageRangePicker from '../usage/UsageRangePicker.vue';
 import { RefreshCw } from '@lucide/vue';
 import { stats } from '../../core/state/statsSlice.js';
 import { i18n } from '../../core/i18n/index.js';
@@ -22,9 +23,11 @@ const providerTitle = useProviderTitles();
 const modelName = (model: string | null) => model ? modelLabel(model) : tx('未记录', 'Not recorded');
 const providerLabel = (provider: string | null) => provider ? providerTitle(provider) : tx('未记录', 'Not recorded');
 const modelKey = (row: {provider: string | null; model: string | null}) => JSON.stringify([row.provider,row.model]);
-const rows = computed(() => usage.value?.statistics.by_provider_model ?? []);
-// Charts below color models by their row here, matching the buttons and the donut.
-provide(modelColorKey, key => { const index = rows.value.findIndex(row => modelKey(row) === key); return index < 0 ? undefined : index; });
+// Models without usage in the chosen range have nothing to show or toggle.
+const rows = computed(() => (usage.value?.statistics.by_provider_model ?? []).filter(row => row.totals.tokens.total_tokens > 0));
+// Every chart colors a model by its lasting slot, matching the buttons and the donut.
+provide(modelColorKey, modelColorIndex);
+const modelColor = (row: {provider: string | null; model: string | null}) => color(modelColorIndex(modelKey(row)));
 const selectedRows = computed(() => rows.value.filter(row=>!hiddenModels.value.has(modelKey(row))));
 const totals = computed(() => selectedRows.value.reduce((sum,row)=>{
   sum.tokens.input_tokens+=row.totals.tokens.input_tokens;
@@ -33,13 +36,16 @@ const totals = computed(() => selectedRows.value.reduce((sum,row)=>{
   return sum;
 },{tokens:{input_tokens:0,output_tokens:0},cache:{read_input_tokens:0}}));
 const totalTokens = computed(()=>usage.value?.statistics.totals.tokens.total_tokens??0);
+const usageRange = stats.usageRange;
+const usageSwitching = stats.usageSwitching;
 const errorMessage = computed(() => error.value instanceof Error ? error.value.message : String(error.value));
 const tx = (zh: string, en: string) => i18n.locale.value === 'zh' ? zh : en;
 const number = (value: number) => new Intl.NumberFormat(i18n.locale.value).format(value);
 const percent = (value: number | null) => value == null ? '—' : new Intl.NumberFormat(i18n.locale.value, { style: 'percent', maximumFractionDigits: 1 }).format(value);
 // Keep the button's original color index through filtering and pie sorting.
-const models = computed(() => rows.value.flatMap((row, colorIndex) => {
+const models = computed(() => rows.value.flatMap(row => {
   if (hiddenModels.value.has(modelKey(row))) return [];
+  const colorIndex = modelColorIndex(modelKey(row));
   const label = modelName(row.model);
   const duplicate = rows.value.some(other => other !== row && other.model === row.model);
   return [{
@@ -51,6 +57,9 @@ const models = computed(() => rows.value.flatMap((row, colorIndex) => {
 const slices = computed(() => pieDistribution(models.value, tx('其他', 'Other')));
 const showPie = computed(() => models.value.filter(item => item.value > 0).length > 1);
 const pieTotal = computed(() => models.value.reduce((sum, item) => sum + item.value, 0));
+// The hovered slice takes over the donut's hole instead of a floating tooltip.
+const hovered = ref<number | null>(null);
+const hoveredSlice = computed(() => hovered.value == null ? null : slices.value[hovered.value] ?? null);
 const queueRows = computed(() => status.value ? [
   { name: tx('运行中会话', 'Running sessions'), value: status.value.queue.active_sessions },
   { name: tx('待调度会话', 'Ready sessions'), value: status.value.queue.ready_sessions },
@@ -75,10 +84,12 @@ onDeactivated(stats.stopAuto);
       <p v-if="error" class="load-error" role="alert">{{ errorMessage }}<span v-if="updatedAt">{{ tx('下方保留上次成功读取的数据。', 'The last successful snapshot remains below.') }}</span></p>
       <Spinner v-if="loading && !updatedAt" />
       <UsageCharts ref="charts">
-        <section v-if="totals && usage" class="card statistics-usage">
+        <section v-if="totals && usage" class="card statistics-usage" :class="{ switching: usageSwitching }">
+          <header class="statistics-usage-head"><h3>{{ tx('模型用量', 'Usage by model') }}</h3><UsageRangePicker allow-all :model-value="usageRange" @update:model-value="stats.setUsageRange" /></header>
+          <p v-if="!rows.length" class="statistics-usage-empty">{{ tx('这段时间没有模型调用。', 'No model calls in this period.') }}</p>
           <div class="statistics-models" role="group" :aria-label="tx('用量统计模型','Usage model')">
-            <button v-for="(row,index) in rows" :key="modelKey(row)" class="statistics-model" :aria-pressed="!hiddenModels.has(modelKey(row))" @click="toggleModel(modelKey(row))">
-              <i class="statistics-model-dot" :style="{background:color(index)}"/>
+            <button v-for="row in rows" :key="modelKey(row)" class="statistics-model" :aria-pressed="!hiddenModels.has(modelKey(row))" @click="toggleModel(modelKey(row))">
+              <i class="statistics-model-dot" :style="{background:modelColor(row)}"/>
               <span>{{modelName(row.model)}}<small>{{providerLabel(row.provider)}}<em class="statistics-model-share-inline"> · {{percent(totalTokens>0?row.totals.tokens.total_tokens/totalTokens:0)}}</em></small></span>
               <small class="statistics-model-share">{{percent(totalTokens>0?row.totals.tokens.total_tokens/totalTokens:0)}}</small>
             </button>
@@ -92,11 +103,12 @@ onDeactivated(stats.stopAuto);
           <h3 v-if="showPie">{{ tx('模型 Token 占比', 'Token share by model') }}</h3>
           <div v-if="showPie" class="model-share">
             <div class="model-share-chart">
-              <UsagePlot :pie="slices" :label="tx('各模型总 Token 消耗占比', 'Total Token consumption by model')" />
-              <div class="model-share-total" aria-hidden="true"><strong>{{ fmtTokens(pieTotal) }}</strong><span>Token</span></div>
+              <UsagePlot :pie="slices" :label="tx('各模型总 Token 消耗占比', 'Total Token consumption by model')" @hover="hovered = $event" />
+              <div v-if="hoveredSlice" class="model-share-total hovered" aria-hidden="true"><span class="model-share-name">{{ hoveredSlice.name }}</span><strong>{{ fmtTokens(hoveredSlice.value) }}</strong><span>{{ percent(hoveredSlice.share) }}</span></div>
+              <div v-else class="model-share-total" aria-hidden="true"><strong>{{ fmtTokens(pieTotal) }}</strong><span>Token</span></div>
             </div>
             <ul class="distribution-legend">
-              <li v-for="(item,index) in slices" :key="index"><i :style="{ background: item.colorIndex == null ? 'var(--fg-subtle)' : color(item.colorIndex) }" /><span>{{ item.name }}</span><strong>{{ percent(item.share) }}</strong></li>
+              <li v-for="(item,index) in slices" :key="index" :class="{ active: hovered === index }"><i :style="{ background: item.colorIndex == null ? 'var(--fg-subtle)' : color(item.colorIndex) }" /><span>{{ item.name }}</span><strong>{{ percent(item.share) }}</strong></li>
             </ul>
           </div>
         </section>
@@ -141,7 +153,11 @@ onDeactivated(stats.stopAuto);
 .statistics-page { padding: 0 clamp(24px, 4vw, 64px) 32px; }
 .statistics-page > * { width: 100%; max-width: 1100px; margin-inline: auto; }
 .statistics-body { padding: 0; min-width: 0; }
-.statistics-usage { min-width: 0; }
+.statistics-usage { min-width: 0; transition: opacity var(--dur-fast); }
+.statistics-usage.switching { opacity: .6; }
+.statistics-usage-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.statistics-usage-head h3 { margin: 0; font: 600 14px/1.4 var(--font); }
+.statistics-usage-empty { margin: 8px 0 16px; font-size: 13px; color: var(--fg-subtle); }
 /* Equal cells keep names, providers and shares aligned however many models there are. */
 .statistics-models { display:grid; grid-template-columns:repeat(auto-fill, minmax(168px, 1fr)); gap:2px 12px; margin-bottom:16px; min-width:0; }
 .statistics-model { display:flex; align-items:center; gap:8px; width:100%; min-width:0; padding:7px 8px; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--fg-subtle); font:inherit; font-size:12px; text-align:left; cursor:pointer; }
@@ -181,6 +197,9 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 .model-share-total { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; line-height: 1.2; }
 .model-share-total strong { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .model-share-total span { font-size: 10px; color: var(--fg-subtle); }
+.model-share-total .model-share-name { max-width: 64%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; color: var(--fg-muted); }
+.distribution-legend li { transition: opacity var(--dur-fast); }
+.distribution-legend:has(li.active) li:not(.active) { opacity: .45; }
 /* Service status and storage: cards matching the chart cards above. */
 .statistics-panel { min-width: 0; padding: 18px 20px 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); }
 .panel-head { display: flex; align-items: center; gap: 8px; min-width: 0; margin-bottom: 16px; }

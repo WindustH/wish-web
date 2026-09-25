@@ -3,25 +3,28 @@ import { computed, ref } from 'vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import Modal from '../../ui/components/Modal.vue';
 import { i18n } from '../../core/i18n/index.js';
-import { localDate, type RangeSelection } from '../../core/usage/windows';
-const props = defineProps<{ modelValue: RangeSelection }>();
-const emit = defineEmits<{ 'update:modelValue': [value: RangeSelection] }>();
+import { localDate, type RangeSelection, type TotalsRange } from '../../core/usage/windows';
+// `allowAll` adds an all-time choice for totals; charts always need a window.
+const props = defineProps<{ modelValue: RangeSelection | TotalsRange; allowAll?: boolean }>();
+const emit = defineEmits<{ 'update:modelValue': [value: any] }>();
 const tx = (zh: string, en: string) => i18n.locale.value === 'zh' ? zh : en;
 const open = ref(false), start = ref(''), end = ref('');
 const today = () => localDate();
 const earliest = () => { const d = new Date(); d.setDate(d.getDate()-399); return localDate(d); };
 const options = computed(() => [
+  ...(props.allowAll ? [{value:'all',label:tx('全部','All time')}] : []),
   {value:'day',label:tx('一天','Day')}, {value:'week',label:tx('一周','Week')},
   {value:'month',label:tx('一个月','Month')}, {value:'quarter',label:tx('三个月','Three months')},
   {value:'year',label:tx('一年','Year')},
-  {value:'custom',label:props.modelValue.period === 'custom' ? `${props.modelValue.start} – ${props.modelValue.end}` : tx('自定义日期…','Custom dates…')},
+  {value:'custom',label:props.modelValue.period === 'custom' ? `${(props.modelValue as RangeSelection).start} – ${(props.modelValue as RangeSelection).end}` : tx('自定义日期…','Custom dates…')},
 ]);
 const valid = computed(() => start.value >= earliest() && end.value <= today() && start.value <= end.value && (Date.parse(end.value)-Date.parse(start.value))/86_400_000 < 366);
 function select(value: string) {
   if(value !== 'custom') { emit('update:modelValue',{period:value as RangeSelection['period']}); return; }
   const d = new Date(); d.setDate(d.getDate()-6);
-  start.value = props.modelValue.start ?? localDate(d);
-  end.value = props.modelValue.end ?? today();
+  const current = props.modelValue as RangeSelection;
+  start.value = current.start ?? localDate(d);
+  end.value = current.end ?? today();
   open.value = true;
 }
 function apply() { if(valid.value) { emit('update:modelValue',{period:'custom',start:start.value,end:end.value}); open.value=false; } }

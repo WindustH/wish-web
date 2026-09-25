@@ -7,6 +7,8 @@ import { CanvasRenderer } from 'echarts/renderers';
 import { usePageActivity } from '../../ui/composables/usePageActivity';
 use([LineChart, ScatterChart, HeatmapChart, PieChart, GridComponent, TooltipComponent, CalendarComponent, VisualMapComponent, CanvasRenderer]);
 const props = defineProps<{ option: EChartsCoreOption; label: string }>();
+// The data index under the pointer (or tap), null when it leaves.
+const emit = defineEmits<{ hover: [index: number | null] }>();
 const host = ref<HTMLDivElement>();
 const active = usePageActivity();
 let chart: EChartsType | undefined;
@@ -17,7 +19,12 @@ let appliedOption: EChartsCoreOption | undefined;
 let width = 0, height = 0;
 function draw() {
   if (!mounted || !active.value || !host.value?.clientWidth || !host.value?.clientHeight) return;
-  chart ??= init(host.value, undefined, { renderer: 'canvas' });
+  if (!chart) {
+    chart = init(host.value, undefined, { renderer: 'canvas' });
+    chart.on('mouseover', (event: any) => emit('hover', event.dataIndex ?? null));
+    chart.on('mouseout', () => emit('hover', null));
+    chart.on('globalout', () => emit('hover', null));
+  }
   const nextWidth = host.value.clientWidth, nextHeight = host.value.clientHeight;
   if (width !== nextWidth || height !== nextHeight) {
     chart.resize();

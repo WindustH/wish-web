@@ -32,7 +32,7 @@ export declare function rememberDefaultModel(value: { provider: string; model: s
 export declare function historyPage(id: string, params: any, opts?: any): Promise<any>;
 export declare function deliveriesList(id: string, params?: any, opts?: any): Promise<any>;
 export declare function daemonVersion(opts?: { signal?: AbortSignal }): Promise<{ name: string; version: string }>;
-export declare function usageTotals(opts?: { signal?: AbortSignal }): Promise<import('../state/statsSlice').UsageSnapshot>;
+export declare function usageTotals(opts?: { signal?: AbortSignal; query?: { from_ms?: number; to_ms?: number } }): Promise<import('../state/statsSlice').UsageSnapshot>;
 export declare function storageStatus(opts?: { signal?: AbortSignal }): Promise<import('../state/statsSlice').StorageSnapshot>;
 
 export declare function sessionClearContext(id:string):Promise<any>;
