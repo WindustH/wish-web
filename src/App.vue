@@ -62,14 +62,14 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
   <TooltipProvider :delay-duration="450" :skip-delay-duration="150">
   <ProviderSetup v-if="gate.state.value === 'required'" @complete="async () => { await router.replace('/new'); await gate.refresh(); }" />
   <main v-else-if="gate.state.value !== 'ready'" class="provider-gate-status" aria-live="polite">
-    <span class="brand-mark">w<span>.</span></span>
+    <img class="brand-mark" src="/app-icons/mark.svg" alt="" />
     <p>{{ gate.state.value === 'error' ? tr('无法读取服务配置', 'Unable to read server configuration') : tr('正在读取配置…', 'Loading configuration…') }}</p>
     <p v-if="gate.error.value" class="load-error" role="alert">{{ gate.error.value }}</p>
     <button v-if="gate.state.value === 'error'" class="btn" @click="gate.refresh()">{{tr('重试', 'Retry')}}</button>
   </main>
   <div v-else class="shell" :class="isMobile ? 'mobile' : 'desktop'">
     <nav class="vbar" :aria-label="i18n.t('app.name')">
-      <RouterLink :to="sessionLocation" class="brand-mark" aria-label="Wish">w<span>.</span></RouterLink>
+      <RouterLink :to="sessionLocation" class="brand-mark" aria-label="Wish"><img src="/app-icons/mark.svg" alt="" /></RouterLink>
       <Hint :text="item.label()" v-for="item in top" :key="item.id"><button class="nav-btn" :class="{ active: isActive(item.id) }"
         :aria-current="isActive(item.id) ? 'page' : undefined" :aria-label="item.label()" @click="go(item)">
         <Icon :name="item.icon" />
@@ -114,6 +114,7 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
 
 <style>
 .provider-gate-status { min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:28px; gap:12px; text-align:center; }
+.provider-gate-status .brand-mark { width:64px; }
 @media (min-width: 900px) { .settings-route-host { display: contents !important; } }
 @media (max-width: 899px) { .settings-route-host { position: absolute; inset: 0; z-index: 30; background: transparent; } }
 .settings-route-host.is-closing { pointer-events: none; }
