@@ -13,6 +13,8 @@ export function sessionView(value) {
     created_at_ms: session.created_at, updated_at_ms: session.updated_at,
     resume_requires_user: status.phase === 'Suspended', compaction_count: status.active_generation ?? 0,
     standby_preparing: Boolean(status.standby_preparing),
+    // Input size of the last conversation call in the active context; null until one completes.
+    context_tokens: status.context_tokens ?? null,
     last_error: operationFailure(status.last_operation),
     agent_custom: status.metadata?.agent_custom, config, descriptor: session, status,
   };

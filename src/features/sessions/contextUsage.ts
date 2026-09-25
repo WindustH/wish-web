@@ -1,22 +1,34 @@
-// Context usage row: one pure mapping so the thresholds, the estimated
-// marker and the token fraction stay testable while the pane stays dumb.
-// The daemon reports context_usage {tokens, window_tokens, ratio, source};
-// until it does (older daemon, or a model without a window), the row hides.
-export type ContextUsageRow = { pct: number; level: 'low' | 'mid' | 'high'; estimated: boolean; fraction: string };
+// Context gauge: the current context set against the compaction trigger and
+// the model's window. One pure mapping keeps the thresholds testable while the
+// pane only draws it.
+export type ContextLevel = 'low' | 'mid' | 'high' | 'unknown';
+export type ContextGauge = {
+  tokens: number | null;
+  trigger: number | null;
+  window: number | null;
+  /** Share of the limit that matters: the trigger, or the window without compaction. */
+  ratio: number | null;
+  level: ContextLevel;
+  /** Token count spanned by the whole bar. */
+  scale: number;
+};
 
-export function contextUsageRow(
-  usage: any,
-  fmtTokens: (n: number) => string,
-): ContextUsageRow | null {
-  if (!usage || !usage.window_tokens) return null;
-  const ratio = typeof usage.ratio === 'number' ? usage.ratio : usage.tokens / usage.window_tokens;
-  const pct = Math.round(ratio * 100);
+const positive = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+
+export function contextGauge(tokens: unknown, trigger: unknown, window: unknown): ContextGauge {
+  const used = typeof tokens === 'number' && Number.isFinite(tokens) && tokens >= 0 ? tokens : null;
+  const limit = positive(trigger);
+  const size = positive(window);
+  // Compaction acts at the trigger, so that is what "full" means; the window only matters without one.
+  const reference = limit ?? size;
+  const ratio = used != null && reference ? used / reference : null;
   return {
-    pct,
-    // <60% is business as usual; 60–85% is where compaction starts to
-    // matter; past 85% the next turn is at real risk of truncation.
-    level: pct > 85 ? 'high' : pct >= 60 ? 'mid' : 'low',
-    estimated: usage.source === 'estimated',
-    fraction: `${fmtTokens(usage.tokens)} / ${fmtTokens(usage.window_tokens)}`,
+    tokens: used,
+    trigger: limit,
+    window: size,
+    ratio,
+    // Under 60% there is plenty of room; from 85% the next turns will compact.
+    level: ratio == null ? 'unknown' : ratio >= 0.85 ? 'high' : ratio >= 0.6 ? 'mid' : 'low',
+    scale: Math.max(size ?? 0, limit ? limit / 0.9 : 0, used ?? 0, 1),
   };
 }
