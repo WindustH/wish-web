@@ -7,6 +7,7 @@
 // DOM-free: fetch/AbortController only; callers pass an absolute URL in
 // non-browser hosts (see client.js absUrl()).
 import { cfg } from '../config.js';
+import { authHeaders } from './client.js';
 
 const GONE_STATUSES = new Set([404, 410]);      // resource no longer exists
 const DENIED_STATUSES = new Set([401, 403]);    // auth failure — never retried
@@ -54,7 +55,7 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
   async function connect() {
     if (aborted || terminal) return;
     controller = new AbortController();
-    const headers = { accept: 'text/event-stream', ...(extraHeaders || {}) };
+    const headers = { accept: 'text/event-stream', ...authHeaders(), ...(extraHeaders || {}) };
     if (lastEventId) headers['last-event-id'] = lastEventId;
     emitState(attempt ? 'reconnecting' : 'connecting');
     // Connect timeout: headers must arrive within this window or we abort

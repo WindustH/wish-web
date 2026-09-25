@@ -38,8 +38,13 @@ function createClient(initialBase) {
   }
   const absUrl = path => absoluteBase() + path;
   const api = async (method, path, opts) => request(method, absUrl(path), opts);
+  // Whether a URL addresses this backend, so it may carry the access token.
+  const isApiUrl = url => {
+    try { return new URL(String(url), globalThis.location?.href).href.startsWith(absoluteBase() + '/'); }
+    catch { return false; }
+  };
   return {
-    setBaseUrl, getBaseUrl, absUrl, api,
+    setBaseUrl, getBaseUrl, absUrl, api, isApiUrl,
     get: (path, opts) => api('GET', path, opts),
     post: (path, body, opts) => api('POST', path, { ...opts, body }),
     patch: (path, body, opts) => api('PATCH', path, { ...opts, body }),
@@ -48,7 +53,23 @@ function createClient(initialBase) {
   };
 }
 
-export const { get, post, patch, put, del, api, absUrl, getBaseUrl, setBaseUrl } = createClient(cfg.api.baseUrl);
+export const { get, post, patch, put, del, api, absUrl, getBaseUrl, setBaseUrl, isApiUrl } = createClient(cfg.api.baseUrl);
+
+// A backend reached directly (not through the page's own proxy) needs its access
+// token on every request; the proxy adds it server-side otherwise.
+let accessToken = '';
+export const setAccessToken = token => { accessToken = token || ''; };
+export const authHeaders = () => accessToken ? { authorization: `Bearer ${accessToken}` } : {};
+/** Whether loading this URL needs the token, which an <img> or <a> cannot send. */
+export const needsAccessToken = url => !!accessToken && isApiUrl(url);
+
+/** fetch() that adds the access token to requests for the backend, e.g. attachments. */
+export function apiFetch(url, init = {}) {
+  if (!accessToken || !isApiUrl(url)) return fetch(url, init);
+  const headers = new Headers(init.headers);
+  headers.set('authorization', `Bearer ${accessToken}`);
+  return fetch(url, { ...init, headers });
+}
 
 
 async function problemFromBody(body, status) {
@@ -65,7 +86,7 @@ async function request(method, target, { body, query, signal, headers, raw } = {
       if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
     }
   }
-  const h = { ...(headers || {}) };
+  const h = { ...authHeaders(), ...(headers || {}) };
   if (body !== undefined && !raw) h['content-type'] = 'application/json';
 
 

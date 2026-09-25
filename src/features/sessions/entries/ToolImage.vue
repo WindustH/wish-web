@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { i18n } from '../../../core/i18n/index.js';
+import { apiFetch } from '../../../core/api/client.js';
 const props=defineProps<{src:string;mime:string;path:string}>();
 const url=ref(''),error=ref(false),size=ref(''),zoom=ref(false);
 watch(()=>props.src,async(src,_,onCleanup)=>{
  const controller=new AbortController();let objectUrl='';
  onCleanup(()=>{controller.abort();if(objectUrl)URL.revokeObjectURL(objectUrl);});
  url.value='';error.value=false;size.value='';zoom.value=false;
- try{const response=await fetch(src,{signal:controller.signal});if(!response.ok)throw new Error(String(response.status));const bytes=await response.arrayBuffer();if(controller.signal.aborted)return;objectUrl=URL.createObjectURL(new Blob([bytes],{type:props.mime}));url.value=objectUrl;}catch{if(!controller.signal.aborted)error.value=true;}
+ try{const response=await apiFetch(src,{signal:controller.signal});if(!response.ok)throw new Error(String(response.status));const bytes=await response.arrayBuffer();if(controller.signal.aborted)return;objectUrl=URL.createObjectURL(new Blob([bytes],{type:props.mime}));url.value=objectUrl;}catch{if(!controller.signal.aborted)error.value=true;}
 },{immediate:true});
 function loaded(event:Event){const img=event.target as HTMLImageElement;size.value=`${img.naturalWidth} × ${img.naturalHeight}`;}
 </script>

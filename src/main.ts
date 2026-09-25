@@ -14,6 +14,7 @@ import { initPWA } from './ui/pwa.js';
 import { installShortcuts } from './ui/shortcuts.js';
 import App from './App.vue';
 import { router } from './router.js';
+import { applyConnection, isSignedOut } from './core/connection';
 
 import '@fontsource-variable/montserrat';
 import '@fontsource-variable/bitter';
@@ -30,6 +31,7 @@ import './styles/features.css';
 
 applyTokens();
 registerBrowserPlatform();
+applyConnection();
 prefs.load();
 
 // The app supplies its own message actions; unused browser context menus
@@ -67,11 +69,12 @@ watch(theme.resolved, (r) => {
 
 // Background notifier FIRST: its sync.snapshot baseline must be established
 // before the control plane starts streaming.
-{
+// Signed out, the sign-in page picks a server first.
+if (!isSignedOut()) {
   const { installBackgroundNotify } = await import('./ui/notify.js');
   installBackgroundNotify();
+  sync.start();
 }
-sync.start();
 
 // Malformed control-plane frame → one visible toast per occurrence.
 watch(sync.protocolError, (err) => { if (err) toast(i18n.t('sync.protocolError')); });

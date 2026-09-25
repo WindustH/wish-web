@@ -12,6 +12,7 @@ import { platform } from '../../platform/index.js';
 import { showError } from '../../ui/errorDialog';
 import { toast } from '../../ui/toast';
 import { clearCached } from '../../core/util/responseCache';
+import { keepConnection } from '../../core/connection';
 import { useMedia } from '../../ui/composables/useMedia';
 import { tr } from './fields';
 import SettingHint from './SettingHint.vue';
@@ -61,7 +62,9 @@ async function install() {
 }
 function clearPreferences() {
   try {
+    const restoreConnection = keepConnection();
     platform('storage').clear();
+    restoreConnection();
     void clearCached();
     clearOpen.value = false;
     toast(tr('已清除本地设置。下次打开页面时使用默认设置。', 'Local preferences cleared. Defaults will be used when you next open the page.'));

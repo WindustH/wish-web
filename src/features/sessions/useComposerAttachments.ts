@@ -10,6 +10,7 @@ import {
 } from '../../core/attachments.js';
 import { fmtBytes } from '../../core/util/fmt.js';
 import { blobUrl } from '../../core/api/endpoints.js';
+import { apiFetch } from '../../core/api/client.js';
 import { platform } from '../../platform/index.js';
 import { toast } from '../../ui/toast.js';
 
@@ -73,7 +74,7 @@ export function useComposerAttachments(
     try {
     for (const item of items) {
       try {
-        const response = await fetch(blobUrl(item.blob_id));
+        const response = await apiFetch(blobUrl(item.blob_id));
         if (!response.ok) throw new Error(`blob ${item.blob_id}: ${response.status}`);
         const bytes = await response.arrayBuffer();
         if (epoch !== attachmentEpoch || !hasAttachmentSpace(item.kind)) continue;

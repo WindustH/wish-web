@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
-import { absUrl } from '../../core/api/client.js';
+import { absUrl, apiFetch } from '../../core/api/client.js';
 import { prefs } from '../../core/state/prefsSlice.js';
 import Icon from '../../ui/components/Icon.vue';
 import Markdown from '../../ui/components/Markdown.vue';
@@ -82,7 +82,7 @@ async function runQuestion(text: string, history: { question: string; answer: st
   const current = new AbortController();
   controller = current;
   try {
-    const response = await fetch(absUrl(`/sessions/${encodeURIComponent(props.sessionId)}/ask`), {
+    const response = await apiFetch(absUrl(`/sessions/${encodeURIComponent(props.sessionId)}/ask`), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, stream: true, history }), signal: current.signal,
     });
