@@ -5,11 +5,13 @@ import { errorText } from '../../core/config-editor';
 import { providerReady } from '../../core/providerReadiness.js';
 import { tr } from '../../core/i18n/tr';
 import { showError } from '../../ui/errorDialog';
+import { toast } from '../../ui/toast';
 
 const customProvider = (): ProviderConfig => ({ enabled: true, protocol: 'openai_chat',
   base_url: '', path: '/v1/chat/completions', auth: 'bearer', models: {},
   credentials: {}, credentials_env: {}, headers: {}, proxy_enabled: true });
-export function useProviderSetup() {
+// A preview starts as if nothing were configured and never writes the configuration.
+export function useProviderSetup({ preview = false } = {}) {
   const snapshot = shallowRef<any>();
   const catalog = shallowRef<ConfigCatalog>({ presets: [] });
   const loading = ref(true), saving = ref(false), error = ref('');
@@ -48,9 +50,9 @@ export function useProviderSetup() {
       ]);
       if (own !== generation) return;
       if (config.status === 'rejected') throw config.reason;
-      snapshot.value = config.value;
+      snapshot.value = preview ? { ...config.value, config: { ...config.value.config, providers: {} } } : config.value;
       catalog.value = presets.status === 'fulfilled' ? presets.value : { presets: [] };
-      const existing = Object.keys(config.value.config.providers)[0];
+      const existing = Object.keys(snapshot.value.config.providers)[0];
       choose(existing ? `existing:${existing}` : 'custom');
     } catch (cause) { if (own === generation) error.value = errorText(cause); }
     finally { if (own === generation) loading.value = false; }
@@ -89,6 +91,11 @@ export function useProviderSetup() {
       config.defaults.provider = name; config.defaults.model = selectedModel;
       config.defaults.reasoning = { ...config.defaults.reasoning, effort: null };
       saving.value = true;
+      if (preview) {
+        await new Promise(resolve => setTimeout(resolve, 400));
+        toast(tr('预览完成：输入已通过检查，没有保存任何配置。', 'Preview finished: the entries passed the checks. Nothing was saved.'));
+        return true;
+      }
       const saved = await put('/config', { revision: snapshot.value.revision, config }, { signal: controller?.signal });
       snapshot.value = saved;
       return true;

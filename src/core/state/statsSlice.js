@@ -3,6 +3,7 @@
 import { cfg } from '../config.js';
 import { shallowRef } from 'vue';
 import * as api from '../api/endpoints.js';
+import { readCached, writeCached } from '../util/responseCache';
 
 export const stats = (() => {
   const status = shallowRef(null);
@@ -17,9 +18,19 @@ export const stats = (() => {
   let controller = null;
   let autoTimer = null;
 
+  function apply(snapshot) {
+    status.value = snapshot.status;
+    usage.value = snapshot.usage;
+    storage.value = snapshot.storage;
+    version.value = snapshot.version;
+    updatedAt.value = snapshot.updatedAt;
+  }
+
   function refresh() {
     if (pending) return pending;
     const own = epoch;
+    // After a reload, show the last snapshot (with its own time) until this read lands.
+    if (updatedAt.value == null) void readCached('stats-snapshot').then(snapshot => { if (snapshot && own === epoch && updatedAt.value == null) apply(snapshot); });
     controller = new AbortController();
     const options = { signal: controller.signal };
     loading.value = true;
@@ -28,11 +39,9 @@ export const stats = (() => {
       api.daemonStatus(options), api.usageTotals(options), api.storageStatus(options), api.daemonVersion(options),
     ]).then(([st, us, sg, ver]) => {
       if (own !== epoch) return;
-      status.value = st;
-      usage.value = us;
-      storage.value = sg;
-      version.value = ver;
-      updatedAt.value = Date.now();
+      const snapshot = { status: st, usage: us, storage: sg, version: ver, updatedAt: Date.now() };
+      apply(snapshot);
+      writeCached('stats-snapshot', snapshot);
     }).catch(cause => {
       if (own !== epoch) return;
       controller.abort();

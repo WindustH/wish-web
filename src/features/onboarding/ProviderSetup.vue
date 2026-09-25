@@ -7,8 +7,9 @@ import { PROTOCOL_OPTIONS } from '../settings/useConfigDraft';
 import SelectField from '../../ui/components/SelectField.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { useProviderSetup } from './useProviderSetup';
-const emit = defineEmits<{ complete: [] }>();
-const { snapshot, catalog, loading, saving, error, choice, id, model, provider, preset, choose, load, save, setSecret, secretValue } = useProviderSetup();
+const props = defineProps<{ preview?: boolean }>();
+const emit = defineEmits<{ complete: []; exit: [] }>();
+const { snapshot, catalog, loading, saving, error, choice, id, model, provider, preset, choose, load, save, setSecret, secretValue } = useProviderSetup({ preview: props.preview });
 const options = computed(() => [
   ...Object.keys(snapshot.value?.config.providers ?? {}).map(id => ({ value: `existing:${id}`, label: tr('已有配置 · ', 'Existing · ') + id })),
   ...catalog.value.presets.map(item => ({ value: `preset:${item.id}`, label: `${providerName(item.provider)} · ${presetDescription(item)}`, brand: item.provider })),
@@ -26,7 +27,8 @@ const authOptions = computed(() => [
 async function finish() { if (await save()) emit('complete'); }
 </script>
 <template>
-  <main class="provider-setup">
+  <main class="provider-setup" :class="{ preview }">
+    <div v-if="preview" class="setup-preview-bar" role="status"><span><Icon name="sparkles" />{{ tr('引导预览 · 不会保存任何配置', 'Setup preview · nothing is saved') }}</span><button type="button" class="btn ghost" @click="emit('exit')">{{ tr('退出预览', 'Exit preview') }}</button></div>
     <div class="setup-content">
       <header>
         <img class="setup-brand" src="/app-icons/mark.svg" alt="" />
@@ -57,7 +59,11 @@ async function finish() { if (await save()) emit('complete'); }
   </main>
 </template>
 <style scoped>
-.provider-setup{height:100dvh;overflow-y:auto;overscroll-behavior:contain;background:var(--bg);padding:48px 28px;box-sizing:border-box}
+.provider-setup{--setup-pad-y:48px;--setup-pad-x:28px;height:100dvh;overflow-y:auto;overscroll-behavior:contain;background:var(--bg);padding:var(--setup-pad-y) var(--setup-pad-x);box-sizing:border-box}
+.setup-preview-bar{position:sticky;top:calc(-1 * var(--setup-pad-y));z-index:1;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:calc(-1 * var(--setup-pad-y)) calc(-1 * var(--setup-pad-x)) 32px;padding:8px var(--setup-pad-x);border-bottom:1px solid var(--line);background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:500}
+.setup-preview-bar span{display:inline-flex;align-items:center;gap:8px}
+.setup-preview-bar .icon{width:15px;height:15px}
+.setup-preview-bar .btn{color:var(--accent)}
 .setup-content{width:min(100%,520px);margin:0 auto;padding-bottom:32px}
 .setup-brand{display:block;width:60px;height:auto}
 .setup-eyebrow{margin:28px 0 10px;font-size:11px;letter-spacing:.12em;color:var(--fg-subtle)}
@@ -65,5 +71,5 @@ h1{font-size:28px;margin:0 0 12px}.setup-intro{color:var(--fg-subtle);line-heigh
 fieldset{border:0;padding:0;margin:0;display:grid;gap:18px;min-width:0}label{display:grid;gap:8px;font-size:13px}.input{width:100%;box-sizing:border-box;min-height:44px}
 .setup-advanced{color:var(--fg-subtle)}summary{cursor:pointer;font-size:13px;padding:6px 0}.setup-advanced label{margin-top:16px;color:var(--fg)}
 .setup-note{font-size:12px;color:var(--fg-subtle);line-height:1.7;margin:22px 0}.setup-actions{display:flex;gap:10px;flex-wrap:wrap}.setup-actions .primary{min-height:44px}.load-error{overflow-wrap:anywhere}
-@media(max-width:899px){.provider-setup{padding:32px 24px;padding-top:max(32px,env(safe-area-inset-top));padding-bottom:max(32px,env(safe-area-inset-bottom))}h1{font-size:25px}.setup-actions .primary{width:100%}}
+@media(max-width:899px){.provider-setup{--setup-pad-y:max(32px,env(safe-area-inset-top));--setup-pad-x:24px;padding-bottom:max(32px,env(safe-area-inset-bottom))}h1{font-size:25px}.setup-actions .primary{width:100%}}
 </style>

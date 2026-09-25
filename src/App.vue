@@ -11,6 +11,7 @@ import Icon from './ui/components/Icon.vue';
 import AttachmentPreview from './ui/components/AttachmentPreview.vue';
 import ToastHost from './ui/components/ToastHost.vue';
 import ErrorDialogHost from './ui/components/ErrorDialogHost.vue';
+import { onboardingPreview, closeOnboardingPreview } from './features/onboarding/preview';
 import CachedPage from './ui/components/CachedPage.vue';
 import { i18n } from './core/i18n/index.js';
 import { sync } from './core/state/syncSlice.js';
@@ -108,6 +109,8 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
     <ToastHost />
     <AttachmentPreview />
   </div>
+  <!-- Above the settings dialog (51), below pickers (80) and error dialogs (200). -->
+  <ProviderSetup v-if="onboardingPreview" preview class="onboarding-preview" @complete="closeOnboardingPreview" @exit="closeOnboardingPreview" />
   <HoverHintHost />
   <!-- Outside the shell so onboarding errors are reported too. -->
   <ErrorDialogHost />
@@ -117,6 +120,7 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
 <style>
 .provider-gate-status { min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:28px; gap:12px; text-align:center; }
 .provider-gate-status .brand-mark { display:block; width:64px; height:auto; margin:0 0 8px; }
+.onboarding-preview { position:fixed; inset:0; z-index:55; }
 @media (min-width: 900px) { .settings-route-host { display: contents !important; } }
 @media (max-width: 899px) { .settings-route-host { position: absolute; inset: 0; z-index: 30; background: transparent; } }
 .settings-route-host.is-closing { pointer-events: none; }
