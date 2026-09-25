@@ -95,7 +95,7 @@ export const en = {
   'proc.stepsUnit': 'steps',
   'chatbar.info': 'Session info & stats',
   'chatbar.search': 'History search',
-  'chatbar.manage': 'Manage',
+  'chatbar.settings': 'Session settings',
   'chatbar.back': 'Back',
   'chatbar.more': 'More',
   'info.contextUsage': 'Context usage',

@@ -44,6 +44,11 @@ const zh: Rule[] = [
   [/^unsupported upstream compaction on `(.+?)`: .+$/, id => `上游压缩协议 ${id} 不适用于这个提供商的模型协议或部署。`],
   [/^unsupported model list on `(.+?)`: .+$/, id => `${id} 不提供模型列表。`],
   [/^unsupported (.+?) on `(.+?)`: (.+)$/, (feature, id, reason) => `${id} 不支持 ${feature}：${reason}`],
+  // Per-session settings.
+  [/^only model(?:, reasoning and output limit| and reasoning settings) can change while running$/, () => '会话运行时只能修改模型、思考强度和输出上限，请等本轮运行结束后再保存这些设置。'],
+  [/^session changed; reload before saving$/, () => '会话已在其他地方修改，请重新打开会话设置后再保存。'],
+  [/^session is running$/, () => '会话正在运行，请等本轮运行结束后再试。'],
+  [/^this session has no shell tool$/, () => '这个会话没有启用 Shell 工具。'],
   // Model catalog and runtime failures.
   [/^model_list_path is not configured$/, () => '这个提供商没有配置模型列表路径。'],
   [/^server is shutting down$/, () => '服务正在关闭，请稍后重试。'],

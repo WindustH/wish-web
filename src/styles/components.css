@@ -167,7 +167,6 @@
 
 .session-bubble:focus-visible { outline: none; }
 
-@media (min-width: 900px) { .modal-card.session-manage-window { width: min(294px, calc(100vw - 40px)); } }
 
 @media (max-width: 899px) {
   .session-window.modal-page > .modal-body { width: 100%; max-width: var(--mobile-content-width); margin-inline: auto; }

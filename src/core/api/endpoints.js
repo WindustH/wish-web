@@ -76,6 +76,10 @@ export const messageSend = async (id, body, opts) => {
   return { id:String(result.entry), entry:result.entry };
 };
 export const sessionInterrupt = id => post(`${path(id)}/interrupt`);
+// Replaces the whole session config; the server refuses non-model changes while it runs.
+export const sessionUpdateConfig = async (id, config, revision, opts) => sessionView(await patch(path(id), { config }, revisionOptions(revision, opts)));
+// `{program, args}` for the session's own shell, or null to follow the configured one.
+export const sessionSetShell = async (id, settings) => sessionView(await put(`${path(id)}/shell`, settings));
 export const sessionCompact = id => post(`${path(id)}/compact`);
 export const sessionClearContext = id => post(`${path(id)}/context/clear`);
 export const sessionFork = async id => sessionView(await post(`${path(id)}/fork`));
