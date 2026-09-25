@@ -9,6 +9,7 @@ import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useDialogFocus } from '../../ui/composables/useDialogFocus.ts';
 import { tr, compactionFields } from './fields.ts';
 import UiSettings from './UiSettings.vue';
+import DebugSettings from './DebugSettings.vue';
 import MobileSessionSettings from './MobileSessionSettings.vue';
 import Modal from '../../ui/components/Modal.vue';
 import AddProvider from './AddProvider.vue';
@@ -42,6 +43,9 @@ const sections = computed(() => [
   { id: 'ui', icon: 'settings-2', label: tr('界面', 'Interface'),
     summary: tr('外观、通知与本地偏好', 'Appearance, notifications and preferences'),
     description: tr('外观、输入与本地数据，只保存在这个浏览器中。', 'Appearance, input and local data, stored in this browser only.') },
+  { id: 'debug', icon: 'wrench', label: tr('调试', 'Debug'),
+    summary: tr('连接诊断与引导预览', 'Diagnostics and setup preview'),
+    description: tr('检查与服务器的连接，预览首次使用引导。这里不会修改任何配置。', 'Check the connection to the server and preview the first-run setup. Nothing here changes your configuration.') },
 ]);
 const current = computed(() => sections.value.find(item => item.id === tab.value));
 // 235929 reads as "23.6万" / "236K" beside the exact input.
@@ -145,6 +149,7 @@ onMounted(load);
     </header>
     <div ref="content" class="settings-content" data-scroll-preserve>
     <UiSettings v-if="tab==='ui'"/>
+    <DebugSettings v-else-if="tab==='debug'"/>
     <template v-else-if="draft">
       <MobileSessionSettings v-if="isMobile&&tab==='service'" :config="draft" :shells="shells" :providers="providerOptions" :efforts="effortOptions" :save="save" :busy="busy"/>
       <fieldset :disabled="busy" v-else-if="tab==='service'" class="settings-form">
@@ -185,7 +190,7 @@ onMounted(load);
     </template>
     <div v-else-if="!busy" class="settings-empty"><p>{{tr('设置尚未载入。','Settings are not loaded.')}}</p><button class="btn" @click="load"><Icon name="refresh-cw"/>{{tr('重新载入','Reload')}}</button></div>
     </div>
-      <footer v-if="draft&&tab!=='ui'&&!isMobile" class="settings-footer">
+      <footer v-if="draft&&tab!=='ui'&&tab!=='debug'&&!isMobile" class="settings-footer">
         <span class="settings-status" :class="{dirty}"><i aria-hidden="true"/>{{dirty?tr('有未保存的修改','Unsaved changes'):tr('所有修改已保存','All changes saved')}}</span>
         <button class="btn ghost" :disabled="busy||!dirty" @click="discard=true">{{tr('放弃修改','Discard')}}</button>
         <button class="btn primary" :disabled="busy||!dirty" @click="save"><Icon :name="busy?'loader-circle':'save'" :class="{spin:busy}"/>{{busy?tr('保存中…','Saving…'):tr('保存','Save')}}</button>

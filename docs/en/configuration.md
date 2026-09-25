@@ -98,9 +98,16 @@ These settings apply at once and are stored in this browser only.
 | **Keep screen awake while running** (phone) | Uses the Wake Lock API while a reply runs. Needs HTTPS. |
 | **Notify me when a run fails** | Shows a system notification, while the page is in the background, whenever a session's run ends in failure (**Run failed: <session name>**, with the error as its text). Asks for notification permission; needs HTTPS. |
 | **Install Wish** | Opens the browser's install prompt when available. |
-| **Connection diagnostics** → **Check connection** | Opens the read-only self-test page. |
-| **First-run setup** → **Preview** | Shows the first-run setup without saving anything. |
 | **Local preferences** → **Clear local data** | See the table below. |
+
+## Debug
+
+Tools for checking the app; nothing here is saved.
+
+| Item | Effect |
+| --- | --- |
+| **Connection diagnostics** → **Run checks** | Runs read-only checks in place: core modules, language and theme switching, local storage, the server's version, sessions and providers, the live event stream and the service worker. The language and theme switch briefly while it runs. |
+| **First-run setup** → **Preview** | Shows the first-run setup without saving anything. |
 
 ## What the browser stores
 
