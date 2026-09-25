@@ -3,7 +3,12 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Wish Vue 3 client for the unified wish HTTP server",
+  "description": "Web and mobile client for the Wish agent server",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WindustH/wish-web.git"
+  },
   "packageManager": "pnpm@12.3.4",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
