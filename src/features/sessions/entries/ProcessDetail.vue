@@ -7,7 +7,7 @@ import Icon from '../../../ui/components/Icon.vue';
 import { i18n } from '../../../core/i18n/index.js';
 import { blobUrl } from '../../../core/api/endpoints.js';
 import { fmtBytes } from '../../../core/util/fmt.js';
-import { stepText,toolOutput,toolResult,fileEdit } from './processDetails';
+import { stepText,toolOutput,toolResult,fileEdits } from './processDetails';
 import FileDiff from './FileDiff.vue';
 import ToolImage from './ToolImage.vue';
 const props=defineProps<{step:any;relatedResult?:any;session?:string;diffOnly?:boolean}>();
@@ -20,7 +20,7 @@ const name=computed(()=>isResult.value?props.step.entry.payload?.tool_name:props
 const output=computed(()=>toolOutput(props.step));
 const result=computed(()=>toolResult(props.step));
 const args=computed(()=>props.step.block?.arguments??{});
-const edit=computed(()=>fileEdit(props.step));
+const edits=computed(()=>fileEdits(props.step));
 const reasoningLabel=computed(()=>props.step.block?.display_summary?tx('思考摘要','Reasoning summary'):tx('思考过程','Reasoning'));
 const title=computed(()=>props.diffOnly?tx('文件修改','File changes'):isReasoning.value?reasoningLabel.value:name.value||tx('工具','Tool'));
 const text=computed(()=>stepText(props.step));
@@ -32,14 +32,14 @@ const isShellTool=computed(()=>name.value?.startsWith('shell_'));
 const isHistoryTool=computed(()=>name.value?.startsWith('history_'));
 const fields=computed(()=>Object.entries(args.value).filter(([key])=>!(isShellTool.value&&key==='command')));
 const printable=(value:any)=>typeof value==='string'?value:JSON.stringify(value,null,2);
-const fieldName=(key:string)=>({operation:tx('操作','Operation'),path:tx('文件','File'),edit:tx('编辑文件','Edited file'),timeout:tx('等待时间（秒）','Wait (seconds)'),execution_id:tx('进程标识','Execution ID'),command:tx('命令','Command'),text:tx('检索文本','Search text'),sequence:tx('序号','Sequence'),query:tx('查询','Query'),limit:tx('数量上限','Limit'),order:tx('排序','Order'),before:tx('向前展开','Before'),after:tx('向后展开','After'),mode:tx('模式','Mode')})[key]??key;
+const fieldName=(key:string)=>({operation:tx('操作','Operation'),path:tx('文件','File'),diff:tx('编辑文件','Edited files'),check_diff:tx('向模型返回差异','Diff returned to model'),timeout:tx('等待时间（秒）','Wait (seconds)'),execution_id:tx('进程标识','Execution ID'),command:tx('命令','Command'),text:tx('检索文本','Search text'),sequence:tx('序号','Sequence'),query:tx('查询','Query'),limit:tx('数量上限','Limit'),order:tx('排序','Order'),before:tx('向前展开','Before'),after:tx('向后展开','After'),mode:tx('模式','Mode')})[key]??key;
 </script>
 <template>
  <Modal ref="dialog" :open="true" compact wide :content-class="`process-detail${diffOnly||name==='view_image'?' process-detail-visual':''}`" :title="title" @close="emit('close')">
   <template #compact-heading>
    <div class="process-detail-heading"><Icon :name="isReasoning?'brain':name==='view_image'?'image':isShellTool?'terminal':isHistoryTool?'search':'wrench'"/><strong class="process-detail-title">{{title}}</strong><span v-if="!isReasoning&&!diffOnly" class="detail-kind">{{isResult?tx('工具结果','Tool result'):tx('工具调用','Tool call')}}</span><span class="detail-sequence">#{{isResult?step.entry.seq:step.fromSeq}}</span><CopyButton v-if="!diffOnly" :text="text"/><button class="btn ghost icon-only" :aria-label="tx('关闭','Close')" @click="dialog?.close()"><Icon name="x"/></button></div>
   </template>
-  <FileDiff v-if="diffOnly&&edit" :edit="edit"/>
+  <div v-if="diffOnly&&edits.length" class="file-diffs"><FileDiff v-for="(edit,index) in edits" :key="index" :edit="edit"/></div>
   <div v-else-if="isReasoning" class="reasoning-document"><Markdown v-if="text" :text="text"/><p v-else class="detail-muted">{{tx('此思考块没有可显示的文本。','This reasoning block has no displayable text.')}}</p></div>
   <template v-else-if="!isResult">
    <section v-if="isShellTool&&args.command" class="tool-section"><h3>{{tx('命令','Command')}}</h3><pre class="terminal-output">{{args.command}}</pre></section>
@@ -64,12 +64,13 @@ const fieldName=(key:string)=>({operation:tx('操作','Operation'),path:tx('文�
     <article v-for="(item,index) in output.items" :key="index" class="history-hit"><strong>#{{item.sequence??item.record?.sequence??index}}</strong><p v-if="item.snippet">{{item.snippet}}</p><pre v-else>{{printable(item)}}</pre></article>
    </template>
    <pre v-else-if="!result?.message" class="terminal-output">{{text}}</pre>
-   <FileDiff v-if="edit" :edit="edit"/>
+   <div v-if="edits.length" class="file-diffs"><FileDiff v-for="(edit,index) in edits" :key="index" :edit="edit"/></div>
   </template>
   <details v-if="!isReasoning&&!diffOnly" class="raw-tool"><summary>{{tx('原始数据','Raw data')}}</summary><pre>{{text}}</pre></details>
  </Modal>
 </template>
 <style>
+.process-detail .file-diffs{display:grid;gap:10px;min-width:0}
 .modal-card.process-detail:not(.modal-page){width:min(760px,calc(100vw - 40px))}.modal-card.process-detail-visual:not(.modal-page){width:min(960px,calc(100vw - 40px))}
 .process-detail .modal-body{min-width:0}.modal-card.process-detail.compact .modal-body{padding:12px 16px 14px}
 .process-detail-heading{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;color:var(--fg-subtle)}.process-detail-title{font-size:14px;color:var(--fg);line-height:1.5}.process-detail-heading>.icon{width:16px;height:16px}.detail-kind{display:flex;align-items:center;gap:6px}.detail-sequence{margin-left:auto}

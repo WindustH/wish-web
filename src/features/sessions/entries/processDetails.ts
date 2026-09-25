@@ -10,11 +10,11 @@ export function toolResult(step:any):any {
   try{return JSON.parse(value??stepText(step));}catch{return null;}
 }
 export function toolOutput(step:any):any {const result=toolResult(step);return result?.output??result;}
-export function fileEdit(step:any):any {
-  const name = step.entry?.payload?.tool_name;
-  if(!name?.startsWith('shell_')) return null;
-  const value=toolOutput(step);
-  return value?.edit??value?.process?.edit??null;
+// Full diffs live in the result's metadata when the model did not ask to see them.
+export function fileEdits(step:any):any[] {
+  if(step.entry?.payload?.tool_name!=='shell_edit') return [];
+  const edits=step.entry.payload?.metadata?.edits??toolOutput(step)?.edits;
+  return Array.isArray(edits)?edits:[];
 }
 export interface DiffLine {text:string;kind:'add'|'remove'|'context'|'meta';before:number|null;after:number|null}
 export function parseDiff(diff:string):DiffLine[]{

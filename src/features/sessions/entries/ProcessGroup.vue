@@ -3,7 +3,7 @@ import { unfold, fold, cancelFold } from '../../../ui/motion/fold';
 import { expandedBefore, setExpanded } from '../expandState';
 
 import ProcessDetail from './ProcessDetail.vue';
-import { fileEdit, parseDiff, toolOutput } from './processDetails';
+import { fileEdits, parseDiff, toolOutput } from './processDetails';
 // One thumbnail covering a consecutive run of reasoning / tool calls /
 // tool results (mixed-entry tool calls fold in here too). Collapsed by
 // default; expanded shows the true ordered sequence.
@@ -49,7 +49,7 @@ const label = (s: any): string => {
   if (s.block?.type === 'tool_call') return s.block.name || s.block.tool_name || '—';
   return '';
 };
-const diffs=computed(()=>steps.value.map((step:any)=>({step,edit:fileEdit(step)})).filter((item:any)=>item.edit).map((item:any)=>{const lines=parseDiff(item.edit.diff??'');return {...item,added:lines.filter(line=>line.kind==='add').length,removed:lines.filter(line=>line.kind==='remove').length};}));
+const diffs=computed(()=>steps.value.flatMap((step:any)=>fileEdits(step).map((edit:any,index:number)=>({step,edit,key:`${step.key}:${index}`}))).map((item:any)=>{const lines=parseDiff(item.edit.diff??'');return {...item,added:lines.filter(line=>line.kind==='add').length,removed:lines.filter(line=>line.kind==='remove').length};}));
 const relatedResult=computed(()=>detail.value?.block?.type==='tool_call'?steps.value.find((step:any)=>step.kind==='entry'&&step.entry.payload?.tool_call_id===detail.value.block.id):null);
 const preview = (s: any): string => {
   if (s.kind === 'entry') {const value=toolOutput(s);return firstLine(value?.path||value?.text||value?.message||(s.entry.payload?.content || []).map((b:any)=>b.text||'').join('\n'),60);}
@@ -94,7 +94,7 @@ const stepIcon = (s: any) => {
       </button>
     </div>
     </Transition>
-    <button v-for="item in diffs" :key="item.step.key" class="process-diff-card" @click="diffOnly=true;detail=item.step">
+    <button v-for="item in diffs" :key="item.key" class="process-diff-card" @click="diffOnly=true;detail=item.step">
       <Icon name="file-diff"/><span>{{item.edit.path}}<small>{{i18n.locale.value==='zh'?'文件修改':'File changes'}}</small></span><span v-if="item.edit.diff" class="process-diff-count"><b>+{{item.added}}</b><b>−{{item.removed}}</b></span><Icon name="chevron-right"/>
     </button>
     <ProcessDetail v-if="detail" :step="detail" :related-result="relatedResult" :session="session" :diff-only="diffOnly" @close="detail=null"/>
