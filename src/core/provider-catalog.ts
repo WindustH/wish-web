@@ -9,6 +9,9 @@ export interface ModelInfo {
   supports_reasoning?: boolean;
   default_reasoning_effort?: string;
   reasoning_efforts?: Record<string, string | number>;
+  /** Configured window, preferred over the upstream catalog's `context_window`. */
+  context_window_tokens?: number | null;
+  context_window?: number | null;
 }
 export interface ProviderInfo {
   display_name?: string | null;
