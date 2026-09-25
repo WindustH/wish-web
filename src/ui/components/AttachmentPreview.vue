@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onBeforeUnmount, nextTick } from 'vue';
 import { attachmentPreview } from '../attachmentPreview';
+import { apiFetch } from '../../core/api/client.js';
 import BubbleSurface from './BubbleSurface.vue';
 const panel = ref<HTMLElement | null>(null);
 const position = ref<Record<string, string>>({});
@@ -100,7 +101,7 @@ watch(attachmentPreview, async item => {
   try {
     let bytes = item.bytes;
     if (!bytes) {
-      const response = await fetch(item.url || item.localUrl || '', { signal: request.signal });
+      const response = await apiFetch(item.url || item.localUrl || '', { signal: request.signal });
       if (!response.ok) throw new Error(`无法读取附件（${response.status}）`);
       bytes = await response.arrayBuffer();
     }

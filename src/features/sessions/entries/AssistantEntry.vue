@@ -7,6 +7,7 @@ import { blobUrl } from '../../../core/api/endpoints.js';
 import { fmtTokens } from '../../../core/util/fmt.js';
 import Markdown from '../../../ui/components/Markdown.vue';
 import MessageContext from './MessageContext.vue';
+import ApiImage from '../../../ui/components/ApiImage.vue';
 
 const props = defineProps<{ item: any }>();
 const texts = computed(() => (props.item.blocks || []).filter((b: any) => b.type === 'text'));
@@ -24,7 +25,7 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
       <div class="body">
         <Markdown v-for="(b, i) in texts" :key="i" :text="b.text" />
         <template v-for="(b, i) in images" :key="'img' + i">
-          <img v-if="blobSrc(b)" class="assistant-img" :src="blobSrc(b)!" alt="" loading="lazy" decoding="async" />
+          <ApiImage v-if="blobSrc(b)" class="assistant-img" :src="blobSrc(b)!" alt="" loading="lazy" decoding="async" />
         </template>
         <div v-if="texts.length && usage" class="meta">
           <span v-if="usage">{{ i18n.t('entry.usage', {

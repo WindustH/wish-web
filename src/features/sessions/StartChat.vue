@@ -22,6 +22,7 @@ import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Wordmark from '../../ui/components/Wordmark.vue';
+import SignOutButton from '../connection/SignOutButton.vue';
 
 const route = useRoute(), router = useRouter();
 const mobile = useMedia('(max-width: 899px)');
@@ -129,6 +130,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
 <template>
   <div class="start-chat" :class="{ 'mobile-home': mobile && route.name === 'sessions' }">
     <button v-if="mobile && route.name !== 'sessions'" class="btn ghost icon-only start-back" :aria-label="i18n.t('chatbar.back')" @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
+    <div v-if="mobile && route.name === 'sessions'" class="home-leading"><SignOutButton button-class="btn ghost icon-only" /></div>
     <div v-if="mobile && route.name === 'sessions'" class="home-actions">
       <button class="btn ghost icon-only" :aria-label="i18n.t('nav.stats')" @click="router.push('/stats')"><Icon name="chart-column"/></button>
       <button class="btn ghost icon-only" :aria-label="i18n.t('nav.settings')" @click="router.push('/settings')"><Icon name="settings"/></button>
@@ -170,7 +172,8 @@ async function send(text: string, attachments: AttachmentInput[]) {
 .start-model-controls button { font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .start-model-controls .model-chip { flex: 0 1 auto; max-width: min(38vw, 320px); }
 .home-actions { position: absolute; top: 8px; right: 12px; z-index: 1; display: flex; align-items: center; gap: 2px; }
-.home-actions .btn { width: 44px; height: 44px; }
+.home-leading { position: absolute; top: 8px; left: 12px; z-index: 1; }
+:is(.home-actions, .home-leading) .btn { width: 44px; height: 44px; }
 .start-back { position: absolute; top: 8px; left: 8px; }
 .start-empty { display: flex; align-items: center; gap: 8px; }
 :deep(.composer-start) { border: 1px solid var(--line-strong); border-radius: 16px; background: var(--bg-raised); box-shadow: 0 4px 24px #0000000a; padding: 10px 14px 12px; min-height: 188px; }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref } from 'vue';
 import { i18n } from '../../../core/i18n/index.js';
+import { apiFetch } from '../../../core/api/client.js';
 import { platform } from '../../../platform/index.js';
 import Icon from '../../../ui/components/Icon.vue';
 import { toast } from '../../../ui/toast';
@@ -99,7 +100,7 @@ function onClickCapture(event: MouseEvent) {
 async function saveImage() {
   if (!props.image) return;
   try {
-    const response = await fetch(props.image.src);
+    const response = await apiFetch(props.image.src);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const blob = await response.blob();
     const ext = ({ 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp',

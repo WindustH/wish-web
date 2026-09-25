@@ -3,6 +3,8 @@ import MessageContext from './MessageContext.vue';
 import { attachmentPreview, previewAttachment } from '../../../ui/attachmentPreview';
 import Hint from '../../../ui/components/Hint.vue';
 import Icon from '../../../ui/components/Icon.vue';
+import ApiImage from '../../../ui/components/ApiImage.vue';
+import { downloadApiFile } from '../../../ui/download';
 import { blobMetadata, blobUrl } from '../../../core/api/endpoints.js';
 import { ref, watch } from 'vue';
 import { fmtBytes } from '../../../core/util/fmt.js';
@@ -29,7 +31,7 @@ const imageSrc = () => props.block.blob_id ? blobUrl(props.block.blob_id) : `dat
       <div class="bubble" :class="{ 'image-bubble': block.type === 'image', 'attachment-bubble': block.type !== 'text' }">
         <div v-if="block.type === 'text'">{{ block.text }}</div>
         <figure v-else-if="block.type === 'image'" class="message-image">
-          <img :src="imageSrc()" :alt="block.filename || block.placeholder || ''" loading="lazy" />
+          <ApiImage :src="imageSrc()" :alt="block.filename || block.placeholder || ''" loading="lazy" />
           <figcaption v-if="block.filename">{{ block.filename }}</figcaption>
         </figure>
         <div v-else class="attachment-file message-file">
@@ -40,7 +42,7 @@ const imageSrc = () => props.block.blob_id ? blobUrl(props.block.blob_id) : `dat
             <Icon name="paperclip" /><span class="attachment-file-label"><span>{{ block.filename || i18n.t('chat.attachment') }}</span><small v-if="fileBytes != null">{{ fmtBytes(fileBytes) }}</small></span>
           </button>
           <Hint :text="i18n.locale.value === 'zh' ? '下载文件' : 'Download file'"><a class="message-file-download" :href="blobUrl(block.blob_id)" :download="block.filename || block.blob_id"
-            :aria-label="i18n.locale.value === 'zh' ? '下载文件' : 'Download file'" @click.stop><Icon name="download" /></a></Hint>
+            :aria-label="i18n.locale.value === 'zh' ? '下载文件' : 'Download file'" @click.stop="downloadApiFile($event, blobUrl(block.blob_id), block.filename || block.blob_id)"><Icon name="download" /></a></Hint>
         </div>
       </div>
     </div>
