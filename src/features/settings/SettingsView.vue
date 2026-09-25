@@ -14,6 +14,7 @@ import Modal from '../../ui/components/Modal.vue';
 import AddProvider from './AddProvider.vue';
 import PresetProvider from './PresetProvider.vue';
 import ServerProxySettings from './ServerProxySettings.vue';
+import ServerShellSettings from './ServerShellSettings.vue';
 import './settings.css';
 import { useConfigDraft } from './useConfigDraft';
 import { useSettingsGuard } from './useSettingsGuard';
@@ -60,6 +61,7 @@ const {
   notice,
   catalog,
   proxyEnvironment,
+  shells,
   adding,
   newProviderId,
   advanced,
@@ -122,7 +124,7 @@ onMounted(load);
     <p v-if="error" class="load-error" role="alert">{{error}}</p><p v-if="notice && tab!=='ui'" role="status">{{notice}}</p>
     <UiSettings v-if="tab==='ui'"/>
     <template v-else-if="draft">
-      <MobileSessionSettings v-if="isMobile&&tab==='service'" :config="draft" :providers="providerOptions" :efforts="effortOptions" :save="save" :busy="busy" :error="error"/>
+      <MobileSessionSettings v-if="isMobile&&tab==='service'" :config="draft" :shells="shells" :providers="providerOptions" :efforts="effortOptions" :save="save" :busy="busy" :error="error"/>
       <fieldset :disabled="busy" v-else-if="tab==='service'" class="settings-form">
         <section class="settings-group"><h2>{{tr('默认会话','Session defaults')}}</h2><p class="settings-default-note">{{tr('保存后仅用于新建会话，不会更改已有会话的配置。','Saved defaults apply only to new sessions. Existing sessions keep their configuration.')}}</p><div class="settings-fields">
         <label>{{tr('默认模型','Default model')}}<DefaultModelPicker :config="draft" :providers="providerOptions" :efforts="effortOptions"/></label>
@@ -130,6 +132,7 @@ onMounted(load);
         <label>{{tr('固定提示词','Instructions')}}<textarea class="input" rows="6" v-model="draft.defaults.instructions"/></label>
         <template v-if="draft.defaults.compaction"><label v-for="field in compactionFields()" :key="field.key">{{field.label}}<input class="input" type="number" min="1" v-model.number="draft.defaults.compaction[field.key]"/></label></template>
         </div></section>
+        <section v-if="draft.shell" class="settings-group"><h2>Shell</h2><p class="settings-default-note">{{tr('保存后下一条命令即使用新的 Shell，包括已打开的会话；正在运行的命令不受影响。','Saved changes apply to the next command in every session, including open ones. Running commands are unaffected.')}}</p><ServerShellSettings :value="draft.shell" :catalog="shells"/></section>
       </fieldset>
       <div v-else class="provider-settings">
         <p v-if="!isMobile" class="hint">{{tr('选择预置服务商后填写密钥，也可以使用服务器环境变量。保存后对新的模型调用生效。','Choose a provider preset and enter credentials or server environment variables. Saved changes apply to new calls.')}}</p>

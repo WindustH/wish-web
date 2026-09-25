@@ -8,6 +8,7 @@ import { errorText } from '../../core/config-editor';
 import { tr } from './fields';
 import { providerName } from '../../ui/providerPresentation';
 import type { ConfigCatalog, ProviderPreset } from '../../core/provider-presets';
+import type { ShellCatalog } from './ServerShellSettings.vue';
 
 export const PROTOCOL_OPTIONS = [
   'openai_responses',
@@ -48,6 +49,7 @@ export function useConfigDraft() {
 
   const catalog = ref<ConfigCatalog>({ presets: [] });
   const proxyEnvironment = ref<{ name: string; value: string; redacted: boolean }[]>([]);
+  const shells = ref<ShellCatalog | null>(null);
   const adding = ref(false);
   const newProviderId = ref('');
 
@@ -102,13 +104,16 @@ export function useConfigDraft() {
     busy.value = true;
     error.value = '';
     try {
-      const [configuration, presets, environment] = await Promise.all([
+      const [configuration, presets, environment, installed] = await Promise.all([
         get('/config'),
         get('/provider-presets'),
         get('/proxy-environment'),
+        // Only the picker needs it; the shell stays editable as a path without it.
+        get('/shells').catch(() => null),
       ]);
       catalog.value = presets;
       proxyEnvironment.value = environment.variables;
+      shells.value = installed;
       accept(configuration);
     } catch (e) {
       error.value = errorText(e);
@@ -237,6 +242,7 @@ export function useConfigDraft() {
     notice,
     catalog,
     proxyEnvironment,
+    shells,
     adding,
     newProviderId,
     advanced,

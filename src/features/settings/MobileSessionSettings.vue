@@ -6,9 +6,11 @@ import Icon from '../../ui/components/Icon.vue';
 import { type SelectOption } from '../../ui/components/SelectField.vue';
 import { useSettingsReturn } from './settingsReturn';
 import { tr, compactionFields } from './fields';
-const props=defineProps<{config:any;providers:SelectOption[];efforts:SelectOption[];save:()=>Promise<boolean>;busy:boolean;error:string}>();
+import ServerShellSettings, { type ShellCatalog } from './ServerShellSettings.vue';
+const props=defineProps<{config:any;shells:ShellCatalog|null;providers:SelectOption[];efforts:SelectOption[];save:()=>Promise<boolean>;busy:boolean;error:string}>();
 const page=ref('');
-const titles=computed<Record<string,string>>(()=>({model:tr('默认模型','Default model'),instructions:tr('固定提示词','Instructions'),cwd:tr('工作目录','Working directory'),compaction:tr('上下文压缩','Context compaction')}));
+const titles=computed<Record<string,string>>(()=>({model:tr('默认模型','Default model'),instructions:tr('固定提示词','Instructions'),cwd:tr('工作目录','Working directory'),compaction:tr('上下文压缩','Context compaction'),shell:'Shell'}));
+const shellName=computed(()=>{const program=props.config.shell?.program;return program?program.split(/[\\/]/).pop():tr('系统默认','System default');});
 const defaults=computed(()=>props.config.defaults);
 const returns=useSettingsReturn(()=>!!page.value,async()=>{if(await returns.confirm())page.value='';});
 </script>
@@ -22,6 +24,8 @@ const returns=useSettingsReturn(()=>!!page.value,async()=>{if(await returns.conf
     </div>
     <p class="mobile-group-note">{{tr('保存后仅用于新建会话，不会更改已有会话的配置。','Saved defaults apply only to new sessions. Existing sessions keep their configuration.')}}</p>
     <div v-if="defaults.compaction" class="mobile-settings-list"><button class="mobile-settings-row" @click="page='compaction'"><span>{{titles.compaction}}</span><Icon name="chevron-right"/></button></div>
+    <template v-if="config.shell"><p class="mobile-group-caption">{{tr('命令执行','Command execution')}}</p>
+    <div class="mobile-settings-list"><button class="mobile-settings-row" @click="page='shell'"><span>{{titles.shell}}<small class="row-preview">{{shellName}}</small></span><Icon name="chevron-right"/></button></div></template>
     <Modal page :before-close="returns.confirm" content-class="mobile-settings-page" :open="!!page" :title="titles[page]||''" @close="page=''">
 
       <p v-if="error" class="load-error" role="alert">{{error}}</p>
@@ -30,6 +34,7 @@ const returns=useSettingsReturn(()=>!!page.value,async()=>{if(await returns.conf
       </div>
       <template v-if="page==='instructions'"><p class="mobile-group-note">{{tr('每次新会话都会使用这段提示词。','These instructions are included in every new session.')}}</p><textarea class="input mobile-text-editor" :aria-label="titles.instructions" v-model="defaults.instructions"/></template>
       <template v-if="page==='cwd'"><div class="mobile-settings-list mobile-fields"><label>{{tr('绝对路径','Absolute path')}}<input class="input" v-model="defaults.cwd" autocomplete="off" autocapitalize="off" spellcheck="false"/></label></div><p class="mobile-group-note">{{tr('Shell 工具执行命令时使用的起始目录。','The starting directory for shell commands.')}}</p></template>
+      <template v-if="page==='shell'"><div class="mobile-settings-list"><ServerShellSettings :value="config.shell" :catalog="shells"/></div><p class="mobile-group-note">{{tr('保存后下一条命令即使用新的 Shell，包括已打开的会话。','Saved changes apply to the next command in every session, including open ones.')}}</p></template>
       <template v-if="page==='compaction'"><div class="mobile-settings-list mobile-fields"><label v-for="field in compactionFields()" :key="field.key">{{field.label}}<input class="input" type="number" inputmode="numeric" min="1" v-model.number="defaults.compaction[field.key]"/></label></div></template>
     </Modal>
   </div>
