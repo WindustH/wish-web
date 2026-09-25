@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
+import { modelColorKey } from './modelColors';
 import UsageRangePicker from './UsageRangePicker.vue';
 import type { RangeSelection } from '../../core/usage/windows';
 import UsagePlot from './UsagePlot.vue';
@@ -20,8 +21,10 @@ const tx = (zh: string, en: string) => i18n.locale.value === 'zh' ? zh : en;
 const num = (value: number) => new Intl.NumberFormat(i18n.locale.value, { maximumFractionDigits: 2 }).format(value);
 const keyOf = (provider: string | null, model: string | null) => JSON.stringify([provider, model]);
 const providerTitle = useProviderTitles();
-const models = computed(() => (props.data?.models ?? []).map((model, index) => ({ ...model, key: keyOf(model.provider, model.model), color: `var(--chart-${index % 6 + 1})`, modelName: model.model ? modelLabel(model.model) : 'Unknown model', providerName: model.provider ? providerTitle(model.provider) : 'Unknown provider' })).map(model => ({ ...model, label: `${model.modelName} · ${model.providerName}` })));
-const series = computed(() => models.value.filter(model=>!hiddenModels.value.has(model.key)).map(model => ({ key: model.key, label: model.label, colorIndex: models.value.indexOf(model), scatter: metric.value === 'tps', points: metric.value === 'tps' ? model.samples.map(point => [point.at_ms, point.tps, point.duration_ms] as [number, number | null, number]) : model.points.map(point => [point.at, point.tokens] as [number, number | null]) })));
+// The stats page assigns each model one color; this panel follows it when present.
+const pageColor = inject(modelColorKey, null);
+const models = computed(() => (props.data?.models ?? []).map((model, index) => ({ ...model, key: keyOf(model.provider, model.model), colorIndex: pageColor?.(keyOf(model.provider, model.model)) ?? index, color: `var(--chart-${(pageColor?.(keyOf(model.provider, model.model)) ?? index) % 6 + 1})`, modelName: model.model ? modelLabel(model.model) : 'Unknown model', providerName: model.provider ? providerTitle(model.provider) : 'Unknown provider' })).map(model => ({ ...model, label: `${model.modelName} · ${model.providerName}` })));
+const series = computed(() => models.value.filter(model=>!hiddenModels.value.has(model.key)).map(model => ({ key: model.key, label: model.label, colorIndex: model.colorIndex, scatter: metric.value === 'tps', points: metric.value === 'tps' ? model.samples.map(point => [point.at_ms, point.tps, point.duration_ms] as [number, number | null, number]) : model.points.map(point => [point.at, point.tokens] as [number, number | null]) })));
 const hasPoints = computed(() => series.value.some(model => model.points.some(point => point[1] !== null && (metric.value === 'tps' || point[1] > 0))));
 const dailyTotal = computed(() => props.days?.reduce((total, day) => total + day[1], 0) ?? 0);
 const activeDays = computed(() => props.days?.filter(day => day[1] > 0).length ?? 0);

@@ -148,22 +148,40 @@ export function pieOptions(items: PieSlice[], style: ChartStyle, locale: string)
         return [Math.max(12 - bounds.left, Math.min(point[0]! + 12, window.innerWidth - bounds.left - size.contentSize[0]! - 12)),
           Math.max(12 - bounds.top, Math.min(point[1]! + 12, window.innerHeight - bounds.top - size.contentSize[1]! - 12))];
       },
+      padding: [10, 12], borderRadius: 8,
       textStyle: { color: style.foreground, fontFamily: style.font, fontSize: 12 },
       formatter: (p: any) => {
         const content = document.createElement('div');
         const name = document.createElement('div');
-        name.textContent = p.name;
-        const value = document.createElement('div');
-        value.textContent = `${new Intl.NumberFormat(locale).format(p.data.tokens)} Token · ${new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 2 }).format(p.data.share)}`;
-        content.append(name, value);
+        name.style.cssText = 'display:flex;align-items:center;gap:6px;line-height:1.6;';
+        const dot = document.createElement('span');
+        dot.style.cssText = `width:8px;height:8px;border-radius:50%;flex:none;background:${p.color};`;
+        const label = document.createElement('span');
+        label.textContent = p.name;
+        name.append(dot, label);
+        const amount = document.createElement('div');
+        amount.style.cssText = 'display:flex;align-items:baseline;gap:6px;margin-top:2px;font-variant-numeric:tabular-nums;';
+        const value = document.createElement('strong');
+        value.textContent = `${new Intl.NumberFormat(locale).format(p.data.tokens)} Token`;
+        value.style.cssText = 'font-weight:600;';
+        const share = document.createElement('span');
+        share.textContent = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 2 }).format(p.data.share);
+        share.style.cssText = `color:${style.muted};`;
+        amount.append(value, share);
+        content.append(name, amount);
         if (p.data.members.length > 1) {
           const members = document.createElement('div');
           members.textContent = p.data.members.map((item: { name: string }) => item.name).join('、');
+          members.style.cssText = `margin-top:4px;font-size:11px;line-height:1.5;color:${style.muted};`;
           content.append(members);
         }
         return content;
       } },
-    series: [{ type: 'pie', radius: '82%', stillShowZeroSum: false, label: { show: false },
-      itemStyle: { borderColor: style.surface, borderWidth: 2 }, data: items.map(item => ({ name: item.name, itemStyle: { color: item.colorIndex == null ? style.muted : style.colors[item.colorIndex % style.colors.length] }, value: item.displayShare, tokens: item.value, share: item.share, members: item.members })) }],
+    // A donut with separated, softly rounded slices; the card places the total
+    // in the hole. Hovering lifts a slice and dims the rest.
+    series: [{ type: 'pie', radius: ['60%', '92%'], padAngle: 1.5, minAngle: 3, stillShowZeroSum: false, label: { show: false }, labelLine: { show: false },
+      itemStyle: { borderColor: style.surface, borderWidth: 1, borderRadius: 4 },
+      emphasis: { scale: true, scaleSize: 4, focus: 'self' }, blur: { itemStyle: { opacity: .35 } },
+      data: items.map(item => ({ name: item.name, itemStyle: { color: item.colorIndex == null ? style.muted : style.colors[item.colorIndex % style.colors.length] }, value: item.displayShare, tokens: item.value, share: item.share, members: item.members })) }],
   };
 }
