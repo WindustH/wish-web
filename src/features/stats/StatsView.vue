@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { pieDistribution } from '../usage/pieDistribution';
 import Hint from '../../ui/components/Hint.vue';
-import { computed, defineAsyncComponent, onActivated, onDeactivated, ref } from 'vue';
+import { computed, defineAsyncComponent, onActivated, onDeactivated, provide, ref } from 'vue';
+import { modelColorKey } from '../usage/modelColors';
 import { RefreshCw } from '@lucide/vue';
 import { stats } from '../../core/state/statsSlice.js';
 import { i18n } from '../../core/i18n/index.js';
@@ -22,6 +23,8 @@ const modelName = (model: string | null) => model ? modelLabel(model) : tx('未�
 const providerLabel = (provider: string | null) => provider ? providerTitle(provider) : tx('未记录', 'Not recorded');
 const modelKey = (row: {provider: string | null; model: string | null}) => JSON.stringify([row.provider,row.model]);
 const rows = computed(() => usage.value?.statistics.by_provider_model ?? []);
+// Charts below color models by their row here, matching the buttons and the donut.
+provide(modelColorKey, key => { const index = rows.value.findIndex(row => modelKey(row) === key); return index < 0 ? undefined : index; });
 const selectedRows = computed(() => rows.value.filter(row=>!hiddenModels.value.has(modelKey(row))));
 const totals = computed(() => selectedRows.value.reduce((sum,row)=>{
   sum.tokens.input_tokens+=row.totals.tokens.input_tokens;
@@ -47,6 +50,13 @@ const models = computed(() => rows.value.flatMap((row, colorIndex) => {
 }));
 const slices = computed(() => pieDistribution(models.value, tx('其他', 'Other')));
 const showPie = computed(() => models.value.filter(item => item.value > 0).length > 1);
+const pieTotal = computed(() => models.value.reduce((sum, item) => sum + item.value, 0));
+const queueRows = computed(() => status.value ? [
+  { name: tx('运行中会话', 'Running sessions'), value: status.value.queue.active_sessions },
+  { name: tx('待调度会话', 'Ready sessions'), value: status.value.queue.ready_sessions },
+  { name: tx('待处理消息', 'Pending messages'), value: status.value.queue.pending_items },
+  { name: tx('上下文压缩中会话', 'Compacting sessions'), value: status.value.queue.compacting_sessions },
+] : []);
 const storageRows = computed(() => storage.value ? [
   { name: tx('会话数据', 'Session data'), value: storage.value.bytes.session_data },
   { name: tx('资源文件', 'Resource files'), value: storage.value.bytes.blobs },
@@ -81,7 +91,10 @@ onDeactivated(stats.stopAuto);
           </dl>
           <h3 v-if="showPie">{{ tx('模型 Token 占比', 'Token share by model') }}</h3>
           <div v-if="showPie" class="model-share">
-            <UsagePlot :pie="slices" :label="tx('各模型总 Token 消耗占比', 'Total Token consumption by model')" />
+            <div class="model-share-chart">
+              <UsagePlot :pie="slices" :label="tx('各模型总 Token 消耗占比', 'Total Token consumption by model')" />
+              <div class="model-share-total" aria-hidden="true"><strong>{{ fmtTokens(pieTotal) }}</strong><span>Token</span></div>
+            </div>
             <ul class="distribution-legend">
               <li v-for="(item,index) in slices" :key="index"><i :style="{ background: item.colorIndex == null ? 'var(--fg-subtle)' : color(item.colorIndex) }" /><span>{{ item.name }}</span><strong>{{ percent(item.share) }}</strong></li>
             </ul>
@@ -90,28 +103,30 @@ onDeactivated(stats.stopAuto);
       </UsageCharts>
       <div class="statistics-grid">
         <div class="statistics-footer">
-        <section v-if="status" class="card statistics-detail">
-          <h2>{{ tx('服务状态', 'Service status') }}</h2>
-          <dl class="statistics-values">
+        <section v-if="status" class="statistics-panel">
+          <header class="panel-head">
+            <h2>{{ tx('服务状态', 'Service status') }}</h2>
+            <span v-if="version?.version" class="version-pill">wish {{ version.version }}</span>
+            <span class="service-state" :class="{ busy: status.queue.active_sessions > 0 }"><i />{{ status.queue.active_sessions > 0 ? tx(`运行中 ${number(status.queue.active_sessions)}`, `${number(status.queue.active_sessions)} running`) : tx('空闲', 'Idle') }}</span>
+          </header>
+          <dl class="panel-hero">
             <div><dt>{{ tx('已保存会话', 'Stored sessions') }}</dt><dd>{{ number(status.counts.sessions) }}</dd></div>
             <div><dt>{{ tx('本次启动已运行', 'Uptime since startup') }}</dt><dd>{{ fmtUptime(status.uptime_ms) }}</dd></div>
-            <div><dt>wish {{ tx('版本', 'version') }}</dt><dd>{{ version?.version ?? '—' }}</dd></div>
           </dl>
           <h3>{{ i18n.t('stats.queue') }}</h3>
-          <dl class="statistics-values">
-            <div><dt>{{ tx('运行中会话', 'Running sessions') }}</dt><dd>{{ number(status.queue.active_sessions) }}</dd></div>
-            <div><dt>{{ tx('待调度会话', 'Ready sessions') }}</dt><dd>{{ number(status.queue.ready_sessions) }}</dd></div>
-            <div><dt>{{ tx('待处理消息', 'Pending messages') }}</dt><dd>{{ number(status.queue.pending_items) }}</dd></div>
-            <div><dt>{{ tx('上下文压缩中会话', 'Compacting sessions') }}</dt><dd>{{ number(status.queue.compacting_sessions) }}</dd></div>
+          <dl class="queue-grid">
+            <div v-for="item in queueRows" :key="item.name" :class="{ active: item.value > 0 }"><dt>{{ item.name }}</dt><dd>{{ number(item.value) }}</dd></div>
           </dl>
         </section>
-        <section v-if="storage" class="card statistics-detail">
-          <h2>{{ i18n.t('stats.storage') }}</h2>
-          <div class="storage-summary"><span>{{ tx('文件总大小', 'Total file size') }}</span><Hint :text="`${number(storage.bytes.total)} B`"><strong>{{ fmtBytes(storage.bytes.total) }}</strong></Hint></div>
+        <section v-if="storage" class="statistics-panel">
+          <header class="panel-head"><h2>{{ i18n.t('stats.storage') }}</h2></header>
+          <dl class="panel-hero">
+            <div><dt>{{ tx('文件总大小', 'Total file size') }}</dt><dd><Hint :text="`${number(storage.bytes.total)} B`"><span>{{ fmtBytes(storage.bytes.total) }}</span></Hint></dd></div>
+          </dl>
           <div class="storage-bar" role="img" :aria-label="storageRows.map(item => `${item.name}: ${fmtBytes(item.value)}`).join(', ')">
-            <span v-for="(item,index) in storageRows" :key="item.name" :style="{ width: `${storage.bytes.total ? item.value / storage.bytes.total * 100 : 0}%`, background: color(index) }" />
+            <template v-for="(item,index) in storageRows" :key="item.name"><span v-if="item.value > 0" :style="{ flexGrow: item.value, background: color(index) }" /></template>
           </div>
-          <ul class="distribution-legend storage-legend">
+          <ul class="storage-legend">
             <li v-for="(item,index) in storageRows" :key="index"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><small>{{ percent(storage.bytes.total ? item.value / storage.bytes.total : 0) }}</small><Hint :text="`${number(item.value)} B`"><strong>{{ fmtBytes(item.value) }}</strong></Hint></li>
           </ul>
         </section>
@@ -138,9 +153,8 @@ onDeactivated(stats.stopAuto);
 .statistics-model small { display:block; margin-top:2px; font-size:10px; color:var(--fg-subtle); }
 .statistics-model-dot { width:7px; height:7px; border-radius:50%; flex:none; }
 .statistics-toolbar { display: flex; flex: none; align-items: center; justify-content: end; gap: 12px; padding-block: 10px; }
-.statistics-grid { display: grid; gap: 20px; min-width: 0; }
-.statistics-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; min-width: 0; }
-.statistics-grid .card { padding: 20px; min-width: 0; border-radius: 0; border: 0; border-top: 1px solid var(--line-strong); background: transparent; }
+.statistics-grid { display: grid; gap: 20px; min-width: 0; margin-top: 20px; }
+.statistics-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; min-width: 0; }
 h2 { font: 600 16px/1.5 var(--font); margin: 0 0 16px; }
 h3 { font-size: 14px; margin: 16px 0 12px; font-weight: 500; }
 .statistics-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; margin: 0; }
@@ -150,27 +164,44 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 .statistics-table-wrap { overflow-x: auto; }
 .statistics-table { width: 100%; white-space: nowrap; }
 .load-error { margin-bottom: 20px; }
-@media (max-width: 899px) { .statistics-page { padding: 0 20px 32px; } .statistics-grid .card { padding: 16px; } .statistics-grid { gap: 0; } }
+@media (max-width: 899px) { .statistics-page { padding: 0 20px 32px; } }
 .model-share { display: grid; grid-template-columns: minmax(120px, 180px) minmax(0, 1fr); gap: 16px; align-items: center; }
 .model-share :deep(.usage-canvas) { height: 180px; }
-.distribution-legend { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; font-size: 13px; }
-.distribution-legend li { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.distribution-legend i { width: 8px; height: 8px; flex: none; border-radius: 2px; }
-.distribution-legend span { min-width: 0; overflow-wrap: anywhere; }
-.distribution-legend strong { font-weight: 500; margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.statistics-detail h2 { font-size: 14px; margin-bottom: 12px; }
-.statistics-detail h3 { font-size: 12px; color: var(--fg-muted); margin: 14px 0 8px; }
-.statistics-detail .statistics-values { gap: 8px 20px; }
-.statistics-detail .statistics-values > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.statistics-detail dt { font-size: 12px; }
-.statistics-detail dd { margin: 0; font-size: 13px; letter-spacing: 0; white-space: nowrap; }
-.storage-summary { display: flex; justify-content: space-between; font-size: 12px; color: var(--fg-muted); }
-.storage-summary strong { color: var(--fg); font-size: 13px; font-weight: 500; }
-.storage-legend { gap: 7px; font-size: 12px; }
-.storage-legend span { flex: 1; }
-.storage-legend small { color: var(--fg-muted); font-size: 11px; }
-.storage-legend strong { margin-left: 0; min-width: 65px; text-align: right; }
-@media (max-width: 899px) { .statistics-footer { grid-template-columns: 1fr; gap: 0; } }
+.distribution-legend, .storage-legend { list-style: none; padding: 0; margin: 0; font-size: 13px; }
+.distribution-legend li, .storage-legend li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 7px 0; }
+.distribution-legend li + li, .storage-legend li + li { border-top: 1px solid var(--line); }
+.distribution-legend i, .storage-legend i { width: 8px; height: 8px; flex: none; border-radius: 50%; }
+.distribution-legend span, .storage-legend span { flex: 1; min-width: 0; color: var(--fg-muted); overflow-wrap: anywhere; }
+.distribution-legend strong, .storage-legend strong { font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.model-share-chart { position: relative; min-width: 0; }
+.model-share-total { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; line-height: 1.2; }
+.model-share-total strong { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.model-share-total span { font-size: 10px; color: var(--fg-subtle); }
+/* Service status and storage: cards matching the chart cards above. */
+.statistics-panel { min-width: 0; padding: 18px 20px 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); }
+.panel-head { display: flex; align-items: center; gap: 8px; min-width: 0; margin-bottom: 16px; }
+.panel-head h2 { margin: 0; font: 600 14px/1.5 var(--font); }
+.version-pill { padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--fg-subtle); font-size: 11px; line-height: 1.6; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.service-state { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: var(--fg-subtle); font-size: 12px; white-space: nowrap; }
+.service-state i { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-faint); }
+.service-state.busy { color: var(--fg); }
+.service-state.busy i { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.panel-hero { display: flex; flex-wrap: wrap; gap: 12px 40px; margin: 0; }
+.panel-hero dt { color: var(--fg-subtle); font-size: 12px; }
+.panel-hero dd { margin: 4px 0 0; font-size: 24px; font-weight: 600; line-height: 1.2; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.statistics-panel h3 { margin: 20px 0 10px; color: var(--fg-subtle); font-size: 12px; font-weight: 500; }
+.queue-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.queue-grid > div { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 2px; min-width: 0; padding: 10px 12px; border-radius: 8px; background: color-mix(in srgb, var(--fg) 5%, transparent); }
+.queue-grid dt { color: var(--fg-subtle); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.queue-grid dd { margin: 0; color: var(--fg-faint); font-size: 18px; font-weight: 600; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.queue-grid > .active dd { color: var(--accent); }
+.queue-grid > .active dt { color: var(--fg-muted); }
+.storage-bar { display: flex; gap: 2px; height: 10px; margin: 16px 0 10px; overflow: hidden; border-radius: 999px; background: var(--bg-sunken); }
+.storage-bar span { flex: 0 1 0; min-width: 6px; }
+.storage-legend small { min-width: 48px; color: var(--fg-subtle); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.storage-legend strong { min-width: 72px; text-align: right; }
+@media (max-width: 899px) { .statistics-footer { grid-template-columns: 1fr; gap: 16px; } .statistics-grid { margin-top: 16px; } .statistics-panel { padding: 16px; } }
+@media (max-width: 599px) { .queue-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .panel-hero { gap: 12px 32px; } }
 @media (min-width: 700px) {
   .statistics-body :deep(.usage-charts) { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
   .statistics-body :deep(.usage-chart-card:first-child) { grid-column: 1; grid-row: 1; }
@@ -182,9 +213,6 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
   .statistics-table { white-space: normal; table-layout: fixed; }
   .statistics-table th, .statistics-table td { overflow-wrap: anywhere; padding-inline: 6px; }
 }
-@media (max-width: 450px) { .statistics-detail .statistics-values { grid-template-columns: 1fr; } }
-.storage-bar { display: flex; overflow: hidden; border-radius: 4px; height: 10px; background: var(--bg-raised); margin: 10px 0 12px; }
-.storage-bar span { flex: none; }
 @media (max-width: 450px) { .model-share { grid-template-columns: minmax(100px, 130px) minmax(0, 1fr); gap: 10px; } .model-share :deep(.usage-canvas) { height: 140px; } }
 @media (max-width: 599px) {
   .statistics-page { padding-inline: 20px; }

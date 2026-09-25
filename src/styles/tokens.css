@@ -87,14 +87,16 @@ html[data-theme='dark'] {
   color-scheme: dark;
 }
 
-/* Shared chart palette: distinct series and a sequential daily-usage scale. */
+/* Shared chart palette: distinct series and a sequential daily-usage scale.
+   Earthy hues around the terracotta accent, ordered so neighbouring slots stay
+   apart under protanopia and deuteranopia in both themes. */
 :root {
-  --chart-1: #3a68bd; --chart-2: #aa4d78; --chart-3: #23817e;
-  --chart-4: #8b6bb1; --chart-5: #a36b25; --chart-6: #69813e;
+  --chart-1: #b95c3a; --chart-2: #3c62a1; --chart-3: #b48226;
+  --chart-4: #7f447b; --chart-5: #549957; --chart-6: #91394b;
   --heat-0: #e2dbce; --heat-1: #c5decb; --heat-2: #8abc99; --heat-3: #4c9764; --heat-4: #27733f;
 }
 html[data-theme='dark'] {
-  --chart-1: #82acff; --chart-2: #eb93b9; --chart-3: #6ecac4;
-  --chart-4: #baa0e8; --chart-5: #e5b568; --chart-6: #b0ca7a;
+  --chart-1: #d47452; --chart-2: #5787ce; --chart-3: #ba8a2e;
+  --chart-4: #a864a2; --chart-5: #57a45b; --chart-6: #b65263;
   --heat-0: #363636; --heat-1: #355641; --heat-2: #457b53; --heat-3: #68aa72; --heat-4: #9bd19b;
 }
