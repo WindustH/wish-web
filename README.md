@@ -1,25 +1,122 @@
-# Wish Web
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/wish-logo-dark.svg">
+    <img src="docs/assets/wish-logo-light.svg" alt="Wish" width="300">
+  </picture>
+</p>
 
-Vue 3 client for Wish sessions, provider configuration and usage statistics. Desktop and mobile share the same backend contract with responsive navigation and layout.
+<p align="center">
+  <strong>The desktop and mobile app for the Wish AI agent.</strong>
+</p>
 
-Wish 的 Vue 3 客户端，提供会话、提供商配置与用量统计。桌面和移动端共用业务逻辑，并分别适配布局和导航。
+<p align="center">
+  <a href="https://github.com/WindustH/wish-core">Wish server</a> ·
+  <a href="docs/en/README.md">Documentation</a> ·
+  <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-## Documentation / 文档
+---
 
-- [English documentation](doc/en/README.md)
-- [完整中文文档](doc/zh/README.md)
-- [Third-party licenses / 第三方许可](THIRD_PARTY.md)
+Wish Web is the client for [Wish](https://github.com/WindustH/wish-core), a
+self-hosted AI agent that works on your own machine. It turns Wish's
+long-running sessions into a calm, focused chat workspace that feels at home on
+a large monitor and on a phone.
 
-## Quick start / 快速开始
+<p align="center">
+  <img src="docs/assets/screenshot-desktop.png" alt="Wish on the desktop" width="74%">
+  &nbsp;
+  <img src="docs/assets/screenshot-mobile.png" alt="Wish on a phone" width="22%">
+</p>
 
-Requires Node.js 22.19.0+ and Corepack. Start the new single `wish` backend (9780), then:
+## Features
+
+- **Watch the agent think and work.** Replies stream in as they are written,
+  with live reasoning. Every command shows its output, exit code and the exact
+  file changes it made, folded neatly so long tasks stay readable.
+- **Keep talking while it works.** Follow-up messages queue up; drag to
+  reorder them, edit or cancel them. Press Esc to interrupt, or ask a quick
+  side question in a bubble without disturbing the running task.
+- **Rich input.** Paste or attach images and files right where they belong in
+  your message. Long pastes collapse into tidy, editable chips.
+- **Find anything.** Search a session's entire history and jump straight to
+  that moment in the conversation.
+- **Stay in control of each session.** See how full the context is and how
+  close it is to being compacted. Tune compaction and the shell for a single
+  session, or switch models in the middle of a task.
+- **Usage at a glance.** An activity calendar, token usage per model over any
+  time range, estimated streaming speed, and the server's status and storage.
+- **Set up in a minute.** A first-run guide with 48 provider presets, ChatGPT
+  sign-in, a model editor, and proxy and shell settings, all applied without
+  restarting the server.
+- **Made for phones too.** A dedicated mobile layout that can be installed as
+  an app, with light and dark themes in English and Chinese.
+- **Fast with long histories.** Virtualized lists stay smooth in very long
+  conversations, and recent data appears instantly from cache while fresh data
+  loads.
+- **One app, many servers.** Sign out and connect to another Wish server with
+  its address and access token, so a single installed app can reach every
+  machine you run Wish on.
+- **Safe to publish.** The bundled server keeps your access token on the
+  server, answers only to host names you allow, and blocks cross-site
+  requests.
+
+## Quick start
+
+You need [Node.js](https://nodejs.org) 22.19 or newer and a running Wish
+server; see the [Wish quick start](https://github.com/WindustH/wish-core#quick-start).
+
+```sh
+git clone https://github.com/WindustH/wish-web.git
+cd wish-web
+./pnpmw install --frozen-lockfile
+./pnpmw build
+node serve.mjs
+```
+
+Open <http://127.0.0.1:8790>. The first-run guide helps you add a model
+provider; after that, choose a working directory on the start page and send
+your first message.
+
+`./pnpmw` runs the pinned pnpm through Corepack, so no global install is
+needed. The server is configured with environment variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `WISH_UPSTREAM` | `http://127.0.0.1:9780` | Address of the Wish server |
+| `WISH_HTTP_TOKEN` | | Wish's access token, added to every API request on the server side |
+| `PORT` | `8790` | Port to listen on |
+| `LISTEN_HOST` | `127.0.0.1` | Address to listen on; `0.0.0.0` for your local network |
+| `ALLOWED_HOSTS` | | Extra `host:port` names the app may be opened under, comma-separated |
+
+To use Wish from your phone or install it as an app, serve it over HTTPS as
+described in the [deployment guide](docs/en/deployment.md).
+
+## Documentation
+
+- [User guide](docs/en/user-guide.md): everything you can do in the app,
+  including keyboard shortcuts.
+- [Configuration](docs/en/configuration.md): the settings screens and what
+  they change.
+- [Deployment](docs/en/deployment.md): serving on your network, HTTPS, running
+  as a service and upgrading.
+- [Troubleshooting](docs/en/troubleshooting.md)
+- [Development](docs/en/development.md) and [architecture](docs/en/architecture.md)
+  for contributors.
+
+## Development
 
 ```sh
 ./pnpmw install --frozen-lockfile
-./pnpmw build
-WISH_UPSTREAM=http://127.0.0.1:9780 node serve.mjs
+WISH_UPSTREAM=http://127.0.0.1:9780 ./pnpmw dev   # http://127.0.0.1:5173
+./pnpmw typecheck
+./pnpmw test
 ```
 
-Open / 打开 `http://127.0.0.1:8790`.
+Built with Vue 3, TypeScript and Vite. See the
+[development guide](docs/en/development.md) for the project layout and
+conventions. Contributions are welcome.
 
-Production serving needs `dist/` and `serve.mjs`, without `node_modules`. See the [deployment guide](doc/en/deployment.md) / [部署指南](doc/zh/deployment.md) for proxy, authentication and LAN settings. Regression tests live in the sibling `wish-test` repository.
+## License
+
+[MIT](LICENSE). Bundled fonts and libraries keep their own licenses, listed in
+[THIRD_PARTY.md](THIRD_PARTY.md).

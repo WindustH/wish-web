@@ -1,7 +1,7 @@
 {
   "name": "Wish",
   "short_name": "Wish",
-  "description": "wish webui v2 — local client for wishd",
+  "description": "Wish: a self-hosted AI agent workspace",
   "start_url": "/#/sessions",
   "scope": "/",
   "display": "standalone",
