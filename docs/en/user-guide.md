@@ -14,7 +14,7 @@ Until at least one provider is ready to use, Wish shows **Connect your first mod
 4. **Connection options** holds the **Provider ID**, **Request protocol**, **Request path** and **Authentication**, filled in from the preset.
 5. **Save and start** writes the provider into the server configuration and makes this model the default for new sessions.
 
-To see this screen again without changing anything, use Settings → **Interface** → **First-run setup** → **Preview**.
+To see this screen again without changing anything, use Settings → **Debug** → **First-run setup** → **Preview**.
 
 ## Starting a chat
 
@@ -123,11 +123,12 @@ The page refreshes every 30 seconds while it is open (the calendar every 5 minut
 
 ## Settings
 
-Open **Settings** from the navigation bar or with Ctrl/⌘ + ,. It has three sections:
+Open **Settings** from the navigation bar or with Ctrl/⌘ + ,. It has four sections:
 
 - **Service & sessions**: defaults for new sessions (model, working directory, instructions, context compaction) and the shell.
 - **Providers**: model providers, their credentials and models, and the network proxy.
-- **Interface**: theme, language, input, notifications, installing the app, connection diagnostics and local data.
+- **Interface**: theme, language, input, notifications, installing the app and local data.
+- **Debug**: connection diagnostics and a preview of the first-run setup.
 
 The first two sections edit the server's configuration and take effect when you save; **Interface** options apply at once and stay in this browser. See [configuration](configuration.md) for every option.
 

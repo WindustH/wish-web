@@ -42,7 +42,7 @@ Vite 会在 <http://127.0.0.1:5173> 启动支持热更新的开发服务器（�
 
 - **单元测试**（`./pnpmw test`，安装依赖后在仓库根目录运行）：`tools/*.test.ts`，基于 `node:test`。它们在不启动浏览器的情况下测试各类逻辑：API 数据转换和模型校验、聊天历史和消息队列、粘贴文本和附件占位符、配置合并、提供商就绪判断、列表和输入框的尺寸调整，以及已打补丁依赖的回归测试。
 - **API 自检**（`./pnpmw selftest:api http://127.0.0.1:5173`，也可以是任何已部署的地址）：读取 `/version`、会话、提供商、默认设置、配置、用量、状态和存储，并确认 `/events` 以快照开头。它不会修改任何东西，失败时以非零状态退出。
-- **浏览器自检**：打开 `/#/selftest?auto=1`，或在设置 →“界面”→“连接诊断”中点击“检查连接”。它会检查模块加载、语言和主题切换、本地存储、API、事件流和 Service Worker，不会改动服务端的任何数据。带 `?auto=1` 时，结果还会写入 `window.__selftestResult`。
+- **浏览器自检**：打开 `/#/selftest?auto=1`，或在设置 →“调试”→“连接诊断”中点击“开始检查”。它会检查模块加载、语言和主题切换、本地存储、API、事件流和 Service Worker，不会改动服务端的任何数据。带 `?auto=1` 时，结果还会写入 `window.__selftestResult`。
 - **服务端测试**在单独的 `wish-test` 仓库中。`tests/test_wish_server.py` 针对 `../wish-core`（或 `$WISH_CORE_REPO`）的调试构建进行黑盒 HTTP 测试，在 `wish-test` 目录下运行 `python3 -m unittest tests.test_wish_server -v`。`wish-test/web/` 下的浏览器测试是为早期的双守护进程服务端写的，还没有迁移到当前版本。
 
 需要修改会话的检查，请在临时启动的服务端上进行，不要拿重要的会话做实验。

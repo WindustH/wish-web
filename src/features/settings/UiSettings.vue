@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { computed, inject, ref } from 'vue';
-import { RouterLink, useRouter } from 'vue-router';
+import { computed, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
-import { Download, Activity, Sparkles } from '@lucide/vue';
-import { openOnboardingPreview } from '../onboarding/preview.ts';
+import { Download } from '@lucide/vue';
 import { cfg } from '../../core/config.ts';
 import { theme } from '../../core/theme/index.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -31,18 +29,6 @@ const { locale } = i18n;
 const { sendOnEnter, notifyOnFailure, keepAwake } = prefs;
 const app = platform('app');
 const clearOpen = ref(false);
-// This page renders with the settings route; the router knows where navigation ended.
-const router = useRouter();
-const closeSettings = inject<() => Promise<unknown>>('closeSettings');
-async function previewOnboarding() {
-  // The desktop settings dialog is modal and would take every click meant for
-  // the preview, so leave it first (unless the user keeps editing).
-  if (desktop.value && closeSettings) {
-    await closeSettings();
-    if (router.currentRoute.value.meta.section === 'settings') return;
-  }
-  openOnboardingPreview();
-}
 const notificationsFailed = (error: unknown) => showError({ title: tr('无法开启通知', 'Could not turn on notifications'), error });
 async function setNotifications(enabled: boolean) {
   if (!enabled) { prefs.setNotifyOnFailure(false); return; }
@@ -87,8 +73,6 @@ function clearPreferences() {
         </template>
         <template v-if="section === 'local'">
           <div class="setting-row"><div><span>{{ tr('安装 Wish', 'Install Wish') }}</span></div><button id="ui-install" class="btn" @click="install"><Download :size="16" />{{ tr('安装', 'Install') }}</button></div>
-          <div class="setting-row"><div><span>{{ tr('连接诊断', 'Connection diagnostics') }}</span></div><RouterLink id="ui-diagnostics" class="btn" to="/selftest"><Activity :size="16" />{{ tr('检查连接', 'Check connection') }}</RouterLink></div>
-          <div class="setting-row"><div><span>{{ tr('首次使用引导', 'First-run setup') }}</span></div><SettingHint :text="tr('预览还没有配置模型时看到的引导流程，不会保存任何配置。', 'Preview the setup shown before any model is configured. Nothing is saved.')" /><button id="ui-onboarding-preview" class="btn" @click="previewOnboarding"><Sparkles :size="16" />{{ tr('预览', 'Preview') }}</button></div>
           <div class="setting-row"><div><span>{{ tr('本地设置', 'Local preferences') }}</span></div><SettingHint :text="tr('清除浏览器保存的偏好、输入草稿和缓存的模型列表与统计。后端会话不受影响。', 'Clear preferences, drafts and cached model lists and statistics stored in this browser. Server sessions remain available.')" /><button id="ui-clear-local" class="btn danger" @click="clearOpen = true">{{ tr('清除本地数据', 'Clear local data') }}</button></div>
         </template>
       </template>

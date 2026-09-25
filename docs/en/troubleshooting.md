@@ -10,7 +10,7 @@ curl -s http://127.0.0.1:9780/health        # the Wish server is up
 ./pnpmw selftest:api http://127.0.0.1:8790  # the whole path, read-only
 ```
 
-In the browser, `/#/selftest?auto=1` (or Settings → **Interface** → **Connection diagnostics**) runs the same kind of checks from the page.
+In the browser, `/#/selftest?auto=1` (or Settings → **Debug** → **Connection diagnostics**) runs the same kind of checks from the page.
 
 ## Connecting
 
