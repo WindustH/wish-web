@@ -276,7 +276,10 @@ function setCredential(field:string,value:string){
  .provider-panel .preset-section>header{padding:0 14px}
  .provider-panel .preset-section>header:not(:has(a)){display:none}
  .provider-panel .preset-section label{padding:12px 14px}
- .provider-panel .preset-section .hint{padding:12px 14px}
+ .provider-panel .preset-section>.hint{padding:12px 14px}
+ .provider-panel .preset-section label>.hint{display:block;margin-top:8px;line-height:1.6}
+ .provider-panel .preset-section>.chatgpt-login{padding:14px;border-top:1px solid var(--line)}
+ .provider-panel .chatgpt-login>.btn{width:100%;min-height:44px;justify-content:center}
  .provider-panel .preset-section .mobile-settings-row{border-block:1px solid var(--line)}
  .provider-panel .advanced-fields{gap:0}
 }
