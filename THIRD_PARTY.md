@@ -25,13 +25,15 @@ into `dist/`; the deployed client does not fetch libraries from a CDN.
 | markdown-it | 15.0.1 | Markdown parsing | MIT |
 | dompurify | 3.4.15 | HTML sanitization | MPL-2.0 OR Apache-2.0 |
 | workbox-window | 7.4.1 | Service worker registration and update flow | MIT |
+| workbox-core, workbox-precaching, workbox-routing, workbox-strategies, workbox-expiration | 7.4.1 | Service worker runtime, bundled into `dist/workbox-*.js` by vite-plugin-pwa | MIT |
 | vite | 8.2.2 | Development server and bundling | MIT |
 | vite-plugin-pwa | 1.3.0 | Static shell precache generation | MIT |
 
 Package license files are distributed with the installed packages in
 `node_modules`; the lockfile records transitive packages and integrity hashes.
-Update packages with `./pnpmw`, then run type checking, build, and the external
-Wish browser regressions before deploying the compiled output.
+reka-ui and @tanstack/virtual-core carry local patches from `patches/`.
+Update packages with `./pnpmw`, then run `./pnpmw typecheck`, `./pnpmw test`
+and `./pnpmw build` before deploying the compiled output.
 
 Official project documentation:
 [Vue](https://vuejs.org/), [Vue Router](https://router.vuejs.org/),
@@ -39,8 +41,8 @@ Official project documentation:
 [Lucide](https://lucide.dev/), [markdown-it](https://github.com/markdown-it/markdown-it),
 [LobeHub Icons](https://github.com/lobehub/lobe-icons),
 [DOMPurify](https://github.com/cure53/DOMPurify),
-[JSON Patch](https://github.com/Starcounter-Jack/JSON-Patch),
-[Vite](https://vite.dev/), [Vite PWA](https://vite-pwa-org.netlify.app/).
+[Vite](https://vite.dev/), [Vite PWA](https://vite-pwa-org.netlify.app/),
+[Workbox](https://developer.chrome.com/docs/workbox).
 
 The Noto font binaries are emitted as Unicode-range WOFF2 shards. Browsers
 request only shards needed by visible text, from the same origin. The service
