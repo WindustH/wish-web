@@ -6,7 +6,7 @@ import { requireAvailableModel } from '../../core/api/endpoints.js';
 import { replayConfigChanges } from '../../core/configMerge.js';
 import { errorText } from '../../core/config-editor';
 import { tr } from './fields';
-import { presetLabel } from '../../ui/providerPresentation';
+import { providerName } from '../../ui/providerPresentation';
 import type { ConfigCatalog, ProviderPreset } from '../../core/provider-presets';
 
 export const PROTOCOL_OPTIONS = [
@@ -68,11 +68,7 @@ export function useConfigDraft() {
       const p = findPreset((value as any).preset);
       return {
         value: id,
-        label: (value as any).display_name
-          ? `${(value as any).display_name} · ${id}`
-          : p
-            ? `${id} · ${presetLabel(p)}`
-            : id,
+        label: (value as any).display_name || (p ? providerName(p.provider) : id),
         brand: p?.provider,
       };
     })

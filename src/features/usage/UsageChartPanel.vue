@@ -8,6 +8,8 @@ import InfoHint from '../../ui/components/InfoHint.vue';
 import { i18n } from '../../core/i18n/index.js';
 import { fmtTokens } from '../../core/util/fmt.js';
 import type { UsageChartData } from '../../core/usage/types';
+import { modelLabel } from '../../ui/modelLabel';
+import { useProviderTitles } from '../../ui/composables/useProviderTitles';
 const props = defineProps<{ data: UsageChartData | null; heat: HeatData | null; days: [string, number][] | null; loading: boolean; calendarLoading: boolean; error: string; calendarError: string; range: RangeSelection; calendarRange: RangeSelection; rangeSwitching?: boolean; calendarSwitching?: boolean }>();
 const emit = defineEmits<{ range: [value: RangeSelection]; calendarRange: [value: RangeSelection]; refresh: []; retryCalendar: []; calendarColumns: [value: number] }>();
 const metric = ref<'tps' | 'tokens'>('tps');
@@ -17,7 +19,8 @@ const dailyTable = ref(false);
 const tx = (zh: string, en: string) => i18n.locale.value === 'zh' ? zh : en;
 const num = (value: number) => new Intl.NumberFormat(i18n.locale.value, { maximumFractionDigits: 2 }).format(value);
 const keyOf = (provider: string | null, model: string | null) => JSON.stringify([provider, model]);
-const models = computed(() => (props.data?.models ?? []).map((model, index) => ({ ...model, key: keyOf(model.provider, model.model), color: `var(--chart-${index % 6 + 1})`, label: `${model.model ?? 'Unknown model'} · ${model.provider ?? 'Unknown provider'}` })));
+const providerTitle = useProviderTitles();
+const models = computed(() => (props.data?.models ?? []).map((model, index) => ({ ...model, key: keyOf(model.provider, model.model), color: `var(--chart-${index % 6 + 1})`, modelName: model.model ? modelLabel(model.model) : 'Unknown model', providerName: model.provider ? providerTitle(model.provider) : 'Unknown provider' })).map(model => ({ ...model, label: `${model.modelName} · ${model.providerName}` })));
 const series = computed(() => models.value.filter(model=>!hiddenModels.value.has(model.key)).map(model => ({ key: model.key, label: model.label, colorIndex: models.value.indexOf(model), scatter: metric.value === 'tps', points: metric.value === 'tps' ? model.samples.map(point => [point.at_ms, point.tps, point.duration_ms] as [number, number | null, number]) : model.points.map(point => [point.at, point.tokens] as [number, number | null]) })));
 const hasPoints = computed(() => series.value.some(model => model.points.some(point => point[1] !== null && (metric.value === 'tps' || point[1] > 0))));
 const dailyTotal = computed(() => props.days?.reduce((total, day) => total + day[1], 0) ?? 0);
@@ -53,7 +56,7 @@ const activeDays = computed(() => props.days?.filter(day => day[1] > 0).length ?
       <template v-if="data">
         <div v-if="models.length" class="usage-models" :aria-label="tx('模型图例', 'Model legend')">
           <button v-for="model in models" :key="model.key" type="button" class="usage-model" :aria-pressed="!hiddenModels.has(model.key)" @click="toggleModel(model.key)">
-            <span class="usage-dot" :style="{ background: model.color }" /><span class="usage-model-name">{{ model.model ?? 'Unknown model' }}<small>{{ model.provider ?? 'Unknown provider' }}</small></span>
+            <span class="usage-dot" :style="{ background: model.color }" /><span class="usage-model-name">{{ model.modelName }}<small>{{ model.providerName }}</small></span>
             <strong>{{ metric === 'tokens' ? fmtTokens(model.tokens) : model.tps == null ? '—' : num(model.tps) }}<small>{{ metric === 'tokens' ? 'Token' : 'Token/s' }}</small></strong>
           </button>
         </div>

@@ -23,7 +23,7 @@ watch(snapshot, value => { selected.value = value ? key(value.provider, value.mo
 const choices = computed(() => catalog.groups.value.flatMap(group => {
   const { provider } = group;
   const brand = presetBrand(provider.preset);
-  const title = provider.display_name ? `${provider.display_name} · ${provider.id}` : brand ? `${providerName(brand)} · ${provider.id}` : provider.id;
+  const title = provider.display_name || (brand ? providerName(brand) : provider.id);
   const models = [...group.models];
   if (snapshot.value?.provider === provider.id && !models.some(model => model.id === snapshot.value!.model)) {
     models.unshift({ id: snapshot.value.model, source: 'current' });
@@ -31,7 +31,7 @@ const choices = computed(() => catalog.groups.value.flatMap(group => {
   return models.map(model => ({
     key: key(provider.id, model.id), title: modelLabel(model.id),
     vision: model.input_modalities?.includes('image') === true,
-    search: model.id, description: model.source === 'current' ? `${model.id} · ${i18n.locale.value === 'zh' ? '目录中未找到' : 'Not found in catalog'}` : model.id,
+    search: model.id, description: model.source === 'current' ? (i18n.locale.value === 'zh' ? '目录中未找到' : 'Not found in catalog') : undefined,
     disabled: model.source === 'current', group: title, brand, provider: provider.id, model: model.id,
   }));
 }));

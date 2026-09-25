@@ -16,8 +16,8 @@ const choices = computed(() => props.providers.flatMap(provider => {
   const models = props.config.providers[provider.value]?.models ?? {};
   const ids = Object.keys(models);
   if (provider.value === defaults.value.provider && defaults.value.model && !ids.includes(defaults.value.model)) ids.unshift(defaults.value.model);
-  return ids.map(id => ({key: JSON.stringify([provider.value, id]), title: models[id]?.display_name || modelLabel(id), search: id,
-    description: models[id] ? id : `${id} · ${tr('未在配置中','Not configured')}`,
+  return ids.map(id => ({key: JSON.stringify([provider.value, id]), title: modelLabel(id), search: id,
+    description: models[id] ? undefined : tr('未在配置中','Not configured'),
     disabled: !models[id], group: provider.label, brand: provider.brand, vision: models[id]?.input_modalities?.includes('image')}));
 }));
 const efforts = computed(() => {
