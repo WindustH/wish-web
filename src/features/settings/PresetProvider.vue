@@ -148,7 +148,7 @@ function setCredential(field:string,value:string){
 <template>
   <div class="provider-item">
     <button v-if="isMobile" class="mobile-settings-row provider-navigation" @click="mobilePanel='';editing=true"><span class="provider-mark"><ProviderIcon :brand="preset?.provider"/></span><span>{{displayName}}<small class="row-preview">{{Object.keys(value.models).length}} {{tr('个模型','models')}}<template v-if="preset"> · {{presetDescription(preset)}}</template></small></span><small v-if="!value.enabled" class="provider-state disabled">{{tr('已停用','Disabled')}}</small><Icon name="chevron-right"/></button>
-    <header v-else class="provider-heading">
+    <header v-else class="provider-heading" @click="($event.target as Element).closest('button')||(editing=true)">
       <span class="provider-mark"><ProviderIcon :brand="preset?.provider"/></span>
       <div class="provider-identity">
         <div class="provider-title-line"><h2>{{displayName}}</h2><span class="provider-state" :class="{ disabled: !value.enabled }">{{value.enabled?tr('已启用','Enabled'):tr('已停用','Disabled')}}</span></div>
@@ -226,7 +226,8 @@ function setCredential(field:string,value:string){
 .chatgpt-login{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}.chatgpt-login .btn{display:inline-flex;align-items:center;gap:7px}.chatgpt-login .hint{width:100%}
 .chatgpt-manual{width:100%;display:grid;gap:8px}.chatgpt-manual-input{display:flex;gap:8px}.chatgpt-manual-input .input{flex:1;min-width:0}.chatgpt-manual-input .btn{flex:none}@media(max-width:599px){.chatgpt-manual-input{flex-direction:column}}
 .provider-item{min-width:0;border:1px solid var(--line);border-radius:12px;background:var(--bg-raised);overflow:hidden}
-.provider-heading{display:flex;align-items:center;gap:12px;padding:14px 16px}
+.provider-heading{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;transition:background var(--dur-fast)}
+@media (hover: hover) { .provider-heading:hover{background:var(--bg-hover)} }
 .provider-mark{display:grid;place-items:center;flex:none;width:40px;height:40px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg)}
 .provider-identity{flex:1;min-width:0}
 .provider-title-line{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
