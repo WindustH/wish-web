@@ -25,6 +25,9 @@ export interface StorageSnapshot {
 }
 export declare const stats: {
   usage: ShallowRef<UsageSnapshot | null>;
+  usageRange: ShallowRef<import('../usage/windows').TotalsRange>;
+  usageSwitching: ShallowRef<boolean>;
+  setUsageRange(range: import('../usage/windows').TotalsRange): void;
   status: ShallowRef<StatusSnapshot | null>;
   storage: ShallowRef<StorageSnapshot | null>;
   version: ShallowRef<{ name: string; version: string } | null>;

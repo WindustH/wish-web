@@ -7,7 +7,7 @@ import { usePageActivity } from '../../ui/composables/usePageActivity';
 import { theme } from '../../core/theme/index.js';
 import { i18n } from '../../core/i18n/index.js';
 const props = defineProps<{ pie?: PieSlice[]; series?: PlotSeries[]; heat?: HeatData; unit?: string; label: string; refreshing?: boolean }>();
-const emit = defineEmits<{ columns: [value: number] }>();
+const emit = defineEmits<{ columns: [value: number]; hover: [index: number | null] }>();
 const root = ref<HTMLElement>();
 const active = usePageActivity();
 const style = ref<ChartStyle>();
@@ -53,7 +53,7 @@ const option = computed(() => style.value && (!props.heat || width.value > 0) &&
 </script>
 <template>
   <div ref="root" class="usage-plot" :class="{ 'usage-calendar': heat, refreshing }" :data-cell-size="layout?.cell" :data-rows="layout?.rows" :data-columns="layout?.columns">
-    <ChartCanvas v-if="option" :option="option" :label="label" :style="layout ? { height: `${layout.canvasHeight}px` } : undefined" />
+    <ChartCanvas v-if="option" :option="option" :label="label" @hover="emit('hover', $event)" :style="layout ? { height: `${layout.canvasHeight}px` } : undefined" />
   </div>
 </template>
 <style scoped>

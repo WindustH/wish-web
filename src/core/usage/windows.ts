@@ -1,6 +1,17 @@
 import type { DailyQuery, SeriesQuery } from './types';
 export type UsageRange = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'custom';
 export interface RangeSelection { period: UsageRange; start?: string; end?: string }
+/** Totals may also cover everything recorded. */
+export type TotalsRange = RangeSelection | { period: 'all' };
+/** Millisecond bounds for a totals query; none for all time. */
+export function rangeBounds(range: TotalsRange, now = Date.now()): { from_ms?: number; to_ms?: number } {
+  if (range.period === 'all') return {};
+  if (range.period === 'custom') {
+    const end = new Date(range.end! + 'T00:00:00'); end.setDate(end.getDate() + 1);
+    return { from_ms: new Date(range.start! + 'T00:00:00').getTime(), to_ms: Math.min(end.getTime(), now + 1) };
+  }
+  return { from_ms: now - rangeDays[range.period] * 86_400_000 };
+}
 const rangeDays = { day: 1, week: 7, month: 30, quarter: 90, year: 365 };
 export function localDate(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
 /** Dates are sent with the same explicit fixed offset used by the backend. */
