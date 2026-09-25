@@ -253,7 +253,7 @@
  .mobile-settings-page.modal-page { background:var(--bg-sunken); }
  .mobile-settings-page > .modal-head { background:var(--bg); min-height:54px; padding:6px 8px; }
  .mobile-settings-page .modal-title { font-size:17px; }
- .mobile-settings-page > .modal-body { padding:20px 16px max(32px,env(safe-area-inset-bottom)); }
+ .mobile-settings-page > .modal-body { padding:20px max(16px,calc((100% - 640px) / 2)) max(32px,env(safe-area-inset-bottom)); }
  .mobile-settings-list { margin:0 0 20px; padding:0; border:1px solid var(--line); border-radius:14px; background:var(--bg-raised); overflow:hidden; }
  .mobile-settings-row { width:100%; display:flex; align-items:center; gap:12px; min-height:54px; padding:12px 14px; border:0; background:transparent; color:var(--fg); text-align:left; font:inherit; font-size:15px; }
  button.mobile-settings-row { cursor:pointer; }

@@ -255,7 +255,8 @@ onMounted(load);
 
 @media (max-width: 899px) {
   .native-settings { background: var(--bg-sunken); }
-  .settings-sidebar { width: 100%; height: 100%; padding: 0 16px max(20px, env(safe-area-inset-bottom)); overflow: auto; }
+  /* Tablets keep the phone layout, centered at a readable width. */
+  .settings-sidebar { width: 100%; height: 100%; padding: 0 max(16px, calc((100% - 640px) / 2)) max(20px, env(safe-area-inset-bottom)); overflow: auto; }
   .settings-home-heading { flex-direction: column; align-items: flex-start; gap: 2px; margin: 0 -16px 18px; padding: 6px 8px 0; }
   .settings-home-heading .settings-title { padding: 0 16px; font-size: 28px; font-weight: 700; letter-spacing: -.01em; }
   .settings-sidebar nav { gap: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-raised); overflow: hidden; }
@@ -273,7 +274,7 @@ onMounted(load);
   .settings-brand span { margin: 0; }
   .settings-detail > .settings-heading { min-height: 54px; padding: 6px 8px; gap: 4px; border-bottom: 1px solid var(--line); background: var(--bg); }
   .settings-heading h2 { font-size: 17px; }
-  .settings-content { padding: 20px 16px max(32px, env(safe-area-inset-bottom)); }
+  .settings-content { padding: 20px max(16px, calc((100% - 640px) / 2)) max(32px, env(safe-area-inset-bottom)); }
   .native-settings[data-state='closed'] { animation: settings-page-out 180ms ease-in forwards; pointer-events: none; }
   .provider-list { border: 1px solid var(--line); border-radius: 14px; background: var(--bg-raised); overflow: hidden; }
 }
