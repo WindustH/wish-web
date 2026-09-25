@@ -171,7 +171,7 @@ export const en = {
   'time.older': 'older',
     'a11y.runDone': 'The reply has finished',
   'chat.notifyFailed': 'Session run failed',
-  'notify.needsConfirm': 'Session needs confirmation',
+  'notify.runFailed': 'Run failed: {name}',
   'notify.contextCompacted': 'Context compacted ({n} entries trimmed)',
   'notify.compactionTranslationFailed': 'Encrypted history could not be translated. Some earlier context may be missing.',
   'search.more': 'Load more results',

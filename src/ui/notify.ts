@@ -1,47 +1,26 @@
-// Background notifications (decisions 22): default OFF, user opt-in,
-// document-hidden only, deduped. Resume-required flips.
-import { watch } from 'vue';
+// "Notify me when a run fails": while the page is in the background, a system
+// notification for each run that ends in failure. Off by default.
 import { prefs } from '../core/state/prefsSlice.js';
-import { sync } from '../core/state/syncSlice.js';
 import { bus } from '../core/bus.js';
 import { i18n } from '../core/i18n/index.js';
+import { createRunFailureWatch } from '../core/runFailures.js';
 import { platform } from '../platform/index.js';
 import { announce } from './live.js';
 
 export function installBackgroundNotify() {
-  const resumePrev = new Map<string, boolean>();
-  let snapshotted = false;
-
-  const maybeNotify = (title: string, tag: string) => {
-    if (!prefs.notifyOnFailure.value) return;
+  const failures = createRunFailureWatch();
+  bus.on('upsert.session', (update: any) => {
+    const session = update?.body;
+    const failure = failures.observe(session);
+    if (!failure) return;
+    const title = i18n.t('notify.runFailed', { name: session.name || session.id });
+    announce(title);
+    if (!prefs.notifyOnFailure.value || !platform('app').isHidden()) return;
     const notify = platform('notify');
     if (notify.permission() !== 'granted') return;
-    if (!platform('app').isHidden()) return;
-    notify.show({ title, tag }).catch((err: unknown) => console.warn('[notify]', err));
-  };
-
-  // Baseline from the first authoritative snapshot so reconnects neither
-  // spam old terminal states nor miss genuine flips.
-  bus.on('sync.snapshot', (payload: any) => {
-    for (const s of payload?.sessions?.items ?? []) {
-      resumePrev.set(s.id, Boolean(s.resume_requires_user));
-    }
-    snapshotted = true;
+    try {
+      notify.show({ title, body: failure.message, tag: `wish-run-failed-${session.id}` });
+    } catch (error) { console.warn('[notify]', error); }
   });
-
-  bus.on('upsert.session', (u: any) => {
-    if (!snapshotted) return;
-    const id = u?.body?.id;
-    if (!id) return;
-    const now = Boolean(u.body.resume_requires_user);
-    const prev = resumePrev.get(id) ?? false;
-    resumePrev.set(id, now);
-    if (!prev && now) {
-      maybeNotify(i18n.t('notify.needsConfirm'), `wish-session-${id}`);
-      announce(i18n.t('notify.needsConfirm'));
-    }
-  });
-
-  // Keep the baseline fresh when the control plane reconnects.
-  watch(sync.state, () => { if (sync.state.value === 'open') snapshotted = true; });
+  bus.on('tombstone.session', (event: any) => { if (event?.id) failures.forget(event.id); });
 }
