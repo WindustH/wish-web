@@ -3,8 +3,8 @@
 import { cfg } from '../config.js';
 import { shallowRef } from 'vue';
 import * as api from '../api/endpoints.js';
-import { peekCached, readCached, writeCached } from '../util/responseCache';
-import { rangeBounds } from '../usage/windows';
+import { peekCached, readCached, writeCached } from '../util/responseCache.ts';
+import { rangeBounds } from '../usage/windows.ts';
 
 export const stats = (() => {
   const status = shallowRef(null);
