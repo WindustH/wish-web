@@ -70,7 +70,7 @@ git clone https://github.com/WindustH/wish-web.git
 cd wish-web
 ./pnpmw install --frozen-lockfile
 ./pnpmw build
-node serve.mjs
+node serve.ts
 ```
 
 Open <http://127.0.0.1:8790>. The first-run guide helps you add a model

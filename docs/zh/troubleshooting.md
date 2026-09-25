@@ -5,7 +5,7 @@
 先用三条命令分清问题出在哪一层：
 
 ```sh
-curl -s http://127.0.0.1:8790/healthz       # serve.mjs 在运行：{"ok":true}
+curl -s http://127.0.0.1:8790/healthz       # serve.ts 在运行：{"ok":true}
 curl -s http://127.0.0.1:9780/health        # Wish 服务端在运行
 ./pnpmw selftest:api http://127.0.0.1:8790  # 整条链路，只读检查
 ```
@@ -16,18 +16,18 @@ curl -s http://127.0.0.1:9780/health        # Wish 服务端在运行
 
 | 现象 | 原因 | 解决办法 |
 | --- | --- | --- |
-| `421 {"error":"rejected","detail":"unexpected host"}` | 浏览器中使用的地址不在允许的主机名之列。 | 按浏览器里的写法把它加入 `ALLOWED_HOSTS`：带端口（`192.168.1.20:8790`），或者在 443 端口的 HTTPS 后面不带端口（`wish.example.com`）。然后重启 `serve.mjs`。 |
+| `421 {"error":"rejected","detail":"unexpected host"}` | 浏览器中使用的地址不在允许的主机名之列。 | 按浏览器里的写法把它加入 `ALLOWED_HOSTS`：带端口（`192.168.1.20:8790`），或者在 443 端口的 HTTPS 后面不带端口（`wish.example.com`）。然后重启 `serve.ts`。 |
 | 发送消息或保存设置时返回 `403`，提示 `cross-origin mutation` 或 `cross-site mutation` | `Origin` 请求头与 `Host` 不一致。通常是反向代理改写了 `Host`，否则就是请求来自其他网站。 | 让反向代理原样转发 `Host` 和 `Origin`（nginx：`proxy_set_header Host $http_host;`）。见[部署](deployment.md#通过反向代理启用-https)。 |
 | 启动时显示“无法读取服务配置” | 第一个请求 `GET /api/config` 失败，具体原因显示在下方。 | 按下面几行排除原因后点击“重试”。 |
-| `401`，或提示“未通过身份验证，请检查访问令牌。” | Wish 服务端要求令牌，而 `serve.mjs` 没有配置令牌或令牌不对。 | 把 `WISH_HTTP_TOKEN` 设为服务端 `bearer_token_env` 所指环境变量的值，然后重启 `serve.mjs`。 |
-| `502 {"error":"upstream_unreachable"}` | `serve.mjs` 连不上 Wish 服务端。 | 启动 Wish 服务端，并检查 `WISH_UPSTREAM`。 |
+| `401`，或提示“未通过身份验证，请检查访问令牌。” | Wish 服务端要求令牌，而 `serve.ts` 没有配置令牌或令牌不对。 | 把 `WISH_HTTP_TOKEN` 设为服务端 `bearer_token_env` 所指环境变量的值，然后重启 `serve.ts`。 |
+| `502 {"error":"upstream_unreachable"}` | `serve.ts` 连不上 Wish 服务端。 | 启动 Wish 服务端，并检查 `WISH_UPSTREAM`。 |
 | 顶部出现“离线模式: API 不可用” | 与 `/api/events` 的实时连接断开了，应用会自动重连。 | 检查 Wish 服务端和反向代理。反向代理不能缓冲事件流（nginx：`proxy_buffering off;`）。 |
 | 登录页提示“无法连接到这个地址” | 地址有误、服务器没有运行，或者它没有设置访问令牌，因而拒绝其他网页的连接。 | 检查地址和服务器是否运行；对方服务器需要设置 `bearer_token_env`。见[部署](deployment.md#直接连接其他服务器)。 |
 | 登录页提示“此页面通过 HTTPS 打开……” | HTTPS 页面无法连接普通 HTTP 地址。 | 通过 HTTPS 发布对方服务器。 |
 | 登录页提示“这个服务器需要访问令牌”或“访问令牌不正确” | 没有填写令牌，或与服务器 `bearer_token_env` 的值不一致。 | 填写正确的令牌。 |
 | 连接其他服务器后一直停在“无法读取服务配置” | 那台服务器已无法访问，或它的令牌变了。 | 点击“重试”旁边的退出按钮，重新连接。 |
-| `serve.mjs` 启动时报 `ENOENT … dist/index.html` 并退出 | `serve.mjs` 旁边没有构建产物。 | 运行 `./pnpmw build`，并把 `dist/` 放到 `serve.mjs` 旁边。 |
-| `serve.mjs` 报 `unsupported /api protocol` 并退出 | `WISH_UPSTREAM` 不是 `http://` 或 `https://` 地址。 | 修正这个变量。 |
+| `serve.ts` 启动时报 `ENOENT … dist/index.html` 并退出 | `serve.ts` 旁边没有构建产物。 | 运行 `./pnpmw build`，并把 `dist/` 放到 `serve.ts` 旁边。 |
+| `serve.ts` 报 `unsupported /api protocol` 并退出 | `WISH_UPSTREAM` 不是 `http://` 或 `https://` 地址。 | 修正这个变量。 |
 
 ## 在局域网中用普通 HTTP 访问
 

@@ -5,7 +5,7 @@
 Three quick checks tell the layers apart:
 
 ```sh
-curl -s http://127.0.0.1:8790/healthz       # serve.mjs is up: {"ok":true}
+curl -s http://127.0.0.1:8790/healthz       # serve.ts is up: {"ok":true}
 curl -s http://127.0.0.1:9780/health        # the Wish server is up
 ./pnpmw selftest:api http://127.0.0.1:8790  # the whole path, read-only
 ```
@@ -16,18 +16,18 @@ In the browser, `/#/selftest?auto=1` (or Settings → **Interface** → **Connec
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| `421 {"error":"rejected","detail":"unexpected host"}` | The address in the browser is not an allowed host. | Add it to `ALLOWED_HOSTS` exactly as typed, with the port (`192.168.1.20:8790`), or without one behind HTTPS on port 443 (`wish.example.com`). Restart `serve.mjs`. |
+| `421 {"error":"rejected","detail":"unexpected host"}` | The address in the browser is not an allowed host. | Add it to `ALLOWED_HOSTS` exactly as typed, with the port (`192.168.1.20:8790`), or without one behind HTTPS on port 443 (`wish.example.com`). Restart `serve.ts`. |
 | Sending messages or saving fails with `403` `cross-origin mutation` or `cross-site mutation` | The `Origin` header doesn't match `Host`. Usually a reverse proxy rewrites `Host`; otherwise the request came from another site. | Make the proxy pass `Host` and `Origin` through unchanged (nginx: `proxy_set_header Host $http_host;`). See [deployment](deployment.md#https-through-a-reverse-proxy). |
 | **Unable to read server configuration** at start-up | The first request, `GET /api/config`, failed. The reason is shown underneath. | Fix the cause (rows below), then **Retry**. |
-| `401` or `unauthorized` | The Wish server requires a token, and `serve.mjs` has none or the wrong one. | Set `WISH_HTTP_TOKEN` to the value of the environment variable named by the server's `bearer_token_env`, and restart `serve.mjs`. |
-| `502 {"error":"upstream_unreachable"}` | `serve.mjs` can't reach the Wish server. | Start the Wish server; check `WISH_UPSTREAM`. |
+| `401` or `unauthorized` | The Wish server requires a token, and `serve.ts` has none or the wrong one. | Set `WISH_HTTP_TOKEN` to the value of the environment variable named by the server's `bearer_token_env`, and restart `serve.ts`. |
+| `502 {"error":"upstream_unreachable"}` | `serve.ts` can't reach the Wish server. | Start the Wish server; check `WISH_UPSTREAM`. |
 | **Offline: API unavailable** banner | The live connection to `/api/events` dropped. The app keeps retrying on its own. | Check the Wish server and the proxy. A proxy must not buffer event streams (nginx: `proxy_buffering off;`). |
 | Sign-in page: **Could not reach this address** | Wrong address, the server is down, or it has no access token and so refuses other pages. | Check the address and that the server runs; the other server needs `bearer_token_env` set. See [deployment](deployment.md#connecting-to-another-server-directly). |
 | Sign-in page: **This page was opened over HTTPS…** | A page on HTTPS can't reach a plain HTTP address. | Publish the other server over HTTPS. |
 | Sign-in page: **This server requires an access token** / **The access token is not correct** | The token is missing or doesn't match the server's `bearer_token_env` value. | Enter the right token. |
 | Stuck on **Unable to read server configuration** after connecting to another server | That server became unreachable or its token changed. | Use the sign-out button next to **Retry** and connect again. |
-| `serve.mjs` exits at start-up with `ENOENT … dist/index.html` | No build next to `serve.mjs`. | Run `./pnpmw build`, and deploy `dist/` beside `serve.mjs`. |
-| `serve.mjs` exits with `unsupported /api protocol` | `WISH_UPSTREAM` isn't an `http://` or `https://` URL. | Fix the variable. |
+| `serve.ts` exits at start-up with `ENOENT … dist/index.html` | No build next to `serve.ts`. | Run `./pnpmw build`, and deploy `dist/` beside `serve.ts`. |
+| `serve.ts` exits with `unsupported /api protocol` | `WISH_UPSTREAM` isn't an `http://` or `https://` URL. | Fix the variable. |
 
 ## Plain HTTP on the local network
 

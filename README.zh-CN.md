@@ -54,7 +54,7 @@ git clone https://github.com/WindustH/wish-web.git
 cd wish-web
 ./pnpmw install --frozen-lockfile
 ./pnpmw build
-node serve.mjs
+node serve.ts
 ```
 
 打开 <http://127.0.0.1:8790>。首次使用引导会帮你添加模型提供商；之后在首页选择工作目录，发送第一条消息即可。
