@@ -50,7 +50,6 @@ async function finish() { if (await save()) emit('complete'); }
           </details>
         </fieldset>
         <p class="setup-note">{{tr('该模型将设为新会话的默认模型，之后可以在设置中修改。', 'This will be the default model for new conversations. You can change it in settings.')}}</p>
-        <p v-if="error" class="load-error" role="alert">{{error}}</p>
         <div class="setup-actions"><button class="btn primary" type="submit" :disabled="saving"><Icon v-if="saving" name="loader-circle" class="spin" />{{ saving ? tr('正在保存…', 'Saving…') : tr('保存并开始', 'Save and start') }}</button><button v-if="error" type="button" class="btn ghost" :disabled="saving" @click="load">{{tr('重新读取配置', 'Reload configuration')}}</button></div>
       </form>
       <template v-else><p class="load-error" role="alert">{{error}}</p><button class="btn" @click="load">{{tr('重试', 'Retry')}}</button></template>

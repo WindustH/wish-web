@@ -8,7 +8,8 @@ import { theme } from '../../core/theme/index.js';
 import { i18n } from '../../core/i18n/index.js';
 import { prefs } from '../../core/state/prefsSlice.js';
 import { platform } from '../../platform/index.js';
-import { errorText } from '../../core/config-editor';
+import { showError } from '../../ui/errorDialog';
+import { toast } from '../../ui/toast';
 import { useMedia } from '../../ui/composables/useMedia';
 import { tr } from './fields';
 import SettingHint from './SettingHint.vue';
@@ -26,40 +27,36 @@ const { mode } = theme;
 const { locale } = i18n;
 const { sendOnEnter, notifyOnFailure, keepAwake } = prefs;
 const app = platform('app');
-const notice = ref('');
-const problem = ref('');
 const clearOpen = ref(false);
+const notificationsFailed = (error: unknown) => showError({ title: tr('无法开启通知', 'Could not turn on notifications'), error });
 async function setNotifications(enabled: boolean) {
-  problem.value = '';
   if (!enabled) { prefs.setNotifyOnFailure(false); return; }
   try {
     const notify = platform('notify');
-    if (!notify.isSupported) { problem.value = tr('此浏览器不支持系统通知。', 'This browser does not support system notifications.'); return; }
-    if (await notify.request() !== 'granted') { problem.value = tr('请先在浏览器中允许通知。', 'Allow notifications in your browser first.'); return; }
+    if (!notify.isSupported) { notificationsFailed(tr('此浏览器不支持系统通知。', 'This browser does not support system notifications.')); return; }
+    if (await notify.request() !== 'granted') { notificationsFailed(tr('请先在浏览器中允许通知。', 'Allow notifications in your browser first.')); return; }
     prefs.setNotifyOnFailure(true);
-  } catch (error) { problem.value = errorText(error); }
+  } catch (error) { notificationsFailed(error); }
 }
 async function install() {
-  problem.value = '';
   try {
-    notice.value = await app.promptInstall()
+    toast(await app.promptInstall()
       ? tr('安装请求已提交。', 'Installation requested.')
-      : tr('可以从浏览器菜单选择“安装应用”或“添加到主屏幕”。', 'Choose Install app or Add to home screen from your browser menu.');
-  } catch (error) { problem.value = errorText(error); }
+      : tr('可以从浏览器菜单选择“安装应用”或“添加到主屏幕”。', 'Choose Install app or Add to home screen from your browser menu.'));
+  } catch (error) { showError({ title: tr('无法安装', 'Could not install'), error }); }
 }
 function clearPreferences() {
   try {
     platform('storage').clear();
     clearOpen.value = false;
-    notice.value = tr('已清除本地设置。下次打开页面时使用默认设置。', 'Local preferences cleared. Defaults will be used when you next open the page.');
-  } catch (error) { problem.value = errorText(error); }
+    toast(tr('已清除本地设置。下次打开页面时使用默认设置。', 'Local preferences cleared. Defaults will be used when you next open the page.'));
+  } catch (error) { showError({ title: tr('无法清除本地数据', 'Could not clear local data'), error }); }
 }
 </script>
 
 <template>
   <div class="ui-settings">
     <SettingsSections prefix="ui" :sections="sections">
-      <template #before><p v-if="problem" class="cfg-notice cfg-error" role="alert">{{ problem }}</p><p v-if="notice" class="cfg-notice" role="status">{{ notice }}</p></template>
       <template #default="{ section }">
         <template v-if="section === 'appearance'">
           <div class="setting-row"><div><label for="ui-theme">{{ tr('主题', 'Theme') }}</label></div><SelectField mobile-page segmented id="ui-theme" :model-value="mode" :options="[{ value: 'auto', icon: 'monitor', label: tr('跟随系统', 'Follow system') }, { value: 'light', icon: 'sun', label: tr('浅色', 'Light') }, { value: 'dark', icon: 'moon', label: tr('深色', 'Dark') }]" @update:model-value="theme.setMode" /></div>
@@ -76,7 +73,6 @@ function clearPreferences() {
           <div class="setting-row"><div><span>{{ tr('本地设置', 'Local preferences') }}</span></div><SettingHint :text="tr('清除浏览器保存的偏好和输入草稿。后端会话不受影响。', 'Clear preferences and drafts stored in this browser. Server sessions remain available.')" /><button id="ui-clear-local" class="btn danger" @click="clearOpen = true">{{ tr('清除本地数据', 'Clear local data') }}</button></div>
         </template>
       </template>
-      <template #after><p class="cfg-hint">Wish {{ cfg.meta.appVersion }}</p></template>
     </SettingsSections>
     <Modal compact :open="clearOpen" :title="tr('清除本地数据？','Clear local data?')" @close="clearOpen=false"><p>{{tr('将移除这个浏览器保存的界面偏好和消息草稿。','Remove interface preferences and message drafts saved in this browser.')}}</p><template #footer><button class="btn ghost" @click="clearOpen=false">{{tr('取消','Cancel')}}</button><button class="btn danger" @click="clearPreferences">{{tr('确认清除','Clear local data')}}</button></template></Modal>
   </div>

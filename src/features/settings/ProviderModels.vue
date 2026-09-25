@@ -5,18 +5,19 @@ const isMobile=useMedia('(max-width: 899px)');
 import { computed, nextTick, onScopeDispose, ref } from 'vue';
 import type { ProviderConfig, ProviderPreset } from '../../core/provider-presets';
 import { readCatalogModels } from '../../core/provider-catalog';
-import { errorText } from '../../core/config-editor';
+import { showError } from '../../ui/errorDialog';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
 import Modal from '../../ui/components/Modal.vue';
 import PickerList from '../../ui/components/PickerList.vue';
 import SelectField from '../../ui/components/SelectField.vue';
+import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { useSettingsReturn } from './settingsReturn';
 import { tr } from './fields';
 const props=defineProps<{id:string;value:ProviderConfig;preset?:ProviderPreset}>();
-const editing=ref(false),originalId=ref(''),modelId=ref(''),draft=ref<Record<string,any>>({}),error=ref('');
+const editing=ref(false),originalId=ref(''),modelId=ref(''),draft=ref<Record<string,any>>({});
 const allowUnknownId=ref(false);
-const catalogOpen=ref(false),catalogBusy=ref(false),catalogError=ref(''),catalog=ref<any[]>([]);
+const catalogOpen=ref(false),catalogBusy=ref(false),catalogFailed=ref(false),catalog=ref<any[]>([]);
 const catalogModal=ref<InstanceType<typeof Modal>>();
 let catalogRequest=0;
 let catalogController: AbortController | undefined;
@@ -107,7 +108,7 @@ const effortsPlaceholder=computed(()=>{
 });
 
 const efforts=computed(()=>[...new Set([...Object.keys(draft.value.reasoning_efforts??props.preset?.reasoning_efforts??{}),draft.value.default_reasoning_effort].filter(Boolean))].map(value=>({value,label:value})));
-function edit(id='',seed:Record<string,any>={}){originalId.value=id;modelId.value=id;allowUnknownId.value=false;draft.value=JSON.parse(JSON.stringify(id?props.value.models[id]:withNewModelDefaults(seed)));effortsInput.value=draft.value.reasoning_efforts?Object.keys(draft.value.reasoning_efforts).join(', '):'';error.value='';advanced.value=JSON.stringify(draft.value,null,2);advancedChanged.value=false;editSource.value=JSON.stringify([modelId.value,draft.value]);editing.value=true;}
+function edit(id='',seed:Record<string,any>={}){originalId.value=id;modelId.value=id;allowUnknownId.value=false;draft.value=JSON.parse(JSON.stringify(id?props.value.models[id]:withNewModelDefaults(seed)));effortsInput.value=draft.value.reasoning_efforts?Object.keys(draft.value.reasoning_efforts).join(', '):'';advanced.value=JSON.stringify(draft.value,null,2);advancedChanged.value=false;editSource.value=JSON.stringify([modelId.value,draft.value]);editing.value=true;}
 function apply(close=true){try{
   const id=modelId.value.trim();if(!id)throw new Error(tr('请输入模型 ID。','Enter a model ID.'));
   if(id!==originalId.value&&id in props.value.models)throw new Error(tr('模型 ID 已存在。','Model ID already exists.'));
@@ -123,16 +124,16 @@ function apply(close=true){try{
   for(const field of ['context_window_tokens','max_output_tokens'])if(value[field]!=null&&(!Number.isSafeInteger(value[field])||value[field]<=0))throw new Error(tr('Token 上限必须是正整数。','Token limits must be positive integers.'));
   if(value.reasoning_efforts!=null&&(typeof value.reasoning_efforts!=='object'||Array.isArray(value.reasoning_efforts)))throw new Error(tr('思考等级必须是对象格式。','Reasoning efforts must be an object.'));
   if(originalId.value&&originalId.value!==id)delete props.value.models[originalId.value];props.value.models[id]=value;if(close)editing.value=false;return true;
-}catch(e){error.value=errorText(e);return false;}}
+}catch(e){showError({title:tr('无法应用模型设置','Could not apply the model'),error:e});return false;}}
 async function readCatalog(){
   const request=++catalogRequest;
   catalogController?.abort();
   catalogController = new AbortController();
-  catalogOpen.value=true;catalogBusy.value=true;catalogError.value='';
+  catalogOpen.value=true;catalogBusy.value=true;catalogFailed.value=false;
   try{
     const models = await readCatalogModels(props.id, catalogController.signal);
     if(request===catalogRequest)catalog.value=models;
-  }catch(e){if(request===catalogRequest)catalogError.value=tr('读取失败；新增提供商请先保存配置。','Unable to read; save newly added providers first.')+' '+errorText(e);
+  }catch(e){if(request===catalogRequest){catalogFailed.value=true;showError({title:tr('无法读取模型目录','Could not read the model catalog'),error:e,hint:tr('新添加的提供商需要先保存配置。','Save newly added providers first.'),action:{label:tr('重试','Retry'),run:readCatalog}});}
   }finally{if(request===catalogRequest)catalogBusy.value=false;}
 }
 function importModel(id:string){
@@ -169,14 +170,13 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
     <div v-for="(model,name) in value.models" :key="name" class="model-row">
       <button class="model-edit" :aria-label="tr('编辑模型 ','Edit model ')+name" @click="edit(String(name))"><span class="model-title"><strong>{{modelLabel(String(name))}}</strong><code>{{name}}</code></span><span v-if="modelFacts(model).length" class="model-facts"><span v-for="fact in modelFacts(model)" :key="fact.label" class="model-fact" :title="fact.exact"><span>{{fact.label}}</span>{{fact.value}}</span></span></button>
       <Hint :text="tr('编辑模型','Edit model')"><button class="btn ghost icon-only" :aria-label="tr('编辑模型配置 ','Edit model configuration ')+name" @click="edit(String(name))"><Icon name="pencil"/></button></Hint>
-      <Hint :text="tr('删除模型','Delete model')"><button class="btn ghost danger icon-only" :aria-label="tr('删除模型 ','Delete model ')+name" @click="delete value.models[name]"><Icon name="trash-2"/></button></Hint>
+      <Hint :text="tr('删除模型','Delete model')"><button class="btn ghost icon-only model-remove" :aria-label="tr('删除模型 ','Delete model ')+name" @click="delete value.models[name]"><Icon name="trash-2"/></button></Hint>
     </div>
     <Modal compact :before-close="isMobile?confirmModelReturn:undefined" :content-class="isMobile?'settings-editor mobile-settings-page':'settings-editor'" :page="isMobile" :open="editing" :title="originalId?tr('编辑模型','Edit model'):tr('添加模型','Add model')" @close="editing=false">
 
       <div class="model-form">
-        <p v-if="error" class="load-error" role="alert">{{error}}</p>
         <label>{{tr('模型 ID','Model ID')}}<input class="input" v-model="modelId" autocomplete="off" spellcheck="false"/></label>
-        <label v-if="!originalId && catalog.length && modelId.trim() && !catalog.some(model=>model.id===modelId.trim())" class="inline"><input type="checkbox" v-model="allowUnknownId"/>{{tr('确认使用目录外的自定义 ID','Use this custom ID outside the catalog')}}</label>
+        <div v-if="!originalId && catalog.length && modelId.trim() && !catalog.some(model=>model.id===modelId.trim())" class="model-toggle"><span>{{tr('确认使用目录外的自定义 ID','Use this custom ID outside the catalog')}}</span><SwitchRoot v-model="allowUnknownId" class="cfg-switch" :aria-label="tr('确认使用目录外的自定义 ID','Use this custom ID outside the catalog')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
         <label>{{tr('上下文窗口','Context window')}}<input class="input" type="number" min="1" :value="draft.context_window_tokens??''" @input="draft.context_window_tokens=($event.target as HTMLInputElement).value?Number(($event.target as HTMLInputElement).value):null"/></label>
         <label>{{tr('最大输出 Token','Maximum output tokens')}}<input class="input" type="number" min="1" :value="draft.max_output_tokens??''" @input="draft.max_output_tokens=($event.target as HTMLInputElement).value?Number(($event.target as HTMLInputElement).value):null"/></label>
         <label>{{tr('思考能力','Reasoning support')}}<SelectField mobile-page :model-value="draft.supports_reasoning==null?'unknown':String(draft.supports_reasoning)" :options="[{value:'unknown',label:tr('未指定','Unspecified')},{value:'true',label:tr('支持','Supported')},{value:'false',label:tr('不支持','Unsupported')}]" @update:model-value="$event==='unknown'?delete draft.supports_reasoning:draft.supports_reasoning=$event==='true'"/></label>
@@ -213,8 +213,8 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
           </div>
         </div>
         <label v-if="draft.supports_reasoning!==false">{{tr('默认思考强度','Default reasoning effort')}}<SelectField mobile-page v-if="efforts.length" :model-value="draft.default_reasoning_effort??''" :options="[{value:'',label:tr('上游默认','Upstream default')},...efforts]" @update:model-value="draft.default_reasoning_effort=$event||undefined"/><input v-else class="input" v-model="draft.default_reasoning_effort" :placeholder="tr('上游默认','Upstream default')"/></label>
-        <label class="inline"><input type="checkbox" :checked="draft.input_modalities?.includes('image')" @change="draft.input_modalities=($event.target as HTMLInputElement).checked?['text','image']:['text']"/>{{tr('支持图片输入','Supports image input')}}</label>
-        <details @toggle="($event.target as HTMLDetailsElement).open&&!advancedChanged&&(advanced=JSON.stringify(draft,null,2))"><summary>{{tr('完整模型属性 JSON','Full model metadata JSON')}}</summary><textarea class="input" rows="10" v-model="advanced" @input="advancedChanged=true"/></details>
+        <div class="model-toggle"><span>{{tr('支持图片输入','Supports image input')}}</span><SwitchRoot :model-value="!!draft.input_modalities?.includes('image')" class="cfg-switch" :aria-label="tr('支持图片输入','Supports image input')" @update:model-value="draft.input_modalities=$event?['text','image']:['text']"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
+        <details @toggle="($event.target as HTMLDetailsElement).open&&!advancedChanged&&(advanced=JSON.stringify(draft,null,2))"><summary><span>{{tr('完整模型属性 JSON','Full model metadata JSON')}}</span><Icon name="chevron-down"/></summary><textarea class="input" rows="10" v-model="advanced" @input="advancedChanged=true"/></details>
       </div>
       <template v-if="!isMobile" #footer><button class="btn" @click="editing=false">{{tr('取消','Cancel')}}</button><button class="btn primary" @click="apply()">{{tr('应用到配置','Apply to configuration')}}</button></template>
     </Modal>
@@ -231,7 +231,7 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
       </template>
       <PickerList :items="choices" :disabled="catalogBusy" :placeholder="tr('搜索模型…','Search models…')" @select="importModel">
         <template #status>
-          <p v-if="catalogError" class="catalog-status load-error" role="alert">{{catalogError}}</p>
+          <p v-if="catalogFailed" class="catalog-status hint">{{tr('未能读取模型目录，可以点击刷新重试，或使用自定义模型。','The catalog could not be read. Reload to retry, or add a custom model.')}}</p>
           <p v-else-if="catalogBusy" class="catalog-status hint" role="status">{{tr('正在读取…','Loading…')}}</p>
         </template>
       </PickerList>
@@ -266,16 +266,29 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
   .model-form label:not(.inline),.model-form .model-field:not(.inline){display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:16px}
   .model-form .efforts-field{align-items:start;padding-top:4px}
 }
+.model-form{gap:0;border:1px solid var(--line);border-radius:12px;background:var(--bg-raised);overflow:hidden}
+.model-form>label,.model-form>.model-field,.model-form>.model-toggle{padding:12px 16px;gap:8px;font-size:13.5px;font-weight:500}
+.model-form>*+:is(label,.model-field,.model-toggle,details){border-top:1px solid var(--line)}
+.model-form :is(.input,.control-select,.chip){font-weight:400}
+.model-toggle{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:52px}
+.model-form>details{padding:0 16px}
+.model-form>details>summary{display:flex;align-items:center;justify-content:space-between;min-height:48px;font-size:13px;color:var(--fg-muted);list-style:none}
+.model-form>details>summary::-webkit-details-marker{display:none}
+.model-form>details>summary .icon{width:15px;height:15px;transition:transform var(--dur-fast)}
+.model-form>details[open]>summary .icon{transform:rotate(180deg)}
+.model-form>details textarea{margin:0 0 14px;font-family:var(--mono);font-size:calc(12.5px * var(--mono-scale))}
+.model-row+.model-row{border-top:1px solid var(--line)}
 @media(max-width:899px){
-.model-form{gap:0;background:var(--bg-raised);border-radius:12px;overflow:hidden}
-.model-form>label,.model-form>.model-field{padding:12px 14px;gap:8px;font-size:13px}
-.model-form>label+label,.model-form>label+.model-field,.model-form>.model-field+label,.model-form>.model-field+.model-field{border-top:1px solid var(--line)}
-.model-form>details{padding:14px;border-top:1px solid var(--line)}
-.model-form>details textarea{margin-top:12px}
-.model-row{background:var(--bg-raised);border-radius:10px;padding:12px 10px;gap:4px}
+.models-editor{gap:0;border:1px solid var(--line);border-radius:14px;background:var(--bg-raised);overflow:hidden}
+.models-editor>.hint{margin:0;padding:14px}
+.model-form{border-radius:14px}
+.model-form>label,.model-form>.model-field,.model-form>.model-toggle{padding:12px 14px}
+.model-row{padding:12px 8px 12px 14px;gap:4px}
 .model-edit strong{font-size:14px}.model-title code,.model-fact{font-size:11px}
 .efforts-chips{gap:8px}
 .effort-chip{min-height:36px;padding:6px 14px;font-size:13px}
 .effort-reset{min-height:36px;padding:6px 12px;font-size:13px}
 }
+.model-remove{color:var(--fg-subtle)}
+@media (hover: hover) { .model-remove:hover{color:var(--err);background:var(--err-bg)} }
 </style>
