@@ -8,6 +8,7 @@ const protocols: Record<string, { label: string; brand: string; annotation?: str
   kimi_k3_chat: { label: 'Kimi K3 Chat', brand: 'Kimi' },
   tokenhub_chat: { label: 'Tencent TokenHub Chat', brand: 'Tencent Hunyuan (TokenHub)' },
   openai_chat: { label: 'OpenAI Chat', brand: 'OpenAI' },
+  compatible_chat: { label: 'OpenAI-compatible Chat', brand: '', annotation: 'OpenAI Chat' },
   openai_chat_completions: { label: 'OpenAI Chat Completions', brand: 'OpenAI' },
   openai_responses: { label: 'OpenAI Responses', brand: 'OpenAI' },
   openai_codex_responses: { label: 'OpenAI Codex Responses', brand: 'OpenAI', annotation: 'OpenAI Responses' },

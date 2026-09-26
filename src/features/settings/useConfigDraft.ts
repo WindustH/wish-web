@@ -17,6 +17,7 @@ export const PROTOCOL_OPTIONS = [
   'plaintext_responses',
   'codex_responses',
   'openai_chat',
+  'compatible_chat',
   'deepseek_chat',
   'qwen_chat',
   'kimi_k2_chat',

@@ -7,7 +7,7 @@ import { tr } from '../../core/i18n/tr.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { toast } from '../../ui/toast.ts';
 
-const customProvider = (): ProviderConfig => ({ enabled: true, protocol: 'openai_chat',
+const customProvider = (): ProviderConfig => ({ enabled: true, protocol: 'compatible_chat',
   base_url: '', path: '/v1/chat/completions', auth: 'bearer', models: {},
   credentials: {}, credentials_env: {}, headers: {}, proxy_enabled: true });
 // A preview starts as if nothing were configured and never writes the configuration.
