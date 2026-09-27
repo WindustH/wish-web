@@ -19,7 +19,10 @@ export interface QuotaWindow {
   resets_at: string | null;
   reached: boolean | null;
   unlimited: boolean | null;
+  /** How the amount spent divides among what shares the allowance, e.g. tools. */
+  parts?: QuotaPart[];
 }
+export interface QuotaPart { id: string; used: string | null }
 export interface Balance {
   currency: string;
   available: string | null;
@@ -153,6 +156,24 @@ export function quotaAmounts(quota: QuotaWindow): string | null {
   if (quota.remaining != null) return tr(`剩余 ${show(quota.remaining)}`, `${show(quota.remaining)} left`);
   if (quota.used != null) return tr(`已用 ${show(quota.used)}`, `${show(quota.used)} used`);
   return null;
+}
+
+// Names for the ids services give the parts of an allowance.
+const PART_NAMES: Record<string, [string, string]> = {
+  'search-prime': ['联网搜索', 'Web search'],
+  'web-reader': ['网页读取', 'Web reader'],
+  zread: ['开源仓库', 'Repository reader'],
+};
+
+/** "Web search 4 · Web reader 0 · Repository reader 0", or null without a breakdown. */
+export function quotaParts(quota: QuotaWindow): string | null {
+  const parts = quota.parts ?? [];
+  if (!parts.length) return null;
+  return parts.map(part => {
+    const name = PART_NAMES[part.id];
+    const used = number(part.used);
+    return `${name ? tr(name[0], name[1]) : part.id} ${used == null ? part.used ?? '—' : compact(used)}`;
+  }).join(' · ');
 }
 
 /** An amount in its currency; minor units are scaled, unknown units are named after the number. */

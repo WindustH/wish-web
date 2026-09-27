@@ -1,16 +1,23 @@
 <script setup lang="ts">
 // Account status as a window over the app, opened from the desktop navigation bar.
+import { watch } from 'vue';
 import Modal from '../../ui/components/Modal.vue';
 import { tr } from '../../core/i18n/tr.ts';
+import AccountRefresh from './AccountRefresh.vue';
 import AccountStatus from './AccountStatus.vue';
+import { useAccountStates } from './useAccountStates.ts';
 
-defineProps<{ open: boolean }>();
+const props = defineProps<{ open: boolean }>();
 defineEmits<{ close: [] }>();
+const { rows, unconfigured, loading, error, checkedAt, refresh } = useAccountStates();
+// Each opening reads again; the last readings stay on screen meanwhile.
+watch(() => props.open, open => { if (open) void refresh(); }, { immediate: true });
 </script>
 
 <template>
   <Modal :open="open" content-class="account-window" :title="tr('账户状态', 'Account status')" @close="$emit('close')">
-    <AccountStatus v-if="open" />
+    <template #actions><AccountRefresh :checked-at="checkedAt" :loading="loading" @refresh="refresh" /></template>
+    <AccountStatus :rows="rows" :unconfigured="unconfigured" :loading="loading" :error="error" />
   </Modal>
 </template>
 

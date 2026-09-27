@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { i18n } from '../src/core/i18n/index.ts';
-import { balanceParts, formatAmount, parseInstant, quotaAmounts, quotaLevel, quotaPercent, quotaTitle, resetLabel, type Balance, type QuotaWindow } from '../src/features/account/accountState.ts';
+import { balanceParts, formatAmount, parseInstant, quotaAmounts, quotaLevel, quotaParts, quotaPercent, quotaTitle, resetLabel, type Balance, type QuotaWindow } from '../src/features/account/accountState.ts';
 
 const quota = (fields: Partial<QuotaWindow>): QuotaWindow => ({
   id: 'primary', name: null, unit: 'unknown', used: null, limit: null, remaining: null, used_percent: null,
@@ -24,6 +24,9 @@ test('windows are named by what they count and how long they last', () => {
   assert.equal(quotaTitle(quota({ id: 'model_1', name: 'GLM' })), 'GLM');
   assert.equal(quotaTitle(quota({ unit: 'requests', window: { duration: 1, unit: 'months' } })), 'Calls · Monthly');
   assert.equal(quotaAmounts(quota({ used: '4', limit: '4000' })), '4 / 4K');
+  assert.equal(quotaParts(quota({ parts: [{ id: 'search-prime', used: '4' }, { id: 'web-reader', used: '0' }, { id: 'custom-tool', used: null }] })),
+    'Web search 4 · Web reader 0 · custom-tool —');
+  assert.equal(quotaParts(quota({})), null);
   i18n.setLocale('zh');
   assert.equal(quotaTitle(quota({ unit: 'tokens', window: { duration: 300, unit: 'minutes' } })), 'Token · 5 小时');
 });

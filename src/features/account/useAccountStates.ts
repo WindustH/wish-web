@@ -1,6 +1,6 @@
 // Account readings for every enabled provider that has one set up. The last reading
 // of each shows at once from the cache; fresh ones replace it as they arrive.
-import { onScopeDispose, ref, shallowRef } from 'vue';
+import { computed, onScopeDispose, ref, shallowRef } from 'vue';
 import { providerAccount, providerConfigs } from '../../core/api/endpoints.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import { peekCached, readCached, writeCached } from '../../core/util/responseCache.ts';
@@ -22,7 +22,7 @@ interface CachedReading { state: AccountState; checkedAt: number }
 
 const cacheKey = (id: string) => `account-state:${id}`;
 const PROVIDERS_KEY = 'account-providers';
-type ProviderSummary = { id: string; name?: string | null; preset?: string; brand?: string | null; readable: boolean };
+export type ProviderSummary = { id: string; name?: string | null; preset?: string; brand?: string | null; readable: boolean };
 
 export function useAccountStates() {
   const rows = ref<AccountRow[]>([]);
@@ -87,5 +87,8 @@ export function useAccountStates() {
     if (!own.signal.aborted) loading.value = false;
   }
 
-  return { rows, unconfigured, loading, error, refresh };
+  // When the freshest reading was taken, for the "updated" note.
+  const checkedAt = computed(() => Math.max(0, ...rows.value.map(row => row.checkedAt ?? 0)) || null);
+
+  return { rows, unconfigured, loading, error, checkedAt, refresh };
 }

@@ -1,32 +1,21 @@
 <script setup lang="ts">
-// Balances and plan allowances of every provider with an account reading.
-import { computed, onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
+// Balances and plan allowances of every provider with an account reading. The
+// window or page around it owns loading and the refresh control.
+import { onBeforeUnmount, ref } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
-import { i18n } from '../../core/i18n/index.ts';
 import Icon from '../../ui/components/Icon.vue';
 import ProviderIcon from '../../ui/components/ProviderIcon.vue';
 import Spinner from '../../ui/components/Spinner.vue';
-import { balanceParts, failureLabel, formatAmount, quotaAmounts, quotaLevel, quotaPercent, quotaTitle, resetLabel, type AccountState } from './accountState.ts';
-import { useAccountStates } from './useAccountStates.ts';
+import { balanceParts, failureLabel, formatAmount, quotaAmounts, quotaLevel, quotaParts, quotaPercent, quotaTitle, resetLabel, type AccountState } from './accountState.ts';
+import type { AccountRow, ProviderSummary } from './useAccountStates.ts';
 import { presetBrand, providerName } from '../../ui/providerPresentation.ts';
 
-const { rows, unconfigured, loading, error, refresh } = useAccountStates();
-let lastRefresh = 0;
-const load = () => { lastRefresh = Date.now(); void refresh(); };
-onMounted(load);
-// A kept-alive page reads again when shown after a while.
-onActivated(() => { if (Date.now() - lastRefresh > 30_000) load(); });
+defineProps<{ rows: AccountRow[]; unconfigured: ProviderSummary[]; loading: boolean; error: string }>();
 
-// Relative times tick while the window stays open.
+// Relative times tick while the list stays open.
 const now = ref(Date.now());
 const timer = setInterval(() => { now.value = Date.now(); }, 30_000);
 onBeforeUnmount(() => clearInterval(timer));
-
-const time = (ms: number) => new Date(ms).toLocaleTimeString(i18n.locale.value === 'zh' ? 'zh-CN' : 'en', { hour: '2-digit', minute: '2-digit' });
-const updated = computed(() => {
-  const latest = Math.max(0, ...rows.value.map(row => row.checkedAt ?? 0));
-  return latest ? tr(`更新于 ${time(latest)}`, `Updated ${time(latest)}`) : '';
-});
 const availability = (state: AccountState) => {
   if (!state.availability) return '';
   return state.availability === 'available' ? tr('可用', 'Available') : state.availability;
@@ -45,12 +34,6 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
 
 <template>
   <div class="account-status" :aria-busy="loading">
-    <div class="account-toolbar">
-      <span>{{ updated || (loading ? tr('正在读取…', 'Reading…') : '') }}</span>
-      <button type="button" class="btn ghost" :disabled="loading" @click="load">
-        <Icon name="refresh-cw" :class="{ spin: loading }" />{{ tr('刷新', 'Refresh') }}
-      </button>
-    </div>
     <p v-if="error" class="account-problem" role="alert"><Icon name="triangle-alert" />{{ error }}</p>
 
     <article v-for="row in rows" :key="row.id" class="account-card">
@@ -86,12 +69,9 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
             <i :style="{ width: `${quotaPercent(quota)}%` }" />
           </div>
           <small v-if="quotaNote(quota)">{{ quotaNote(quota) }}</small>
+          <small v-if="quotaParts(quota)">{{ quotaParts(quota) }}</small>
         </div>
         <p v-if="empty(row.state)" class="account-note">{{ tr('服务没有报告余额或额度。', 'The service reported no balance or allowance.') }}</p>
-        <details v-if="row.state.warnings.length" class="account-warnings">
-          <summary>{{ tr(`${row.state.warnings.length} 条未显示的信息`, `${row.state.warnings.length} note(s) not shown`) }}</summary>
-          <ul><li v-for="warning in row.state.warnings" :key="warning">{{ warning }}</li></ul>
-        </details>
       </template>
     </article>
 
@@ -108,9 +88,6 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
 
 <style scoped>
 .account-status { display: flex; flex-direction: column; gap: 12px; }
-.account-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; font-size: 12px; color: var(--fg-subtle); }
-.account-toolbar .btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
-.account-toolbar .btn .icon { width: 15px; height: 15px; }
 .account-card { display: flex; flex-direction: column; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-raised); }
 .account-card-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .account-mark { display: flex; flex: none; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 9px; background: var(--bg-sunken); color: var(--fg); }
@@ -137,9 +114,6 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
 .account-problem .icon { flex: none; width: 15px; height: 15px; margin-top: 2px; }
 .account-problem small { display: block; color: var(--fg-muted); overflow-wrap: anywhere; }
 .account-note { margin: 0; font-size: 12px; line-height: 1.6; color: var(--fg-subtle); }
-.account-warnings { font-size: 12px; color: var(--fg-subtle); }
-.account-warnings summary { cursor: pointer; }
-.account-warnings ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.6; }
 .account-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 16px; color: var(--fg-subtle); text-align: center; font-size: 13px; }
 .account-empty .icon { width: 28px; height: 28px; color: var(--fg-faint); }
 .account-empty p { margin: 0; }
