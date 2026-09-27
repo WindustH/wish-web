@@ -36,13 +36,16 @@ a large monitor and on a phone.
 - **Keep talking while it works.** Follow-up messages queue up; drag to
   reorder them, edit or cancel them. Press Esc to interrupt, or ask a quick
   side question in a bubble without disturbing the running task.
+- **Answer its questions in place.** When the agent needs your decision, a card
+  with options and fields appears in the conversation. Pick with a click or the
+  number keys; answer after it stopped waiting and your reply still reaches it.
 - **Rich input.** Paste or attach images and files right where they belong in
   your message. Long pastes collapse into tidy, editable chips.
 - **Find anything.** Search a session's entire history and jump straight to
   that moment in the conversation.
 - **Stay in control of each session.** See how full the context is and how
-  close it is to being compacted. Tune compaction and the shell for a single
-  session, or switch models in the middle of a task.
+  close it is to being compacted. Tune compaction, tools and the shell for a
+  single session, or switch models in the middle of a task.
 - **Usage at a glance.** An activity calendar, token usage per model over any
   time range, estimated streaming speed, and the server's status and storage.
 - **Set up in a minute.** A first-run guide with 48 provider presets, ChatGPT

@@ -10,7 +10,7 @@ test('new session sends its chosen working directory instead of the global defau
   globalThis.fetch = async (url, options) => {
     const path = new URL(url as string).pathname;
     let value;
-    if (path === '/api/defaults') value = { defaults: { cwd: '/global', instructions: '', shell: true }, session_config: {} };
+    if (path === '/api/defaults') value = { defaults: { cwd: '/global', instructions: '', tools: { shell: true, ask_user: true } }, session_config: {} };
     else if (path === '/api/providers') value = { items: [{ id: 'go', models: { model: {} } }] };
     else if (path === '/api/sessions' && options!.method === 'POST') {
       created = JSON.parse(options!.body as string);

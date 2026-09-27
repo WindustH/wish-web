@@ -143,6 +143,7 @@
 .queue-heading>span{min-width:0;white-space:nowrap}
 .queue-heading .queue-collapse{grid-column:2;width:28px;height:28px;min-height:28px;color:var(--fg-subtle)}
 .queue-heading small{margin-left:5px;font-size:11px;color:var(--fg-subtle);font-variant-numeric:tabular-nums}
+.queue-heading .queue-note{grid-column:3;grid-row:1;justify-self:end;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:var(--accent)}
 
 .queue-scroll{overflow:auto;min-height:0;overscroll-behavior:contain;padding:0 6px 4px}
 .queue-list{position:relative}

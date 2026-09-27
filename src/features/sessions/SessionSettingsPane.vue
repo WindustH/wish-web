@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Settings that belong to this session alone: context compaction and its shell.
+// Settings that belong to this session alone: context compaction, its optional tools and its shell.
 // New sessions keep taking the defaults from Settings → Service & sessions.
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
@@ -14,6 +14,7 @@ import { useMedia } from '../../ui/composables/useMedia.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { toast } from '../../ui/toast.ts';
 import { compactionFields } from '../settings/fields.ts';
+import type { ToolSwitches } from '../../core/api/projections.ts';
 import ServerShellSettings, { type ShellCatalog } from '../settings/ServerShellSettings.vue';
 import '../settings/settings.css';
 
@@ -21,15 +22,15 @@ defineEmits<{ close: [] }>();
 const isMobile = useMedia('(max-width: 899px)');
 const snapshot = computed(() => chat.snapshot.value);
 const running = computed(() => snapshot.value?.phase !== 'idle');
-const hasShell = computed(() => !!snapshot.value?.descriptor?.shell);
 
 type Compaction = { trigger_tokens: number; target_tokens: number; segment_tokens: number; [key: string]: unknown };
 type Shell = { program: string; args: string[] | null };
 const compaction = ref<Compaction | null>(null);
+const tools = ref<ToolSwitches>({ shell: false, ask_user: false });
 const ownShell = ref(false);
 const shell = ref<Shell>({ program: '', args: null });
 const source = ref('');
-const draftValue = () => JSON.stringify({ compaction: compaction.value, shell: ownShell.value ? shell.value : null });
+const draftValue = () => JSON.stringify({ compaction: compaction.value, tools: tools.value, shell: ownShell.value ? shell.value : null });
 const dirty = computed(() => !!source.value && draftValue() !== source.value);
 
 let loadedFor: string | null = null;
@@ -38,6 +39,7 @@ function reset() {
   if (!current) return;
   loadedFor = current.id;
   compaction.value = current.config?.compaction ? structuredClone(current.config.compaction) : null;
+  tools.value = { shell: !!current.descriptor?.tools?.shell, ask_user: !!current.descriptor?.tools?.ask_user };
   const own = current.descriptor?.shell_command;
   ownShell.value = !!own;
   shell.value = own ? { program: own.program ?? '', args: own.args ?? null } : { program: '', args: null };
@@ -91,8 +93,13 @@ async function save() {
       const next = await api.sessionUpdateConfig(id, { ...current.config, compaction: compaction.value }, current.revision);
       if (chat.sessionId.value === id) chat.snapshot.value = next;
     }
+    // After the config: switching tools rebuilds the session's tool list on the server.
+    if (JSON.stringify(tools.value) !== JSON.stringify(saved.tools)) {
+      const next = await api.sessionSetTools(id, tools.value);
+      if (chat.sessionId.value === id) chat.snapshot.value = next;
+    }
     const wanted = ownShell.value ? shell.value : null;
-    if (JSON.stringify(wanted) !== JSON.stringify(saved.shell)) {
+    if (tools.value.shell && JSON.stringify(wanted) !== JSON.stringify(saved.shell)) {
       const next = await api.sessionSetShell(id, wanted);
       if (chat.sessionId.value === id) chat.snapshot.value = next;
     }
@@ -147,7 +154,15 @@ async function act(kind: 'compact' | 'clear') {
       </div>
     </section>
 
-    <section v-if="hasShell" class="set-section">
+    <section class="set-section">
+      <header class="set-section-head"><h3>{{ tr('工具', 'Tools') }}</h3><p>{{ tr('模型在这个会话里可以使用的内置工具。', 'Built-in tools the model can use in this session.') }}</p></header>
+      <div class="set-card">
+        <div class="set-row inline toggle-row"><span class="set-label"><span>Shell</span><small>{{ running ? tr('运行结束后才能保存这项修改', 'Can be saved once the current run ends') : tr('在工作目录中执行命令', 'Run commands in the working directory') }}</small></span><SwitchRoot v-model="tools.shell" class="cfg-switch" aria-label="Shell"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
+        <div class="set-row inline toggle-row"><span class="set-label"><span>{{ tr('向你提问', 'Ask you questions') }}</span><small>{{ running ? tr('运行结束后才能保存这项修改', 'Can be saved once the current run ends') : tr('需要你决定时，给出选项或请你填写', 'Offer choices or ask you to fill in details when your call is needed') }}</small></span><SwitchRoot v-model="tools.ask_user" class="cfg-switch" :aria-label="tr('向你提问', 'Ask you questions')"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
+      </div>
+    </section>
+
+    <section v-if="tools.shell" class="set-section">
       <header class="set-section-head"><h3>Shell</h3><p>{{ tr('修改后从这个会话的下一条命令开始生效。', 'Applies from this session\'s next command.') }}</p></header>
       <div class="set-card">
         <div class="set-row inline toggle-row"><span class="set-label"><span>{{ tr('跟随全局设置', 'Follow the global setting') }}</span><small>{{ tr('当前全局：', 'Global: ') }}{{ shellName(globalShell) }}</small></span><SwitchRoot :model-value="!ownShell" class="cfg-switch" :aria-label="tr('跟随全局设置', 'Follow the global setting')" @update:model-value="setOwnShell(!$event)"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>

@@ -22,12 +22,13 @@ These are defaults for sessions created from now on; existing sessions keep thei
 | **Default reasoning effort** | `defaults.reasoning.effort` | **Upstream default** leaves it unset. |
 | **Working directory** | `defaults.cwd` | Absolute path on the server; the start page's initial choice. |
 | **Instructions** | `defaults.instructions` | Placed at the start of every new session. |
+| **Tools**: **Shell**, **Ask you questions** | `defaults.tools.shell`, `defaults.tools.ask_user` | The built-in tools new sessions start with. Each session can switch them in its own settings. |
 | **Context compaction**: **Compaction trigger tokens**, **Target tokens after compaction**, **Segment summary token threshold** | `defaults.compaction.trigger_tokens`, `.target_tokens`, `.segment_tokens` | The section only appears when `defaults.compaction` exists in the file. |
 | **Shell**: **Program**, **Arguments** | `shell.program`, `shell.args` | See below. |
 
 **Shell.** **Program** is **System default**, one of the shells found on the server, or **Custom path…** (an absolute path to an executable). **Arguments** are placed before the command; leave them empty to pick them from the shell type. **Runs as** previews the result. A saved change reaches every session that follows the global setting, including open ones, from its next command. Sessions with their own shell keep it.
 
-Not shown in the UI: `defaults.shell` (whether new sessions get shell tools), `defaults.stream` and `defaults.max_output_tokens`. A new session takes its output limit from the model's **Maximum output tokens** when that is set.
+Not shown in the UI: `defaults.stream` and `defaults.max_output_tokens`. A new session takes its output limit from the model's **Maximum output tokens** when that is set.
 
 ## Providers
 
@@ -97,7 +98,7 @@ These settings apply at once and are stored in this browser only.
 | **Language** | 中文 or English. The default is 中文. |
 | **Send with Enter** (desktop) | On: Enter sends, Shift + Enter adds a line. Off: Enter adds a line, Ctrl/⌘ + Enter sends. |
 | **Keep screen awake while running** (phone) | Uses the Wake Lock API while a reply runs. Needs HTTPS. |
-| **Notify me when a run fails** | Shows a system notification, while the page is in the background, whenever a session's run ends in failure (**Run failed: <session name>**, with the error as its text). Asks for notification permission; needs HTTPS. |
+| **Notify me when I'm needed** | While the page is in the background, shows a system notification whenever a session's run ends in failure (**Run failed: <session name>**, with the error as its text) and whenever the agent asks you something (**<session name> is waiting for your answer**, with the questions as its text). Asks for notification permission; needs HTTPS. |
 | **Install Wish** | Opens the browser's install prompt when available. |
 | **Local preferences** → **Clear local data** | See the table below. |
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import DefaultModelPicker from './DefaultModelPicker.vue';
 import { computed, ref } from 'vue';
+import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { type SelectOption } from '../../ui/components/SelectField.vue';
@@ -24,6 +25,14 @@ const returns=useSettingsReturn(()=>!!page.value,async()=>{if(await returns.conf
       <button class="mobile-settings-row" @click="page='instructions'"><span>{{titles.instructions}}</span><small>{{instructionsPreview}}</small><Icon name="chevron-right"/></button>
     </div>
     <p class="mobile-group-note">{{tr('只用于之后新建的会话，已有会话保持原来的配置。','Applies to sessions created from now on. Existing sessions keep their configuration.')}}</p>
+    <template v-if="defaults.tools">
+      <p class="mobile-group-caption">{{tr('工具','Tools')}}</p>
+      <div class="set-card mobile-card">
+        <div class="set-row inline toggle-row"><span class="set-label"><span>Shell</span><small>{{tr('在工作目录中执行命令','Run commands in the working directory')}}</small></span><SwitchRoot v-model="defaults.tools.shell" class="cfg-switch" aria-label="Shell"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
+        <div class="set-row inline toggle-row"><span class="set-label"><span>{{tr('向你提问','Ask you questions')}}</span><small>{{tr('需要你决定时，给出选项或请你填写','Offer choices or ask you to fill in details when your call is needed')}}</small></span><SwitchRoot v-model="defaults.tools.ask_user" class="cfg-switch" :aria-label="tr('向你提问','Ask you questions')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
+      </div>
+      <p class="mobile-group-note">{{tr('新会话默认启用的内置工具。每个会话也可以在会话设置里单独开关。','Built-in tools new sessions start with. Each session can switch them in its own settings.')}}</p>
+    </template>
     <template v-if="defaults.compaction">
       <p class="mobile-group-caption">{{tr('上下文压缩','Context compaction')}}</p>
       <div class="set-card mobile-card">

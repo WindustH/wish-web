@@ -22,12 +22,13 @@
 | “默认思考强度” | `defaults.reasoning.effort` | 选“上游默认”表示不设置。 |
 | “工作目录” | `defaults.cwd` | 服务器上的绝对路径，也是起始页工作目录的初始值。 |
 | “固定提示词” | `defaults.instructions` | 放在每个新会话的开头。 |
+| “工具”：“Shell”“向你提问” | `defaults.tools.shell`、`defaults.tools.ask_user` | 新会话默认启用的内置工具。每个会话也可以在自己的会话设置里单独开关。 |
 | “上下文压缩”：“触发压缩的 Token 数”“压缩后的目标 Token 数”“触发分段摘要的 Token 阈值” | `defaults.compaction.trigger_tokens`、`.target_tokens`、`.segment_tokens` | 只有配置文件里存在 `defaults.compaction` 时才会显示这一组。 |
 | “Shell”：“程序”“启动参数” | `shell.program`、`shell.args` | 见下文。 |
 
 **Shell。**“程序”可以选“系统默认”、服务器上找到的某个 Shell，或“自定义路径…”（可执行文件的绝对路径）。“启动参数”放在命令之前，留空时按 Shell 类型自动选择；“执行方式”会预览最终的启动命令。保存后，所有跟随全局设置的会话（包括已经打开的）都会从下一条命令开始使用新的 Shell；单独设置了 Shell 的会话不受影响。
 
-界面上没有的默认项：`defaults.shell`（新会话是否带 Shell 工具）、`defaults.stream` 和 `defaults.max_output_tokens`。如果模型设置了“最大输出 Token”，新会话会以它作为输出上限。
+界面上没有的默认项：`defaults.stream` 和 `defaults.max_output_tokens`。如果模型设置了“最大输出 Token”，新会话会以它作为输出上限。
 
 ## 提供商
 
@@ -97,7 +98,7 @@
 | “界面语言” | 中文或 English，默认中文 |
 | “按 Enter 发送消息”（桌面端） | 开启时 Enter 发送、Shift + Enter 换行；关闭时 Enter 换行、Ctrl/⌘ + Enter 发送 |
 | “运行时保持屏幕唤醒”（手机） | 回复进行期间通过 Wake Lock 保持屏幕常亮，需要 HTTPS |
-| “运行失败时通知我” | 页面在后台时，每当有会话的运行以失败结束，就弹出系统通知（“运行失败：会话名”，正文是错误信息）。开启时会申请通知权限，需要 HTTPS |
+| “需要我处理时通知我” | 页面在后台时，每当有会话的运行以失败结束（“运行失败：会话名”，正文是错误信息），或者智能体向你提问（“「会话名」在等你回答”，正文是问题），就弹出系统通知。开启时会申请通知权限，需要 HTTPS |
 | “安装 Wish” | 在浏览器支持时弹出安装提示 |
 | “本地设置”→“清除本地数据” | 见下表 |
 

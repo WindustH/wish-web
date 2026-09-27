@@ -15,21 +15,46 @@ export interface GroupEntry {
   run_id?: string | number | null;
   payload?: { content?: GroupBlock[]; usage?: unknown } | null;
 }
-export interface GroupBlock { type: string; text?: string }
+export interface GroupBlock { type: string; text?: string; id?: string; name?: string; arguments?: unknown }
 type RunId = string | number | null;
 export type ProcessStep<E extends GroupEntry = GroupEntry> =
   | { kind: 'entry'; entry: E; key: string }
   | { kind: 'block'; block: GroupBlock; fromSeq: E['seq']; key: string };
 export interface ProcessItem<E extends GroupEntry = GroupEntry> { type: 'process'; key: string; steps: ProcessStep<E>[]; runId: RunId }
 export interface EntryItem<E extends GroupEntry = GroupEntry> { type: 'entry'; entry: E; blocks: GroupBlock[]; key: string; usage: unknown }
-export type GroupItem<E extends GroupEntry = GroupEntry> = ProcessItem<E> | EntryItem<E>;
+/**
+ * An `ask_user` call, shown as a card of its own rather than folded into the process: its
+ * arguments, the entry holding its result once there is one, and answers that arrived after
+ * a timeout as a message.
+ */
+export interface QuestionItem<E extends GroupEntry = GroupEntry> {
+  type: 'question'; key: string; entry: E; callId: string; arguments: unknown;
+  result: E | null; late: E | null;
+}
+export type GroupItem<E extends GroupEntry = GroupEntry> = ProcessItem<E> | EntryItem<E> | QuestionItem<E>;
 
-const PROCESS_BLOCK = (b: GroupBlock) => b.type === 'reasoning' || b.type === 'tool_call';
+const QUESTION_BLOCK = (b: GroupBlock) => b.type === 'tool_call' && b.name === 'ask_user';
+const PROCESS_BLOCK = (b: GroupBlock) => b.type === 'reasoning' || (b.type === 'tool_call' && !QUESTION_BLOCK(b));
+const payloadOf = (entry: GroupEntry) => (entry.payload ?? {}) as Record<string, any>;
+// The result an `ask_user` call got; a failed one (a malformed form) stays in the process.
+const questionResult = (entry: GroupEntry) =>
+  entry.kind === 'tool_result' && payloadOf(entry).tool_name === 'ask_user' ? payloadOf(entry).tool_call_id as string : null;
+const lateAnswer = (entry: GroupEntry) =>
+  entry.kind === 'developer_message' && payloadOf(entry).metadata?.source === 'ask_user_answer' ? payloadOf(entry).metadata.call_id as string : null;
+const failed = (entry: GroupEntry | undefined) => payloadOf(entry ?? {} as GroupEntry).result?.status === 'failed';
 const entryId = (e: GroupEntry) => e.seq != null ? `s${e.seq}` : `o${e.localId ?? e.id ?? Math.random()}`;
 
 export function groupEntries<E extends GroupEntry>(entries: readonly E[]): GroupItem<E>[] {
   const items: GroupItem<E>[] = [];
   let group: ProcessItem<E> | null = null;
+  // Question cards gather their result and any late answer from wherever those entries sit.
+  const results = new Map<string, E>(), answers = new Map<string, E>();
+  for (const entry of entries) {
+    const result = questionResult(entry), late = lateAnswer(entry);
+    if (result) results.set(result, entry);
+    if (late) answers.set(late, entry);
+  }
+  const asked = (b: GroupBlock) => QUESTION_BLOCK(b) && !failed(results.get(b.id ?? ''));
 
   const openGroup = (firstStep: ProcessStep<E>, runId: RunId | undefined) => {
     group = { type: 'process', key: firstStep.key, steps: [firstStep], runId: runId ?? null };
@@ -48,6 +73,9 @@ export function groupEntries<E extends GroupEntry>(entries: readonly E[]): Group
 
   for (const entry of entries) {
     if (entry.kind === 'history_event') continue;
+    // A question's result shows on its card; a late answer stays where it arrived, as a notice.
+    const result = questionResult(entry);
+    if (result && !failed(entry)) continue;
     if (entry.kind === 'tool_result') {
       pushGroupStep({ kind: 'entry', entry, key: entryId(entry) }, entry.run_id);
       continue;
@@ -86,7 +114,13 @@ export function groupEntries<E extends GroupEntry>(entries: readonly E[]): Group
       };
       for (let bi = 0; bi < blocks.length; bi++) {
         const b = blocks[bi];
-        if (PROCESS_BLOCK(b)) {
+        if (asked(b)) {
+          emitSegment();
+          flushGroup();         // the question stands on its own between process runs
+          const callId = b.id ?? '';
+          items.push({ type: 'question', key: `${id}q${bi}`, entry, callId, arguments: b.arguments,
+            result: results.get(callId) ?? null, late: answers.get(callId) ?? null });
+        } else if (PROCESS_BLOCK(b) || QUESTION_BLOCK(b)) {
           emitSegment();        // body before this block renders first
           pushGroupStep({ kind: 'block', block: b, fromSeq: entry.seq, key: `${id}b${bi}` }, entry.run_id);
         } else if (isBodyBlock(b)) {

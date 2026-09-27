@@ -40,6 +40,19 @@ The header shows the session name and the model and reasoning chips. On the righ
 - Replies render Markdown with math (TeX) and copy buttons on code blocks. Right-click a message (long-press on touch screens) for **Copy message**, or **Save image** on an image.
 - Scroll up to load earlier messages; **Jump to latest** takes you back.
 
+### Answering the agent's questions
+
+When the agent needs your decision, a card with its questions appears in the conversation, marked **Waiting for you**, and the status line reads **Waiting for your answers above**. A card can hold several questions:
+
+- A choice question lists options; pick one, or several where it says **Pick any**. Unless the agent ruled it out, you can also write your own answer below the options.
+- A text question takes a written answer.
+- **Send** delivers what you filled in (**n of m answered**); questions left blank count as not answered. **Skip** declines the whole card.
+- On a keyboard: number keys pick options of the question you are in, Enter in a one-line field moves to the next question (and sends from the last), and Ctrl/⌘ + Enter sends from anywhere.
+
+The run waits while the card is open. Messages you send meanwhile queue as usual (**Goes in once the questions above are answered**), and **Stop** cancels the question. If the agent set a time limit, the card says when it stops waiting. After that it carries on with its own judgement and the card shows **Timed out · still open**: **Answer now** still sends your answers, as a new message that wakes the agent, and an **Answered the earlier questions** chip marks where it arrived. **Leave it** closes the card instead.
+
+Answered cards keep what you chose; skipped, stopped and timed-out cards list the questions.
+
 ### Attachments and pasting
 
 - Use **Image** and **Attach files**, or paste images and files. Each attachment is inserted at the cursor, so it arrives at that point in your message.
@@ -96,9 +109,10 @@ Click the model or reasoning chip at any time, even while the agent is working. 
 - **Context compaction**: **Compact automatically** on or off, and the three thresholds (**Compaction trigger tokens**, **Target tokens after compaction**, **Segment summary token threshold**). **Use the global defaults** resets them. These can only be saved while the session is idle (**Can be saved once the current run ends**).
 - **Compact now** compacts the context right away. It needs compaction to be configured for the session.
 - **Clear the context** continues from an empty context, keeping only the fixed instructions. The model no longer sees earlier turns, but the history stays searchable. It asks for confirmation.
-- **Shell**, for sessions with shell tools: **Follow the global setting**, or give this session its own shell program and arguments. This applies from the session's next command, even during a run.
+- **Tools**: switch **Shell** (commands in the working directory) and **Ask you questions** (the question cards above) for this session. These can only be saved while the session is idle.
+- **Shell**, while the shell tool is on: **Follow the global setting**, or give this session its own shell program and arguments. This applies from the session's next command, even during a run.
 
-**Compact now** and **Clear the context** need an idle session. Changes to compaction and the shell are applied with **Save**; **Discard** drops them.
+**Compact now** and **Clear the context** need an idle session. Changes to compaction, tools and the shell are applied with **Save**; **Discard** drops them.
 
 ## The session list
 
@@ -176,6 +190,8 @@ Wish checks the connection before saving it, and says what went wrong if it can'
 | Ctrl/⌘ + Enter | Send, when **Send with Enter** is off (Enter then adds a new line) |
 | Esc | Stop the running reply |
 | ↑ / ↓ on a queued message | Move it up or down |
+| 1–9 in a question card | Pick that option of the current question |
+| Ctrl/⌘ + Enter in a question card | Send the answers |
 | ↑ / ↓ / Home / End on the message box's resize handle | Resize the message box |
 
 The first four don't work while a dialog is open.

@@ -8,6 +8,7 @@ import { ArrowDown } from '@lucide/vue';
 import { chat } from '../../core/state/chatSlice.ts';
 import { chatWorkIndicator } from './phaseIndicator.ts';
 import { i18n } from '../../core/i18n/index.ts';
+import { tr } from '../../core/i18n/tr.ts';
 import { announce } from '../../ui/live.ts';
 import { groupEntries, type GroupItem } from './grouping.ts';
 import type { EntryView } from '../../core/api/projections.ts';
@@ -59,6 +60,9 @@ const streamText = computed(() => streamState.value?.text || '');
 const streamReasoning = computed(() => streamState.value?.reasoning || '');
 const workStatus = computed(() => {
   const state = streamState.value;
+  // A question waits on the user, not on work: say so rather than "tool call · ask_user".
+  // The open forms come with the snapshot, so this holds after a reload too.
+  if (chat.snapshot.value?.pending_questions?.some(form => !form.timed_out)) return tr('等待你回答上面的问题', 'Waiting for your answers above');
   if (state?.currentTool) return `${i18n.t('entry.toolCall')} · ${state.currentTool}`;
   return i18n.t(`chat.${state?.activity || 'working'}`);
 });
@@ -137,6 +141,7 @@ function holdsTarget(row: ChatRow | undefined) {
   if (seq == null || !row) return false;
   if (row.type === 'entry') return row.entry.seq === seq;
   if (row.type === 'process') return row.steps.some(step => (step.kind === 'entry' ? step.entry.seq : step.fromSeq) === seq);
+  if (row.type === 'question') return row.entry.seq === seq || row.result?.seq === seq;
   return false;
 }
 
@@ -194,7 +199,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
           :data-index="v.index"
           :class="{ 'status-error-row': groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error', 'history-target': holdsTarget(groups[v.index]) }"
           :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }">
-          <HistoryItem v-if="groups[v.index]?.type === 'entry' || groups[v.index]?.type === 'process'" :item="groups[v.index]!"
+          <HistoryItem v-if="groups[v.index]?.type === 'entry' || groups[v.index]?.type === 'process' || groups[v.index]?.type === 'question'" :item="groups[v.index]!"
             :forced="groups[v.index]!.type === 'process' && forcedOpen.has(groups[v.index]!.key)"
             :session="sessionId" />
           <div v-else-if="groups[v.index]?.type === 'status_request_error' && requestFailure" class="chat-run-error" role="alert">

@@ -21,10 +21,31 @@ export interface SessionDescriptor {
   created_at: number;
   updated_at: number;
   cwd: string;
-  shell: boolean;
+  /** The session's optional built-in tools. */
+  tools: ToolSwitches;
   /** This session's own shell; absent while it follows the application's. */
   shell_command?: { program: string; args: string[] | null };
   pending_selection?: unknown;
+}
+export interface ToolSwitches { shell: boolean; ask_user: boolean }
+/** One question of an `ask_user` form, with its optional fields settled by the server. */
+export interface AskQuestion {
+  type: 'choice' | 'text';
+  question: string;
+  header?: string;
+  options?: { label: string; description?: string }[];
+  multi_select: boolean;
+  allow_other: boolean;
+  placeholder?: string;
+  multiline: boolean;
+}
+/** An `ask_user` form the session is waiting on, or one that timed out but still takes answers. */
+export interface PendingQuestion {
+  call_id: string;
+  questions: AskQuestion[];
+  asked_at: number;
+  timeout_seconds: number | null;
+  timed_out: boolean;
 }
 export type SessionPhase = 'compacting' | 'running' | 'queued' | 'idle';
 export interface SessionView {
@@ -36,6 +57,7 @@ export interface SessionView {
   resume_requires_user: boolean; compaction_count: number;
   standby_preparing: boolean;
   context_tokens: number | null;
+  pending_questions: PendingQuestion[];
   last_error: DisplayFailure | null;
   agent_custom: any; config: SessionConfig; descriptor: SessionDescriptor; status: any;
 }
@@ -85,6 +107,8 @@ export function sessionView(value: any): SessionView {
     standby_preparing: Boolean(status.standby_preparing),
     // Input size of the last conversation call in the active context; null until one completes.
     context_tokens: status.context_tokens ?? null,
+    // The forms the ask_user tool still holds open, for their cards.
+    pending_questions: status.pending_questions ?? [],
     last_error: operationFailure(status.last_operation),
     agent_custom: status.metadata?.agent_custom, config, descriptor: session, status,
   };
@@ -104,7 +128,11 @@ export function entryView(item: any, sessionId: string): EntryView {
   switch (type) {
     case 'Developer':
     case 'User': {
-      if (message.metadata?.source === 'background_execution_finished') {
+      if (message.metadata?.source === 'ask_user_answer') {
+        // Answers given after the question timed out; they show on the question's card.
+        result.kind = 'developer_message';
+        result.payload = { metadata: message.metadata, content: blocks(message.content) };
+      } else if (message.metadata?.source === 'background_execution_finished') {
         const raw = (message.content ?? []).filter((b: any) => b.Text).map((b: any) => b.Text.text).join('\n');
         let completion = message.metadata?.completion;
         if (!completion) { try { completion = JSON.parse(raw.slice(raw.indexOf('\n') + 1)); } catch {} }

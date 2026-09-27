@@ -49,6 +49,12 @@ const zh: Rule[] = [
   [/^session changed; reload before saving$/, () => '会话已在其他地方修改，请重新打开会话设置后再保存。'],
   [/^session is running$/, () => '会话正在运行，请等本轮运行结束后再试。'],
   [/^this session has no shell tool$/, () => '这个会话没有启用 Shell 工具。'],
+  [/^could not start the shell: (.+)$/s, reason => `无法启动 Shell：${reason}`],
+  // Answers to ask_user (server/session/ask_user.rs).
+  [/^the question is no longer open$/, () => '这个提问已经结束，不再接收回答。'],
+  [/^the question is already answered$/, () => '这个提问已经回答过了。'],
+  [/^answer at least one question, or skip the form$/, () => '请至少回答一个问题，或者选择跳过。'],
+  [/^answer (\d+): (.+)$/, (index, reason) => `第 ${index} 个问题的回答无效：${reason}`],
   // Model catalog and runtime failures.
   [/^model_list_path is not configured$/, () => '这个提供商没有配置模型列表路径。'],
   [/^server is shutting down$/, () => '服务正在关闭，请稍后重试。'],

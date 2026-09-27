@@ -28,6 +28,8 @@ const refillable = (item: any): boolean =>
   Boolean(item.text) || (Array.isArray(item.attachments) && item.attachments.length > 0);
 
 const tx=(zh:string,en:string)=>i18n.locale.value==='zh'?zh:en;
+// The run waits on an ask_user form; what is queued goes in once the form is answered.
+const awaitingAnswer=computed(()=>(chat.snapshot.value?.pending_questions??[]).some(form=>!form.timed_out));
 const shown=computed(()=>props.items);
 const expanded=ref(true);
 const dock=ref<HTMLElement>();
@@ -168,7 +170,7 @@ async function edit(item: any) {
   <section ref="dock" class="queue-dock" :class="{ collapsed: !expanded }" :aria-label="i18n.t('chat.queueTitle')" :aria-busy="busy||animating">
     <button v-if="!expanded" class="queue-expand" :aria-label="tx('展开待发送消息','Expand queued messages')" :aria-expanded="false" :disabled="animating" @click.stop="setExpanded(true)" @pointerdown="startPull" @pointermove="pull" @pointerup="pullStart=null" @pointercancel="pullStart=null"><Icon name="chevron-up"/></button>
     <div v-if="expanded" class="queue-expanded">
-    <header class="queue-heading"><span>{{tx('待发送','Queued')}} <small>{{shown.length}}</small></span><button class="btn ghost icon-only queue-collapse" :aria-label="tx('收起队列','Collapse queue')" :aria-expanded="true" :disabled="animating" @click.stop="collapse"><Icon name="chevron-down"/></button></header>
+    <header class="queue-heading"><span>{{tx('待发送','Queued')}} <small>{{shown.length}}</small></span><span v-if="awaitingAnswer" class="queue-note">{{tx('回答上面的问题后送达','Goes in once the questions above are answered')}}</span><button class="btn ghost icon-only queue-collapse" :aria-label="tx('收起队列','Collapse queue')" :aria-expanded="true" :disabled="animating" @click.stop="collapse"><Icon name="chevron-down"/></button></header>
     <div ref="list" class="queue-scroll" @pointermove="pointerMove" @pointerup="finishDrag" @pointercancel="cancelDrag" @lostpointercapture="drag&&cancelDrag()">
     <TransitionGroup name="queue-row" tag="div" class="queue-list" role="list">
     <div v-for="(item,index) in ordered" :key="item.id" class="queue-item" :class="{dragging:moving===item.id}" role="listitem" tabindex="0" @pointerdown="startDrag($event,item)" @keydown="keyboardMove($event,item)">

@@ -2,7 +2,7 @@
 import DefaultModelPicker from './DefaultModelPicker.vue';
 import { ref, computed, inject, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
+import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, SwitchRoot, SwitchThumb } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
 import { useMedia } from '../../ui/composables/useMedia.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
@@ -160,6 +160,13 @@ onMounted(load);
             <div class="set-row"><span class="set-label"><span>{{tr('默认模型','Default model')}}</span><small>{{tr('新会话使用的模型和思考强度','Model and reasoning effort for new sessions')}}</small></span><DefaultModelPicker class="set-end" :config="draft" :providers="providerOptions" :efforts="effortOptions"/></div>
             <label class="set-row"><span class="set-label"><span>{{tr('工作目录','Working directory')}}</span><small>{{tr('命令执行的起始目录，需要绝对路径','Where commands start. Use an absolute path.')}}</small></span><input class="input set-mono" v-model="draft.defaults.cwd" autocomplete="off" autocapitalize="off" spellcheck="false"/></label>
             <label class="set-row stacked"><span class="set-label"><span>{{tr('固定提示词','Instructions')}}</span><small>{{tr('每个新会话都会带上这段提示词','Included in every new session')}}</small></span><textarea class="input" rows="5" v-model="draft.defaults.instructions" :placeholder="tr('未设置','Not set')"/></label>
+          </div>
+        </section>
+        <section v-if="draft.defaults.tools" class="set-section">
+          <header class="set-section-head"><h3>{{tr('工具','Tools')}}</h3><p>{{tr('新会话默认启用的内置工具。每个会话也可以在会话设置里单独开关。','Built-in tools new sessions start with. Each session can switch them in its own settings.')}}</p></header>
+          <div class="set-card">
+            <div class="set-row toggle-row"><span class="set-label"><span>Shell</span><small>{{tr('在工作目录中执行命令','Run commands in the working directory')}}</small></span><SwitchRoot v-model="draft.defaults.tools.shell" class="cfg-switch" aria-label="Shell"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
+            <div class="set-row toggle-row"><span class="set-label"><span>{{tr('向你提问','Ask you questions')}}</span><small>{{tr('需要你决定时，给出选项或请你填写','Offer choices or ask you to fill in details when your call is needed')}}</small></span><SwitchRoot v-model="draft.defaults.tools.ask_user" class="cfg-switch" :aria-label="tr('向你提问','Ask you questions')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
           </div>
         </section>
         <section v-if="draft.defaults.compaction" class="set-section">

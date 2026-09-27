@@ -1,5 +1,5 @@
 import { get, post, patch, put, del, api, getBaseUrl, type RequestOptions } from './client.ts';
-import { sessionView, entryView, providerView, type SessionView, type EntryView, type ProviderView } from './projections.ts';
+import { sessionView, entryView, providerView, type SessionView, type EntryView, type ProviderView, type ToolSwitches } from './projections.ts';
 import type { SeriesQuery, DailyQuery, UsageSeriesResponse, UsageDailyResponse } from '../usage/types.ts';
 
 // Request options callers pass through; a raw body is set by the endpoint itself.
@@ -18,7 +18,7 @@ export interface QueuedDelivery { id: string; state: 'queued'; text: string; att
 export interface ShellSettings { program: string; args: string[] | null }
 export interface BlobInfo { id: string; mime_type: string; byte_count: number }
 export interface UploadedBlob extends BlobInfo { sha256: string }
-export interface EffectiveConfig { defaults: { provider: string; model: string; reasoning?: { effort?: string }; instructions: string; cwd: string; shell: boolean } }
+export interface EffectiveConfig { defaults: { provider: string; model: string; reasoning?: { effort?: string }; instructions: string; cwd: string; tools: ToolSwitches } }
 export interface DefaultModel { provider: string; model: string; reasoning_effort?: string }
 export interface DirectoryListing { path: string; parent: string | null; directories: string[] }
 export interface UsageTotals {
@@ -88,7 +88,7 @@ export async function sessionCreate(body: CreateSessionBody) {
   const instructions = body.agent_custom ?? defaults.instructions;
   const config = { ...session_config, model: body.model, max_output_tokens: model.max_output_tokens ?? provider?.max_output_tokens ?? session_config.max_output_tokens, reasoning: effort ? { ...session_config.reasoning, effort } : session_config.reasoning };
   const value = await post('/sessions', { provider: body.provider, name: body.name ?? '', cwd: body.cwd ?? defaults.cwd,
-    shell: defaults.shell, config, metadata: { agent_custom: instructions },
+    tools: defaults.tools, config, metadata: { agent_custom: instructions },
     initial_messages: instructions ? [{ System: { content: [{ Text: { text: instructions } }] } }] : [] });
   return sessionView(value);
 }
@@ -127,6 +127,14 @@ export const messageSend = async (id: string, body: { content?: string; blocks?:
 export const sessionInterrupt = (id: string) => post(`${path(id)}/interrupt`);
 // Replaces the whole session config; the server refuses non-model changes while it runs.
 export const sessionUpdateConfig = async (id: string, config: unknown, revision?: number | null, opts?: EndpointOptions) => sessionView(await patch(path(id), { config }, revisionOptions(revision, opts)));
+// Turns the session's optional tools on or off; the server refuses while it runs.
+export const sessionSetTools = async (id: string, changes: Partial<ToolSwitches>) => sessionView(await put(`${path(id)}/tools`, changes));
+/** One answer per question: what was chosen or written, or `skipped`. */
+export type QuestionAnswer = { skipped: true } | { selected?: string[]; other?: string } | { text: string };
+// Answers an `ask_user` form, or skips it. `delivered` says whether the waiting call took it
+// (`now`) or, after a timeout, it went to the session as a message (`later`).
+export const answerQuestion = (id: string, body: { call_id: string; answers?: QuestionAnswer[]; skip?: boolean }): Promise<{ delivered: 'now' | 'later' | 'dropped' }> =>
+  post(`${path(id)}/answer`, body);
 // `{program, args}` for the session's own shell, or null to follow the configured one.
 export const sessionSetShell = async (id: string, settings: ShellSettings | null) => sessionView(await put(`${path(id)}/shell`, settings));
 export const sessionCompact = (id: string) => post(`${path(id)}/compact`);
