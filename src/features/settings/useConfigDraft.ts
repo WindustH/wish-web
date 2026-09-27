@@ -6,7 +6,7 @@ import { requireAvailableModel } from '../../core/api/endpoints.ts';
 import { replayConfigChanges } from '../../core/configMerge.ts';
 import { errorText } from '../../core/config-editor.ts';
 import { tr } from './fields.ts';
-import { providerName } from '../../ui/providerPresentation.ts';
+import { providerTitles } from '../../ui/providerPresentation.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { toast } from '../../ui/toast.ts';
 import type { ConfigCatalog, ProviderPreset } from '../../core/provider-presets.ts';
@@ -68,14 +68,15 @@ export function useConfigDraft() {
         Object.values(advancedPending.value).some(Boolean))
   );
 
+  // Names over the providers being edited; two instances of one vendor keep their IDs apart.
+  const providerTitleMap = computed(() => providerTitles(
+    Object.entries(draft.value?.providers ?? {}).map(([id, value]) => ({ id, display_name: (value as any).display_name, preset: (value as any).preset })),
+  ));
+  const providerTitle = (id: string) => providerTitleMap.value.get(id) ?? id;
   const providerOptions = computed(() =>
     Object.entries(draft.value?.providers ?? {}).map(([id, value]) => {
       const p = findPreset((value as any).preset);
-      return {
-        value: id,
-        label: (value as any).display_name || (p ? providerName(p.provider) : id),
-        brand: p?.provider,
-      };
+      return { value: id, label: providerTitle(id), brand: p?.provider };
     })
   );
 
@@ -266,6 +267,7 @@ export function useConfigDraft() {
     advancedPending,
     serverDirty,
     providerOptions,
+    providerTitle,
     effortOptions,
     protocolOptions: PROTOCOL_OPTIONS,
     findPreset,

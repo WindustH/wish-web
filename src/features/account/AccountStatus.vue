@@ -8,7 +8,7 @@ import ProviderIcon from '../../ui/components/ProviderIcon.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 import { balanceParts, failureLabel, formatAmount, quotaAmounts, quotaLevel, quotaParts, quotaPercent, quotaTitle, resetLabel, type AccountState } from './accountState.ts';
 import type { AccountRow, ProviderSummary } from './useAccountStates.ts';
-import { presetBrand, providerName } from '../../ui/providerPresentation.ts';
+import { useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
 
 defineProps<{ rows: AccountRow[]; unconfigured: ProviderSummary[]; loading: boolean; error: string }>();
 
@@ -20,11 +20,9 @@ const availability = (state: AccountState) => {
   if (!state.availability) return '';
   return state.availability === 'available' ? tr('可用', 'Available') : state.availability;
 };
-// Same rule as the settings provider card: display name, then preset brand, then ID.
-const title = (item: { id: string; name?: string | null; preset?: string }) => {
-  const brand = !item.name && item.preset ? presetBrand(item.preset) : undefined;
-  return item.name || (brand ? providerName(brand) : item.id);
-};
+// The same names as everywhere else: two instances of one vendor keep their IDs apart.
+const providerTitle = useProviderTitles();
+const title = (item: { id: string }) => providerTitle(item.id);
 const plan = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 const empty = (state: AccountState) => !state.balances.length && !state.quotas.length && !state.failure;
 const percentText = (value: number | null) => (value == null ? '' : `${Math.round(value)}%`);

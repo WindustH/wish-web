@@ -1,6 +1,6 @@
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { providerConfigs } from '../../core/api/endpoints.ts';
-import { presetBrand, providerName } from '../providerPresentation.ts';
+import { providerTitles } from '../providerPresentation.ts';
 import { readCached, writeCached } from '../../core/util/responseCache.ts';
 
 // Usage rows carry only provider IDs. Keep what the names are derived from and
@@ -21,13 +21,11 @@ function load() {
     .finally(() => { pending = undefined; });
 }
 
-// Same rule as the settings provider card: display name, then preset brand, then ID.
+// Display name, then preset brand, then ID; a name several providers share keeps
+// the ID beside it. Computed over every configured provider, so each place agrees.
+const titles = computed(() => providerTitles(Object.entries(known.value).map(([id, provider]) => ({ id, ...provider }))));
+
 export function useProviderTitles() {
   load();
-  return (id: string) => {
-    const provider = known.value[id];
-    if (provider?.display_name) return provider.display_name;
-    const brand = provider && presetBrand(provider.preset);
-    return brand ? providerName(brand) : id;
-  };
+  return (id: string) => titles.value.get(id) ?? id;
 }

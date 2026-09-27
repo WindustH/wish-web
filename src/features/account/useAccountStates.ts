@@ -8,9 +8,6 @@ import type { AccountState } from './accountState.ts';
 
 export interface AccountRow {
   id: string;
-  /** The configured display name, if any; otherwise the preset's brand names it. */
-  name?: string | null;
-  preset?: string;
   brand?: string | null;
   state?: AccountState;
   /** When `state` was read, in ms. */
@@ -22,7 +19,7 @@ interface CachedReading { state: AccountState; checkedAt: number }
 
 const cacheKey = (id: string) => `account-state:${id}`;
 const PROVIDERS_KEY = 'account-providers';
-export type ProviderSummary = { id: string; name?: string | null; preset?: string; brand?: string | null; readable: boolean };
+export type ProviderSummary = { id: string; brand?: string | null; readable: boolean };
 
 export function useAccountStates() {
   const rows = ref<AccountRow[]>([]);
@@ -38,7 +35,7 @@ export function useAccountStates() {
     rows.value = providers.filter(item => item.readable).map(item => {
       const cached = peekCached<CachedReading>(cacheKey(item.id));
       // Keep the last reading on screen; take names from the fresh list.
-      return { ...cached, ...previous.get(item.id), id: item.id, name: item.name, preset: item.preset, brand: item.brand, loading: true, error: undefined };
+      return { ...cached, ...previous.get(item.id), id: item.id, brand: item.brand, loading: true, error: undefined };
     });
     unconfigured.value = providers.filter(item => !item.readable);
   }
@@ -59,7 +56,7 @@ export function useAccountStates() {
     try {
       const { providers } = await providerConfigs({ signal: own.signal });
       const summary: ProviderSummary[] = providers.filter(item => item.enabled).map(item => ({
-        id: item.id, name: item.display_name, preset: item.preset, brand: item.brand, readable: !!item.account_state,
+        id: item.id, brand: item.brand, readable: !!item.account_state,
       }));
       writeCached(PROVIDERS_KEY, summary);
       show(summary);

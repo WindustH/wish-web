@@ -19,7 +19,8 @@ import ProviderModels from './ProviderModels.vue';
 import { get, post } from '../../core/api/client.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { ACCOUNT_PROTOCOLS } from '../account/accountState.ts';
-const props=defineProps<{ id:string; value:ProviderConfig; preset?:ProviderPreset; protocols:string[]; initiallyOpen?:boolean; save?:()=>Promise<boolean>; saving?:boolean }>();
+// `listTitle` names the provider in the phone list, where no ID is shown beside it.
+const props=defineProps<{ id:string; value:ProviderConfig; preset?:ProviderPreset; protocols:string[]; initiallyOpen?:boolean; save?:()=>Promise<boolean>; saving?:boolean; listTitle?:string }>();
 const emit=defineEmits<{remove:[];protocol:[value:string];loginComplete:[]}>();
 const editing=ref(props.initiallyOpen??false);
 const mobilePanel=ref('');
@@ -148,7 +149,7 @@ function setCredential(field:string,value:string){
 </script>
 <template>
   <div class="provider-item">
-    <button v-if="isMobile" class="mobile-settings-row provider-navigation" @click="mobilePanel='';editing=true"><span class="provider-mark"><ProviderIcon :brand="preset?.provider"/></span><span>{{displayName}}<small class="row-preview">{{Object.keys(value.models).length}} {{tr('个模型','models')}}<template v-if="preset"> · {{presetDescription(preset)}}</template></small></span><small v-if="!value.enabled" class="provider-state disabled">{{tr('已停用','Disabled')}}</small><Icon name="chevron-right"/></button>
+    <button v-if="isMobile" class="mobile-settings-row provider-navigation" @click="mobilePanel='';editing=true"><span class="provider-mark"><ProviderIcon :brand="preset?.provider"/></span><span>{{listTitle||displayName}}<small class="row-preview">{{Object.keys(value.models).length}} {{tr('个模型','models')}}<template v-if="preset"> · {{presetDescription(preset)}}</template></small></span><small v-if="!value.enabled" class="provider-state disabled">{{tr('已停用','Disabled')}}</small><Icon name="chevron-right"/></button>
     <header v-else class="provider-heading" @click="($event.target as Element).closest('button')||(editing=true)">
       <span class="provider-mark"><ProviderIcon :brand="preset?.provider"/></span>
       <div class="provider-identity">

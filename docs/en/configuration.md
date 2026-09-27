@@ -37,7 +37,7 @@ Not shown in the UI: `defaults.shell` (whether new sessions get shell tools), `d
 
 | Setting | Field in `providers.<id>` | Notes |
 | --- | --- | --- |
-| **Display name** | `display_name` | Defaults to the preset's brand name, or the ID. |
+| **Display name** | `display_name` | Defaults to the preset's brand name, or the ID. When two providers would carry the same name, such as two DeepSeek instances, the app adds the ID: "DeepSeek · deepseek-work". |
 | **Enable provider** | `enabled` | Disabled providers disappear from the model pickers. |
 | **Protocol** | `protocol` | For preset providers, switching protocol loads that variant's URL, path, authentication and catalog settings. |
 | **Use proxy** | `proxy_enabled` | Off: this provider always connects directly. |

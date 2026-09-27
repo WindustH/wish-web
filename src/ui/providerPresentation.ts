@@ -21,6 +21,26 @@ export function presetDescription(preset: ProviderPreset) {
 }
 export const presetLabel = (preset: ProviderPreset) => `${providerName(preset.provider)} · ${presetDescription(preset)}`;
 
+type NamedProvider = { id: string; display_name?: string | null; preset?: string | null };
+
+/** A provider's own name: its display name, else its preset's vendor, else its ID. */
+export function providerBaseTitle(provider: NamedProvider): string {
+  const brand = !provider.display_name && provider.preset ? presetBrand(provider.preset) : undefined;
+  return provider.display_name || (brand ? providerName(brand) : provider.id);
+}
+
+/**
+ * Names for providers shown side by side. Two instances of one vendor would read the
+ * same ("DeepSeek"), so any name shared by several providers keeps the ID beside it:
+ * "DeepSeek · deepseek-work". Names no other provider shares stay as they are.
+ */
+export function providerTitles(providers: readonly NamedProvider[]): Map<string, string> {
+  const named = providers.map(provider => [provider.id, providerBaseTitle(provider)] as const);
+  const counts = new Map<string, number>();
+  for (const [, title] of named) counts.set(title.toLowerCase(), (counts.get(title.toLowerCase()) ?? 0) + 1);
+  return new Map(named.map(([id, title]) => [id, (counts.get(title.toLowerCase()) ?? 0) > 1 && title !== id ? `${title} · ${id}` : title]));
+}
+
 // Brand identities belong to presentation; service endpoints and protocols
 // remain authoritative in the backend preset catalog.
 export function presetBrand(id: string) {

@@ -5,7 +5,8 @@ import { computed, ref, toRef, watch } from 'vue';
 import { Image } from '@lucide/vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { errorText } from '../../core/config-editor.ts';
-import { presetBrand, providerName } from '../../ui/providerPresentation.ts';
+import { presetBrand } from '../../ui/providerPresentation.ts';
+import { useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
 import { useSessionSelection, type ModelSelection } from './useSessionSelection.ts';
 import { useModelCatalog } from './useModelCatalog.ts';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
@@ -17,13 +18,14 @@ const props = defineProps<{ sessionId?: string; selection?: ModelSelection }>();
 const emit = defineEmits<{ close: []; select: [value: ModelSelection] }>();
 const { snapshot, loading, saving, error, conflict, reload, save } = useSessionSelection(toRef(props, 'sessionId'), toRef(props, 'selection'), value => emit('select', value));
 const catalog = useModelCatalog();
+const providerTitle = useProviderTitles();
 const selected = ref('');
 const key = (provider: string, model: string) => JSON.stringify([provider, model]);
 watch(snapshot, value => { selected.value = value ? key(value.provider, value.model) : ''; }, { immediate: true });
 const choices = computed(() => catalog.groups.value.flatMap(group => {
   const { provider } = group;
   const brand = presetBrand(provider.preset);
-  const title = provider.display_name || (brand ? providerName(brand) : provider.id);
+  const title = providerTitle(provider.id);
   const models = [...group.models];
   if (snapshot.value?.provider === provider.id && !models.some(model => model.id === snapshot.value!.model)) {
     models.unshift({ id: snapshot.value.model, source: 'current' });
