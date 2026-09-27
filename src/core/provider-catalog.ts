@@ -18,6 +18,8 @@ export interface ProviderInfo {
   id: string;
   preset: string;
   enabled: boolean;
+  brand?: string | null;
+  account_state?: string | null;
   model_catalog_available: boolean;
   reasoning_efforts: Record<string, string | number>;
   reasoning_efforts_source: string;

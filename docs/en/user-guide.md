@@ -121,6 +121,12 @@ On desktop the list sits on the left; the edge button collapses it and dragging 
 
 The page refreshes every 30 seconds while it is open (the calendar every 5 minutes). On your next visit it shows the last figures at once while fresh ones load.
 
+## Account status
+
+**Account status** shows what each provider says about your account: its balance, the plan it is on, and how much of each allowance window (per 5 hours, per week, per month) is used, with when it resets. On desktop it is the wallet button at the bottom of the navigation bar and opens as a window; on a phone it is the wallet button at the top right of the home screen and opens as a page.
+
+It covers providers with an **Account protocol** (Settings → **Providers** → **Advanced settings**). Providers added from a preset that supports it have one already: DeepSeek, Zhipu / Z.AI coding plans, Kimi, MiniMax, SiliconFlow, OpenRouter, Hugging Face, ChatGPT sign-in and Qwen workspaces. The rest are listed at the bottom. The last reading shows at once and **Refresh** reads again. Amounts are shown as the service reported them; a service that reports no balance simply shows none.
+
 ## Settings
 
 Open **Settings** from the navigation bar or with Ctrl/⌘ + ,. It has four sections:
@@ -136,7 +142,7 @@ The first two sections edit the server's configuration and take effect when you 
 
 Below 900 pixels of width Wish switches to a mobile layout:
 
-- The home screen is the start page, with your recent sessions, **Sign out** at the top left and buttons for statistics and settings at the top right.
+- The home screen is the start page, with your recent sessions, **Sign out** at the top left and buttons for account status, statistics and settings at the top right.
 - Chats, session info, history search and settings open as full-screen pages with a back button.
 - Enter adds a new line; send with the button.
 - **Keep screen awake while running** (Settings → **Interface**) keeps the screen on while a reply is running. It needs a browser with Wake Lock support and HTTPS.

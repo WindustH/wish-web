@@ -47,6 +47,19 @@ const extra: Record<string, {label:string;brand:string;annotation?:string}> = {
   kimi_messages: {label:'Kimi Messages',brand:'Kimi'},
   tokenhub_messages: {label:'Tencent TokenHub Messages',brand:'Tencent Hunyuan (TokenHub)'},
   mistral_chat: {label:'Mistral Chat',brand:'Mistral'},
+  // Account readings.
+  deepseek_user_balance: {label:'DeepSeek Balance',brand:'DeepSeek'},
+  kimi_open_balance: {label:'Kimi Balance',brand:'Kimi'},
+  kimi_code_companion_usage: {label:'Kimi Code Usage',brand:'Kimi'},
+  zai_coding_plan_monitor: {label:'Z.AI / Zhipu Coding Plan',brand:'Z.AI'},
+  minimax_token_plan_remains: {label:'MiniMax Token Plan',brand:'MiniMax'},
+  minimax_account_balance: {label:'MiniMax Balance',brand:'MiniMax'},
+  siliconflow_balance: {label:'SiliconFlow Balance',brand:'SiliconFlow'},
+  openrouter_key_quota: {label:'OpenRouter Key Quota',brand:'OpenRouter'},
+  openrouter_credits: {label:'OpenRouter Credits',brand:'OpenRouter'},
+  hf_whoami_billing: {label:'Hugging Face Billing',brand:'Hugging Face Router'},
+  qwen_workspace_quota: {label:'Qwen Workspace Quota',brand:'Qwen'},
+  openai_codex_usage: {label:'ChatGPT Plan Usage',brand:'OpenAI'},
 };
 export function protocolPresentation(id: string) {
   const item = protocols[id] ?? extra[id] ?? {label:id,brand:''};

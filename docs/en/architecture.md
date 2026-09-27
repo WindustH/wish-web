@@ -51,6 +51,7 @@ wish            HTTP API · sessions · providers · SQLite   (wish-core)
 | Session info | `GET …/usage`, `…/usage/series`, `…/usage/daily` |
 | Session settings | `PATCH /api/sessions/{id}` (`config`, `If-Match`), `PUT …/shell`, `POST …/compact`, `POST …/context/clear`, `GET /api/defaults`, `/api/shells`, `/api/config` |
 | Rename, tags, delete | `PATCH /api/sessions/{id}` (`name`; `metadata` with `If-Match`), `DELETE /api/sessions/{id}` |
+| Account status | `GET /api/providers`, `GET /api/providers/{id}/account` for each provider with an account protocol |
 | Statistics | `GET /api/status`, `/api/usage?from_ms&to_ms`, `/api/storage`, `/api/version`, `/api/usage/series`, `/api/usage/daily` |
 | Settings | `GET` and `PUT /api/config`, `GET /api/provider-presets`, `/api/proxy-environment`, `/api/shells`, `/api/providers/{id}/models`, `POST` and `GET /api/providers/{id}/chatgpt-login`, `POST …/chatgpt-login/complete` |
 | First-run setup | `GET /api/config`, `/api/provider-presets`, `PUT /api/config` |

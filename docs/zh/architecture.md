@@ -51,6 +51,7 @@ wish            HTTP API · 会话 · 提供商 · SQLite   （wish-core）
 | 会话信息 | `GET …/usage`、`…/usage/series`、`…/usage/daily` |
 | 会话设置 | `PATCH /api/sessions/{id}`（`config`，`If-Match`）、`PUT …/shell`、`POST …/compact`、`POST …/context/clear`、`GET /api/defaults`、`/api/shells`、`/api/config` |
 | 重命名、标签、删除 | `PATCH /api/sessions/{id}`（`name`；带 `If-Match` 的 `metadata`）、`DELETE /api/sessions/{id}` |
+| 账户状态 | `GET /api/providers`，以及对每个设置了账户查询协议的提供商调用 `GET /api/providers/{id}/account` |
 | 统计 | `GET /api/status`、`/api/usage?from_ms&to_ms`、`/api/storage`、`/api/version`、`/api/usage/series`、`/api/usage/daily` |
 | 设置 | `GET` 和 `PUT /api/config`、`GET /api/provider-presets`、`/api/proxy-environment`、`/api/shells`、`/api/providers/{id}/models`、`POST` 和 `GET /api/providers/{id}/chatgpt-login`、`POST …/chatgpt-login/complete` |
 | 首次配置 | `GET /api/config`、`/api/provider-presets`、`PUT /api/config` |

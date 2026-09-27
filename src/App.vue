@@ -24,6 +24,8 @@ import SignOutButton from './features/connection/SignOutButton.vue';
 
 const ProviderSetup = defineAsyncComponent(() => import('./features/onboarding/ProviderSetup.vue'));
 const ConnectView = defineAsyncComponent(() => import('./features/connection/ConnectView.vue'));
+const AccountDialog = defineAsyncComponent(() => import('./features/account/AccountDialog.vue'));
+const accountOpen = ref(false);
 // Signed out, nothing talks to a server until the sign-in page picks one.
 const signedOut = isSignedOut();
 const gate = signedOut ? null : useProviderGate();
@@ -85,6 +87,7 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
         <Icon :name="item.icon" />
       </button></Hint>
       <div class="spacer" />
+      <Hint :text="tr('账户状态', 'Account status')"><button class="nav-btn" :aria-label="tr('账户状态', 'Account status')" aria-haspopup="dialog" :aria-expanded="accountOpen" @click="accountOpen = true"><Icon name="wallet" /></button></Hint>
       <SignOutButton button-class="nav-btn" />
       <Hint :text="item.label()" v-for="item in nav.filter((n) => n.bottom)" :key="item.id"><button class="nav-btn"
         :aria-expanded="settingsOpen" aria-haspopup="dialog" :aria-label="item.label()"
@@ -116,6 +119,7 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
       <button class="btn ghost" @click="needRefresh = false">{{ i18n.t('pwa.later') }}</button>
     </DialogContent>
     </DialogPortal></DialogRoot>
+    <AccountDialog v-if="!isMobile" :open="accountOpen" @close="accountOpen = false" />
     <ToastHost />
     <AttachmentPreview />
   </div>

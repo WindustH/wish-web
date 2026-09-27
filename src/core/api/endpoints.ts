@@ -147,6 +147,8 @@ export const moveQueuedInput = (id: string, entry: string, before: string | numb
 export const cancelQueuedInput = (id: string, entry: string) => del(`${path(id)}/queue/${entry}`);
 export const providerConfigs = async (opts?: EndpointOptions): Promise<{ providers: ProviderView[] }> => ({providers:(await get('/providers',opts)).items.map(providerView)});
 export const providerModels = async (id: string,opts?: EndpointOptions) => {const result=await get(`/providers/${encodeURIComponent(id)}/models`,opts);return {...result,models:result.items.map((m: any)=>({...m,display_name:m.name,allowed_for_provider:true}))};};
+// The provider's account reading (balance, plan windows), in the server's AccountState shape.
+export const providerAccount = (id: string, opts?: EndpointOptions): Promise<unknown> => get(`/providers/${encodeURIComponent(id)}/account`, opts);
 export const configEffective = (): Promise<EffectiveConfig> => get('/defaults');
 export async function rememberDefaultModel(value: DefaultModel): Promise<void> {
   for (let attempt = 0; attempt < 3; attempt++) {

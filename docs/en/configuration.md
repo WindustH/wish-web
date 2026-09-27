@@ -48,6 +48,7 @@ Not shown in the UI: `defaults.shell` (whether new sessions get shell tools), `d
 | **Advanced settings**: **Catalog protocol**, **Catalog base URL**, **Catalog path** | `model_list`, `model_list_base_url`, `model_list_path` | Where to list the provider's models. Optional: configured models work without it. |
 | **Token count protocol** | `token_count` | Optional provider-side token counting. |
 | **Upstream compaction protocol** | `compaction` | Optional compaction by the provider. |
+| **Account protocol**, **Account base URL** | `account_state`, `account_state_base_url` | How to read the account's balance and plan for **Account status**. The URL is only needed for a regional host, such as `https://open.bigmodel.cn` for a Zhipu plan; presets fill both in. |
 | **Full configuration JSON** | the whole provider object | The only place to edit `headers`. **Apply to form** copies it into the draft (desktop). |
 
 Environment variables named with `${NAME}` are read by the Wish server, not the browser. Changing one requires restarting the server process.

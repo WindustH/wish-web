@@ -39,6 +39,7 @@ export const router = createRouter({
     { path: '/stats', name: 'stats', meta: { section: 'stats' }, component: () => import('./features/stats/StatsView.vue') },
     // Root-owned settings screen (config editor round).
     { path: '/settings', name: 'settings', meta: { section: 'settings' }, component: () => import('./features/settings/SettingsView.vue') },
+    { path: '/account', name: 'account', component: () => import('./features/account/AccountView.vue') },
     { path: '/selftest', name: 'selftest', component: () => import('./features/selftest/SelftestView.vue') },
     { path: '/:pathMatch(.*)*', redirect: { path: '/sessions', replace: true } },
   ],

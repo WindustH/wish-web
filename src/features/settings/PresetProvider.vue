@@ -18,6 +18,7 @@ import { useSettingsReturn } from './settingsReturn.ts';
 import ProviderModels from './ProviderModels.vue';
 import { get, post } from '../../core/api/client.ts';
 import { showError } from '../../ui/errorDialog.ts';
+import { ACCOUNT_PROTOCOLS } from '../account/accountState.ts';
 const props=defineProps<{ id:string; value:ProviderConfig; preset?:ProviderPreset; protocols:string[]; initiallyOpen?:boolean; save?:()=>Promise<boolean>; saving?:boolean }>();
 const emit=defineEmits<{remove:[];protocol:[value:string];loginComplete:[]}>();
 const editing=ref(props.initiallyOpen??false);
@@ -211,6 +212,8 @@ function setCredential(field:string,value:string){
       <label>{{tr('模型列表路径','Catalog path')}}<input class="input" :value="value.model_list_path??''" @input="value.model_list_path=($event.target as HTMLInputElement).value||null"/></label>
       <label>{{tr('Token 计数协议','Token count protocol')}}<SelectField mobile-page :model-value="value.token_count??''" :options="optional(['openai_responses','anthropic_messages','google_generate_content'])" @update:model-value="value.token_count=$event||null"/></label>
       <label>{{tr('上游压缩协议','Upstream compaction protocol')}}<SelectField mobile-page :model-value="value.compaction??''" :options="optional(['openai_responses','openai_responses_streamed'])" @update:model-value="value.compaction=$event||null"/></label>
+      <label>{{tr('账户查询协议','Account protocol')}}<SelectField mobile-page :model-value="value.account_state??''" :options="optional(ACCOUNT_PROTOCOLS)" @update:model-value="value.account_state=$event||null"/></label>
+      <label>{{tr('账户查询地址','Account base URL')}}<input class="input" :value="value.account_state_base_url??''" :placeholder="tr('留空使用协议默认地址','Empty uses the protocol default')" @input="value.account_state_base_url=($event.target as HTMLInputElement).value||null"/></label>
       <slot/>
       </div>
     </AnimatedDetails>

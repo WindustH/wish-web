@@ -21,6 +21,7 @@ export interface ProviderConfig {
   token_count?: string | null;
   compaction?: string | null;
   account_state?: string | null;
+  account_state_base_url?: string | null;
 }
 export interface ProviderPreset {
   id: string;

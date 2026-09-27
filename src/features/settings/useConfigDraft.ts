@@ -228,6 +228,8 @@ export function useConfigDraft() {
         'model_list_base_url',
         'token_count',
         'compaction',
+        'account_state',
+        'account_state_base_url',
       ]) {
         provider[field] = (variant as any)[field] ?? null;
       }

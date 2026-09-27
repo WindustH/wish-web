@@ -60,6 +60,10 @@ export interface ProviderView {
   display_name?: string | null;
   preset: string;
   enabled: boolean;
+  /** Branding from the preset, for the provider icon. */
+  brand?: string | null;
+  /** Protocol the account reading uses; absent when it is not set up. */
+  account_state?: string | null;
   model_catalog_available: boolean;
   reasoning_efforts: Record<string, string | number>;
   reasoning_efforts_source: 'provider';

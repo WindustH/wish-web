@@ -132,6 +132,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
     <button v-if="mobile && route.name !== 'sessions'" class="btn ghost icon-only start-back" :aria-label="i18n.t('chatbar.back')" @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
     <div v-if="mobile && route.name === 'sessions'" class="home-leading"><SignOutButton button-class="btn ghost icon-only" /></div>
     <div v-if="mobile && route.name === 'sessions'" class="home-actions">
+      <button class="btn ghost icon-only" :aria-label="tr('账户状态', 'Account status')" @click="router.push('/account')"><Icon name="wallet"/></button>
       <button class="btn ghost icon-only" :aria-label="i18n.t('nav.stats')" @click="router.push('/stats')"><Icon name="chart-column"/></button>
       <button class="btn ghost icon-only" :aria-label="i18n.t('nav.settings')" @click="router.push('/settings')"><Icon name="settings"/></button>
     </div>
