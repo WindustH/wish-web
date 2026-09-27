@@ -114,10 +114,16 @@ const UNIT_NOUNS: Record<string, [string, string]> = {
   time: ['时长', 'Time'], currency_minor: ['金额', 'Amount'],
 };
 
+// What a service's own window names mean, keyed by the protocol that read them.
+const WINDOW_NOUNS: Record<string, [string, string]> = {
+  // Zhipu / Z.AI coding plans: the monthly calls to their MCP tools (search, reader, repositories).
+  'ZaiCodingPlanMonitor:TIME_LIMIT': ['MCP 调用次数', 'MCP calls'],
+};
+
 /** "Tokens · 5 hours", or the service's own name for a window it does not describe. */
-export function quotaTitle(quota: QuotaWindow): string {
+export function quotaTitle(quota: QuotaWindow, protocol?: string): string {
   const window = windowText(quota.window);
-  const noun = UNIT_NOUNS[quota.unit];
+  const noun = WINDOW_NOUNS[`${protocol}:${quota.name}`] ?? UNIT_NOUNS[quota.unit];
   const what = noun ? tr(noun[0], noun[1]) : quota.unit !== 'unknown' ? quota.unit : tr('用量', 'Usage');
   if (window) return `${what} · ${window}`;
   return noun || quota.unit !== 'unknown' ? what : quota.name ?? quota.id;

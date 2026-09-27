@@ -23,6 +23,7 @@ test('windows are named by what they count and how long they last', () => {
   assert.equal(quotaTitle(quota({ unit: 'tokens', window: { duration: 10080, unit: 'minutes' } })), 'Tokens · Weekly');
   assert.equal(quotaTitle(quota({ id: 'model_1', name: 'GLM' })), 'GLM');
   assert.equal(quotaTitle(quota({ unit: 'requests', window: { duration: 1, unit: 'months' } })), 'Calls · Monthly');
+  assert.equal(quotaTitle(quota({ name: 'TIME_LIMIT', unit: 'requests', window: { duration: 1, unit: 'months' } }), 'ZaiCodingPlanMonitor'), 'MCP calls · Monthly');
   assert.equal(quotaAmounts(quota({ used: '4', limit: '4000' })), '4 / 4K');
   assert.equal(quotaParts(quota({ parts: [{ id: 'search-prime', used: '4' }, { id: 'web-reader', used: '0' }, { id: 'custom-tool', used: null }] })),
     'Web search 4 · Web reader 0 · custom-tool —');

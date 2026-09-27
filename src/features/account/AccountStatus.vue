@@ -62,10 +62,10 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
         </div>
         <div v-for="quota in row.state.quotas" :key="quota.id" class="account-quota" :class="quotaLevel(quota)">
           <div class="account-quota-head">
-            <span>{{ quotaTitle(quota) }}</span>
+            <span>{{ quotaTitle(quota, row.state.protocol) }}</span>
             <b>{{ quota.unlimited ? tr('不限量', 'Unlimited') : quota.reached ? tr('已用完', 'Used up') : percentText(quotaPercent(quota)) }}</b>
           </div>
-          <div v-if="quotaPercent(quota) != null" class="account-meter" role="meter" :aria-valuenow="Math.round(quotaPercent(quota)!)" aria-valuemin="0" aria-valuemax="100" :aria-label="quotaTitle(quota)">
+          <div v-if="quotaPercent(quota) != null" class="account-meter" role="meter" :aria-valuenow="Math.round(quotaPercent(quota)!)" aria-valuemin="0" aria-valuemax="100" :aria-label="quotaTitle(quota, row.state.protocol)">
             <i :style="{ width: `${quotaPercent(quota)}%` }" />
           </div>
           <small v-if="quotaNote(quota)">{{ quotaNote(quota) }}</small>
