@@ -19,6 +19,8 @@ import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useLiveBlocks } from './useLiveBlocks.ts';
 import { useChatScroll } from './useChatScroll.ts';
 import { useSearchLocate } from './useSearchLocate.ts';
+import { estimateRow } from './rowEstimate.ts';
+import { useFreshRows } from './useFreshRows.ts';
 
 const props = defineProps<{ sessionId: string; mobile: boolean }>();
 
@@ -73,13 +75,19 @@ const standbyPreparing = computed(() => {
 // Live stream markdown splitting & throttling
 const { liveBlocks } = useLiveBlocks(streamText);
 
+// Rows that just arrived slide in. A reply's text is excluded: it was already
+// on screen while it streamed, and must not appear a second time.
+const fresh = useFreshRows(groups, computed(() => props.sessionId), () => !chat.loadingInitial.value,
+  row => !(row.type === 'entry' && row.entry.kind === 'assistant_message'));
+
 const virtualizer = useVirtualizer(
   computed(() => {
     const items = groups.value;
+    const width = scrollContentEl.value?.querySelector<HTMLElement>('.chatlog-inner')?.clientWidth || 736;
     return {
       count: items.length,
       getScrollElement: () => scrollEl.value,
-      estimateSize: () => 110,
+      estimateSize: (i: number) => estimateRow(items[i]!, width),
       overscan: 6,
       getItemKey: (i: number) => items[i]!.key,
       // Older pages are anchored after Vue commits the new sizer. The
@@ -183,7 +191,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
   <div class="chatlog-wrap">
     <div v-if="chat.loadingOlder.value" class="history-loading" role="status" :aria-label="i18n.t('sessions.loading')"><span class="chat-skeleton older-skeleton" aria-hidden="true" /></div>
     <div ref="scrollEl" class="chatlog" data-scroll-preserve :data-following="stick" tabindex="0" @scroll.passive="onScroll"
-      @wheel.passive="onWheel" @touchstart.passive="onTouchStart" @touchmove="onTouchMove"
+      @wheel.passive="onWheel" @touchstart.passive="onTouchStart" @touchmove.passive="onTouchMove"
       @touchend.passive="onTouchEnd" @touchcancel.passive="onTouchEnd"
       @keydown="onKeydown" @pointerdown="onPointerDown" :data-scrollbar-held="scrollbarHeld">
       <div ref="scrollContentEl" class="chatlog-content">
@@ -197,7 +205,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
         <div v-for="v in virtualizer.getVirtualItems()" :key="groups[v.index]?.key" class="chat-virtual-row"
           :ref="measureElement"
           :data-index="v.index"
-          :class="{ 'status-error-row': groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error', 'history-target': holdsTarget(groups[v.index]) }"
+          :class="{ 'status-error-row': groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error', 'history-target': holdsTarget(groups[v.index]), 'row-enter': fresh.has(groups[v.index]?.key ?? '') }"
           :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }">
           <HistoryItem v-if="groups[v.index]?.type === 'entry' || groups[v.index]?.type === 'process' || groups[v.index]?.type === 'question'" :item="groups[v.index]!"
             :forced="groups[v.index]!.type === 'process' && forcedOpen.has(groups[v.index]!.key)"
@@ -262,6 +270,9 @@ watch(scrollContentEl, (content, _, onCleanup) => {
 .live-status.stop-marker { color: var(--err); }
 .standby-status-hint { opacity: 0.85; }
 .chat-virtual-row { display: flow-root; }
+/* A new row rises into place; `translate` leaves the row's positioning transform alone. */
+.chat-virtual-row.row-enter > :deep(*) { animation: row-enter 420ms cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes row-enter { from { opacity: 0; translate: 0 14px; } }
 .status-error-row { padding: 16px 0; }
 .chat-run-error { margin: 0 auto; padding: 12px 16px; max-width: var(--max-content); border: 1px solid var(--err-border); border-radius: var(--radius); background: var(--err-bg); color: var(--err); overflow-wrap: anywhere; }
 .chat-run-error strong { color: var(--err); font-size: 13px; }

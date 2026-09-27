@@ -1,11 +1,10 @@
 // Position is measured in pixels from the scroll limit; velocity is px/s.
-const SPRING = 260;
-const DAMPING = 24;
-export const MAX_STRETCH = 48;
-
-export function wheelPixels(delta: number, mode: number, viewportHeight: number): number {
-  return delta * (mode === 1 ? 16 : mode === 2 ? viewportHeight : 1);
-}
+// A soft, slightly underdamped spring (damping ratio about 0.78): the content
+// overshoots, then settles back over most of a second with a hint of
+// follow-through instead of snapping.
+const SPRING = 70;
+const DAMPING = 13;
+export const MAX_STRETCH = 96;
 
 export function stepSpring(position: number, velocity: number, elapsedMs: number): { position: number; velocity: number } {
   const dt = Math.min(Math.max(elapsedMs, 0), 32) / 1000;
@@ -19,6 +18,3 @@ export function stepSpring(position: number, velocity: number, elapsedMs: number
   return { position, velocity };
 }
 
-export function stretchFromDrag(raw: number): number {
-  return Math.sign(raw) * MAX_STRETCH * (1 - Math.exp(-Math.abs(raw) / 90));
-}

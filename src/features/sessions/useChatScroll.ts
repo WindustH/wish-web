@@ -1,7 +1,8 @@
 import { ref, computed, watch, nextTick, type Ref } from 'vue';
 import { cfg } from '../../core/config.ts';
 import { chat } from '../../core/state/chatSlice.ts';
-import { useElasticOverscroll } from './useElasticOverscroll.ts';
+import { useEdgeBounce } from './useEdgeBounce.ts';
+import { glideToEnd } from './glide.ts';
 
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
 
@@ -29,7 +30,9 @@ export function useChatScroll(options: UseChatScrollOptions) {
     owns,
     getEpoch,
   } = options;
-  const elastic = useElasticOverscroll(scrollEl, scrollContentEl, pageActive, sessionId);
+  useEdgeBounce(scrollEl, scrollContentEl, pageActive, sessionId);
+  // A jump to the latest glides; any hand on the list stops it.
+  let cancelGlide = () => {};
 
   let pageAway = false;
   const stick = ref(true);
@@ -65,14 +68,14 @@ export function useChatScroll(options: UseChatScrollOptions) {
   }
 
   function onWheel(event: WheelEvent) {
+    cancelGlide();
     if (event.deltaY) scrollIntent(event.deltaY < 0 ? 'history' : 'latest');
-    elastic.wheel(event);
   }
 
   let touchY: number | undefined;
   function onTouchStart(event: TouchEvent) {
+    cancelGlide();
     touchY = event.touches[0]?.clientY;
-    elastic.touchStart(event);
   }
   function onTouchMove(event: TouchEvent) {
     const next = event.touches[0]?.clientY;
@@ -80,15 +83,14 @@ export function useChatScroll(options: UseChatScrollOptions) {
       scrollIntent(next > touchY ? 'history' : 'latest');
     }
     touchY = next;
-    elastic.touchMove(event);
   }
 
   function onTouchEnd() {
     touchY = undefined;
-    elastic.release();
   }
 
   function onKeydown(event: KeyboardEvent) {
+    cancelGlide();
     if (['ArrowUp', 'PageUp', 'Home'].includes(event.key) || (event.key === ' ' && event.shiftKey)) {
       scrollIntent('history');
     } else if (['ArrowDown', 'PageDown', 'End', ' '].includes(event.key)) {
@@ -107,6 +109,7 @@ export function useChatScroll(options: UseChatScrollOptions) {
   }
 
   function onPointerDown(event: PointerEvent) {
+    cancelGlide();
     const el = scrollEl.value;
     if (!el || scrollbarHeld.value || event.button !== 0 || event.pointerType !== 'mouse' || event.target !== el) {
       return;
@@ -229,7 +232,7 @@ export function useChatScroll(options: UseChatScrollOptions) {
     await nextTick();
     if (!owns(gen) || !pageActive.value || direction !== 'latest') return;
     const el = scrollEl.value;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el) { cancelGlide(); cancelGlide = glideToEnd(el); }
     stick.value = true;
     measureScroll();
   }
@@ -274,6 +277,7 @@ export function useChatScroll(options: UseChatScrollOptions) {
   });
 
   watch(sessionId, () => {
+    cancelGlide();
     landed = false;
     direction = undefined;
     stick.value = true;
