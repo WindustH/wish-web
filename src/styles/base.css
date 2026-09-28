@@ -28,6 +28,8 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, [role="opt
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 6px; border: 2px solid var(--bg); }
 ::-webkit-scrollbar-track { background: transparent; }
+/* Where a horizontal and a vertical scrollbar meet, not the browser's white square. */
+::-webkit-scrollbar-corner { background: transparent; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
