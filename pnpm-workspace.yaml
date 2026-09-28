@@ -8,6 +8,7 @@ allowBuilds:
   vue-demi: true
 minimumReleaseAgeExclude:
   - '@types/node@22.20.2'
+  - motion-v@2.5.0
 # Freeze-family fixes: KeepAlive-detach compensation guards, stale-adjustment
 # expiry and in-range scroll writes (see patches file; tools/virtual-clamped-adjustment.test.ts).
 patchedDependencies:

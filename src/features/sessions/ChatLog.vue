@@ -120,7 +120,6 @@ const {
   jumpLatest,
 } = useChatScroll({
   scrollEl,
-  scrollContentEl,
   groups,
   sessionId: computed(() => props.sessionId),
   pageActive,

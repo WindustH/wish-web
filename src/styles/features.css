@@ -7,7 +7,7 @@
 .sl-head { display: flex; align-items: center; gap: 10px; margin: 0; padding: 8px 0; flex: 1; border-bottom: 1px solid var(--line-strong); color: var(--fg-subtle); }
 .sl-head input { background: transparent; border: 0; outline: none; width: 100%; min-width: 0; font-size: 12px; }
 .sl-head:focus-within { border-color: var(--accent); }
-.sl-scroll { flex: 1; overflow-y: auto; min-height: 0; padding: 0 8px; scrollbar-width: thin; scrollbar-color: transparent transparent; transition: scrollbar-color var(--dur-slow) var(--ease-out); }
+.sl-scroll { flex: 1; overflow-y: auto; overscroll-behavior-y: contain; min-height: 0; padding: 0 8px; scrollbar-width: thin; scrollbar-color: transparent transparent; transition: scrollbar-color var(--dur-slow) var(--ease-out); }
 /* The list scrollbar stays out of sight at rest: it appears while scrolling, stays while the
    pointer hovers the list (so it can still be grabbed), and fades back otherwise. The gutter
    keeps its width throughout, so rows do not shift when the thumb hides. */
@@ -67,7 +67,7 @@
 .model-chip:active, .reasoning-chip:active, .model-chip[aria-expanded="true"], .reasoning-chip[aria-expanded="true"] { color: var(--accent); }
 .model-chip:disabled, .reasoning-chip:disabled { cursor: default; opacity: .5; }
 .chatlog-wrap { position: relative; flex: 1; min-height: 0; display: flex; overflow: hidden; }
-.chatlog { flex: 1; display: block; overflow-y: auto; overscroll-behavior-y: none; overflow-anchor: none; padding: 24px 24px 20px; min-height: 0; }
+.chatlog { flex: 1; display: block; overflow-y: auto; overscroll-behavior-y: contain; overflow-anchor: none; padding: 24px 24px 20px; min-height: 0; }
 .chatlog-content { display: flow-root; width: 100%; }
 .chatlog-inner, .live-row { max-width: var(--max-content); margin-inline: auto; }
 .chat-empty { text-align: center; color: var(--fg-subtle); padding: 80px 24px; }
@@ -147,7 +147,7 @@
 
 .queue-scroll{overflow:auto;min-height:0;overscroll-behavior:contain;padding:0 6px 4px}
 .queue-list{position:relative}
-.queue-item{display:flex;align-items:center;gap:5px;min-width:0;min-height:34px;padding:2px 6px;border-radius:0;background:var(--bg-raised);cursor:grab;touch-action:none}
+.queue-item{display:flex;align-items:center;gap:5px;min-width:0;min-height:34px;padding:2px 6px;border-radius:0;background:var(--bg-raised);cursor:grab;touch-action:pan-y}
 .queue-item+.queue-item{border-top:1px solid var(--line)}
 @media (hover: hover) { .queue-item:hover{background:var(--bg-hover)} }
 .queue-item.dragging{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent);z-index:1;position:relative}
@@ -157,11 +157,9 @@
 .queue-item .btn.icon-only{width:26px;height:28px;min-height:28px;flex:none;padding:0;color:var(--fg-subtle)}
 .queue-item .btn.icon-only .icon{width:14px;height:14px}
 .queue-item.dragging{cursor:grabbing}.queue-item .btn{cursor:pointer}
-.queue-row-move,.queue-row-enter-active,.queue-row-leave-active{transition:transform 180ms var(--ease-out),opacity 180ms var(--ease-out)}
-.queue-row-enter-from{opacity:0;transform:translateY(8px)}.queue-row-leave-to{opacity:0;transform:translateX(16px)}.queue-row-leave-active{position:absolute;width:100%;pointer-events:none}
 .queue-dock-enter-active,.queue-dock-leave-active{transition:opacity 180ms var(--ease-out),transform 180ms var(--ease-out)}
 .queue-dock-enter-from,.queue-dock-leave-to{opacity:0;transform:translateY(6px)}
-@media(prefers-reduced-motion:reduce){.queue-row-move,.queue-row-enter-active,.queue-row-leave-active,.queue-dock-enter-active,.queue-dock-leave-active{transition:none}}
+@media(prefers-reduced-motion:reduce){.queue-dock-enter-active,.queue-dock-leave-active{transition:none}}
 @media(max-width:899px){.queue-dock{left:12px;right:auto;margin-inline:0;min-width:min(220px,calc(100% - 24px));max-width:min(var(--mobile-content-width),calc(100% - 24px));bottom:6px}.queue-dock.collapsed{left:12px;min-width:40px}.queue-item .btn.icon-only{width:36px;height:36px;min-height:36px}.queue-item{min-height:38px;gap:3px}.queue-position{width:12px}}
 .composer { position: relative; flex: none; min-height: 0; border-top: 1px solid var(--line-strong); background: var(--bg-raised); display: flex; flex-direction: column; }
 .composer.desktop { --composer-send-clearance: 8px; padding: 0 24px 12px; transition: height var(--dur-fast) var(--ease-out); }

@@ -12,8 +12,6 @@ import SessionListRow from './SessionListRow.vue';
 import SessionListAction from './SessionListAction.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Spinner from '../../ui/components/Spinner.vue';
-import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
-import { useEdgeBounce } from './useEdgeBounce.ts';
 
 
 const route = useRoute();
@@ -21,9 +19,7 @@ const router = useRouter();
 const query = ref(sessions.query.value);
 const composing = ref(false);
 const listEl = ref<HTMLElement | null>(null);
-const listContent = ref<HTMLElement | null>(null);
 // The same ends as the conversation: a bounce as fast as the scroll arrived.
-useEdgeBounce(listEl, listContent, usePageActivity(), computed(() => `${sessions.query.value}\0${sessions.tagFilter.value}`));
 
 const action = ref<{ target: { id: string; name?: string }; kind: 'rename' | 'tags' | 'delete' } | null>(null);
 const rows = computed(() => sessions.items.value);
@@ -96,7 +92,6 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
       </span>
     </div>
     <div ref="listEl" class="sl-scroll" :class="{ scrolling }" data-scroll-preserve :aria-busy="sessions.loading.value" @scroll.passive="onListScroll">
-      <div ref="listContent">
       <div v-if="sessions.loading.value && !rows.length" class="sl-state"><Spinner /></div>
       <div v-else-if="sessions.error.value" class="sl-state load-error" role="alert">
         <span>{{ String(sessions.error.value?.detail || sessions.error.value?.message || sessions.error.value) }}</span>
@@ -111,7 +106,6 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
             @action="kind => action = { target: { id: rows[v.index]!.id, name: rows[v.index]!.name }, kind }" />
         </div>
       </TransitionGroup>
-      </div>
     </div>
     <SessionListAction v-if="action" :key="`${action.target.id}:${action.kind}`" :target="action.target" :kind="action.kind" @close="action = null" />
   </div>

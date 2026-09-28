@@ -1,14 +1,12 @@
 import { ref, computed, watch, nextTick, type Ref } from 'vue';
 import { cfg } from '../../core/config.ts';
 import { chat } from '../../core/state/chatSlice.ts';
-import { useEdgeBounce } from './useEdgeBounce.ts';
 import { glideToEnd } from './glide.ts';
 
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
 
 export interface UseChatScrollOptions {
   scrollEl: Ref<HTMLElement | null>;
-  scrollContentEl: Ref<HTMLElement | null>;
   groups: Ref<any[]>;
   sessionId: Ref<string>;
   pageActive: Ref<boolean>;
@@ -21,7 +19,6 @@ export interface UseChatScrollOptions {
 export function useChatScroll(options: UseChatScrollOptions) {
   const {
     scrollEl,
-    scrollContentEl,
     groups,
     sessionId,
     pageActive,
@@ -30,7 +27,6 @@ export function useChatScroll(options: UseChatScrollOptions) {
     owns,
     getEpoch,
   } = options;
-  useEdgeBounce(scrollEl, scrollContentEl, pageActive, sessionId);
   // A jump to the latest glides; any hand on the list stops it.
   let cancelGlide = () => {};
 

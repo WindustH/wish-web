@@ -13,6 +13,7 @@ import { chat } from '../../core/state/chatSlice.ts';
 import { toast } from '../../ui/toast.ts';
 import Hint from '../../ui/components/Hint.vue';
 import Icon from '../../ui/components/Icon.vue';
+import { AnimatePresence, ReorderGroup, ReorderItem, useDragControls } from 'motion-v';
 
 const props = defineProps<{ items: any[]; refill: (text: string, attachments?: any[]) => void }>();
 
@@ -51,7 +52,7 @@ let dockAnimation:Animation|undefined;
 onUnmounted(()=>dockAnimation?.cancel());
 async function setExpanded(open:boolean){
   if(animating.value||expanded.value===open)return;
-  arrivalAnimation?.cancel();cancelDrag();animating.value=true;
+  arrivalAnimation?.cancel();release();animating.value=true;
   try{
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     if(open){expanded.value=true;await nextTick();}
@@ -73,7 +74,7 @@ async function setExpanded(open:boolean){
 let pendingScroll=false;
 async function scrollLatest(){
   await nextTick();
-  if(expanded.value&&list.value&&!drag){list.value.scrollTo({top:list.value.scrollHeight,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});pendingScroll=false;}
+  if(expanded.value&&list.value&&!moving.value){list.value.scrollTo({top:list.value.scrollHeight,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});pendingScroll=false;}
 }
 watch(()=>props.items.map(item=>item.id),(ids,previous)=>{if(ids.some(id=>!previous?.includes(id))){pendingScroll=true;void scrollLatest();if(!expanded.value)void signalArrival();}},{immediate:true});
 watch(expanded,open=>{if(open){pendingScroll=true;void scrollLatest();}});
@@ -82,61 +83,43 @@ function startPull(event:PointerEvent){pullStart=event.clientY;(event.currentTar
 function pull(event:PointerEvent){if(pullStart!=null&&pullStart-event.clientY>20){pullStart=null;void setExpanded(true);}}
 function collapse(){void setExpanded(false);}
 
+// Reordering is Motion's Reorder: it moves the order while a row is dragged, slides the others
+// out of the way, scrolls the list at its edges and settles the row into its slot on release.
+// A mouse drags a row straight away; a finger holds it a moment first, so a swipe still scrolls.
 const list=ref<HTMLElement>();
 const order=ref<string[]>([]);
 const moving=ref<string|null>(null);
 const busy=ref(false);
 const ordered=computed(()=>order.value.map(id=>shown.value.find(item=>item.id===id)).filter(Boolean));
-let drag: {id:string;pointer:number;handle:HTMLElement;centers:number[];scroll:number;y:number;startY:number;started:boolean;touch:boolean;scrolling:boolean;original:string[]}|null=null;
-let frame=0;
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const controls=new Map<string,ReturnType<typeof useDragControls>>();
+const controlsOf=(id:string)=>controls.get(id)??controls.set(id,useDragControls()).get(id)!;
+let before:string[]=[];
+let pressed:{x:number;y:number}|undefined;
 let holdTimer:ReturnType<typeof setTimeout>|undefined;
 watch(shown, items=>{
   const ids=items.map(item=>item.id);
-  if(drag&&!ids.includes(drag.id)) stopDrag();
-  order.value=drag||busy.value ? [...order.value.filter(id=>ids.includes(id)),...ids.filter(id=>!order.value.includes(id))] : ids;
+  for(const id of controls.keys())if(!ids.includes(id))controls.delete(id);
+  order.value=moving.value||busy.value ? [...order.value.filter(id=>ids.includes(id)),...ids.filter(id=>!order.value.includes(id))] : ids;
 },{immediate:true});
-function stopDrag(){
-  cancelAnimationFrame(frame);clearTimeout(holdTimer);
-  const current=drag;drag=null;moving.value=null;
-  if(current?.handle.hasPointerCapture(current.pointer))current.handle.releasePointerCapture(current.pointer);
+function press(event:PointerEvent,item:any){
+  if((event.target as HTMLElement).closest('button')||busy.value||event.button!==0||shown.value.length<2)return;
+  if(event.pointerType!=='touch'){controlsOf(item.id).start(event);return;}
+  release();
+  pressed={x:event.clientX,y:event.clientY};
+  holdTimer=setTimeout(()=>{if(pressed)controlsOf(item.id).start(event);},220);
+}
+function release(){clearTimeout(holdTimer);pressed=undefined;}
+function slide(event:PointerEvent){if(pressed&&Math.hypot(event.clientX-pressed.x,event.clientY-pressed.y)>6)release();}
+// Once a finger has picked a row up, the list must not scroll under it.
+function holdStill(event:TouchEvent){if(moving.value)event.preventDefault();}
+onUnmounted(release);
+function dragStart(id:string){release();before=[...order.value];moving.value=id;}
+async function dragEnd(id:string){
+  moving.value=null;
+  if(before.join(',')!==order.value.join(','))await saveOrder(id);
   if(pendingScroll)void scrollLatest();
 }
-onUnmounted(stopDrag);
-function updateDrag(){
-  if(!drag||!list.value)return;
-  if(!drag.started){frame=requestAnimationFrame(updateDrag);return;}
-  const bounds=list.value.getBoundingClientRect();
-  if(drag.y<bounds.top+28)list.value.scrollTop-=6;
-  else if(drag.y>bounds.bottom-28)list.value.scrollTop+=6;
-  const y=drag.y+list.value.scrollTop-drag.scroll;
-  let index=drag.centers.reduce((best,center,i)=>Math.abs(center-y)<Math.abs(drag!.centers[best]!-y)?i:best,0);
-  index=Math.min(index,order.value.length-1);
-  if(order.value.indexOf(drag.id)!==index){const next=order.value.filter(id=>id!==drag!.id);next.splice(index,0,drag.id);order.value=next;}
-  frame=requestAnimationFrame(updateDrag);
-}
-function startDrag(event:PointerEvent,item:any){
-  if((event.target as HTMLElement).closest('button')||busy.value||event.button!==0||shown.value.length<2||!list.value)return;
-  const handle=list.value;
-  drag={id:item.id,pointer:event.pointerId,handle,centers:Array.from(list.value.querySelectorAll('.queue-item')).map(el=>{const r=el.getBoundingClientRect();return r.top+r.height/2;}),scroll:list.value.scrollTop,y:event.clientY,startY:event.clientY,started:false,touch:event.pointerType==='touch',scrolling:false,original:[...order.value]};
-  handle.setPointerCapture(event.pointerId);event.preventDefault();
-  if(drag.touch)holdTimer=setTimeout(()=>{if(drag&&!drag.scrolling){drag.started=true;moving.value=drag.id;}},220);
-  frame=requestAnimationFrame(updateDrag);
-}
-function pointerMove(event:PointerEvent){
-  if(!drag||event.pointerId!==drag.pointer)return;
-  drag.y=event.clientY;
-  if(!drag.started&&Math.abs(drag.y-drag.startY)>6){
-    if(drag.touch){clearTimeout(holdTimer);drag.scrolling=true;}
-    else{drag.started=true;moving.value=drag.id;}
-  }
-  if(drag.scrolling&&list.value)list.value.scrollTop=drag.scroll+drag.startY-drag.y;
-}
-async function finishDrag(event:PointerEvent){
-  if(!drag||event.pointerId!==drag.pointer)return;
-  const {id,original}=drag;stopDrag();
-  if(original.join(',')!==order.value.join(','))await saveOrder(id);
-}
-function cancelDrag(){stopDrag();order.value=shown.value.map(item=>item.id);}
 async function saveOrder(id:string){
   busy.value=true;
   try{await chat.moveQueued(id,order.value[order.value.indexOf(id)+1]??null);}
@@ -144,19 +127,19 @@ async function saveOrder(id:string){
   finally{busy.value=false;order.value=shown.value.map(item=>item.id);}
 }
 async function keyboardMove(event:KeyboardEvent,item:any){
-  if(event.target!==event.currentTarget||!['ArrowUp','ArrowDown'].includes(event.key)||busy.value||drag)return;
+  if(event.target!==event.currentTarget||!['ArrowUp','ArrowDown'].includes(event.key)||busy.value||moving.value)return;
   event.preventDefault();const index=order.value.indexOf(item.id),next=index+(event.key==='ArrowUp'?-1:1);
   if(next<0||next>=order.value.length)return;
   const ids=[...order.value];ids.splice(index,1);ids.splice(next,0,item.id);order.value=ids;await saveOrder(item.id);
 }
 async function remove(item: any) {
-  if(busy.value||drag)return;busy.value=true;
+  if(busy.value||moving.value)return;busy.value=true;
   try { await chat.cancelQueued(item.id); }
   catch (e: any) { toast(String(e?.detail || e?.message || e)); }
   finally{busy.value=false;}
 }
 async function edit(item: any) {
-  if(busy.value||drag)return;busy.value=true;
+  if(busy.value||moving.value)return;busy.value=true;
   try {
     const cancelled = await chat.cancelQueued(item.id);
     if (cancelled) props.refill(item.text || '', item.attachments);
@@ -171,17 +154,21 @@ async function edit(item: any) {
     <button v-if="!expanded" class="queue-expand" :aria-label="tx('展开待发送消息','Expand queued messages')" :aria-expanded="false" :disabled="animating" @click.stop="setExpanded(true)" @pointerdown="startPull" @pointermove="pull" @pointerup="pullStart=null" @pointercancel="pullStart=null"><Icon name="chevron-up"/></button>
     <div v-if="expanded" class="queue-expanded">
     <header class="queue-heading"><span>{{tx('待发送','Queued')}} <small>{{shown.length}}</small></span><span v-if="awaitingAnswer" class="queue-note">{{tx('回答上面的问题后送达','Goes in once the questions above are answered')}}</span><button class="btn ghost icon-only queue-collapse" :aria-label="tx('收起队列','Collapse queue')" :aria-expanded="true" :disabled="animating" @click.stop="collapse"><Icon name="chevron-down"/></button></header>
-    <div ref="list" class="queue-scroll" @pointermove="pointerMove" @pointerup="finishDrag" @pointercancel="cancelDrag" @lostpointercapture="drag&&cancelDrag()">
-    <TransitionGroup name="queue-row" tag="div" class="queue-list" role="list">
-    <div v-for="(item,index) in ordered" :key="item.id" class="queue-item" :class="{dragging:moving===item.id}" role="listitem" tabindex="0" @pointerdown="startDrag($event,item)" @keydown="keyboardMove($event,item)">
+    <div ref="list" class="queue-scroll" @pointermove="slide" @pointerup="release" @pointercancel="release" @touchmove="holdStill">
+    <ReorderGroup v-model:values="order" as="div" axis="y" class="queue-list" role="list">
+    <AnimatePresence :initial="false" mode="popLayout">
+    <ReorderItem v-for="(item,index) in ordered" :key="item.id" :value="item.id" as="div" class="queue-item" :class="{dragging:moving===item.id}" role="listitem" tabindex="0"
+      :drag-listener="false" :drag-controls="controlsOf(item.id)" :initial="reduced?false:{opacity:0,y:8}" :animate="{opacity:1,y:0}" :exit="reduced?undefined:{opacity:0,x:16}"
+      @pointerdown="press($event,item)" @keydown="keyboardMove($event,item)" @drag-start="dragStart(item.id)" @drag-end="dragEnd(item.id)">
 
       <span class="queue-position">{{index+1}}</span>
       <span v-if="hasImages(item)" class="queue-images" role="img" :aria-label="i18n.t('chat.hasImages')"><Icon name="image"/></span>
       <span class="queue-text" :data-hint="item.text">{{item.text||i18n.t('chat.queueUntitled')}}</span>
       <Hint v-if="refillable(item)" :text="i18n.t('chat.queueEdit')"><button class="btn ghost icon-only" :disabled="busy||!!moving" :aria-label="i18n.t('chat.queueEdit')" @click="edit(item)"><Icon name="pencil"/></button></Hint>
       <Hint :text="i18n.t('chat.queueRemove')"><button class="btn ghost icon-only" :disabled="busy||!!moving" :aria-label="i18n.t('chat.queueRemove')" @click="remove(item)"><Icon name="x"/></button></Hint>
-    </div>
-    </TransitionGroup>
+    </ReorderItem>
+    </AnimatePresence>
+    </ReorderGroup>
     </div>
     </div>
   </section>
