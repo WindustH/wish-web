@@ -64,8 +64,9 @@ each CSS weight lands on the design whose stems match the Chinese font beside it
 
 Sarasa Gothic SC comes from the [official release](https://github.com/be5invis/Sarasa-Gothic/releases/tag/v1.0.41).
 `tools/build-cjk-fonts.py sarasa` converts Regular, SemiBold and Bold into disjoint WOFF2
-Unicode shards; all source codepoints are preserved. Sarasa has no medium, so its
-500 is Regular with every outline grown evenly by 10 units, halfway to SemiBold. The archive is
+Unicode shards; all source codepoints are preserved. The interface reads a little heavier than
+Sarasa's own weights, so 400 and 600 are Regular and SemiBold with every outline grown evenly by
+6 and 5 units; Sarasa has no medium, so its 500 is Regular grown by 16. The archive is
 downloaded at build time into `.cache/fonts`, pinned by URL and digest in `tools/fonts.json`.
 The browser downloads only the glyph ranges needed by visible text.
 

@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / 'src/generated/fonts'
 FONTS = {
     # Against Sarasa Gothic SC: Regular, Regular grown to a medium, SemiBold, Bold.
-    'montserrat': {'family': 'Montserrat Variable', 'styles': ['index.css'], 'weights': {400: 409, 500: 447, 600: 483, 700: 577}},
+    'montserrat': {'family': 'Montserrat Variable', 'styles': ['index.css'], 'weights': {400: 431, 500: 471, 600: 504, 700: 577}},
     # Against Noto Serif SC, which follows the CSS weight itself.
     'bitter': {'family': 'Bitter Variable', 'styles': ['index.css', 'wght-italic.css'], 'weights': {400: 348, 500: 392, 600: 454, 700: 555}},
 }

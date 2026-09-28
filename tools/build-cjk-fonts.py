@@ -7,8 +7,9 @@ Uses the existing Noto Serif SC unicode partitions for common CJK characters;
 remaining glyphs are emitted in disjoint groups, preserving source coverage.
 
 Each CSS weight gets the static weight whose stems match the text beside it (see
-tools/measure-font-weights.py). Sarasa has no medium, so its 500 is Regular grown
-evenly by 10 units, halfway to SemiBold. Code sits inline at 0.944 em
+tools/measure-font-weights.py). The UI reads a little heavier than Sarasa's own
+weights, so 400 and 600 are Regular and SemiBold grown evenly by 6 and 5 units; Sarasa
+has no medium, so its 500 is Regular grown by 16. Code sits inline at 0.944 em
 (--mono-scale), where Maple's Light and Medium carry the text's stems.
 """
 from concurrent.futures import ProcessPoolExecutor
@@ -24,7 +25,7 @@ from fontTools.ttLib.tables._g_l_y_f import GlyphCoordinates
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / 'src/generated/fonts'
 FONTS = {
-    'sarasa': {'family':'Sarasa Gothic SC', 'prefix':'sarasa-sc', 'faces':{400:('SarasaGothicSC-Regular.ttf',0),500:('SarasaGothicSC-Regular.ttf',10),600:('SarasaGothicSC-SemiBold.ttf',0),700:('SarasaGothicSC-Bold.ttf',0)}},
+    'sarasa': {'family':'Sarasa Gothic SC', 'prefix':'sarasa-sc', 'faces':{400:('SarasaGothicSC-Regular.ttf',6),500:('SarasaGothicSC-Regular.ttf',16),600:('SarasaGothicSC-SemiBold.ttf',5),700:('SarasaGothicSC-Bold.ttf',0)}},
     'maple': {'family':'Maple Mono NF CN', 'prefix':'maple-mono', 'faces':{400:('MapleMono-NF-CN-Light.ttf',0),600:('MapleMono-NF-CN-Medium.ttf',0)}},
 }
 
