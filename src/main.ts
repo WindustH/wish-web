@@ -35,8 +35,12 @@ applyConnection();
 prefs.load();
 
 // The app supplies its own message actions; unused browser context menus
-// should not appear on right-click or touch hold elsewhere in the UI.
-document.addEventListener('contextmenu', event => event.preventDefault(), true);
+// should not appear on right-click or touch hold elsewhere in the UI. Parts
+// with a context menu of their own (marked data-context-menu) take the event
+// themselves, and suppress the browser's once theirs opens.
+document.addEventListener('contextmenu', event => {
+  if (!(event.target instanceof Element && event.target.closest('[data-context-menu]'))) event.preventDefault();
+}, true);
 document.addEventListener('selectstart', event => {
   if (matchMedia('(max-width: 899px)').matches && event.target instanceof Element && event.target.closest('.chatlog')) {
     event.preventDefault();
@@ -53,7 +57,7 @@ theme.init({
 watch(theme.resolved, (r) => {
   document.documentElement.dataset.theme = r;
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) (meta as HTMLMetaElement).content = r === 'dark' ? '#202020' : '#eee9df';
+  if (meta) (meta as HTMLMetaElement).content = r === 'dark' ? '#1c1c1c' : '#f6f5f2';
 }, { immediate: true });
 
 // i18n: persisted locale + <html lang> sync

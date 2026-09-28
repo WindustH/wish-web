@@ -87,6 +87,8 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
 <style scoped>
 .account-status { display: flex; flex-direction: column; gap: 12px; }
 .account-card { display: flex; flex-direction: column; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-raised); }
+/* On the phone's page, a grouped card one step above the sunken page. */
+@media (max-width: 899px) { .account-page .account-card { border: 0; border-radius: 18px; background: var(--bg-group); } }
 .account-card-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .account-mark { display: flex; flex: none; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 9px; background: var(--bg-sunken); color: var(--fg); }
 .account-mark :deep(.icon), .account-mark :deep(svg) { width: 18px; height: 18px; }

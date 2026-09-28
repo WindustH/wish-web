@@ -1,19 +1,4 @@
 .shell { display: flex; height: 100dvh; overflow: hidden; }
-.vbar {
-  width: var(--w-sidebar); flex: none; display: flex; flex-direction: column; align-items: center;
-  padding: 10px 0 8px; gap: 4px; border-right: 1px solid var(--line); background: var(--rail-bg); z-index: 20;
-}
-.vbar .spacer { flex: 1; }
-.nav-btn {
-  width: 34px; min-height: 36px; border-radius: var(--radius); display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 2px; color: var(--fg-subtle); cursor: pointer;
-  border: 0; background: none; position: relative;
-  transition: background var(--dur-fast), color var(--dur-fast), transform var(--dur-fast);
-}
-.nav-btn .icon { width: 18px; height: 18px; }
-@media (hover: hover) { .nav-btn:hover { background: var(--bg-hover); color: var(--fg); } }
-.nav-btn.active { background: var(--bg-raised); color: var(--accent); }
-.nav-btn.active::before { content: ''; position: absolute; left: calc((34px - var(--w-sidebar)) / 2); height: 18px; width: 2px; background: var(--accent); }
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 .main-col { position: relative; flex: 1; display: flex; min-width: 0; min-height: 0; overflow: hidden; }
 .sessions-split { flex: 1; display: flex; min-width: 0; min-height: 0; }
@@ -23,13 +8,21 @@
 }
 .content-pane { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .shell.mobile { flex-direction: column; }
-.shell.mobile .vbar { display: none; }
-.shell.mobile .sessions-pane { width: 100%; flex: 1; border-right: 0; }
+/* On a desktop the list is a panel beside the conversation, a layer of its own; on a phone it is the
+   whole page, and takes the page's color like the conversation does. */
+.shell.mobile .sessions-pane { width: 100%; flex: 1; border-right: 0; background: var(--bg); }
 .shell.mobile .content-pane { position: relative; flex: 1; }
+/* On a phone all sessions is a sheet over the home page (useRecentsSheet moves it); until that has
+   run, the route alone decides which of the two shows. */
+.shell.mobile .sessions-split { position: relative; }
+.shell.mobile .sessions-split > .sessions-pane { position: absolute; inset: 0; z-index: 2; background: transparent; }
+/* Its parts are opaque on their own, so its heading can fade in over the home page as it opens. */
+.shell.mobile .sessions-split > .sessions-pane > * { background: var(--bg); }
+.shell.mobile .sessions-pane .sheet-extra { opacity: var(--sheet-reveal, 1); translate: 0 calc((1 - var(--sheet-reveal, 1)) * 16px); }
+.shell.mobile .sessions-pane.sheet-closed, .shell.mobile .content-pane.sheet-covered { visibility: hidden; }
 /* Mobile tools are secondary pages; resizing never changes their route. */
 .shell.mobile .main-col { flex-direction: column; }
 .shell.mobile { padding-bottom: env(safe-area-inset-bottom); }
-.mobile-secondary-header { display: flex; flex: none; align-items: center; gap: 8px; min-height: 44px; padding: 4px 12px; border-bottom: 1px solid var(--line); font-size: 14px; }
 .session-list-edge { position: relative; width: 0; flex: none; z-index: 25; }
 .session-list-toggle { position: absolute; top: 50%; right: 0; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 56px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--edge-icon, var(--fg-subtle)); cursor: pointer; transition: color var(--dur-fast); }
 .session-list-toggle::before { content: ''; position: absolute; inset: 0 0 0 12px; background: var(--edge-tab, var(--bg-hover)); clip-path: path("M 12 0 C 12 10 0 10 0 20 L 0 36 C 0 46 12 46 12 56 Z"); transition: background var(--dur-fast); }
@@ -59,7 +52,7 @@ html.resizing .session-list-edge {
 html.resizing, html.resizing * { cursor: col-resize !important; user-select: none !important; }
 
 @media (max-width: 899px) {
-  .shell.mobile .sessions-pane > :is(.sl-all-heading, .sl-masthead, .sl-filters, .sl-scroll) {
+  .shell.mobile .sessions-pane > :is(.sl-masthead, .sl-filters, .sl-scroll) {
     width: 100%; max-width: var(--mobile-content-width); margin-inline: auto;
   }
 }

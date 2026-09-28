@@ -12,10 +12,18 @@ import SessionListRow from './SessionListRow.vue';
 import SessionListAction from './SessionListAction.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Spinner from '../../ui/components/Spinner.vue';
+import { useMedia } from '../../ui/composables/useMedia.ts';
+import Wordmark from '../../ui/components/Wordmark.vue';
+import AppMenu from '../shell/AppMenu.vue';
+import { prefs } from '../../core/state/prefsSlice.ts';
+import { goHome } from './useRecentsSheet.ts';
 
 
 const route = useRoute();
 const router = useRouter();
+// On a desktop the list is the app's sidebar, with its brand, a new-session row and the app menu;
+// on a phone it is a page of its own under the start page's header.
+const isMobile = useMedia('(max-width: 899px)');
 const query = ref(sessions.query.value);
 const composing = ref(false);
 const listEl = ref<HTMLElement | null>(null);
@@ -75,16 +83,22 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
 
 <template>
   <div class="sessions-pane">
-    <div v-if="route.name === 'all-sessions'" class="sl-all-heading"><RouterLink to="/sessions" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')"><Icon name="arrow-left" /></RouterLink><span>{{ i18n.locale.value === 'zh' ? '全部会话' : 'All sessions' }}</span></div>
+    <header v-if="!isMobile" class="sl-brand">
+      <Hint :text="i18n.t('sessions.collapseList')"><button type="button" class="btn ghost icon-only sl-collapse" :aria-label="i18n.t('sessions.collapseList')"
+        aria-controls="session-list" aria-expanded="true" @click="prefs.setSessionListCollapsed(true)"><Icon name="panel-left" /></button></Hint>
+      <img class="sl-brand-mark" src="/app-icons/mark.svg" alt="" /><Wordmark class="sl-brand-word" />
+    </header>
+    <header v-if="isMobile" class="page-bar"><button type="button" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')" @click="goHome(router)"><Icon name="arrow-left" /></button><h1 class="page-bar-title">{{ i18n.locale.value === 'zh' ? '全部会话' : 'All sessions' }}</h1></header>
     <div class="sl-masthead">
       <div class="sl-head">
         <Spinner v-if="sessions.loading.value" /><Icon v-else name="search" />
         <input v-model="query" type="search" @compositionstart="composing = true"
           @compositionend="composing = false; sessions.setQuery(query)" :placeholder="i18n.t('sessions.search')" :aria-label="i18n.t('sessions.search')" />
       </div>
-      <Hint :text="i18n.t('sessions.new')"><button class="btn icon-only sl-add" :aria-label="i18n.t('sessions.new')"
+      <Hint v-if="isMobile" :text="i18n.t('sessions.new')"><button class="btn icon-only sl-add" :aria-label="i18n.t('sessions.new')"
         @click="router.push('/new')"><svg class="sl-add-glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 2.5C6.75 2.5 2.5 6.55 2.5 11.6c0 1.8.5 3.45 1.45 4.85L2.5 21.5l5.2-1.55C9 20.7 10.46 21 12 21c5.3 0 9.5-4.05 9.5-9.4 0-5.05-4.2-9.1-9.5-9.1Zm-.75 5.25h1.5v3h3v1.5h-3v3h-1.5v-3h-3v-1.5h3v-3Z" /></svg></button></Hint>
     </div>
+    <button v-if="!isMobile" type="button" class="sl-new" @click="router.push('/new')"><span class="sl-new-icon"><svg class="sl-new-glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 2.5C6.75 2.5 2.5 6.55 2.5 11.6c0 1.8.5 3.45 1.45 4.85L2.5 21.5l5.2-1.55C9 20.7 10.46 21 12 21c5.3 0 9.5-4.05 9.5-9.4 0-5.05-4.2-9.1-9.5-9.1Zm-.75 5.25h1.5v3h3v1.5h-3v3h-1.5v-3h-3v-1.5h3v-3Z" /></svg></span>{{ i18n.t('sessions.new') }}</button>
     <div v-if="sessions.tagFilter.value" class="sl-filters" role="group" :aria-label="i18n.t('sessions.filter.group')">
       <span class="tag-chip">
         {{ sessions.tagFilter.value }}
@@ -107,6 +121,7 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
         </div>
       </TransitionGroup>
     </div>
+    <footer v-if="!isMobile" class="sl-foot"><AppMenu placement="sidebar" /></footer>
     <SessionListAction v-if="action" :key="`${action.target.id}:${action.kind}`" :target="action.target" :kind="action.kind" @close="action = null" />
   </div>
 </template>
@@ -120,5 +135,14 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
 @media (prefers-reduced-motion: reduce) {
   .rearranging, .rearranging > div, .session-filter-enter-active, .session-filter-leave-active { transition: none !important; }
 }
-.sl-all-heading { display: flex; align-items: center; gap: 8px; padding: 8px 12px 0; font-size: 14px; }
+.sl-brand { display: flex; flex: none; align-items: center; gap: 8px; padding: 10px 12px 2px 8px; }
+.sl-brand .sl-collapse { color: var(--fg-subtle); }
+.sl-brand .sl-collapse .icon { width: 18px; height: 18px; }
+.sl-brand-mark { display: block; width: 22px; height: auto; }
+.sl-brand-word { height: 14px; color: var(--fg); }
+.sl-new { display: flex; flex: none; align-items: center; gap: 10px; margin: 2px 8px 8px; padding: 6px 8px; border: 0; border-radius: var(--radius); background: transparent; color: var(--fg); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; transition: background var(--dur-fast); }
+@media (hover: hover) { .sl-new:hover { background: var(--bg-hover); } }
+.sl-new-icon { display: grid; place-items: center; width: 24px; height: 24px; color: var(--fg-muted); }
+.sl-new-glyph { display: block; width: 22px; height: 22px; }
+.sl-foot { flex: none; padding: 6px 8px 8px; border-top: 1px solid var(--line); }
 </style>

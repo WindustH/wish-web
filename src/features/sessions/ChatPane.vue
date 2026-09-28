@@ -107,9 +107,9 @@ const goTab = (t: SessionTab) => {
           :class="{ selected: tab === 'settings' }" data-session-panel="settings" :aria-pressed="tab === 'settings'" @click="goTab('settings')"><Icon name="settings-2" /></button></Hint>
       </template>
       <Menu v-else :items="[
-        { key: 'info', label: i18n.t('chatbar.info') },
-        { key: 'search', label: i18n.t('chatbar.search') },
-        { key: 'settings', label: i18n.t('chatbar.settings') },
+        { key: 'info', icon: 'info', label: i18n.t('chatbar.info') },
+        { key: 'search', icon: 'search', label: i18n.t('chatbar.search') },
+        { key: 'settings', icon: 'settings-2', label: i18n.t('chatbar.settings') },
       ]" :label="i18n.t('chatbar.more')" @select="goTab($event as SessionTab)">
         <Icon name="ellipsis-vertical" />
       </Menu>

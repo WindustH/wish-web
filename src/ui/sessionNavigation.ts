@@ -1,10 +1,8 @@
 import { readonly, shallowRef } from 'vue';
 import type { Router } from 'vue-router';
 
-// Navigation remembers the last successful location, including an explicit
-// return to the mobile list. The URL remains the current view's authority.
-const lastSessionLocation = shallowRef('/sessions');
-export const sessionLocation = readonly(lastSessionLocation);
+// Navigation remembers where a conversation was opened from, including an explicit return to the
+// mobile list. The URL remains the current view's authority.
 const lastSessionParent = shallowRef('/sessions');
 export const sessionParent = readonly(lastSessionParent);
 let parentSessionId: string | undefined;
@@ -12,7 +10,6 @@ let parentSessionId: string | undefined;
 export function installSessionNavigation(router: Router) {
   router.afterEach((to, from, failure) => {
     if (failure) return;
-    if (to.meta.section === 'sessions') lastSessionLocation.value = to.fullPath;
     if (!to.params.id) return;
     const saved = router.options.history.state.sessionParent;
     const id = String(to.params.id);

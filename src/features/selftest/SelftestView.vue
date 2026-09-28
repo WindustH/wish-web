@@ -14,9 +14,9 @@ const leave = () => (window.history.state?.back ? router.back() : router.push('/
 
 <template>
   <div class="page selftest-page">
-    <header class="page-head">
+    <header class="page-head page-bar">
       <button class="btn ghost icon-only" :aria-label="tr('返回', 'Back')" @click="leave"><Icon name="arrow-left" /></button>
-      <h1>{{ tr('连接诊断', 'Connection diagnostics') }}</h1>
+      <h1 class="page-bar-title">{{ tr('连接诊断', 'Connection diagnostics') }}</h1>
     </header>
     <div class="selftest-body">
       <ConnectionDiagnostics :auto-run="route.query.auto === '1'" />

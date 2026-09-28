@@ -214,12 +214,11 @@ async function check() {
 .hint { font-size: 12px; color: var(--fg-subtle); margin-right: auto; }
 @media (max-width: 899px) {
   /* Servers are rows of one grouped list; dividers start after the icon. */
-  .mcp-item { border: 0; border-radius: 0; background: transparent; }
-  .mcp-item + .mcp-item { background: linear-gradient(var(--line), var(--line)) right top / calc(100% - 62px) 1px no-repeat; }
+  .mcp-item { border: 0; border-radius: 0; background: var(--bg-group); background-clip: padding-box; }
   .mcp-navigation { width: 100%; min-height: 64px; gap: 14px; }
   .mcp-navigation .mcp-mark { width: 34px; height: 34px; }
   .mcp-navigation .mcp-state { flex: none; }
   .mcp-navigation .row-preview { font-family: var(--mono); font-size: calc(11.5px * var(--mono-scale)); }
-  .mcp-mobile-remove { width: 100%; min-height: 52px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-raised); color: var(--err); }
+  .mcp-mobile-remove { width: 100%; min-height: 52px; border: 0; border-radius: 18px; background: var(--bg-group); color: var(--err); }
 }
 </style>

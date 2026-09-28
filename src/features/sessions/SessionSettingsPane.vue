@@ -186,6 +186,9 @@ async function act(kind: 'compact' | 'clear') {
 
 <style>
 .modal-card.session-settings-window:not(.modal-page) { width: min(92vw, 30rem); }
+/* On a phone the page is the settings page's, under the same grouped rows. */
+.modal-card.session-settings-window.modal-page { background: var(--bg-sunken); }
+.session-settings-window.modal-page > .modal-head { background: var(--bg); }
 .session-settings-intro { margin: 0 0 18px; font-size: 12px; line-height: 1.6; color: var(--fg-subtle); }
 .session-settings-window .set-row.inline { grid-template-columns: minmax(0, 1fr) auto; }
 .session-settings-window .set-number input { width: 11ch; }

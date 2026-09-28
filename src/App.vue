@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { useMobileNavigationMotion } from './ui/composables/useMobileNavigationMotion.ts';
 useMobileNavigationMotion();
-import Hint from './ui/components/Hint.vue';
 import HoverHintHost from './ui/components/HoverHintHost.vue';
 import { defineAsyncComponent, computed, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue';
 import { TooltipProvider, DialogRoot, DialogPortal, DialogContent, DialogTitle } from 'reka-ui';
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
 import { useMedia } from './ui/composables/useMedia.ts';
-import Icon from './ui/components/Icon.vue';
 import AttachmentPreview from './ui/components/AttachmentPreview.vue';
 import ToastHost from './ui/components/ToastHost.vue';
 import ErrorDialogHost from './ui/components/ErrorDialogHost.vue';
@@ -18,53 +16,47 @@ import { sync } from './core/state/syncSlice.ts';
 import { needRefresh, refreshApp } from './ui/pwa.ts';
 import { useProviderGate } from './ui/composables/useProviderGate.ts';
 import { tr } from './core/i18n/tr.ts';
-import { sessionLocation } from './ui/sessionNavigation.ts';
 import { isSignedOut } from './core/connection.ts';
+import { accountDialogOpen } from './features/account/accountDialog.ts';
 import SignOutButton from './features/connection/SignOutButton.vue';
 
 const ProviderSetup = defineAsyncComponent(() => import('./features/onboarding/ProviderSetup.vue'));
 const ConnectView = defineAsyncComponent(() => import('./features/connection/ConnectView.vue'));
 const AccountDialog = defineAsyncComponent(() => import('./features/account/AccountDialog.vue'));
-const accountOpen = ref(false);
 // Signed out, nothing talks to a server until the sign-in page picks one.
 const signedOut = isSignedOut();
 const gate = signedOut ? null : useProviderGate();
 const route = useRoute();
 const router = useRouter();
 const isMobile = useMedia('(max-width: 899px)');
-const backgroundRoute = shallowRef(router.currentRoute.value.meta.section === 'settings' ? router.resolve('/sessions') as unknown as RouteLocationNormalizedLoaded : router.currentRoute.value);
-const settingsRoute = shallowRef(router.currentRoute.value.meta.section === 'settings' ? router.currentRoute.value : undefined);
-const settingsVisible = ref(!!settingsRoute.value);
-let settingsExitTimer: ReturnType<typeof setTimeout> | undefined;
+// Settings and statistics open over the page they were opened from: a window on a desktop, a page
+// of their own on a phone. The page behind stays mounted, and comes back as it was when they close.
+const isOverlay = (target: { meta: { section?: string } }) => target.meta.section === 'settings' || target.meta.section === 'stats';
+const sessionsRoute = () => router.resolve('/sessions') as unknown as RouteLocationNormalizedLoaded;
+const backgroundRoute = shallowRef(isOverlay(router.currentRoute.value) ? sessionsRoute() : router.currentRoute.value);
+const overlayRoute = shallowRef(isOverlay(router.currentRoute.value) ? router.currentRoute.value : undefined);
+const overlayVisible = ref(!!overlayRoute.value);
+let overlayExitTimer: ReturnType<typeof setTimeout> | undefined;
 watch(() => router.currentRoute.value, current => {
-  if (current.meta.section === 'settings') {
-    clearTimeout(settingsExitTimer);
-    settingsExitTimer = undefined;
-    settingsRoute.value = current;
-    settingsVisible.value = true;
-    if (!backgroundRoute.value.matched.length) backgroundRoute.value = router.resolve('/sessions') as unknown as RouteLocationNormalizedLoaded;
+  if (isOverlay(current)) {
+    clearTimeout(overlayExitTimer);
+    overlayExitTimer = undefined;
+    overlayRoute.value = current;
+    overlayVisible.value = true;
+    if (!backgroundRoute.value.matched.length) backgroundRoute.value = sessionsRoute();
   }
   else {
     backgroundRoute.value = current;
-    if (settingsVisible.value) {
-      clearTimeout(settingsExitTimer);
-      settingsExitTimer = setTimeout(() => { settingsVisible.value = false; settingsExitTimer = undefined; }, 220);
+    if (overlayVisible.value) {
+      clearTimeout(overlayExitTimer);
+      overlayExitTimer = setTimeout(() => { overlayVisible.value = false; overlayExitTimer = undefined; }, 220);
     }
   }
 }, { flush: 'sync' });
-onBeforeUnmount(() => clearTimeout(settingsExitTimer));
-provide('closeSettings', () => router.push(backgroundRoute.value.fullPath));
-const settingsOpen = computed(() => route.meta.section === 'settings');
+onBeforeUnmount(() => clearTimeout(overlayExitTimer));
+provide('closeOverlay', () => router.push(backgroundRoute.value.fullPath));
+const overlayOpen = computed(() => isOverlay(route));
 const online = computed(() => sync.online.value);
-
-const nav = [
-  { id: 'sessions', icon: 'message-circle', path: '/sessions', label: () => i18n.t('nav.sessions') },
-  { id: 'stats', icon: 'chart-column', path: '/stats', label: () => i18n.t('nav.stats') },
-  { id: 'settings', icon: 'settings', path: '/settings', label: () => i18n.t('nav.settings'), bottom: true },
-];
-const top = nav.filter((n) => !n.bottom);
-const isActive = (section: string) => section !== 'settings' && (settingsOpen.value ? backgroundRoute.value.meta.section : route.meta.section) === section;
-const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? sessionLocation.value : item.path);
 </script>
 
 <template>
@@ -81,34 +73,16 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
     </div>
   </main>
   <div v-else class="shell" :class="isMobile ? 'mobile' : 'desktop'">
-    <nav class="vbar" :aria-label="i18n.t('app.name')">
-      <Hint :text="item.label()" v-for="item in top" :key="item.id"><button class="nav-btn" :class="{ active: isActive(item.id) }"
-        :aria-current="isActive(item.id) ? 'page' : undefined" :aria-label="item.label()" @click="go(item)">
-        <Icon :name="item.icon" />
-      </button></Hint>
-      <div class="spacer" />
-      <Hint :text="tr('账户状态', 'Account status')"><button class="nav-btn" :aria-label="tr('账户状态', 'Account status')" aria-haspopup="dialog" :aria-expanded="accountOpen" @click="accountOpen = true"><Icon name="wallet" /></button></Hint>
-      <SignOutButton button-class="nav-btn" />
-      <Hint :text="item.label()" v-for="item in nav.filter((n) => n.bottom)" :key="item.id"><button class="nav-btn"
-        :aria-expanded="settingsOpen" aria-haspopup="dialog" :aria-label="item.label()"
-        @click="go(item)">
-        <Icon :name="item.icon" />
-      </button></Hint>
-    </nav>
     <div class="main">
       <div class="main-col">
-        <header v-if="isMobile && route.meta.section === 'stats'" class="mobile-secondary-header">
-          <button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')" @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
-          <span>{{ i18n.t(route.meta.section === 'stats' ? 'nav.stats' : 'nav.settings') }}</span>
-        </header>
         <div v-if="!online" class="offline-banner" role="status">{{ i18n.t('settings.offline') }}</div>
-        <RouterView v-if="backgroundRoute.meta.section !== 'settings'" :route="backgroundRoute" v-slot="{ Component, route: pageRoute }">
+        <RouterView v-if="!isOverlay(backgroundRoute)" :route="backgroundRoute" v-slot="{ Component, route: pageRoute }">
           <KeepAlive :max="4">
-            <CachedPage v-if="Component" v-show="!settingsOpen || !isMobile" :key="pageRoute.matched[0].path" :view="Component" :route="pageRoute" />
+            <CachedPage v-if="Component" v-show="!overlayOpen || !isMobile" :key="pageRoute.matched[0].path" :view="Component" :route="pageRoute" />
           </KeepAlive>
         </RouterView>
-        <RouterView v-if="settingsRoute" :route="settingsRoute" v-slot="{ Component, route: pageRoute }">
-          <KeepAlive><CachedPage class="settings-route-host" :class="{ 'is-closing': !settingsOpen }" v-if="Component && settingsVisible" :view="Component" :route="pageRoute" /></KeepAlive>
+        <RouterView v-if="overlayRoute" :route="overlayRoute" v-slot="{ Component, route: pageRoute }">
+          <KeepAlive><CachedPage class="overlay-route-host" :class="{ 'is-closing': !overlayOpen }" v-if="Component && overlayVisible" :key="pageRoute.meta.section" :view="Component" :route="pageRoute" /></KeepAlive>
         </RouterView>
       </div>
     </div>
@@ -119,7 +93,7 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
       <button class="btn ghost" @click="needRefresh = false">{{ i18n.t('pwa.later') }}</button>
     </DialogContent>
     </DialogPortal></DialogRoot>
-    <AccountDialog v-if="!isMobile" :open="accountOpen" @close="accountOpen = false" />
+    <AccountDialog v-if="!isMobile" :open="accountDialogOpen" @close="accountDialogOpen = false" />
     <ToastHost />
     <AttachmentPreview />
   </div>
@@ -136,7 +110,7 @@ const go = (item: typeof nav[number]) => router.push(item.id === 'sessions' ? se
 .provider-gate-status .brand-mark { display:block; width:64px; height:auto; margin:0 0 8px; }
 .provider-gate-actions { display:flex; align-items:center; gap:8px; }
 .onboarding-preview { position:fixed; inset:0; z-index:55; }
-@media (min-width: 900px) { .settings-route-host { display: contents !important; } }
-@media (max-width: 899px) { .settings-route-host { position: absolute; inset: 0; z-index: 30; background: transparent; } }
-.settings-route-host.is-closing { pointer-events: none; }
+@media (min-width: 900px) { .overlay-route-host { display: contents !important; } }
+@media (max-width: 899px) { .overlay-route-host { position: absolute; inset: 0; z-index: 30; background: transparent; } }
+.overlay-route-host.is-closing { pointer-events: none; }
 </style>

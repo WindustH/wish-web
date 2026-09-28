@@ -1,21 +1,23 @@
-/* Warm paper in light mode; neutral gray in dark mode. Shared surface roles keep the same hierarchy. Geometry is supplied by applyTokens from cfg.design. */
+/* A faint warmth over white in light mode; neutral gray in dark mode. Shared surface roles keep the same hierarchy. Geometry is supplied by applyTokens from cfg.design. */
 :root {
-  --bg: #eee9df;
-  --bg-raised: #f5f1e8;
-  --bg-overlay: #faf6ed;
-  --bg-control: #eee9df;
-  --bg-sunken: #e4ded2;
-  --rail-bg: #d6cebf;
-  --chatbar-bg: #e4ded2;
-  --bg-hover: #e5ded1;
-  --bg-active: #d9d0c0;
-  --bg-inset: #e8e1d5;
-  --fg: #302d28;
-  --fg-muted: #575148;
-  --fg-subtle: #71695e;
-  --fg-faint: #938a7c;
-  --line: #d9d1c3;
-  --line-strong: #b9af9f;
+  --bg: #f6f5f2;
+  --bg-raised: #fbfaf8;
+  --bg-overlay: #ffffff;
+  --bg-control: #f6f5f2;
+  --bg-sunken: #ebe9e5;
+  --chatbar-bg: #ebe9e5;
+  --bg-hover: #ecebe7;
+  --bg-active: #e2e0db;
+  --bg-inset: #efede9;
+  /* Rows of a grouped list on a phone: one step above the page they sit on. */
+  --bg-group: #fbfaf8;
+  --bg-group-active: #f1efeb;
+  --fg: #2e2d2a;
+  --fg-muted: #54504b;
+  --fg-subtle: #6d6862;
+  --fg-faint: #8e8981;
+  --line: #dfdcd6;
+  --line-strong: #c1bcb4;
   --accent: #a64a33;
   --accent-fg: #fffaf5;
   --accent-soft: #f3e6df;
@@ -27,7 +29,7 @@
   --err: #a32d2d;
   --err-bg: #fff0ef;
   --err-border: #e7b7b3;
-  --user-bubble: #e2dbce;
+  --user-bubble: #ebe8e3;
   --user-bubble-fg: var(--fg);
   --focus-ring: #a64a33;
   --scrim: rgb(18 18 16 / 32%);
@@ -45,7 +47,7 @@
   --space-xl: 24px; --space-xxl: 32px;
   --icon: 18px;
   --mobile-content-width: 640px;
-  --w-sidebar: 48px; --w-list: 256px;
+  --w-list: 256px;
   --h-topbar: 56px; --h-bottombar: 44px; --h-session-row: 40px;
   --max-content: 46rem;
   --dur-fast: 140ms; --dur: 240ms; --dur-slow: 400ms;
@@ -53,22 +55,23 @@
   color-scheme: light;
 }
 html[data-theme='dark'] {
-  --bg: #202020;
-  --bg-raised: #292929;
-  --bg-overlay: #303030;
-  --bg-control: #242424;
-  --bg-sunken: #171717;
-  --rail-bg: #111111;
-  --chatbar-bg: #292929;
-  --bg-hover: #393939;
-  --bg-active: #444444;
-  --bg-inset: #1b1b1b;
-  --fg: #efefef;
-  --fg-muted: #c4c4c4;
-  --fg-subtle: #acacac;
+  --bg: #1c1c1c;
+  --bg-raised: #222222;
+  --bg-overlay: #2a2a2a;
+  --bg-control: #1f1f1f;
+  --bg-sunken: #151515;
+  --chatbar-bg: #202020;
+  --bg-hover: #303030;
+  --bg-active: #3a3a3a;
+  --bg-inset: #181818;
+  --bg-group: #1f1f1f;
+  --bg-group-active: #282828;
+  --fg: #e8e8e8;
+  --fg-muted: #bebebe;
+  --fg-subtle: #a5a5a5;
   --fg-faint: #848484;
-  --line: #3d3d3d;
-  --line-strong: #555555;
+  --line: #353535;
+  --line-strong: #4a4a4a;
   --accent: #df947a;
   --accent-fg: #291d17;
   --accent-soft: #42332b;
@@ -80,7 +83,7 @@ html[data-theme='dark'] {
   --err: #ffb4ab;
   --err-bg: #3c2423;
   --err-border: #75413d;
-  --user-bubble: #303030;
+  --user-bubble: #2a2a2a;
   --focus-ring: #df947a;
   --scrim: rgb(0 0 0 / 60%);
   --shadow-pop: 0 16px 48px rgb(0 0 0 / 28%), 0 2px 8px rgb(0 0 0 / 15%);
@@ -93,10 +96,10 @@ html[data-theme='dark'] {
 :root {
   --chart-1: #b95c3a; --chart-2: #3c62a1; --chart-3: #b48226;
   --chart-4: #7f447b; --chart-5: #549957; --chart-6: #91394b;
-  --heat-0: #e2dbce; --heat-1: #c5decb; --heat-2: #8abc99; --heat-3: #4c9764; --heat-4: #27733f;
+  --heat-0: #ebe8e3; --heat-1: #c5decb; --heat-2: #8abc99; --heat-3: #4c9764; --heat-4: #27733f;
 }
 html[data-theme='dark'] {
   --chart-1: #d47452; --chart-2: #5787ce; --chart-3: #ba8a2e;
   --chart-4: #a864a2; --chart-5: #57a45b; --chart-6: #b65263;
-  --heat-0: #363636; --heat-1: #355641; --heat-2: #457b53; --heat-3: #68aa72; --heat-4: #9bd19b;
+  --heat-0: #2e2e2e; --heat-1: #355641; --heat-2: #457b53; --heat-3: #68aa72; --heat-4: #9bd19b;
 }

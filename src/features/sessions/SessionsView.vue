@@ -6,7 +6,7 @@ import Hint from '../../ui/components/Hint.vue';
 // side routes between (empty) and chat; chat stays mounted while its
 // info/search/manage child routes change. Mobile: list and chat are
 // exclusive full views.
-import { computed, onBeforeUnmount, onDeactivated, onMounted, watch } from 'vue';
+import { computed, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMedia } from '../../ui/composables/useMedia.ts';
 import SessionList from './SessionList.vue';
@@ -14,11 +14,16 @@ import SessionListToggle from './SessionListToggle.vue';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import { applySavedListWidth, cancelListResize, onListResizePointerDown } from './listWidth.ts';
 import { i18n } from '../../core/i18n/index.ts';
+import { useRecentsSheet } from './useRecentsSheet.ts';
 
 const route = useRoute();
 const router = useRouter();
 const isMobile = useMedia('(max-width: 899px)');
 const showList = computed(() => isMobile.value ? route.name === 'all-sessions' : !prefs.sessionListCollapsed.value);
+// A phone's home page and all sessions are one screen: the list is a sheet over the home page.
+const home = computed(() => route.name === 'sessions' || route.name === 'all-sessions');
+const split = ref<HTMLElement | null>(null);
+useRecentsSheet(split);
 
 watch([isMobile, () => route.name], ([mobile, name]) => {
   if (!mobile && name === 'all-sessions') void router.replace('/sessions');
@@ -29,16 +34,15 @@ onBeforeUnmount(cancelListResize);
 </script>
 
 <template>
-  <div class="sessions-split">
-    <template v-if="!isMobile || showList">
-      <SessionList v-show="!isMobile || showList" :class="{ 'is-collapsed': !isMobile && !showList }" id="session-list" />
-    </template>
+  <div ref="split" class="sessions-split">
+    <SessionList v-if="!isMobile || home" :class="{ 'is-collapsed': !isMobile && !showList, 'sheet-closed': isMobile && !showList }" id="session-list" />
     <div v-if="!isMobile" class="session-list-edge">
       <Hint text="↔"><div v-show="showList" class="list-resize" role="separator" aria-orientation="vertical"
         :aria-label="i18n.t('app.name')" @pointerdown="onListResizePointerDown" /></Hint>
-      <SessionListToggle />
+      <!-- The sidebar's own button collapses it; once collapsed, this tab on the edge brings it back. -->
+      <SessionListToggle v-if="!showList" />
     </div>
-    <div v-show="!isMobile || !showList" class="content-pane">
+    <div class="content-pane" :class="{ 'sheet-covered': isMobile && showList }">
       <RouterView v-slot="{ Component }">
         <KeepAlive include="StartChat"><component :is="Component" /></KeepAlive>
       </RouterView>

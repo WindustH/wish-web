@@ -3,7 +3,7 @@
 import { watch } from 'vue';
 import Modal from '../../ui/components/Modal.vue';
 import { tr } from '../../core/i18n/tr.ts';
-import AccountRefresh from './AccountRefresh.vue';
+import RefreshStamp from '../../ui/components/RefreshStamp.vue';
 import AccountStatus from './AccountStatus.vue';
 import { useAccountStates } from './useAccountStates.ts';
 
@@ -16,7 +16,7 @@ watch(() => props.open, open => { if (open) void refresh(); }, { immediate: true
 
 <template>
   <Modal :open="open" content-class="account-window" :title="tr('账户状态', 'Account status')" @close="$emit('close')">
-    <template #actions><AccountRefresh :checked-at="checkedAt" :loading="loading" @refresh="refresh" /></template>
+    <template #actions><RefreshStamp :at="checkedAt" :loading="loading" @refresh="refresh" /></template>
     <AccountStatus :rows="rows" :unconfigured="unconfigured" :loading="loading" :error="error" />
   </Modal>
 </template>

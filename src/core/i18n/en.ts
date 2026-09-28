@@ -138,7 +138,6 @@ export const en = {
   'manage.done': 'Done',
   'stats.queue': 'Queue',
   'stats.storage': 'Storage',
-  'stats.refresh': 'Refresh',
   'stats.tokensIn': 'Input',
   'stats.tokensOut': 'Output',
   'stats.tokensTotal': 'Total',

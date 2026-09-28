@@ -254,11 +254,14 @@
  .mobile-settings-page > .modal-head { background:var(--bg); min-height:54px; padding:6px 8px; }
  .mobile-settings-page .modal-title { font-size:17px; }
  .mobile-settings-page > .modal-body { padding:20px max(16px,calc((100% - 640px) / 2)) max(32px,env(safe-area-inset-bottom)); }
- .mobile-settings-list { margin:0 0 20px; padding:0; border:1px solid var(--line); border-radius:14px; background:var(--bg-raised); overflow:hidden; }
- .mobile-settings-row { width:100%; display:flex; align-items:center; gap:12px; min-height:54px; padding:12px 14px; border:0; background:transparent; color:var(--fg); text-align:left; font:inherit; font-size:15px; }
+ /* Grouped lists: rows one step above the page, parted by a sliver of the page rather than by lines.
+    The group's own background is the page's, and each row paints inside its border, so a transparent
+    top border shows the sliver whatever wraps the rows. */
+ .mobile-settings-list { margin:0 0 20px; padding:0; border:0; border-radius:18px; background:var(--bg-sunken); overflow:hidden; }
+ .mobile-settings-row { width:100%; display:flex; align-items:center; gap:12px; min-height:54px; padding:12px 14px; border:0; background:var(--bg-group); background-clip:padding-box; color:var(--fg); text-align:left; font:inherit; font-size:15px; }
  button.mobile-settings-row { cursor:pointer; }
- button.mobile-settings-row:active { background-color:var(--bg-hover); }
- .mobile-settings-row + .mobile-settings-row { border-top:1px solid var(--line); }
+ button.mobile-settings-row:active { background-color:var(--bg-group-active); }
+ .mobile-settings-row + .mobile-settings-row { border-top:2px solid transparent; }
  .mobile-settings-row > span { flex:1; min-width:0; }
  .mobile-settings-row > small { flex:0 1 auto; max-width:55%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--fg-subtle); font-size:14px; }
  .mobile-settings-row > small.mono { font:calc(13px * var(--mono-scale)) var(--mono); }
@@ -278,7 +281,7 @@
  .mobile-choice-search { width:100%; margin-bottom:16px; min-height:42px; }
  .mobile-choice[aria-pressed='true'] { color:var(--accent); }
  .mobile-choice > svg:last-child { flex:none; }
- .provider-panel .preset-section { margin:0 0 20px; padding:14px; border:1px solid var(--line); border-radius:14px; background:var(--bg-raised); }
+ .provider-panel .preset-section { margin:0 0 20px; padding:14px; border:0; border-radius:18px; background:var(--bg-group); }
  .provider-panel .preset-section > h3,.provider-panel .preset-section > summary { display:none; }
  .provider-panel .preset-section > header h3 { display:none; }
  .provider-panel .preset-section label { display:block; font-size:13.5px; font-weight:500; color:var(--fg); }
@@ -332,8 +335,10 @@
   .set-section + .set-section { margin-top: 24px; }
   .set-section-head { margin: 0 14px 8px; }
   .set-section-head h3 { font-weight: 500; color: var(--fg-muted); }
-  .set-card { border-radius: 14px; }
-  .set-row { grid-template-columns: minmax(0, 1fr); gap: 8px; min-height: 54px; padding: 12px 14px; }
+  /* The same grouped rows as the navigation lists. */
+  .set-card { border: 0; border-radius: 18px; background: var(--bg-sunken); }
+  .set-row { grid-template-columns: minmax(0, 1fr); gap: 8px; min-height: 54px; padding: 12px 14px; background: var(--bg-group); background-clip: padding-box; }
+  .set-row + .set-row { border-top: 2px solid transparent; }
   .set-row.inline { grid-template-columns: minmax(0, 1fr) auto; }
   .set-row.inline .set-number input { width: 11ch; }
 }
@@ -354,10 +359,11 @@
 @media (max-width: 899px) {
   .native-settings .ui-settings .cfg-section + .cfg-section { margin-top: 24px; }
   .native-settings .ui-settings .cfg-section h2 { margin: 0 14px 8px; font-weight: 500; color: var(--fg-muted); }
-  .native-settings .ui-settings .setting-row { min-height: 54px; padding: 12px 14px; gap: 8px; }
-  .native-settings .ui-settings h2 + .setting-row { border-radius: 14px 14px 0 0; }
-  .native-settings .ui-settings .setting-row:last-child { border-radius: 0 0 14px 14px; }
-  .native-settings .ui-settings h2 + .setting-row:last-child { border-radius: 14px; }
+  .native-settings .ui-settings .setting-row { min-height: 54px; padding: 12px 14px; gap: 8px; border: 0; background: var(--bg-group); }
+  .native-settings .ui-settings .setting-row + .setting-row { margin-top: 2px; }
+  .native-settings .ui-settings h2 + .setting-row { border-radius: 18px 18px 0 0; }
+  .native-settings .ui-settings .setting-row:last-child { border-radius: 0 0 18px 18px; }
+  .native-settings .ui-settings h2 + .setting-row:last-child { border-radius: 18px; }
   .native-settings .ui-settings .setting-row > div:first-child { flex: 1; }
   .native-settings .ui-settings .setting-row .setting-help-icon { display: none; }
   /* Pickers read as the row's value, like navigation rows elsewhere. */
@@ -371,8 +377,8 @@
 .provider-add-icon .icon { width: 15px; height: 15px; }
 @media (hover: hover) { .provider-add:hover:not(:disabled) { border-color: var(--accent); background: var(--bg-raised); color: var(--fg); } }
 @media (max-width: 899px) {
-  .provider-add { justify-content: flex-start; gap: 14px; min-height: 60px; padding: 12px 14px; border: 0; border-radius: 0; background: linear-gradient(var(--line), var(--line)) right top / calc(100% - 62px) 1px no-repeat; color: var(--accent); font-size: 15px; }
-  .provider-add:active { background-color: var(--bg-hover); }
+  .provider-add { justify-content: flex-start; gap: 14px; min-height: 60px; padding: 12px 14px; border: 0; border-radius: 0; background: var(--bg-group); background-clip: padding-box; color: var(--accent); font-size: 15px; }
+  .provider-add:active { background-color: var(--bg-group-active); }
   .provider-add-icon { width: 34px; height: 34px; border-radius: 10px; }
   .provider-add-icon .icon { width: 18px; height: 18px; }
 }

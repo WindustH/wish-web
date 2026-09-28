@@ -22,10 +22,12 @@ import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Wordmark from '../../ui/components/Wordmark.vue';
-import SignOutButton from '../connection/SignOutButton.vue';
+import AppMenu from '../shell/AppMenu.vue';
 
 const route = useRoute(), router = useRouter();
 const mobile = useMedia('(max-width: 899px)');
+// All sessions opens as a sheet over the home page, which stays laid out beneath it.
+const home = computed(() => route.name === 'sessions' || route.name === 'all-sessions');
 const parentActive = usePageActivity(), active = ref(true);
 const visible = computed(() => parentActive.value && active.value);
 provide(pageActivityKey, visible);
@@ -128,14 +130,9 @@ async function send(text: string, attachments: AttachmentInput[]) {
 </script>
 
 <template>
-  <div class="start-chat" :class="{ 'mobile-home': mobile && route.name === 'sessions' }">
-    <button v-if="mobile && route.name !== 'sessions'" class="btn ghost icon-only start-back" :aria-label="i18n.t('chatbar.back')" @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
-    <div v-if="mobile && route.name === 'sessions'" class="home-leading"><SignOutButton button-class="btn ghost icon-only" /></div>
-    <div v-if="mobile && route.name === 'sessions'" class="home-actions">
-      <button class="btn ghost icon-only" :aria-label="tr('账户状态', 'Account status')" @click="router.push('/account')"><Icon name="wallet"/></button>
-      <button class="btn ghost icon-only" :aria-label="i18n.t('nav.stats')" @click="router.push('/stats')"><Icon name="chart-column"/></button>
-      <button class="btn ghost icon-only" :aria-label="i18n.t('nav.settings')" @click="router.push('/settings')"><Icon name="settings"/></button>
-    </div>
+  <div class="start-chat" :class="{ 'mobile-home': mobile && home }">
+    <button v-if="mobile && !home" class="btn ghost icon-only start-back" :aria-label="i18n.t('chatbar.back')" @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
+    <div v-if="mobile && home" class="home-actions"><AppMenu placement="header" /></div>
     <div class="start-surface">
       <div class="start-brand" aria-hidden="true"><img class="start-mark" src="/app-icons/mark.svg" alt="" /><Wordmark class="start-wordmark" /></div>
       <Composer ref="composer" session-id="new-session" :mobile="mobile" start :send-message="send" :disabled="!selection.model || !cwd.trim() || busy || (!manuallySelected && !defaultReady)">
@@ -156,7 +153,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
         <div v-else class="start-empty hint">{{ i18n.t('new.noModels') }} <RouterLink class="btn ghost sm" to="/settings">{{ i18n.t('nav.settings') }}</RouterLink></div>
       </template>
       <p v-if="failed && created" class="hint" role="status">{{ i18n.t('new.retryMessage') }}</p>
-      <RecentSessions v-if="mobile && route.name === 'sessions'" />
+      <RecentSessions v-if="mobile && home" />
     </div>
     <ModelSettings v-if="modelOpen" :selection="selection" @select="selectModel" @close="modelOpen = false" />
     <ReasoningSettings v-if="reasoningOpen" :selection="selection" @select="selectModel" @close="reasoningOpen = false" />
@@ -173,8 +170,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
 .start-model-controls button { font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .start-model-controls .model-chip { flex: 0 1 auto; max-width: min(38vw, 320px); }
 .home-actions { position: absolute; top: 8px; right: 12px; z-index: 1; display: flex; align-items: center; gap: 2px; }
-.home-leading { position: absolute; top: 8px; left: 12px; z-index: 1; }
-:is(.home-actions, .home-leading) .btn { width: 44px; height: 44px; }
+.home-actions .btn { width: 44px; height: 44px; }
 .start-back { position: absolute; top: 8px; left: 8px; }
 .start-empty { display: flex; align-items: center; gap: 8px; }
 :deep(.composer-start) { border: 1px solid var(--line-strong); border-radius: 16px; background: var(--bg-raised); box-shadow: 0 4px 24px #0000000a; padding: 10px 14px 12px; min-height: 188px; }
@@ -187,7 +183,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
 @media (max-width: 899px) {
   .start-chat { padding: 48px 16px 16px; }
   .start-surface { max-width: var(--mobile-content-width); padding-block: 16px 8vh; }
-  .mobile-home { flex-direction: column; justify-content: flex-start; padding: 52px 24px 24px; }
+  .mobile-home { flex-direction: column; justify-content: flex-start; padding: 52px 16px 24px; }
   .mobile-home .start-surface { flex-shrink: 0; margin: auto; padding: 0; }
   :deep(.composer-mobile-actions .composer-start-selection) { flex: 1; min-width: 0; padding: 0; }
   .start-brand { gap: 12px; margin-bottom: 24px; }

@@ -8,7 +8,7 @@ import {
   Plus, RefreshCw, Search, Send, Settings, Settings2, Sparkles, Square,
   Sun, Moon, Terminal, Trash2, Wrench, X, Bell, Keyboard, Accessibility,
   Smartphone, AppWindow, Info, PanelLeft, Paperclip, Languages, TriangleAlert, LogOut, Wallet,
-  MessageCircleQuestionMark, Clock, Plug, Globe,
+  MessageCircleQuestionMark, Clock, Plug, Globe, Menu, ChevronsUpDown, Tag,
 } from '@lucide/vue';
 import { computed, type FunctionalComponent } from 'vue';
 
@@ -27,7 +27,7 @@ const ICONS: Record<string, FunctionalComponent> = {
   'panel-left': PanelLeft, paperclip: Paperclip, languages: Languages,
   'triangle-alert': TriangleAlert, 'file-diff': FileDiff, save: Save, 'external-link': ExternalLink,
   'log-out': LogOut, wallet: Wallet, 'message-circle-question': MessageCircleQuestionMark, clock: Clock,
-  plug: Plug, globe: Globe,
+  plug: Plug, globe: Globe, menu: Menu, 'chevrons-up-down': ChevronsUpDown, tag: Tag,
 };
 
 const props = defineProps<{ name: string }>();

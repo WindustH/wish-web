@@ -25,6 +25,5 @@ const emit = defineEmits<{ select: [key: string] }>();
 </template>
 
 <style scoped>
-.menu-item { display: flex; align-items: center; gap: 12px; }
-.menu-danger { color: var(--err); }
+.menu-danger, .menu-danger > :deep(.icon) { color: var(--err); }
 </style>

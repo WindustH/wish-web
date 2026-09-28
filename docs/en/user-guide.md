@@ -117,7 +117,7 @@ Click the model or reasoning chip at any time, even while the agent is working. 
 
 ## The session list
 
-On desktop the list sits on the left; the edge button collapses it and dragging the edge resizes it. On a phone the home screen shows the five most recent sessions and **View all sessions** opens the full list.
+On desktop the list is the sidebar on the left: the Wish name at the top with a button that collapses the sidebar (the edge button brings it back), the search box, **New session**, the sessions, and at the bottom the server you are connected to, which opens the app menu: **Settings**, **Stats**, **Account status** and **Sign out**. Dragging the edge resizes the sidebar. On a phone the home screen shows the five most recent sessions and **View all sessions** opens the full list; the app menu is the button at the top right of the home screen.
 
 - **Search sessions…** matches session names and IDs.
 - The dot shows the state: idle, running, queued or compacting. Tags appear next to the name.
@@ -126,7 +126,7 @@ On desktop the list sits on the left; the edge button collapses it and dragging 
 
 ## Statistics
 
-**Stats** shows usage across all sessions:
+**Stats**, from the app menu, shows usage across all sessions. It opens as a window on desktop and as a page on a phone:
 
 - An activity calendar of daily token use, with its own date range and a **Daily data** table. The time zone is shown underneath.
 - A chart per model with two metrics. **Estimated TPS** plots the streaming speed of every streamed request, sampled once per second. Tokens are *estimated* as received bytes ÷ 4, and stalls count as time. Outliers beyond ±2σ are hidden from the plot only. **Token usage** plots tokens over time. Choose **Day**, **Week**, **Month**, **Three months**, **Year** or **Custom dates…**, and click models in the legend to hide them.
@@ -138,13 +138,13 @@ The page refreshes every 30 seconds while it is open (the calendar every 5 minut
 
 ## Account status
 
-**Account status** shows what each provider says about your account: its balance, the plan it is on, and how much of each allowance window (per 5 hours, per week, per month) is used, with when it resets. On desktop it is the wallet button at the bottom of the navigation bar and opens as a window; on a phone it is the wallet button at the top right of the home screen and opens as a page.
+**Account status** shows what each provider says about your account: its balance, the plan it is on, and how much of each allowance window (per 5 hours, per week, per month) is used, with when it resets. It is in the app menu and opens as a window on desktop, as a page on a phone.
 
 It covers providers with an **Account protocol** (Settings → **Providers** → **Advanced settings**). Providers added from a preset that supports it have one already: DeepSeek, Zhipu / Z.AI coding plans, Kimi, MiniMax, SiliconFlow, OpenRouter, Hugging Face, ChatGPT sign-in and Qwen workspaces. The rest are listed at the bottom. The last reading shows at once and **Refresh** reads again. Amounts are shown as the service reported them; a service that reports no balance simply shows none.
 
 ## Settings
 
-Open **Settings** from the navigation bar or with Ctrl/⌘ + ,. It has five sections:
+Open **Settings** from the app menu or with Ctrl/⌘ + ,. It has five sections:
 
 - **Service & sessions**: defaults for new sessions (model, working directory, instructions, context compaction) and the shell.
 - **Providers**: model providers, their credentials and models, and the network proxy.
@@ -173,7 +173,7 @@ When a new version is deployed, **A new version is ready** appears: **Update now
 
 ## Signing out and switching servers
 
-The **Sign out** button sits above **Settings** in the desktop navigation bar and in the top-left corner of the phone home screen. After you confirm, Wish forgets the server it was using, clears the data it cached in this browser and shows **Connect to a Wish server**:
+**Sign out** is the last item of the app menu. After you confirm, Wish forgets the server it was using, clears the data it cached in this browser and shows **Connect to a Wish server**:
 
 - Leave **Server address** empty to use the server that provides this page, as before.
 - To use another Wish server, enter its address (for example `https://wish.example.com`) and its **Access token**. The browser then talks to that server directly, so one installed app can switch between servers.

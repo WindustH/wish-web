@@ -138,7 +138,6 @@ export const zh = {
   'manage.done': '已完成',
   'stats.queue': '队列',
   'stats.storage': '存储',
-  'stats.refresh': '刷新',
   'stats.tokensIn': '输入',
   'stats.tokensOut': '输出',
   'stats.tokensTotal': '总计',

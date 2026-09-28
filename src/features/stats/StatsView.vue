@@ -1,17 +1,28 @@
 <script setup lang="ts">
+// Statistics open over the page they were opened from: a window on a desktop, a page of their own
+// on a phone.
 import { pieDistribution } from '../usage/pieDistribution.ts';
 import Hint from '../../ui/components/Hint.vue';
-import { computed, defineAsyncComponent, onActivated, onDeactivated, provide, ref } from 'vue';
+import Icon from '../../ui/components/Icon.vue';
+import { computed, defineAsyncComponent, inject, onActivated, onDeactivated, provide, ref } from 'vue';
+import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
+import { useMedia } from '../../ui/composables/useMedia.ts';
+import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import { useDialogFocus } from '../../ui/composables/useDialogFocus.ts';
 import { modelColorIndex, modelColorKey } from '../usage/modelColors.ts';
 import UsageRangePicker from '../usage/UsageRangePicker.vue';
-import { RefreshCw } from '@lucide/vue';
 import { stats } from '../../core/state/statsSlice.ts';
 import { i18n } from '../../core/i18n/index.ts';
-import { fmtBytes, fmtDateTime, fmtTokens, fmtUptime } from '../../core/util/fmt.ts';
+import { fmtBytes, fmtTokens, fmtUptime } from '../../core/util/fmt.ts';
+import RefreshStamp from '../../ui/components/RefreshStamp.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 import { modelLabel } from '../../ui/modelLabel.ts';
 import { useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
 
+const isMobile = useMedia('(max-width: 899px)');
+const pageActive = usePageActivity();
+const focus = useDialogFocus();
+const close = inject<() => unknown>('closeOverlay')!;
 const UsagePlot = defineAsyncComponent(() => import('../usage/UsagePlot.vue'));
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 const charts = ref<{ refresh: () => void }>();
@@ -78,8 +89,18 @@ onDeactivated(stats.stopAuto);
 </script>
 
 <template>
+  <DialogRoot :open="pageActive" :modal="!isMobile" @update:open="open => { if (!open && !isMobile) close(); }">
+  <DialogPortal :disabled="isMobile">
+    <DialogOverlay v-if="!isMobile" class="statistics-overlay" />
+    <DialogContent as-child :aria-describedby="undefined" @open-auto-focus="focus.opened" @close-auto-focus="focus.closed">
+  <div class="statistics-window">
+    <header class="statistics-heading page-bar">
+      <button v-if="isMobile" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')" @click="close"><Icon name="arrow-left" /></button>
+      <DialogTitle class="statistics-title page-bar-title">{{ i18n.t('nav.stats') }}</DialogTitle>
+      <RefreshStamp :at="updatedAt" :loading="loading" @refresh="refresh" />
+      <button v-if="!isMobile" class="btn ghost icon-only" :aria-label="tx('关闭统计', 'Close statistics')" @click="close"><Icon name="x" /></button>
+    </header>
   <div class="page statistics-page" data-scroll-preserve>
-    <div class="statistics-toolbar"><span v-if="updatedAt" class="hint">{{ tx('更新于', 'Updated at') }} {{ fmtDateTime(updatedAt) }}</span><Hint :text="i18n.t('stats.refresh')"><button class="btn ghost icon-only" :disabled="loading" :aria-label="i18n.t('stats.refresh')" @click="refresh"><RefreshCw :size="17" /></button></Hint></div>
     <div class="statistics-body">
       <p v-if="error" class="load-error" role="alert">{{ errorMessage }}<span v-if="updatedAt">{{ tx('下方保留上次成功读取的数据。', 'The last successful snapshot remains below.') }}</span></p>
       <Spinner v-if="loading && !updatedAt" />
@@ -147,10 +168,34 @@ onDeactivated(stats.stopAuto);
       </div>
     </div>
   </div>
+  </div>
+    </DialogContent>
+  </DialogPortal>
+  </DialogRoot>
 </template>
 
 <style scoped>
-.statistics-page { padding: 0 clamp(24px, 4vw, 64px) 32px; }
+.statistics-window { display: flex; flex-direction: column; min-height: 0; background: var(--bg); }
+.statistics-page { flex: 1; min-height: 0; overflow: auto; padding: 0 clamp(24px, 4vw, 48px) 32px; }
+.statistics-overlay { position: fixed; inset: 0; z-index: 50; background: var(--scrim); backdrop-filter: blur(4px); animation: statistics-fade 180ms var(--ease-out); }
+.statistics-overlay[data-state='closed'] { animation: statistics-fade 160ms ease-in reverse forwards; pointer-events: none; }
+@media (min-width: 900px) {
+  .statistics-window { position: fixed; z-index: 51; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(1120px, 94vw); height: min(820px, 90dvh); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: var(--shadow-pop); overflow: hidden; animation: statistics-enter 180ms var(--ease-out); }
+  .statistics-window[data-state='closed'] { animation: statistics-exit 160ms ease-in forwards; }
+  .statistics-heading { display: flex; flex: none; align-items: center; gap: 8px; padding: 14px 16px 14px 28px; border-bottom: 1px solid var(--line); }
+  .statistics-title { flex: 1; margin: 0; font-size: 18px; font-weight: 600; line-height: 1.4; }
+  .statistics-heading .icon { width: 17px; height: 17px; }
+  .statistics-page { padding-top: 4px; }
+}
+@media (max-width: 899px) {
+  /* The phone's grouped look: cards one step above a sunken page. */
+  .statistics-window { position: absolute; inset: 0; background: var(--bg-sunken); }
+  .statistics-page { padding: 16px 16px 32px; }
+  .statistics-usage, .statistics-panel, .statistics-body :deep(.usage-chart-card) { border: 0; border-radius: 18px; background: var(--bg-group); }
+}
+@keyframes statistics-enter { from { opacity: 0; translate: 0 8px; scale: .985; } }
+@keyframes statistics-exit { to { opacity: 0; translate: 0 8px; scale: .985; } }
+@keyframes statistics-fade { from { opacity: 0; } }
 .statistics-page > * { width: 100%; max-width: 1100px; margin-inline: auto; }
 .statistics-body { padding: 0; min-width: 0; }
 .statistics-usage { min-width: 0; transition: opacity var(--dur-fast); }
@@ -172,7 +217,6 @@ onDeactivated(stats.stopAuto);
 @media (max-width:599px) { .statistics-models { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:2px 6px; } .statistics-model { padding-inline:6px; } .statistics-model .statistics-model-share { display:none; } .statistics-model-share-inline { display:inline; } }
 .statistics-model small { display:block; margin-top:2px; font-size:10px; color:var(--fg-subtle); }
 .statistics-model-dot { width:7px; height:7px; border-radius:50%; flex:none; }
-.statistics-toolbar { display: flex; flex: none; align-items: center; justify-content: end; gap: 12px; padding-block: 10px; }
 .statistics-grid { display: grid; gap: 20px; min-width: 0; margin-top: 20px; }
 .statistics-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; min-width: 0; }
 h2 { font: 600 16px/1.5 var(--font); margin: 0 0 16px; }
@@ -240,7 +284,6 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 @media (max-width: 450px) { .model-share { grid-template-columns: minmax(100px, 130px) minmax(0, 1fr); gap: 10px; } .model-share :deep(.usage-canvas) { height: 140px; } }
 @media (max-width: 599px) {
   .statistics-page { padding-inline: 20px; }
-  .statistics-toolbar { flex-wrap: wrap; gap: 6px; }
   .statistics-usage { padding: 16px 12px; }
   .model-share { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .model-share :deep(.usage-canvas) { height: 180px; }

@@ -32,7 +32,7 @@ function handleOutside(event: CustomEvent) {
   if ((event.detail.originalEvent.target as Element)?.closest?.('.pwa-update')) event.preventDefault();
 }
 
-const closeSettings = inject<() => unknown>('closeSettings')!;
+const closeSettings = inject<() => unknown>('closeOverlay')!;
 
 const sections = computed(() => [
   { id: 'service', icon: 'settings', label: tr('服务与会话', 'Service & sessions'),
@@ -133,10 +133,11 @@ onMounted(load);
     <DialogContent as-child :aria-describedby="undefined" @open-auto-focus="focus.opened" @close-auto-focus="focus.closed" @interact-outside="handleOutside">
   <div class="page native-settings">
     <aside v-show="!isMobile||!mobileSection" class="settings-sidebar">
-      <header class="settings-heading settings-home-heading">
-        <button v-if="isMobile" class="btn ghost icon-only settings-back" :aria-label="tr('返回','Back')" @click="closeSettings"><Icon name="arrow-left"/></button>
-        <DialogTitle class="settings-title">{{tr('设置','Settings')}}</DialogTitle>
+      <header class="settings-heading settings-home-heading page-bar">
+        <button v-if="isMobile" class="btn ghost icon-only" :aria-label="tr('返回','Back')" @click="closeSettings"><Icon name="arrow-left"/></button>
+        <DialogTitle class="settings-title page-bar-title">{{tr('设置','Settings')}}</DialogTitle>
       </header>
+      <div class="settings-sidebar-body">
       <nav :aria-label="tr('设置分类','Settings categories')">
         <button v-for="item in sections" :key="item.id" class="settings-section" :class="{selected:!isMobile&&tab===item.id}" :aria-current="tab===item.id?'page':undefined" @click="selectSection(item.id)">
           <span class="settings-section-icon"><Icon :name="item.icon"/></span>
@@ -145,11 +146,12 @@ onMounted(load);
         </button>
       </nav>
       <footer class="settings-brand" aria-hidden="true"><img src="/app-icons/mark.svg" alt=""/><Wordmark class="settings-brand-word"/><span>{{cfg.meta.appVersion}}</span></footer>
+      </div>
     </aside>
     <section v-show="!isMobile||mobileSection" :key="isMobile?mobileSection:'desktop'" class="settings-detail">
-    <header class="settings-heading">
+    <header class="settings-heading page-bar">
       <button v-if="isMobile" class="btn ghost icon-only" :aria-label="tr('返回设置','Back to settings')" @click="backToCategories"><Icon name="arrow-left"/></button>
-      <div class="settings-heading-text"><h2>{{current?.label}}</h2><p v-if="!isMobile">{{current?.description}}</p></div>
+      <div class="settings-heading-text"><h2 class="page-bar-title">{{current?.label}}</h2><p v-if="!isMobile">{{current?.description}}</p></div>
       <button v-if="!isMobile" class="btn ghost icon-only" :aria-label="tr('关闭设置','Close settings')" @click="closeSettings"><Icon name="x"/></button>
     </header>
     <div ref="content" class="settings-content" data-scroll-preserve>
@@ -222,7 +224,7 @@ onMounted(load);
 <style scoped>
 .native-settings { width: 100%; height: 100%; min-height: 0; margin: 0 auto; overflow: hidden; }
 .settings-sidebar { flex: none; display: flex; flex-direction: column; min-height: 0; }
-.settings-title { margin: 0; font-size: 16px; font-weight: 600; }
+.settings-sidebar-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .settings-sidebar nav { display: flex; flex-direction: column; gap: 2px; }
 .settings-section { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 10px 6px 6px; border: 0; border-radius: 9px; background: transparent; color: var(--fg-muted); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; transition: background var(--dur-fast), color var(--dur-fast); }
 .settings-section-icon { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 8px; color: var(--fg-subtle); transition: background var(--dur-fast), color var(--dur-fast); }
@@ -237,9 +239,8 @@ onMounted(load);
 .settings-brand span { margin-left: auto; font-size: 11px; color: var(--fg-faint); font-variant-numeric: tabular-nums; }
 
 .settings-detail { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
-.settings-heading { display: flex; align-items: center; gap: 12px; flex: none; }
+.settings-heading { display: flex; align-items: center; flex: none; }
 .settings-heading-text { flex: 1; min-width: 0; }
-.settings-heading h2 { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.4; }
 .settings-heading-text p { margin: 2px 0 0; font-size: 12px; line-height: 1.5; color: var(--fg-subtle); }
 .settings-content { flex: 1; min-height: 0; overflow: auto; }
 .settings-form { display: block; min-width: 0; margin: 0; padding: 0; border: 0; }
@@ -264,6 +265,9 @@ onMounted(load);
   .native-settings[data-state='closed'] { animation: settings-exit 180ms ease-in forwards; }
   .settings-overlay[data-state='closed'] { animation: settings-overlay-out 180ms ease-in forwards; pointer-events: none; }
   .settings-sidebar { width: 216px; padding: 20px 12px 16px; border-right: 1px solid var(--line); background: var(--bg-sunken); }
+  .settings-heading { gap: 12px; }
+  .settings-title { margin: 0; font-size: 16px; font-weight: 600; }
+  .settings-heading h2 { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.4; }
   .settings-home-heading { padding: 0 8px 16px; }
   .settings-brand { padding: 12px 8px 0; }
   .settings-detail > .settings-heading { padding: 18px 20px 14px 28px; border-bottom: 1px solid var(--line); }
@@ -275,27 +279,25 @@ onMounted(load);
 @media (max-width: 899px) {
   .native-settings { background: var(--bg-sunken); }
   /* Tablets keep the phone layout, centered at a readable width. */
-  .settings-sidebar { width: 100%; height: 100%; padding: 0 max(16px, calc((100% - 640px) / 2)) max(20px, env(safe-area-inset-bottom)); overflow: auto; }
-  .settings-home-heading { flex-direction: column; align-items: flex-start; gap: 2px; margin: 0 -16px 18px; padding: 6px 8px 0; }
-  .settings-home-heading .settings-title { padding: 0 16px; font-size: 28px; font-weight: 700; letter-spacing: -.01em; }
-  .settings-sidebar nav { gap: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-raised); overflow: hidden; }
-  .settings-section { min-height: 66px; padding: 12px 14px; gap: 14px; border-radius: 0; color: var(--fg); font-size: 15px; font-weight: 500; }
-  /* Dividers start after the icon, as in native grouped lists. */
-  .settings-section + .settings-section { background: linear-gradient(var(--line), var(--line)) right top / calc(100% - 62px) 1px no-repeat; }
-  .settings-section:active { background-color: var(--bg-hover); }
-  .settings-section-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
-  .settings-section-icon .icon { width: 18px; height: 18px; }
+  .settings-sidebar { width: 100%; height: 100%; }
+  .settings-sidebar-body { overflow: auto; padding: 20px max(16px, calc((100% - 640px) / 2)) max(20px, env(safe-area-inset-bottom)); }
+  /* A grouped list: rows one step above the page, parted by a sliver of it. */
+  .settings-sidebar nav { gap: 0; border: 0; border-radius: 18px; background: var(--bg-sunken); overflow: hidden; }
+  .settings-section { min-height: 66px; padding: 12px 14px; gap: 14px; border-radius: 0; background: var(--bg-group); background-clip: padding-box; color: var(--fg); font-size: 15px; font-weight: 500; }
+  .settings-section + .settings-section { border-top: 2px solid transparent; }
+  .settings-section:active { background-color: var(--bg-group-active); }
+  .settings-section-icon { width: 28px; height: 28px; border-radius: 0; background: none; color: var(--fg-muted); }
+  .settings-section-icon .icon { width: 21px; height: 21px; }
   .category-description { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--fg-subtle); }
   .section-chevron { flex: none; width: 16px; color: var(--fg-faint); }
   .settings-brand { flex-direction: column; justify-content: center; gap: 8px; padding: 40px 0 8px; }
   .settings-brand img { width: 40px; }
   .settings-brand-word { height: 18px; }
   .settings-brand span { margin: 0; }
-  .settings-detail > .settings-heading { min-height: 54px; padding: 6px 8px; gap: 4px; border-bottom: 1px solid var(--line); background: var(--bg); }
-  .settings-heading h2 { font-size: 17px; }
   .settings-content { padding: 20px max(16px, calc((100% - 640px) / 2)) max(32px, env(safe-area-inset-bottom)); }
   .native-settings[data-state='closed'] { animation: settings-page-out 180ms ease-in forwards; pointer-events: none; }
-  .provider-list { border: 1px solid var(--line); border-radius: 14px; background: var(--bg-raised); overflow: hidden; }
+  .provider-list { border: 0; border-radius: 18px; background: var(--bg-sunken); overflow: hidden; }
+  .provider-list > * + * { border-top: 2px solid transparent; }
 }
 @keyframes settings-exit { from { opacity: 1; translate: 0 0; scale: 1; } to { opacity: 0; translate: 0 8px; scale: .985; } }
 @keyframes settings-overlay-out { from { opacity: 1; } to { opacity: 0; } }

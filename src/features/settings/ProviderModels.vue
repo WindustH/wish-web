@@ -286,9 +286,11 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
 .model-form>details textarea{margin:0 0 14px;font-family:var(--mono);font-size:calc(12.5px * var(--mono-scale))}
 .model-row+.model-row{border-top:1px solid var(--line)}
 @media(max-width:899px){
-.models-editor{gap:0;border:1px solid var(--line);border-radius:14px;background:var(--bg-raised);overflow:hidden}
+.models-editor{gap:0;border:0;border-radius:18px;background:var(--bg-group);overflow:hidden}
+.models-editor .model-row+.model-row{border-top:2px solid var(--bg-sunken)}
 .models-editor>.hint{margin:0;padding:14px}
-.model-form{border-radius:14px}
+.model-form{border:0;border-radius:18px;background:var(--bg-group)}
+.model-form>*+:is(label,.model-field,.model-toggle,details){border-top:2px solid var(--bg-sunken)}
 .model-form>label,.model-form>.model-field,.model-form>.model-toggle{padding:12px 14px}
 .model-row{padding:12px 8px 12px 14px;gap:4px}
 .model-edit strong{font-size:14px}.model-title code,.model-fact{font-size:11px}

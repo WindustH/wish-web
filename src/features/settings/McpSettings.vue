@@ -89,8 +89,9 @@ function add() {
 .mcp-add-field small.problem { color: var(--err); }
 .mcp-add .input::placeholder { font-family: var(--font); }
 @media (max-width: 899px) {
-  .mcp-list { gap: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-raised); }
-  .mcp-list > .provider-add { border-top: 1px solid var(--line); }
-  .mcp-empty { border: 0; border-radius: 0; }
+  /* A grouped list: rows one step above the page, parted by a sliver of it. */
+  .mcp-list { gap: 0; overflow: hidden; border: 0; border-radius: 18px; background: var(--bg-sunken); }
+  .mcp-list > * + * { border-top: 2px solid transparent; }
+  .mcp-empty { border: 0; border-radius: 0; background: var(--bg-group); background-clip: padding-box; }
 }
 </style>

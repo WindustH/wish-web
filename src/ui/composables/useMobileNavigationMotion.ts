@@ -27,6 +27,8 @@ export function useMobileNavigationMotion() {
     await nextTick();
     if (current !== revision) return;
     if (depth(to) === depth(from)) return;
+    // All sessions opens out of the home page's recent rows instead (useRecentsExpansion).
+    if ([to.name, from.name].every(name => name === 'sessions' || name === 'all-sessions')) return;
     const distance = depth(to) > depth(from) ? 24 : -24;
     const nodes = to.meta.section === 'settings'
       ? document.querySelectorAll<HTMLElement>(to.query.section ? '.settings-detail' : '.settings-sidebar')

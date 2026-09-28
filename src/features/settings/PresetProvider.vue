@@ -260,8 +260,7 @@ function setCredential(field:string,value:string){
 @media(min-width:900px){.preset-section{gap:10px;padding-top:12px;margin-top:12px}.preset-section .inline{margin-top:0}.provider-form>.inline{margin-top:10px}.advanced-fields{gap:10px;padding-top:10px}}
 @media(max-width:899px){
  /* Providers are rows of one grouped list; dividers start after the icon. */
- .provider-item{padding:0;border:0;border-radius:0;background:transparent}
- .provider-item+.provider-item{background:linear-gradient(var(--line),var(--line)) right top/calc(100% - 62px) 1px no-repeat}
+ .provider-item{padding:0;border:0;border-radius:0;background:var(--bg-group);background-clip:padding-box}
  .provider-navigation{width:100%;min-height:64px;gap:14px}
  .provider-navigation .provider-mark,.provider-hero .provider-mark{width:34px;height:34px;border-radius:10px}
  .provider-navigation .provider-state{flex:none}
@@ -271,9 +270,9 @@ function setCredential(field:string,value:string){
  .provider-hero div{min-width:0}
  .provider-hero strong{display:block;font-size:19px;font-weight:600;line-height:1.35}
  .provider-hero small{display:block;margin-top:2px;font-size:12px;color:var(--fg-subtle);overflow-wrap:anywhere}
- .provider-form>.provider-name{display:block;margin-bottom:20px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--bg-raised);font-size:13px;color:var(--fg-muted)}
+ .provider-form>.provider-name{display:block;margin-bottom:20px;padding:12px 14px;border:0;border-radius:18px;background:var(--bg-group);font-size:13px;color:var(--fg-muted)}
  .provider-name .input{margin-top:8px}
- .mobile-provider-remove{width:100%;min-height:52px;margin-top:0;border:1px solid var(--line);border-radius:14px;background:var(--bg-raised);color:var(--err)}
+ .mobile-provider-remove{width:100%;min-height:52px;margin-top:0;border:0;border-radius:18px;background:var(--bg-group);color:var(--err)}
 }
 @media(max-width:899px){
  .provider-panel .preset-section{padding:0;gap:0;overflow:hidden}
@@ -284,7 +283,7 @@ function setCredential(field:string,value:string){
  .provider-panel .preset-section label>.hint{display:block;margin-top:8px;line-height:1.6}
  .provider-panel .preset-section>.chatgpt-login{padding:14px;border-top:1px solid var(--line)}
  .provider-panel .chatgpt-login>.btn{width:100%;min-height:44px;justify-content:center}
- .provider-panel .preset-section .mobile-settings-row{border-block:1px solid var(--line)}
+ .provider-panel .preset-section .mobile-settings-row{border-block:2px solid var(--bg-sunken)}
  .provider-panel .advanced-fields{gap:0}
 }
 @media(max-width:899px){

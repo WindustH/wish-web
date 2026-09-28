@@ -22,7 +22,8 @@ export const router = createRouter({
       children: [
         { path: '', redirect: '/sessions' },
         { path: 'sessions', name: 'sessions', component: StartChat },
-        { path: 'sessions/all', name: 'all-sessions', component: { render: () => null } },
+        // On a phone the full list is a sheet over the home page, which stays beneath it.
+        { path: 'sessions/all', name: 'all-sessions', component: StartChat },
         { path: 'new', name: 'new-chat', component: StartChat },
         {
           path: 's/:id',

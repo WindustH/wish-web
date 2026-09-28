@@ -18,7 +18,7 @@ const sections = computed(() => [
 const desktop = useMedia(`(min-width: ${cfg.breakpoints.desktop}px)`);
 // This page renders with the settings route; the router knows where navigation ended.
 const router = useRouter();
-const closeSettings = inject<() => Promise<unknown>>('closeSettings');
+const closeSettings = inject<() => Promise<unknown>>('closeOverlay');
 async function previewOnboarding() {
   // The desktop settings dialog is modal and would take every click meant for
   // the preview, so leave it first (unless the user keeps editing).
