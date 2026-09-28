@@ -49,8 +49,6 @@
   .sl-item:is(:hover, :has(:focus-visible), :has(.sl-menu-trigger[data-state="open"])) .sl-row { --sl-cover: 32px; }
   .sl-menu-trigger { position: absolute; top: 6px; right: 4px; margin: 0; }
 }
-.sl-menu .sl-delete, .sl-menu .sl-delete > .icon { color: var(--err); }
-.sl-menu-separator { height: 1px; background: var(--line); margin: 5px 8px; }
 .sl-status { margin-top: 7px; }
 .sl-status.idle { background: transparent; border: 1px solid var(--fg-faint); }
 @media (min-width: 900px) and ((hover: none) or (pointer: coarse)) {
@@ -95,10 +93,10 @@
 .entry .body { flex: 1; min-width: 0; }
 .message-context.assistant .entry.assistant .body { position: relative; isolation: isolate; transition: transform var(--dur) var(--ease-out); }
 .message-context.assistant .entry.assistant .body::before { content: ''; position: absolute; inset: -12px; z-index: -1; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--bg-sunken); box-shadow: inset 0 3px 8px rgb(0 0 0 / 10%); opacity: 0; transition: opacity var(--dur) var(--ease-out); pointer-events: none; }
-.message-context.assistant.open .entry.assistant .body { transform: translateY(3px); }
-.message-context.assistant.open .entry.assistant .body::before { opacity: 1; }
-.message-context.user.open .entry.user .bubble { transform: translateY(-4px); background: var(--bg-hover); box-shadow: 0 8px 18px rgb(0 0 0 / 14%); }
-.message-context.user.open .entry.user .bubble.attachment-bubble { background: transparent; box-shadow: none; }
+.message-context.assistant[data-state="open"] .entry.assistant .body { transform: translateY(3px); }
+.message-context.assistant[data-state="open"] .entry.assistant .body::before { opacity: 1; }
+.message-context.user[data-state="open"] .entry.user .bubble { transform: translateY(-4px); background: var(--bg-hover); box-shadow: 0 8px 18px rgb(0 0 0 / 14%); }
+.message-context.user[data-state="open"] .entry.user .bubble.attachment-bubble { background: transparent; box-shadow: none; }
 .entry .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 11px; line-height: 1.6; color: var(--fg-subtle); margin-top: 6px; font-variant-numeric: tabular-nums; }
 
 .entry.user .bubble img:first-child { margin-top: 0; }
