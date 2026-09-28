@@ -16,11 +16,10 @@ import App from './App.vue';
 import { router } from './router.ts';
 import { applyConnection, isSignedOut } from './core/connection.ts';
 
-import '@fontsource-variable/montserrat';
-import '@fontsource-variable/bitter';
-import '@fontsource-variable/bitter/wght-italic.css';
-import './styles/sarasa.css';
-import './styles/maple.css';
+import './generated/fonts/montserrat.css';
+import './generated/fonts/bitter.css';
+import './generated/fonts/sarasa.css';
+import './generated/fonts/maple.css';
 import './styles/math.css';
 import '@fontsource-variable/noto-serif-sc';
 import './styles/tokens.css';

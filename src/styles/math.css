@@ -8,7 +8,7 @@ https://github.com/stipub/stixfonts
 
 @font-face {
   font-family: STIX2;
-  src: url('../assets/fonts/stix/STIXTwoMath-Regular.woff2') format('woff2');
+  src: url('../generated/fonts/stix/STIXTwoMath-Regular.woff2') format('woff2');
   font-display: swap;
 }
 

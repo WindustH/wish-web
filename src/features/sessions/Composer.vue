@@ -377,7 +377,7 @@ const { startComposerDrag, resizeKeys } = useComposerDrag(sizing, height);
 </template>
 <style scoped>
 .composer-footer-start { margin-right:auto; min-width:0; max-width:calc(100% - 52px); }
-.composer-btw{height:32px;min-height:32px;padding:0 9px;flex:none;font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--fg-subtle)}
+.composer-btw{height:32px;min-height:32px;padding:0 9px;flex:none;font-size:11px;font-weight:var(--weight-latin-bold);letter-spacing:.05em;color:var(--fg-subtle)}
 .composer-btw[aria-expanded='true']{background:var(--bg-hover);color:var(--fg)}
 :global(.btw-bubble){--bubble-surface:var(--bg-raised);position:fixed;z-index:72;display:flex;flex-direction:column;width:min(460px,calc(100vw - 16px));height:min(440px,calc(100dvh - 120px));min-height:0;background:transparent;border:1px solid transparent;border-radius:14px;isolation:isolate;transform-origin:bottom left}
 :global(.btw-bubble > .ask-context){overflow:hidden;border-radius:inherit;background:var(--bg)}

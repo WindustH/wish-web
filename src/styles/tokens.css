@@ -43,6 +43,10 @@
   --mono: 'Maple Mono NF CN', ui-monospace, monospace;
   /* Mean A–Z/a–z ink height: Montserrat 400 / Maple Mono 400 ≈ 0.944. */
   --mono-scale: .944;
+  /* Latin labels meant to read bold. The calibrated fonts (tools/build-latin-fonts.py) set CSS 600
+     and 700 lighter, to match Chinese stems; these land Montserrat on its own 600 and 700. */
+  --weight-latin-semibold: 714;
+  --weight-latin-bold: 776;
   --space-xs: 4px; --space-s: 8px; --space-m: 12px; --space-l: 16px;
   --space-xl: 24px; --space-xxl: 32px;
   --icon: 18px;

@@ -6,7 +6,7 @@
 
 - Node.js 22.19 or newer, with Corepack. The tests import TypeScript files directly, which relies on Node's built-in type stripping.
 - A Wish server to talk to (see the [Wish server README](https://github.com/WindustH/wish-core#readme)); only the unit tests run without one.
-- Only for rebuilding fonts: Python 3 with `fontTools` and `brotli`, and `7z`.
+- For building: Python 3 with `fontTools`, `brotli` and NumPy, and `7z` (the fonts are generated at build time, see [Fonts](#fonts)).
 
 ## `./pnpmw`
 
@@ -64,9 +64,10 @@ src/
                                 toasts, PWA registration, shortcuts, notifications
   platform/                     adapters for storage, notifications, files, clipboard
                                 and app features, with the browser implementation
-  styles/  assets/fonts/        CSS and bundled fonts
+  styles/                       CSS
+  generated/fonts/              fonts generated at build time (not in the repository)
 public/                         manifest, icons, license texts
-tools/                          tests, API self-test, font build script
+tools/                          tests, API self-test, font pins and build scripts
 patches/                        dependency patches
 serve.ts                       production server
 ```
@@ -93,9 +94,8 @@ When upgrading either package, recreate the patch (`./pnpmw patch <package>`, th
 
 ## Fonts
 
-Sarasa Gothic SC (Chinese) and Maple Mono NF CN (code) are split into small WOFF2 files by Unicode range, so browsers download only the glyphs they need. To rebuild after changing a font:
+No font files are kept in the repository. `./pnpmw build` and `./pnpmw dev` first run `tools/fonts.py` (also `./pnpmw fonts` on its own), which downloads the sources pinned in `tools/fonts.json` (URL and SHA-256) into `.cache/fonts/`, checks them, and generates everything the app loads into `src/generated/fonts/`. The output is reused until the pins, the installed `@fontsource-variable` packages or the build scripts change; the first build takes a couple of minutes. To change a font, edit its pin (or the package version) and build.
 
-1. Download the archive named in `src/assets/fonts/<font>/source.json` into `.cache/fonts/`.
-2. Run `python3 tools/build-cjk-fonts.py sarasa` (or `maple`).
+Sarasa Gothic SC (Chinese) and Maple Mono NF CN (code) are split into small WOFF2 files by Unicode range, so browsers download only the glyphs they need (`tools/build-cjk-fonts.py`, which reuses the Unicode ranges of the installed Noto Serif SC package). STIX Two Math is used as downloaded. Licenses are listed in [THIRD_PARTY.md](../../THIRD_PARTY.md).
 
-The script writes the WOFF2 files and `source.json` into `src/assets/fonts/<font>/`, and the `@font-face` rules into `src/styles/<font>.css`. It reuses the Unicode ranges of the installed Noto Serif SC package, so run `./pnpmw install` first. Licenses are listed in [THIRD_PARTY.md](../../THIRD_PARTY.md).
+A CSS weight should give every font on a line the same stroke. The Chinese fonts set the scale: `tools/build-cjk-fonts.py` picks the static weight for each CSS weight. Montserrat and Bitter follow it: `tools/build-latin-fonts.py` takes them from `node_modules/@fontsource-variable/` with their weight mapping recalibrated. Latin labels meant to read bold use `--weight-latin-semibold` / `--weight-latin-bold`, which land Montserrat on its own 600 and 700. After changing any of these fonts, run `python3 tools/measure-font-weights.py` (needs NumPy and Pillow): it prints each face's stems per CSS weight and the Latin weights that match, which go into `tools/build-latin-fonts.py`.

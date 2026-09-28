@@ -70,7 +70,7 @@
 .chat-title .name { font: 600 18px/1.4 var(--font); overflow: hidden; text-overflow: clip; white-space: nowrap; }
 .model-selection { display: inline-flex; align-items: center; min-width: 0; max-width: 65%; flex-shrink: 0; gap: 1px; border-radius: 6px; transition: background var(--dur-fast); }
 .selection-dot { color: var(--fg-subtle); flex: none; }
-.model-chip, .reasoning-chip { display: inline-flex; align-items: center; min-width: 0; font-size: 12px; font-weight: 600; color: var(--fg-muted); background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 5px; cursor: pointer; }
+.model-chip, .reasoning-chip { display: inline-flex; align-items: center; min-width: 0; font-size: 12px; font-weight: var(--weight-latin-semibold); color: var(--fg-muted); background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 5px; cursor: pointer; }
 .model-chip { flex: 1 1 auto; }
 .reasoning-chip { flex: 0 1 auto; max-width: 120px; }
 .model-chip span, .reasoning-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

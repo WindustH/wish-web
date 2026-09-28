@@ -1,25 +1,31 @@
 #!/usr/bin/env python3
 """Build local CJK WOFF2 shards from pinned official font archives.
 
-Requires Python fontTools + Brotli and 7z. Download the archive into .cache/fonts
-from the URL in src/assets/fonts/<font>/source.json, then run this script.
+Run by tools/fonts.py, which passes the pinned archive it downloaded; the output goes to
+src/generated/fonts/. Requires Python fontTools + Brotli + NumPy and 7z.
 Uses the existing Noto Serif SC unicode partitions for common CJK characters;
 remaining glyphs are emitted in disjoint groups, preserving source coverage.
+
+Each CSS weight gets the static weight whose stems match the text beside it (see
+tools/measure-font-weights.py). Sarasa has no medium, so its 500 is Regular grown
+evenly by 10 units, halfway to SemiBold. Code sits inline at 0.944 em
+(--mono-scale), where Maple's Light and Medium carry the text's stems.
 """
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 import argparse
-import hashlib
-import json
 import re
 import subprocess
+import numpy as np
 from fontTools import subset
 from fontTools.ttLib import TTFont
+from fontTools.ttLib.tables._g_l_y_f import GlyphCoordinates
 
 ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / 'src/generated/fonts'
 FONTS = {
-    'sarasa': {'version':'1.0.41', 'archive':'SarasaGothicSC-TTF-Unhinted-1.0.41.7z', 'family':'Sarasa Gothic SC', 'prefix':'sarasa-sc', 'names':['SarasaGothicSC-Regular.ttf','SarasaGothicSC-SemiBold.ttf'], 'release':'https://github.com/be5invis/Sarasa-Gothic/releases/download/v1.0.41/'},
-    'maple': {'version':'7.9', 'archive':'MapleMono-NF-CN-unhinted.zip', 'family':'Maple Mono NF CN', 'prefix':'maple-mono', 'names':['MapleMono-NF-CN-Regular.ttf','MapleMono-NF-CN-SemiBold.ttf'], 'release':'https://github.com/subframe7536/maple-font/releases/download/v7.9/'},
+    'sarasa': {'family':'Sarasa Gothic SC', 'prefix':'sarasa-sc', 'faces':{400:('SarasaGothicSC-Regular.ttf',0),500:('SarasaGothicSC-Regular.ttf',10),600:('SarasaGothicSC-SemiBold.ttf',0),700:('SarasaGothicSC-Bold.ttf',0)}},
+    'maple': {'family':'Maple Mono NF CN', 'prefix':'maple-mono', 'faces':{400:('MapleMono-NF-CN-Light.ttf',0),600:('MapleMono-NF-CN-Medium.ttf',0)}},
 }
 
 
@@ -36,6 +42,38 @@ def unicode_ranges(points):
     return ','.join(runs)
 
 
+def embolden(font, strength):
+    """Grows every contour outward by strength/2 units along its miters, as FreeType's
+    FT_Outline_EmboldenXY does, but in place: advances and the glyph's centre stay put."""
+    glyf, hmtx = font['glyf'], font['hmtx']
+    half = strength / 2
+    for name in font.getGlyphOrder():
+        glyph = glyf[name]
+        if glyph.isComposite() or glyph.numberOfContours <= 0:
+            continue
+        points = np.array(glyph.coordinates, dtype=float)
+        contours = np.split(points, np.array(glyph.endPtsOfContours[:-1]) + 1)
+        area = sum(np.sum(p[:, 0] * np.roll(p[:, 1], -1) - np.roll(p[:, 0], -1) * p[:, 1]) for p in contours)
+        # TrueType outlines run clockwise around ink; normals point out of it on that side.
+        sign = 1.0 if area < 0 else -1.0
+        grown = []
+        for p in contours:
+            before, after = p - np.roll(p, 1, axis=0), np.roll(p, -1, axis=0) - p
+            lin, lout = np.hypot(*before.T), np.hypot(*after.T)
+            with np.errstate(invalid='ignore', divide='ignore'):
+                uin, uout = before / lin[:, None], after / lout[:, None]
+                d = np.sum(uin * uout, axis=1)
+                normals = sign * np.stack([-(uin[:, 1] + uout[:, 1]), uin[:, 0] + uout[:, 0]], axis=1)
+                turn = sign * (uout[:, 0] * uin[:, 1] - uout[:, 1] * uin[:, 0])
+                # a miter no longer than the shorter neighbouring segment keeps small details whole
+                shift = normals * np.where(half * turn <= np.minimum(lin, lout) * (1 + d), half / (1 + d), np.minimum(lin, lout) / turn)[:, None]
+            shift[(d <= -0.9375) | ~np.isfinite(shift).all(axis=1)] = 0
+            grown.append(p + shift)
+        glyph.coordinates = GlyphCoordinates([(int(round(x)), int(round(y))) for x, y in np.concatenate(grown)])
+        glyph.recalcBounds(glyf)
+        hmtx[name] = (hmtx[name][0], glyph.xMin)
+
+
 def build(job):
     source, weight, index, points, out, family, prefix, key = job
     font = TTFont(source, recalcTimestamp=False)
@@ -50,24 +88,25 @@ def build(job):
     font.save(Path(out) / name)
     font.close()
     ranges = unicode_ranges(points)
-    return f"@font-face {{ font-family: '{family}'; font-style: normal; font-weight: {weight}; font-display: swap; src: url('../assets/fonts/{key}/{name}') format('woff2'); unicode-range: {ranges}; }}\n"
+    return f"@font-face {{ font-family: '{family}'; font-style: normal; font-weight: {weight}; font-display: swap; src: url('./{key}/{name}') format('woff2'); unicode-range: {ranges}; }}\n"
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('font', choices=FONTS)
-    key = parser.parse_args().font
+    parser.add_argument('archive', type=Path, help='the pinned release archive (tools/fonts.json)')
+    arguments = parser.parse_args()
+    key, archive = arguments.font, arguments.archive
     config = FONTS[key]
-    archive = ROOT / '.cache/fonts' / config['archive']
-    out = ROOT / 'src/assets/fonts' / key
+    out = OUT / key
     out.mkdir(parents=True, exist_ok=True)
-    if key == 'maple':
-        expected = archive.with_suffix('.sha256').read_text().strip()
-        assert hashlib.sha256(archive.read_bytes()).hexdigest() == expected, 'Official archive checksum mismatch'
 
     destination = ROOT / '.cache/fonts' / (key+'-source')
-    names = config['names']
+    faces = config['faces']
+    names = sorted({name for name, _ in faces.values()})
     subprocess.run(['7z', 'e', '-y', str(archive), '-o'+str(destination), *names], check=True, stdout=subprocess.DEVNULL)
+    for stale in out.glob(f"{config['prefix']}-*.woff2"):
+        stale.unlink()
     css = (ROOT / 'node_modules/@fontsource-variable/noto-serif-sc/index.css').read_text()
     partitions = []
     for value in re.findall(r'unicode-range:\s*([^;]+)', css):
@@ -77,8 +116,14 @@ def main():
             points.update(range(int(limits[0],16),int(limits[-1],16)+1))
         partitions.append(points)
     jobs = []
-    for weight, name in zip((400,600), names):
+    for weight, (name, grow) in faces.items():
         source = destination / name
+        if grow:
+            with TTFont(source) as font:
+                embolden(font, grow)
+                font['OS/2'].usWeightClass = weight
+                source = destination / f'{source.stem}-{weight}.ttf'
+                font.save(source)
         with TTFont(source) as font:
             remaining = set(font.getBestCmap())
         groups = []
@@ -92,8 +137,7 @@ def main():
         jobs.extend((str(source),weight,i,points,str(out),config['family'],config['prefix'],key) for i,points in enumerate(groups))
     with ProcessPoolExecutor(max_workers=6) as pool:
         rules = list(pool.map(build,jobs))
-    (ROOT/f'src/styles/{key}.css').write_text('/* Generated by tools/build-cjk-fonts.py; OFL notice in public/licenses. */\n'+''.join(rules))
-    (out/'source.json').write_text(json.dumps({'version':config['version'],'url':config['release']+config['archive'],'archive_sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'weights':[400,600],'shards':len(jobs),'license':'OFL-1.1'},indent=2)+'\n')
+    (OUT/f'{key}.css').write_text('/* Generated by tools/build-cjk-fonts.py; OFL notice in public/licenses. */\n'+''.join(rules))
     print(f'Built {len(jobs)} disjoint WOFF2 shards ({sum(p.stat().st_size for p in out.glob("*.woff2"))} bytes).')
 
 if __name__ == '__main__':

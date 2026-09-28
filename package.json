@@ -11,8 +11,9 @@
   },
   "packageManager": "pnpm@12.3.4",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
-    "build": "vue-tsc --noEmit && vite build",
+    "fonts": "python3 tools/fonts.py",
+    "dev": "python3 tools/fonts.py && vite --host 127.0.0.1",
+    "build": "python3 tools/fonts.py && vue-tsc --noEmit && vite build",
     "typecheck": "vue-tsc --noEmit",
     "start": "node serve.ts",
     "selftest:api": "node tools/selftest-api.ts",

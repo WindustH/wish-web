@@ -6,7 +6,7 @@
 
 - Node.js 22.19 或更高版本，并启用 Corepack。测试会直接导入 TypeScript 文件，依赖 Node 内置的类型剥离功能。
 - 一个可以连接的 Wish 服务端（见 [Wish 服务端说明](https://github.com/WindustH/wish-core#readme)）。只有单元测试不需要它。
-- 仅重新生成字体时需要：装有 `fontTools` 和 `brotli` 的 Python 3，以及 `7z`。
+- 构建需要：装有 `fontTools`、`brotli` 和 NumPy 的 Python 3，以及 `7z`（字体在构建时生成，见[字体](#字体)）。
 
 ## `./pnpmw`
 
@@ -64,9 +64,10 @@ src/
                                 提示消息、PWA 注册、快捷键、通知
   platform/                     存储、通知、文件、剪贴板和应用功能的适配层，
                                 以及浏览器上的实现
-  styles/  assets/fonts/        样式和内置字体
+  styles/                       样式
+  generated/fonts/              构建时生成的字体（不进仓库）
 public/                         应用清单、图标、许可证文本
-tools/                          测试、API 自检、字体构建脚本
+tools/                          测试、API 自检、字体来源清单和构建脚本
 patches/                        依赖补丁
 serve.ts                       生产环境服务器
 ```
@@ -93,9 +94,8 @@ serve.ts                       生产环境服务器
 
 ## 字体
 
-更纱黑体 SC（Sarasa Gothic SC，中文）和 Maple Mono NF CN（代码）按 Unicode 区段拆成许多小的 WOFF2 文件，浏览器只下载用得到的字形。更换字体后重新生成：
+仓库里不保存任何字体文件。`./pnpmw build` 和 `./pnpmw dev` 会先运行 `tools/fonts.py`（也可以单独运行 `./pnpmw fonts`）：它把 `tools/fonts.json` 中固定的来源（地址和 SHA-256）下载到 `.cache/fonts/`，校验后把应用要加载的字体全部生成到 `src/generated/fonts/`。只要来源、已安装的 `@fontsource-variable` 包和构建脚本都没变，就直接复用上次的结果；第一次构建需要一两分钟。要更换字体，修改对应的来源（或包版本）后重新构建即可。
 
-1. 把 `src/assets/fonts/<字体>/source.json` 中记录的压缩包下载到 `.cache/fonts/`。
-2. 运行 `python3 tools/build-cjk-fonts.py sarasa`（或 `maple`）。
+更纱黑体 SC（Sarasa Gothic SC，中文）和 Maple Mono NF CN（代码）按 Unicode 区段拆成许多小的 WOFF2 文件，浏览器只下载用得到的字形（`tools/build-cjk-fonts.py`，借用已安装的 Noto Serif SC 包的 Unicode 区段划分）。STIX Two Math 按原样使用。许可证信息见 [THIRD_PARTY.md](../../THIRD_PARTY.md)。
 
-脚本会把 WOFF2 文件和 `source.json` 写入 `src/assets/fonts/<字体>/`，把 `@font-face` 规则写入 `src/styles/<字体>.css`。它借用已安装的 Noto Serif SC 包的 Unicode 区段划分，所以要先运行 `./pnpmw install`。许可证信息见 [THIRD_PARTY.md](../../THIRD_PARTY.md)。
+同一个 CSS 字重下，一行里各个字体的笔画应当一样粗。基准是中文字体：`tools/build-cjk-fonts.py` 为每个 CSS 字重选定静态字重。Montserrat 和 Bitter 向它看齐：`tools/build-latin-fonts.py` 从 `node_modules/@fontsource-variable/` 取出这两个字体并重新校准字重映射。本来就要显示为粗体的英文标签使用 `--weight-latin-semibold` / `--weight-latin-bold`，让 Montserrat 回到它自己的 600 和 700。改动其中任何字体后，运行 `python3 tools/measure-font-weights.py`（需要 NumPy 和 Pillow）：它按 CSS 字重列出各字体的笔画粗细，以及与之匹配的拉丁字重，把结果填进 `tools/build-latin-fonts.py`。
