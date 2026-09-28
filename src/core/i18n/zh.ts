@@ -21,7 +21,6 @@ export const zh = {
   'reasoning.customHint': '按 Enter 应用自定义推理强度，支持的值取决于模型。',
   'reasoning.unsupported': '此模型声明不支持推理，无法设置推理强度。',
 
-  'composer.resize': '拖动调整输入区高度',
   'composer.enterSends': 'Enter 发送，Shift + Enter 换行',
   'composer.modEnterSends': 'Ctrl / ⌘ + Enter 发送，Enter 换行',
   'phase.recovering': '恢复中',

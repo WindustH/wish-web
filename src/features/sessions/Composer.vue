@@ -22,10 +22,8 @@ import Icon from '../../ui/components/Icon.vue';
 import BubbleSurface from '../../ui/components/BubbleSurface.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import AskContext from './AskContext.vue';
-import { useComposerHeight } from './useComposerHeight.ts';
 import { useComposerAttachments, type Attachment } from './useComposerAttachments.ts';
 import { useBtwPopup } from './useBtwPopup.ts';
-import { useComposerDrag } from './useComposerDrag.ts';
 
 const props = defineProps<{
   sessionId: string;
@@ -69,25 +67,6 @@ function fill(v: string, attachmentsToFill?: any[]) {
 
 defineExpose({ focus: () => ta.value?.focus(), fill });
 
-const sizing = useComposerHeight(composerEl);
-const height = computed(() => sizing.height());
-const attachmentStrip = ref<HTMLElement | null>(null);
-const attachmentHeight = ref(0);
-
-// Add previews to the preferred editor height without persisting that extra space.
-watch(
-  attachmentStrip,
-  (el, _, onCleanup) => {
-    attachmentHeight.value = el?.offsetHeight ?? 0;
-    if (!el) return;
-    const observer = new ResizeObserver(() => {
-      attachmentHeight.value = el.offsetHeight;
-    });
-    observer.observe(el);
-    onCleanup(() => observer.disconnect());
-  },
-  { flush: 'post' },
-);
 
 const capsFailed = computed(() => caps.value?.status === 'error');
 const capsData = computed(() => (caps.value?.status === 'ok' ? caps.value.data : null));
@@ -171,12 +150,13 @@ const queueable = computed(
   () => running.value && (text.value.trim().length > 0 || attachments.value.length > 0),
 );
 
-// Mobile auto-grow textarea
+// In a conversation the input starts one line tall and grows with its text, up to a limit; the
+// start page's larger field keeps its own height.
 watch([editorText, () => props.mobile], async () => {
   await nextTick();
   const el = ta.value?.el;
   if (!el) return;
-  if (!props.mobile) {
+  if (props.start && !props.mobile) {
     el.style.height = '';
     el.style.overflowY = 'auto';
     return;
@@ -186,8 +166,8 @@ watch([editorText, () => props.mobile], async () => {
   const lineH = parseFloat(style.lineHeight);
   const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
   const maxPx = Math.min(
-    lineH * cfg.composer.mobileMaxRows + padding,
-    window.innerHeight * cfg.composer.mobileMaxHeightVh,
+    lineH * (props.mobile ? cfg.composer.mobileMaxRows : cfg.composer.desktopMaxRows) + padding,
+    window.innerHeight * cfg.composer.maxHeightVh,
   );
   el.style.height = Math.min(el.scrollHeight, maxPx) + 'px';
   el.style.overflowY = el.scrollHeight > maxPx ? 'auto' : 'hidden';
@@ -287,27 +267,21 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
-// Drag resize & keyboard step resize
-const { startComposerDrag, resizeKeys } = useComposerDrag(sizing, height);
 </script>
 
 <template>
-  <div ref="composerEl" class="composer" @click="focusComposerBlank" :class="[mobile ? 'mobile' : 'desktop', { 'composer-start': start }]"
-    :style="mobile || start ? undefined : { height: `${Math.min(sizing.max(), height + attachmentHeight)}px` }">
-    <Hint :text="i18n.t('composer.resize')" v-if="!mobile && !start"><div class="composer-resize" role="separator" tabindex="0" aria-orientation="horizontal"
-      :aria-label="i18n.t('composer.resize')" :aria-valuemin="sizing.min()" :aria-valuemax="sizing.max()"
-      :aria-valuenow="height"
-      @pointerdown="startComposerDrag" @keydown="resizeKeys" /></Hint>
+  <div ref="composerEl" class="composer" @click="focusComposerBlank" :class="[mobile ? 'mobile' : 'desktop', { 'composer-start': start }]">
     <div v-if="!mobile" class="composer-toolbar">
       <Hint :text="i18n.t('chat.image')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.image')"
         @click="pickAttachment('image', $event)"><Icon name="image" /></button></Hint>
       <Hint :text="i18n.t('chat.attach')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.attach')"
         @click="pickAttachment('file', $event)"><Icon name="paperclip" /></button></Hint>
       <button v-if="!start" ref="btwButton" type="button" class="btn ghost composer-btw" :aria-label="i18n.locale.value==='zh'?'BTW · 临时对话':'BTW · Temporary chat'" :aria-expanded="btwOpen" aria-haspopup="dialog" aria-controls="btw-bubble" @click="toggleBtw">BTW</button>
+      <slot name="tools" />
       <slot name="selection" />
       <div class="grow" />
     </div>
-    <div v-if="attachments.length > 0 && !btwMode" ref="attachmentStrip" class="attachment-preview">
+    <div v-if="attachments.length > 0 && !btwMode" class="attachment-preview">
       <div class="attach-strip">
       <div v-for="(img, i) in attachments" :key="img.localUrl" class="attach-thumb">
         <Hint v-if="img.kind === 'image'" :text="img.name"><img role="button" tabindex="0" aria-haspopup="dialog" :aria-expanded="attachmentPreview?.localUrl === img.localUrl" aria-controls="attachment-preview" @click="openAttachmentPreview(img, $event)" @keydown.enter.prevent="openAttachmentPreview(img, $event)" @keydown.space.prevent="openAttachmentPreview(img, $event)" :src="img.localUrl" :alt="img.name || i18n.t('chat.image')" /></Hint>
@@ -328,6 +302,7 @@ const { startComposerDrag, resizeKeys } = useComposerDrag(sizing, height);
       <Hint v-if="!btwMode" :text="i18n.t('chat.attach')"><button class="btn ghost icon-only"
         :aria-label="i18n.t('chat.attach')" @click="pickAttachment('file', $event)"><Icon name="paperclip" /></button></Hint>
       <button v-if="!start" ref="btwButton" type="button" class="btn ghost composer-btw" :aria-label="i18n.locale.value==='zh'?'BTW · 临时对话':'BTW · Temporary chat'" :aria-expanded="btwOpen" aria-haspopup="dialog" aria-controls="btw-bubble" @click="toggleBtw">BTW</button>
+      <slot v-if="!btwMode" name="tools" />
       <div v-if="start" class="composer-start-selection"><slot name="selection" /></div>
       <div v-else class="grow" />
     </div>
@@ -336,7 +311,7 @@ const { startComposerDrag, resizeKeys } = useComposerDrag(sizing, height);
         :placeholder="btwMode ? (i18n.locale.value==='zh'?'顺便问一下…':'By the way…') : running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')"
         :label="btwMode ? (i18n.locale.value==='zh'?'顺便问一下':'By the way') : i18n.t('chat.placeholder')" :text="editorText"
         @update:text="onEditorInput" @keydown="onKeydown" @paste="onEditorPaste" />
-      <Hint v-if="mobile && !btwMode && queueable" :text="i18n.t('chat.queueSend')"><button class="send-btn" :disabled="sending"
+      <Hint v-if="!start && !btwMode && queueable" :text="i18n.t('chat.queueSend')"><button class="send-btn" :disabled="sending"
         :aria-label="i18n.t('chat.queueSend')" @click="submit()">
         <Icon v-if="sending" name="loader-circle" class="spin" /><Icon v-else name="send" />
       </button></Hint>
@@ -345,14 +320,14 @@ const { startComposerDrag, resizeKeys } = useComposerDrag(sizing, height);
         @click="btwBusy ? btwChat?.stopAnswer() : submitBtw()">
         <Icon :name="btwBusy ? 'square' : 'send'" />
       </button></Hint>
-      <Hint v-else-if="mobile && !start" :text="i18n.t(running ? 'chat.stop' : 'chat.send')"><button class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
+      <Hint v-else-if="!start" :text="running ? `${i18n.t('chat.stop')}${mobile ? '' : ' (Esc)'}` : i18n.t('chat.send')"><button :aria-keyshortcuts="running && !mobile ? 'Escape' : undefined" class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
         :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')"
         @click="running ? onStop() : submit()">
         <Icon v-if="sending" name="loader-circle" class="spin" />
         <Icon v-else :name="running ? 'square' : 'send'" />
       </button></Hint>
     </div>
-    <div v-if="!mobile || start" class="composer-footer">
+    <div v-if="start" class="composer-footer">
       <div v-if="$slots['footer-start']" class="composer-footer-start"><slot name="footer-start" /></div>
       <Hint v-if="queueable" :text="i18n.t('chat.queueSend')"><button class="send-btn" :disabled="sending"
         :aria-label="i18n.t('chat.queueSend')" @click="submit()">

@@ -1,18 +1,20 @@
 <script setup lang="ts">
-// Queue dock: one row per message waiting for the running loop's next turn
-// boundary, rendered as the top of the composer's own surface. The protocol
-// has no in-place edit, so edit cancels the queued delivery and hands the
-// original text back to the composer (cancel-first is race-free: if the loop
-// already consumed it, nothing is refilled); delete is a plain cancel.
-// Refill travels as a callback prop, not an emit: the emit happens after an
-// await, and by then the row's removal (local or via the delivery SSE) has
-// unmounted this dock — Vue drops emits on unmounted instances.
+// Messages waiting for the running loop's next turn boundary. The composer's toolbar shows how many
+// wait - a clock and a count - and pressing it opens them in a bubble above, like BTW's. Rows reorder
+// by dragging, edit, or go. The protocol has no in-place edit, so edit cancels the queued delivery and
+// hands the original text back to the composer (cancel-first is race-free: if the loop already
+// consumed it, nothing is refilled); delete is a plain cancel. Refill travels as a callback prop, not
+// an emit: the emit happens after an await, and by then the row's removal (local or via the delivery
+// SSE) may have unmounted this component - Vue drops emits on unmounted instances.
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
+import { PopoverArrow, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui';
 import { i18n } from '../../core/i18n/index.ts';
 import { chat } from '../../core/state/chatSlice.ts';
 import { toast } from '../../ui/toast.ts';
 import Hint from '../../ui/components/Hint.vue';
 import Icon from '../../ui/components/Icon.vue';
+import BubbleSurface from '../../ui/components/BubbleSurface.vue';
+import MenuBackdrop from '../../ui/components/MenuBackdrop.vue';
 import { AnimatePresence, ReorderGroup, ReorderItem, useDragControls } from 'motion-v';
 
 const props = defineProps<{ items: any[]; refill: (text: string, attachments?: any[]) => void }>();
@@ -32,56 +34,37 @@ const tx=(zh:string,en:string)=>i18n.locale.value==='zh'?zh:en;
 // The run waits on an ask_user form; what is queued goes in once the form is answered.
 const awaitingAnswer=computed(()=>(chat.snapshot.value?.pending_questions??[]).some(form=>!form.timed_out));
 const shown=computed(()=>props.items);
-const expanded=ref(true);
-const dock=ref<HTMLElement>();
+const open=ref(false);
+const label=computed(()=>tx(`待发送消息（${shown.value.length} 条）`,`Queued messages (${shown.value.length})`));
+// A message joining the queue while the bubble is shut nudges the button.
+const trigger=ref<HTMLElement>();
 let arrivalAnimation:Animation|undefined;
 onUnmounted(()=>arrivalAnimation?.cancel());
 async function signalArrival(){
   await nextTick();
-  if(expanded.value||!dock.value)return;
+  if(open.value||!trigger.value)return;
   arrivalAnimation?.cancel();
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  arrivalAnimation=dock.value.animate([
-    {transform:'translateY(0)',backgroundColor:'var(--bg-raised)',color:'var(--fg-muted)'},
-    {transform:reduced?'translateY(0)':'translateY(-5px)',backgroundColor:'var(--accent-soft)',color:'var(--accent)',offset:.4},
-    {transform:'translateY(0)',backgroundColor:'var(--bg-raised)',color:'var(--fg-muted)'}
+  arrivalAnimation=trigger.value.animate([
+    {transform:'translateY(0)',color:'var(--fg-subtle)'},
+    {transform:reduced?'translateY(0)':'translateY(-3px)',color:'var(--accent)',offset:.4},
+    {transform:'translateY(0)',color:'var(--fg-subtle)'}
   ],{duration:reduced?240:360,easing:'ease-out'});
-}
-const animating=ref(false);
-let dockAnimation:Animation|undefined;
-onUnmounted(()=>dockAnimation?.cancel());
-async function setExpanded(open:boolean){
-  if(animating.value||expanded.value===open)return;
-  arrivalAnimation?.cancel();release();animating.value=true;
-  try{
-    const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if(open){expanded.value=true;await nextTick();}
-    const el=dock.value;
-    if(el&&!reduced){
-      const rect=el.getBoundingClientRect();
-      const parentLeft=el.offsetParent?.getBoundingClientRect().left??0;
-      const shift=parentLeft+parseFloat(getComputedStyle(el).left)-rect.left;
-      const full={transform:'scale(1)',opacity:1,borderRadius:'12px'};
-      const small={transform:`translateX(${shift}px) scale(${40/rect.width},${40/rect.height})`,opacity:.15,borderRadius:'20px'};
-      dockAnimation=el.animate(open?[small,full]:[full,small],{duration:200,easing:'cubic-bezier(.2,.7,.2,1)',fill:'forwards'});
-      try{await dockAnimation.finished;}catch{return;}
-    }
-    expanded.value=open;await nextTick();
-    dockAnimation?.cancel();dockAnimation=undefined;
-    if(open)void scrollLatest();
-  }finally{animating.value=false;}
 }
 let pendingScroll=false;
 async function scrollLatest(){
   await nextTick();
-  if(expanded.value&&list.value&&!moving.value){list.value.scrollTo({top:list.value.scrollHeight,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});pendingScroll=false;}
+  if(open.value&&list.value&&!moving.value){list.value.scrollTo({top:list.value.scrollHeight,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});pendingScroll=false;}
 }
-watch(()=>props.items.map(item=>item.id),(ids,previous)=>{if(ids.some(id=>!previous?.includes(id))){pendingScroll=true;void scrollLatest();if(!expanded.value)void signalArrival();}},{immediate:true});
-watch(expanded,open=>{if(open){pendingScroll=true;void scrollLatest();}});
-let pullStart:number|null=null;
-function startPull(event:PointerEvent){pullStart=event.clientY;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);}
-function pull(event:PointerEvent){if(pullStart!=null&&pullStart-event.clientY>20){pullStart=null;void setExpanded(true);}}
-function collapse(){void setExpanded(false);}
+watch(()=>props.items.map(item=>item.id),(ids,previous)=>{if(previous&&ids.some(id=>!previous.includes(id))){pendingScroll=true;void scrollLatest();void signalArrival();}});
+// The rows appear once the bubble has been placed, and fade in: rendered before, their layout
+// animation would fly them in from where the bubble was measured off screen.
+const placed=ref(false);
+watch(open,shown=>{
+  placed.value=false;
+  if(!shown){release();return;}
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{if(open.value){placed.value=true;pendingScroll=true;void scrollLatest();}}));
+});
 
 // Reordering is Motion's Reorder: it moves the order while a row is dragged, slides the others
 // out of the way, scrolls the list at its edges and settles the row into its slot on release.
@@ -150,26 +133,44 @@ async function edit(item: any) {
 </script>
 
 <template>
-  <section ref="dock" class="queue-dock" :class="{ collapsed: !expanded }" :aria-label="i18n.t('chat.queueTitle')" :aria-busy="busy||animating">
-    <button v-if="!expanded" class="queue-expand" :aria-label="tx('展开待发送消息','Expand queued messages')" :aria-expanded="false" :disabled="animating" @click.stop="setExpanded(true)" @pointerdown="startPull" @pointermove="pull" @pointerup="pullStart=null" @pointercancel="pullStart=null"><Icon name="chevron-up"/></button>
-    <div v-if="expanded" class="queue-expanded">
-    <header class="queue-heading"><span>{{tx('待发送','Queued')}} <small>{{shown.length}}</small></span><span v-if="awaitingAnswer" class="queue-note">{{tx('回答上面的问题后送达','Goes in once the questions above are answered')}}</span><button class="btn ghost icon-only queue-collapse" :aria-label="tx('收起队列','Collapse queue')" :aria-expanded="true" :disabled="animating" @click.stop="collapse"><Icon name="chevron-down"/></button></header>
-    <div ref="list" class="queue-scroll" @pointermove="slide" @pointerup="release" @pointercancel="release" @touchmove="holdStill">
-    <ReorderGroup v-model:values="order" as="div" axis="y" class="queue-list" role="list">
-    <AnimatePresence :initial="false" mode="popLayout">
-    <ReorderItem v-for="(item,index) in ordered" :key="item.id" :value="item.id" as="div" class="queue-item" :class="{dragging:moving===item.id}" role="listitem" tabindex="0"
-      :drag-listener="false" :drag-controls="controlsOf(item.id)" :initial="reduced?false:{opacity:0,y:8}" :animate="{opacity:1,y:0}" :exit="reduced?undefined:{opacity:0,x:16}"
-      @pointerdown="press($event,item)" @keydown="keyboardMove($event,item)" @drag-start="dragStart(item.id)" @drag-end="dragEnd(item.id)">
-
-      <span class="queue-position">{{index+1}}</span>
-      <span v-if="hasImages(item)" class="queue-images" role="img" :aria-label="i18n.t('chat.hasImages')"><Icon name="image"/></span>
-      <span class="queue-text" :data-hint="item.text">{{item.text||i18n.t('chat.queueUntitled')}}</span>
-      <Hint v-if="refillable(item)" :text="i18n.t('chat.queueEdit')"><button class="btn ghost icon-only" :disabled="busy||!!moving" :aria-label="i18n.t('chat.queueEdit')" @click="edit(item)"><Icon name="pencil"/></button></Hint>
-      <Hint :text="i18n.t('chat.queueRemove')"><button class="btn ghost icon-only" :disabled="busy||!!moving" :aria-label="i18n.t('chat.queueRemove')" @click="remove(item)"><Icon name="x"/></button></Hint>
-    </ReorderItem>
-    </AnimatePresence>
-    </ReorderGroup>
-    </div>
-    </div>
-  </section>
+  <PopoverRoot v-model:open="open">
+    <!-- A hint through data-hint, not Hint: a tooltip's popper around the trigger would take the anchor from the popover. -->
+    <PopoverTrigger as-child><button ref="trigger" type="button" class="btn ghost composer-queue" :aria-label="label" :data-hint="label">
+      <Icon name="queue" class="queue-glyph"/>
+      <span class="queue-badge">{{shown.length}}</span>
+    </button></PopoverTrigger>
+    <PopoverPortal>
+      <PopoverContent class="queue-bubble" :aria-label="label" side="top" align="start" :side-offset="10" :collision-padding="16" :aria-busy="busy" @open-auto-focus.prevent>
+        <BubbleSurface />
+        <header class="queue-heading"><span>{{tx('待发送','Queued')}} <small>{{shown.length}}</small></span><span v-if="awaitingAnswer" class="queue-note">{{tx('回答上面的问题后送达','Goes in once the questions above are answered')}}</span></header>
+        <div ref="list" class="queue-scroll" @pointermove="slide" @pointerup="release" @pointercancel="release" @touchmove="holdStill">
+          <ReorderGroup v-model:values="order" as="div" axis="y" class="queue-list" role="list">
+            <AnimatePresence v-if="placed" mode="popLayout">
+              <ReorderItem v-for="(item,index) in ordered" :key="item.id" :value="item.id" as="div" class="queue-item" :class="{dragging:moving===item.id}" role="listitem" tabindex="0"
+                :drag-listener="false" :drag-controls="controlsOf(item.id)" :initial="reduced?false:{opacity:0}" :animate="{opacity:1}" :exit="reduced?undefined:{opacity:0}"
+                @pointerdown="press($event,item)" @keydown="keyboardMove($event,item)" @drag-start="dragStart(item.id)" @drag-end="dragEnd(item.id)">
+                <span class="queue-position">{{index+1}}</span>
+                <span v-if="hasImages(item)" class="queue-images" role="img" :aria-label="i18n.t('chat.hasImages')"><Icon name="image"/></span>
+                <span class="queue-text" :data-hint="item.text">{{item.text||i18n.t('chat.queueUntitled')}}</span>
+                <Hint v-if="refillable(item)" :text="i18n.t('chat.queueEdit')"><button class="btn ghost icon-only" :disabled="busy||!!moving" :aria-label="i18n.t('chat.queueEdit')" @click="edit(item)"><Icon name="pencil"/></button></Hint>
+                <Hint :text="i18n.t('chat.queueRemove')"><button class="btn ghost icon-only" :disabled="busy||!!moving" :aria-label="i18n.t('chat.queueRemove')" @click="remove(item)"><Icon name="x"/></button></Hint>
+              </ReorderItem>
+            </AnimatePresence>
+          </ReorderGroup>
+        </div>
+        <PopoverArrow as-child :width="30" :height="9"><span data-bubble-anchor class="queue-tail-anchor" aria-hidden="true" /></PopoverArrow>
+      </PopoverContent>
+    </PopoverPortal>
+  </PopoverRoot>
+  <MenuBackdrop :open="open" @close="open = false" />
 </template>
+
+<style>
+/* A message bubble with a count on its corner: what is waiting, and how much. */
+.composer-queue { position: relative; width: 36px; height: 32px; min-height: 32px; padding: 0; flex: none; color: var(--fg-subtle); }
+.composer-queue .queue-glyph { display: block; width: 20px; height: 20px; }
+.composer-queue .queue-badge { position: absolute; top: 3px; right: 4px; min-width: 13px; height: 13px; padding: 0 3px; border-radius: 7px; background: var(--accent); color: var(--accent-fg); box-shadow: 0 0 0 1.5px var(--bg-raised); font: 600 8.5px/13px var(--font); font-variant-numeric: tabular-nums; text-align: center; }
+.composer-queue[data-state="open"] { color: var(--fg); background: var(--bg-hover); }
+.queue-bubble { --bubble-surface: var(--bg-overlay); z-index: 75; width: min(420px, calc(100vw - 32px)); max-height: min(380px, var(--reka-popover-content-available-height)); display: flex; flex-direction: column; border: 1px solid transparent; border-radius: 14px; background: transparent; color: var(--fg); isolation: isolate; transform-origin: var(--reka-popover-content-transform-origin); }
+.queue-tail-anchor { display: block; width: 30px; height: 9px; opacity: 0; pointer-events: none; }
+</style>

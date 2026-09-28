@@ -115,12 +115,9 @@ const goTab = (t: SessionTab) => {
       </Menu>
     </div>
     <ChatLog :session-id="id" :mobile="isMobile" />
-    <div class="queue-dock-anchor">
-      <Transition name="queue-dock">
-        <QueueDock v-if="queued.length > 0" :items="queued" :refill="onQueueEdit" />
-      </Transition>
-    </div>
-    <Composer ref="composerRef" :session-id="id" :mobile="isMobile" />
+    <Composer ref="composerRef" :session-id="id" :mobile="isMobile">
+      <template #tools><QueueDock v-if="queued.length > 0" :items="queued" :refill="onQueueEdit" /></template>
+    </Composer>
     <RouterView v-slot="{ Component, route: panelRoute }">
       <component :is="Component" v-if="isMobile" :key="panelRoute.fullPath" @close="closeTab(panelRoute.fullPath)" />
     </RouterView>

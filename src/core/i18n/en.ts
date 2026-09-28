@@ -21,7 +21,6 @@ export const en = {
   'reasoning.customHint': 'Press Enter to apply custom reasoning effort; supported values depend on the model.',
   'reasoning.unsupported': 'This model declares no reasoning support; reasoning effort cannot be set.',
 
-  'composer.resize': 'Drag to resize the message editor',
   'composer.enterSends': 'Enter to send, Shift + Enter for a new line',
   'composer.modEnterSends': 'Ctrl / ⌘ + Enter to send, Enter for a new line',
   'phase.recovering': 'Recovering',
