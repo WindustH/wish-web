@@ -165,9 +165,15 @@ importers:
       '@types/node':
         specifier: 22.20.2
         version: 22.20.2
+      '@types/postcss-pxtorem':
+        specifier: 6.1.0
+        version: 6.1.0
       '@vitejs/plugin-vue':
         specifier: 6.0.8
         version: 6.0.8(vite@8.2.2(@types/node@22.20.2)(terser@5.51.2))(vue@3.5.42(typescript@5.9.3))
+      postcss-pxtorem:
+        specifier: 6.1.0
+        version: 6.1.0(postcss@8.5.28)
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -1095,6 +1101,9 @@ packages:
   '@types/node@22.20.2':
     resolution: {integrity: sha512-xlvWf4Vs9n1PEVYwP1n4vvG07M6y8WgvJ2t0vbrWTmijsIHp1cS+uJ2kMIRdY3nHZK0nCYKrPeD171+SzF4/zw==}
 
+  '@types/postcss-pxtorem@6.1.0':
+    resolution: {integrity: sha512-kHsYTjQgllOfhi3J+xunjMKUZ3APARV/JYeOOcIVLhvPVS162S8Ir8LsZwioFFyYCSnQp+aisupiSaRWVwKyDA==}
+
   '@types/resolve@1.20.2':
     resolution: {integrity: sha512-60BCwRFOZCQhDncwQdxxeOEEkbc5dIMccYLwbxsS4TUNeVECQ/pBJ0j09mrHOl/JJvpRPGwO9SvE4nR2Nb/a4Q==}
 
@@ -1870,6 +1879,11 @@ packages:
   possible-typed-array-names@1.1.0:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
     engines: {node: '>= 0.4'}
+
+  postcss-pxtorem@6.1.0:
+    resolution: {integrity: sha512-ROODSNci9ADal3zUcPHOF/K83TiCgNSPXQFSbwyPHNV8ioHIE4SaC+FPOufd8jsr5jV2uIz29v1Uqy1c4ov42g==}
+    peerDependencies:
+      postcss: ^8.0.0
 
   postcss@8.5.28:
     resolution: {integrity: sha512-RRuzqDtt5Y9h3quz5hWhK+TPnsmVs6WwSU6LkJMeY4HstUEDuYTG8UJSdawMRzmzAtV+KEoG8N3Qg2qLy5vM/A==}
@@ -3258,6 +3272,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/postcss-pxtorem@6.1.0':
+    dependencies:
+      postcss: 8.5.28
+
   '@types/resolve@1.20.2': {}
 
   '@types/trusted-types@2.0.7': {}
@@ -4084,6 +4102,10 @@ snapshots:
   picomatch@4.0.7: {}
 
   possible-typed-array-names@1.1.0: {}
+
+  postcss-pxtorem@6.1.0(postcss@8.5.28):
+    dependencies:
+      postcss: 8.5.28
 
   postcss@8.5.28:
     dependencies:

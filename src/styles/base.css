@@ -1,6 +1,10 @@
 * { box-sizing: border-box; }
 html, body { height: 100%; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 html { overscroll-behavior-y: none; }
+/* Every font size is rem (written as px, converted at build), so this is the text size setting;
+   it follows the browser's own default size, and phones read a step larger. */
+html { font-size: calc(100% * var(--text-size, 1)); }
+@media (max-width: 899px) { html { font-size: calc(106.25% * var(--text-size, 1)); } }
 body {
   margin: 0; background: var(--bg); color: var(--fg);
   font: 400 14px/1.65 var(--font);

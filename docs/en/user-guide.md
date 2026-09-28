@@ -149,7 +149,7 @@ Open **Settings** from the app menu or with Ctrl/⌘ + ,. It has five sections:
 - **Service & sessions**: defaults for new sessions (model, working directory, instructions, context compaction) and the shell.
 - **Providers**: model providers, their credentials and models, and the network proxy.
 - **MCP**: the MCP servers sessions can call.
-- **Interface**: theme, language, input, notifications, installing the app and local data.
+- **Interface**: theme, text size, language, input, notifications, installing the app and local data. Text size is kept per device; a phone's standard size is a step larger than a computer's.
 - **Debug**: connection diagnostics and a preview of the first-run setup.
 
 The first three sections edit the server's configuration and take effect when you save; **Interface** options apply at once and stay in this browser. See [configuration](configuration.md) for every option.

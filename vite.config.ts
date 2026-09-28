@@ -8,6 +8,7 @@ const buildId = (() => {
   catch { return 'dev'; }
 })();
 import vue from '@vitejs/plugin-vue';
+import pxtorem from 'postcss-pxtorem';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
@@ -26,7 +27,10 @@ export default defineConfig({
         });
       },
     },
-  }] } },
+  },
+  // Font sizes are written in px and served in rem, so the text size setting scales them all.
+  pxtorem({ rootValue: 16, propList: ['font', 'font-size', 'line-height', 'letter-spacing', '--message-size'], minPixelValue: 2 }),
+  ] } },
   plugins: [
     vue(),
     VitePWA({

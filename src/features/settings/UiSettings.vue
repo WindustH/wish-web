@@ -26,7 +26,14 @@ const sections = computed(() => [
 const desktop = useMedia(`(min-width: ${cfg.breakpoints.desktop}px)`);
 const { mode } = theme;
 const { locale } = i18n;
-const { sendOnEnter, notifyOnFailure, keepAwake } = prefs;
+const { sendOnEnter, notifyOnFailure, keepAwake, textSize } = prefs;
+// Shares of this device's standard text size; a phone's standard is a step larger than a desktop's.
+const textSizes = computed(() => [
+  { value: '0.9', label: tr('小', 'Small') },
+  { value: '1', label: tr('标准', 'Standard') },
+  { value: '1.1', label: tr('大', 'Large') },
+  { value: '1.2', label: tr('特大', 'Larger') },
+]);
 const app = platform('app');
 const clearOpen = ref(false);
 const notificationsFailed = (error: unknown) => showError({ title: tr('无法开启通知', 'Could not turn on notifications'), error });
@@ -64,6 +71,7 @@ function clearPreferences() {
       <template #default="{ section }">
         <template v-if="section === 'appearance'">
           <div class="setting-row"><div><label for="ui-theme">{{ tr('主题', 'Theme') }}</label></div><SelectField mobile-page segmented id="ui-theme" :model-value="mode" :options="[{ value: 'auto', icon: 'monitor', label: tr('跟随系统', 'Follow system') }, { value: 'light', icon: 'sun', label: tr('浅色', 'Light') }, { value: 'dark', icon: 'moon', label: tr('深色', 'Dark') }]" @update:model-value="theme.setMode" /></div>
+          <div class="setting-row"><div><label for="ui-text-size">{{ tr('字体大小', 'Text size') }}</label></div><SelectField mobile-page segmented id="ui-text-size" :model-value="String(textSize)" :options="textSizes" @update:model-value="value => prefs.setTextSize(Number(value))" /></div>
           <div class="setting-row"><div><label for="ui-language">{{ tr('界面语言', 'Language') }}</label></div><SelectField mobile-page id="ui-language" :model-value="locale" :options="[{ value: 'zh', label: '中文' }, { value: 'en', label: 'English' }]" @update:model-value="i18n.setLocale" /></div>
         </template>
         <template v-if="section === 'input'">
