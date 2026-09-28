@@ -35,6 +35,7 @@ The header shows the session name and the model and reasoning chips. On the righ
 
 - Replies stream in as they are written. While the agent works, a status line shows what it is doing (**Thinking…**, **Writing response…**, the running tool, **Compacting context**).
 - Reasoning and tool calls between pieces of text fold into one **Process** block showing the number of steps. Expand it to see each step in order. Click a step for details: the command, its status and exit code, its output (long output is truncated, with the path of the full output file on the server), file changes as diffs, images the model looked at, and history lookups.
+- The agent reaches the servers from Settings → **MCP** by running `wish mcp` in the shell (`wish mcp list`, `wish mcp describe`, `wish mcp call`). Those calls appear as shell commands, with the servers' answers as their output.
 - Commands the agent runs in the background report back when they end: **Background shell completed**, **Background shell failed** or **Background shell terminated**. Click the chip for the command and its output.
 - Notices in the transcript: a red **Run failed** for a failed turn; amber **Retrying automatically**, **Upstream paused**, **Compaction retrying**, **Compaction re-splitting**, **Compaction struggling** and **Compaction recovered** while the server handles a problem itself; **Stopped** where a run was interrupted.
 - Replies render Markdown with math (TeX) and copy buttons on code blocks. Right-click a message (long-press on touch screens) for **Copy message**, or **Save image** on an image.
@@ -109,7 +110,7 @@ Click the model or reasoning chip at any time, even while the agent is working. 
 - **Context compaction**: **Compact automatically** on or off, and the three thresholds (**Compaction trigger tokens**, **Target tokens after compaction**, **Segment summary token threshold**). **Use the global defaults** resets them. These can only be saved while the session is idle (**Can be saved once the current run ends**).
 - **Compact now** compacts the context right away. It needs compaction to be configured for the session.
 - **Clear the context** continues from an empty context, keeping only the fixed instructions. The model no longer sees earlier turns, but the history stays searchable. It asks for confirmation.
-- **Tools**: switch **Shell** (commands in the working directory) and **Ask you questions** (the question cards above) for this session. These can only be saved while the session is idle.
+- **Tools**: switch **Shell** (commands in the working directory), **Ask you questions** (the question cards above) and **MCP servers** (servers from Settings → **MCP**, which the agent calls with `wish mcp` in the shell; switching it keeps the prompt cache) for this session. These can only be saved while the session is idle.
 - **Shell**, while the shell tool is on: **Follow the global setting**, or give this session its own shell program and arguments. This applies from the session's next command, even during a run.
 
 **Compact now** and **Clear the context** need an idle session. Changes to compaction, tools and the shell are applied with **Save**; **Discard** drops them.
@@ -143,14 +144,15 @@ It covers providers with an **Account protocol** (Settings → **Providers** →
 
 ## Settings
 
-Open **Settings** from the navigation bar or with Ctrl/⌘ + ,. It has four sections:
+Open **Settings** from the navigation bar or with Ctrl/⌘ + ,. It has five sections:
 
 - **Service & sessions**: defaults for new sessions (model, working directory, instructions, context compaction) and the shell.
 - **Providers**: model providers, their credentials and models, and the network proxy.
+- **MCP**: the MCP servers sessions can call.
 - **Interface**: theme, language, input, notifications, installing the app and local data.
 - **Debug**: connection diagnostics and a preview of the first-run setup.
 
-The first two sections edit the server's configuration and take effect when you save; **Interface** options apply at once and stay in this browser. See [configuration](configuration.md) for every option.
+The first three sections edit the server's configuration and take effect when you save; **Interface** options apply at once and stay in this browser. See [configuration](configuration.md) for every option.
 
 ## On a phone
 

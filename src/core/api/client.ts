@@ -28,6 +28,8 @@ export interface RequestOptions {
   headers?: Record<string, string>;
   /** Send `body` as is (bytes) instead of JSON. */
   raw?: boolean;
+  /** How long to wait, for the few calls that can take longer than the configured timeout. */
+  timeoutMs?: number;
 }
 
 // One backend base URL; browsers resolve the relative default against their origin.
@@ -94,7 +96,7 @@ async function problemFromBody(body: unknown, status: number) {
 }
 
 // Resolves to parsed JSON (raw server data), text, or null for 204.
-async function request(method: string, target: string, { body, query, signal, headers, raw }: RequestOptions = {}): Promise<any> {
+async function request(method: string, target: string, { body, query, signal, headers, raw, timeoutMs }: RequestOptions = {}): Promise<any> {
   const url = new URL(target);
   if (query) {
     for (const [k, v] of Object.entries(query)) {
@@ -109,7 +111,7 @@ async function request(method: string, target: string, { body, query, signal, he
   // pin every busy flag behind it forever, so every call carries the
   // configured timeout alongside the caller's signal. A timeout surfaces as
   // a retryable network error; a caller abort stays a plain AbortError.
-  const timeout = AbortSignal.timeout(cfg.api.requestTimeoutMs ?? 30_000);
+  const timeout = AbortSignal.timeout(timeoutMs ?? cfg.api.requestTimeoutMs ?? 30_000);
   let res;
   try {
     res = await fetch(url, {

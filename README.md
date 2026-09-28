@@ -51,6 +51,9 @@ a large monitor and on a phone.
 - **Set up in a minute.** A first-run guide with 48 provider presets, ChatGPT
   sign-in, a model editor, and proxy and shell settings, all applied without
   restarting the server.
+- **MCP servers, one click to check.** Add local or remote MCP servers, see
+  their tools or why they failed to start, and switch them on per session. The
+  agent calls them from its shell, so they never crowd its context.
 - **Made for phones too.** A dedicated mobile layout that can be installed as
   an app, with light and dark themes in English and Chinese.
 - **Fast with long histories.** Virtualized lists stay smooth in very long

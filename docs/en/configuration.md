@@ -2,13 +2,13 @@
 
 [Documentation](README.md) · [简体中文](../zh/configuration.md)
 
-The **Service & sessions** and **Providers** sections of Settings edit the Wish server's configuration file through `GET` and `PUT /api/config`. **Interface** changes only this browser. For every server field, including those the UI doesn't show, see the server's [configuration reference](https://github.com/WindustH/wish-core/blob/master/docs/configuration.md).
+The **Service & sessions**, **Providers** and **MCP** sections of Settings edit the Wish server's configuration file through `GET` and `PUT /api/config`. **Interface** changes only this browser. For every server field, including those the UI doesn't show, see the server's [configuration reference](https://github.com/WindustH/wish-core/blob/master/docs/configuration.md).
 
 ## Saving
 
 - Edits are a draft until you save them with **Save** at the bottom of the dialog (on a phone, when you leave the page). **Discard** restores the saved configuration. Closing with unsaved changes asks first: **Save & return**, **Discard** or **Keep editing**.
 - A saved change applies to the next operation without restarting the server. Calls already in flight keep the old settings (**Saved and applied. In-flight calls retain their configuration.**).
-- Secrets come back from the server as `<redacted>`. The UI shows **Configured; leave unchanged to retain**, and leaving such a field alone keeps the stored value. This applies to API keys, credentials, header values, OAuth tokens and the proxy password.
+- Secrets come back from the server as `<redacted>`. The UI shows **Configured; leave unchanged to retain**, and leaving such a field alone keeps the stored value. This applies to API keys, credentials, header values, OAuth tokens, the proxy password, and MCP servers' environment variables and headers.
 - If someone else saved the configuration since you opened it (the server answers `409`), Wish reads the latest version, reapplies only the fields you changed, and saves again. Where both sides changed the same field, your edit wins. You'll see **Configuration changed; local edits were merged and saved.**
 - `listen`, `data_dir` and `bearer_token_env` can only be changed in the file, followed by a restart of the server.
 
@@ -22,7 +22,7 @@ These are defaults for sessions created from now on; existing sessions keep thei
 | **Default reasoning effort** | `defaults.reasoning.effort` | **Upstream default** leaves it unset. |
 | **Working directory** | `defaults.cwd` | Absolute path on the server; the start page's initial choice. |
 | **Instructions** | `defaults.instructions` | Placed at the start of every new session. |
-| **Tools**: **Shell**, **Ask you questions** | `defaults.tools.shell`, `defaults.tools.ask_user` | The built-in tools new sessions start with. Each session can switch them in its own settings. |
+| **Tools**: **Shell**, **Ask you questions**, **MCP servers** | `defaults.tools.shell`, `defaults.tools.ask_user`, `defaults.tools.mcp` | The built-in tools new sessions start with. Each session can switch them in its own settings. **MCP servers** needs **Shell** on as well; switching it keeps the prompt cache. |
 | **Context compaction**: **Compaction trigger tokens**, **Target tokens after compaction**, **Segment summary token threshold** | `defaults.compaction.trigger_tokens`, `.target_tokens`, `.segment_tokens` | The section only appears when `defaults.compaction` exists in the file. |
 | **Shell**: **Program**, **Arguments** | `shell.program`, `shell.args` | See below. |
 
@@ -87,6 +87,29 @@ Each provider lists its models (**Models**). **Add model** opens the **Upstream 
 | **Username**, **Password** | `proxy.username`, `proxy.password` |
 
 **Environment variables** uses `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY` and `NO_PROXY` from the server process. The page lists the ones it sees, with credentials hidden. The proxy applies to provider requests; **Use proxy** turns it off per provider.
+
+## MCP
+
+**MCP servers** lists the servers sessions can call, from `mcp.servers`. The agent reaches them from a session's shell with the `wish mcp` command, so they never add to the model's tool list: adding or removing a server doesn't reset a conversation's prompt cache. A session needs **Shell** on. Turning **MCP servers** off for a session doesn't change what the model is sent either: the agent learns MCP is disabled when it runs the command, and is told you can enable it in the session's settings.
+
+Each server shows its name, whether it is a **Local program** or a **Remote server**, its command or URL, and what is known of it: how many tools it offers (expand **Tools** for their names and summaries), **Not connected yet**, or **Failed** with the reason and, under **Full message**, the server's own output. The refresh button connects to the saved server once and lists its tools; unsaved edits are saved first. **Add MCP server** asks for a name (letters, digits, `-` and `_`; the agent calls tools as `name/tool`) and a transport.
+
+| Setting | Server field |
+| --- | --- |
+| **Enabled** | `mcp.servers.<name>.enabled` |
+| **Transport**: **Local program** or **Remote server** | `transport`: `stdio` or `http` |
+| **Command**, **Arguments** (one per line) | `command`, `args` |
+| **Working directory** | `cwd`. Empty starts each session's instance in that session's working directory |
+| **Environment** | `env`, added to the server's own environment; often carries keys |
+| **URL** | `url` |
+| **Use a provider's key** | `auth_provider`: sends that provider's key as `Authorization: Bearer`, for a server that comes with a subscription the provider already has, such as Zhipu's search MCP with a GLM Coding Plan |
+| **Headers** | `headers` |
+| **Use proxy** | `proxy_enabled` |
+| **Instances**: **One per session** or **Shared by all sessions** | `scope`: `session` (recommended) or `shared`, for servers that keep no state |
+| **Close when idle** | `idle_timeout`, seconds; `0` keeps it open |
+| **Call timeout** | `timeout`, seconds without a result or progress |
+
+A server starts the first time a session calls it and closes after the idle time; the next call starts it again.
 
 ## Interface
 

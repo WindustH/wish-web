@@ -30,6 +30,7 @@ const returns=useSettingsReturn(()=>!!page.value,async()=>{if(await returns.conf
       <div class="set-card mobile-card">
         <div class="set-row inline toggle-row"><span class="set-label"><span>Shell</span><small>{{tr('在工作目录中执行命令','Run commands in the working directory')}}</small></span><SwitchRoot v-model="defaults.tools.shell" class="cfg-switch" aria-label="Shell"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
         <div class="set-row inline toggle-row"><span class="set-label"><span>{{tr('向你提问','Ask you questions')}}</span><small>{{tr('需要你决定时，给出选项或请你填写','Offer choices or ask you to fill in details when your call is needed')}}</small></span><SwitchRoot v-model="defaults.tools.ask_user" class="cfg-switch" :aria-label="tr('向你提问','Ask you questions')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
+        <div class="set-row inline toggle-row"><span class="set-label"><span>{{tr('MCP 服务器','MCP servers')}}</span><small>{{tr('允许在 Shell 里调用已配置的 MCP 服务器，切换不影响提示缓存','Let the shell reach the configured MCP servers. Switching keeps the prompt cache')}}</small></span><SwitchRoot v-model="defaults.tools.mcp" class="cfg-switch" :aria-label="tr('MCP 服务器','MCP servers')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
       </div>
       <p class="mobile-group-note">{{tr('新会话默认启用的内置工具。每个会话也可以在会话设置里单独开关。','Built-in tools new sessions start with. Each session can switch them in its own settings.')}}</p>
     </template>

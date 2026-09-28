@@ -8,6 +8,25 @@ type Rule = [RegExp, (...groups: string[]) => string];
 const phases: Record<string, string> = { connect: '连接', 'await headers': '等待响应', 'read body': '读取响应' };
 const secrets: Record<string, string> = { 'API key': 'API 密钥', 'refresh token': '刷新令牌', credential: '凭据', header: '请求头' };
 
+// What is wrong with one MCP server's configuration (server/mcp.rs), after its name.
+const mcpReasons: Rule[] = [
+  [/^timeout must be at least one second$/, () => '调用超时至少为 1 秒'],
+  [/^a stdio server needs a command$/, () => '本地服务器需要填写命令'],
+  [/^cwd must be an absolute path$/, () => '工作目录必须是绝对路径'],
+  [/^url must be valid$/, () => '地址格式不正确'],
+  [/^url must use http:\/\/ or https:\/\/$/, () => '地址必须以 http:// 或 https:// 开头'],
+  [/^the transport sets `(.+)` itself$/, name => `请求头 ${name} 由连接自动设置，不能手动填写`],
+  [/^set either an Authorization header or auth_provider$/, () => 'Authorization 请求头和“使用提供商的密钥”只能选一个'],
+  [/^auth_provider `(.+)` does not exist$/, id => `用于认证的提供商 ${id} 不存在`],
+];
+const mcpReason = (reason: string) => {
+  for (const [pattern, render] of mcpReasons) {
+    const match = pattern.exec(reason);
+    if (match) return render(...match.slice(1));
+  }
+  return reason;
+};
+
 const zh: Rule[] = [
   // Configuration saves (server/configuration.rs, server/config.rs).
   [/^configuration changed; reload before saving$/, () => '配置已在其他地方修改，请重新载入后再保存。'],
@@ -50,11 +69,23 @@ const zh: Rule[] = [
   [/^session is running$/, () => '会话正在运行，请等本轮运行结束后再试。'],
   [/^this session has no shell tool$/, () => '这个会话没有启用 Shell 工具。'],
   [/^could not start the shell: (.+)$/s, reason => `无法启动 Shell：${reason}`],
-  // Answers to ask_user (server/session/ask_user.rs).
+  // Answers to ask_user (tool/ask_user.rs).
   [/^the question is no longer open$/, () => '这个提问已经结束，不再接收回答。'],
   [/^the question is already answered$/, () => '这个提问已经回答过了。'],
   [/^answer at least one question, or skip the form$/, () => '请至少回答一个问题，或者选择跳过。'],
   [/^answer (\d+): (.+)$/, (index, reason) => `第 ${index} 个问题的回答无效：${reason}`],
+  // MCP servers (server/mcp.rs, mcp.rs).
+  [/^MCP server name `(.+)` may only use letters, digits, `-` and `_`$/, id => `MCP 服务器名称 ${id} 只能使用字母、数字、- 和 _。`],
+  [/^MCP server `(.+?)`: (.+)$/, (id, reason) => `MCP 服务器 ${id}：${mcpReason(reason)}。`],
+  [/^redacted MCP (env|headers) value `(.+)` has no stored value$/, (field, name) => `MCP ${field === 'env' ? '环境变量' : '请求头'} ${name} 显示为已隐藏，但服务器上没有保存它的值，请重新填写。`],
+  [/^no MCP server `(.+)`$/, id => `没有名为 ${id} 的 MCP 服务器。`],
+  [/^provider `(.+)` is not available$/, id => `提供商 ${id} 不可用，无法借用它的密钥。`],
+  [/^could not start `(.+?)`: (.+)$/s, (command, reason) => `无法启动 ${command}：${reason}`],
+  [/^the server failed to start: (.+)$/s, reason => `服务器启动失败：${reason}`],
+  [/^the server did not finish starting within (\d+) seconds(.*)$/s, (seconds, rest) => `服务器在 ${seconds} 秒内没有完成启动。${rest}`],
+  [/^could not connect: (.+)$/s, reason => `无法连接：${reason}`],
+  [/^the server did not answer the handshake within (\d+) seconds$/, seconds => `服务器在 ${seconds} 秒内没有回应握手。`],
+  [/^listing the tools failed: (.+)$/s, reason => `读取工具列表失败：${reason}`],
   // Model catalog and runtime failures.
   [/^model_list_path is not configured$/, () => '这个提供商没有配置模型列表路径。'],
   [/^server is shutting down$/, () => '服务正在关闭，请稍后重试。'],

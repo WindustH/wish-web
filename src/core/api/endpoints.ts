@@ -135,6 +135,22 @@ export type QuestionAnswer = { skipped: true } | { selected?: string[]; other?: 
 // (`now`) or, after a timeout, it went to the session as a message (`later`).
 export const answerQuestion = (id: string, body: { call_id: string; answers?: QuestionAnswer[]; skip?: boolean }): Promise<{ delivered: 'now' | 'later' | 'dropped' }> =>
   post(`${path(id)}/answer`, body);
+/** One tool as an MCP server defines it. */
+export interface McpTool { name: string; title?: string; description?: string; inputSchema?: unknown; annotations?: Record<string, unknown> }
+/** A configured MCP server and what is known of it. `tools` is null until it has connected once. */
+export interface McpServerStatus {
+  id: string;
+  instances: number;
+  server: { name: string | null; version: string | null } | null;
+  tools: McpTool[] | null;
+  error: string | null;
+  stderr: string | null;
+  checked_at: number | null;
+}
+export const mcpServers = (): Promise<McpServerStatus[]> => get('/mcp/servers');
+// Starts the saved server on a connection of its own and lists its tools.
+export const mcpCheck = (id: string): Promise<{ server: McpServerStatus['server']; tools: McpTool[]; stderr: string }> =>
+  post(`/mcp/servers/${encodeURIComponent(id)}/check`, {}, { timeoutMs: 150_000 });
 // `{program, args}` for the session's own shell, or null to follow the configured one.
 export const sessionSetShell = async (id: string, settings: ShellSettings | null) => sessionView(await put(`${path(id)}/shell`, settings));
 export const sessionCompact = (id: string) => post(`${path(id)}/compact`);

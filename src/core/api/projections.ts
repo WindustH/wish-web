@@ -27,7 +27,8 @@ export interface SessionDescriptor {
   shell_command?: { program: string; args: string[] | null };
   pending_selection?: unknown;
 }
-export interface ToolSwitches { shell: boolean; ask_user: boolean }
+/** `mcp` adds no tool of its own: the model reaches MCP servers with `wish mcp` in the shell. */
+export interface ToolSwitches { shell: boolean; ask_user: boolean; mcp: boolean }
 /** One question of an `ask_user` form, with its optional fields settled by the server. */
 export interface AskQuestion {
   type: 'choice' | 'text';

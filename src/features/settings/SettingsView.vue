@@ -16,6 +16,7 @@ import AddProvider from './AddProvider.vue';
 import PresetProvider from './PresetProvider.vue';
 import ServerProxySettings from './ServerProxySettings.vue';
 import ServerShellSettings from './ServerShellSettings.vue';
+import McpSettings from './McpSettings.vue';
 import './settings.css';
 import { useConfigDraft } from './useConfigDraft.ts';
 import Wordmark from '../../ui/components/Wordmark.vue';
@@ -40,6 +41,9 @@ const sections = computed(() => [
   { id: 'providers', icon: 'bot', label: tr('提供商', 'Providers'),
     summary: tr('连接、认证与模型管理', 'Connections, credentials and models'),
     description: tr('管理模型提供商、凭据与网络代理，保存后对新的调用生效。', 'Model providers, credentials and the network proxy. Saved changes apply to new calls.') },
+  { id: 'mcp', icon: 'plug', label: 'MCP',
+    summary: tr('会话可以调用的 MCP 服务器', 'MCP servers sessions can call'),
+    description: tr('智能体在会话的 Shell 里调用这些服务器。保存后从下一次调用开始生效。', 'Servers the agent calls from a session\'s shell. Saved changes apply from the next call.') },
   { id: 'ui', icon: 'settings-2', label: tr('界面', 'Interface'),
     summary: tr('外观、通知与本地偏好', 'Appearance, notifications and preferences'),
     description: tr('外观、输入与本地数据，只保存在这个浏览器中。', 'Appearance, input and local data, stored in this browser only.') },
@@ -167,6 +171,7 @@ onMounted(load);
           <div class="set-card">
             <div class="set-row toggle-row"><span class="set-label"><span>Shell</span><small>{{tr('在工作目录中执行命令','Run commands in the working directory')}}</small></span><SwitchRoot v-model="draft.defaults.tools.shell" class="cfg-switch" aria-label="Shell"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
             <div class="set-row toggle-row"><span class="set-label"><span>{{tr('向你提问','Ask you questions')}}</span><small>{{tr('需要你决定时，给出选项或请你填写','Offer choices or ask you to fill in details when your call is needed')}}</small></span><SwitchRoot v-model="draft.defaults.tools.ask_user" class="cfg-switch" :aria-label="tr('向你提问','Ask you questions')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
+            <div class="set-row toggle-row"><span class="set-label"><span>{{tr('MCP 服务器','MCP servers')}}</span><small>{{tr('允许在 Shell 里调用已配置的 MCP 服务器，切换不影响提示缓存','Let the shell reach the configured MCP servers. Switching keeps the prompt cache')}}</small></span><SwitchRoot v-model="draft.defaults.tools.mcp" class="cfg-switch" :aria-label="tr('MCP 服务器','MCP servers')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
           </div>
         </section>
         <section v-if="draft.defaults.compaction" class="set-section">
@@ -180,6 +185,7 @@ onMounted(load);
           <div class="set-card"><ServerShellSettings :value="draft.shell" :catalog="shells"/></div>
         </section>
       </fieldset>
+      <McpSettings v-else-if="tab==='mcp'" :config="draft" :providers="providerOptions" :save="save" :busy="busy" :dirty="serverDirty" :revision="revision"/>
       <div v-else class="provider-settings">
         <section class="set-section">
           <header class="set-section-head"><h3>{{tr('模型提供商','Model providers')}}</h3><p v-if="!isMobile">{{tr('选择预置服务商后填写密钥，也可以引用服务器环境变量。','Choose a preset, then enter credentials or reference server environment variables.')}}</p></header>

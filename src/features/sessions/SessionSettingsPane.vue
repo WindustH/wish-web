@@ -26,7 +26,7 @@ const running = computed(() => snapshot.value?.phase !== 'idle');
 type Compaction = { trigger_tokens: number; target_tokens: number; segment_tokens: number; [key: string]: unknown };
 type Shell = { program: string; args: string[] | null };
 const compaction = ref<Compaction | null>(null);
-const tools = ref<ToolSwitches>({ shell: false, ask_user: false });
+const tools = ref<ToolSwitches>({ shell: false, ask_user: false, mcp: false });
 const ownShell = ref(false);
 const shell = ref<Shell>({ program: '', args: null });
 const source = ref('');
@@ -39,7 +39,8 @@ function reset() {
   if (!current) return;
   loadedFor = current.id;
   compaction.value = current.config?.compaction ? structuredClone(current.config.compaction) : null;
-  tools.value = { shell: !!current.descriptor?.tools?.shell, ask_user: !!current.descriptor?.tools?.ask_user };
+  const switches = current.descriptor?.tools;
+  tools.value = { shell: !!switches?.shell, ask_user: !!switches?.ask_user, mcp: !!switches?.mcp };
   const own = current.descriptor?.shell_command;
   ownShell.value = !!own;
   shell.value = own ? { program: own.program ?? '', args: own.args ?? null } : { program: '', args: null };
@@ -159,6 +160,7 @@ async function act(kind: 'compact' | 'clear') {
       <div class="set-card">
         <div class="set-row inline toggle-row"><span class="set-label"><span>Shell</span><small>{{ running ? tr('运行结束后才能保存这项修改', 'Can be saved once the current run ends') : tr('在工作目录中执行命令', 'Run commands in the working directory') }}</small></span><SwitchRoot v-model="tools.shell" class="cfg-switch" aria-label="Shell"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
         <div class="set-row inline toggle-row"><span class="set-label"><span>{{ tr('向你提问', 'Ask you questions') }}</span><small>{{ running ? tr('运行结束后才能保存这项修改', 'Can be saved once the current run ends') : tr('需要你决定时，给出选项或请你填写', 'Offer choices or ask you to fill in details when your call is needed') }}</small></span><SwitchRoot v-model="tools.ask_user" class="cfg-switch" :aria-label="tr('向你提问', 'Ask you questions')"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
+        <div class="set-row inline toggle-row"><span class="set-label"><span>{{ tr('MCP 服务器', 'MCP servers') }}</span><small>{{ running ? tr('运行结束后才能保存这项修改', 'Can be saved once the current run ends') : tools.shell ? tr('允许在 Shell 里调用已配置的 MCP 服务器，切换不影响提示缓存', 'Let the shell reach the configured MCP servers. Switching keeps the prompt cache') : tr('需要先开启 Shell', 'Needs the shell on') }}</small></span><SwitchRoot v-model="tools.mcp" class="cfg-switch" :aria-label="tr('MCP 服务器', 'MCP servers')"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
       </div>
     </section>
 
