@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import Icon from '../../ui/components/Icon.vue';
 import { modelLabel } from '../../ui/modelLabel.ts';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, ref, toRef, watch } from 'vue';
-import { Image } from '@lucide/vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { errorText } from '../../core/config-editor.ts';
 import { presetBrand } from '../../ui/providerPresentation.ts';
@@ -52,7 +52,7 @@ async function apply(value: string) {
 <template>
   <CommandPanel ref="panel" :title="i18n.t('model.title')" :busy="saving" @close="emit('close')">
     <PickerList v-model="selected" :items="choices" :placeholder="i18n.t('model.search')" :disabled="saving || loading" @select="apply">
-      <template #suffix="{ itemKey }"><Hint :text="i18n.t('model.visionHint')" v-if="visionChoices.has(itemKey)"><span class="model-vision" :aria-label="i18n.t('model.vision')"><Image :size="13" aria-hidden="true" /></span></Hint></template>
+      <template #suffix="{ itemKey }"><Hint :text="i18n.t('model.visionHint')" v-if="visionChoices.has(itemKey)"><span class="model-vision" :aria-label="i18n.t('model.vision')"><Icon name="image" :size="13" aria-hidden="true" /></span></Hint></template>
       <template #status>
         <p v-if="snapshot?.running" class="command-status hint">{{ i18n.locale.value === 'zh' ? '修改从下一次模型请求开始生效，当前请求不会中断。' : 'Changes apply to the next model request without interrupting the current one.' }}</p>
         <div v-if="error" class="command-status load-error" role="alert">{{ conflict ? i18n.t('model.conflict') : errorText(error) }}<button class="btn ghost sm" :disabled="loading || saving" @click="reload">{{ i18n.t('common.retry') }}</button></div>

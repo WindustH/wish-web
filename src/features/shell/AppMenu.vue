@@ -19,8 +19,8 @@ const server = serverName();
 const mac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform);
 const items = computed<MenuItem[]>(() => [
   { key: 'settings', icon: 'settings', label: i18n.t('nav.settings'), shortcut: props.placement === 'sidebar' ? (mac ? '⌘,' : 'Ctrl+,') : undefined },
-  { key: 'stats', icon: 'chart-column', label: i18n.t('nav.stats') },
-  { key: 'account', icon: 'wallet', label: tr('账户状态', 'Account status') },
+  { key: 'stats', icon: 'stats', label: i18n.t('nav.stats') },
+  { key: 'account', icon: 'account', label: tr('账户状态', 'Account status') },
   { key: 'sign-out', icon: 'log-out', label: tr('退出登录', 'Sign out'), separator: true },
 ]);
 function choose(key: string) {

@@ -74,7 +74,7 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
     </article>
 
     <div v-if="!rows.length && !loading && !error" class="account-empty">
-      <Icon name="wallet" />
+      <Icon name="account" />
       <p>{{ tr('还没有提供商开启账户查询。', 'No provider has account readings turned on.') }}</p>
     </div>
     <p v-if="unconfigured.length" class="account-note account-unconfigured">

@@ -137,7 +137,7 @@ const stored = new Map<string, Draft[]>();
 <template>
   <div ref="card" class="question-card" :class="[`is-${state.kind}`, { answerable }]">
     <header class="question-head">
-      <Icon name="message-circle-question" />
+      <Icon name="question" />
       <span class="question-title">{{ questions.length > 1 ? tr(`向你提了 ${questions.length} 个问题`, `${questions.length} questions for you`) : tr('向你提问', 'A question for you') }}</span>
       <span class="question-status" :class="status.tone">{{ status.text }}</span>
     </header>

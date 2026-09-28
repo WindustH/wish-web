@@ -20,7 +20,6 @@ into `dist/`; the deployed client does not fetch libraries from a CDN.
 | vue-router | 4.6.4 | Routing and lazy pages | MIT |
 | reka-ui | 2.10.4 | Accessible interaction primitives | MIT |
 | @tanstack/vue-virtual | 3.13.37 | Dynamic list virtualization | MIT |
-| @lucide/vue | 1.43.0 | Icons, imported by name | ISC |
 | @lobehub/icons-static-svg | 1.95.0 | Local monochrome provider icons | MIT |
 | markdown-it | 15.0.1 | Markdown parsing | MIT |
 | dompurify | 3.4.15 | HTML sanitization | MPL-2.0 OR Apache-2.0 |
@@ -38,7 +37,7 @@ and `./pnpmw build` before deploying the compiled output.
 Official project documentation:
 [Vue](https://vuejs.org/), [Vue Router](https://router.vuejs.org/),
 [Reka UI](https://reka-ui.com/), [TanStack Virtual](https://tanstack.com/virtual),
-[Lucide](https://lucide.dev/), [markdown-it](https://github.com/markdown-it/markdown-it),
+[markdown-it](https://github.com/markdown-it/markdown-it),
 [LobeHub Icons](https://github.com/lobehub/lobe-icons),
 [DOMPurify](https://github.com/cure53/DOMPurify),
 [Vite](https://vite.dev/), [Vite PWA](https://vite-pwa-org.netlify.app/),

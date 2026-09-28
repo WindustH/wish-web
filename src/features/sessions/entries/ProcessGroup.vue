@@ -62,23 +62,25 @@ const stepIcon = (s: any) => {
     if (name?.startsWith('shell_')) return 'terminal';
     if (name === 'view_image') return 'image';
     if (name?.startsWith('history_')) return 'search';
-    return 'wrench';
+    if (name === 'ask_user') return 'question';
+    return 'tool';
   }
   if (s.block?.type === 'tool_call') {
     const name = s.block.name || s.block.tool_name;
     if (name?.startsWith('shell_')) return 'terminal';
     if (name === 'view_image') return 'image';
     if (name?.startsWith('history_')) return 'search';
-    return 'wrench';
+    if (name === 'ask_user') return 'question';
+    return 'tool';
   }
-  return 'brain';
+  return 'thinking';
 };
 </script>
 
 <template>
   <div class="proc-group" :data-seqs="steps.map((s: any) => s.kind === 'entry' ? s.entry.seq : s.fromSeq).filter((n: any) => n != null).join(' ')">
     <button class="proc-head" :aria-expanded="open" @click="open = !open">
-      <Icon :name="open ? 'chevron-down' : 'layers'" />
+      <Icon :name="open ? 'chevron-down' : 'steps'" />
       <span>{{ i18n.t('proc.title') }}</span><span class="proc-count">{{ steps.length }} {{ i18n.t('proc.stepsUnit') }}</span>
       <Icon class="proc-chevron" :class="{ expanded: open }" name="chevron-down" />
     </button>

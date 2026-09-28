@@ -37,7 +37,7 @@ onUnmounted(() => {
 <template>
   <div class="thinking-region">
     <button v-if="tool" class="thinking-tool" :aria-expanded="!collapsed" @click="toggle">
-      <Icon name="wrench" /><span>{{ i18n.t('entry.toolCall') }} · {{ tool }}</span><Icon :name="collapsed ? 'chevron-right' : 'chevron-down'" />
+      <Icon name="tool" /><span>{{ i18n.t('entry.toolCall') }} · {{ tool }}</span><Icon :name="collapsed ? 'chevron-right' : 'chevron-down'" />
     </button>
     <div class="thinking-fold" :class="{ collapsed }" :inert="collapsed">
       <div class="thinking-clip">

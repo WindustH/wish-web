@@ -4,7 +4,6 @@ import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { useVirtualizer } from '@tanstack/vue-virtual';
-import { ArrowDown } from '@lucide/vue';
 import { chat } from '../../core/state/chatSlice.ts';
 import { chatWorkIndicator } from './phaseIndicator.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -252,7 +251,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
     </div>
     <Hint :text="i18n.t('chat.jumpLatest')" v-if="showJump"><button type="button" class="jump-latest"
        :aria-label="i18n.t('chat.jumpLatest')" @click="jumpLatest">
-      <ArrowDown :size="20" aria-hidden="true" />
+      <Icon name="arrow-down" :size="20" aria-hidden="true" />
     </button></Hint>
   </div>
 </template>

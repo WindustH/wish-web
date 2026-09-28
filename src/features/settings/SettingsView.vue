@@ -35,19 +35,19 @@ function handleOutside(event: CustomEvent) {
 const closeSettings = inject<() => unknown>('closeOverlay')!;
 
 const sections = computed(() => [
-  { id: 'service', icon: 'settings', label: tr('服务与会话', 'Service & sessions'),
+  { id: 'service', icon: 'service', label: tr('服务与会话', 'Service & sessions'),
     summary: tr('默认模型、提示词与上下文', 'Model, instructions and context'),
     description: tr('新会话的默认模型、提示词、上下文压缩和命令执行环境。', 'Defaults for new sessions: model, instructions, context compaction and shell.') },
-  { id: 'providers', icon: 'bot', label: tr('提供商', 'Providers'),
+  { id: 'providers', icon: 'providers', label: tr('提供商', 'Providers'),
     summary: tr('连接、认证与模型管理', 'Connections, credentials and models'),
     description: tr('管理模型提供商、凭据与网络代理，保存后对新的调用生效。', 'Model providers, credentials and the network proxy. Saved changes apply to new calls.') },
-  { id: 'mcp', icon: 'plug', label: 'MCP',
+  { id: 'mcp', icon: 'mcp', label: 'MCP',
     summary: tr('会话可以调用的 MCP 服务器', 'MCP servers sessions can call'),
     description: tr('智能体在会话的 Shell 里调用这些服务器。保存后从下一次调用开始生效。', 'Servers the agent calls from a session\'s shell. Saved changes apply from the next call.') },
-  { id: 'ui', icon: 'settings-2', label: tr('界面', 'Interface'),
+  { id: 'ui', icon: 'appearance', label: tr('界面', 'Interface'),
     summary: tr('外观、通知与本地偏好', 'Appearance, notifications and preferences'),
     description: tr('外观、输入与本地数据，只保存在这个浏览器中。', 'Appearance, input and local data, stored in this browser only.') },
-  { id: 'debug', icon: 'wrench', label: tr('调试', 'Debug'),
+  { id: 'debug', icon: 'diagnostics', label: tr('调试', 'Debug'),
     summary: tr('连接诊断与引导预览', 'Diagnostics and setup preview'),
     description: tr('检查与服务器的连接，预览首次使用引导。这里不会修改任何配置。', 'Check the connection to the server and preview the first-run setup. Nothing here changes your configuration.') },
 ]);
@@ -228,7 +228,7 @@ onMounted(load);
 .settings-sidebar nav { display: flex; flex-direction: column; gap: 2px; }
 .settings-section { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 10px 6px 6px; border: 0; border-radius: 9px; background: transparent; color: var(--fg-muted); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; transition: background var(--dur-fast), color var(--dur-fast); }
 .settings-section-icon { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 8px; color: var(--fg-subtle); transition: background var(--dur-fast), color var(--dur-fast); }
-.settings-section-icon .icon { width: 16px; height: 16px; }
+.settings-section-icon .icon { width: 18px; height: 18px; }
 .settings-section-text { flex: 1; min-width: 0; }
 @media (hover: hover) { .settings-section:hover { background: var(--bg-hover); color: var(--fg); } }
 .settings-section.selected { background: var(--bg-raised); color: var(--fg); font-weight: 500; box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgb(0 0 0 / 5%); }

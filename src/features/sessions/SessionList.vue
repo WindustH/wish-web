@@ -96,9 +96,9 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
           @compositionend="composing = false; sessions.setQuery(query)" :placeholder="i18n.t('sessions.search')" :aria-label="i18n.t('sessions.search')" />
       </div>
       <Hint v-if="isMobile" :text="i18n.t('sessions.new')"><button class="btn icon-only sl-add" :aria-label="i18n.t('sessions.new')"
-        @click="router.push('/new')"><svg class="sl-add-glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 2.5C6.75 2.5 2.5 6.55 2.5 11.6c0 1.8.5 3.45 1.45 4.85L2.5 21.5l5.2-1.55C9 20.7 10.46 21 12 21c5.3 0 9.5-4.05 9.5-9.4 0-5.05-4.2-9.1-9.5-9.1Zm-.75 5.25h1.5v3h3v1.5h-3v3h-1.5v-3h-3v-1.5h3v-3Z" /></svg></button></Hint>
+        @click="router.push('/new')"><Icon name="new-session" class="sl-add-glyph" /></button></Hint>
     </div>
-    <button v-if="!isMobile" type="button" class="sl-new" @click="router.push('/new')"><span class="sl-new-icon"><svg class="sl-new-glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 2.5C6.75 2.5 2.5 6.55 2.5 11.6c0 1.8.5 3.45 1.45 4.85L2.5 21.5l5.2-1.55C9 20.7 10.46 21 12 21c5.3 0 9.5-4.05 9.5-9.4 0-5.05-4.2-9.1-9.5-9.1Zm-.75 5.25h1.5v3h3v1.5h-3v3h-1.5v-3h-3v-1.5h3v-3Z" /></svg></span>{{ i18n.t('sessions.new') }}</button>
+    <button v-if="!isMobile" type="button" class="sl-new" @click="router.push('/new')"><span class="sl-new-icon"><Icon name="new-session" class="sl-new-glyph" /></span>{{ i18n.t('sessions.new') }}</button>
     <div v-if="sessions.tagFilter.value" class="sl-filters" role="group" :aria-label="i18n.t('sessions.filter.group')">
       <span class="tag-chip">
         {{ sessions.tagFilter.value }}

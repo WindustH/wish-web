@@ -85,7 +85,7 @@ export const cfg = Object.freeze({
       "'Montserrat Variable', 'Sarasa Gothic SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif",
     monoFontStack: "'Maple Mono NF CN', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace",
     maxContentWidth: '46rem',         // chat column readability cap
-    iconSize: 18,                     // default icon px
+    iconSize: 20,                     // default icon px
     sessionListWidth: 256,            // desktop list pane px (default; user-resizable)
     sessionListWidthMin: 200,
     sessionListWidthMax: 520,

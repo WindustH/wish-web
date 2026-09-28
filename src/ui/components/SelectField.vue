@@ -7,7 +7,6 @@ import { computed, ref, watch } from 'vue';
 import Modal from './Modal.vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { ToggleGroupRoot, ToggleGroupItem, SelectRoot, SelectTrigger, SelectValue, SelectIcon, SelectPortal, SelectContent, SelectViewport, SelectItem, SelectItemText, SelectItemIndicator } from 'reka-ui';
-import { Check, ChevronDown } from '@lucide/vue';
 import { usePageActivity } from '../composables/usePageActivity.ts';
 
 defineOptions({ inheritAttrs: false });
@@ -41,14 +40,14 @@ watch(pageActive, active => { if (!active) open.value = false; });
     <button v-bind="$attrs" type="button" class="control-select" :disabled="unavailable" aria-haspopup="dialog" :aria-expanded="open" @click="open=true"><span class="select-option-label"><ProviderIcon v-if="selected?.brand" :brand="selected.brand"/><span>{{selected?.label||placeholder||'—'}}</span></span><Icon name="chevron-right"/></button>
     <Modal page content-class="mobile-settings-page mobile-choice-page" :open="open" :title="pickerTitle||String($attrs['aria-label']|| (i18n.locale.value==='zh'?'选择选项':'Choose an option'))" @close="open=false">
       <input v-if="searchable" v-model="query" class="input mobile-choice-search" type="search" :placeholder="searchPlaceholder" :aria-label="searchPlaceholder"/>
-      <div class="mobile-settings-list"><button v-for="option in filtered" :key="option.value" type="button" class="mobile-settings-row mobile-choice" :disabled="option.disabled" :aria-pressed="option.value===modelValue" @click="emit('update:modelValue',option.value);open=false"><ProviderIcon v-if="option.brand" :brand="option.brand"/><span>{{option.label}}<small v-if="option.annotation" class="row-preview">{{option.annotation}}</small></span><Check v-if="option.value===modelValue" :size="18"/></button></div>
+      <div class="mobile-settings-list"><button v-for="option in filtered" :key="option.value" type="button" class="mobile-settings-row mobile-choice" :disabled="option.disabled" :aria-pressed="option.value===modelValue" @click="emit('update:modelValue',option.value);open=false"><ProviderIcon v-if="option.brand" :brand="option.brand"/><span>{{option.label}}<small v-if="option.annotation" class="row-preview">{{option.annotation}}</small></span><Icon name="check" v-if="option.value===modelValue" :size="18"/></button></div>
       <p v-if="!filtered.length" class="mobile-group-note">{{emptyText||(i18n.locale.value==='zh'?'没有匹配的选项':'No matching options')}}</p>
     </Modal>
   </template>
   <SelectRoot v-else v-model:open="open" :model-value="selected" by="value" :disabled="unavailable" @update:model-value="option => emit('update:modelValue', (option as SelectOption).value)">
     <SelectTrigger v-bind="$attrs" class="control-select">
       <SelectValue :placeholder="placeholder"><span class="select-option-label"><ProviderIcon v-if="selected?.brand" :brand="selected.brand" /><span>{{ selected?.label || placeholder }}</span></span></SelectValue>
-      <SelectIcon as-child><ChevronDown :size="16" aria-hidden="true" /></SelectIcon>
+      <SelectIcon as-child><Icon name="chevron-down" :size="16" aria-hidden="true" /></SelectIcon>
     </SelectTrigger>
     <SelectPortal v-if="pageActive">
       <SelectContent class="control-select-popover" position="popper" :side-offset="5" :collision-padding="12">
@@ -61,7 +60,7 @@ watch(pageActive, active => { if (!active) open.value = false; });
             <span class="select-option-trailing">
               <span v-if="option.annotation" class="select-option-annotation">{{ option.annotation }}</span>
               <InfoHint v-if="option.description" :text="option.description" :label="option.description" :focusable="false" />
-              <span class="select-option-check"><SelectItemIndicator><Check :size="15" aria-hidden="true" /></SelectItemIndicator></span>
+              <span class="select-option-check"><SelectItemIndicator><Icon name="check" :size="15" aria-hidden="true" /></SelectItemIndicator></span>
             </span>
           </SelectItem>
           <p v-if="!filtered.length" class="select-empty">{{ emptyText }}</p>

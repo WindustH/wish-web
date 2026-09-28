@@ -104,12 +104,12 @@ const goTab = (t: SessionTab) => {
         <Hint :text="i18n.t('chatbar.search')"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.search')"
           :class="{ selected: tab === 'search' }" data-session-panel="search" :aria-pressed="tab === 'search'" @click="goTab('search')"><Icon name="search" /></button></Hint>
         <Hint :text="i18n.t('chatbar.settings')"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.settings')"
-          :class="{ selected: tab === 'settings' }" data-session-panel="settings" :aria-pressed="tab === 'settings'" @click="goTab('settings')"><Icon name="settings-2" /></button></Hint>
+          :class="{ selected: tab === 'settings' }" data-session-panel="settings" :aria-pressed="tab === 'settings'" @click="goTab('settings')"><Icon name="tune" /></button></Hint>
       </template>
       <Menu v-else :items="[
         { key: 'info', icon: 'info', label: i18n.t('chatbar.info') },
         { key: 'search', icon: 'search', label: i18n.t('chatbar.search') },
-        { key: 'settings', icon: 'settings-2', label: i18n.t('chatbar.settings') },
+        { key: 'settings', icon: 'tune', label: i18n.t('chatbar.settings') },
       ]" :label="i18n.t('chatbar.more')" @select="goTab($event as SessionTab)">
         <Icon name="ellipsis-vertical" />
       </Menu>

@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import { onBeforeUnmount, ref, watch } from "vue";
 import { usePageActivity } from '../composables/usePageActivity.ts';
 const pageActive = usePageActivity();
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
-import { X } from '@lucide/vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { useDialogLayer } from '../composables/useDialogLayer.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
@@ -52,7 +52,7 @@ defineExpose({ close });
         @escape-key-down="event => { if (busy) event.preventDefault(); }"
         @interact-outside="event => { if (busy) event.preventDefault(); }">
         <DialogTitle class="visually-hidden">{{ title }}</DialogTitle>
-        <button class="command-close btn ghost icon-only" :aria-label="i18n.t('common.close')" :disabled="busy" @click="close"><X :size="18" /></button>
+        <button class="command-close btn ghost icon-only" :aria-label="i18n.t('common.close')" :disabled="busy" @click="close"><Icon name="x" :size="18" /></button>
         <slot />
       </DialogContent>
     </DialogPortal>

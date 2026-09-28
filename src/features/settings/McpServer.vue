@@ -126,7 +126,7 @@ async function check() {
       <Icon name="triangle-alert" /><div><p>{{ errorSummary }}</p><details><summary>{{ tr('完整信息', 'Full message') }}</summary><pre>{{ status.error }}</pre></details></div>
     </div>
     <AnimatedDetails v-if="!isMobile && tools?.length" class="mcp-tools">
-      <summary><span class="mcp-tools-label"><Icon name="wrench" />{{ tr('工具', 'Tools') }}</span><span class="mcp-tool-count">{{ tools.length }}</span><Icon name="chevron-down" class="mcp-tools-chevron" /></summary>
+      <summary><span class="mcp-tools-label"><Icon name="tool" />{{ tr('工具', 'Tools') }}</span><span class="mcp-tool-count">{{ tools.length }}</span><Icon name="chevron-down" class="mcp-tools-chevron" /></summary>
       <ul><li v-for="tool in tools" :key="tool.name"><code>{{ tool.name }}</code><span>{{ summary(tool.description) }}</span></li></ul>
     </AnimatedDetails>
 

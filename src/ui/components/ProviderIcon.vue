@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import { computed } from 'vue';
-import { Server } from '@lucide/vue';
 import deepseek from '@lobehub/icons-static-svg/icons/deepseek.svg?url';
 import mimo from '@lobehub/icons-static-svg/icons/xiaomimimo.svg?url';
 import zai from '@lobehub/icons-static-svg/icons/zai.svg?url';
@@ -32,7 +32,7 @@ const maskImage = computed(() => `url("${source.value}")`);
 
 <template>
   <span v-if="source" class="provider-icon" :style="{ maskImage }" aria-hidden="true" />
-  <Server v-else class="provider-icon-fallback" :size="20" aria-hidden="true" />
+  <Icon name="providers" v-else class="provider-icon-fallback" :size="20" aria-hidden="true" />
 </template>
 
 <style scoped>

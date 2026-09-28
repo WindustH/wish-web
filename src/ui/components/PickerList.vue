@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import { computed } from 'vue';
 import { ListboxRoot, ListboxFilter, ListboxContent, ListboxItem, ListboxVirtualizer, ListboxItemIndicator } from 'reka-ui';
-import { Check, Search } from '@lucide/vue';
 import { i18n } from '../../core/i18n/index.ts';
 import ProviderIcon from './ProviderIcon.vue';
 
@@ -27,7 +27,7 @@ const listFingerprint = computed(() => `${query.value}|${filtered.value.length}|
 
 <template>
   <ListboxRoot v-model="selected" class="picker" :disabled="disabled" selection-behavior="replace">
-    <div class="picker-search"><Search :size="16" aria-hidden="true" /><ListboxFilter v-model="query" data-initial-focus :placeholder="placeholder" :aria-label="placeholder" autocomplete="off" /></div>
+    <div class="picker-search"><Icon name="search" :size="16" aria-hidden="true" /><ListboxFilter v-model="query" data-initial-focus :placeholder="placeholder" :aria-label="placeholder" autocomplete="off" /></div>
     <slot name="status" />
     <!-- Reka caches virtual rows by index. A changed result set must reset
          both memoized options and the measured group offsets/scroll position. -->
@@ -41,7 +41,7 @@ const listFingerprint = computed(() => `${query.value}|${filtered.value.length}|
               <ProviderIcon v-if="!rows.get(option)!.group && icons !== false" :brand="rows.get(option)!.brand" />
               <div class="picker-label"><span>{{ rows.get(option)!.title }}</span><small v-if="rows.get(option)!.description">{{ rows.get(option)!.description }}</small></div>
               <slot name="suffix" :item-key="option" />
-              <span class="picker-check"><ListboxItemIndicator><Check :size="16" aria-hidden="true" /></ListboxItemIndicator></span>
+              <span class="picker-check"><ListboxItemIndicator><Icon name="check" :size="16" aria-hidden="true" /></ListboxItemIndicator></span>
             </div>
           </ListboxItem>
         </template>

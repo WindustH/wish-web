@@ -16,8 +16,8 @@
 .btn.danger { color: var(--err); }
 .btn.icon-only { width: 36px; padding: 0; }
 .btn.sm { height: 30px; padding-inline: 10px; font-size: 12px; }
-.icon { width: var(--icon); height: var(--icon); stroke-width: 1.6; flex: none; }
-.icon.sm { width: 14px; height: 14px; }
+.icon { width: var(--icon); height: var(--icon); stroke-width: 2; flex: none; }
+.icon.sm { width: 16px; height: 16px; }
 .card { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
 .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
 .field > label, .field > span { font-size: 13px; color: var(--fg-muted); }
@@ -58,7 +58,7 @@
 .menu-pop { background: var(--bg-overlay); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px; min-width: 180px; box-shadow: var(--shadow-pop); z-index: 70; animation: menu-in var(--dur-fast) var(--ease-out); }
 /* Every menu: an icon and a label to a row, tight with a mouse and a little taller on a phone. */
 .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 6px 10px; border: 0; background: none; color: var(--fg); border-radius: 4px; font-size: 13px; line-height: 20px; cursor: pointer; outline: none; }
-.menu-item > .icon { flex: none; width: 16px; height: 16px; color: var(--fg-muted); }
+.menu-item > .icon { flex: none; width: 18px; height: 18px; color: var(--fg-muted); }
 .menu-item[data-highlighted] { background: var(--bg-hover); }
 @media (hover: hover) { .menu-item:hover { background: var(--bg-hover); } }
 .menu-item-label { flex: 1; min-width: 0; }

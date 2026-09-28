@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import Icon from '../../ui/components/Icon.vue';
 import { computed, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
-import { Download } from '@lucide/vue';
 import { cfg } from '../../core/config.ts';
 import { theme } from '../../core/theme/index.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -80,7 +80,7 @@ function clearPreferences() {
           <div class="setting-row"><div><label for="failure-notifications">{{ tr('需要我处理时通知我', 'Notify me when I\'m needed') }}</label></div><SettingHint id="failure-notifications-hint" :text="tr('运行失败或模型向你提问时，如果页面在后台，显示系统通知。', 'Show a system notification when a run fails or the model asks you something while the page is in the background.')" /><SwitchRoot id="failure-notifications" aria-describedby="failure-notifications-hint" :model-value="notifyOnFailure" class="cfg-switch" @update:model-value="setNotifications"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
         </template>
         <template v-if="section === 'local'">
-          <div class="setting-row"><div><span>{{ tr('安装 Wish', 'Install Wish') }}</span></div><button id="ui-install" class="btn" @click="install"><Download :size="16" />{{ tr('安装', 'Install') }}</button></div>
+          <div class="setting-row"><div><span>{{ tr('安装 Wish', 'Install Wish') }}</span></div><button id="ui-install" class="btn" @click="install"><Icon name="download" :size="16" />{{ tr('安装', 'Install') }}</button></div>
           <div class="setting-row"><div><span>{{ tr('本地设置', 'Local preferences') }}</span></div><SettingHint :text="tr('清除浏览器保存的偏好、输入草稿和缓存的模型列表与统计。后端会话不受影响。', 'Clear preferences, drafts and cached model lists and statistics stored in this browser. Server sessions remain available.')" /><button id="ui-clear-local" class="btn danger" @click="clearOpen = true">{{ tr('清除本地数据', 'Clear local data') }}</button></div>
         </template>
       </template>

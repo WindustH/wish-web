@@ -20,7 +20,7 @@ const answerText = (answer: AnswerRecord) => answer.skipped ? null
 <template>
   <div class="entry system">
     <div class="body">
-      <button type="button" class="fold-chip" @click="open = true"><Icon name="message-circle-question" />{{ tr('补充回答了之前的提问', 'Answered the earlier questions') }}</button>
+      <button type="button" class="fold-chip" @click="open = true"><Icon name="question" />{{ tr('补充回答了之前的提问', 'Answered the earlier questions') }}</button>
       <Modal :open="open" compact :title="tr('补充的回答', 'Late answers')" content-class="late-answer-detail" @close="open = false">
         <p class="late-answer-intro">{{ tr('提问超时后给出的回答，作为一条消息发给了模型。', 'Given after the questions timed out, and sent to the model as a message.') }}</p>
         <dl class="question-summary">
