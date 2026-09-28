@@ -1,24 +1,41 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, effectScope, onScopeDispose, ref, shallowRef, watch, type EffectScope } from 'vue';
 import { modelLabel } from '../../ui/modelLabel.ts';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
 import PickerList from '../../ui/components/PickerList.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
 import { tr } from './fields.ts';
+import Spinner from '../../ui/components/Spinner.vue';
+import { errorText } from '../../core/config-editor.ts';
+import { useModelCatalog } from '../sessions/useModelCatalog.ts';
 import type { SelectOption } from '../../ui/components/SelectField.vue';
 const props = defineProps<{ config: any; providers: SelectOption[]; efforts: SelectOption[] }>();
 const effortQuery = ref('');
 const open = ref<'model' | 'effort' | ''>('');
 const defaults = computed(() => props.config.defaults);
 const selected = computed(() => JSON.stringify([defaults.value.provider, defaults.value.model]));
+// The same catalog the session picker offers: each provider's configured models, then what its
+// upstream lists. It is read the first time the list opens; providers only in the unsaved draft
+// offer their configured models.
+let scope: EffectScope | undefined;
+const catalog = shallowRef<ReturnType<typeof useModelCatalog>>();
+watch(() => open.value === 'model', shown => {
+  if (!shown || catalog.value) return;
+  scope = effectScope();
+  catalog.value = scope.run(useModelCatalog);
+});
+onScopeDispose(() => scope?.stop());
 const choices = computed(() => props.providers.flatMap(provider => {
-  const models = props.config.providers[provider.value]?.models ?? {};
-  const ids = Object.keys(models);
-  if (provider.value === defaults.value.provider && defaults.value.model && !ids.includes(defaults.value.model)) ids.unshift(defaults.value.model);
+  const configured: Record<string, any> = props.config.providers[provider.value]?.models ?? {};
+  const upstream = catalog.value?.groups.value.find(group => group.provider.id === provider.value)?.models ?? [];
+  const models = new Map<string, any>(Object.entries(configured).map(([id, meta]) => [id, { ...upstream.find(model => model.id === id), ...meta }]));
+  for (const model of upstream) if (!models.has(model.id)) models.set(model.id, model);
+  const ids = [...models.keys()];
+  if (provider.value === defaults.value.provider && defaults.value.model && !models.has(defaults.value.model)) ids.unshift(defaults.value.model);
   return ids.map(id => ({key: JSON.stringify([provider.value, id]), title: modelLabel(id), search: id,
-    description: models[id] ? undefined : tr('未在配置中','Not configured'),
-    disabled: !models[id], group: provider.label, brand: provider.brand, vision: models[id]?.input_modalities?.includes('image')}));
+    description: models.has(id) ? undefined : tr('配置和上游目录中都没有','Not configured or in the upstream catalog'),
+    disabled: !models.has(id), group: provider.label, brand: provider.brand, vision: models.get(id)?.input_modalities?.includes('image')}));
 }));
 const efforts = computed(() => {
   const items = [{key: '', title: tr('上游默认', 'Upstream default')}, ...props.efforts.map(option => ({key:option.value,title:option.label}))];
@@ -47,6 +64,15 @@ function selectEffort(value: string) {
     <CommandPanel v-if="open==='model'" :title="tr('默认模型','Default model')" @close="open=''">
       <PickerList :model-value="selected" :items="choices" :placeholder="tr('搜索模型…','Search models…')" @select="selectModel">
         <template #suffix="{itemKey}"><Hint v-if="choices.find(item=>item.key===itemKey)?.vision" :text="tr('支持视觉输入','Supports image input')"><Icon name="image" :aria-label="tr('视觉','Vision')"/></Hint></template>
+        <template #status>
+          <div v-if="catalog?.error.value" class="command-status load-error" role="alert">{{ errorText(catalog.error.value) }}<button class="btn ghost sm" @click="catalog.reload">{{ tr('重试','Retry') }}</button></div>
+          <p v-if="catalog?.pending.value" class="command-status hint" role="status"><Spinner /> {{ tr('正在读取上游模型…','Loading upstream models…') }}</p>
+        </template>
+        <template #after>
+          <template v-for="group in catalog?.groups.value ?? []" :key="group.provider.id">
+            <div v-if="group.error" class="load-error" role="alert">{{ group.provider.id }}: {{ errorText(group.error) }}<button class="btn ghost sm" :disabled="group.loading" @click="catalog?.loadGroup(group.provider.id)">{{ tr('重试','Retry') }}</button></div>
+          </template>
+        </template>
       </PickerList>
     </CommandPanel>
     <CommandPanel v-if="open==='effort'" :title="tr('默认思考强度','Default reasoning effort')" @close="open=''">
