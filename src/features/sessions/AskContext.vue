@@ -172,10 +172,5 @@ function onKeydown(event: KeyboardEvent) {
 .ask-composer:focus-within{border-top-color:var(--accent)}
 .ask-composer textarea{width:100%;min-height:54px;max-height:120px;resize:none;overflow-y:auto;border:0;outline:0;background:transparent;padding:2px 0 4px;font-size:15px;line-height:1.6}
 .ask-actions{display:flex;align-items:center;justify-content:flex-end;min-height:36px}
-.send-btn{flex:none;display:grid;place-items:center;width:36px;height:36px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--fg-muted);cursor:pointer;transition:background var(--dur-fast),border-color var(--dur-fast),color var(--dur-fast)}
-.send-btn .icon{width:16px;height:16px}
-.send-btn:disabled{color:var(--fg-subtle);cursor:default}
-.send-btn.stop{color:var(--err)}
-@media(hover:hover){.send-btn:hover{background:var(--bg-hover);border-color:var(--line-strong)}}
 @media(max-width:899px){.ask-heading{padding:9px 20px 4px}.ask-log{padding:12px 20px 16px}.ask-turn .entry{padding-bottom:12px}}
 </style>

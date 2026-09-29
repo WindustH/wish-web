@@ -33,8 +33,9 @@ export const ICONS: Record<string, string> = {
   'loader-circle': '<circle cx="12" cy="12" r="8.5" stroke-opacity=".22"/><path d="M20.5 12A8.5 8.5 0 0 0 12 3.5"/>',
   'refresh-cw': '<path d="M20 12a8 8 0 0 1-13.9 5.4M4 12a8 8 0 0 1 13.9-5.4M18.5 3v4h-4M5.5 21v-4h4"/>',
   search: `<circle cx="10.5" cy="10.5" r="6.5" ${SOFT}/><path d="m15.5 15.5 5 5"/>`,
-  // A paper plane: the crane's cousin, its near wing in shade.
-  send: `<path d="M21 3 3 10.5l7.5 3 3 7.5Z" ${SOFT}/><path d="M10.5 13.5 21 3"/>`,
+  // Send: a folded paper plane - the crane's cousin - its upper wing solid, the lower in shade,
+  // the fold between them.
+  send: '<path d="M21 3.25 3.5 10.25l7.5 3 3 7.5Z" fill="currentColor" fill-opacity=".3"/><path d="M21 3.25 3.5 10.25l7.5 3Z" fill="currentColor"/><path d="m11 13.25 10-10"/>',
   square: `<rect x="6" y="6" width="12" height="12" rx="3" ${SOFT}/>`,
   download: `<path d="M4 15.5V17a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1.5" ${SOFT}/><path d="M12 3.5v11m-5-4.5 5 5 5-5"/>`,
 

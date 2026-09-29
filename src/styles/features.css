@@ -175,17 +175,17 @@
 .composer-start.desktop .composer-input { align-self: stretch; height: auto; min-height: 0; overflow-y: auto; }
 .composer-footer { display: flex; flex: none; align-items: center; justify-content: flex-end; gap: 16px; padding-top: var(--composer-send-clearance); pointer-events: none; }
 .composer-footer > * { pointer-events: auto; }
-.composer .send-btn { flex: none; min-width: 36px; width: 36px; height: 36px; padding: 0; border-radius: 6px; border: 1px solid transparent; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; justify-content: center; background: transparent; color: var(--fg-muted); font-size: 13px; font-weight: 500; transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), transform var(--dur-fast); }
-.composer .send-btn:disabled { color: var(--fg-subtle); cursor: default; }
-@media (hover: hover) {
-  .composer .send-btn:hover { border-color: var(--line-strong); background: var(--bg-hover); }
-  .composer .send-btn:hover:not(:disabled) { color: var(--fg); }
-}
-.composer .send-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.composer .send-btn:active:not(:disabled) { transform: scale(.97); }
-.composer .send-btn.stop { color: var(--err); }
-@media (hover: hover) { .composer .send-btn.stop:hover:not(:disabled) { color: var(--err); } }
-.composer .send-btn .icon { width: 16px; height: 16px; }
+/* Send is the composer's one strong mark: a filled round button, grey while there is nothing to
+   send, and holding a square while a reply runs. */
+.composer .send-btn, .send-btn { flex: none; min-width: 34px; width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 0; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; justify-content: center; background: var(--accent); color: var(--accent-fg); font-size: 13px; font-weight: 500; transition: background var(--dur-fast), color var(--dur-fast), transform var(--dur-fast); }
+.composer .send-btn:disabled, .send-btn:disabled { background: var(--bg-hover); color: var(--fg-subtle); cursor: default; }
+@media (hover: hover) { .composer .send-btn:hover:not(:disabled), .send-btn:hover:not(:disabled) { background: var(--accent-hover); } }
+.composer .send-btn:focus-visible, .send-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.composer .send-btn:active:not(:disabled), .send-btn:active:not(:disabled) { transform: scale(.94); }
+.composer .send-btn.stop, .send-btn.stop { background: var(--fg); color: var(--bg); }
+@media (hover: hover) { .composer .send-btn.stop:hover:not(:disabled), .send-btn.stop:hover:not(:disabled) { background: var(--fg-muted); } }
+.composer .send-btn .icon, .send-btn .icon { width: 18px; height: 18px; }
+.send-btn.stop .icon rect { fill-opacity: 1; }
 .composer.mobile { padding: 6px 12px calc(14px + env(safe-area-inset-bottom)); }
 /* In a conversation the composer floats: a rounded surface off the page's edges, as on a phone. */
 .chat-pane > .composer.desktop {
@@ -213,7 +213,7 @@
 .composer.mobile .composer-input, .composer:not(.composer-start) .composer-input { flex: 1; min-height: 36px; line-height: 1.5; padding: 2px 4px 6px; }
 .composer-mobile-actions > .btn.icon-only { width: 32px; height: 32px; flex: none; }
 .composer-mobile-actions .icon { width: 18px; height: 18px; }
-.composer.mobile .send-btn { flex: none; min-width: 0; width: 36px; height: 36px; padding: 0; }
+.composer.mobile .send-btn { flex: none; min-width: 0; width: 34px; height: 34px; padding: 0; }
 .composer .attachment-preview, .composer .caps-error { flex: none; }
 .caps-error { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--warn); padding: 4px 0; }
 .attach-strip { display: flex; gap: 8px; padding: 8px; overflow-x: auto; }
