@@ -72,7 +72,7 @@ export const ICONS: Record<string, string> = {
   'circle-dot': `<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3" ${SOLID}/>`,
 
   // Wish's own concepts
-  // Service & sessions: a conversation standing on the server that keeps it.
+  // Sessions: a conversation standing on the server that keeps it.
   service: `<path d="M6 5.5A2.5 2.5 0 0 1 8.5 3h7A2.5 2.5 0 0 1 18 5.5v3a2.5 2.5 0 0 1-2.5 2.5H11l-2.5 2.3V11A2.5 2.5 0 0 1 6 8.5Z" ${SOFT}/><rect x="3.5" y="15" width="17" height="5.5" rx="2"/><path d="${dot(7.2, 17.75)}" stroke-width="2.6"/>`,
   // Model providers: a cloud with a spark in it.
   providers: `<path d="M6.5 18.5a4 4 0 0 1-.3-8 5.8 5.8 0 0 1 11.1-1.4 4.6 4.6 0 0 1 .7 9.4Z" ${SOFT}/><path d="M12 10.8c.35 1.9 1.1 2.65 3 3-1.9.35-2.65 1.1-3 3-.35-1.9-1.1-2.65-3-3 1.9-.35 2.65-1.1 3-3Z" ${SOLID}/>`,

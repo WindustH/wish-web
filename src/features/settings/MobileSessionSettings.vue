@@ -1,17 +1,14 @@
 <script setup lang="ts">
 import DefaultModelPicker from './DefaultModelPicker.vue';
 import { computed, ref } from 'vue';
-import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { type SelectOption } from '../../ui/components/SelectField.vue';
 import { useSettingsReturn } from './settingsReturn.ts';
 import { tr, compactionFields } from './fields.ts';
-import ServerShellSettings, { type ShellCatalog } from './ServerShellSettings.vue';
-const props=defineProps<{config:any;shells:ShellCatalog|null;providers:SelectOption[];efforts:SelectOption[];save:()=>Promise<boolean>;busy:boolean}>();
+const props=defineProps<{config:any;providers:SelectOption[];efforts:SelectOption[];save:()=>Promise<boolean>;busy:boolean}>();
 const page=ref('');
-const titles=computed<Record<string,string>>(()=>({model:tr('默认模型','Default model'),instructions:tr('固定提示词','Instructions'),cwd:tr('工作目录','Working directory'),shell:'Shell'}));
-const shellName=computed(()=>{const program=props.config.shell?.program;return program?program.split(/[\\/]/).pop():tr('系统默认','System default');});
+const titles=computed<Record<string,string>>(()=>({model:tr('默认模型','Default model'),instructions:tr('固定提示词','Instructions'),cwd:tr('工作目录','Working directory')}));
 const defaults=computed(()=>props.config.defaults);
 const instructionsPreview=computed(()=>defaults.value.instructions?.trim().split('\n')[0]||tr('未设置','Not set'));
 const returns=useSettingsReturn(()=>!!page.value,async()=>{if(await returns.confirm())page.value='';});
@@ -25,27 +22,15 @@ const returns=useSettingsReturn(()=>!!page.value,async()=>{if(await returns.conf
       <button class="mobile-settings-row" @click="page='instructions'"><span>{{titles.instructions}}</span><small>{{instructionsPreview}}</small><Icon name="chevron-right"/></button>
     </div>
     <p class="mobile-group-note">{{tr('只用于之后新建的会话，已有会话保持原来的配置。','Applies to sessions created from now on. Existing sessions keep their configuration.')}}</p>
-    <template v-if="defaults.tools">
-      <p class="mobile-group-caption">{{tr('工具','Tools')}}</p>
-      <div class="set-card mobile-card">
-        <div class="set-row inline toggle-row"><span class="set-label"><span>Shell</span><small>{{tr('在工作目录中执行命令','Run commands in the working directory')}}</small></span><SwitchRoot v-model="defaults.tools.shell" class="cfg-switch" aria-label="Shell"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
-        <div class="set-row inline toggle-row"><span class="set-label"><span>{{tr('向你提问','Ask you questions')}}</span><small>{{tr('需要你决定时，给出选项或请你填写','Offer choices or ask you to fill in details when your call is needed')}}</small></span><SwitchRoot v-model="defaults.tools.ask_user" class="cfg-switch" :aria-label="tr('向你提问','Ask you questions')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
-        <div class="set-row inline toggle-row"><span class="set-label"><span>{{tr('MCP 服务器','MCP servers')}}</span><small>{{tr('允许在 Shell 里调用已配置的 MCP 服务器，切换不影响提示缓存','Let the shell reach the configured MCP servers. Switching keeps the prompt cache')}}</small></span><SwitchRoot v-model="defaults.tools.mcp" class="cfg-switch" :aria-label="tr('MCP 服务器','MCP servers')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
-      </div>
-      <p class="mobile-group-note">{{tr('新会话默认启用的内置工具。每个会话也可以在会话设置里单独开关。','Built-in tools new sessions start with. Each session can switch them in its own settings.')}}</p>
-    </template>
     <template v-if="defaults.compaction">
       <p class="mobile-group-caption">{{tr('上下文压缩','Context compaction')}}</p>
       <div class="set-card mobile-card">
         <label v-for="field in compactionFields()" :key="field.key" class="set-row inline"><span class="set-label"><span>{{field.label}}</span><small>{{field.hint}}</small></span><span class="set-number"><input class="input" type="number" inputmode="numeric" min="1" v-model.number="defaults.compaction[field.key]"/></span></label>
       </div>
     </template>
-    <template v-if="config.shell"><p class="mobile-group-caption">{{tr('命令执行','Command execution')}}</p>
-    <div class="mobile-settings-list"><button class="mobile-settings-row" @click="page='shell'"><span>{{titles.shell}}</span><small>{{shellName}}</small><Icon name="chevron-right"/></button></div></template>
     <Modal page :before-close="returns.confirm" content-class="mobile-settings-page" :open="!!page" :title="titles[page]||''" @close="page=''">
       <template v-if="page==='instructions'"><p class="mobile-page-note">{{tr('每次新会话都会使用这段提示词。','These instructions are included in every new session.')}}</p><textarea class="input mobile-text-editor" :aria-label="titles.instructions" :placeholder="tr('未设置','Not set')" v-model="defaults.instructions"/></template>
       <template v-if="page==='cwd'"><div class="set-card"><label class="set-row"><span class="set-label"><span>{{tr('绝对路径','Absolute path')}}</span><small>{{tr('Shell 执行命令时的起始目录','Where shell commands start')}}</small></span><input class="input set-mono" v-model="defaults.cwd" autocomplete="off" autocapitalize="off" spellcheck="false"/></label></div></template>
-      <template v-if="page==='shell'"><div class="set-card"><ServerShellSettings :value="config.shell" :catalog="shells"/></div><p class="mobile-page-note after">{{tr('保存后，跟随全局设置的会话从下一条命令开始使用新的 Shell；单独设置了 Shell 的会话不受影响。','Saved changes apply to the next command of every session that follows this setting; sessions with their own shell keep it.')}}</p></template>
     </Modal>
   </div>
 </template>

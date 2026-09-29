@@ -2,7 +2,7 @@
 import DefaultModelPicker from './DefaultModelPicker.vue';
 import { ref, computed, inject, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, SwitchRoot, SwitchThumb } from 'reka-ui';
+import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
 import { useMedia } from '../../ui/composables/useMedia.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
@@ -15,7 +15,7 @@ import Modal from '../../ui/components/Modal.vue';
 import AddProvider from './AddProvider.vue';
 import PresetProvider from './PresetProvider.vue';
 import ServerProxySettings from './ServerProxySettings.vue';
-import ServerShellSettings from './ServerShellSettings.vue';
+import ToolSettings from './ToolSettings.vue';
 import McpSettings from './McpSettings.vue';
 import './settings.css';
 import { useConfigDraft } from './useConfigDraft.ts';
@@ -35,12 +35,15 @@ function handleOutside(event: CustomEvent) {
 const closeSettings = inject<() => unknown>('closeOverlay')!;
 
 const sections = computed(() => [
-  { id: 'service', icon: 'service', label: tr('服务与会话', 'Service & sessions'),
+  { id: 'service', icon: 'service', label: tr('会话', 'Sessions'),
     summary: tr('默认模型、提示词与上下文', 'Model, instructions and context'),
-    description: tr('新会话的默认模型、提示词、上下文压缩和命令执行环境。', 'Defaults for new sessions: model, instructions, context compaction and shell.') },
+    description: tr('新会话的默认模型、工作目录、提示词和上下文压缩。', 'Defaults for new sessions: model, working directory, instructions and context compaction.') },
   { id: 'providers', icon: 'providers', label: tr('提供商', 'Providers'),
     summary: tr('连接、认证与模型管理', 'Connections, credentials and models'),
     description: tr('管理模型提供商、凭据与网络代理，保存后对新的调用生效。', 'Model providers, credentials and the network proxy. Saved changes apply to new calls.') },
+  { id: 'tools', icon: 'tool', label: tr('工具', 'Tools'),
+    summary: tr('内置工具与 Shell', 'Built-in tools and the shell'),
+    description: tr('新会话默认启用的内置工具，以及 Shell 执行命令的环境。', 'Built-in tools new sessions start with, and where the shell runs commands.') },
   { id: 'mcp', icon: 'mcp', label: 'MCP',
     summary: tr('会话可以调用的 MCP 服务器', 'MCP servers sessions can call'),
     description: tr('智能体在会话的 Shell 里调用这些服务器。保存后从下一次调用开始生效。', 'Servers the agent calls from a session\'s shell. Saved changes apply from the next call.') },
@@ -158,7 +161,7 @@ onMounted(load);
     <UiSettings v-if="tab==='ui'"/>
     <DebugSettings v-else-if="tab==='debug'"/>
     <template v-else-if="draft">
-      <MobileSessionSettings v-if="isMobile&&tab==='service'" :config="draft" :shells="shells" :providers="providerOptions" :efforts="effortOptions" :save="save" :busy="busy"/>
+      <MobileSessionSettings v-if="isMobile&&tab==='service'" :config="draft" :providers="providerOptions" :efforts="effortOptions" :save="save" :busy="busy"/>
       <fieldset :disabled="busy" v-else-if="tab==='service'" class="settings-form">
         <section class="set-section">
           <header class="set-section-head"><h3>{{tr('新会话','New sessions')}}</h3><p>{{tr('只用于之后新建的会话，已有会话保持原来的配置。','Applies to sessions created from now on. Existing sessions keep their configuration.')}}</p></header>
@@ -168,25 +171,14 @@ onMounted(load);
             <label class="set-row stacked"><span class="set-label"><span>{{tr('固定提示词','Instructions')}}</span><small>{{tr('每个新会话都会带上这段提示词','Included in every new session')}}</small></span><textarea class="input" rows="5" v-model="draft.defaults.instructions" :placeholder="tr('未设置','Not set')"/></label>
           </div>
         </section>
-        <section v-if="draft.defaults.tools" class="set-section">
-          <header class="set-section-head"><h3>{{tr('工具','Tools')}}</h3><p>{{tr('新会话默认启用的内置工具。每个会话也可以在会话设置里单独开关。','Built-in tools new sessions start with. Each session can switch them in its own settings.')}}</p></header>
-          <div class="set-card">
-            <div class="set-row toggle-row"><span class="set-label"><span>Shell</span><small>{{tr('在工作目录中执行命令','Run commands in the working directory')}}</small></span><SwitchRoot v-model="draft.defaults.tools.shell" class="cfg-switch" aria-label="Shell"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
-            <div class="set-row toggle-row"><span class="set-label"><span>{{tr('向你提问','Ask you questions')}}</span><small>{{tr('需要你决定时，给出选项或请你填写','Offer choices or ask you to fill in details when your call is needed')}}</small></span><SwitchRoot v-model="draft.defaults.tools.ask_user" class="cfg-switch" :aria-label="tr('向你提问','Ask you questions')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
-            <div class="set-row toggle-row"><span class="set-label"><span>{{tr('MCP 服务器','MCP servers')}}</span><small>{{tr('允许在 Shell 里调用已配置的 MCP 服务器，切换不影响提示缓存','Let the shell reach the configured MCP servers. Switching keeps the prompt cache')}}</small></span><SwitchRoot v-model="draft.defaults.tools.mcp" class="cfg-switch" :aria-label="tr('MCP 服务器','MCP servers')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
-          </div>
-        </section>
         <section v-if="draft.defaults.compaction" class="set-section">
           <header class="set-section-head"><h3>{{tr('上下文压缩','Context compaction')}}</h3><p>{{tr('对话接近上下文上限时，把较早的内容压缩成摘要。','Summarizes earlier turns as a conversation approaches its context limit.')}}</p></header>
           <div class="set-card">
             <label v-for="field in compactionFields()" :key="field.key" class="set-row"><span class="set-label"><span>{{field.label}}</span><small>{{field.hint}}</small></span><span class="set-number"><em>{{compactTokens(draft.defaults.compaction[field.key])}}</em><input class="input" type="number" min="1" inputmode="numeric" v-model.number="draft.defaults.compaction[field.key]"/></span></label>
           </div>
         </section>
-        <section v-if="draft.shell" class="set-section">
-          <header class="set-section-head"><h3>Shell</h3><p>{{tr('保存后，跟随全局设置的会话从下一条命令开始使用新的 Shell；单独设置了 Shell 的会话不受影响。','Saved changes apply to the next command of every session that follows this setting; sessions with their own shell keep it.')}}</p></header>
-          <div class="set-card"><ServerShellSettings :value="draft.shell" :catalog="shells"/></div>
-        </section>
       </fieldset>
+      <ToolSettings v-else-if="tab==='tools'" :config="draft" :shells="shells" :busy="busy"/>
       <McpSettings v-else-if="tab==='mcp'" :config="draft" :providers="providerOptions" :save="save" :busy="busy" :dirty="serverDirty" :revision="revision"/>
       <div v-else class="provider-settings">
         <section class="set-section">

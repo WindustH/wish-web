@@ -243,7 +243,7 @@ export function useConfigDraft() {
     if (draft.value.defaults?.provider === id) {
       showError({
         title: tr('无法删除提供商', 'Could not delete the provider'),
-        error: tr('默认模型属于这个提供商。请先在“服务与会话”中更换默认模型，再删除它。', 'The default model belongs to this provider. Choose another default model in Service & sessions first.'),
+        error: tr('默认模型属于这个提供商。请先在“会话”设置中更换默认模型，再删除它。', 'The default model belongs to this provider. Choose another default model in the Sessions settings first.'),
       });
       return;
     }

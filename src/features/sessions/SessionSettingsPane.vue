@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Settings that belong to this session alone: context compaction, its optional tools and its shell.
-// New sessions keep taking the defaults from Settings → Service & sessions.
+// New sessions keep taking the defaults from Settings.
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { get } from '../../core/api/client.ts';
@@ -138,7 +138,7 @@ async function act(kind: 'compact' | 'clear') {
 
 <template>
   <Modal :open="true" content-class="session-window session-settings-window" :title="tr('会话设置', 'Session settings')" :page="isMobile" @close="$emit('close')">
-    <p class="session-settings-intro">{{ tr('只影响这个会话。新建会话仍使用「设置 → 服务与会话」中的默认值。', 'These apply to this session only. New sessions keep using the defaults in Settings → Service & sessions.') }}</p>
+    <p class="session-settings-intro">{{ tr('只影响这个会话。新建会话仍使用设置里的默认值。', 'These apply to this session only. New sessions keep using the defaults from Settings.') }}</p>
 
     <section class="set-section">
       <header class="set-section-head"><h3>{{ tr('上下文压缩', 'Context compaction') }}</h3><p>{{ tr('对话接近上限时，把较早的内容压缩成摘要。', 'Summarizes earlier turns as the conversation approaches its limit.') }}</p></header>
