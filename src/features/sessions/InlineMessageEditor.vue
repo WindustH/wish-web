@@ -113,7 +113,12 @@ function update(text: string, record = true) {
 }
 function input() {
   if (composing.value || !el.value) return;
-  const text = serialize(el.value), selected = selection();
+  // Deleting the last character leaves Chrome's bare <br> holding the line open. Line breaks the
+  // user types come through beforeInput and end in the tail marker, so a bare one last is not text.
+  const nodes = Array.from(el.value.childNodes);
+  const last = nodes.at(-1);
+  if (last instanceof HTMLBRElement && !last.hasAttribute('data-editor-tail')) nodes.pop();
+  const text = nodes.map(serialize).join(''), selected = selection();
   update(text);
   render(text, selected);
 }
