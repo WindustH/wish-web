@@ -1,5 +1,5 @@
 // Session-owned execution. Live deltas are transient; paged history is authoritative.
-import { shallowRef, computed } from 'vue';
+import { shallowRef } from 'vue';
 import { cfg } from '../config.ts';
 import { bus } from '../bus.ts';
 import { platform } from '../../platform/index.ts';
@@ -27,9 +27,6 @@ export const chat = (() => {
   const stream = shallowRef(createEmptyStream());
   const capabilities = shallowRef<ChatCapabilities | null>(null);
 
-  const isActive = computed(() => sessionId.value !== null);
-  const phase = computed(() => snapshot.value?.phase ?? 'idle');
-
   let epoch = 0;
   let controller: AbortController | null = null;
   let connection: SseConnection | null = null;
@@ -53,14 +50,20 @@ export const chat = (() => {
     readPage: api.historyPage,
   });
   const {
-    entries, oldestSeq, newestSeq, historyVersion, hasMoreBefore, hasMoreAfter,
+    entries, hasMoreBefore, hasMoreAfter,
     pendingSeq, loadingOlder, loadingNewer, locating, bounds,
-    loadOlder, fetchNewer, locate, jumpToLatest, cancelLocate, clearPendingSeq,
+    loadOlder, fetchNewer, locate, jumpToLatest, clearPendingSeq,
   } = history;
 
   const streamProcessor = createStreamProcessor({
     onClose() {
       markMissing();
+    },
+    onHistoryPruned() {
+      void reload();
+    },
+    onNotice(message) {
+      bus.emit('notice', message);
     },
     onScheduleRefresh() {
       scheduleRefresh();
@@ -105,16 +108,21 @@ export const chat = (() => {
     streamProcessor.reset();
   }
 
-  function markMissing() {
-    const id = sessionId.value;
-    close();
+  // What the page shows of a session, emptied.
+  function clearView() {
     snapshot.value = null;
     entries.value = [];
     deliveries.value = [];
     stream.value = createEmptyStream();
-    loadingInitial.value = false;
     loadingOlder.value = false;
     loadingNewer.value = false;
+  }
+
+  function markMissing() {
+    const id = sessionId.value;
+    close();
+    clearView();
+    loadingInitial.value = false;
     missingSessionId.value = id;
   }
 
@@ -138,21 +146,16 @@ export const chat = (() => {
     const own = epoch;
 
     history.resume();
-    snapshot.value = null;
-    entries.value = [];
+    clearView();
     bounds();
     hasMoreBefore.value = false;
     hasMoreAfter.value = false;
-    loadingOlder.value = false;
-    loadingNewer.value = false;
     loadingInitial.value = true;
     locating.value = false;
     sending.value = false;
     error.value = null;
-    stream.value = createEmptyStream();
     sentRun.value = null;
     pendingSeq.value = null;
-    deliveries.value = [];
     capabilities.value = { status: 'ok', data: { input_modalities: null } };
 
     // Subscribe before the initial snapshot: reconciliation covers any racing commit.
@@ -273,6 +276,12 @@ export const chat = (() => {
     if (id) platform('storage').set(`draft.${id}`, text);
   }
 
+  /** Shows a snapshot the server returned for a change made here, unless the open session is
+   *  another one or already shows a newer revision. */
+  function adoptSnapshot(id: string, next: SessionView) {
+    if (sessionId.value === id && (snapshot.value?.revision ?? 0) <= next.revision) snapshot.value = next;
+  }
+
   async function reloadCapabilities(): Promise<void> {
     const own = epoch;
     const id = sessionId.value;
@@ -290,24 +299,18 @@ export const chat = (() => {
     sessionId,
     snapshot,
     entries,
-    oldestSeq,
-    newestSeq,
-    historyVersion,
     hasMoreBefore,
     hasMoreAfter,
     pendingSeq,
     loadingOlder,
     loadingNewer,
     loadingInitial,
-    locating,
     error,
     stream,
     sending,
     sentRun,
     capabilities,
     deliveries,
-    isActive,
-    phase,
     open,
     close,
     reload,
@@ -316,15 +319,14 @@ export const chat = (() => {
     locate,
     jumpToLatest,
     send,
-    refreshDeliveries,
     cancelQueued,
     moveQueued,
     interrupt,
     getDraft,
     setDraft,
-    cancelLocate,
     clearPendingSeq,
     reloadCapabilities,
+    adoptSnapshot,
   };
 })();
 export type ChatApi = typeof chat;

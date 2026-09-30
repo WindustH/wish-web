@@ -1,5 +1,7 @@
 import { nextTick, onBeforeUnmount } from 'vue';
 import { useRouter, type RouteLocationNormalized } from 'vue-router';
+import { MOBILE_QUERY } from '../../ui/composables/useMedia.ts';
+import { prefersReducedMotion } from '../../ui/motion/reducedMotion.ts';
 
 // Enter deeper pages from the right; reveal parents from the left.
 // Animate the mounted page so cached scroll positions and forms stay intact.
@@ -21,8 +23,8 @@ export function useMobileNavigationMotion() {
       failure ||
       to.fullPath === from.fullPath ||
       (to.params.id && from.params.id && to.params.id === from.params.id) ||
-      !matchMedia('(max-width: 899px)').matches ||
-      matchMedia('(prefers-reduced-motion: reduce)').matches
+      !matchMedia(MOBILE_QUERY).matches ||
+      prefersReducedMotion()
     ) return;
     await nextTick();
     if (current !== revision) return;

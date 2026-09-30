@@ -1,4 +1,5 @@
 import { onBeforeUnmount, type Ref } from 'vue';
+import { prefersReducedMotion } from '../../ui/motion/reducedMotion.ts';
 
 type Item = { node: HTMLElement; text: string; box: DOMRect };
 
@@ -11,7 +12,6 @@ export function useAttachmentTokenDrag(root: Ref<HTMLElement | null>, commit: (t
   } | undefined;
   let frame = 0;
   const animations = new Map<HTMLElement, Animation>();
-  const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function stopAnimations() {
     for (const animation of animations.values()) animation.cancel();
@@ -93,7 +93,7 @@ export function useAttachmentTokenDrag(root: Ref<HTMLElement | null>, commit: (t
     editor.insertBefore(drag.gap, drag.items[index]?.node ?? null);
     drag.index = index;
     measure();
-    if (reducedMotion()) return;
+    if (prefersReducedMotion()) return;
     drag.items.forEach((item, i) => {
       const old = before[i]!;
       const dx = old.left - item.box.left, dy = old.top - item.box.top;
@@ -170,7 +170,7 @@ export function useAttachmentTokenDrag(root: Ref<HTMLElement | null>, commit: (t
     // Let the floating tag settle into its slot while the editor returns to normal DOM.
     drag.ghost = undefined;
     cleanup(); commit(before + token + after, before.length + token.length);
-    if (reducedMotion()) { ghost.remove(); return; }
+    if (prefersReducedMotion()) { ghost.remove(); return; }
     let offset = 0;
     const destination = Array.from(root.value?.childNodes ?? []).find(node => {
       const text = node instanceof HTMLElement ? node.dataset.attachmentToken ?? node.textContent ?? '' : node.textContent ?? '';

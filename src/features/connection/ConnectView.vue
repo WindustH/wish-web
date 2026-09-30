@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // The sign-in page after signing out: which Wish server to use, and its token.
+import { errorText } from '../../core/errors.ts';
 import { ref } from 'vue';
 import Wordmark from '../../ui/components/Wordmark.vue';
 import Icon from '../../ui/components/Icon.vue';
@@ -18,7 +19,7 @@ async function submit() {
     await checkConnection(address.value, token.value.trim());
     connect(address.value, token.value.trim());
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause);
+    error.value = errorText(cause);
     busy.value = false;
   }
 }

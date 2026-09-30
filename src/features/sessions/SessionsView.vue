@@ -8,7 +8,7 @@ import Hint from '../../ui/components/Hint.vue';
 // exclusive full views.
 import { computed, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useMedia } from '../../ui/composables/useMedia.ts';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import SessionList from './SessionList.vue';
 import SessionListToggle from './SessionListToggle.vue';
 import { prefs } from '../../core/state/prefsSlice.ts';
@@ -18,7 +18,7 @@ import { useRecentsSheet } from './useRecentsSheet.ts';
 
 const route = useRoute();
 const router = useRouter();
-const isMobile = useMedia('(max-width: 899px)');
+const isMobile = useIsMobile();
 const showList = computed(() => isMobile.value ? route.name === 'all-sessions' : !prefs.sessionListCollapsed.value);
 // A phone's home page and all sessions are one screen: the list is a sheet over the home page.
 const home = computed(() => route.name === 'sessions' || route.name === 'all-sessions');

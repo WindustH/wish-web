@@ -20,6 +20,8 @@ import { useChatScroll } from './useChatScroll.ts';
 import { useSearchLocate } from './useSearchLocate.ts';
 import { estimateRow } from './rowEstimate.ts';
 import { useFreshRows } from './useFreshRows.ts';
+import { awaitsAnswer } from '../../core/questionWatch.ts';
+import { stepSeq } from './entries/processDetails.ts';
 
 const props = defineProps<{ sessionId: string; mobile: boolean }>();
 
@@ -63,7 +65,7 @@ const workStatus = computed(() => {
   const state = streamState.value;
   // A question waits on the user, not on work: say so rather than "tool call · ask_user".
   // The open forms come with the snapshot, so this holds after a reload too.
-  if (chat.snapshot.value?.pending_questions?.some(form => !form.timed_out)) return tr('等待你回答上面的问题', 'Waiting for your answers above');
+  if (awaitsAnswer(chat.snapshot.value)) return tr('等待你回答上面的问题', 'Waiting for your answers above');
   if (state?.currentTool) return `${i18n.t('entry.toolCall')} · ${state.currentTool}`;
   return i18n.t(`chat.${state?.activity || 'working'}`);
 });
@@ -137,7 +139,6 @@ const { targetSeq, forcedOpen } = useSearchLocate(
   getEpoch,
   (toward) => {
     scrollIntent(toward);
-    stick.value = false;
     measureScroll();
   },
 );
@@ -146,7 +147,7 @@ function holdsTarget(row: ChatRow | undefined) {
   const seq = targetSeq.value;
   if (seq == null || !row) return false;
   if (row.type === 'entry') return row.entry.seq === seq;
-  if (row.type === 'process') return row.steps.some(step => (step.kind === 'entry' ? step.entry.seq : step.fromSeq) === seq);
+  if (row.type === 'process') return row.steps.some(step => stepSeq(step) === seq);
   if (row.type === 'question') return row.entry.seq === seq || row.result?.seq === seq;
   return false;
 }

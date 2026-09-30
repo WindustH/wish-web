@@ -12,7 +12,7 @@ import { toast } from '../../ui/toast.ts';
 import { clearCached } from '../../core/util/responseCache.ts';
 import { keepConnection } from '../../core/connection.ts';
 import { useMedia } from '../../ui/composables/useMedia.ts';
-import { tr } from './fields.ts';
+import { tr } from '../../core/i18n/tr.ts';
 import SettingHint from './SettingHint.vue';
 import SettingsSections from './SettingsSections.vue';
 import SelectField from '../../ui/components/SelectField.vue';
@@ -25,7 +25,7 @@ const sections = computed(() => [
 ].map(item => ({ id: item.id, label: tr(item.zh, item.en) })));
 const desktop = useMedia(`(min-width: ${cfg.breakpoints.desktop}px)`);
 const { mode } = theme;
-const { locale } = i18n;
+const { choice: localeChoice } = i18n;
 const { sendOnEnter, notifyOnFailure, keepAwake, textSize } = prefs;
 // Shares of this device's standard text size; a phone's standard is a step larger than a desktop's.
 const textSizes = computed(() => [
@@ -72,7 +72,7 @@ function clearPreferences() {
         <template v-if="section === 'appearance'">
           <div class="setting-row"><div><label for="ui-theme">{{ tr('主题', 'Theme') }}</label></div><SelectField mobile-page segmented id="ui-theme" :model-value="mode" :options="[{ value: 'auto', icon: 'monitor', label: tr('跟随系统', 'Follow system') }, { value: 'light', icon: 'sun', label: tr('浅色', 'Light') }, { value: 'dark', icon: 'moon', label: tr('深色', 'Dark') }]" @update:model-value="theme.setMode" /></div>
           <div class="setting-row"><div><label for="ui-text-size">{{ tr('字体大小', 'Text size') }}</label></div><SelectField mobile-page segmented id="ui-text-size" :model-value="String(textSize)" :options="textSizes" @update:model-value="value => prefs.setTextSize(Number(value))" /></div>
-          <div class="setting-row"><div><label for="ui-language">{{ tr('界面语言', 'Language') }}</label></div><SelectField mobile-page id="ui-language" :model-value="locale" :options="[{ value: 'zh', label: '中文' }, { value: 'en', label: 'English' }]" @update:model-value="i18n.setLocale" /></div>
+          <div class="setting-row"><div><label for="ui-language">{{ tr('界面语言', 'Language') }}</label></div><SelectField mobile-page id="ui-language" :model-value="localeChoice" :options="[{ value: 'auto', label: tr('跟随系统', 'Follow system') }, { value: 'zh', label: '中文' }, { value: 'en', label: 'English' }]" @update:model-value="i18n.setChoice" /></div>
         </template>
         <template v-if="section === 'input'">
           <div v-if="desktop" class="setting-row"><div><label for="send-on-enter">{{ tr('按 Enter 发送消息', 'Send with Enter') }}</label></div><SettingHint id="send-on-enter-hint" :text="sendOnEnter ? tr('按 Shift + Enter 换行。', 'Press Shift + Enter for a new line.') : tr('按 Enter 换行，按 Ctrl / ⌘ + Enter 发送。', 'Press Enter for a new line; Ctrl / ⌘ + Enter to send.')" /><SwitchRoot id="send-on-enter" aria-describedby="send-on-enter-hint" :model-value="sendOnEnter" class="cfg-switch" @update:model-value="prefs.setSendOnEnter"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>

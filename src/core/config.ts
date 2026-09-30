@@ -43,7 +43,6 @@ export const cfg = Object.freeze({
 
 
   composer: {
-    mobileMinRows: 1,
     mobileMaxRows: 6,
     desktopMaxRows: 12,
     maxHeightVh: 0.3,
@@ -66,7 +65,9 @@ export const cfg = Object.freeze({
   i18n: {
     locales: ['zh', 'en'],
     fallback: 'en',
+    // Used while no system language is known; a system language Wish lacks gets the fallback.
     defaultLocale: 'zh',
+    storageKey: 'locale',
   },
 
   theme: {
@@ -92,8 +93,6 @@ export const cfg = Object.freeze({
     sessionRowHeight: 40,
     sessionRowGap: 4,
     topbarHeight: 56,
-    bottombarHeight: 56,
-    space: { xs: 4, s: 8, m: 12, l: 16, xl: 24, xxl: 32 },
   },
 
 });

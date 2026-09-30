@@ -10,8 +10,15 @@ export async function downloadApiFile(event: MouseEvent, url: string, filename: 
   event.preventDefault();
   const response = await apiFetch(url);
   if (!response.ok) return;
-  const objectUrl = URL.createObjectURL(await response.blob());
+  saveBlob(await response.blob(), filename);
+}
+
+/** Saves what is in memory as a file download. */
+export function saveBlob(blob: Blob, filename: string) {
+  const objectUrl = URL.createObjectURL(blob);
   const link = Object.assign(document.createElement('a'), { href: objectUrl, download: filename });
+  document.body.append(link);
   link.click();
+  link.remove();
   setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }

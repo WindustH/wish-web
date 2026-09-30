@@ -1,6 +1,7 @@
 import { ref, watch, onUnmounted, nextTick, type Ref } from 'vue';
 import { chat } from '../../core/state/chatSlice.ts';
 import type { Virtualizer } from '@tanstack/vue-virtual';
+import { stepSeq } from './entries/processDetails.ts';
 
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
 
@@ -20,7 +21,7 @@ export function useSearchLocate(
     groups.value.findIndex((g: any) =>
       g.type === 'entry'
         ? g.entry?.seq === seq
-        : (g.steps ?? []).some((st: any) => st.fromSeq === seq || st.entry?.seq === seq),
+        : (g.steps ?? []).some((st: any) => stepSeq(st) === seq),
     );
 
   watch(() => chat.sessionId.value, () => {

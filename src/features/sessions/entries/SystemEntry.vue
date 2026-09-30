@@ -43,8 +43,8 @@ const SOURCE_LABELS: Record<string, string> = {
 const source = computed(() => props.item.entry.payload?.source ?? '');
 const tone = computed(() => (source.value === 'wish_run_failed'
   ? 'error' : WARN_SOURCES.has(source.value) ? 'warn' : 'system'));
-const iconName = computed(() => (tone.value === 'error'
-  ? 'x' : tone.value === 'warn' ? 'triangle-alert' : 'circle-dot'));
+// Only a warning or an error has a chip of its own; plain system notes fold.
+const iconName = computed(() => (tone.value === 'error' ? 'x' : 'triangle-alert'));
 const label = computed(() => props.item.entry.kind === 'developer_message' ? 'Developer Message' : i18n.t(props.item.entry.kind === 'run_interrupted'
   ? 'entry.interruption' : props.item.entry.kind === 'background_terminal'
     ? 'entry.backgroundTerminal' : SOURCE_LABELS[source.value] ?? 'entry.system'));

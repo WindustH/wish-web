@@ -1,3 +1,4 @@
+import { prefersReducedMotion } from './reducedMotion.ts';
 // Animate actual block height so neighbouring rows participate in the layout.
 const animations = new WeakMap<Element, Animation>();
 export function cancelFold(el: Element) {
@@ -10,7 +11,7 @@ function animate(el: Element, closing: boolean, done: () => void) {
   const current = node.getBoundingClientRect().height;
   const interrupted = animations.has(el);
   cancelFold(el);
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { done(); return; }
+  if (prefersReducedMotion()) { done(); return; }
   const full = node.getBoundingClientRect().height;
   node.style.overflow = 'hidden';
   const animation = node.animate([

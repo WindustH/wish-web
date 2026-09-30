@@ -1,15 +1,17 @@
 // Formatting helpers shared by core and UI (DOM-free).
 import { i18n, type Locale } from '../i18n/index.ts';
+import { intlLocale } from '../i18n/tr.ts';
 
 const compactFmt: Record<Locale, Intl.NumberFormat | undefined> = { zh: undefined, en: undefined };
-function compactNumber(n: number) {
-  // Intl compact notation follows the UI language (round-4 #4).
+/** A number in compact notation, in the UI language: 235929 reads "23.6万" / "236K". */
+export function compactNumber(n: number) {
   const loc = i18n.locale.value;
-  compactFmt[loc] ??= new Intl.NumberFormat(loc === 'zh' ? 'zh-Hans' : 'en', {
-    notation: 'compact', maximumFractionDigits: 1,
-  });
+  compactFmt[loc] ??= new Intl.NumberFormat(intlLocale(), { notation: 'compact', maximumFractionDigits: 1 });
   return compactFmt[loc].format(n);
 }
+
+/** A positive number in compact notation, and nothing for anything else. */
+export const compactPositive = (value: unknown) => typeof value === 'number' && value > 0 ? compactNumber(value) : '';
 
 export function fmtTokens(n: number | null | undefined) {
   if (n == null) return '—';
@@ -27,15 +29,6 @@ export function relTime(tsMs: number | null | undefined, t: typeof i18n.t) {
   const days = Math.floor(h / 24);
   if (days < 14) return t('time.daysAgo', { n: days });
   return t('time.older');
-}
-
-export function fmtUptime(ms: number) {
-  const s = Math.floor(ms / 1000);
-  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600),
-    m = Math.floor((s % 3600) / 60);
-  if (d) return `${d}d ${h}h`;
-  if (h) return `${h}h ${m}m`;
-  return `${m}m ${s % 60}s`;
 }
 
 export function fmtBytes(b: number | null | undefined) {

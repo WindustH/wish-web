@@ -43,5 +43,4 @@ export const browserStorage = {
   clear(): void {
     for (const k of this.keys()) this.remove(k);
   },
-  get backend(): 'localStorage' | 'memory' { return backend ? 'localStorage' : 'memory'; },
 };

@@ -1,12 +1,14 @@
 import { shallowRef } from 'vue';
-import { peekCached, readCached, writeCached } from '../util/responseCache.ts';
+import { peekCached, readCached, writeCached } from './responseCache.ts';
+import { errorText } from '../errors.ts';
 
 /**
  * One owned read: a cancelled or older response cannot replace the current scope.
  * With `cache`, a read first shows the last response for the same query, then
- * replaces it when the fresh one arrives.
+ * replaces it when the fresh one arrives. A failed read keeps what was shown and
+ * says why in `error`.
  */
-export function createUsageResource<T, Q>(read: (query: Q, signal: AbortSignal) => Promise<T>, cache?: (query: Q) => { key: string; persist: boolean } | null) {
+export function createCachedResource<T, Q>(read: (query: Q, signal: AbortSignal) => Promise<T>, cache?: (query: Q) => { key: string; persist: boolean } | null) {
   const data = shallowRef<T | null>(null);
   const error = shallowRef('');
   const loading = shallowRef(false);
@@ -33,7 +35,7 @@ export function createUsageResource<T, Q>(read: (query: Q, signal: AbortSignal) 
         if (cached) writeCached(cached.key, result, { persist: cached.persist });
       }
     } catch (cause) {
-      if (mine === generation) error.value = cause instanceof Error ? cause.message : String(cause);
+      if (mine === generation) error.value = errorText(cause);
     } finally {
       if (mine === generation) { loading.value = false; controller = undefined; }
     }

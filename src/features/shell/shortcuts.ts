@@ -1,6 +1,6 @@
 import { nextTick } from 'vue';
-import { router } from '../router.ts';
-import { prefs } from '../core/state/prefsSlice.ts';
+import { router } from '../../router.ts';
+import { prefs } from '../../core/state/prefsSlice.ts';
 
 export function installShortcuts({ openNewSession }: { openNewSession: () => void }) {
   const onKey = async (e: KeyboardEvent) => {

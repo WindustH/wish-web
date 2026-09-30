@@ -188,7 +188,7 @@ watch(() => props.text, text => {
 watch(() => props.attachments.map(a => a.placeholder).join('|'), () => { tokenDrag.cancel(); if (!composing.value) render(value, document.activeElement === el.value ? selection() : undefined); });
 watch(() => props.scope, () => { tokenDrag.cancel(); bookmarks.clear(); history = [props.text]; historyIndex = 0; value = props.text; render(value); lastSelection = { start: value.length, end: value.length }; });
 onMounted(() => render(value));
-defineExpose({ focus: () => el.value?.focus(), blur: () => el.value?.blur(), el, createInsertion, selection });
+defineExpose({ focus: () => el.value?.focus(), blur: () => el.value?.blur(), el, createInsertion });
 </script>
 <template>
   <div ref="el" class="composer-input" contenteditable="true" role="textbox" aria-multiline="true" :aria-label="label" :data-placeholder="placeholder"

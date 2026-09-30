@@ -126,7 +126,6 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
           const frame = parseFrame(chunk);
           if (!frame) continue;                // keepalive comment / blank
           if (frame.id) lastEventId = frame.id;
-          if (frame.retry) { /* advisory only */ }
           if (!aborted && !terminal) onFrame?.(frame);
         }
         if (heldCr) buf += '\r';
@@ -164,8 +163,7 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
 
 function parseFrame(chunk: string): SseFrame | null {
   let event = 'message', dataLines: string[] = [], id = '', retry = 0, sawData = false;
-  for (const rawLine of chunk.split('\n')) {
-    const line = rawLine;
+  for (const line of chunk.split('\n')) {
     if (!line || line.startsWith(':')) continue;
     const colon = line.indexOf(':');
     const field = colon < 0 ? line : line.slice(0, colon);

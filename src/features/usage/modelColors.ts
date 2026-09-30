@@ -1,8 +1,3 @@
-import type { InjectionKey } from 'vue';
-
-/** A page's color slot for a model key, so every chart on it colors a model alike. */
-export const modelColorKey: InjectionKey<(key: string) => number | undefined> = Symbol('modelColor');
-
 // Each model keeps the slot it first received, so filtering a time range or
 // hiding models never recolors the rest. Remembered across launches.
 const STORAGE = 'wish.modelColors';
@@ -14,6 +9,11 @@ function load() {
   try { slots = JSON.parse(localStorage.getItem(STORAGE) || '{}'); } catch { slots = {}; }
   return slots!;
 }
+
+/** The key a model's color is remembered by. */
+export const modelKey = (provider: string | null, model: string | null) => JSON.stringify([provider, model]);
+/** The chart color of a slot. */
+export const chartColor = (index: number) => `var(--chart-${index % PALETTE + 1})`;
 
 export function modelColorIndex(key: string): number {
   const known = load();

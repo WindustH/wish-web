@@ -4,7 +4,7 @@ import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router';
 import { theme } from '../../core/theme/index.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import { i18n } from '../../core/i18n/index.ts';
-import { tr } from './fields.ts';
+import { tr } from '../../core/i18n/tr.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { settingsReturnKey, type ReturnChange } from './settingsReturn.ts';
 
@@ -23,7 +23,7 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
 
   const preferenceValue = () => ({
     mode: theme.mode.value,
-    locale: i18n.locale.value,
+    locale: i18n.choice.value,
     sendOnEnter: prefs.sendOnEnter.value,
     notifyOnFailure: prefs.notifyOnFailure.value,
     keepAwake: prefs.keepAwake.value,
@@ -40,7 +40,7 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
   function restorePreferences() {
     const value = JSON.parse(preferenceSource.value);
     theme.setMode(value.mode);
-    i18n.setLocale(value.locale);
+    i18n.setChoice(value.locale);
     prefs.setSendOnEnter(value.sendOnEnter);
     prefs.setNotifyOnFailure(value.notifyOnFailure);
     prefs.setKeepAwake(value.keepAwake);
@@ -141,9 +141,7 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
     discardChanges,
     leave,
     leaveBusy,
-    confirmReturn,
     resolveLeave,
     saveAndReturn,
-    guardReturn,
   };
 }

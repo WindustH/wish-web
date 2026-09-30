@@ -23,16 +23,23 @@ import cerebras from '@lobehub/icons-static-svg/icons/cerebras.svg?url';
 import ollama from '@lobehub/icons-static-svg/icons/ollama.svg?url';
 import lmstudio from '@lobehub/icons-static-svg/icons/lmstudio.svg?url';
 import vllm from '@lobehub/icons-static-svg/icons/vllm.svg?url';
+import tavily from '@lobehub/icons-static-svg/icons/tavily.svg?url';
+import brave from '@lobehub/icons-static-svg/icons/brave.svg?url';
+import exa from '@lobehub/icons-static-svg/icons/exa.svg?url';
+import bocha from '@lobehub/icons-static-svg/icons/bocha.svg?url';
+import jina from '@lobehub/icons-static-svg/icons/jina.svg?url';
+import perplexity from '@lobehub/icons-static-svg/icons/perplexity.svg?url';
+import searxng from '@lobehub/icons-static-svg/icons/searxng.svg?url';
 
-const props = defineProps<{ brand?: string }>();
-const icons: Record<string, string> = { DeepSeek: deepseek, MiMo: mimo, 'Z.AI': zai, 'Z.ai': zai, Zhipu: zai, SiliconFlow: silicon, Qwen: qwen, Kimi: kimi, 'Tencent Hunyuan (TokenHub)': hunyuan, OpenAI: openai, Anthropic: anthropic, 'Google Gemini': gemini, 'AWS Bedrock': bedrock, MiniMax: minimax, OpenRouter: openrouter, 'Hugging Face Router': huggingface, OpenCode: opencode, Mistral: mistral, xAI: xai, Groq: groq, Cerebras: cerebras, Ollama: ollama, 'LM Studio': lmstudio, vLLM: vllm };
+const props = defineProps<{ brand?: string; fallback?: string }>();
+const icons: Record<string, string> = { DeepSeek: deepseek, MiMo: mimo, 'Z.AI': zai, 'Z.ai': zai, Zhipu: zai, SiliconFlow: silicon, Qwen: qwen, Kimi: kimi, 'Tencent Hunyuan (TokenHub)': hunyuan, OpenAI: openai, Anthropic: anthropic, 'Google Gemini': gemini, 'AWS Bedrock': bedrock, MiniMax: minimax, OpenRouter: openrouter, 'Hugging Face Router': huggingface, OpenCode: opencode, Mistral: mistral, xAI: xai, Groq: groq, Cerebras: cerebras, Ollama: ollama, 'LM Studio': lmstudio, vLLM: vllm, Tavily: tavily, Brave: brave, Exa: exa, Bocha: bocha, Jina: jina, Perplexity: perplexity, SearXNG: searxng };
 const source = computed(() => props.brand ? icons[props.brand] : undefined);
 const maskImage = computed(() => `url("${source.value}")`);
 </script>
 
 <template>
   <span v-if="source" class="provider-icon" :style="{ maskImage }" aria-hidden="true" />
-  <Icon name="providers" v-else class="provider-icon-fallback" :size="20" aria-hidden="true" />
+  <Icon :name="fallback ?? 'providers'" v-else class="provider-icon-fallback" :size="20" aria-hidden="true" />
 </template>
 
 <style scoped>

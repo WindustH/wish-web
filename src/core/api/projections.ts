@@ -28,7 +28,7 @@ export interface SessionDescriptor {
   pending_selection?: unknown;
 }
 /** `mcp` adds no tool of its own: the model reaches MCP servers with `wish mcp` in the shell. */
-export interface ToolSwitches { shell: boolean; ask_user: boolean; mcp: boolean }
+export interface ToolSwitches { shell: boolean; ask_user: boolean; mcp: boolean; web_search: boolean }
 /** One question of an `ask_user` form, with its optional fields settled by the server. */
 export interface AskQuestion {
   type: 'choice' | 'text';
@@ -52,10 +52,9 @@ export type SessionPhase = 'compacting' | 'running' | 'queued' | 'idle';
 export interface SessionView {
   id: string; name: string; provider: string; model: string;
   reasoning_effort: string | undefined; metadata: any;
-  phase: SessionPhase; running: boolean; queue: number; pending_items: number;
+  phase: SessionPhase; running: boolean; queue: number;
   revision: number; created_at: number; updated_at: number;
-  created_at_ms: number; updated_at_ms: number;
-  resume_requires_user: boolean; compaction_count: number;
+  compaction_count: number;
   standby_preparing: boolean;
   context_tokens: number | null;
   pending_questions: PendingQuestion[];
@@ -89,7 +88,6 @@ export interface ProviderView {
   account_state?: string | null;
   model_catalog_available: boolean;
   reasoning_efforts: Record<string, string | number>;
-  reasoning_efforts_source: 'provider';
   models: Record<string, any>;
 }
 
@@ -101,10 +99,9 @@ export function sessionView(value: any): SessionView {
   return {
     id: session.id, name: session.name, provider: session.provider, model: config.model,
     reasoning_effort: config.reasoning?.effort, metadata: status.metadata,
-    phase, running: status.running, queue: status.queue_count, pending_items: status.queue_count,
+    phase, running: status.running, queue: status.queue_count,
     revision: session.revision, created_at: session.created_at, updated_at: session.updated_at,
-    created_at_ms: session.created_at, updated_at_ms: session.updated_at,
-    resume_requires_user: status.phase === 'Suspended', compaction_count: status.active_generation ?? 0,
+    compaction_count: status.active_generation ?? 0,
     standby_preparing: Boolean(status.standby_preparing),
     // Input size of the last conversation call in the active context; null until one completes.
     context_tokens: status.context_tokens ?? null,
@@ -160,5 +157,5 @@ export function entryView(item: any, sessionId: string): EntryView {
 }
 export function providerView(p: any): ProviderView {
   return { ...p, preset: p.preset ?? '', enabled: p.enabled, model_catalog_available: !!p.model_list,
-    reasoning_efforts: p.reasoning_efforts ?? {}, reasoning_efforts_source: 'provider', models: p.models ?? {} };
+    reasoning_efforts: p.reasoning_efforts ?? {}, models: p.models ?? {} };
 }

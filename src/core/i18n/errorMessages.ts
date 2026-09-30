@@ -2,6 +2,7 @@
 // settings. The server reports plain English messages with no codes, so the
 // Chinese text is matched on those messages; anything unknown is shown as is.
 import { i18n } from './index.ts';
+import { errorDetail } from '../errors.ts';
 
 type Rule = [RegExp, (...groups: string[]) => string];
 
@@ -86,6 +87,26 @@ const zh: Rule[] = [
   [/^could not connect: (.+)$/s, reason => `无法连接：${reason}`],
   [/^the server did not answer the handshake within (\d+) seconds$/, seconds => `服务器在 ${seconds} 秒内没有回应握手。`],
   [/^listing the tools failed: (.+)$/s, reason => `读取工具列表失败：${reason}`],
+  // Search providers (server/search.rs).
+  [/^search order names unknown provider (.+)$/, id => `搜索顺序里的 ${id} 不存在。`],
+  [/^search order names (.+) twice$/, id => `搜索顺序里 ${id} 出现了两次。`],
+  [/^search provider (.+?): unknown preset (.+)$/, (id, preset) => `搜索提供商 ${id} 的预设 ${preset} 不存在。`],
+  [/^search provider (.+?) borrows missing provider (.+)$/, (id, lender) => `搜索提供商 ${id} 借用的模型提供商 ${lender} 不存在。`],
+  [/^search provider (.+?) cannot borrow (.+?): (.+?) comes only with (.+)$/, (id, lender, _preset, lenders) => `搜索提供商 ${id} 不能借用 ${lender}：它只随 ${lenders} 附带。`],
+  [/^search provider (.+?) borrows (.+?)'s account and takes no key of its own$/, (id, lender) => `搜索提供商 ${id} 借用 ${lender} 的账户，不能再填自己的密钥。`],
+  [/^search provider (.+?): (.+?) has no account to borrow$/, id => `搜索提供商 ${id} 不是订阅附带的搜索，不能借用模型提供商的账户。`],
+  [/^search provider (.+?): (.+?) needs the model provider it comes with$/, id => `搜索提供商 ${id} 需要选择它所属的模型提供商。`],
+  [/^search provider (.+?) needs an API key$/, id => `搜索提供商 ${id} 需要填写 API Key。`],
+  [/^search provider (.+?) needs the address of its service$/, id => `搜索提供商 ${id} 需要填写服务地址。`],
+  [/^search provider (.+?): the address must start with http:\/\/ or https:\/\/$/, id => `搜索提供商 ${id} 的地址必须以 http:// 或 https:// 开头。`],
+  [/^redacted search provider key `(.+)` has no stored value$/, id => `搜索提供商 ${id} 的密钥显示为已隐藏，但服务器上没有保存它的值，请重新填写。`],
+  [/^redacted search header `(.+)` has no stored value$/, name => `搜索请求头 ${name} 显示为已隐藏，但服务器上没有保存它的值，请重新填写。`],
+  [/^switched off$/, () => '已停用。'],
+  [/^its model provider (.+) no longer exists$/, id => `它借用的模型提供商 ${id} 已不存在。`],
+  [/^its model provider (.+) is off$/, id => `它借用的模型提供商 ${id} 已停用。`],
+  [/^its model provider (.+) is not signed in$/, id => `它借用的模型提供商 ${id} 还没有登录或填写密钥。`],
+  [/^it has no API key$/, () => '还没有填写 API Key。'],
+  [/^no answer within (\d+) seconds$/, seconds => `${seconds} 秒内没有响应。`],
   // Model catalog and runtime failures.
   [/^model_list_path is not configured$/, () => '这个提供商没有配置模型列表路径。'],
   [/^server is shutting down$/, () => '服务正在关闭，请稍后重试。'],
@@ -130,16 +151,9 @@ const zh: Rule[] = [
   [/^(?:Failed to fetch|NetworkError when attempting to fetch resource\.|Load failed)$/, () => '无法连接到服务，请检查网络或服务是否在运行。'],
 ];
 
-/** The underlying message: the server's text for API errors, else the error's own. */
-export function errorSource(error: unknown): string {
-  if (error && typeof error === 'object' && 'detail' in error && typeof error.detail === 'string' && error.detail) return error.detail;
-  if (error instanceof Error) return error.message;
-  return String(error ?? '');
-}
-
 /** Localized text plus the original message when the two differ. */
 export function describeError(error: unknown): { message: string; original?: string } {
-  const source = errorSource(error).trim();
+  const source = errorDetail(error).trim();
   if (i18n.locale.value !== 'zh') return { message: sentence(source) };
   if (error instanceof SyntaxError) return { message: 'JSON 格式不正确，请检查括号、引号和逗号。', original: source };
   for (const [pattern, render] of zh) {

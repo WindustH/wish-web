@@ -12,10 +12,11 @@ import BubbleSurface from './BubbleSurface.vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { useDialogLayer } from '../composables/useDialogLayer.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
+import { prefersReducedMotion } from '../motion/reducedMotion.ts';
 const focus = useDialogFocus();
 const pageActive = usePageActivity();
 
-const props = withDefaults(defineProps<{ open: boolean; title: string; beforeClose?: () => boolean | Promise<boolean>; layer?: number; wide?: boolean; page?: boolean; back?: () => void; contentClass?: string; dismissable?: boolean; closeButton?: boolean; floating?: boolean; anchor?: HTMLElement; compact?: boolean }>(), { dismissable: true, closeButton: true });
+const props = withDefaults(defineProps<{ open: boolean; title: string; beforeClose?: () => boolean | Promise<boolean>; layer?: number; wide?: boolean; page?: boolean; back?: () => void; contentClass?: string; dismissable?: boolean; compact?: boolean }>(), { dismissable: true });
 const emit = defineEmits<{ close: [] }>();
 const closing = ref(false);
 let closeCompleted = false;
@@ -30,8 +31,9 @@ function finishClose() {
   clearCloseTimer();
   emit('close');
 }
-const layer = useDialogLayer(() => props.layer ?? (props.floating ? 64 : 60));
-const bubble = computed(() => props.floating || (!props.page && !!props.contentClass?.split(' ').includes('session-window')));
+const layer = useDialogLayer(() => props.layer ?? 60);
+// A session window opens as a bubble under its chat-bar button instead of a centered card.
+const bubble = computed(() => !props.page && !!props.contentClass?.split(' ').includes('session-window'));
 // Compact cards drop the head and footer bands: the title joins the content
 // flow and the actions follow it. Page sheets keep their head (back button).
 const compactCard = computed(() => props.compact && !props.page);
@@ -61,7 +63,7 @@ function ownFieldDrag(event: Event) {
 }
 function outside(event: Event) {
   const target = (event as CustomEvent).detail?.originalEvent?.target as Node | undefined;
-  if ((target instanceof Element && target.closest('.pwa-update')) || !props.dismissable || (props.floating && target && props.anchor?.contains(target)) || (bubble.value && (event.target as Element)?.closest?.('[data-session-panel]'))) event.preventDefault();
+  if ((target instanceof Element && target.closest('.pwa-update')) || !props.dismissable || (bubble.value && (event.target as Element)?.closest?.('[data-session-panel]'))) event.preventDefault();
 }
 watch(() => props.open, open => { if (open) { clearCloseTimer(); closing.value = false; closeCompleted = false; } });
 watch(pageActive, active => { if (!active) { clearCloseTimer(); closing.value = false; closeCompleted = false; } }, { flush: 'sync' });
@@ -69,27 +71,6 @@ watch([pageActive, bubble], async ([active]) => { if (active) { await nextTick()
 const anchorStyle = ref<Record<string, string>>({});
 function positionBubble() {
   if (!bubble.value) return;
-  if (props.floating) {
-    const rect = props.anchor?.getBoundingClientRect();
-    const width = Math.min(480, innerWidth - 40);
-    let height = Math.min(560, innerHeight * .72);
-    let right = 24;
-    let top = innerHeight * .14;
-    if (rect) {
-      if (rect.left >= width + 32) {
-        right = innerWidth - rect.left + 12;
-        top = Math.max(20, Math.min(rect.top - 12, innerHeight - height - 20));
-      } else {
-        right = Math.max(20, Math.min(innerWidth - width - 20, innerWidth - rect.right));
-        const below = innerHeight - rect.bottom - 28;
-        const above = rect.top - 28;
-        height = Math.min(height, Math.max(above, below));
-        top = below >= above ? rect.bottom + 8 : rect.top - height - 8;
-      }
-    }
-    anchorStyle.value = { right: `${right}px`, top: `${top}px`, maxHeight: `${height}px` };
-    return;
-  }
   const button = document.querySelector('.chatbar [data-session-panel][aria-pressed="true"]');
   if (!button) return;
   const rect = button.getBoundingClientRect();
@@ -113,7 +94,7 @@ async function requestClose() {
     try { if (!await props.beforeClose()) return; } finally { checkingClose = false; }
     if (!pageActive.value) return;
   }
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) emit('close');
+  if (prefersReducedMotion()) emit('close');
   else {
     closeCompleted = false;
     closing.value = true;
@@ -122,7 +103,7 @@ async function requestClose() {
   }
 }
 function onCloseAnimationEnd(event: AnimationEvent) {
-  if (event.target === event.currentTarget && ['popup-fade-out', 'page-out', 'session-panel-out', 'session-bubble-out', 'config-bubble-out'].includes(event.animationName)) finishClose();
+  if (event.target === event.currentTarget && ['popup-fade-out', 'page-out', 'session-panel-out', 'session-bubble-out'].includes(event.animationName)) finishClose();
 }
 defineExpose({ close: requestClose });
 </script>
@@ -131,20 +112,19 @@ defineExpose({ close: requestClose });
   <DialogRoot :modal="!bubble" :open="pageActive && open && !closing" @update:open="(v: boolean) => { if (!v) requestClose(); }">
     <DialogPortal v-if="pageActive">
       <DialogOverlay v-if="!bubble" class="modal-overlay" :style="{ zIndex: layer }" />
-      <DialogContent @pointerdown.capture="ownFieldDrag" @animationend="onCloseAnimationEnd" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'session-bubble': bubble && !floating, 'config-bubble': floating, compact: compactCard }, contentClass]" :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }" :aria-describedby="undefined"
+      <DialogContent @pointerdown.capture="ownFieldDrag" @animationend="onCloseAnimationEnd" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'session-bubble': bubble, compact: compactCard }, contentClass]" :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }" :aria-describedby="undefined"
         @escape-key-down="(e: KeyboardEvent) => { if (dismissable === false) e.preventDefault(); else if (page && back) { e.preventDefault(); back(); } }"
-        @focus-outside="event => { if (floating) event.preventDefault(); }"
         @interact-outside="outside"
         @pointer-down-outside="outside">
-        <BubbleSurface v-if="bubble && !floating" class="session-bubble-surface" side="top" :tail-x="24" align-end />
-        <DialogTitle v-if="bubble && !floating" class="visually-hidden">{{ title }}</DialogTitle>
+        <BubbleSurface v-if="bubble" class="session-bubble-surface" side="top" :tail-x="24" align-end />
+        <DialogTitle v-if="bubble" class="visually-hidden">{{ title }}</DialogTitle>
         <div v-else-if="!compactCard" class="modal-head">
           <button v-if="page" type="button" class="btn ghost icon-only" :disabled="dismissable === false"
             :aria-label="i18n.t('chatbar.back')" @click="back ? back() : requestClose()"><Icon name="arrow-left" /></button>
           <DialogTitle class="modal-title">{{ title }}</DialogTitle>
           <div class="modal-head-actions">
             <slot name="actions" />
-            <button v-if="!page && closeButton" type="button" class="btn ghost icon-only" :disabled="dismissable === false" :aria-label="i18n.t('common.close')"
+            <button v-if="!page" type="button" class="btn ghost icon-only" :disabled="dismissable === false" :aria-label="i18n.t('common.close')"
               @click="requestClose">
               <Icon name="x" />
             </button>

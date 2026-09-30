@@ -7,6 +7,7 @@ import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } f
 import { i18n } from '../../core/i18n/index.ts';
 import { useDialogLayer } from '../composables/useDialogLayer.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
+import { prefersReducedMotion } from '../motion/reducedMotion.ts';
 
 const props = defineProps<{ title: string; busy?: boolean }>();
 const emit = defineEmits<{ close: [] }>();
@@ -27,7 +28,7 @@ function finishClose() {
 }
 function close() {
   if (props.busy || closing.value) return;
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) emit('close');
+  if (prefersReducedMotion()) emit('close');
   else {
     closeCompleted = false;
     closing.value = true;

@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { groupEntries, type GroupEntry } from '../src/features/sessions/grouping.ts';
-import { createQuestionWatch, draftAnswers, emptyDraft, formState, pick, readForm } from '../src/features/sessions/askUser.ts';
+import { draftAnswers, emptyDraft, formState, pick, readForm } from '../src/features/sessions/askUser.ts';
+import { createQuestionWatch } from '../src/core/questionWatch.ts';
 
 const form = { questions: [
   { type: 'choice', question: 'Which database?', options: ['SQLite', { label: 'PostgreSQL', description: 'a server' }] },

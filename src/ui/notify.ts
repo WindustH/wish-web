@@ -6,7 +6,7 @@ import { bus } from '../core/bus.ts';
 import { i18n } from '../core/i18n/index.ts';
 import { createRunFailureWatch } from '../core/runFailures.ts';
 import { tr } from '../core/i18n/tr.ts';
-import { createQuestionWatch } from '../features/sessions/askUser.ts';
+import { createQuestionWatch } from '../core/questionWatch.ts';
 import { platform } from '../platform/index.ts';
 import { announce } from './live.ts';
 

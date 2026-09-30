@@ -15,7 +15,7 @@ const MAX_LINES = 400;
 const wide = /[　-鿿가-힯＀-￯]/g;
 
 /** Wrapped lines and source lines of some text set `width` pixels wide. */
-export function textLines(text: string, width: number): { wrapped: number; source: number } {
+function textLines(text: string, width: number): { wrapped: number; source: number } {
   let wrapped = 0, source = 0;
   for (const line of text.split('\n')) {
     if (!line.trim()) continue;

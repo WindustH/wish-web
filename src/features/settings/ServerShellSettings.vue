@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import SelectField from '../../ui/components/SelectField.vue';
-import { tr } from './fields.ts';
+import { tr } from '../../core/i18n/tr.ts';
 
-export type ShellInfo = { name: string | null; program: string; args: string[] };
-export type ShellCatalog = { default: ShellInfo; installed: ShellInfo[] };
+import type { ShellCatalog } from '../../core/api/endpoints.ts';
 type ShellSettings = { program: string; args: string[] | null };
 
 const props = defineProps<{ value: ShellSettings; catalog: ShellCatalog | null }>();

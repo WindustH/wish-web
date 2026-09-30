@@ -3,10 +3,11 @@ import { computed } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { providerName, presetDescription } from '../../ui/providerPresentation.ts';
 import { protocolPresentation } from '../../ui/protocolPresentation.ts';
-import { PROTOCOL_OPTIONS } from '../settings/useConfigDraft.ts';
+import { MODEL_PROTOCOLS } from '../../core/provider-presets.ts';
 import SelectField from '../../ui/components/SelectField.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { useProviderSetup } from './useProviderSetup.ts';
+import { REDACTED } from '../../core/secretRef.ts';
 const props = defineProps<{ preview?: boolean }>();
 const emit = defineEmits<{ complete: []; exit: [] }>();
 const { snapshot, catalog, loading, saving, error, choice, id, model, provider, preset, choose, load, save, setSecret, secretValue } = useProviderSetup({ preview: props.preview });
@@ -41,12 +42,12 @@ async function finish() { if (await save()) emit('complete'); }
         <fieldset :disabled="saving">
           <label>{{tr('提供商', 'Provider')}}<SelectField searchable :model-value="choice" :options="options" :disabled="saving" @update:model-value="choose" /></label>
           <label>{{tr('服务地址', 'Service URL')}}<input class="input" v-model="provider.base_url" placeholder="https://api.example.com" type="url" required autocomplete="url" /></label>
-          <label v-if="!['none', 'sig_v4'].includes(provider.auth)">API Key<input class="input" type="password" :value="secretValue()" @input="setSecret(($event.target as HTMLInputElement).value)" :placeholder="provider.api_key === '<redacted>' ? tr('已配置，留空保留', 'Configured; leave unchanged to retain') : tr('填写密钥或 ${ENV_NAME}', 'API key or ${ENV_NAME}')" autocomplete="new-password" spellcheck="false" /></label>
-          <label v-for="field in credentials" :key="field">{{field}}<input class="input" type="password" :value="secretValue(field)" @input="setSecret(($event.target as HTMLInputElement).value, field)" :placeholder="provider.credentials[field] === '<redacted>' ? tr('已配置，留空保留', 'Configured; leave unchanged to retain') : '${ENV_NAME}'" autocomplete="new-password" /></label>
+          <label v-if="!['none', 'sig_v4'].includes(provider.auth)">API Key<input class="input" type="password" :value="secretValue()" @input="setSecret(($event.target as HTMLInputElement).value)" :placeholder="provider.api_key === REDACTED ? tr('已配置，留空保留', 'Configured; leave unchanged to retain') : tr('填写密钥或 ${ENV_NAME}', 'API key or ${ENV_NAME}')" autocomplete="new-password" spellcheck="false" /></label>
+          <label v-for="field in credentials" :key="field">{{field}}<input class="input" type="password" :value="secretValue(field)" @input="setSecret(($event.target as HTMLInputElement).value, field)" :placeholder="provider.credentials[field] === REDACTED ? tr('已配置，留空保留', 'Configured; leave unchanged to retain') : '${ENV_NAME}'" autocomplete="new-password" /></label>
           <label>{{tr('模型 ID', 'Model ID')}}<input class="input" v-model="model" required :placeholder="tr('填写提供商支持的模型 ID', 'Enter a model ID supported by the provider')" autocomplete="off" spellcheck="false" /></label>
           <details class="setup-advanced"><summary>{{tr('连接选项', 'Connection options')}}</summary>
             <label>{{tr('提供商 ID', 'Provider ID')}}<input class="input" v-model="id" required autocomplete="off" spellcheck="false" /></label>
-            <label>{{tr('请求协议', 'Request protocol')}}<SelectField v-model="provider.protocol" :disabled="saving" :options="PROTOCOL_OPTIONS.map(value => ({value, ...protocolPresentation(value)}))" /></label>
+            <label>{{tr('请求协议', 'Request protocol')}}<SelectField v-model="provider.protocol" :disabled="saving" :options="MODEL_PROTOCOLS.map(value => ({value, ...protocolPresentation(value)}))" /></label>
             <label>{{tr('请求路径', 'Request path')}}<input class="input" v-model="provider.path" required spellcheck="false" /></label>
             <label>{{tr('认证方式', 'Authentication')}}<SelectField v-model="provider.auth" :disabled="saving" :options="authOptions" /></label>
           </details>

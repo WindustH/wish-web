@@ -1,24 +1,24 @@
 <script setup lang="ts">
-import { useMedia } from '../../ui/composables/useMedia.ts';
-const isMobile=useMedia('(max-width: 899px)');
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
+const isMobile=useIsMobile();
+import { computed, reactive, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import type { ProviderConfig, ProviderPreset } from '../../core/provider-presets.ts';
-import { presetProfile, credentialPresentation } from './preset-profile.ts';
+import { presetProfile, credentialTitle } from './preset-profile.ts';
 import { presetDescription, providerName } from '../../ui/providerPresentation.ts';
 import { protocolPresentation } from '../../ui/protocolPresentation.ts';
 import ProviderIcon from '../../ui/components/ProviderIcon.vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import AnimatedDetails from '../../ui/components/AnimatedDetails.vue';
-import { tr } from './fields.ts';
+import { tr } from '../../core/i18n/tr.ts';
 import Icon from '../../ui/components/Icon.vue';
-import Hint from '../../ui/components/Hint.vue';
 import Modal from '../../ui/components/Modal.vue';
 import { useSettingsReturn } from './settingsReturn.ts';
 import ProviderModels from './ProviderModels.vue';
-import { get, post } from '../../core/api/client.ts';
-import { showError } from '../../ui/errorDialog.ts';
-import { ACCOUNT_PROTOCOLS } from '../account/accountState.ts';
+import { ACCOUNT_PROTOCOLS } from '../../core/provider-presets.ts';
+import SettingsItemCard, { type ItemState } from './SettingsItemCard.vue';
+import { secretText, readSecret, writeCredential, REDACTED } from '../../core/secretRef.ts';
+import { useChatgptLogin } from './useChatgptLogin.ts';
 // `listTitle` names the provider in the phone list, where no ID is shown beside it.
 const props=defineProps<{ id:string; value:ProviderConfig; preset?:ProviderPreset; protocols:string[]; initiallyOpen?:boolean; save?:()=>Promise<boolean>; saving?:boolean; listTitle?:string }>();
 const emit=defineEmits<{remove:[];protocol:[value:string];loginComplete:[]}>();
@@ -26,84 +26,7 @@ const editing=ref(props.initiallyOpen??false);
 const mobilePanel=ref('');
 const mobileReturning=ref(false);
 const modelEditor=ref<InstanceType<typeof ProviderModels>>();
-const loginBusy=ref(false);
-const loginUrl=ref('');
-const loginMessage=ref('');
-const loginCallbackUrl=ref('');
-const loginSubmitting=ref(false);
-let loginPoll: ReturnType<typeof setTimeout>|undefined;
-let loginPopup: Window|null=null;
-onBeforeUnmount(()=>{if(loginPoll)clearTimeout(loginPoll);});
-const loginFailed=(error:unknown)=>showError({title:tr('ChatGPT 登录失败','ChatGPT sign-in failed'),error});
-async function pollChatgptLogin(){
-  try{
-    const result=await get('/providers/'+encodeURIComponent(props.id)+'/chatgpt-login');
-    if(result.status==='complete'){
-      loginBusy.value=false;
-      loginMessage.value=tr('ChatGPT 登录成功，凭据已保存。','ChatGPT sign-in succeeded. Credentials were saved.');
-      emit('loginComplete');
-      return;
-    }
-    if(result.status==='failed'||result.status==='expired'){
-      loginBusy.value=false;
-      loginFailed(result.error||tr('登录未完成，请重试。','Sign-in did not complete. Try again.'));
-      return;
-    }
-    loginPoll=setTimeout(pollChatgptLogin,1500);
-  }catch(error){
-    loginBusy.value=false;
-    loginFailed(error);
-  }
-}
-async function startChatgptLogin(){
-  if(loginSubmitting.value)return;
-  if(loginPoll)clearTimeout(loginPoll);
-  loginPopup?.close();
-  const popup=window.open('','_blank');
-  loginPopup=popup;
-  if(popup)popup.opener=null;
-  loginBusy.value=true;
-  loginUrl.value='';
-  loginMessage.value='';
-  loginCallbackUrl.value='';
-  try{
-    // The failed save has already reported why.
-    if(props.save&&!(await props.save())){
-      popup?.close();
-      loginBusy.value=false;
-      return;
-    }
-    const result=await post('/providers/'+encodeURIComponent(props.id)+'/chatgpt-login',{});
-    loginUrl.value=result.authorization_url;
-    if(popup)popup.location.href=result.authorization_url;
-    loginMessage.value=tr('请在打开的 ChatGPT 页面完成授权。','Complete authorization in the ChatGPT page.');
-    loginPoll=setTimeout(pollChatgptLogin,1500);
-  }catch(error){
-    popup?.close();
-    loginBusy.value=false;
-    loginFailed(error);
-  }
-}
-async function completeChatgptLogin(){
-  if(loginSubmitting.value||!loginCallbackUrl.value.trim())return;
-  loginSubmitting.value=true;
-  try{
-    await post('/providers/'+encodeURIComponent(props.id)+'/chatgpt-login/complete',{
-      callback_url:loginCallbackUrl.value.trim(),
-    });
-    if(loginPoll)clearTimeout(loginPoll);
-    loginBusy.value=false;
-    loginMessage.value=tr('ChatGPT 登录成功，凭据已保存。','ChatGPT sign-in succeeded. Credentials were saved.');
-    loginCallbackUrl.value='';
-    loginPopup?.close();
-    loginPopup=null;
-    emit('loginComplete');
-  }catch(error){
-    loginFailed(error);
-  }finally{
-    loginSubmitting.value=false;
-  }
-}
+const login=reactive(useChatgptLogin(()=>props.id,props.save,()=>emit('loginComplete')));
 function openModelAdd(){modelEditor.value?.openAdd();}
 async function backToProvider(){if(await returns.confirm()){mobileReturning.value=true;mobilePanel.value='';}}
 const returns=useSettingsReturn(()=>isMobile.value&&editing.value,async()=>{if(mobilePanel.value)await backToProvider();else if(await returns.confirm())closeEditor();});
@@ -117,6 +40,7 @@ const panels=computed(()=>[
 ]);
 
 
+const state=computed<ItemState>(()=>props.value.enabled?{kind:'ok',text:tr('已启用','Enabled')}:{kind:'disabled',text:tr('已停用','Disabled')});
 const profile=computed(()=>props.preset?presetProfile(props.preset):undefined);
 const connectionCredentials=computed(()=>props.preset?.required_credentials.filter(field=>field==='workspace_id')??[]);
 const credentials=computed(()=>{
@@ -127,40 +51,20 @@ const credentials=computed(()=>{
 });
 const options=(items:string[])=>items.map(value=>({value,...protocolPresentation(value)}));
 const optional=(items:string[])=>[{value:'',label:tr('不使用','Disabled')},...options(items)];
-function parseEnvironment(value:string){return /^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$/.exec(value)?.[1];}
-const keyValue=computed(()=>props.value.api_key_env!=null?'${'+props.value.api_key_env+'}':props.value.api_key==='<redacted>'?'':props.value.api_key??'');
-function setKey(value:string){
-  const environment=parseEnvironment(value);
-  props.value.api_key_env=environment??null;
-  props.value.api_key=environment?null:value||null;
+const keyValue=computed(()=>secretText(props.value.api_key,props.value.api_key_env));
+function setKey(text:string){
+  const {value,env}=readSecret(text);
+  props.value.api_key_env=env;
+  props.value.api_key=value;
 }
-function credentialValue(field:string){
-  if(field in props.value.credentials_env)return '${'+props.value.credentials_env[field]+'}';
-  return props.value.credentials[field]==='<redacted>'?'':props.value.credentials[field]??'';
-}
-function setCredential(field:string,value:string){
-  const environment=parseEnvironment(value);
-  delete props.value.credentials[field];
-  delete props.value.credentials_env[field];
-  if(environment)props.value.credentials_env[field]=environment;
-  else if(value)props.value.credentials[field]=value;
-}
+const credentialValue=(field:string)=>secretText(props.value.credentials[field],props.value.credentials_env[field]);
+const setCredential=(field:string,text:string)=>writeCredential(props.value.credentials,props.value.credentials_env,field,text);
 
 </script>
 <template>
-  <div class="provider-item">
-    <button v-if="isMobile" class="mobile-settings-row provider-navigation" @click="mobilePanel='';editing=true"><span class="provider-mark"><ProviderIcon :brand="preset?.provider"/></span><span>{{listTitle||displayName}}<small class="row-preview">{{Object.keys(value.models).length}} {{tr('个模型','models')}}<template v-if="preset"> · {{presetDescription(preset)}}</template></small></span><small v-if="!value.enabled" class="provider-state disabled">{{tr('已停用','Disabled')}}</small><Icon name="chevron-right"/></button>
-    <header v-else class="provider-heading" @click="($event.target as Element).closest('button')||(editing=true)">
-      <span class="provider-mark"><ProviderIcon :brand="preset?.provider"/></span>
-      <div class="provider-identity">
-        <div class="provider-title-line"><h2>{{displayName}}</h2><span class="provider-state" :class="{ disabled: !value.enabled }">{{value.enabled?tr('已启用','Enabled'):tr('已停用','Disabled')}}</span></div>
-        <small>{{id}}<template v-if="preset"> · {{presetDescription(preset)}}</template></small>
-      </div>
-      <div class="provider-actions">
-        <Hint :text="tr('编辑提供商','Edit provider')"><button class="btn ghost icon-only" :aria-label="tr('编辑提供商 ','Edit provider ')+id" @click="editing=true"><Icon name="pencil"/></button></Hint>
-        <Hint :text="tr('删除提供商','Delete provider')"><button class="btn ghost icon-only provider-remove" :aria-label="tr('删除提供商 ','Delete provider ')+id" @click="emit('remove')"><Icon name="trash-2"/></button></Hint>
-      </div>
-    </header>
+  <SettingsItemCard class="provider-item" :title="isMobile?(listTitle||displayName):displayName" :summary="`${Object.keys(value.models).length} ${tr('个模型','models')}${preset?' · '+presetDescription(preset):''}`" :state="state" :mobile-state="value.enabled?null:state" :label="id" :edit-hint="tr('编辑提供商','Edit provider')" :remove-hint="tr('删除提供商','Delete provider')" @open="mobilePanel='';editing=true" @remove="emit('remove')">
+    <template #mark><ProviderIcon :brand="preset?.provider"/></template>
+    <template #detail>{{id}}<template v-if="preset"> · {{presetDescription(preset)}}</template></template>
     <AnimatedDetails v-if="!isMobile" class="provider-models"><summary><span class="provider-models-label"><Icon name="model"/>{{tr('模型','Models')}}</span><span class="provider-model-count">{{Object.keys(value.models).length}}</span><button type="button" class="btn ghost icon-only provider-model-add" :aria-label="tr('添加模型','Add model')" :data-hint="tr('添加模型','Add model')" @click.stop.prevent="openModelAdd"><Icon name="plus"/></button><Icon name="chevron-down" class="provider-models-chevron"/></summary><ProviderModels ref="modelEditor" :id="id" :value="value" :preset="preset"/></AnimatedDetails>
     <Modal compact :before-close="isMobile?returns.confirm:undefined" :content-class="isMobile?'settings-editor mobile-settings-page provider-panel':'settings-editor'" :back="isMobile&&mobilePanel?backToProvider:undefined" :page="isMobile" :open="editing" :title="isMobile?(panels.find(p=>p.id===mobilePanel)?.label||displayName):tr('编辑提供商 · ','Edit provider · ')+id" wide @close="closeEditor">
 
@@ -172,7 +76,7 @@ function setCredential(field:string,value:string){
       <div class="mobile-settings-row"><span>{{tr('启用此提供商','Enable provider')}}</span><SwitchRoot v-model="value.enabled" class="cfg-switch" :aria-label="tr('启用此提供商','Enable provider')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
     </div>
     <nav v-if="isMobile&&!mobilePanel" class="mobile-settings-list"><button v-for="panel in panels" :key="panel.id" class="mobile-settings-row" @click="mobileReturning=false;mobilePanel=panel.id"><span>{{panel.label}}</span><small>{{panel.value}}</small><Icon name="chevron-right"/></button></nav>
-    <button v-if="isMobile&&!mobilePanel" class="btn danger mobile-provider-remove" @click="editing=false;emit('remove')"><Icon name="trash-2"/>{{tr('删除提供商','Delete provider')}}</button>
+    <button v-if="isMobile&&!mobilePanel" class="btn danger solid mobile-provider-remove" @click="editing=false;emit('remove')"><Icon name="trash-2"/>{{tr('删除','Delete')}}</button>
     <ProviderModels v-if="isMobile&&mobilePanel==='models'" ref="modelEditor" :id="id" :value="value" :preset="preset"/>
     <section v-show="!isMobile||mobilePanel==='connection'" class="preset-section">
       <header v-if="!isMobile"><h3>{{tr('连接','Connection')}}</h3><a v-if="profile?.documentation" :href="profile.documentation" target="_blank" rel="noreferrer">{{tr('官方说明','Documentation')}}</a></header>
@@ -181,7 +85,7 @@ function setCredential(field:string,value:string){
       <div v-else class="mobile-settings-row"><span>{{tr('使用代理','Use proxy')}}</span><SwitchRoot v-model="value.proxy_enabled" class="cfg-switch" :aria-label="tr('使用代理','Use proxy')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
       <label>{{tr('服务地址','Base URL')}}<input class="input" v-model="value.base_url"/></label>
       <label>{{tr('请求路径','Request path')}}<input class="input" v-model="value.path"/></label>
-      <label v-for="field in connectionCredentials" :key="field">{{credentialPresentation(field)?.title||field}}<input class="input" :value="credentialValue(field)" :placeholder="value.credentials[field]==='<redacted>'?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" autocomplete="off" @input="setCredential(field,($event.target as HTMLInputElement).value)"/></label>
+      <label v-for="field in connectionCredentials" :key="field">{{credentialTitle(field)||field}}<input class="input" :value="credentialValue(field)" :placeholder="value.credentials[field]===REDACTED?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" autocomplete="off" @input="setCredential(field,($event.target as HTMLInputElement).value)"/></label>
       <p v-if="profile?.note"  class="hint">{{profile.note}}</p>
     </section>
     <section v-show="!isMobile||mobilePanel==='auth'" class="preset-section">
@@ -189,20 +93,20 @@ function setCredential(field:string,value:string){
       <p v-if="value.auth!=='none'" class="hint">{{tr('直接填写凭据，或填写 ${ENV_NAME} 引用服务器环境变量。','Enter credentials directly, or use ${ENV_NAME} to reference a server environment variable.')}}</p>
       <label>{{tr('认证方式','Authentication method')}}<SelectField mobile-page v-model="value.auth" :aria-label="id+' '+tr('认证方式','Authentication method')" :options="[{value:'none',label:tr('无需认证','None')},{value:'bearer',label:'Bearer token'},{value:'anthropic_key',label:'Anthropic API Key'},{value:'google_key',label:'Google API Key'},{value:'sig_v4',label:'AWS SigV4'}]"/></label>
       <template v-if="!['none','sig_v4'].includes(value.auth)">
-        <label>{{profile?.keyLabel||'API Key'}}<input class="input" :type="value.api_key_env!=null?'text':'password'" :value="keyValue" :placeholder="value.api_key==='<redacted>'?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" autocomplete="new-password" @input="setKey(($event.target as HTMLInputElement).value)"/><small v-if="profile?.keyHint" class="hint">{{profile.keyHint}}</small></label>
+        <label>{{profile?.keyLabel||'API Key'}}<input class="input" :type="value.api_key_env!=null?'text':'password'" :value="keyValue" :placeholder="value.api_key===REDACTED?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" autocomplete="new-password" @input="setKey(($event.target as HTMLInputElement).value)"/><small v-if="profile?.keyHint" class="hint">{{profile.keyHint}}</small></label>
       </template>
       <template v-for="field in credentials" :key="field">
-        <label>{{credentialPresentation(field)?.title||field}}
-          <input class="input" :type="field in value.credentials_env?'text':'password'" :value="credentialValue(field)" :placeholder="value.credentials[field]==='<redacted>'?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" :aria-label="credentialPresentation(field)?.title||field" autocomplete="new-password" @input="setCredential(field,($event.target as HTMLInputElement).value)"/>
+        <label>{{credentialTitle(field)||field}}
+          <input class="input" :type="field in value.credentials_env?'text':'password'" :value="credentialValue(field)" :placeholder="value.credentials[field]===REDACTED?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" :aria-label="credentialTitle(field)||field" autocomplete="new-password" @input="setCredential(field,($event.target as HTMLInputElement).value)"/>
         </label>
       </template>
       <div v-if="profile?.codex" class="chatgpt-login">
-        <button type="button" class="btn primary" :disabled="loginSubmitting||saving" @click="startChatgptLogin"><Icon name="external-link"/>{{loginBusy?tr('重新开始 ChatGPT 登录','Restart ChatGPT sign-in'):tr('通过 ChatGPT 登录','Sign in with ChatGPT')}}</button>
-        <a v-if="loginUrl" :href="loginUrl" target="_blank" rel="noopener noreferrer">{{tr('重新打开登录页面','Open sign-in page again')}}</a>
-        <small v-if="loginMessage" class="hint" role="status">{{loginMessage}}</small>
-        <div v-if="loginBusy" class="chatgpt-manual">
+        <button type="button" class="btn primary" :disabled="login.submitting||saving" @click="login.start"><Icon name="external-link"/>{{login.busy?tr('重新开始 ChatGPT 登录','Restart ChatGPT sign-in'):tr('通过 ChatGPT 登录','Sign in with ChatGPT')}}</button>
+        <a v-if="login.url" :href="login.url" target="_blank" rel="noopener noreferrer">{{tr('重新打开登录页面','Open sign-in page again')}}</a>
+        <small v-if="login.message" class="hint" role="status">{{login.message}}</small>
+        <div v-if="login.busy" class="chatgpt-manual">
           <small class="hint">{{tr('远程访问时，授权后若出现 localhost 无法连接，请复制浏览器地址栏中的完整链接并粘贴到这里。','If localhost cannot connect after authorization, copy the full URL from your browser address bar and paste it here.')}}</small>
-          <div class="chatgpt-manual-input"><input v-model.trim="loginCallbackUrl" class="input" type="url" :placeholder="tr('粘贴 localhost 授权链接','Paste the localhost redirect URL')" autocomplete="off" spellcheck="false" @keydown.enter.prevent="completeChatgptLogin"/><button type="button" class="btn" :disabled="!loginCallbackUrl||loginSubmitting" @click="completeChatgptLogin">{{loginSubmitting?tr('验证中…','Verifying…'):tr('完成登录','Complete sign-in')}}</button></div>
+          <div class="chatgpt-manual-input"><input v-model.trim="login.callbackUrl" class="input" type="url" :placeholder="tr('粘贴 localhost 授权链接','Paste the localhost redirect URL')" autocomplete="off" spellcheck="false" @keydown.enter.prevent="login.complete"/><button type="button" class="btn" :disabled="!login.callbackUrl||login.submitting" @click="login.complete">{{login.submitting?tr('验证中…','Verifying…'):tr('完成登录','Complete sign-in')}}</button></div>
         </div>
       </div>
     </section>
@@ -224,25 +128,18 @@ function setCredential(field:string,value:string){
     <template #actions><button v-if="isMobile&&mobilePanel==='models'" type="button" class="btn ghost icon-only" :aria-label="tr('添加模型','Add model')" :data-hint="tr('添加模型','Add model')" @click="openModelAdd"><Icon name="plus"/></button></template>
     <template v-if="!isMobile" #footer><span class="hint">{{tr('修改保留在设置草稿中，保存后生效。','Changes remain in the settings draft until saved.')}}</span><button class="btn primary" @click="editing=false">{{tr('完成','Done')}}</button></template>
     </Modal>
-  </div>
+  </SettingsItemCard>
 </template>
 <style scoped>
+/* A provider's card beside the shared one: its brand at full strength, its id wrapping rather than cut. */
+.provider-item :deep(.settings-item-mark){color:var(--fg)}
+.provider-item :deep(.settings-item-heading small){white-space:normal;overflow-wrap:anywhere}
 .chatgpt-login{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}.chatgpt-login .btn{display:inline-flex;align-items:center;gap:7px}.chatgpt-login .hint{width:100%}
 .chatgpt-manual{width:100%;display:grid;gap:8px}.chatgpt-manual-input{display:flex;gap:8px}.chatgpt-manual-input .input{flex:1;min-width:0}.chatgpt-manual-input .btn{flex:none}@media(max-width:599px){.chatgpt-manual-input{flex-direction:column}}
-.provider-item{min-width:0;border:1px solid var(--line);border-radius:12px;background:var(--bg-raised);overflow:hidden}
-.provider-heading{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;transition:background var(--dur-fast)}
-@media (hover: hover) { .provider-heading:hover{background:var(--bg-hover)} }
+
+
 .provider-mark{display:grid;place-items:center;flex:none;width:40px;height:40px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg)}
-.provider-identity{flex:1;min-width:0}
-.provider-title-line{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
-.provider-heading h2{font-size:15px;line-height:1.4;margin:0}
-.provider-heading small{display:block;color:var(--fg-subtle);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
-.provider-state{display:inline-flex;align-items:center;gap:5px;padding:1px 8px 1px 7px;border-radius:99px;background:color-mix(in srgb,var(--ok) 13%,transparent);color:var(--ok);font-size:11px;font-weight:500;line-height:1.6;white-space:nowrap}
-.provider-state::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
-.provider-state.disabled{background:var(--bg-sunken);color:var(--fg-subtle)}
-.provider-remove{color:var(--fg-subtle)}
-@media (hover: hover) { .provider-remove:hover{color:var(--err);background:var(--err-bg)} }
-.provider-actions{display:flex;align-items:center;gap:4px;flex:none}
+
 .provider-models{margin:0}
 .provider-models>summary{display:flex;align-items:center;gap:8px;min-height:42px;padding:8px 16px;cursor:pointer;color:var(--fg-muted);font-size:12px;list-style:none;transition:background var(--dur-fast),color var(--dur-fast)}
 .provider-models>summary::-webkit-details-marker{display:none}
@@ -255,15 +152,13 @@ function setCredential(field:string,value:string){
 .provider-models-chevron{width:15px;height:15px;margin-left:4px;transition:transform var(--dur-fast)}
 .provider-models[open] .provider-models-chevron{transform:rotate(180deg)}
 .provider-models :deep(.models-editor){padding:12px 16px 16px}
-.preset-section{display:grid;gap:14px;border-top:1px solid var(--line);padding-top:16px;margin-top:16px}.preset-section>header{display:flex;justify-content:space-between;align-items:center}.preset-section h3{font-size:14px;margin:0}.preset-section label{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:8px 16px;min-width:0}.preset-section label>small{grid-column:2}.preset-section label.inline{display:flex;flex-direction:row;justify-content:flex-start}.preset-section p{margin:0}.advanced-fields{display:grid;gap:14px;padding-top:14px;min-width:0}.provider-name{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:8px 16px}.provider-form>.inline{margin-top:12px}.inline{display:flex;align-items:center;gap:8px;margin-top:16px}.preset-section summary{cursor:pointer;font-weight:500}.model-properties{display:grid;gap:12px;padding:12px;background:var(--bg-sunken);border-radius:8px}.model-properties h4{margin:0}.input{width:100%;min-width:0}a,.hint{font-size:12px;color:var(--fg-subtle)}
-@media(max-width:599px){.provider-name{grid-template-columns:1fr}.preset-section label{grid-template-columns:minmax(0,1fr)}.preset-section label>small{grid-column:1}.provider-heading{gap:8px;flex-wrap:wrap}.provider-heading>div{flex-basis:calc(100% - 48px)}.provider-heading small{overflow-wrap:anywhere}}
-@media(min-width:900px){.preset-section{gap:10px;padding-top:12px;margin-top:12px}.preset-section .inline{margin-top:0}.provider-form>.inline{margin-top:10px}.advanced-fields{gap:10px;padding-top:10px}}
+.preset-section{display:grid;gap:14px;border-top:1px solid var(--line);padding-top:16px;margin-top:16px}.preset-section>header{display:flex;justify-content:space-between;align-items:center}.preset-section h3{font-size:14px;margin:0}.preset-section label{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:8px 16px;min-width:0}.preset-section label>small{grid-column:2}.preset-section p{margin:0}.advanced-fields{display:grid;gap:14px;padding-top:14px;min-width:0}.provider-name{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:8px 16px}.preset-section summary{cursor:pointer;font-weight:500}.input{width:100%;min-width:0}a,.hint{font-size:12px;color:var(--fg-subtle)}
+@media(max-width:599px){.provider-name{grid-template-columns:1fr}.preset-section label{grid-template-columns:minmax(0,1fr)}.preset-section label>small{grid-column:1}}
+@media(min-width:900px){.preset-section{gap:10px;padding-top:12px;margin-top:12px}.advanced-fields{gap:10px;padding-top:10px}}
 @media(max-width:899px){
  /* Providers are rows of one grouped list; dividers start after the icon. */
- .provider-item{padding:0;border:0;border-radius:0;background:var(--bg-group);background-clip:padding-box}
- .provider-navigation{width:100%;min-height:64px;gap:14px}
- .provider-navigation .provider-mark,.provider-hero .provider-mark{width:34px;height:34px;border-radius:10px}
- .provider-navigation .provider-state{flex:none}
+ 
+ .provider-hero .provider-mark {width:34px;height:34px;border-radius:10px}
  .provider-hero{display:flex;align-items:center;gap:14px;margin:0 4px 20px}
  .provider-hero .provider-mark{width:52px;height:52px;border-radius:14px}
  .provider-hero .provider-mark :deep(.provider-icon){transform:scale(1.25)}
@@ -272,7 +167,7 @@ function setCredential(field:string,value:string){
  .provider-hero small{display:block;margin-top:2px;font-size:12px;color:var(--fg-subtle);overflow-wrap:anywhere}
  .provider-form>.provider-name{display:block;margin-bottom:20px;padding:12px 14px;border:0;border-radius:18px;background:var(--bg-group);font-size:13px;color:var(--fg-muted)}
  .provider-name .input{margin-top:8px}
- .mobile-provider-remove{width:100%;min-height:52px;margin-top:0;border:0;border-radius:18px;background:var(--bg-group);color:var(--err)}
+ .mobile-provider-remove{width:100%;min-height:52px;margin-top:0;border-radius:18px}
 }
 @media(max-width:899px){
  .provider-panel .preset-section{padding:0;gap:0;overflow:hidden}

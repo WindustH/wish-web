@@ -1,6 +1,6 @@
 import type { ProviderPreset } from '../../core/provider-presets.ts';
 import { providerName } from '../../ui/providerPresentation.ts';
-import { tr } from './fields.ts';
+import { tr } from '../../core/i18n/tr.ts';
 
 // Presentation only: protocols, required fields and addresses come from the catalog.
 // Authentication notes were checked against the implementation and official docs;
@@ -74,13 +74,14 @@ export function presetProfile(p: ProviderPreset) {
     keyHint = tr('填写 Claude Console 签发的 API Key；当前预设通过 x-api-key 发送。', 'Use an API key from Claude Console; this preset sends it through x-api-key.');
     note = tr('多 workspace 密钥需要在额外请求头中填写 anthropic-workspace-id。', 'Multi-workspace keys require anthropic-workspace-id in additional headers.');
   }
-  return { local, codex, aws, workspace, keyLabel, keyHint, note, documentation };
+  return { codex, keyLabel, keyHint, note, documentation };
 }
-export const credentialPresentation = (field: string) => ({
-  account_id: { title: tr('账户 ID','Account ID'), hint: tr('填写提供商账户 ID。','Enter the provider account ID.') },
-  region: { title: tr('AWS 地区', 'AWS Region'), hint: tr('填写 Bedrock 所在地区，例如 us-east-1。', 'Bedrock region, for example us-east-1.') },
-  access_key_id: { title: 'Access Key ID', hint: tr('与 Secret Access Key 配对的 AWS 凭据 ID。', 'AWS credential ID paired with the Secret Access Key.') },
-  secret_access_key: { title: 'Secret Access Key', hint: tr('用于为 Bedrock 请求生成 AWS SigV4 签名。', 'Used to sign Bedrock requests with AWS SigV4.') },
-  session_token: { title: 'Session Token', hint: tr('使用临时 AWS 凭据时填写，需与上面两项来自同一组凭据。', 'Required for temporary AWS credentials; must belong to the same credential set above.') },
-  workspace_id: { title: tr('工作空间 ID', 'workspace ID'), hint: tr('填写当前地区的 workspace ID。', 'Enter the workspace ID in the selected region.') },
-} as Record<string, { title: string; hint: string }>)[field];
+// What a credential field is called in the form.
+export const credentialTitle = (field: string): string | undefined => ({
+  account_id: tr('账户 ID', 'Account ID'),
+  region: tr('AWS 地区', 'AWS Region'),
+  access_key_id: 'Access Key ID',
+  secret_access_key: 'Secret Access Key',
+  session_token: 'Session Token',
+  workspace_id: tr('工作空间 ID', 'workspace ID'),
+} as Record<string, string>)[field];

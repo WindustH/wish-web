@@ -4,9 +4,9 @@
 // until a row changes, so opening the editor leaves the draft as it was.
 import { ref, watch } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
-import { tr } from './fields.ts';
+import { tr } from '../../core/i18n/tr.ts';
+import { REDACTED } from '../../core/secretRef.ts';
 
-const REDACTED = '<redacted>';
 const props = defineProps<{ modelValue?: Record<string, string>; namePlaceholder: string; valuePlaceholder: string; addLabel: string }>();
 const emit = defineEmits<{ 'update:modelValue': [value: Record<string, string> | undefined] }>();
 

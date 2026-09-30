@@ -47,7 +47,7 @@ onMounted(async () => {
 onBeforeUnmount(() => { calendarObserver?.disconnect(); clearTimeout(columnTimer); });
 watch([theme.resolved, active], async () => { await nextTick(); readStyle(); if (props.heat) measureCalendar(); });
 const layout = computed(() => props.heat && width.value > 0 ? calendarLayout(props.heat.buckets.length, width.value) : undefined);
-const option = computed(() => style.value && (!props.heat || width.value > 0) && (props.pie ? pieOptions(props.pie, style.value, i18n.locale.value) : props.heat
+const option = computed(() => style.value && (!props.heat || width.value > 0) && (props.pie ? pieOptions(props.pie, style.value) : props.heat
   ? calendarOptions(props.heat, style.value, i18n.locale.value, width.value)
   : lineOptions(props.series ?? [], style.value, i18n.locale.value, props.unit ?? 'Token/s')));
 </script>

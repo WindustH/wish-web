@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, ref, shallowRef, toRef, watch } from 'vue';
 import { i18n } from '../../core/i18n/index.ts';
-import { errorText } from '../../core/config-editor.ts';
-import { FALLBACK_EFFORT_LEVELS, readModels, readProviders, type ModelInfo } from '../../core/provider-catalog.ts';
+import { errorText } from '../../core/errors.ts';
+import { FALLBACK_EFFORT_LEVELS, STANDARD_EFFORTS, readModels, readProviders, type ModelInfo } from '../../core/provider-catalog.ts';
 import { useSessionSelection, type ModelSelection } from './useSessionSelection.ts';
 import { effortLabel, resolvedEffort } from './reasoningLabels.ts';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
 import PickerList, { type PickerItem } from '../../ui/components/PickerList.vue';
-import Spinner from '../../ui/components/Spinner.vue';
+import SelectionStatus from './SelectionStatus.vue';
 
 const panel = ref<InstanceType<typeof CommandPanel>>();
 const props = defineProps<{ sessionId?: string; selection?: ModelSelection }>();
@@ -20,7 +20,7 @@ const selected = ref('default'), query = ref('');
 const key = (effort?: string) => effort ? `effort:${effort}` : 'default';
 let controller = new AbortController();
 const providerEfforts = shallowRef<Record<string, string | number>>({});
-const standardLevels = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+const standardLevels = STANDARD_EFFORTS;
 const levelList = computed(() => {
   const levels = Object.keys(metadata.value?.reasoning_efforts ?? providerEfforts.value).filter(level => level !== 'none' && level !== 'auto');
   const defaultLevel = metadata.value?.default_reasoning_effort;
@@ -89,9 +89,7 @@ async function apply(value: string) {
   <CommandPanel ref="panel" :title="i18n.t('reasoning.title')" :busy="saving" @close="emit('close')">
     <PickerList v-model="selected" v-model:query="query" :items="choices" :icons="false" :placeholder="i18n.t('reasoning.search')" :disabled="loading || saving || metadataBusy" @select="apply">
       <template #status>
-        <p v-if="snapshot?.running" class="command-status hint">{{ i18n.locale.value === 'zh' ? '修改从下一次模型请求开始生效，当前请求不会中断。' : 'Changes apply to the next model request without interrupting the current one.' }}</p>
-        <div v-if="error" class="command-status load-error" role="alert">{{ conflict ? i18n.t('model.conflict') : errorText(error) }}<button class="btn ghost sm" :disabled="loading || saving" @click="reload">{{ i18n.t('common.retry') }}</button></div>
-        <p v-if="loading || saving || metadataBusy" class="command-status hint" role="status"><Spinner /> {{ saving ? i18n.t('picker.switching') : i18n.t('reasoning.loading') }}</p>
+        <SelectionStatus :running="snapshot?.running" :error="error" :conflict="conflict" :loading="loading" :saving="saving" :busy="loading || saving || metadataBusy" :loading-text="i18n.t('reasoning.loading')" @retry="reload" />
       </template>
       <template #after>
         <div v-if="metadataError" class="load-error" role="alert">{{ errorText(metadataError) }}<button class="btn ghost sm" @click="loadMetadata">{{ i18n.t('common.retry') }}</button></div>

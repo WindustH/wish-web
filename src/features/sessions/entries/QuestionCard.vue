@@ -4,8 +4,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue';
 import * as api from '../../../core/api/endpoints.ts';
 import { chat } from '../../../core/state/chatSlice.ts';
-import { i18n } from '../../../core/i18n/index.ts';
-import { tr } from '../../../core/i18n/tr.ts';
+import { tr, intlLocale } from '../../../core/i18n/tr.ts';
 import Icon from '../../../ui/components/Icon.vue';
 import Markdown from '../../../ui/components/Markdown.vue';
 import { showError } from '../../../ui/errorDialog.ts';
@@ -13,6 +12,7 @@ import { toast } from '../../../ui/toast.ts';
 import { type AnswerRecord, type Draft, draftAnswered, draftAnswers, emptyDraft, formState, pick, readForm } from '../askUser.ts';
 import type { QuestionItem } from '../grouping.ts';
 import type { EntryView } from '../../../core/api/projections.ts';
+import AnswerSummary from './AnswerSummary.vue';
 
 const props = defineProps<{ item: QuestionItem<EntryView>; session?: string }>();
 
@@ -61,7 +61,7 @@ const deadline = computed(() => {
   const form = pending.value.find(item => item.call_id === props.item.callId);
   if (state.value.kind !== 'open' || !form?.timeout_seconds) return null;
   const left = Math.max(0, form.asked_at + form.timeout_seconds * 1000 - now.value) / 1000;
-  const format = new Intl.RelativeTimeFormat(i18n.locale.value === 'zh' ? 'zh-CN' : 'en', { numeric: 'always' });
+  const format = new Intl.RelativeTimeFormat(intlLocale(), { numeric: 'always' });
   const when = left < 90 ? format.format(Math.max(1, Math.round(left)), 'second')
     : left < 5400 ? format.format(Math.round(left / 60), 'minute') : format.format(Math.round(left / 3600), 'hour');
   return tr(`模型会在${when}不再等待，先按自己的判断继续`, `The model stops waiting ${when} and carries on`);
@@ -123,11 +123,6 @@ async function submit(skip = false) {
 // The history caught up: what it records replaces what was just sent.
 watch(() => state.value.kind, kind => { if (kind !== 'open' && kind !== 'timed_out') sent.value = null; });
 
-const answerText = (answer: AnswerRecord | undefined) => {
-  if (!answer || answer.skipped) return null;
-  if (answer.type === 'text') return answer.text ?? '';
-  return [...(answer.selected ?? []), ...(answer.other ? [answer.other] : [])].join(i18n.locale.value === 'zh' ? '、' : ', ');
-};
 </script>
 
 <script lang="ts">
@@ -179,12 +174,7 @@ const stored = new Map<string, Draft[]>();
       </footer>
     </template>
 
-    <dl v-else class="question-summary" :class="{ compact: !shownAnswers }">
-      <template v-for="(question, index) in questions" :key="index">
-        <dt><span v-if="question.header" class="question-header">{{ question.header }}</span><Markdown class="question-text" :text="question.question" /></dt>
-        <dd v-if="shownAnswers" :class="{ empty: answerText(shownAnswers[index]) == null }">{{ answerText(shownAnswers[index]) ?? tr('未回答', 'Not answered') }}</dd>
-      </template>
-    </dl>
+    <AnswerSummary v-else :questions="questions" :answers="shownAnswers" />
   </div>
 </template>
 
@@ -233,19 +223,7 @@ textarea.question-field { resize: vertical; min-height: 88px; line-height: 1.6; 
 .question-foot .btn { display: inline-flex; align-items: center; gap: 6px; }
 .question-foot .icon { width: 15px; height: 15px; }
 
-.question-summary { display: grid; gap: 4px; margin: 10px 0 0; }
-.question-summary dt { margin-top: 8px; }
-.question-summary dt:first-child { margin-top: 0; }
-.question-summary .question-text { margin: 0; font-size: 13px; color: var(--fg-muted); }
-.question-summary dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
-.question-summary dd.empty { color: var(--fg-faint); font-style: italic; }
 .question-card:not(.answerable) .question-summary dt .question-text { font-size: 14px; }
-.question-summary dd { font-weight: 500; }
-.question-summary dd.empty { font-weight: 400; }
-/* Nothing was answered: the questions alone, as a short list. */
-.question-summary.compact dt { margin-top: 2px; }
-.question-summary.compact .question-header { display: none; }
-.question-summary.compact .question-text { color: var(--fg-subtle); }
 
 @media (max-width: 599px) {
   .question-card { padding: 12px 12px 14px; }

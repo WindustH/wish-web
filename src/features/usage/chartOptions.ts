@@ -4,7 +4,7 @@ export interface PlotSeries { key: string; label: string; colorIndex?: number; s
 export interface ChartStyle { foreground: string; muted: string; line: string; surface: string; font: string; colors: string[]; heat: string[] }
 // Recompute each model's ±2σ band after clipping so extreme spikes cannot
 // mask smaller outliers. Bound the passes; never modify source/aggregate data.
-export function filterTpsOutliers(points: PlotSeries['points']): PlotSeries['points'] {
+function filterTpsOutliers(points: PlotSeries['points']): PlotSeries['points'] {
   let kept = points.filter(point => point[1] !== null && Number.isFinite(point[1]));
   for (let pass = 0; pass < 8 && kept.length >= 3; pass++) {
     let mean = 0;
@@ -128,7 +128,7 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
   };
 }
 
-export function pieOptions(items: PieSlice[], style: ChartStyle, _locale: string): EChartsCoreOption {
+export function pieOptions(items: PieSlice[], style: ChartStyle): EChartsCoreOption {
   return {
     // No pie animation at all: every stats refresh rebuilds the slice list,
     // which replays an expand tween even when the shares barely moved.

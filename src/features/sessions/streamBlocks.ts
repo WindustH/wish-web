@@ -42,6 +42,7 @@ export function splitStreamBlocks(text: string): StreamBlocks {
 // A tail that refuses to close (a very long unclosed fence, or math-heavy
 // prose whose every re-render is expensive) is re-rendered on a slow timer
 // instead of every frame.
+// Exported for wish-test's check of the stream tail (web/check-stream-blocks.mjs).
 export const TAIL_SLOW_CHARS = 4000;
 export function tailThrottleMs(tail: string): number {
   return tail.length > TAIL_SLOW_CHARS ? 200 : 0;

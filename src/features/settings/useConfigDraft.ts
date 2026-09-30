@@ -1,54 +1,23 @@
 // Server configuration draft and provider management.
 import { bus } from '../../core/bus.ts';
-import { ref, computed } from 'vue';
-import { get, put } from '../../core/api/client.ts';
-import { requireAvailableModel } from '../../core/api/endpoints.ts';
+import { ref, computed, type InjectionKey } from 'vue';
+import { requireAvailableModel, configSnapshot, configSave, providerPresets, proxyEnvironment as readProxyEnvironment, shellCatalog } from '../../core/api/endpoints.ts';
 import { replayConfigChanges } from '../../core/configMerge.ts';
-import { errorText } from '../../core/config-editor.ts';
-import { tr } from './fields.ts';
+import { tr } from '../../core/i18n/tr.ts';
 import { providerTitles } from '../../ui/providerPresentation.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { toast } from '../../ui/toast.ts';
 import type { ConfigCatalog, ProviderPreset } from '../../core/provider-presets.ts';
-import type { ShellCatalog } from './ServerShellSettings.vue';
+import type { ShellCatalog } from '../../core/api/endpoints.ts';
+import { uniqueId } from '../../core/util/uniqueId.ts';
+import { MODEL_PROTOCOLS } from '../../core/provider-presets.ts';
 
-export const PROTOCOL_OPTIONS = [
-  'openai_responses',
-  'plaintext_responses',
-  'codex_responses',
-  'openai_chat',
-  'compatible_chat',
-  'deepseek_chat',
-  'qwen_chat',
-  'kimi_k2_chat',
-  'kimi_k3_chat',
-  'zai_chat',
-  'minimax_chat',
-  'mimo_chat',
-  'tokenhub_chat',
-  'mistral_chat',
-  'anthropic_messages',
-  'deepseek_messages',
-  'qwen_messages',
-  'kimi_messages',
-  'zai_messages',
-  'minimax_messages',
-  'mimo_messages',
-  'tokenhub_messages',
-  'google_generate_content',
-  'google_vertex_generate_content',
-  'google_interactions',
-  'bedrock_converse',
-  'mistral_conversations',
-];
 
 export function useConfigDraft() {
   const draft = ref<any>();
   const revision = ref('');
   const source = ref('');
   const busy = ref(false);
-  const error = ref('');
-  const notice = ref('');
 
   const catalog = ref<ConfigCatalog>({ presets: [] });
   const proxyEnvironment = ref<{ name: string; value: string; redacted: boolean }[]>([]);
@@ -76,7 +45,7 @@ export function useConfigDraft() {
   const providerOptions = computed(() =>
     Object.entries(draft.value?.providers ?? {}).map(([id, value]) => {
       const p = findPreset((value as any).preset);
-      return { value: id, label: providerTitle(id), brand: p?.provider };
+      return { value: id, label: providerTitle(id), brand: p?.provider, preset: (value as any).preset as string | undefined };
     })
   );
 
@@ -106,21 +75,19 @@ export function useConfigDraft() {
 
   async function load() {
     busy.value = true;
-    error.value = '';
     try {
       const [configuration, presets, environment, installed] = await Promise.all([
-        get('/config'),
-        get('/provider-presets'),
-        get('/proxy-environment'),
+        configSnapshot(),
+        providerPresets(),
+        readProxyEnvironment(),
         // Only the picker needs it; the shell stays editable as a path without it.
-        get('/shells').catch(() => null),
+        shellCatalog().catch(() => null),
       ]);
       catalog.value = presets;
       proxyEnvironment.value = environment.variables;
       shells.value = installed;
       accept(configuration);
     } catch (e) {
-      error.value = errorText(e);
       showError({ title: tr('无法载入设置', 'Could not load settings'), error: e, action: { label: tr('重试', 'Retry'), run: load } });
     } finally {
       busy.value = false;
@@ -135,10 +102,8 @@ export function useConfigDraft() {
       }
       draft.value.providers[id] = value;
       advancedPending.value[id] = false;
-      error.value = '';
-      return true;
+        return true;
     } catch (e) {
-      error.value = errorText(e);
       showError({ title: tr('无法应用配置 JSON', 'Could not apply the JSON'), error: e });
       return false;
     }
@@ -149,8 +114,6 @@ export function useConfigDraft() {
       if (advancedPending.value[id] && !applyAdvanced(id)) return false;
     }
     busy.value = true;
-    error.value = '';
-    notice.value = '';
     try {
       const defaults = draft.value.defaults;
       const savedDefaults = JSON.parse(source.value).defaults;
@@ -164,23 +127,21 @@ export function useConfigDraft() {
       let saved;
       let rebased = false;
       try {
-        saved = await put('/config', { revision: revision.value, config: draft.value });
+        saved = await configSave({ revision: revision.value, config: draft.value });
       } catch (cause) {
         if ((cause as { status?: number })?.status !== 409) throw cause;
-        const latest = await get('/config');
+        const latest = await configSnapshot();
         const merged = replayConfigChanges(JSON.parse(source.value), draft.value, latest.config);
-        saved = await put('/config', { revision: latest.revision, config: merged });
+        saved = await configSave({ revision: latest.revision, config: merged });
         rebased = true;
       }
       accept(saved);
       bus.emit('configuration.changed', {});
-      notice.value = rebased
+      toast(rebased
         ? tr('配置已更新；已合并本地修改并保存。','Configuration changed; local edits were merged and saved.')
-        : tr('已保存并生效。正在运行的调用继续使用原配置。','Saved and applied. In-flight calls retain their configuration.');
-      toast(notice.value);
+        : tr('已保存并生效。正在运行的调用继续使用原配置。','Saved and applied. In-flight calls retain their configuration.'));
       return true;
     } catch (e) {
-      error.value = errorText(e);
       showError({ title: tr('保存失败', 'Could not save'), error: e });
       return false;
     } finally {
@@ -189,10 +150,7 @@ export function useConfigDraft() {
   }
 
   function addProvider(preset?: ProviderPreset) {
-    const base = preset?.id || 'custom';
-    let id = base;
-    let suffix = 2;
-    while (draft.value.providers[id]) id = `${base}-${suffix++}`;
+    const id = uniqueId(preset?.id || 'custom', taken => taken in draft.value.providers);
     const first = preset?.protocols[0];
     draft.value.providers[id] =
       preset && first
@@ -247,6 +205,14 @@ export function useConfigDraft() {
       });
       return;
     }
+    const borrowing = Object.entries(draft.value.search?.providers ?? {}).filter(([, item]: [string, any]) => item.auth_provider === id).map(([name]) => name);
+    if (borrowing.length) {
+      showError({
+        title: tr('无法删除提供商', 'Could not delete the provider'),
+        error: tr(`联网搜索的 ${borrowing.join('、')} 在借用这个提供商的账户。请先在“联网搜索”设置中删除或换掉它，再删除这个提供商。`, `The search provider ${borrowing.join(', ')} uses this provider's account. Remove it under Web search first.`),
+      });
+      return;
+    }
     delete draft.value.providers[id];
     delete advancedPending.value[id];
   }
@@ -256,8 +222,6 @@ export function useConfigDraft() {
     revision,
     source,
     busy,
-    error,
-    notice,
     catalog,
     proxyEnvironment,
     shells,
@@ -269,7 +233,7 @@ export function useConfigDraft() {
     providerOptions,
     providerTitle,
     effortOptions,
-    protocolOptions: PROTOCOL_OPTIONS,
+    protocolOptions: MODEL_PROTOCOLS,
     findPreset,
     accept,
     load,
@@ -280,3 +244,7 @@ export function useConfigDraft() {
     removeProvider,
   };
 }
+
+export type ConfigDraft = ReturnType<typeof useConfigDraft>;
+/** The settings page's configuration draft, for the parts of the page that edit it. */
+export const configDraftKey: InjectionKey<ConfigDraft> = Symbol('configDraft');

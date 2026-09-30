@@ -1,30 +1,31 @@
 <script setup lang="ts">
-import DefaultModelPicker from './DefaultModelPicker.vue';
-import { ref, computed, inject, onMounted, watch } from 'vue';
+import { ref, computed, inject, onMounted, provide, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
-import { useMedia } from '../../ui/composables/useMedia.ts';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useDialogFocus } from '../../ui/composables/useDialogFocus.ts';
-import { tr, compactionFields } from './fields.ts';
+import { tr } from '../../core/i18n/tr.ts';
 import UiSettings from './UiSettings.vue';
 import DebugSettings from './DebugSettings.vue';
 import MobileSessionSettings from './MobileSessionSettings.vue';
 import Modal from '../../ui/components/Modal.vue';
-import AddProvider from './AddProvider.vue';
-import PresetProvider from './PresetProvider.vue';
-import ServerProxySettings from './ServerProxySettings.vue';
 import ToolSettings from './ToolSettings.vue';
 import McpSettings from './McpSettings.vue';
+import SearchSettings from './SearchSettings.vue';
+import { useStatuses } from './useStatuses.ts';
+import { searchProviders } from '../../core/api/endpoints.ts';
 import './settings.css';
-import { useConfigDraft } from './useConfigDraft.ts';
+import { configDraftKey, useConfigDraft } from './useConfigDraft.ts';
+import SessionDefaults from './SessionDefaults.vue';
+import ProviderSettings from './ProviderSettings.vue';
 import Wordmark from '../../ui/components/Wordmark.vue';
 import { cfg } from '../../core/config.ts';
-import { i18n } from '../../core/i18n/index.ts';
 import { useSettingsGuard } from './useSettingsGuard.ts';
+import { closeOverlayKey } from '../../ui/composables/overlay.ts';
 
-const isMobile = useMedia('(max-width: 899px)');
+const isMobile = useIsMobile();
 const pageActive = usePageActivity();
 const focus = useDialogFocus();
 
@@ -32,7 +33,7 @@ function handleOutside(event: CustomEvent) {
   if ((event.detail.originalEvent.target as Element)?.closest?.('.pwa-update')) event.preventDefault();
 }
 
-const closeSettings = inject<() => unknown>('closeOverlay')!;
+const closeSettings = inject(closeOverlayKey)!;
 
 const sections = computed(() => [
   { id: 'service', icon: 'service', label: tr('会话', 'Sessions'),
@@ -44,6 +45,9 @@ const sections = computed(() => [
   { id: 'tools', icon: 'tool', label: tr('工具', 'Tools'),
     summary: tr('内置工具与 Shell', 'Built-in tools and the shell'),
     description: tr('新会话默认启用的内置工具，以及 Shell 执行命令的环境。', 'Built-in tools new sessions start with, and where the shell runs commands.') },
+  { id: 'search', icon: 'globe', label: tr('联网搜索', 'Web search'),
+    summary: tr('Web Search 用哪些搜索服务', 'The services Web Search asks'),
+    description: tr('Web Search 工具按顺序询问这些搜索提供商。订阅附带的搜索直接借用模型提供商的账户。', 'The Web Search tool asks these providers in order. Search that comes with a subscription uses the model provider\'s account.') },
   { id: 'mcp', icon: 'mcp', label: 'MCP',
     summary: tr('会话可以调用的 MCP 服务器', 'MCP servers sessions can call'),
     description: tr('智能体在会话的 Shell 里调用这些服务器。保存后从下一次调用开始生效。', 'Servers the agent calls from a session\'s shell. Saved changes apply from the next call.') },
@@ -55,10 +59,7 @@ const sections = computed(() => [
     description: tr('检查与服务器的连接，预览首次使用引导。这里不会修改任何配置。', 'Check the connection to the server and preview the first-run setup. Nothing here changes your configuration.') },
 ]);
 const current = computed(() => sections.value.find(item => item.id === tab.value));
-// 235929 reads as "23.6万" / "236K" beside the exact input.
-const compactTokens = (value: unknown) => typeof value === 'number' && value > 0
-  ? new Intl.NumberFormat(i18n.locale.value === 'zh' ? 'zh-CN' : 'en', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
-  : '';
+// Whether some search provider could answer now, for the Web Search switch's hint.
 
 const route = useRoute();
 const router = useRouter();
@@ -81,32 +82,24 @@ function backToCategories() {
   router.replace({ path: '/settings' });
 }
 
+const configDraft = useConfigDraft();
+provide(configDraftKey, configDraft);
 const {
   draft,
   revision,
   source,
   busy,
-  catalog,
-  proxyEnvironment,
   shells,
-  adding,
-  newProviderId,
-  advanced,
-  advancedPending,
   serverDirty,
   providerOptions,
-  providerTitle,
   effortOptions,
-  protocolOptions,
-  findPreset,
   accept,
   load,
-  applyAdvanced,
   saveConfig,
-  addProvider,
-  changeProtocol,
-  removeProvider,
-} = useConfigDraft();
+} = configDraft;
+// Search providers as the server knows them: whether web search can run, and each one's state.
+const search = useStatuses(searchProviders, reply => reply.providers, revision);
+const searchAvailable = computed(() => search.reply.value?.available ?? null);
 
 const {
   dirty,
@@ -161,40 +154,12 @@ onMounted(load);
     <UiSettings v-if="tab==='ui'"/>
     <DebugSettings v-else-if="tab==='debug'"/>
     <template v-else-if="draft">
-      <MobileSessionSettings v-if="isMobile&&tab==='service'" :config="draft" :providers="providerOptions" :efforts="effortOptions" :save="save" :busy="busy"/>
-      <fieldset :disabled="busy" v-else-if="tab==='service'" class="settings-form">
-        <section class="set-section">
-          <header class="set-section-head"><h3>{{tr('新会话','New sessions')}}</h3><p>{{tr('只用于之后新建的会话，已有会话保持原来的配置。','Applies to sessions created from now on. Existing sessions keep their configuration.')}}</p></header>
-          <div class="set-card">
-            <div class="set-row"><span class="set-label"><span>{{tr('默认模型','Default model')}}</span><small>{{tr('新会话使用的模型和思考强度','Model and reasoning effort for new sessions')}}</small></span><DefaultModelPicker class="set-end" :config="draft" :providers="providerOptions" :efforts="effortOptions"/></div>
-            <label class="set-row"><span class="set-label"><span>{{tr('工作目录','Working directory')}}</span><small>{{tr('命令执行的起始目录，需要绝对路径','Where commands start. Use an absolute path.')}}</small></span><input class="input set-mono" v-model="draft.defaults.cwd" autocomplete="off" autocapitalize="off" spellcheck="false"/></label>
-            <label class="set-row stacked"><span class="set-label"><span>{{tr('固定提示词','Instructions')}}</span><small>{{tr('每个新会话都会带上这段提示词','Included in every new session')}}</small></span><textarea class="input" rows="5" v-model="draft.defaults.instructions" :placeholder="tr('未设置','Not set')"/></label>
-          </div>
-        </section>
-        <section v-if="draft.defaults.compaction" class="set-section">
-          <header class="set-section-head"><h3>{{tr('上下文压缩','Context compaction')}}</h3><p>{{tr('对话接近上下文上限时，把较早的内容压缩成摘要。','Summarizes earlier turns as a conversation approaches its context limit.')}}</p></header>
-          <div class="set-card">
-            <label v-for="field in compactionFields()" :key="field.key" class="set-row"><span class="set-label"><span>{{field.label}}</span><small>{{field.hint}}</small></span><span class="set-number"><em>{{compactTokens(draft.defaults.compaction[field.key])}}</em><input class="input" type="number" min="1" inputmode="numeric" v-model.number="draft.defaults.compaction[field.key]"/></span></label>
-          </div>
-        </section>
-      </fieldset>
-      <ToolSettings v-else-if="tab==='tools'" :config="draft" :shells="shells" :busy="busy"/>
+      <MobileSessionSettings v-if="isMobile&&tab==='service'" :config="draft" :providers="providerOptions" :efforts="effortOptions"/>
+      <SessionDefaults v-else-if="tab==='service'"/>
+      <ToolSettings v-else-if="tab==='tools'" :config="draft" :shells="shells" :busy="busy" :search-available="searchAvailable"/>
+      <SearchSettings v-else-if="tab==='search'" :config="draft" :models="providerOptions" :save="save" :busy="busy" :dirty="serverDirty" :statuses="search.statuses.value" @checked="search.refresh"/>
       <McpSettings v-else-if="tab==='mcp'" :config="draft" :providers="providerOptions" :save="save" :busy="busy" :dirty="serverDirty" :revision="revision"/>
-      <div v-else class="provider-settings">
-        <section class="set-section">
-          <header class="set-section-head"><h3>{{tr('模型提供商','Model providers')}}</h3><p v-if="!isMobile">{{tr('选择预置服务商后填写密钥，也可以引用服务器环境变量。','Choose a preset, then enter credentials or reference server environment variables.')}}</p></header>
-          <div class="provider-list">
-            <PresetProvider v-for="(provider,id) in draft.providers" :key="id" :id="String(id)" :list-title="providerTitle(String(id))" :initially-open="id===newProviderId" :value="provider" :preset="findPreset(provider.preset)" :protocols="protocolOptions" :save="save" :saving="busy" :disabled="busy" @remove="removeProvider(String(id))" @protocol="changeProtocol(String(id),$event)" @login-complete="load">
-              <details class="provider-json" @toggle="($event.target as HTMLDetailsElement).open&&!advancedPending[id]&&(advanced[id]=JSON.stringify(provider,null,2))"><summary><span>{{tr('完整配置 JSON','Full configuration JSON')}}</span><Icon name="chevron-down"/></summary><textarea class="input code" rows="16" v-model="advanced[id]" @input="advancedPending[id]=true"/><button v-if="!isMobile" class="btn" @click="applyAdvanced(String(id))">{{tr('应用到表单','Apply to form')}}</button></details>
-            </PresetProvider>
-            <button type="button" class="provider-add" :disabled="busy" @click="adding=true"><span class="provider-add-icon"><Icon name="plus"/></span><span>{{tr('添加提供商','Add provider')}}</span></button>
-          </div>
-        </section>
-        <section v-if="draft.proxy" class="set-section">
-          <header class="set-section-head"><h3>{{tr('网络代理','Network proxy')}}</h3><p>{{tr('提供商请求使用的代理，每个提供商可以在连接设置中单独关闭。','Used for provider requests. Each provider can opt out in its connection settings.')}}</p></header>
-          <ServerProxySettings :value="draft.proxy" :environment="proxyEnvironment"/>
-        </section>
-      </div>
+      <ProviderSettings v-else :save="save"/>
     </template>
     <div v-else-if="!busy" class="settings-empty"><p>{{tr('设置尚未载入。','Settings are not loaded.')}}</p><button class="btn" @click="load"><Icon name="refresh-cw"/>{{tr('重新载入','Reload')}}</button></div>
     </div>
@@ -205,7 +170,6 @@ onMounted(load);
       </footer>
     </section>
 
-    <AddProvider v-if="adding" :catalog="catalog" @close="adding=false" @select="addProvider"/>
     <Modal compact :open="discard" :title="tr('放弃修改？','Discard changes?')" @close="discard=false"><p>{{tr('丢弃未保存的修改，恢复已保存的配置。','Discard unsaved changes and restore the saved configuration.')}}</p><template #footer><button class="btn" @click="discard=false">{{tr('继续编辑','Keep editing')}}</button><button class="btn danger" @click="discardChanges">{{tr('放弃修改','Discard changes')}}</button></template></Modal>
     <Modal compact :layer="120" :dismissable="!leaveBusy" :open="leave" :title="isMobile?tr('保存修改？','Save changes?'):tr('尚未保存','Unsaved changes')" @close="resolveLeave(false)"><p>{{tr('返回前是否保存已进行的修改？','Save your changes before returning?')}}</p><template #footer><button class="btn ghost" :disabled="leaveBusy" @click="resolveLeave(false)">{{tr('继续编辑','Keep editing')}}</button><button class="btn danger" :disabled="leaveBusy" @click="resolveLeave(true)">{{tr('放弃修改','Discard')}}</button><button class="btn primary" :disabled="leaveBusy" @click="saveAndReturn"><Icon v-if="leaveBusy" name="loader-circle" class="spinner"/>{{leaveBusy?tr('保存中…','Saving…'):tr('保存并返回','Save & return')}}</button></template></Modal>
   </div>
@@ -235,7 +199,6 @@ onMounted(load);
 .settings-heading-text { flex: 1; min-width: 0; }
 .settings-heading-text p { margin: 2px 0 0; font-size: 12px; line-height: 1.5; color: var(--fg-subtle); }
 .settings-content { flex: 1; min-height: 0; overflow: auto; }
-.settings-form { display: block; min-width: 0; margin: 0; padding: 0; border: 0; }
 .settings-empty { display: grid; justify-items: center; gap: 14px; padding: 56px 0; color: var(--fg-subtle); }
 .settings-empty p { margin: 0; }
 .settings-empty .btn { display: inline-flex; align-items: center; gap: 7px; }
@@ -265,7 +228,6 @@ onMounted(load);
   .settings-detail > .settings-heading { padding: 18px 20px 14px 28px; border-bottom: 1px solid var(--line); }
   .settings-content { padding: 22px 28px 28px; }
   .settings-footer { padding: 12px 20px 12px 28px; background: var(--bg); }
-  .provider-list { display: grid; gap: 12px; }
 }
 
 @media (max-width: 899px) {
@@ -288,8 +250,6 @@ onMounted(load);
   .settings-brand span { margin: 0; }
   .settings-content { padding: 20px max(16px, calc((100% - 640px) / 2)) max(32px, env(safe-area-inset-bottom)); }
   .native-settings[data-state='closed'] { animation: settings-page-out 180ms ease-in forwards; pointer-events: none; }
-  .provider-list { border: 0; border-radius: 18px; background: var(--bg-sunken); overflow: hidden; }
-  .provider-list > * + * { border-top: 2px solid transparent; }
 }
 @keyframes settings-exit { from { opacity: 1; translate: 0 0; scale: 1; } to { opacity: 0; translate: 0 8px; scale: .985; } }
 @keyframes settings-overlay-out { from { opacity: 1; } to { opacity: 0; } }

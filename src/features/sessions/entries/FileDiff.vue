@@ -1,19 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { parseDiff } from './processDetails.ts';
+import { diffCounts, parseDiff } from './processDetails.ts';
 import CopyButton from '../../../ui/components/CopyButton.vue';
-import { i18n } from '../../../core/i18n/index.ts';
+import { tr } from '../../../core/i18n/tr.ts';
 const props=defineProps<{edit:any}>();
-const tx=(zh:string,en:string)=>i18n.locale.value==='zh'?zh:en;
 const lines=computed(()=>parseDiff(props.edit.diff??''));
-const added=computed(()=>lines.value.filter(line=>line.kind==='add').length);
-const removed=computed(()=>lines.value.filter(line=>line.kind==='remove').length);
+const counts=computed(()=>diffCounts(lines.value));
 </script>
 <template>
  <section class="file-diff">
-  <header><span class="diff-path">{{edit.path}}</span><span v-if="edit.diff" class="diff-counts"><b class="added">+{{added}}</b><b class="removed">−{{removed}}</b></span><CopyButton v-if="edit.diff" :text="edit.diff"/></header>
+  <header><span class="diff-path">{{edit.path}}</span><span v-if="edit.diff" class="diff-counts"><b class="added">+{{counts.added}}</b><b class="removed">−{{counts.removed}}</b></span><CopyButton v-if="edit.diff" :text="edit.diff"/></header>
   <div v-if="edit.diff" class="diff-scroll"><div class="diff-lines"><div v-for="(line,index) in lines" :key="index" class="diff-line" :class="line.kind"><span class="line-number">{{line.before}}</span><span class="line-number">{{line.after}}</span><code>{{line.text}}</code></div></div></div>
-  <p v-else class="diff-message">{{edit.status==='pending'?tx('命令仍在运行，文件差异尚未生成。','Command is running; the file diff is pending.'):edit.status==='failed'?edit.error:edit.binary&&edit.changed?tx('二进制文件已更改，无法显示文本差异。','Binary file changed; a text diff is unavailable.'):tx('文件没有变化。','No file changes.')}}</p>
+  <p v-else class="diff-message">{{edit.status==='pending'?tr('命令仍在运行，文件差异尚未生成。','Command is running; the file diff is pending.'):edit.status==='failed'?edit.error:edit.binary&&edit.changed?tr('二进制文件已更改，无法显示文本差异。','Binary file changed; a text diff is unavailable.'):tr('文件没有变化。','No file changes.')}}</p>
  </section>
 </template>
 <style scoped>

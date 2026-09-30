@@ -2,7 +2,7 @@
 import { computed, onScopeDispose, ref, watch } from 'vue';
 import UsageChartPanel from './UsageChartPanel.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
-import { createUsageResource } from '../../core/usage/resource.ts';
+import { createCachedResource } from '../../core/util/cachedResource.ts';
 import { chartData } from '../../core/usage/normalize.ts';
 import { usageQueries, offsetLabel, type RangeSelection } from '../../core/usage/windows.ts';
 import { usageDaily, usageSeries } from '../../core/api/endpoints.ts';
@@ -18,8 +18,8 @@ const calendarRange = ref<RangeSelection>({period:'year'});
 const timezone = ref(offsetLabel(-new Date().getTimezoneOffset()));
 // The last response per query opens instantly; per-session charts stay in memory only.
 const cacheKey = (kind: string) => (input: { sessionId?: string; query: object }) => ({ key: `usage-${kind}:${input.sessionId ?? ''}:${JSON.stringify(input.query)}`, persist: !input.sessionId });
-const series = createUsageResource((input: { sessionId?: string; query: SeriesQuery }, signal) => usageSeries(input.sessionId, input.query, { signal }), cacheKey('series'));
-const calendar = createUsageResource((input: { sessionId?: string; query: DailyQuery }, signal) => usageDaily(input.sessionId, input.query, { signal }), cacheKey('daily'));
+const series = createCachedResource((input: { sessionId?: string; query: SeriesQuery }, signal) => usageSeries(input.sessionId, input.query, { signal }), cacheKey('series'));
+const calendar = createCachedResource((input: { sessionId?: string; query: DailyQuery }, signal) => usageDaily(input.sessionId, input.query, { signal }), cacheKey('daily'));
 const data = computed(() => series.data.value && chartData(series.data.value, timezone.value));
 const days = computed(() => calendar.data.value?.days.map(day => [day.date, day.total_tokens] as [string, number]) ?? null);
 const heat = computed(() => calendar.data.value ? { buckets: calendar.data.value.buckets, bucketMs: calendar.data.value.query.bucket_ms, endMs: calendar.data.value.query.last_day_start_ms + 86400000, offsetMinutes: calendar.data.value.query.tz_offset_minutes } : null);

@@ -1,6 +1,6 @@
 import { shallowRef } from 'vue';
 import { bus } from '../bus.ts';
-import { createSse, type SseConnection, type SseFrame, type SseState } from '../api/sse.ts';
+import { createSse, type SseConnection, type SseFrame } from '../api/sse.ts';
 import { absUrl } from '../api/client.ts';
 import { sessionGet } from '../api/endpoints.ts';
 import { createKeyedRefresh } from '../util/keyedRefresh.ts';
@@ -9,10 +9,8 @@ import type { SessionView } from '../api/projections.ts';
 // Bus payloads published by this slice.
 export interface SessionUpsert { id: string; body: SessionView }
 export interface SessionTombstone { id: string }
-export type SessionSyncEvent = { kind: 'upsert'; body: SessionView } | { kind: 'tombstone' } | { kind: 'snapshot' };
 
 export const sync = (() => {
-  const state = shallowRef<SseState>('closed');
   const online = shallowRef(true);
   /** Bumped on every sync.snapshot frame; 1 = initial, >1 = reconnect/reset. */
   const snapshotRevision = shallowRef(0);
@@ -49,21 +47,8 @@ export const sync = (() => {
     if (connection) return;
     connection = createSse({
       url: absUrl('/events'), onFrame: frame,
-      onState: ({ state: next }) => { state.value = next; online.value = next === 'open'; },
+      onState: ({ state: next }) => { online.value = next === 'open'; },
     });
   }
-  function stop() {
-    connection?.close(); connection = null;
-    sessions.clear();
-    state.value = 'closed';
-  }
-  function subscribeSession(id: string, callback: (event: SessionSyncEvent) => void): () => void {
-    const offs = [
-      bus.on('upsert.session', (event: SessionUpsert) => { if (event.id === id) callback({ kind: 'upsert', body: event.body }); }),
-      bus.on('tombstone.session', (event: SessionTombstone) => { if (event.id === id) callback({ kind: 'tombstone' }); }),
-      bus.on('sync.snapshot', () => callback({ kind: 'snapshot' })),
-    ];
-    return () => offs.forEach(off => off());
-  }
-  return { state, online, snapshotRevision, protocolError, start, stop, subscribeSession };
+  return { online, snapshotRevision, protocolError, start };
 })();

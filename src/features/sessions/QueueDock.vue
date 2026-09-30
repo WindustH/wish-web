@@ -6,6 +6,7 @@
 // consumed it, nothing is refilled); delete is a plain cancel. Refill travels as a callback prop, not
 // an emit: the emit happens after an await, and by then the row's removal (local or via the delivery
 // SSE) may have unmounted this component - Vue drops emits on unmounted instances.
+import { errorDetail } from '../../core/errors.ts';
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { PopoverArrow, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui';
 import { i18n } from '../../core/i18n/index.ts';
@@ -16,6 +17,9 @@ import Icon from '../../ui/components/Icon.vue';
 import BubbleSurface from '../../ui/components/BubbleSurface.vue';
 import MenuBackdrop from '../../ui/components/MenuBackdrop.vue';
 import { AnimatePresence, ReorderGroup, ReorderItem, useDragControls } from 'motion-v';
+import { tr } from '../../core/i18n/tr.ts';
+import { prefersReducedMotion } from '../../ui/motion/reducedMotion.ts';
+import { awaitsAnswer } from '../../core/questionWatch.ts';
 
 const props = defineProps<{ items: any[]; refill: (text: string, attachments?: any[]) => void }>();
 
@@ -30,12 +34,10 @@ const hasImages = (item: any): boolean => {
 const refillable = (item: any): boolean =>
   Boolean(item.text) || (Array.isArray(item.attachments) && item.attachments.length > 0);
 
-const tx=(zh:string,en:string)=>i18n.locale.value==='zh'?zh:en;
 // The run waits on an ask_user form; what is queued goes in once the form is answered.
-const awaitingAnswer=computed(()=>(chat.snapshot.value?.pending_questions??[]).some(form=>!form.timed_out));
-const shown=computed(()=>props.items);
+const awaitingAnswer=computed(()=>awaitsAnswer(chat.snapshot.value));
 const open=ref(false);
-const label=computed(()=>tx(`待发送消息（${shown.value.length} 条）`,`Queued messages (${shown.value.length})`));
+const label=computed(()=>tr(`待发送消息（${props.items.length} 条）`,`Queued messages (${props.items.length})`));
 // A message joining the queue while the bubble is shut nudges the button.
 const trigger=ref<HTMLElement>();
 let arrivalAnimation:Animation|undefined;
@@ -44,7 +46,7 @@ async function signalArrival(){
   await nextTick();
   if(open.value||!trigger.value)return;
   arrivalAnimation?.cancel();
-  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced=prefersReducedMotion();
   arrivalAnimation=trigger.value.animate([
     {transform:'translateY(0)',color:'var(--fg-subtle)'},
     {transform:reduced?'translateY(0)':'translateY(-3px)',color:'var(--accent)',offset:.4},
@@ -54,15 +56,15 @@ async function signalArrival(){
 let pendingScroll=false;
 async function scrollLatest(){
   await nextTick();
-  if(open.value&&list.value&&!moving.value){list.value.scrollTo({top:list.value.scrollHeight,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});pendingScroll=false;}
+  if(open.value&&list.value&&!moving.value){list.value.scrollTo({top:list.value.scrollHeight,behavior:prefersReducedMotion()?'instant':'smooth'});pendingScroll=false;}
 }
 watch(()=>props.items.map(item=>item.id),(ids,previous)=>{if(previous&&ids.some(id=>!previous.includes(id))){pendingScroll=true;void scrollLatest();void signalArrival();}});
 // The rows appear once the bubble has been placed, and fade in: rendered before, their layout
 // animation would fly them in from where the bubble was measured off screen.
 const placed=ref(false);
-watch(open,shown=>{
+watch(open,isOpen=>{
   placed.value=false;
-  if(!shown){release();return;}
+  if(!isOpen){release();return;}
   requestAnimationFrame(()=>requestAnimationFrame(()=>{if(open.value){placed.value=true;pendingScroll=true;void scrollLatest();}}));
 });
 
@@ -73,20 +75,20 @@ const list=ref<HTMLElement>();
 const order=ref<string[]>([]);
 const moving=ref<string|null>(null);
 const busy=ref(false);
-const ordered=computed(()=>order.value.map(id=>shown.value.find(item=>item.id===id)).filter(Boolean));
-const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ordered=computed(()=>order.value.map(id=>props.items.find(item=>item.id===id)).filter(Boolean));
+const reduced=prefersReducedMotion();
 const controls=new Map<string,ReturnType<typeof useDragControls>>();
 const controlsOf=(id:string)=>controls.get(id)??controls.set(id,useDragControls()).get(id)!;
 let before:string[]=[];
 let pressed:{x:number;y:number}|undefined;
 let holdTimer:ReturnType<typeof setTimeout>|undefined;
-watch(shown, items=>{
+watch(()=>props.items, items=>{
   const ids=items.map(item=>item.id);
   for(const id of controls.keys())if(!ids.includes(id))controls.delete(id);
   order.value=moving.value||busy.value ? [...order.value.filter(id=>ids.includes(id)),...ids.filter(id=>!order.value.includes(id))] : ids;
 },{immediate:true});
 function press(event:PointerEvent,item:any){
-  if((event.target as HTMLElement).closest('button')||busy.value||event.button!==0||shown.value.length<2)return;
+  if((event.target as HTMLElement).closest('button')||busy.value||event.button!==0||props.items.length<2)return;
   if(event.pointerType!=='touch'){controlsOf(item.id).start(event);return;}
   release();
   pressed={x:event.clientX,y:event.clientY};
@@ -106,8 +108,8 @@ async function dragEnd(id:string){
 async function saveOrder(id:string){
   busy.value=true;
   try{await chat.moveQueued(id,order.value[order.value.indexOf(id)+1]??null);}
-  catch(e:any){toast(tx('队列已变化，排序未保存。','Queue changed; order was not saved.')+' '+String(e?.detail||e?.message||e));}
-  finally{busy.value=false;order.value=shown.value.map(item=>item.id);}
+  catch(e:any){toast(tr('队列已变化，排序未保存。','Queue changed; order was not saved.')+' '+errorDetail(e));}
+  finally{busy.value=false;order.value=props.items.map(item=>item.id);}
 }
 async function keyboardMove(event:KeyboardEvent,item:any){
   if(event.target!==event.currentTarget||!['ArrowUp','ArrowDown'].includes(event.key)||busy.value||moving.value)return;
@@ -118,7 +120,7 @@ async function keyboardMove(event:KeyboardEvent,item:any){
 async function remove(item: any) {
   if(busy.value||moving.value)return;busy.value=true;
   try { await chat.cancelQueued(item.id); }
-  catch (e: any) { toast(String(e?.detail || e?.message || e)); }
+  catch (e: any) { toast(errorDetail(e)); }
   finally{busy.value=false;}
 }
 async function edit(item: any) {
@@ -127,7 +129,7 @@ async function edit(item: any) {
     const cancelled = await chat.cancelQueued(item.id);
     if (cancelled) props.refill(item.text || '', item.attachments);
     else toast(i18n.t('chat.queueConsumed'));
-  } catch (e: any) { toast(String(e?.detail || e?.message || e)); }
+  } catch (e: any) { toast(errorDetail(e)); }
   finally{busy.value=false;}
 }
 </script>
@@ -137,12 +139,12 @@ async function edit(item: any) {
     <!-- A hint through data-hint, not Hint: a tooltip's popper around the trigger would take the anchor from the popover. -->
     <PopoverTrigger as-child><button ref="trigger" type="button" class="btn ghost composer-queue" :aria-label="label" :data-hint="label">
       <Icon name="queue" class="queue-glyph"/>
-      <span class="queue-badge">{{shown.length}}</span>
+      <span class="queue-badge">{{items.length}}</span>
     </button></PopoverTrigger>
     <PopoverPortal>
       <PopoverContent class="queue-bubble" :aria-label="label" side="top" align="start" :side-offset="10" :collision-padding="16" :aria-busy="busy" @open-auto-focus.prevent>
         <BubbleSurface />
-        <header class="queue-heading"><span>{{tx('待发送','Queued')}} <small>{{shown.length}}</small></span><span v-if="awaitingAnswer" class="queue-note">{{tx('回答上面的问题后送达','Goes in once the questions above are answered')}}</span></header>
+        <header class="queue-heading"><span>{{tr('待发送','Queued')}} <small>{{items.length}}</small></span><span v-if="awaitingAnswer" class="queue-note">{{tr('回答上面的问题后送达','Goes in once the questions above are answered')}}</span></header>
         <div ref="list" class="queue-scroll" @pointermove="slide" @pointerup="release" @pointercancel="release" @touchmove="holdStill">
           <ReorderGroup v-model:values="order" as="div" axis="y" class="queue-list" role="list">
             <AnimatePresence v-if="placed" mode="popLayout">

@@ -49,7 +49,7 @@ export function useSessionSelection(sessionId: Ref<string | undefined>, local?: 
     try {
       const next = await api.sessionUpdateModel(id, body, snapshot.value.revision);
       if (!owns(gen, id)) return false;
-      if ((chat.snapshot.value?.revision ?? 0) <= next.revision) chat.snapshot.value = next;
+      chat.adoptSnapshot(id, next);
       await chat.reloadCapabilities();
       return owns(gen, id);
     } catch (cause) {

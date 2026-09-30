@@ -28,11 +28,17 @@
   --err: #a32d2d;
   --err-bg: #fff0ef;
   --err-border: #e7b7b3;
+  /* A button that deletes or clears for good. */
+  --danger: #b3342c;
+  --danger-fg: #fff8f6;
+  --danger-hover: #992a23;
   --user-bubble: #ebe8e3;
   --user-bubble-fg: var(--fg);
   --focus-ring: #a64a33;
   --scrim: rgb(18 18 16 / 32%);
   --shadow-pop: 0 16px 48px rgb(31 35 28 / 12%), 0 2px 8px rgb(31 35 28 / 5%);
+  /* Menus, lists and hints sit close to what opened them: a tight shadow, not a dialog's halo. */
+  --shadow-menu: 0 4px 12px rgb(31 35 28 / 8%), 0 1px 2px rgb(31 35 28 / 6%);
   --shadow-card: none;
   --display: 'Bitter Variable', 'Noto Serif SC Variable', 'Songti SC', 'Noto Serif CJK SC', serif;
   --radius: 8px;
@@ -46,12 +52,10 @@
      and 700 lighter, to match Chinese stems; these land Montserrat on its own 600 and 700. */
   --weight-latin-semibold: 714;
   --weight-latin-bold: 776;
-  --space-xs: 4px; --space-s: 8px; --space-m: 12px; --space-l: 16px;
-  --space-xl: 24px; --space-xxl: 32px;
   --icon: 20px;
   --mobile-content-width: 640px;
   --w-list: 256px;
-  --h-topbar: 56px; --h-bottombar: 44px; --h-session-row: 40px;
+  --h-topbar: 56px; --h-session-row: 40px;
   --max-content: 46rem;
   --dur-fast: 140ms; --dur: 240ms; --dur-slow: 400ms;
   --ease-out: cubic-bezier(.2,.8,.2,1);
@@ -85,10 +89,14 @@ html[data-theme='dark'] {
   --err: #ffb4ab;
   --err-bg: #3c2423;
   --err-border: #75413d;
+  --danger: #e8857b;
+  --danger-fg: #2b100d;
+  --danger-hover: #f29b91;
   --user-bubble: #2a2a2a;
   --focus-ring: #df947a;
   --scrim: rgb(0 0 0 / 60%);
   --shadow-pop: 0 16px 48px rgb(0 0 0 / 28%), 0 2px 8px rgb(0 0 0 / 15%);
+  --shadow-menu: 0 4px 12px rgb(0 0 0 / 18%), 0 1px 2px rgb(0 0 0 / 14%);
   color-scheme: dark;
 }
 

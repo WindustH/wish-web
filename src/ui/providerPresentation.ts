@@ -19,12 +19,11 @@ export function presetDescription(preset: ProviderPreset) {
   const plan = billing[preset.billing]?.[zh ? 0 : 1] || preset.billing;
   return `${region} · ${plan}`;
 }
-export const presetLabel = (preset: ProviderPreset) => `${providerName(preset.provider)} · ${presetDescription(preset)}`;
 
 type NamedProvider = { id: string; display_name?: string | null; preset?: string | null };
 
 /** A provider's own name: its display name, else its preset's vendor, else its ID. */
-export function providerBaseTitle(provider: NamedProvider): string {
+function providerBaseTitle(provider: NamedProvider): string {
   const brand = !provider.display_name && provider.preset ? presetBrand(provider.preset) : undefined;
   return provider.display_name || (brand ? providerName(brand) : provider.id);
 }

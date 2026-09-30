@@ -37,3 +37,41 @@ export interface ProviderPreset {
   unsupported_protocols: string[];
 }
 export interface ConfigCatalog { presets: ProviderPreset[] }
+
+/** The model-use protocols a provider can speak, as the configuration names them. */
+export const MODEL_PROTOCOLS = [
+  'openai_responses',
+  'plaintext_responses',
+  'codex_responses',
+  'openai_chat',
+  'compatible_chat',
+  'deepseek_chat',
+  'qwen_chat',
+  'kimi_k2_chat',
+  'kimi_k3_chat',
+  'zai_chat',
+  'minimax_chat',
+  'mimo_chat',
+  'tokenhub_chat',
+  'mistral_chat',
+  'anthropic_messages',
+  'deepseek_messages',
+  'qwen_messages',
+  'kimi_messages',
+  'zai_messages',
+  'minimax_messages',
+  'mimo_messages',
+  'tokenhub_messages',
+  'google_generate_content',
+  'google_vertex_generate_content',
+  'google_interactions',
+  'bedrock_converse',
+  'mistral_conversations',
+];
+
+/** Protocols a provider can be read with on request (the others ride on model replies). */
+export const ACCOUNT_PROTOCOLS = [
+  'deepseek_user_balance', 'kimi_open_balance', 'kimi_code_companion_usage', 'zai_coding_plan_monitor',
+  'minimax_token_plan_remains', 'minimax_account_balance', 'siliconflow_balance', 'openrouter_key_quota',
+  'openrouter_credits', 'hf_whoami_billing', 'qwen_workspace_quota', 'openai_codex_usage',
+];

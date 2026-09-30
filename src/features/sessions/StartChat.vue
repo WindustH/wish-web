@@ -8,12 +8,12 @@ import { useRoute, useRouter } from 'vue-router';
 import { sessions } from '../../core/state/sessionsSlice.ts';
 import * as api from '../../core/api/endpoints.ts';
 import { i18n } from '../../core/i18n/index.ts';
-import { errorText } from '../../core/config-editor.ts';
-import { useMedia } from '../../ui/composables/useMedia.ts';
+import { errorText } from '../../core/errors.ts';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { pageActivityKey, usePageActivity } from '../../ui/composables/usePageActivity.ts';
-import { useModelCatalog } from './useModelCatalog.ts';
+import { useModelCatalog } from '../../ui/composables/useModelCatalog.ts';
 import { bus } from '../../core/bus.ts';
-import { tr } from '../settings/fields.ts';
+import { tr } from '../../core/i18n/tr.ts';
 import type { ModelSelection } from './useSessionSelection.ts';
 import RecentSessions from './RecentSessions.vue';
 import Composer from './Composer.vue';
@@ -25,7 +25,7 @@ import Wordmark from '../../ui/components/Wordmark.vue';
 import AppMenu from '../shell/AppMenu.vue';
 
 const route = useRoute(), router = useRouter();
-const mobile = useMedia('(max-width: 899px)');
+const mobile = useIsMobile();
 // All sessions opens as a sheet over the home page, which stays laid out beneath it.
 const home = computed(() => route.name === 'sessions' || route.name === 'all-sessions');
 const parentActive = usePageActivity(), active = ref(true);

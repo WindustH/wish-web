@@ -20,6 +20,7 @@ export const ICONS: Record<string, string> = {
   'chevrons-up-down': '<path d="m7.5 9 4.5-4.5L16.5 9m-9 6 4.5 4.5 4.5-4.5"/>',
   'arrow-left': '<path d="M20 12H5m6-6.5L4.5 12l6.5 6.5"/>',
   'arrow-down': '<path d="M12 4v15m-6.5-6.5L12 19l6.5-6.5"/>',
+  'arrow-up': '<path d="M12 20V5m-6.5 6.5L12 5l6.5 6.5"/>',
   x: '<path d="m6 6 12 12M18 6 6 18"/>',
   plus: '<path d="M12 4.5v15M4.5 12h15"/>',
   check: '<path d="m4.5 12.5 5 5 10-11"/>',
@@ -84,6 +85,12 @@ export const ICONS: Record<string, string> = {
   diagnostics: `<rect x="3" y="4.5" width="18" height="15" rx="3.5" ${SOFT}/><path d="M6.5 12.5H9l1.5-3.5 3 7 1.5-3.5h2.5"/>`,
   // Statistics: rounded columns on a floor.
   stats: `<rect x="4.5" y="12" width="4" height="8" rx="1.5" ${SOFT}/><rect x="10" y="4.5" width="4" height="15.5" rx="1.5" ${SOFT}/><rect x="15.5" y="8.5" width="4" height="11.5" rx="1.5" ${SOFT}/>`,
+  // Sessions and data: the store they are kept in, its lid in shade and two layers below.
+  storage: `<ellipse cx="12" cy="6" rx="7.5" ry="2.75" ${SOFT}/><path d="M4.5 6v12c0 1.52 3.36 2.75 7.5 2.75s7.5-1.23 7.5-2.75V6M4.5 12c0 1.52 3.36 2.75 7.5 2.75s7.5-1.23 7.5-2.75"/>`,
+  // Choosing several: a ticked box.
+  'check-square': `<rect x="4" y="4" width="16" height="16" rx="4" ${SOFT}/><path d="m8.5 12 2.5 2.5 4.5-5"/>`,
+  // Clearing old history: an eraser leaning on the line it clears.
+  eraser: `<path d="M7.8 19.5 3.9 15.6a2 2 0 0 1 0-2.8l8.9-8.9a2 2 0 0 1 2.8 0l4.5 4.5a2 2 0 0 1 0 2.8l-8.3 8.3" ${SOFT}/><path d="m8 10 6.5 6.5M7.8 19.5h12.7"/>`,
   // Account status: balances and quotas, read off a gauge.
   account: `<path d="M3.5 17a8.5 8.5 0 0 1 17 0Z" ${SOFT}/><path d="m12 17 3.8-5.5"/><path d="${dot(12, 17)}" stroke-width="3.4"/>`,
   // Reasoning: the model's side of the conversation, still thinking.

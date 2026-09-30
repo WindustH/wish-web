@@ -1,6 +1,8 @@
 import { nextTick, onBeforeUnmount } from 'vue';
 import { useRouter, type RouteLocationNormalized } from 'vue-router';
 import { navigationDeadline } from '../../ui/motion/navDeadline.ts';
+import { MOBILE_QUERY } from '../../ui/composables/useMedia.ts';
+import { prefersReducedMotion } from '../../ui/motion/reducedMotion.ts';
 
 export function useSessionMotion() {
   const router = useRouter();
@@ -13,7 +15,7 @@ export function useSessionMotion() {
   function elements(chatOnly: boolean) {
     // Keep the sidebar, composer and header actions stationary between chats.
     const selector = chatOnly ? '.chatlog-wrap, .chat-title'
-      : matchMedia('(max-width: 899px)').matches ? '.sessions-split' : '.content-pane';
+      : matchMedia(MOBILE_QUERY).matches ? '.sessions-split' : '.content-pane';
     return [...document.querySelectorAll<HTMLElement>(selector)];
   }
   function fade(nodes: HTMLElement[], opacity: number, duration: number) {
@@ -34,7 +36,7 @@ export function useSessionMotion() {
     const current = ++revision;
     pending = undefined;
     stop();
-    if (matchMedia('(max-width: 899px)').matches || !page(to) || !page(from) || page(to) === page(from) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (matchMedia(MOBILE_QUERY).matches || !page(to) || !page(from) || page(to) === page(from) || prefersReducedMotion()) return;
     const chatOnly = !!to.params.id && !!from.params.id;
     pending = { path: to.fullPath, revision: current, chatOnly };
     await navigationDeadline(fade(elements(chatOnly), 0, 50));

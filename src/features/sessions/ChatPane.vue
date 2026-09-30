@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import FadeText from '../../ui/components/FadeText.vue';
 import { modelLabel } from '../../ui/modelLabel.ts';
-import { sessionParent } from "../../ui/sessionNavigation.ts";
+import { sessionParent } from '../shell/sessionNavigation.ts';
 import { sessionPanelCloseKey } from '../../ui/composables/sessionPanel.ts';
 import Hint from '../../ui/components/Hint.vue';
 // Chat surface: top bar (desktop three actions / mobile back+menu), log,
@@ -9,7 +9,7 @@ import Hint from '../../ui/components/Hint.vue';
 // actions never rebuilds the conversation.
 import { computed, provide, shallowRef, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useMedia } from '../../ui/composables/useMedia.ts';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { chat } from '../../core/state/chatSlice.ts';
 import Icon from '../../ui/components/Icon.vue';
@@ -24,12 +24,13 @@ import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
 import { useResolvedEffort } from './useResolvedEffort.ts';
 import { effortLabel } from './reasoningLabels.ts';
+import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 
 const panelClose = shallowRef<(() => void) | null>(null);
 provide(sessionPanelCloseKey, panelClose);
 const route = useRoute();
 const router = useRouter();
-const isMobile = useMedia('(max-width: 899px)');
+const isMobile = useIsMobile();
 
 const id = computed(() => route.params.id as string);
 type SessionTab = 'info' | 'search' | 'settings';
@@ -89,7 +90,7 @@ const goTab = (t: SessionTab) => {
       <button v-if="isMobile" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')"
         @click="router.push(sessionParent)"><Icon name="arrow-left" /></button>
       <div class="chat-title">
-        <span v-if="!snapshot" class="chat-skeleton title-skeleton" :aria-label="i18n.t('sessions.loading')" role="status" /><FadeText v-else class="name" :text="snapshot.name || id.slice(0, 8)" />
+        <span v-if="!snapshot" class="chat-skeleton title-skeleton" :aria-label="i18n.t('sessions.loading')" role="status" /><FadeText v-else class="name" :text="sessionTitle(snapshot)" />
         <span v-if="!snapshot" class="chat-skeleton model-skeleton" aria-hidden="true" /><span v-else class="model-selection">
         <Hint :text="i18n.t('model.chipTitle')"><button class="model-chip" :aria-expanded="modelOpen" @click="modelOpen = true">
           <span>{{ modelLabel(snapshot?.model || '') || '—' }}</span>

@@ -28,7 +28,7 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
           <ApiImage v-if="blobSrc(b)" class="assistant-img" :src="blobSrc(b)!" alt="" loading="lazy" decoding="async" />
         </template>
         <div v-if="texts.length && usage" class="meta">
-          <span v-if="usage">{{ i18n.t('entry.usage', {
+          <span>{{ i18n.t('entry.usage', {
             in: fmtTokens(usage.input_tokens), out: fmtTokens(usage.output_tokens), total: fmtTokens(usage.total_tokens),
           }) }}</span>
         </div>

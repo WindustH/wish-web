@@ -1,19 +1,14 @@
 <script setup lang="ts">
+import { errorDetail } from '../../core/errors.ts';
 import { attachmentPreview, previewAttachment } from '../../ui/attachmentPreview.ts';
 import { attachmentDigestFallback } from '../../core/attachmentDigest.ts';
 import { expandPastedText } from '../../core/pastedText.ts';
 import InlineMessageEditor from './InlineMessageEditor.vue';
 import { attachmentsForMessage } from '../../core/attachmentPlaceholders.ts';
 import Hint from '../../ui/components/Hint.vue';
-import {
-  attachmentDraftsFor,
-  attachmentLimits,
-  saveAttachmentDrafts,
-  type AttachmentInput,
-} from '../../core/attachments.ts';
+import { attachmentDraftsFor, attachmentLimits, saveAttachmentDrafts, type AttachmentInput } from '../../core/attachments.ts';
 import { fmtBytes } from '../../core/util/fmt.ts';
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue';
-import { cfg } from '../../core/config.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { chat } from '../../core/state/chatSlice.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
@@ -24,6 +19,10 @@ import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import AskContext from './AskContext.vue';
 import { useComposerAttachments, type Attachment } from './useComposerAttachments.ts';
 import { useBtwPopup } from './useBtwPopup.ts';
+import { tr } from '../../core/i18n/tr.ts';
+import { isSendKey } from '../../ui/sendKey.ts';
+import ComposerSendButtons from './ComposerSendButtons.vue';
+import { useAutoGrow } from './useAutoGrow.ts';
 
 const props = defineProps<{
   sessionId: string;
@@ -138,7 +137,7 @@ watch(
   { flush: 'sync' },
 );
 
-const running = computed(() => stream.value?.active);
+const running = computed(() => Boolean(stream.value?.active));
 const canSend = computed(
   () =>
     (text.value.trim().length > 0 || attachments.value.length > 0) &&
@@ -150,28 +149,8 @@ const queueable = computed(
   () => running.value && (text.value.trim().length > 0 || attachments.value.length > 0),
 );
 
-// In a conversation the input starts one line tall and grows with its text, up to a limit; the
-// start page's larger field keeps its own height.
-watch([editorText, () => props.mobile], async () => {
-  await nextTick();
-  const el = ta.value?.el;
-  if (!el) return;
-  if (props.start && !props.mobile) {
-    el.style.height = '';
-    el.style.overflowY = 'auto';
-    return;
-  }
-  el.style.height = 'auto';
-  const style = getComputedStyle(el);
-  const lineH = parseFloat(style.lineHeight);
-  const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-  const maxPx = Math.min(
-    lineH * (props.mobile ? cfg.composer.mobileMaxRows : cfg.composer.desktopMaxRows) + padding,
-    window.innerHeight * cfg.composer.maxHeightVh,
-  );
-  el.style.height = Math.min(el.scrollHeight, maxPx) + 'px';
-  el.style.overflowY = el.scrollHeight > maxPx ? 'auto' : 'hidden';
-});
+// The field grows with its text; the start page's larger one on a desktop keeps its height.
+useAutoGrow(() => ta.value?.el, [editorText, () => props.mobile], { mobile: () => props.mobile, fixed: () => props.start && !props.mobile });
 
 async function submit() {
   if (btwMode.value) { submitBtw(); return; }
@@ -204,7 +183,7 @@ async function submit() {
     saveAttachmentDrafts(owner, attachments.value);
     revokeAll(submittedAttachments);
   } catch (e: any) {
-    if (currentSid.value === owner) toast(String(e?.detail || e?.message || e));
+    if (currentSid.value === owner) toast(errorDetail(e));
   } finally {
     submitting.value = false;
   }
@@ -230,7 +209,7 @@ async function onStop() {
   try {
     await chat.interrupt();
   } catch (e: any) {
-    toast(i18n.t('chat.stopFailed') + ': ' + String(e?.detail || e?.message || e));
+    toast(i18n.t('chat.stopFailed') + ': ' + errorDetail(e));
   } finally {
     interrupting.value = false;
   }
@@ -254,17 +233,9 @@ onMounted(() => window.addEventListener('keydown', interruptWithEscape, true));
 onBeforeUnmount(() => window.removeEventListener('keydown', interruptWithEscape, true));
 
 function onKeydown(e: KeyboardEvent) {
-  if (e.isComposing || e.keyCode === 229) return;
-  if (props.mobile) return;
-  if (e.key !== 'Enter') return;
-  const plain = !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
-  const mod = e.ctrlKey || e.metaKey;
-  if ((sendOnEnter.value && plain) || (!sendOnEnter.value && mod)) {
-    if (!sending.value) {
-      e.preventDefault();
-      submit();
-    }
-  }
+  if (props.mobile || !isSendKey(e, sendOnEnter.value) || sending.value) return;
+  e.preventDefault();
+  submit();
 }
 
 </script>
@@ -276,7 +247,7 @@ function onKeydown(e: KeyboardEvent) {
         @click="pickAttachment('image', $event)"><Icon name="image" /></button></Hint>
       <Hint :text="i18n.t('chat.attach')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.attach')"
         @click="pickAttachment('file', $event)"><Icon name="paperclip" /></button></Hint>
-      <button v-if="!start" ref="btwButton" type="button" class="btn ghost composer-btw" :aria-label="i18n.locale.value==='zh'?'BTW · 临时对话':'BTW · Temporary chat'" :aria-expanded="btwOpen" aria-haspopup="dialog" aria-controls="btw-bubble" @click="toggleBtw">BTW</button>
+      <button v-if="!start" ref="btwButton" type="button" class="btn ghost composer-btw" :aria-label="tr('BTW · 临时对话', 'BTW · Temporary chat')" :aria-expanded="btwOpen" aria-haspopup="dialog" aria-controls="btw-bubble" @click="toggleBtw">BTW</button>
       <slot name="tools" />
       <slot name="selection" />
       <div class="grow" />
@@ -301,48 +272,30 @@ function onKeydown(e: KeyboardEvent) {
         :aria-label="i18n.t('chat.image')" @click="pickAttachment('image', $event)"><Icon name="image" /></button></Hint>
       <Hint v-if="!btwMode" :text="i18n.t('chat.attach')"><button class="btn ghost icon-only"
         :aria-label="i18n.t('chat.attach')" @click="pickAttachment('file', $event)"><Icon name="paperclip" /></button></Hint>
-      <button v-if="!start" ref="btwButton" type="button" class="btn ghost composer-btw" :aria-label="i18n.locale.value==='zh'?'BTW · 临时对话':'BTW · Temporary chat'" :aria-expanded="btwOpen" aria-haspopup="dialog" aria-controls="btw-bubble" @click="toggleBtw">BTW</button>
+      <button v-if="!start" ref="btwButton" type="button" class="btn ghost composer-btw" :aria-label="tr('BTW · 临时对话', 'BTW · Temporary chat')" :aria-expanded="btwOpen" aria-haspopup="dialog" aria-controls="btw-bubble" @click="toggleBtw">BTW</button>
       <slot v-if="!btwMode" name="tools" />
       <div v-if="start" class="composer-start-selection"><slot name="selection" /></div>
       <div v-else class="grow" />
     </div>
     <div class="composer-editor">
       <InlineMessageEditor ref="ta" :scope="`${sessionId}:${btwMode}`" :attachments="btwMode ? [] : attachments"
-        :placeholder="btwMode ? (i18n.locale.value==='zh'?'顺便问一下…':'By the way…') : running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')"
-        :label="btwMode ? (i18n.locale.value==='zh'?'顺便问一下':'By the way') : i18n.t('chat.placeholder')" :text="editorText"
+        :placeholder="btwMode ? (tr('顺便问一下…', 'By the way…')) : running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')"
+        :label="btwMode ? (tr('顺便问一下', 'By the way')) : i18n.t('chat.placeholder')" :text="editorText"
         @update:text="onEditorInput" @keydown="onKeydown" @paste="onEditorPaste" />
-      <Hint v-if="!start && !btwMode && queueable" :text="i18n.t('chat.queueSend')"><button class="send-btn" :disabled="sending"
-        :aria-label="i18n.t('chat.queueSend')" @click="submit()">
-        <Icon v-if="sending" name="loader-circle" class="spin" /><Icon v-else name="send" />
-      </button></Hint>
-      <Hint v-if="mobile && btwMode" :text="i18n.locale.value==='zh'?(btwBusy?'停止回答':'发送问题'):(btwBusy?'Stop answering':'Send question')"><button class="send-btn" :class="{ stop: btwBusy }" :disabled="!btwBusy && !btwDraft.trim()"
-        :aria-label="i18n.locale.value==='zh'?(btwBusy?'停止回答':'发送问题'):(btwBusy?'Stop answering':'Send question')"
+      <Hint v-if="mobile && btwMode" :text="btwBusy?tr('停止回答','Stop answering'):tr('发送问题','Send question')"><button class="send-btn" :class="{ stop: btwBusy }" :disabled="!btwBusy && !btwDraft.trim()"
+        :aria-label="btwBusy?tr('停止回答','Stop answering'):tr('发送问题','Send question')"
         @click="btwBusy ? btwChat?.stopAnswer() : submitBtw()">
         <Icon :name="btwBusy ? 'square' : 'send'" />
       </button></Hint>
-      <Hint v-else-if="!start" :text="running ? `${i18n.t('chat.stop')}${mobile ? '' : ' (Esc)'}` : i18n.t('chat.send')"><button :aria-keyshortcuts="running && !mobile ? 'Escape' : undefined" class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
-        :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')"
-        @click="running ? onStop() : submit()">
-        <Icon v-if="sending" name="loader-circle" class="spin" />
-        <Icon v-else :name="running ? 'square' : 'send'" />
-      </button></Hint>
+      <ComposerSendButtons v-else-if="!start" :running="running" :sending="sending" :can-send="canSend" :queueable="queueable && !btwMode" :escape-stops="!mobile" @send="submit()" @stop="onStop()" />
     </div>
     <div v-if="start" class="composer-footer">
       <div v-if="$slots['footer-start']" class="composer-footer-start"><slot name="footer-start" /></div>
-      <Hint v-if="queueable" :text="i18n.t('chat.queueSend')"><button class="send-btn" :disabled="sending"
-        :aria-label="i18n.t('chat.queueSend')" @click="submit()">
-        <Icon v-if="sending" name="loader-circle" class="spin" /><Icon v-else name="send" />
-      </button></Hint>
-      <Hint :text="running ? `${i18n.t('chat.stop')} (Esc)` : i18n.t('chat.send')"><button :aria-keyshortcuts="running ? 'Escape' : undefined" class="send-btn" :class="{ stop: running }" :disabled="sending || (!running && !canSend)"
-        :aria-label="i18n.t(running ? 'chat.stop' : 'chat.send')"
-        @click="running ? onStop() : submit()">
-        <Icon v-if="sending" name="loader-circle" class="spin" />
-        <Icon v-else :name="running ? 'square' : 'send'" />
-      </button></Hint>
+      <ComposerSendButtons :running="running" :sending="sending" :can-send="canSend" :queueable="queueable" :escape-stops="!mobile" @send="submit()" @stop="onStop()" />
     </div>
     <Teleport v-if="!start" to="body">
       <Transition name="btw-popup" @after-leave="btwHidden = true">
-        <div v-show="btwOpen" id="btw-bubble" ref="btwBubble" class="btw-bubble" :class="{ mobile }" role="dialog" :aria-label="i18n.locale.value==='zh'?'BTW 临时对话':'BTW temporary chat'" :style="btwPosition">
+        <div v-show="btwOpen" id="btw-bubble" ref="btwBubble" class="btw-bubble" :class="{ mobile }" role="dialog" :aria-label="tr('BTW 临时对话', 'BTW temporary chat')" :style="btwPosition">
           <BubbleSurface side="bottom" :tail-x="parseFloat(btwPosition['--bubble-tail-x'] || '24')" />
           <AskContext ref="btwChat" :key="sessionId" :session-id="sessionId" :hidden="btwHidden" :external-input="mobile" @cleared="btwDraft=''" />
         </div>

@@ -1,49 +1,48 @@
 <script setup lang="ts">
+import { errorDetail } from '../../core/errors.ts';
 import Modal from '../../ui/components/Modal.vue';
 // Session details and usage; requests belong to this mounted session.
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
 import * as api from '../../core/api/endpoints.ts';
 import { chat } from '../../core/state/chatSlice.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { fmtDateTime, fmtTokens } from '../../core/util/fmt.ts';
 import type { UsageSnapshot } from '../../core/state/statsSlice.ts';
-import { useMedia } from '../../ui/composables/useMedia.ts';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
 import { modelLabel } from '../../ui/modelLabel.ts';
 import { presetBrand } from '../../ui/providerPresentation.ts';
 import ProviderIcon from '../../ui/components/ProviderIcon.vue';
 import { contextGauge } from './contextUsage.ts';
-import { useModelCatalog } from './useModelCatalog.ts';
+import { useModelCatalog } from '../../ui/composables/useModelCatalog.ts';
+import { useSessionRequests } from './useSessionRequests.ts';
 
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 defineEmits<{ close: [] }>();
-const isMobile = useMedia('(max-width: 899px)');
+const isMobile = useIsMobile();
 
 const snapshot = computed(() => chat.snapshot.value);
 const buildId = __BUILD_ID__;
 const usage = ref<UsageSnapshot | null>(null);
 const err = ref<any>(null);
-let alive = true;
-let gen = 0;
-const owns = (sid: string | null | undefined) => alive && !!sid && chat.sessionId.value === sid;
+const requests = useSessionRequests();
 
 async function refresh() {
   const id = chat.sessionId.value;
   if (!id) return;
-  const my = ++gen;
+  const current = requests.begin(id);
   err.value = null;
   try {
     const usagePage = await api.sessionUsage(id);
-    if (my !== gen || !owns(id)) return;
+    if (!current()) return;
     usage.value = usagePage;
   } catch (e) {
-    if (my !== gen || !owns(id)) return;
+    if (!current()) return;
     err.value = e;   // failures surface with a retry — never a fake empty list
   }
 }
 onMounted(refresh);
-onUnmounted(() => { alive = false; gen++; });
 // Component reuse across sessions: refetch and discard stale usage.
 watch(() => chat.sessionId.value, () => { usage.value = null; refresh(); });
 
@@ -70,7 +69,7 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
 <template>
   <Modal :open="true" content-class="session-window usage-info-window" :title="i18n.t('info.title')" :page="isMobile" @close="$emit('close')">
     <div v-if="err" class="load-error" role="alert">
-      <span>{{ String(err?.detail || err?.message || err) }}</span>
+      <span>{{ errorDetail(err) }}</span>
       <button class="btn ghost sm" @click="refresh">{{ i18n.t('common.retry') }}</button>
     </div>
     <template v-if="snapshot">

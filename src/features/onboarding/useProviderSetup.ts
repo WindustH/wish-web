@@ -1,11 +1,13 @@
 import { computed, onScopeDispose, ref, shallowRef } from 'vue';
-import { get, put } from '../../core/api/client.ts';
 import type { ConfigCatalog, ProviderConfig } from '../../core/provider-presets.ts';
-import { errorText } from '../../core/config-editor.ts';
+import { errorText } from '../../core/errors.ts';
 import { providerReady } from '../../core/providerReadiness.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { toast } from '../../ui/toast.ts';
+import { uniqueId } from '../../core/util/uniqueId.ts';
+import { secretText, readSecret, writeCredential } from '../../core/secretRef.ts';
+import { configSnapshot, configSave, providerPresets } from '../../core/api/endpoints.ts';
 
 const customProvider = (): ProviderConfig => ({ enabled: true, protocol: 'compatible_chat',
   base_url: '', path: '/v1/chat/completions', auth: 'bearer', models: {},
@@ -31,11 +33,7 @@ export function useProviderSetup({ preview = false } = {}) {
     provider.value.credentials ??= {};
     provider.value.credentials_env ??= {};
     id.value = existing ?? selected?.id ?? 'custom';
-    if (!existing) {
-      const base = id.value;
-      let suffix = 2;
-      while (snapshot.value.config.providers[id.value]) id.value = `${base}-${suffix++}`;
-    }
+    if (!existing) id.value = uniqueId(id.value, taken => taken in snapshot.value.config.providers);
     model.value = existing === snapshot.value.config.defaults.provider
       ? snapshot.value.config.defaults.model : Object.keys(provider.value.models)[0] ?? '';
     error.value = '';
@@ -46,7 +44,7 @@ export function useProviderSetup({ preview = false } = {}) {
     loading.value = true; error.value = '';
     try {
       const [config, presets] = await Promise.allSettled([
-        get('/config', { signal: controller.signal }), get('/provider-presets', { signal: controller.signal }),
+        configSnapshot({ signal: controller.signal }), providerPresets({ signal: controller.signal }),
       ]);
       if (own !== generation) return;
       if (config.status === 'rejected') throw config.reason;
@@ -57,18 +55,12 @@ export function useProviderSetup({ preview = false } = {}) {
     } catch (cause) { if (own === generation) error.value = errorText(cause); }
     finally { if (own === generation) loading.value = false; }
   }
-  function setSecret(value: string, field?: string) {
-    const env = /^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$/.exec(value)?.[1];
-    if (field) {
-      delete provider.value.credentials[field]; delete provider.value.credentials_env[field];
-      if (env) provider.value.credentials_env[field] = env;
-      else if (value) provider.value.credentials[field] = value;
-    } else { provider.value.api_key_env = env ?? null; provider.value.api_key = env ? null : value || null; }
+  function setSecret(text: string, field?: string) {
+    if (field) writeCredential(provider.value.credentials, provider.value.credentials_env, field, text);
+    else { const { value, env } = readSecret(text); provider.value.api_key_env = env; provider.value.api_key = value; }
   }
   function secretValue(field?: string) {
-    const env = field ? provider.value.credentials_env[field] : provider.value.api_key_env;
-    const raw = field ? provider.value.credentials[field] : provider.value.api_key;
-    return env ? '${' + env + '}' : raw === '<redacted>' ? '' : raw ?? '';
+    return field ? secretText(provider.value.credentials[field], provider.value.credentials_env[field]) : secretText(provider.value.api_key, provider.value.api_key_env);
   }
   async function save() {
     if (!snapshot.value || saving.value) return false;
@@ -96,7 +88,7 @@ export function useProviderSetup({ preview = false } = {}) {
         toast(tr('预览完成：输入已通过检查，没有保存任何配置。', 'Preview finished: the entries passed the checks. Nothing was saved.'));
         return true;
       }
-      const saved = await put('/config', { revision: snapshot.value.revision, config }, { signal: controller?.signal });
+      const saved = await configSave({ revision: snapshot.value.revision, config }, { signal: controller?.signal });
       snapshot.value = saved;
       return true;
     } catch (cause) {

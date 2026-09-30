@@ -1,20 +1,21 @@
 <script setup lang="ts">
-import { useMedia } from '../composables/useMedia.ts';
+import { useIsMobile } from '../composables/useMedia.ts';
 import Icon from './Icon.vue';
 import ProviderIcon from './ProviderIcon.vue';
 import InfoHint from './InfoHint.vue';
 import { computed, ref, watch } from 'vue';
 import Modal from './Modal.vue';
-import { i18n } from '../../core/i18n/index.ts';
+import { tr } from '../../core/i18n/tr.ts';
 import { ToggleGroupRoot, ToggleGroupItem, SelectRoot, SelectTrigger, SelectValue, SelectIcon, SelectPortal, SelectContent, SelectViewport, SelectItem, SelectItemText, SelectItemIndicator } from 'reka-ui';
 import { usePageActivity } from '../composables/usePageActivity.ts';
 
 defineOptions({ inheritAttrs: false });
 export interface SelectOption { value: string; label: string; icon?: string; brand?: string; annotation?: string; description?: string; disabled?: boolean }
-const props = defineProps<{ mobilePage?: boolean; pickerTitle?: string; modelValue: string; options: SelectOption[]; placeholder?: string; disabled?: boolean; searchable?: boolean; segmented?: boolean; searchPlaceholder?: string; emptyText?: string }>();
+const props = defineProps<{ mobilePage?: boolean; pickerTitle?: string; modelValue: string; options: SelectOption[]; disabled?: boolean; searchable?: boolean; segmented?: boolean }>();
+const emptyText = computed(() => tr('没有匹配的选项', 'No matching options'));
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 const pageActive = usePageActivity();
-const mobile = useMedia('(max-width: 899px)');
+const mobile = useIsMobile();
 const open = ref(false);
 const query = ref('');
 const searchInput = ref<HTMLInputElement>();
@@ -37,22 +38,22 @@ watch(pageActive, active => { if (!active) open.value = false; });
     <ToggleGroupItem v-for="option in options" :key="option.value" :value="option.value" :disabled="option.disabled" :aria-label="option.label" :data-hint="option.label"><Icon v-if="option.icon" :name="option.icon" /><template v-else>{{ option.label }}</template></ToggleGroupItem>
   </ToggleGroupRoot>
   <template v-else-if="mobilePage && mobile">
-    <button v-bind="$attrs" type="button" class="control-select" :disabled="unavailable" aria-haspopup="dialog" :aria-expanded="open" @click="open=true"><span class="select-option-label"><ProviderIcon v-if="selected?.brand" :brand="selected.brand"/><span>{{selected?.label||placeholder||'—'}}</span></span><Icon name="chevron-right"/></button>
-    <Modal page content-class="mobile-settings-page mobile-choice-page" :open="open" :title="pickerTitle||String($attrs['aria-label']|| (i18n.locale.value==='zh'?'选择选项':'Choose an option'))" @close="open=false">
-      <input v-if="searchable" v-model="query" class="input mobile-choice-search" type="search" :placeholder="searchPlaceholder" :aria-label="searchPlaceholder"/>
+    <button v-bind="$attrs" type="button" class="control-select" :disabled="unavailable" aria-haspopup="dialog" :aria-expanded="open" @click="open=true"><span class="select-option-label"><ProviderIcon v-if="selected?.brand" :brand="selected.brand"/><span>{{selected?.label||'—'}}</span></span><Icon name="chevron-right"/></button>
+    <Modal page content-class="mobile-settings-page mobile-choice-page" :open="open" :title="pickerTitle||String($attrs['aria-label']|| tr('选择选项', 'Choose an option'))" @close="open=false">
+      <input v-if="searchable" v-model="query" class="input mobile-choice-search" type="search" :aria-label="tr('搜索选项', 'Search options')"/>
       <div class="mobile-settings-list"><button v-for="option in filtered" :key="option.value" type="button" class="mobile-settings-row mobile-choice" :disabled="option.disabled" :aria-pressed="option.value===modelValue" @click="emit('update:modelValue',option.value);open=false"><ProviderIcon v-if="option.brand" :brand="option.brand"/><span>{{option.label}}<small v-if="option.annotation" class="row-preview">{{option.annotation}}</small></span><Icon name="check" v-if="option.value===modelValue" :size="18"/></button></div>
-      <p v-if="!filtered.length" class="mobile-group-note">{{emptyText||(i18n.locale.value==='zh'?'没有匹配的选项':'No matching options')}}</p>
+      <p v-if="!filtered.length" class="mobile-group-note">{{emptyText}}</p>
     </Modal>
   </template>
   <SelectRoot v-else v-model:open="open" :model-value="selected" by="value" :disabled="unavailable" @update:model-value="option => emit('update:modelValue', (option as SelectOption).value)">
     <SelectTrigger v-bind="$attrs" class="control-select">
-      <SelectValue :placeholder="placeholder"><span class="select-option-label"><ProviderIcon v-if="selected?.brand" :brand="selected.brand" /><span>{{ selected?.label || placeholder }}</span></span></SelectValue>
+      <SelectValue><span class="select-option-label"><ProviderIcon v-if="selected?.brand" :brand="selected.brand" /><span>{{ selected?.label }}</span></span></SelectValue>
       <SelectIcon as-child><Icon name="chevron-down" :size="16" aria-hidden="true" /></SelectIcon>
     </SelectTrigger>
     <SelectPortal v-if="pageActive">
       <SelectContent class="control-select-popover" position="popper" :side-offset="5" :collision-padding="12">
         <div v-if="searchable" class="select-search">
-          <input ref="searchInput" v-model="query" class="input" type="search" :placeholder="searchPlaceholder" :aria-label="searchPlaceholder" @keydown="event => { if (event.key !== 'Escape') event.stopPropagation(); }" />
+          <input ref="searchInput" v-model="query" class="input" type="search" :aria-label="tr('搜索选项', 'Search options')" @keydown="event => { if (event.key !== 'Escape') event.stopPropagation(); }" />
         </div>
         <SelectViewport class="control-select-list">
           <SelectItem v-for="option in filtered" :key="option.value" :value="option" :disabled="option.disabled" :text-value="option.label" :data-value="option.value" class="control-select-option">

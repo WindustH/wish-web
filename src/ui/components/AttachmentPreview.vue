@@ -3,6 +3,7 @@ import { ref, watch, onBeforeUnmount, nextTick } from 'vue';
 import { attachmentPreview } from '../attachmentPreview.ts';
 import { apiFetch } from '../../core/api/client.ts';
 import BubbleSurface from './BubbleSurface.vue';
+import { tr } from '../../core/i18n/tr.ts';
 const panel = ref<HTMLElement | null>(null);
 const position = ref<Record<string, string>>({});
 const side = ref('above');
@@ -63,7 +64,7 @@ function untrack() {
 watch(attachmentPreview, async item => {
   untrack();
   if (!item) return;
-  title.value = item.name || (item.kind === 'image' ? '图片预览' : '文本预览');
+  title.value = item.name || (item.kind === 'image' ? tr('图片预览', 'Image preview') : tr('文本预览', 'Text preview'));
   await nextTick();
   if (attachmentPreview.value !== item) return;
   place(); observer = new ResizeObserver(schedule);
@@ -102,7 +103,7 @@ watch(attachmentPreview, async item => {
     let bytes = item.bytes;
     if (!bytes) {
       const response = await apiFetch(item.url || item.localUrl || '', { signal: request.signal });
-      if (!response.ok) throw new Error(`无法读取附件（${response.status}）`);
+      if (!response.ok) throw new Error(tr(`无法读取附件（${response.status}）`, `Could not read the attachment (${response.status})`));
       bytes = await response.arrayBuffer();
     }
     if (request.signal.aborted) return;
@@ -110,10 +111,10 @@ watch(attachmentPreview, async item => {
     try {
       decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
       if (/[\u0000-\u0008\u000e-\u001f]/.test(decoded)) throw new Error();
-    } catch { throw new Error('暂不支持预览此文件，目前支持 UTF-8 文本。'); }
+    } catch { throw new Error(tr('暂不支持预览此文件，目前支持 UTF-8 文本。', 'This file cannot be previewed; only UTF-8 text can for now.')); }
     text.value = decoded;
   } catch (cause) {
-    if (!request.signal.aborted) error.value = (cause as Error).message || '预览加载失败';
+    if (!request.signal.aborted) error.value = (cause as Error).message || tr('预览加载失败', 'Could not load the preview');
   } finally {
     if (!request.signal.aborted) loading.value = false;
   }
@@ -127,9 +128,9 @@ onBeforeUnmount(() => { untrack(); dispose(); });
         <BubbleSurface :side="side === 'above' ? 'bottom' : 'top'" :tail-x="parseFloat(position['--arrow-x'] || '24')" />
         <header v-if="attachmentPreview.kind !== 'image'" id="attachment-preview-title">{{ title }}</header>
         <div class="attachment-preview-content">
-          <p v-if="loading" role="status">正在加载…</p>
+          <p v-if="loading" role="status">{{ tr('正在加载…', 'Loading…') }}</p>
           <p v-else-if="error" role="alert">{{ error }}</p>
-          <img v-else-if="image" :src="image" :alt="title" @load="schedule" @error="error = '图片加载失败'" />
+          <img v-else-if="image" :src="image" :alt="title" @load="schedule" @error="error = tr('图片加载失败', 'Could not load the image')" />
           <div v-else-if="attachmentPreview.pastedText && attachmentPreview.editText" class="pasted-text-editor">
             <pre aria-hidden="true">{{ text + '\n' }}</pre>
             <textarea :value="text" :aria-label="title" spellcheck="false" @input="text = ($event.target as HTMLTextAreaElement).value; attachmentPreview?.editText?.(text); schedule()" />

@@ -111,7 +111,7 @@ async function request(method: string, target: string, { body, query, signal, he
   // pin every busy flag behind it forever, so every call carries the
   // configured timeout alongside the caller's signal. A timeout surfaces as
   // a retryable network error; a caller abort stays a plain AbortError.
-  const timeout = AbortSignal.timeout(timeoutMs ?? cfg.api.requestTimeoutMs ?? 30_000);
+  const timeout = AbortSignal.timeout(timeoutMs ?? cfg.api.requestTimeoutMs);
   let res;
   try {
     res = await fetch(url, {

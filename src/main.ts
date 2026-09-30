@@ -5,13 +5,12 @@ import { tryPlatform } from './platform/index.ts';
 import { platform } from './platform/index.ts';
 import { theme } from './core/theme/index.ts';
 import { i18n } from './core/i18n/index.ts';
-import { cfg } from './core/config.ts';
 import { prefs } from './core/state/prefsSlice.ts';
 import { sync } from './core/state/syncSlice.ts';
 import { toast } from './ui/toast.ts';
 import { applyTokens } from './ui/applyTokens.ts';
 import { initPWA } from './ui/pwa.ts';
-import { installShortcuts } from './ui/shortcuts.ts';
+import { installShortcuts } from './features/shell/shortcuts.ts';
 import App from './App.vue';
 import { router } from './router.ts';
 import { applyConnection, isSignedOut } from './core/connection.ts';
@@ -27,6 +26,7 @@ import './styles/base.css';
 import './styles/layout.css';
 import './styles/components.css';
 import './styles/features.css';
+import { MOBILE_QUERY } from './ui/composables/useMedia.ts';
 
 applyTokens();
 registerBrowserPlatform();
@@ -36,12 +36,12 @@ prefs.load();
 // The app supplies its own message actions; unused browser context menus
 // should not appear on right-click or touch hold elsewhere in the UI. Parts
 // with a context menu of their own (marked data-context-menu) take the event
-// themselves, and suppress the browser's once theirs opens.
+// themselves, and suppress the browser's too, even where theirs does not open.
 document.addEventListener('contextmenu', event => {
   if (!(event.target instanceof Element && event.target.closest('[data-context-menu]'))) event.preventDefault();
 }, true);
 document.addEventListener('selectstart', event => {
-  if (matchMedia('(max-width: 899px)').matches && event.target instanceof Element && event.target.closest('.chatlog')) {
+  if (matchMedia(MOBILE_QUERY).matches && event.target instanceof Element && event.target.closest('.chatlog')) {
     event.preventDefault();
   }
 }, true);
@@ -59,16 +59,13 @@ watch(theme.resolved, (r) => {
   if (meta) (meta as HTMLMetaElement).content = r === 'dark' ? '#1c1c1c' : '#f6f5f2';
 }, { immediate: true });
 
-// i18n: persisted locale + <html lang> sync
-{
-  const storage = tryPlatform('storage');
-  const saved = storage?.get('locale');
-  if (saved && cfg.i18n.locales.includes(saved)) i18n.setLocale(saved as 'zh' | 'en');
-  watch(i18n.locale, (l) => {
-    document.documentElement.lang = l;
-    storage?.set('locale', l);
-  }, { immediate: true });
-}
+// i18n: the chosen language, or the browser's; <html lang> follows the one shown.
+i18n.init({
+  storageAdapter: tryPlatform('storage'),
+  readSystem: () => navigator.languages?.length ? navigator.languages : [navigator.language].filter(Boolean),
+  watchSystem: (cb: () => void) => addEventListener('languagechange', cb),
+});
+watch(i18n.locale, (l) => { document.documentElement.lang = l; }, { immediate: true });
 
 // Background notifier FIRST: its sync.snapshot baseline must be established
 // before the control plane starts streaming.

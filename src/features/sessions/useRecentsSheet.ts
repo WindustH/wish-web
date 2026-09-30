@@ -1,7 +1,7 @@
 import { onBeforeUnmount, watch, type Ref } from 'vue';
 import { useRoute, useRouter, type Router } from 'vue-router';
 import { animate, motionValue, type AnimationPlaybackControls, type MotionValue } from 'motion-v';
-import { useMedia } from '../../ui/composables/useMedia.ts';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 
 // On a phone the full session list is a sheet over the home page. Its two resting places are the
 // two routes - closed on /sessions, open on /sessions/all - and between them it follows a finger or
@@ -48,7 +48,7 @@ function settleAt(value: MotionValue<number>, to: number, done: () => void): Ani
 export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   const route = useRoute();
   const router = useRouter();
-  const phone = useMedia('(max-width: 899px)');
+  const phone = useIsMobile();
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
   const progress = motionValue(restOf(route.name) ?? 0);  // 0 closed, 1 open

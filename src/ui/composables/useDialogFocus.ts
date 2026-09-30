@@ -1,4 +1,4 @@
-import { useMedia } from './useMedia.ts';
+import { useIsMobile } from './useMedia.ts';
 // Controlled dialogs have no Reka DialogTrigger. Remember the real opener so
 // Escape/Close returns the keyboard to the action that opened the surface.
 let lastInputWasKeyboard = true;
@@ -13,7 +13,7 @@ function trackInputModality() {
 }
 export function useDialogFocus() {
   trackInputModality();
-  const mobile = useMedia('(max-width: 899px)');
+  const mobile = useIsMobile();
   let opener: HTMLElement | null = null;
   function opened(event: Event) {
     opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;

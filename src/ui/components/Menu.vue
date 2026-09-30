@@ -5,7 +5,9 @@
 // and the same ways to close. A clear backdrop (MenuBackdrop) takes any touch, click or wheel
 // outside it, so that press closes the menu and does nothing else. A context menu is anchored at
 // the point that was pressed within the element pressed, so it moves with that element when the
-// page scrolls, and hides while the element is scrolled out of view.
+// page scrolls, and hides while the element is scrolled out of view. With `within`, only a press on
+// the part it selects opens the menu; a press anywhere else in the element opens none, not even the
+// browser's.
 import { onBeforeUnmount, ref, shallowRef } from 'vue';
 import {
   DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuPortal, DropdownMenuRoot,
@@ -15,7 +17,8 @@ import Icon from './Icon.vue';
 import MenuBackdrop from './MenuBackdrop.vue';
 import { usePageActivity } from '../composables/usePageActivity.ts';
 
-export type MenuItem = { key: string; label: string; icon?: string; danger?: boolean; shortcut?: string; separator?: boolean };
+// `checked` marks the current choice of a menu that picks one of several.
+export type MenuItem = { key: string; label: string; icon?: string; danger?: boolean; shortcut?: string; separator?: boolean; checked?: boolean };
 
 const props = withDefaults(defineProps<{
   items: MenuItem[];
@@ -26,14 +29,15 @@ const props = withDefaults(defineProps<{
   side?: 'top' | 'bottom' | 'left' | 'right';
   align?: 'start' | 'center' | 'end';
   contentClass?: string;
-  pressDelay?: number;
-}>(), { side: 'bottom', align: 'end', pressDelay: 500 });
-const emit = defineEmits<{ select: [key: string]; 'update:open': [open: boolean] }>();
+  within?: string;
+}>(), { side: 'bottom', align: 'end' });
+// How long a finger rests on the element before its context menu opens.
+const LONG_PRESS_MS = 500;
+const emit = defineEmits<{ select: [key: string] }>();
 const pageActive = usePageActivity();
 const open = ref(false);
 function setOpen(value: boolean) {
   open.value = value;
-  emit('update:open', value);
 }
 
 // Where a context menu hangs: a point inside the element that was pressed. The object exists from
@@ -59,15 +63,25 @@ function openAt(element: HTMLElement, x: number, y: number) {
   openedAt = performance.now();
   setOpen(true);
 }
+// The element a press opens the menu on and the menu hangs from, or null for a press outside it.
+function pressed(event: Event): HTMLElement | null {
+  const element = event.currentTarget as HTMLElement;
+  if (!props.within) return element;
+  const part = (event.target as Element | null)?.closest?.<HTMLElement>(props.within);
+  return part && element.contains(part) ? part : null;
+}
 function onContextMenu(event: MouseEvent) {
   event.preventDefault();
-  if (props.disabled) return;
-  const element = event.currentTarget as HTMLElement;
-  // From the keyboard there is no pointer; the menu opens near the element's corner.
+  // From the keyboard there is no pointer; the menu opens near the corner of what it is for.
   if (!event.clientX && !event.clientY) {
-    const box = element.getBoundingClientRect();
-    openAt(element, box.left + 24, box.top + 24);
-  } else openAt(element, event.clientX, event.clientY);
+    const element = event.currentTarget as HTMLElement;
+    const part = props.within ? element.querySelector<HTMLElement>(props.within) ?? element : element;
+    const box = part.getBoundingClientRect();
+    openAt(part, box.left + 24, box.top + 24);
+    return;
+  }
+  const part = pressed(event);
+  if (part) openAt(part, event.clientX, event.clientY);
 }
 let press: { x: number; y: number; timer: ReturnType<typeof setTimeout> } | undefined;
 function cancelPress() {
@@ -77,9 +91,10 @@ function cancelPress() {
 function onPointerDown(event: PointerEvent) {
   if (event.pointerType !== 'touch' || !event.isPrimary || props.disabled) return;
   cancelPress();
-  const element = event.currentTarget as HTMLElement;
+  const part = pressed(event);
+  if (!part) return;
   const x = event.clientX, y = event.clientY;
-  press = { x, y, timer: setTimeout(() => { press = undefined; openAt(element, x, y); }, props.pressDelay) };
+  press = { x, y, timer: setTimeout(() => { press = undefined; openAt(part, x, y); }, LONG_PRESS_MS) };
 }
 function onPointerMove(event: PointerEvent) {
   if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) cancelPress();
@@ -90,7 +105,6 @@ function dropClickAfterPress(event: MouseEvent) {
   event.stopPropagation();
 }
 onBeforeUnmount(cancelPress);
-defineExpose({ open });
 </script>
 
 <template>
@@ -111,7 +125,7 @@ defineExpose({ open });
         <template v-for="item in items" :key="item.key">
           <DropdownMenuSeparator v-if="item.separator" class="menu-separator" />
           <DropdownMenuItem class="menu-item" :class="{ 'menu-danger': item.danger }" @select="emit('select', item.key)">
-            <Icon v-if="item.icon" :name="item.icon" /><span class="menu-item-label">{{ item.label }}</span><kbd v-if="item.shortcut" class="menu-shortcut">{{ item.shortcut }}</kbd>
+            <Icon v-if="item.icon" :name="item.icon" /><span class="menu-item-label">{{ item.label }}</span><kbd v-if="item.shortcut" class="menu-shortcut">{{ item.shortcut }}</kbd><Icon v-if="item.checked" name="check" class="menu-check" />
           </DropdownMenuItem>
         </template>
       </DropdownMenuContent>

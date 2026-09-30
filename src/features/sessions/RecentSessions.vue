@@ -1,67 +1,54 @@
 <script setup lang="ts">
-import { onScopeDispose, ref, watch } from 'vue';
+import { computed, onScopeDispose, ref, watch } from 'vue';
 import { sessionsList } from '../../core/api/endpoints.ts';
 import { bus } from '../../core/bus.ts';
-import { errorText } from '../../core/config-editor.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
-import { peekCached, readCached, writeCached } from '../../core/util/responseCache.ts';
-import SessionListRow from './SessionListRow.vue';
+import { createCachedResource } from '../../core/util/cachedResource.ts';
+import SessionListRow, { type RowAction } from './SessionListRow.vue';
 import SessionListAction from './SessionListAction.vue';
+import PruneDialog from './PruneDialog.vue';
 import Icon from '../../ui/components/Icon.vue';
+import { tr } from '../../core/i18n/tr.ts';
+import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 const active = usePageActivity();
 // The home page comes and goes with every trip to a conversation or a setting; it shows the last
 // list at once, even after a reload, and swaps in the fresh one when it arrives.
-const CACHE_KEY = 'recent-sessions';
-const rows = ref<any[]>(peekCached<any[]>(CACHE_KEY) ?? []);
-let fresh = false;
-if (!rows.value.length) void readCached<any[]>(CACHE_KEY).then(saved => { if (saved && !fresh) rows.value = saved; });
-const loading = ref(false);
-const error = ref<unknown>();
+const recent = createCachedResource((_: void, signal) => sessionsList({ limit: 5, order: 'desc' }, { signal }).then(page => page.items),
+  () => ({ key: 'recent-sessions', persist: true }));
+const rows = computed(() => recent.data.value ?? []);
 const action = ref<{ target: { id: string; name?: string }; kind: 'rename' | 'tags' | 'delete' }>();
-let generation = 0;
-let timer: ReturnType<typeof setTimeout> | undefined;
-async function load() {
-  const current = ++generation;
-  loading.value = true;
-  error.value = undefined;
-  try {
-    const page = await sessionsList({ limit: 5, order: 'desc' });
-    if (current === generation) {
-      fresh = true;
-      rows.value = page.items;
-      writeCached(CACHE_KEY, page.items);
-    }
-  } catch (cause) {
-    if (current === generation) error.value = cause;
-  } finally {
-    if (current === generation) loading.value = false;
-  }
+const clearing = ref<{ id: string; name: string }>();
+function onRowAction(row: { id: string; name?: string }, kind: RowAction) {
+  if (kind === 'prune') clearing.value = { id: row.id, name: sessionTitle(row) };
+  else if (kind !== 'select') action.value = { target: { id: row.id, name: row.name }, kind };
 }
+let timer: ReturnType<typeof setTimeout> | undefined;
 function refresh() {
   clearTimeout(timer);
-  if (active.value) timer = setTimeout(load, 200);
+  if (active.value) timer = setTimeout(() => recent.load(), 200);
 }
 const off = ['upsert.session', 'tombstone.session', 'sync.snapshot'].map(topic => bus.on(topic, refresh));
 watch(active, value => {
-  if (value) void load();
-  else { generation++; clearTimeout(timer); action.value = undefined; }
+  if (value) void recent.load();
+  else { recent.cancel(); clearTimeout(timer); action.value = undefined; clearing.value = undefined; }
 }, { immediate: true });
-onScopeDispose(() => { generation++; clearTimeout(timer); off.forEach(stop => stop()); });
+onScopeDispose(() => { recent.cancel(); clearTimeout(timer); off.forEach(stop => stop()); });
 </script>
 
 <template>
-  <section class="recent-sessions" :aria-label="i18n.locale.value === 'zh' ? '最近会话' : 'Recent sessions'">
+  <section class="recent-sessions" :aria-label="tr('最近会话', 'Recent sessions')">
     <header class="recent-head">
-      <h2>{{ i18n.locale.value === 'zh' ? '最近会话' : 'Recent sessions' }}</h2>
-      <RouterLink to="/sessions/all" class="recent-all">{{ i18n.locale.value === 'zh' ? '查看全部' : 'View all' }}<Icon name="chevron-right" /></RouterLink>
+      <h2>{{ tr('最近会话', 'Recent sessions') }}</h2>
+      <RouterLink to="/sessions/all" class="recent-all">{{ tr('查看全部', 'View all') }}<Icon name="chevron-right" /></RouterLink>
     </header>
-    <p v-if="error" class="load-error" role="alert">{{ errorText(error) }} <button class="btn ghost sm" @click="load">{{ i18n.t('common.retry') }}</button></p>
-    <p v-else-if="loading && !rows.length" class="hint">{{ i18n.locale.value === 'zh' ? '正在读取会话…' : 'Loading sessions…' }}</p>
+    <p v-if="recent.error.value" class="load-error" role="alert">{{ recent.error.value }} <button class="btn ghost sm" @click="recent.load()">{{ i18n.t('common.retry') }}</button></p>
+    <p v-else-if="recent.loading.value && !rows.length" class="hint">{{ tr('正在读取会话…', 'Loading sessions…') }}</p>
     <p v-else-if="!rows.length" class="hint">{{ i18n.t('sessions.empty') }}</p>
     <SessionListRow v-for="(row, index) in rows" :key="row.id" :row="row" :index="index" :active="false"
-      @action="kind => action = { target: { id: row.id, name: row.name }, kind }" />
+      @action="kind => onRowAction(row, kind)" />
     <SessionListAction v-if="action" :key="`${action.target.id}:${action.kind}`" :target="action.target" :kind="action.kind" @close="action = undefined; refresh()" />
+    <PruneDialog v-if="clearing" :targets="[clearing]" :total="rows.length" @close="clearing = undefined" @pruned="clearing = undefined" />
   </section>
 </template>
 

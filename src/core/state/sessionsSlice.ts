@@ -13,8 +13,8 @@
 //    filter+sort (contract): any identity change reloads from page one.
 //  · Full navigability: loadMore() appends without a resident cap — DOM
 //    size is bounded by the chunked Vlist, data is never unreachable.
-//  · rebuild() is the AUTHORITATIVE path (sync.snapshot resets, upserts
-//    that change sort/filter identity, metadata writes): it refetches up
+//  · rebuild() is the AUTHORITATIVE path (sync.snapshot resets, session
+//    upserts, metadata writes): it refetches up
 //    to the current navigation depth and REPLACES membership, order and
 //    cursor. It never merges — rows deleted while disconnected disappear.
 //  · Errors are surfaced (signal `error`), never swallowed into an empty
@@ -30,19 +30,25 @@ import type { SessionUpsert, SessionTombstone } from './syncSlice.ts';
 
 // One sessions-list row: the list-facing fields of a session snapshot. Rows
 // fetched from GET /sessions carry the whole snapshot; locally built ones only these.
-export type SessionRow = Pick<SessionView, 'id' | 'name' | 'phase' | 'created_at_ms' | 'updated_at_ms' | 'pending_items' | 'revision' | 'resume_requires_user' | 'metadata'>;
+export type SessionRow = Pick<SessionView, 'id' | 'name' | 'phase' | 'updated_at' | 'revision' | 'metadata'>;
 // Opaque server pagination token, bound to the current filter + sort.
-export type SessionsCursor = NonNullable<SessionsListParams['cursor']>;
+type SessionsCursor = NonNullable<SessionsListParams['cursor']>;
 export interface SessionCreateInput { name?: string; provider: string; model: string; reasoningEffort?: string; agentCustom?: string; cwd?: string }
 // The metadata-bearing part of a session that updateMeta() needs.
 export interface SessionMetaTarget { id: string; revision?: number | null; metadata?: unknown }
 
-// Fields whose change alters a row's position or membership in the current
-// collection → authoritative rebuild. Everything else patches in place.
-const IDENTITY_FIELDS = new Set(['name', 'updated_at_ms', 'metadata']);
 // metadata accessors — the defined keys only; everything else is the
 // user's own JSON, carried untouched (decision-json-metadata).
-export const metaOf = (row: { metadata?: unknown } | null | undefined): Record<string, unknown> => row?.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata) ? row.metadata as Record<string, unknown> : {};
+const metaOf = (row: { metadata?: unknown } | null | undefined): Record<string, unknown> => row?.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata) ? row.metadata as Record<string, unknown> : {};
+
+// The rows in order, each id once: pages fetched while the list moves can overlap.
+function uniqueById(rows: SessionRow[]): SessionRow[] {
+  const seen = new Set<string>();
+  return rows.filter(row => !seen.has(row.id) && seen.add(row.id));
+}
+
+/** What a session is called in lists: its name, or the start of its id. */
+export const sessionTitle = (row: { id: string; name?: string | null }) => row.name || row.id.slice(0, 8);
 
 export const sessions = (() => {
   const items = shallowRef<SessionRow[]>([]);            // newest first (order=desc)
@@ -52,21 +58,15 @@ export const sessions = (() => {
   const loadingMore = shallowRef(false);
   const error = shallowRef<any>(null);
   const query = shallowRef('');
-  const phaseFilter = shallowRef('');      // '' = all
   const tagFilter = shallowRef('');        // '' = none; exact tag (contract)
 
   let gen = 0;                         // request generation
 
   const list = computed(() => items.value);
-  const anyFilterActive = computed(() =>
-    Boolean(query.value || phaseFilter.value || tagFilter.value));
+  const filtered = computed(() => Boolean(query.value || tagFilter.value));
 
   function requestParams() {
-    const p: SessionsListParams = {
-      limit: cfg.sessions.pageSize, order: 'desc',
-      query: query.value || undefined,
-      phase: phaseFilter.value || undefined,
-    };
+    const p: SessionsListParams = { limit: cfg.sessions.pageSize, order: 'desc', query: query.value || undefined };
     if (tagFilter.value) p.tag = tagFilter.value;
     return p;
   }
@@ -109,9 +109,7 @@ export const sessions = (() => {
         more = Boolean(page.has_more);
         pages += 1;
       }
-      const seen = new Set<string>(); const uniq: SessionRow[] = [];
-      for (const r of rows) if (!seen.has(r.id)) { seen.add(r.id); uniq.push(r); }
-      items.value = uniq;
+      items.value = uniqueById(rows);
       cursor.value = cur;
       hasMore.value = more;
     } catch (err) {
@@ -126,10 +124,7 @@ export const sessions = (() => {
     try {
       const page = await api.sessionsList({ ...requestParams(), cursor: cursor.value });
       if (myGen !== gen) return false;
-      const seen = new Set(items.value.map((s) => s.id));
-      const merged = [...items.value];
-      for (const it of page.items) if (!seen.has(it.id)) { seen.add(it.id); merged.push(it); }
-      items.value = merged;
+      items.value = uniqueById([...items.value, ...page.items]);
       cursor.value = page.next_cursor ?? null;
       hasMore.value = Boolean(page.has_more);
       return true;
@@ -141,12 +136,6 @@ export const sessions = (() => {
 
   const debouncedSearch = debounce(() => { loadFirst(); }, cfg.sessions.searchDebounceMs);
   function setQuery(q: string) { if (q === query.value) return; query.value = q; bump(); debouncedSearch(); }
-  function setPhaseFilter(p: string) {
-    if (p === phaseFilter.value) return;
-    phaseFilter.value = p;
-    bump();
-    loadFirst();
-  }
 
   function setTagFilter(t: string) {
     if (t === tagFilter.value) return;
@@ -169,7 +158,7 @@ export const sessions = (() => {
     const snap = await api.sessionCreate(body);
     // The new row's position depends on the active collection (filters,
     // ordering) — the server is the single sorting authority.
-    if (anyFilterActive.value) await rebuild();
+    if (filtered.value) await rebuild();
     else items.value = [snapToListRow(snap), ...items.value.filter((s) => s.id !== snap.id)];
     return snap;
   }
@@ -198,35 +187,11 @@ export const sessions = (() => {
     items.value = items.value.filter((s) => s.id !== id);
   }
 
-  function patchRow(id: string, patch: Partial<SessionRow>): boolean {
-    const cur = items.value;
-    const idx = cur.findIndex((s) => s.id === id);
-    if (idx < 0) return false;
-    const next = cur.slice();
-    next[idx] = { ...next[idx], ...patch };
-    items.value = next;
-    return true;
-  }
-
-  function getById(id: string): SessionRow | null { return items.value.find((s) => s.id === id) || null; }
-
-  // Live invalidation from the control-plane stream.
+  // Live invalidation from the control-plane stream. Every change a session reports can move it
+  // (its name, update time and metadata decide order and membership), so the list refetches.
   const debouncedRebuild = debounce(() => { rebuild(); }, cfg.sessions.searchDebounceMs * 2);
   bus.on('upsert.session', (u: SessionUpsert) => {
-    const body = u.body ?? u;
-    if (!body?.id) return;
-    const patch = sessionRowFromSync(body);
-    const cur = getById(body.id);
-    if (!cur) {
-      // A session outside the resident set changed: it may need to enter
-      // this collection (new session, or now matches the filters).
-      debouncedRebuild();
-      return;
-    }
-    const identityChanged = Object.keys(patch).some((k) =>
-      IDENTITY_FIELDS.has(k) || (k === 'phase' && phaseFilter.value));
-    if (identityChanged) debouncedRebuild();
-    else patchRow(body.id, patch);
+    if ((u.body ?? u)?.id) debouncedRebuild();
   });
   bus.on('tombstone.session', (t: SessionTombstone) => {
     if (t?.id) dropRow(t.id);
@@ -236,34 +201,15 @@ export const sessions = (() => {
   bus.on('sync.snapshot', debounce(() => { rebuild(); }, 300));
 
   return {
-    items: list, cursor, hasMore, loading, loadingMore, error,
-    query, phaseFilter, tagFilter, anyFilterActive,
-    loadFirst, loadMore, rebuild,
-    setQuery, setPhaseFilter, setTagFilter, refresh,
-    create, rename, updateMeta, dropRow, patchRow, getById,
+    items: list, hasMore, loading, loadingMore, error,
+    query, tagFilter,
+    loadFirst, loadMore,
+    setQuery, setTagFilter, refresh,
+    create, rename, updateMeta, dropRow,
   };
 })();
 export type SessionsApi = typeof sessions;
 
 function snapToListRow(snap: SessionView): SessionRow {
-  return {
-    id: snap.id, name: snap.name, phase: snap.phase,
-    created_at_ms: snap.created_at,
-    updated_at_ms: snap.updated_at,
-    pending_items: snap.queue ?? 0,
-    revision: snap.revision, resume_requires_user: snap.resume_requires_user,
-    metadata: snap.metadata,
-  };
-}
-
-function sessionRowFromSync(body: SessionView): Partial<SessionRow> {
-  const row: Partial<SessionRow> = {};
-  for (const k of ['name', 'phase', 'revision', 'resume_requires_user', 'pending_items'] as const) {
-    if (body[k] !== undefined) (row as Record<string, unknown>)[k] = body[k];
-  }
-  if (body.metadata !== undefined) row.metadata = body.metadata;
-  if (body.updated_at) row.updated_at_ms = body.updated_at;
-  if (body.updated_at_ms) row.updated_at_ms = body.updated_at_ms;
-  if (body.queue !== undefined) row.pending_items = body.queue;
-  return row;
+  return { id: snap.id, name: snap.name, phase: snap.phase, updated_at: snap.updated_at, revision: snap.revision, metadata: snap.metadata };
 }

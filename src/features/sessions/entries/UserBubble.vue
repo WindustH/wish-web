@@ -9,6 +9,7 @@ import { blobMetadata, blobUrl } from '../../../core/api/endpoints.ts';
 import { ref, watch } from 'vue';
 import { fmtBytes } from '../../../core/util/fmt.ts';
 import { i18n } from '../../../core/i18n/index.ts';
+import { tr } from '../../../core/i18n/tr.ts';
 const props = defineProps<{ block: any }>();
 const fileBytes = ref<number | null>(null);
 watch(() => [props.block.blob_id, props.block.byte_count], async ([reference, known], _, onCleanup) => {
@@ -35,14 +36,14 @@ const imageSrc = () => props.block.blob_id ? blobUrl(props.block.blob_id) : `dat
           <figcaption v-if="block.filename">{{ block.filename }}</figcaption>
         </figure>
         <div v-else class="attachment-file message-file">
-          <button type="button" class="message-file-preview" :aria-label="`${i18n.locale.value === 'zh' ? '预览' : 'Preview'} ${block.filename || i18n.t('chat.attachment')}`"
+          <button type="button" class="message-file-preview" :aria-label="`${tr('预览', 'Preview')} ${block.filename || i18n.t('chat.attachment')}`"
             aria-haspopup="dialog" :aria-expanded="attachmentPreview?.anchor?.dataset.blobId === block.blob_id"
             :data-blob-id="block.blob_id"
             @click="previewAttachment({kind: 'file', name: block.filename, url: blobUrl(block.blob_id)}, $event)">
             <Icon name="paperclip" /><span class="attachment-file-label"><span>{{ block.filename || i18n.t('chat.attachment') }}</span><small v-if="fileBytes != null">{{ fmtBytes(fileBytes) }}</small></span>
           </button>
-          <Hint :text="i18n.locale.value === 'zh' ? '下载文件' : 'Download file'"><a class="message-file-download" :href="blobUrl(block.blob_id)" :download="block.filename || block.blob_id"
-            :aria-label="i18n.locale.value === 'zh' ? '下载文件' : 'Download file'" @click.stop="downloadApiFile($event, blobUrl(block.blob_id), block.filename || block.blob_id)"><Icon name="download" /></a></Hint>
+          <Hint :text="tr('下载文件', 'Download file')"><a class="message-file-download" :href="blobUrl(block.blob_id)" :download="block.filename || block.blob_id"
+            :aria-label="tr('下载文件', 'Download file')" @click.stop="downloadApiFile($event, blobUrl(block.blob_id), block.filename || block.blob_id)"><Icon name="download" /></a></Hint>
         </div>
       </div>
     </div>

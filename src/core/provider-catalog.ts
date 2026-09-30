@@ -1,4 +1,4 @@
-import { providerConfigs, providerModels } from './api/endpoints.ts';
+import { providerCatalogPages, providerConfigs } from './api/endpoints.ts';
 
 export interface ModelInfo {
   id: string;
@@ -22,7 +22,6 @@ export interface ProviderInfo {
   account_state?: string | null;
   model_catalog_available: boolean;
   reasoning_efforts: Record<string, string | number>;
-  reasoning_efforts_source: string;
   models: Record<string, Omit<ModelInfo, 'id' | 'source'>>;
 }
 
@@ -30,6 +29,8 @@ export interface ProviderInfo {
 // wires accept, with the last one (`max`) as the resolved default. A model that declares
 // `supports_reasoning: false` never falls back here; 'none' stays a picker choice.
 export const FALLBACK_EFFORT_LEVELS = ['low', 'medium', 'high', 'max'];
+/** The reasoning efforts most providers take, weakest first. */
+export const STANDARD_EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 
 export async function readProviders(signal?: AbortSignal): Promise<ProviderInfo[]> {
   const response = await providerConfigs({ signal });
@@ -49,21 +50,9 @@ export async function readModels(provider: ProviderInfo, signal?: AbortSignal): 
   return [...models.values()];
 }
 
-// Shared by the runtime picker and configuration editor. A malformed upstream
-// cursor must not keep either UI in an endless request loop.
+// Shared by the runtime picker and configuration editor.
 export async function readCatalogModels(id: string, signal?: AbortSignal) {
   const models: any[] = [];
-  const cursors = new Set<string>();
-  let cursor: string | undefined;
-  do {
-    signal?.throwIfAborted();
-    const page = await providerModels(id, { signal, query: { cursor } });
-    models.push(...page.models);
-    cursor = page.next_cursor;
-    if (cursor) {
-      if (cursors.has(cursor)) throw new Error(`Model catalog repeated a cursor: ${id}`);
-      cursors.add(cursor);
-    }
-  } while (cursor);
+  for await (const page of providerCatalogPages(id, { signal })) models.push(...page.models);
   return models;
 }

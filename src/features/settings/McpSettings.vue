@@ -1,12 +1,13 @@
 <script setup lang="ts">
 // The MCP servers sessions can call from their shell, edited in the settings draft.
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, toRef } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import McpServer, { type McpServerConfig } from './McpServer.vue';
 import { mcpServers, type McpServerStatus } from '../../core/api/endpoints.ts';
-import { tr } from './fields.ts';
+import { tr } from '../../core/i18n/tr.ts';
+import { useStatuses } from './useStatuses.ts';
 
 const props = defineProps<{
   config: any;
@@ -18,17 +19,8 @@ const props = defineProps<{
 }>();
 
 const servers = computed<Record<string, McpServerConfig>>(() => (props.config.mcp ??= { servers: {} }).servers);
-const statuses = ref<Record<string, McpServerStatus>>({});
-async function refresh() {
-  try {
-    statuses.value = Object.fromEntries((await mcpServers()).map(status => [status.id, status]));
-  } catch {
-    // What is known of the servers is extra; the configuration itself still edits.
-  }
-}
-onMounted(refresh);
-// A save may have closed instances or changed servers.
-watch(() => props.revision, refresh);
+// A save may close instances or change servers, so they are read again after one.
+const { statuses, refresh } = useStatuses(mcpServers, (list: McpServerStatus[]) => list, toRef(props, 'revision'));
 
 const adding = ref(false);
 const newName = ref('');

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { useMobileNavigationMotion } from './ui/composables/useMobileNavigationMotion.ts';
+import { useMobileNavigationMotion } from './features/shell/useMobileNavigationMotion.ts';
 useMobileNavigationMotion();
 import HoverHintHost from './ui/components/HoverHintHost.vue';
 import { defineAsyncComponent, computed, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue';
 import { TooltipProvider, DialogRoot, DialogPortal, DialogContent, DialogTitle } from 'reka-ui';
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
-import { useMedia } from './ui/composables/useMedia.ts';
+import { useIsMobile } from './ui/composables/useMedia.ts';
 import AttachmentPreview from './ui/components/AttachmentPreview.vue';
 import ToastHost from './ui/components/ToastHost.vue';
 import ErrorDialogHost from './ui/components/ErrorDialogHost.vue';
@@ -19,6 +19,7 @@ import { tr } from './core/i18n/tr.ts';
 import { isSignedOut } from './core/connection.ts';
 import { accountDialogOpen } from './features/account/accountDialog.ts';
 import SignOutButton from './features/connection/SignOutButton.vue';
+import { closeOverlayKey } from './ui/composables/overlay.ts';
 
 const ProviderSetup = defineAsyncComponent(() => import('./features/onboarding/ProviderSetup.vue'));
 const ConnectView = defineAsyncComponent(() => import('./features/connection/ConnectView.vue'));
@@ -28,10 +29,10 @@ const signedOut = isSignedOut();
 const gate = signedOut ? null : useProviderGate();
 const route = useRoute();
 const router = useRouter();
-const isMobile = useMedia('(max-width: 899px)');
+const isMobile = useIsMobile();
 // Settings and statistics open over the page they were opened from: a window on a desktop, a page
 // of their own on a phone. The page behind stays mounted, and comes back as it was when they close.
-const isOverlay = (target: { meta: { section?: string } }) => target.meta.section === 'settings' || target.meta.section === 'stats';
+const isOverlay = (target: { meta: { section?: string } }) => ['settings', 'stats', 'data'].includes(target.meta.section ?? '');
 const sessionsRoute = () => router.resolve('/sessions') as unknown as RouteLocationNormalizedLoaded;
 const backgroundRoute = shallowRef(isOverlay(router.currentRoute.value) ? sessionsRoute() : router.currentRoute.value);
 const overlayRoute = shallowRef(isOverlay(router.currentRoute.value) ? router.currentRoute.value : undefined);
@@ -54,7 +55,7 @@ watch(() => router.currentRoute.value, current => {
   }
 }, { flush: 'sync' });
 onBeforeUnmount(() => clearTimeout(overlayExitTimer));
-provide('closeOverlay', () => router.push(backgroundRoute.value.fullPath));
+provide(closeOverlayKey, () => router.push(backgroundRoute.value.fullPath));
 const overlayOpen = computed(() => isOverlay(route));
 const online = computed(() => sync.online.value);
 </script>

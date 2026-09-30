@@ -7,6 +7,7 @@ import Markdown from '../../ui/components/Markdown.vue';
 import MessageContext from './entries/MessageContext.vue';
 import { readAskResponse } from './readAskResponse.ts';
 import { tr } from '../../core/i18n/tr.ts';
+import { isSendKey } from '../../ui/sendKey.ts';
 
 const props = defineProps<{ sessionId: string; hidden: boolean; externalInput?: boolean }>();
 const emit = defineEmits<{ cleared: [] }>();
@@ -110,13 +111,9 @@ function stopAnswer() { controller?.abort(); }
 defineExpose({ submitQuestion, stopAnswer, busy });
 
 function onKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return;
-  const plain = !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
-  const mod = event.ctrlKey || event.metaKey;
-  if ((prefs.sendOnEnter.value && plain) || (!prefs.sendOnEnter.value && mod)) {
-    event.preventDefault();
-    submitQuestion();
-  }
+  if (!isSendKey(event, prefs.sendOnEnter.value)) return;
+  event.preventDefault();
+  submitQuestion();
 }
 </script>
 

@@ -2,8 +2,8 @@
 // how to show it. The server keeps every number exactly as the service wrote it,
 // as a decimal string; these helpers only format them, and leave out what is missing
 // rather than inventing a zero.
-import { tr } from '../../core/i18n/tr.ts';
-import { i18n } from '../../core/i18n/index.ts';
+import { tr, intlLocale } from '../../core/i18n/tr.ts';
+import { compactNumber } from '../../core/util/fmt.ts';
 
 export interface QuotaWindow {
   id: string;
@@ -47,14 +47,7 @@ export interface AccountState {
   plan_type: string | null;
 }
 
-/** Protocols a provider can be read with on request (the others ride on model replies). */
-export const ACCOUNT_PROTOCOLS = [
-  'deepseek_user_balance', 'kimi_open_balance', 'kimi_code_companion_usage', 'zai_coding_plan_monitor',
-  'minimax_token_plan_remains', 'minimax_account_balance', 'siliconflow_balance', 'openrouter_key_quota',
-  'openrouter_credits', 'hf_whoami_billing', 'qwen_workspace_quota', 'openai_codex_usage',
-];
 
-const locale = () => (i18n.locale.value === 'zh' ? 'zh-CN' : 'en');
 const number = (value: string | null | undefined) => {
   if (value == null || value.trim() === '') return null;
   const parsed = Number(value);
@@ -80,14 +73,14 @@ export function quotaLevel(quota: QuotaWindow): 'low' | 'mid' | 'high' {
 const MINUTES: Record<string, number> = { second: 1 / 60, seconds: 1 / 60, minute: 1, minutes: 1, hour: 60, hours: 60, day: 1440, days: 1440, week: 10080, weeks: 10080 };
 
 /** The window's length in minutes, when it is described as `{ duration, unit }`. */
-export function windowMinutes(window: unknown): number | null {
+function windowMinutes(window: unknown): number | null {
   if (!window || typeof window !== 'object') return null;
   const { duration, unit } = window as { duration?: unknown; unit?: unknown };
   const scale = typeof unit === 'string' ? MINUTES[unit.toLowerCase()] : undefined;
   return typeof duration === 'number' && duration > 0 && scale ? duration * scale : null;
 }
 
-export function windowLabel(minutes: number): string {
+function windowLabel(minutes: number): string {
   if (minutes >= 1440 && minutes % 1440 === 0) {
     const days = minutes / 1440;
     return days === 7 ? tr('每周', 'Weekly') : tr(`${days} 天`, `${days} days`);
@@ -97,7 +90,7 @@ export function windowLabel(minutes: number): string {
 }
 
 /** "5 hours", "Weekly", "Monthly": how long a window lasts, when it says. */
-export function windowText(window: unknown): string | null {
+function windowText(window: unknown): string | null {
   if (window && typeof window === 'object') {
     // A calendar month has no fixed length, so it arrives in months rather than minutes.
     const { duration, unit } = window as { duration?: unknown; unit?: unknown };
@@ -144,20 +137,19 @@ export function resetLabel(value: string | null | undefined, now = Date.now()): 
   const seconds = (date.getTime() - now) / 1000;
   if (seconds <= 0) return tr('即将重置', 'Resets soon');
   if (seconds < 36 * 3600) {
-    const format = new Intl.RelativeTimeFormat(locale(), { numeric: 'always' });
+    const format = new Intl.RelativeTimeFormat(intlLocale(), { numeric: 'always' });
     const text = seconds < 3600 ? format.format(Math.ceil(seconds / 60), 'minute') : format.format(Math.round(seconds / 3600), 'hour');
     return tr(`${text}重置`, `Resets ${text}`);
   }
-  const when = date.toLocaleString(locale(), { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const when = date.toLocaleString(intlLocale(), { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   return tr(`${when} 重置`, `Resets ${when}`);
 }
 
-const compact = (value: number) => new Intl.NumberFormat(locale(), { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 
 /** "12.4K / 100K" in the window's own unit, or what is left when that is all it says. */
 export function quotaAmounts(quota: QuotaWindow): string | null {
   if (quota.unlimited) return tr('不限量', 'Unlimited');
-  const show = (value: string | null) => { const n = number(value); return n == null ? value : compact(n); };
+  const show = (value: string | null) => { const n = number(value); return n == null ? value : compactNumber(n); };
   if (quota.used != null && quota.limit != null) return `${show(quota.used)} / ${show(quota.limit)}`;
   if (quota.remaining != null) return tr(`剩余 ${show(quota.remaining)}`, `${show(quota.remaining)} left`);
   if (quota.used != null) return tr(`已用 ${show(quota.used)}`, `${show(quota.used)} used`);
@@ -178,7 +170,7 @@ export function quotaParts(quota: QuotaWindow): string | null {
   return parts.map(part => {
     const name = PART_NAMES[part.id];
     const used = number(part.used);
-    return `${name ? tr(name[0], name[1]) : part.id} ${used == null ? part.used ?? '—' : compact(used)}`;
+    return `${name ? tr(name[0], name[1]) : part.id} ${used == null ? part.used ?? '—' : compactNumber(used)}`;
   }).join(' · ');
 }
 
@@ -188,10 +180,10 @@ export function formatAmount(value: string | null, currency: string, minorUnit: 
   if (parsed == null) return value;
   const amount = minorUnit ? parsed / 10 ** minorUnit : parsed;
   if (/^[A-Z]{3}$/.test(currency)) {
-    try { return new Intl.NumberFormat(locale(), { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount); }
+    try { return new Intl.NumberFormat(intlLocale(), { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount); }
     catch { /* not an ISO currency after all */ }
   }
-  return `${new Intl.NumberFormat(locale(), { maximumFractionDigits: 4 }).format(amount)} ${currency}`;
+  return `${new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: 4 }).format(amount)} ${currency}`;
 }
 
 /** The labelled parts of a balance that the service reported, beside the headline amount. */

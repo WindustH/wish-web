@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The app's own places - settings, statistics, account status - and signing out, in one menu.
+// The app's own places - settings, statistics, sessions and data, account status - and signing
+// out, in one menu.
 // On a desktop it opens from the foot of the sidebar, which names the server; on a phone from a
 // button at the top right of the start page.
 import { computed, ref } from 'vue';
@@ -20,12 +21,14 @@ const mac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigato
 const items = computed<MenuItem[]>(() => [
   { key: 'settings', icon: 'settings', label: i18n.t('nav.settings'), shortcut: props.placement === 'sidebar' ? (mac ? '⌘,' : 'Ctrl+,') : undefined },
   { key: 'stats', icon: 'stats', label: i18n.t('nav.stats') },
+  { key: 'data', icon: 'storage', label: tr('会话与数据', 'Sessions & data') },
   { key: 'account', icon: 'account', label: tr('账户状态', 'Account status') },
   { key: 'sign-out', icon: 'log-out', label: tr('退出登录', 'Sign out'), separator: true },
 ]);
 function choose(key: string) {
   if (key === 'settings') void router.push('/settings');
   else if (key === 'stats') void router.push('/stats');
+  else if (key === 'data') void router.push('/data');
   // A phone shows account status as a page of its own; a desktop as a window over the app.
   else if (key === 'account' && props.placement === 'header') void router.push('/account');
   else if (key === 'account') accountDialogOpen.value = true;

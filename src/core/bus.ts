@@ -18,5 +18,4 @@ export const bus = {
       try { fn(payload); } catch (err) { console.error(`[bus] ${topic}`, err); }
     }
   },
-  topicCount() { return listeners.size; },
 };

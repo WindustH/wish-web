@@ -5,25 +5,20 @@ import { shallowRef } from 'vue';
 import * as api from '../api/endpoints.ts';
 import { peekCached, readCached, writeCached } from '../util/responseCache.ts';
 import { rangeBounds, type TotalsRange } from '../usage/windows.ts';
-import type { StatusSnapshot, StorageSnapshot, UsageSnapshot } from '../api/endpoints.ts';
-export type { StatusSnapshot, StorageSnapshot, UsageSnapshot, UsageTotals } from '../api/endpoints.ts';
+import type { StorageSnapshot, UsageSnapshot } from '../api/endpoints.ts';
+export type { StorageSnapshot, UsageSnapshot, UsageTotals } from '../api/endpoints.ts';
 
-export interface VersionSnapshot { name: string; version: string }
 // The persisted statistics snapshot; `usageKey` names the window its usage covers.
 export interface StatsSnapshot {
-  status: StatusSnapshot;
   usage: UsageSnapshot;
   usageKey: string;
   storage: StorageSnapshot;
-  version: VersionSnapshot;
   updatedAt: number;
 }
 
 export const stats = (() => {
-  const status = shallowRef<StatusSnapshot | null>(null);
   const usage = shallowRef<UsageSnapshot | null>(null);
   const storage = shallowRef<StorageSnapshot | null>(null);
-  const version = shallowRef<VersionSnapshot | null>(null);
   const loading = shallowRef(false);
   const error = shallowRef<unknown>(null);
   const updatedAt = shallowRef<number | null>(null);
@@ -38,10 +33,8 @@ export const stats = (() => {
   let autoTimer: ReturnType<typeof setInterval> | undefined;
 
   function apply(snapshot: StatsSnapshot) {
-    status.value = snapshot.status;
     if (snapshot.usageKey === usageKey(usageRange.value)) usage.value = snapshot.usage;
     storage.value = snapshot.storage;
-    version.value = snapshot.version;
     updatedAt.value = snapshot.updatedAt;
   }
 
@@ -56,11 +49,11 @@ export const stats = (() => {
     error.value = null;
     const range = usageRange.value;
     pending = Promise.all([
-      api.daemonStatus(options), api.usageTotals({ ...options, query: rangeBounds(range) }), api.storageStatus(options), api.daemonVersion(options),
-    ]).then(([st, us, sg, ver]) => {
+      api.usageTotals({ ...options, query: rangeBounds(range) }), api.storageStatus(options),
+    ]).then(([us, sg]) => {
       if (own !== epoch) return;
       // A range switched meanwhile has its own read; these totals are for the old one.
-      const snapshot: StatsSnapshot = { status: st, usage: us, usageKey: usageKey(range), storage: sg, version: ver, updatedAt: Date.now() };
+      const snapshot: StatsSnapshot = { usage: us, usageKey: usageKey(range), storage: sg, updatedAt: Date.now() };
       apply(snapshot);
       writeCached('stats-snapshot', snapshot);
       writeCached(usageKey(range), us);
@@ -108,5 +101,5 @@ export const stats = (() => {
     void refresh();
     autoTimer = setInterval(refresh, cfg.stats.refreshMs);
   }
-  return { status, usage, usageRange, usageSwitching, storage, version, loading, error, updatedAt, refresh, setUsageRange, startAuto, stopAuto };
+  return { usage, usageRange, usageSwitching, storage, loading, error, updatedAt, refresh, setUsageRange, startAuto, stopAuto };
 })();

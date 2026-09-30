@@ -7,10 +7,11 @@ import { useRouter } from 'vue-router';
 import { openOnboardingPreview } from '../onboarding/preview.ts';
 import { cfg } from '../../core/config.ts';
 import { useMedia } from '../../ui/composables/useMedia.ts';
-import { tr } from './fields.ts';
+import { tr } from '../../core/i18n/tr.ts';
 import SettingHint from './SettingHint.vue';
 import SettingsSections from './SettingsSections.vue';
 import ConnectionDiagnostics from '../selftest/ConnectionDiagnostics.vue';
+import { closeOverlayKey } from '../../ui/composables/overlay.ts';
 
 const sections = computed(() => [
   { id: 'diagnostics', label: tr('连接诊断', 'Connection diagnostics') },
@@ -22,7 +23,7 @@ const iconNames = Object.keys(ICONS);
 const desktop = useMedia(`(min-width: ${cfg.breakpoints.desktop}px)`);
 // This page renders with the settings route; the router knows where navigation ended.
 const router = useRouter();
-const closeSettings = inject<() => Promise<unknown>>('closeOverlay');
+const closeSettings = inject(closeOverlayKey);
 async function previewOnboarding() {
   // The desktop settings dialog is modal and would take every click meant for
   // the preview, so leave it first (unless the user keeps editing).

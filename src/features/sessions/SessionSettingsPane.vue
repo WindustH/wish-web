@@ -3,30 +3,29 @@
 // New sessions keep taking the defaults from Settings.
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
-import { get } from '../../core/api/client.ts';
 import * as api from '../../core/api/endpoints.ts';
 import { chat } from '../../core/state/chatSlice.ts';
-import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
-import { useMedia } from '../../ui/composables/useMedia.ts';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { toast } from '../../ui/toast.ts';
-import { compactionFields } from '../settings/fields.ts';
+import CompactionRows from '../settings/CompactionRows.vue';
 import type { ToolSwitches } from '../../core/api/projections.ts';
-import ServerShellSettings, { type ShellCatalog } from '../settings/ServerShellSettings.vue';
+import ServerShellSettings from '../settings/ServerShellSettings.vue';
+import type { ShellCatalog } from '../../core/api/endpoints.ts';
 import '../settings/settings.css';
 
 defineEmits<{ close: [] }>();
-const isMobile = useMedia('(max-width: 899px)');
+const isMobile = useIsMobile();
 const snapshot = computed(() => chat.snapshot.value);
 const running = computed(() => snapshot.value?.phase !== 'idle');
 
 type Compaction = { trigger_tokens: number; target_tokens: number; segment_tokens: number; [key: string]: unknown };
 type Shell = { program: string; args: string[] | null };
 const compaction = ref<Compaction | null>(null);
-const tools = ref<ToolSwitches>({ shell: false, ask_user: false, mcp: false });
+const tools = ref<ToolSwitches>({ shell: false, ask_user: false, mcp: false, web_search: false });
 const ownShell = ref(false);
 const shell = ref<Shell>({ program: '', args: null });
 const source = ref('');
@@ -40,7 +39,7 @@ function reset() {
   loadedFor = current.id;
   compaction.value = current.config?.compaction ? structuredClone(current.config.compaction) : null;
   const switches = current.descriptor?.tools;
-  tools.value = { shell: !!switches?.shell, ask_user: !!switches?.ask_user, mcp: !!switches?.mcp };
+  tools.value = { shell: !!switches?.shell, ask_user: !!switches?.ask_user, mcp: !!switches?.mcp, web_search: !!switches?.web_search };
   const own = current.descriptor?.shell_command;
   ownShell.value = !!own;
   shell.value = own ? { program: own.program ?? '', args: own.args ?? null } : { program: '', args: null };
@@ -54,11 +53,21 @@ watch(snapshot, value => { if (value && value.id !== loadedFor) reset(); }, { im
 const defaults = ref<Compaction | null>(null);
 const catalog = ref<ShellCatalog | null>(null);
 const globalShell = ref<Shell | null>(null);
+// Whether any search provider could answer a search now; unknown until read.
+const searchAvailable = ref<boolean | null>(null);
+// The tools a session can switch, each with what it does - or what it still needs.
+const toolRows = computed(() => [
+  { key: 'shell', name: 'Shell', hint: tr('在工作目录中执行命令', 'Run commands in the working directory') },
+  { key: 'ask_user', name: 'Ask User', hint: tr('需要你决定时，给出选项或请你填写', 'Offer choices or ask you to fill in details when your call is needed') },
+  { key: 'mcp', name: tr('MCP 服务器', 'MCP servers'), hint: tools.value.shell ? tr('允许在 Shell 里调用已配置的 MCP 服务器，切换不影响提示缓存', 'Let the shell reach the configured MCP servers. Switching keeps the prompt cache') : tr('需要先开启 Shell', 'Needs the shell on') },
+  { key: 'web_search', name: 'Web Search', hint: searchAvailable.value === false ? tr('还没有能用的搜索提供商，先在「设置 → 联网搜索」里添加', 'No search provider can answer yet; add one under Settings → Web search') : tr('在网上搜索资料，由设置里的搜索提供商完成', 'Search the web through the search providers in Settings') },
+] as const);
 let alive = true;
 onUnmounted(() => { alive = false; });
 onMounted(async () => {
-  const [base, shells, config] = await Promise.allSettled([get('/defaults'), get('/shells'), get('/config')]);
+  const [base, shells, config, search] = await Promise.allSettled([api.configEffective(), api.shellCatalog(), api.configSnapshot(), api.searchProviders()]);
   if (!alive) return;
+  if (search.status === 'fulfilled') searchAvailable.value = search.value.available;
   if (base.status === 'fulfilled') defaults.value = base.value.session_config?.compaction ?? null;
   if (shells.status === 'fulfilled') catalog.value = shells.value;
   if (config.status === 'fulfilled') globalShell.value = config.value.config.shell ?? null;
@@ -78,9 +87,6 @@ const useDefaults = () => { compaction.value = structuredClone(defaults.value); 
 function setCompaction(enabled: boolean) {
   compaction.value = enabled ? structuredClone(snapshot.value?.config?.compaction ?? defaults.value) : null;
 }
-const compactTokens = (value: unknown) => typeof value === 'number' && value > 0
-  ? new Intl.NumberFormat(i18n.locale.value === 'zh' ? 'zh-CN' : 'en', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
-  : '';
 
 const busy = ref(false);
 async function save() {
@@ -92,17 +98,17 @@ async function save() {
   try {
     if (JSON.stringify(compaction.value) !== JSON.stringify(saved.compaction)) {
       const next = await api.sessionUpdateConfig(id, { ...current.config, compaction: compaction.value }, current.revision);
-      if (chat.sessionId.value === id) chat.snapshot.value = next;
+      chat.adoptSnapshot(id, next);
     }
     // After the config: switching tools rebuilds the session's tool list on the server.
     if (JSON.stringify(tools.value) !== JSON.stringify(saved.tools)) {
       const next = await api.sessionSetTools(id, tools.value);
-      if (chat.sessionId.value === id) chat.snapshot.value = next;
+      chat.adoptSnapshot(id, next);
     }
     const wanted = ownShell.value ? shell.value : null;
     if (tools.value.shell && JSON.stringify(wanted) !== JSON.stringify(saved.shell)) {
       const next = await api.sessionSetShell(id, wanted);
-      if (chat.sessionId.value === id) chat.snapshot.value = next;
+      chat.adoptSnapshot(id, next);
     }
     if (chat.sessionId.value === id) { reset(); toast(tr('会话设置已保存。', 'Session settings saved.')); }
   } catch (error) {
@@ -145,7 +151,7 @@ async function act(kind: 'compact' | 'clear') {
       <div class="set-card">
         <div class="set-row inline toggle-row"><span class="set-label"><span>{{ tr('自动压缩', 'Compact automatically') }}</span><small v-if="running">{{ tr('运行结束后才能保存这项修改', 'Can be saved once the current run ends') }}</small></span><SwitchRoot :model-value="!!compaction" class="cfg-switch" :aria-label="tr('自动压缩', 'Compact automatically')" @update:model-value="setCompaction"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
         <template v-if="compaction">
-          <label v-for="field in compactionFields()" :key="field.key" class="set-row inline"><span class="set-label"><span>{{ field.label }}</span><small>{{ field.hint }}</small></span><span class="set-number"><em>{{ compactTokens(compaction[field.key]) }}</em><input class="input" type="number" min="1" inputmode="numeric" v-model.number="compaction[field.key]" /></span></label>
+          <CompactionRows :value="compaction" inline show-compact />
         </template>
       </div>
       <button v-if="compaction && differsFromDefaults" type="button" class="btn ghost set-reset" @click="useDefaults"><Icon name="refresh-cw" />{{ tr('使用全局默认值', 'Use the global defaults') }}</button>
@@ -158,9 +164,7 @@ async function act(kind: 'compact' | 'clear') {
     <section class="set-section">
       <header class="set-section-head"><h3>{{ tr('工具', 'Tools') }}</h3><p>{{ tr('模型在这个会话里可以使用的内置工具。', 'Built-in tools the model can use in this session.') }}</p></header>
       <div class="set-card">
-        <div class="set-row inline toggle-row"><span class="set-label"><span>Shell</span><small>{{ running ? tr('运行结束后才能保存这项修改', 'Can be saved once the current run ends') : tr('在工作目录中执行命令', 'Run commands in the working directory') }}</small></span><SwitchRoot v-model="tools.shell" class="cfg-switch" aria-label="Shell"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
-        <div class="set-row inline toggle-row"><span class="set-label"><span>{{ tr('向你提问', 'Ask you questions') }}</span><small>{{ running ? tr('运行结束后才能保存这项修改', 'Can be saved once the current run ends') : tr('需要你决定时，给出选项或请你填写', 'Offer choices or ask you to fill in details when your call is needed') }}</small></span><SwitchRoot v-model="tools.ask_user" class="cfg-switch" :aria-label="tr('向你提问', 'Ask you questions')"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
-        <div class="set-row inline toggle-row"><span class="set-label"><span>{{ tr('MCP 服务器', 'MCP servers') }}</span><small>{{ running ? tr('运行结束后才能保存这项修改', 'Can be saved once the current run ends') : tools.shell ? tr('允许在 Shell 里调用已配置的 MCP 服务器，切换不影响提示缓存', 'Let the shell reach the configured MCP servers. Switching keeps the prompt cache') : tr('需要先开启 Shell', 'Needs the shell on') }}</small></span><SwitchRoot v-model="tools.mcp" class="cfg-switch" :aria-label="tr('MCP 服务器', 'MCP servers')"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
+        <div v-for="row in toolRows" :key="row.key" class="set-row inline toggle-row"><span class="set-label"><span>{{ row.name }}</span><small>{{ running ? tr('运行结束后才能保存这项修改', 'Can be saved once the current run ends') : row.hint }}</small></span><SwitchRoot v-model="tools[row.key]" class="cfg-switch" :aria-label="row.name"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
       </div>
     </section>
 

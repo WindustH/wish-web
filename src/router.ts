@@ -2,11 +2,11 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import SessionsView from './features/sessions/SessionsView.vue';
 import StartChat from './features/sessions/StartChat.vue';
-import { installSessionNavigation } from './ui/sessionNavigation.ts';
+import { installSessionNavigation } from './features/shell/sessionNavigation.ts';
 
 declare module 'vue-router' {
   interface RouteMeta {
-    section?: 'sessions' | 'stats' | 'settings';
+    section?: 'sessions' | 'stats' | 'settings' | 'data';
   }
 }
 
@@ -38,6 +38,7 @@ export const router = createRouter({
       ],
     },
     { path: '/stats', name: 'stats', meta: { section: 'stats' }, component: () => import('./features/stats/StatsView.vue') },
+    { path: '/data', name: 'data', meta: { section: 'data' }, component: () => import('./features/data/DataView.vue') },
     // Root-owned settings screen (config editor round).
     { path: '/settings', name: 'settings', meta: { section: 'settings' }, component: () => import('./features/settings/SettingsView.vue') },
     { path: '/account', name: 'account', component: () => import('./features/account/AccountView.vue') },

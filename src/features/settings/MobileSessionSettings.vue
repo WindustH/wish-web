@@ -5,8 +5,9 @@ import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { type SelectOption } from '../../ui/components/SelectField.vue';
 import { useSettingsReturn } from './settingsReturn.ts';
-import { tr, compactionFields } from './fields.ts';
-const props=defineProps<{config:any;providers:SelectOption[];efforts:SelectOption[];save:()=>Promise<boolean>;busy:boolean}>();
+import { tr } from '../../core/i18n/tr.ts';
+import CompactionRows from './CompactionRows.vue';
+const props=defineProps<{config:any;providers:SelectOption[];efforts:SelectOption[]}>();
 const page=ref('');
 const titles=computed<Record<string,string>>(()=>({model:tr('默认模型','Default model'),instructions:tr('固定提示词','Instructions'),cwd:tr('工作目录','Working directory')}));
 const defaults=computed(()=>props.config.defaults);
@@ -25,7 +26,7 @@ const returns=useSettingsReturn(()=>!!page.value,async()=>{if(await returns.conf
     <template v-if="defaults.compaction">
       <p class="mobile-group-caption">{{tr('上下文压缩','Context compaction')}}</p>
       <div class="set-card mobile-card">
-        <label v-for="field in compactionFields()" :key="field.key" class="set-row inline"><span class="set-label"><span>{{field.label}}</span><small>{{field.hint}}</small></span><span class="set-number"><input class="input" type="number" inputmode="numeric" min="1" v-model.number="defaults.compaction[field.key]"/></span></label>
+        <CompactionRows :value="defaults.compaction" inline />
       </div>
     </template>
     <Modal page :before-close="returns.confirm" content-class="mobile-settings-page" :open="!!page" :title="titles[page]||''" @close="page=''">
@@ -41,5 +42,4 @@ const returns=useSettingsReturn(()=>!!page.value,async()=>{if(await returns.conf
 .default-model-row :deep(.default-model-chip) { border-color: transparent; border-radius: 999px; background: var(--bg-sunken); }
 .default-model-row :deep(.default-model-chip button) { min-height: 32px; padding-block: 4px; }
 .mobile-page-note { margin: 0 14px 12px; font-size: 12px; line-height: 1.6; color: var(--fg-subtle); }
-.mobile-page-note.after { margin: 10px 14px 0; }
 </style>

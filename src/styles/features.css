@@ -18,6 +18,11 @@
 .sl-scroll::-webkit-scrollbar-thumb { background: transparent; transition: background var(--dur-slow) var(--ease-out); }
 .sl-scroll.scrolling::-webkit-scrollbar-thumb { background: var(--line-strong); }
 @media (hover: hover) { .sl-scroll:hover::-webkit-scrollbar-thumb { background: var(--line-strong); } }
+/* A shade of the pane's own colour at the top of the list, over rows scrolled under the heading. */
+.sessions-pane { --sl-surface: var(--bg-sunken); }
+.shell.mobile .sessions-pane { --sl-surface: var(--bg); }
+.sl-scroll::before { content: ''; position: sticky; top: 0; z-index: 1; display: block; height: 20px; margin-bottom: -20px; background: linear-gradient(var(--sl-surface), transparent); opacity: 0; pointer-events: none; transition: opacity var(--dur-fast) var(--ease-out); }
+.sl-scroll.scrolled::before { opacity: 1; }
 .sl-item { display: flex; align-items: flex-start; min-height: var(--h-session-row); border-radius: var(--radius); color: var(--fg-muted); transition: background var(--dur-fast); }
 .sl-item:has(:focus-visible) { background: var(--bg-hover); }
 @media (hover: hover) { .sl-item:hover { background: var(--bg-hover); } }
@@ -50,6 +55,12 @@
   .sl-menu-trigger { position: absolute; top: 6px; right: 4px; margin: 0; }
 }
 .sl-status { margin-top: 7px; }
+/* Choosing several: the row is a button with a box in place of its status dot. */
+button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.sl-item.chosen { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--fg); }
+.sl-check { display: grid; place-items: center; flex: none; width: 16px; height: 16px; margin-top: 2px; border: 1.5px solid var(--line-strong); border-radius: 5px; color: var(--accent-fg); transition: background var(--dur-fast), border-color var(--dur-fast); }
+.sl-item.chosen .sl-check { border-color: var(--accent); background: var(--accent); }
+.sl-check .icon { width: 12px; height: 12px; stroke-width: 3; }
 .sl-status.idle { background: transparent; border: 1px solid var(--fg-faint); }
 @media (min-width: 900px) and ((hover: none) or (pointer: coarse)) {
   .sl-row { min-height: 44px; }
@@ -182,8 +193,9 @@
 @media (hover: hover) { .composer .send-btn:hover:not(:disabled), .send-btn:hover:not(:disabled) { background: var(--accent-hover); } }
 .composer .send-btn:focus-visible, .send-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .composer .send-btn:active:not(:disabled), .send-btn:active:not(:disabled) { transform: scale(.94); }
-.composer .send-btn.stop, .send-btn.stop { background: var(--fg); color: var(--bg); }
-@media (hover: hover) { .composer .send-btn.stop:hover:not(:disabled), .send-btn.stop:hover:not(:disabled) { background: var(--fg-muted); } }
+/* Stopping ends work in progress: the danger colour, like the delete buttons. */
+.composer .send-btn.stop, .send-btn.stop { background: var(--danger); color: var(--danger-fg); }
+@media (hover: hover) { .composer .send-btn.stop:hover:not(:disabled), .send-btn.stop:hover:not(:disabled) { background: var(--danger-hover); } }
 .composer .send-btn .icon, .send-btn .icon { width: 18px; height: 18px; }
 .send-btn.stop .icon rect { fill-opacity: 1; }
 .composer.mobile { padding: 6px 12px calc(14px + env(safe-area-inset-bottom)); }
@@ -232,7 +244,6 @@
 .sr-meta { font-size: 11px; color: var(--fg-subtle); }
 .sr-snippet { font-size: 13px; line-height: 1.8; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .sr-snippet mark { background: var(--accent-soft); color: var(--accent); }
-.tags-editor { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 0; }
 .setting-row + .setting-row { border-top: 1px solid var(--line); }
 .setting-row > div { min-width: 0; }
@@ -279,7 +290,6 @@
 @media (max-width: 899px) {
   .composer.mobile .composer-input, .input, .select, .textarea { font-size: 16px; }
 }
-
 
 .attachment-file { display: flex; align-items: center; gap: 10px; min-height: 48px; width: min(260px, 65vw); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--bg-raised); color: var(--fg); }
 .attachment-file > .icon { flex: none; color: var(--fg-subtle); }

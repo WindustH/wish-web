@@ -1,8 +1,7 @@
 <script setup lang="ts">
 // When a page's readings were taken, and a button to read again; sits in a title bar.
 import { computed } from 'vue';
-import { tr } from '../../core/i18n/tr.ts';
-import { i18n } from '../../core/i18n/index.ts';
+import { tr, intlLocale } from '../../core/i18n/tr.ts';
 import Hint from './Hint.vue';
 import Icon from './Icon.vue';
 
@@ -13,7 +12,7 @@ const stamp = computed(() => {
   if (props.at == null) return '';
   const at = new Date(props.at);
   const today = at.toDateString() === new Date().toDateString();
-  return new Intl.DateTimeFormat(i18n.locale.value === 'zh' ? 'zh-CN' : 'en', today
+  return new Intl.DateTimeFormat(intlLocale(), today
     ? { hour: '2-digit', minute: '2-digit' }
     : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(at);
 });

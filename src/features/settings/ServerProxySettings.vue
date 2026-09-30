@@ -3,9 +3,10 @@ import { computed, ref } from 'vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
-import { useMedia } from '../../ui/composables/useMedia.ts';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { useSettingsReturn } from './settingsReturn.ts';
-import { tr } from './fields.ts';
+import { tr } from '../../core/i18n/tr.ts';
+import { REDACTED } from '../../core/secretRef.ts';
 
 type ProxyConfig = {
   mode: 'environment' | 'manual' | 'direct';
@@ -23,7 +24,7 @@ const modes = computed(() => [
 ]);
 const modeLabel = computed(() => modes.value.find(mode => mode.value === props.value.mode)?.label ?? props.value.mode);
 // On phones the fields get their own page, like every other group of settings.
-const mobile = useMedia('(max-width: 899px)');
+const mobile = useIsMobile();
 const open = ref(false);
 const returns = useSettingsReturn(() => mobile.value && open.value, async () => { if (await returns.confirm()) open.value = false; });
 </script>
@@ -40,7 +41,7 @@ const returns = useSettingsReturn(() => mobile.value && open.value, async () => 
       <template v-else-if="value.mode === 'manual'">
         <label class="set-row"><span class="set-label"><span>{{ tr('代理地址', 'Proxy URL') }}</span><small>{{ tr('http:// 或 https:// 开头', 'Starts with http:// or https://') }}</small></span><input class="input set-mono" v-model.trim="value.url" type="url" placeholder="http://127.0.0.1:7890" autocomplete="off" spellcheck="false" /></label>
         <label class="set-row"><span class="set-label"><span>{{ tr('用户名', 'Username') }}</span><small>{{ tr('可选', 'Optional') }}</small></span><input class="input" v-model="value.username" autocomplete="off" spellcheck="false" /></label>
-        <label class="set-row"><span class="set-label"><span>{{ tr('密码', 'Password') }}</span><small>{{ tr('可选', 'Optional') }}</small></span><span class="proxy-password"><input class="input" type="password" :value="value.password === '<redacted>' ? '' : value.password" :placeholder="value.password === '<redacted>' ? tr('已配置，留空保留', 'Configured; leave blank to retain') : ''" autocomplete="new-password" @input="value.password = ($event.target as HTMLInputElement).value" /><button v-if="value.password" class="btn ghost" type="button" @click="value.password = ''">{{ tr('清除', 'Clear') }}</button></span></label>
+        <label class="set-row"><span class="set-label"><span>{{ tr('密码', 'Password') }}</span><small>{{ tr('可选', 'Optional') }}</small></span><span class="proxy-password"><input class="input" type="password" :value="value.password === REDACTED ? '' : value.password" :placeholder="value.password === REDACTED ? tr('已配置，留空保留', 'Configured; leave blank to retain') : ''" autocomplete="new-password" @input="value.password = ($event.target as HTMLInputElement).value" /><button v-if="value.password" class="btn ghost" type="button" @click="value.password = ''">{{ tr('清除', 'Clear') }}</button></span></label>
       </template>
     </div>
   </component>

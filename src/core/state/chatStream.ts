@@ -1,6 +1,5 @@
 import { operationFailure } from '../api/failures.ts';
 // Stream event processing and live execution state for chat sessions.
-import { toast } from '../../ui/toast.ts';
 import { i18n } from '../i18n/index.ts';
 
 export interface ToolCallData {
@@ -42,8 +41,12 @@ export function createEmptyStream(): StreamState {
 
 export interface StreamCallbacks {
   onClose: () => void;
+  // Old history was cleared: the loaded pages may show what is gone.
+  onHistoryPruned: () => void;
   onScheduleRefresh: () => void;
   onTurnComplete: (kind: string, turnVersion: number) => void;
+  // Something worth a passing note to the user, already worded.
+  onNotice: (message: string) => void;
   onError: (err: unknown) => void;
 }
 
@@ -66,6 +69,11 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
 
       if (data.type === 'deleted') {
         callbacks.onClose();
+        return current;
+      }
+
+      if (data.type === 'history_pruned') {
+        callbacks.onHistoryPruned();
         return current;
       }
 
@@ -182,7 +190,7 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
       }
 
       if (kind === 'CompactionTranslationFailed') {
-        toast(i18n.t('notify.compactionTranslationFailed'));
+        callbacks.onNotice(i18n.t('notify.compactionTranslationFailed'));
         return current;
       }
 
@@ -192,11 +200,11 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
       }
 
       if (kind === 'ContextCompacted') {
-        toast(i18n.t('notify.contextCompacted', { n: event.removed_entries }));
+        callbacks.onNotice(i18n.t('notify.contextCompacted', { n: event.removed_entries }));
         return { ...current, standbyPreparing: false };
       }
 
-      if (['ResponseAccepted', 'ResponseInterrupted', 'ToolFinished', 'Finished', 'ContextCompacted'].includes(kind)) {
+      if (['ResponseAccepted', 'ResponseInterrupted', 'ToolFinished', 'Finished'].includes(kind)) {
         callbacks.onTurnComplete(kind, turnVersion);
         callbacks.onScheduleRefresh();
       }

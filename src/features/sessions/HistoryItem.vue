@@ -19,11 +19,15 @@ const comp = computed<Component>(() =>
   : props.item.entry?.kind === 'run_error' ? ErrorEntry
   : props.item.entry?.kind === 'user_message' ? UserEntry
   : props.item.entry?.kind === 'assistant_message' ? AssistantEntry : SystemEntry);
+// What only some of them take: the process group whether it is forced open, and it and the question
+// card the session they belong to.
+const extra = computed(() => props.item.type === 'process' ? { forced: props.forced, session: props.session }
+  : props.item.type === 'question' ? { session: props.session } : {});
 </script>
 
 <template>
   <div v-if="item.type === 'entry' && item.entry?.seq != null" class="entry-anchor" :data-seq="item.entry.seq">
     <component :is="comp" :item="item" />
   </div>
-  <component :is="comp" v-else :item="item" :forced="forced" :session="session" />
+  <component :is="comp" v-else :item="item" v-bind="extra" />
 </template>

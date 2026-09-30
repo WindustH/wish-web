@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { i18n } from '../../../core/i18n/index.ts';
 import { apiFetch } from '../../../core/api/client.ts';
+import { tr } from '../../../core/i18n/tr.ts';
 const props=defineProps<{src:string;mime:string;path:string}>();
 const url=ref(''),error=ref(false),size=ref(''),zoom=ref(false);
 watch(()=>props.src,async(src,_,onCleanup)=>{
@@ -14,9 +14,9 @@ function loaded(event:Event){const img=event.target as HTMLImageElement;size.val
 </script>
 <template>
  <figure class="tool-image">
-  <button v-if="url&&!error" class="image-surface" :class="{zoom}" :aria-label="i18n.locale.value==='zh'?'切换原始尺寸':'Toggle original size'" @click="zoom=!zoom"><img :src="url" :alt="path" loading="lazy" decoding="async" @load="loaded" @error="error=true"/></button>
-  <p v-if="error" role="status">{{i18n.locale.value==='zh'?'图片暂时无法加载。':'Image could not be loaded.'}}</p>
-  <p v-else-if="!url">{{i18n.locale.value==='zh'?'正在读取图片…':'Loading image…'}}</p>
+  <button v-if="url&&!error" class="image-surface" :class="{zoom}" :aria-label="tr('切换原始尺寸', 'Toggle original size')" @click="zoom=!zoom"><img :src="url" :alt="path" loading="lazy" decoding="async" @load="loaded" @error="error=true"/></button>
+  <p v-if="error" role="status">{{tr('图片暂时无法加载。', 'Image could not be loaded.')}}</p>
+  <p v-else-if="!url">{{tr('正在读取图片…', 'Loading image…')}}</p>
   <figcaption><span>{{path}}</span><span>{{size}}</span></figcaption>
  </figure>
 </template>

@@ -1,14 +1,16 @@
 <script setup lang="ts">
 // The dialog is owned by the list, outside recycled virtual rows. Its target
 // never follows the currently open chat; writes belong to the captured ID.
+import { errorDetail } from '../../core/errors.ts';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import * as api from '../../core/api/endpoints.ts';
-import { sessions } from '../../core/state/sessionsSlice.ts';
+import { sessions, sessionTitle } from '../../core/state/sessionsSlice.ts';
 import { chat } from '../../core/state/chatSlice.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
+import { deleteSession } from './sessionActions.ts';
 const props = defineProps<{ target: { id: string; name?: string }; kind: 'rename' | 'tags' | 'delete' }>();
 const emit = defineEmits<{ close: [] }>();
 const router = useRouter();
@@ -35,7 +37,7 @@ async function loadTags() {
   try {
     snapshot.value = await api.sessionGet(props.target.id);
     tags.value = Array.isArray(snapshot.value.metadata?.tags) ? [...snapshot.value.metadata.tags] : [];
-  } catch (e: any) { error.value = String(e?.detail || e?.message || e); }
+  } catch (e: any) { error.value = errorDetail(e); }
   finally { loading.value = false; }
 }
 onMounted(() => { if (props.kind === 'tags') loadTags(); });
@@ -46,16 +48,16 @@ async function save() {
   error.value = '';
   try {
     if (props.kind === 'delete') {
-      await api.sessionDelete(id);
-      sessions.dropRow(id);
-      if (chat.sessionId.value === id) { chat.close(); await router.push('/sessions'); }
+      const open = chat.sessionId.value === id;
+      await deleteSession(id);
+      if (open) await router.push('/sessions');
     } else {
       const snap = props.kind === 'rename' ? await sessions.rename(id, name.value.trim())
         : await sessions.updateMeta(snapshot.value, { tags: draftTags.value });
-      if (chat.sessionId.value === id && (chat.snapshot.value?.revision ?? 0) <= snap.revision) chat.snapshot.value = snap;
+      chat.adoptSnapshot(id, snap);
     }
     emit('close');
-  } catch (e: any) { error.value = String(e?.detail || e?.message || e); }
+  } catch (e: any) { error.value = errorDetail(e); }
   finally { busy.value = false; }
 }
 </script>
@@ -63,7 +65,7 @@ async function save() {
 <template>
   <Modal :open="true" compact :title="i18n.t(`manage.${kind}`)" :dismissable="!busy" @close="emit('close')">
     <form id="session-list-action" @submit.prevent="save">
-      <p class="sl-action-name">{{ target.name || target.id.slice(0, 8) }}</p>
+      <p class="sl-action-name">{{ sessionTitle(target) }}</p>
       <input v-if="kind === 'rename'" v-model="name" class="input" :aria-label="i18n.t('manage.rename')" :disabled="busy" />
       <p v-else-if="kind === 'delete'">{{ i18n.t('manage.deleteConfirm') }}</p>
       <template v-else>
@@ -79,7 +81,7 @@ async function save() {
     </form>
     <template #footer>
       <button class="btn ghost" :disabled="busy" @click="emit('close')">{{ i18n.t('manage.cancel') }}</button>
-      <button form="session-list-action" type="submit" class="btn" :class="kind === 'delete' ? 'danger' : 'primary'" :disabled="!canSave">{{ busy ? i18n.t('sessions.loading') : i18n.t(kind === 'delete' ? 'manage.delete' : 'common.save') }}</button>
+      <button form="session-list-action" type="submit" class="btn" :class="kind === 'delete' ? 'danger solid' : 'primary'" :disabled="!canSave">{{ busy ? i18n.t('sessions.loading') : i18n.t(kind === 'delete' ? 'sessions.delete' : 'common.save') }}</button>
     </template>
   </Modal>
 </template>

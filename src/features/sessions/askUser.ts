@@ -1,3 +1,4 @@
+import { tr } from '../../core/i18n/tr.ts';
 // `ask_user` forms in the conversation: the call's arguments read the way the server reads
 // them, what became of a form, and a draft turned into the answers the server takes.
 import type { AskQuestion, PendingQuestion } from '../../core/api/projections.ts';
@@ -98,20 +99,9 @@ export function pick(question: AskQuestion, draft: Draft, label: string): Draft 
   return { ...draft, selected };
 }
 
-/**
- * Follows each session's open forms and reports those that newly wait for an answer. The first
- * sighting of a session only records it, so page loads and reconnects stay quiet.
- */
-export function createQuestionWatch() {
-  const seen = new Map<string, Set<string>>();
-  return {
-    observe(session: { id?: string; pending_questions?: readonly PendingQuestion[] } | null | undefined): PendingQuestion[] {
-      if (!session?.id) return [];
-      const waiting = (session.pending_questions ?? []).filter(form => !form.timed_out);
-      const known = seen.get(session.id);
-      seen.set(session.id, new Set(waiting.map(form => form.call_id)));
-      return known ? waiting.filter(form => !known.has(form.call_id)) : [];
-    },
-    forget(id: string) { seen.delete(id); },
-  };
+/** An answer as the page shows it: the text given, or the choices; null when it was skipped. */
+export function answerText(answer: AnswerRecord | undefined): string | null {
+  if (!answer || answer.skipped) return null;
+  if (answer.type === 'text') return answer.text ?? '';
+  return [...(answer.selected ?? []), ...(answer.other ? [answer.other] : [])].join(tr('、', ', '));
 }

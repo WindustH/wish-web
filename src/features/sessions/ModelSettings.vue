@@ -4,14 +4,15 @@ import { modelLabel } from '../../ui/modelLabel.ts';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, ref, toRef, watch } from 'vue';
 import { i18n } from '../../core/i18n/index.ts';
-import { errorText } from '../../core/config-editor.ts';
+import { errorText } from '../../core/errors.ts';
 import { presetBrand } from '../../ui/providerPresentation.ts';
 import { useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
 import { useSessionSelection, type ModelSelection } from './useSessionSelection.ts';
-import { useModelCatalog } from './useModelCatalog.ts';
+import { useModelCatalog } from '../../ui/composables/useModelCatalog.ts';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
 import PickerList from '../../ui/components/PickerList.vue';
-import Spinner from '../../ui/components/Spinner.vue';
+import { tr } from '../../core/i18n/tr.ts';
+import SelectionStatus from './SelectionStatus.vue';
 
 const panel = ref<InstanceType<typeof CommandPanel>>();
 const props = defineProps<{ sessionId?: string; selection?: ModelSelection }>();
@@ -33,7 +34,7 @@ const choices = computed(() => catalog.groups.value.flatMap(group => {
   return models.map(model => ({
     key: key(provider.id, model.id), title: modelLabel(model.id),
     vision: model.input_modalities?.includes('image') === true,
-    search: model.id, description: model.source === 'current' ? (i18n.locale.value === 'zh' ? '目录中未找到' : 'Not found in catalog') : undefined,
+    search: model.id, description: model.source === 'current' ? (tr('目录中未找到', 'Not found in catalog')) : undefined,
     disabled: model.source === 'current', group: title, brand, provider: provider.id, model: model.id,
   }));
 }));
@@ -54,10 +55,9 @@ async function apply(value: string) {
     <PickerList v-model="selected" :items="choices" :placeholder="i18n.t('model.search')" :disabled="saving || loading" @select="apply">
       <template #suffix="{ itemKey }"><Hint :text="i18n.t('model.visionHint')" v-if="visionChoices.has(itemKey)"><span class="model-vision" :aria-label="i18n.t('model.vision')"><Icon name="image" :size="13" aria-hidden="true" /></span></Hint></template>
       <template #status>
-        <p v-if="snapshot?.running" class="command-status hint">{{ i18n.locale.value === 'zh' ? '修改从下一次模型请求开始生效，当前请求不会中断。' : 'Changes apply to the next model request without interrupting the current one.' }}</p>
-        <div v-if="error" class="command-status load-error" role="alert">{{ conflict ? i18n.t('model.conflict') : errorText(error) }}<button class="btn ghost sm" :disabled="loading || saving" @click="reload">{{ i18n.t('common.retry') }}</button></div>
-        <div v-if="catalog.error.value" class="command-status load-error" role="alert">{{ errorText(catalog.error.value) }}<button class="btn ghost sm" @click="catalog.reload">{{ i18n.t('common.retry') }}</button></div>
-        <p v-if="loading || saving || catalog.pending.value" class="command-status hint" role="status"><Spinner /> {{ saving ? i18n.t('picker.switching') : i18n.t('model.loading') }}</p>
+        <SelectionStatus :running="snapshot?.running" :error="error" :conflict="conflict" :loading="loading" :saving="saving" :busy="loading || saving || catalog.pending.value" :loading-text="i18n.t('model.loading')" @retry="reload">
+          <div v-if="catalog.error.value" class="command-status load-error" role="alert">{{ errorText(catalog.error.value) }}<button class="btn ghost sm" @click="catalog.reload">{{ i18n.t('common.retry') }}</button></div>
+        </SelectionStatus>
       </template>
       <template #after>
         <template v-for="group in catalog.groups.value" :key="group.provider.id">

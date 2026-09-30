@@ -5,7 +5,7 @@ import { ListboxRoot, ListboxFilter, ListboxContent, ListboxItem, ListboxVirtual
 import { i18n } from '../../core/i18n/index.ts';
 import ProviderIcon from './ProviderIcon.vue';
 
-export interface PickerItem { key: string; title: string; description?: string; search?: string; group?: string; brand?: string; alwaysVisible?: boolean; disabled?: boolean }
+export interface PickerItem { key: string; title: string; description?: string; search?: string; group?: string; brand?: string; icon?: string; alwaysVisible?: boolean; disabled?: boolean }
 const props = withDefaults(defineProps<{ items: PickerItem[]; placeholder: string; disabled?: boolean; icons?: boolean }>(), { icons: true });
 const emit = defineEmits<{ select: [key: string] }>();
 const selected = defineModel<string>();
@@ -38,7 +38,7 @@ const listFingerprint = computed(() => `${query.value}|${filtered.value.length}|
           <ListboxItem :value="option" :data-choice-key="option" :disabled="rows.get(option)!.disabled" class="picker-option" :style="{ height: `${estimate(virtualItem.index)}px` }" @select="emit('select', option)">
             <div v-if="rows.get(option)!.heading" class="picker-group"><ProviderIcon :brand="rows.get(option)!.brand" />{{ rows.get(option)!.group }}</div>
             <div class="picker-row">
-              <ProviderIcon v-if="!rows.get(option)!.group && icons !== false" :brand="rows.get(option)!.brand" />
+              <ProviderIcon v-if="!rows.get(option)!.group && icons !== false" :brand="rows.get(option)!.brand" :fallback="rows.get(option)!.icon" />
               <div class="picker-label"><span>{{ rows.get(option)!.title }}</span><small v-if="rows.get(option)!.description">{{ rows.get(option)!.description }}</small></div>
               <slot name="suffix" :item-key="option" />
               <span class="picker-check"><ListboxItemIndicator><Icon name="check" :size="16" aria-hidden="true" /></ListboxItemIndicator></span>

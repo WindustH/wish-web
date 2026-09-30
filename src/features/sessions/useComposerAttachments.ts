@@ -32,7 +32,6 @@ export function useComposerAttachments(
   let attachmentEpoch = 0;
   let pastedTextNumber = 0;
   const currentSid = ref(sessionId.value);
-  currentSid.value = sessionId.value;
 
   const attachments = ref<Attachment[]>(attachmentDraftsFor<Attachment>(sessionId.value));
   const readingAttachments = ref(0);

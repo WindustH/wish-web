@@ -1,3 +1,4 @@
+import { prefersReducedMotion } from '../../ui/motion/reducedMotion.ts';
 // A short glide to the end of a list, for "jump to latest". From far away most
 // of the distance is skipped first, so the motion stays brief and the rows in
 // between are never rendered. Writes others make while it runs (rows being
@@ -13,7 +14,7 @@ export function approach(current: number, target: number, elapsed: number, ease 
 
 export function glideToEnd(el: HTMLElement): () => void {
   const end = () => Math.max(0, el.scrollHeight - el.clientHeight);
-  const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = prefersReducedMotion();
   if (reduced) { el.scrollTop = end(); return () => {}; }
   const lead = el.clientHeight * 1.5;
   if (end() - el.scrollTop > lead) el.scrollTop = end() - lead;

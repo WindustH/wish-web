@@ -1,8 +1,9 @@
 import { onScopeDispose, shallowRef } from 'vue';
-import { get, getBaseUrl } from '../../core/api/client.ts';
+import { getBaseUrl } from '../../core/api/client.ts';
 import { bus } from '../../core/bus.ts';
 import { hasReadyProvider } from '../../core/providerReadiness.ts';
-import { errorText } from '../../core/config-editor.ts';
+import { errorText } from '../../core/errors.ts';
+import { configSnapshot } from '../../core/api/endpoints.ts';
 
 // The last answer is remembered per server so the app renders at once on the
 // next launch; the check still runs and switches to setup if that changed.
@@ -24,7 +25,7 @@ export function useProviderGate() {
     controller = new AbortController();
     const own = ++generation;
     try {
-      const result = await get('/config', { signal: controller.signal });
+      const result = await configSnapshot({ signal: controller.signal });
       if (own !== generation) return;
       error.value = '';
       state.value = hasReadyProvider(result.config) ? 'ready' : 'required';

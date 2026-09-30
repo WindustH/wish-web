@@ -46,8 +46,7 @@ export async function uploadAttachments(sessionId: string, attachments: readonly
       throw new Error('Attachment exceeds size limit');
     }
     if (attachment.kind !== 'image' && attachment.kind !== 'file') throw new Error('Invalid attachment kind');
-    const upload = attachment.kind === 'image' ? api.uploadSessionImage : api.uploadSessionBlob;
-    const blob = await upload(sessionId, attachment.bytes, { signal });
+    const blob = await api.uploadSessionBlob(sessionId, attachment.bytes, { signal });
     if (attachment.kind === 'image') images++; else files++;
     if (images > limits.imageCount || files > limits.fileCount) throw new Error('Too many attachments');
     const block = { type: attachment.kind, blob_id: blob.sha256, byte_count: blob.byte_count, ...(attachment.placeholder ? { placeholder: attachment.placeholder } : {}), ...(attachment.name ? { filename: attachment.name } : {}) };
