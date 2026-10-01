@@ -52,9 +52,10 @@ watch([isMobile, routeTab, id], ([mobile, child, sessionId]) => {
 
 watch(id, (next) => { if (next) chat.open(next); }, { immediate: true });
 
+// A session that is gone leaves a phone on its home page, and a desktop on a new chat beside the list.
 watch(chat.missingSessionId, (missingId) => {
   if (missingId && missingId === id.value) {
-    void router.replace({ name: 'new-chat' });
+    void router.replace({ name: isMobile.value ? 'sessions' : 'new-chat' });
   }
 });
 
