@@ -68,8 +68,12 @@ a large monitor and on a phone.
 
 ## Quick start
 
-You need [Node.js](https://nodejs.org) 22.19 or newer and a running Wish
-server; see the [Wish quick start](https://github.com/WindustH/wish-core#quick-start).
+Wish's packages (`wish-agent` on npm, the AUR and Homebrew) already include
+this app: install one and open <http://127.0.0.1:8790>, as the
+[Wish quick start](https://github.com/WindustH/wish-core#quick-start) shows.
+
+To develop the app, or to serve it apart from Wish, build it yourself. You
+need [Node.js](https://nodejs.org) 22.19 or newer and a running Wish server.
 
 ```sh
 git clone https://github.com/WindustH/wish-web.git

@@ -50,8 +50,11 @@ Wish Web 把它长期运行的会话变成一个安静、专注的对话工作�
 
 ## 快速开始
 
-需要 [Node.js](https://nodejs.org) 22.19 或更高版本，以及一个正在运行的 Wish 服务端，参见
-[Wish 快速开始](https://github.com/WindustH/wish-core/blob/master/README.zh-CN.md#快速开始)。
+Wish 的安装包（npm、AUR 和 Homebrew 上的 `wish-agent`）已经包含这个应用：装好后打开
+<http://127.0.0.1:8790> 即可，参见 [Wish 快速开始](https://github.com/WindustH/wish-core/blob/master/README.zh-CN.md#快速开始)。
+
+如果要开发这个应用，或者把它和 Wish 分开部署，就自己构建。需要 [Node.js](https://nodejs.org)
+22.19 或更高版本，以及一个正在运行的 Wish 服务端。
 
 ```sh
 git clone https://github.com/WindustH/wish-web.git
