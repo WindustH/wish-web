@@ -67,7 +67,7 @@ function move(id: string, delta: number) {
   <section class="set-section">
     <header class="set-section-head"><h3>{{ tr('搜索提供商', 'Search providers') }}</h3><p>{{ tr('Web Search 按这里的顺序询问，前一个用不了（额度用尽、密钥失效、服务故障）时自动换下一个。订阅附带的搜索直接借用模型提供商的账户。拖动可以调整顺序。', 'Web Search asks these in order and moves on when one cannot answer - its quota spent, its key refused, its service down. Search that comes with a subscription uses the model provider\'s account. Drag to reorder.') }}</p></header>
     <div class="search-list">
-      <ReorderGroup v-model:values="order" as="div" axis="y" class="search-order">
+      <ReorderGroup v-if="order.length" v-model:values="order" as="div" axis="y" class="search-order">
         <ReorderItem v-for="(id, index) in order" :key="id" :value="id" as="div" :drag-listener="!isMobile">
           <SearchProvider :id="id" :position="index + 1" :count="order.length" :value="search.providers[id]!" :preset="presetOf(search.providers[id]!.preset)" :status="statuses[id]" :lenders="lendersFor(presetOf(search.providers[id]!.preset))" :initially-open="id === opened" :save="save" :dirty="dirty" :busy="busy" @remove="remove(id)" @checked="emit('checked')" @move="move(id, $event)" />
         </ReorderItem>
@@ -84,10 +84,11 @@ function move(id: string, delta: number) {
 .search-list { display: grid; gap: 12px; }
 .search-order { display: grid; gap: 12px; }
 .search-empty { margin: 0; padding: 18px 16px; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--fg-subtle); font-size: 13px; text-align: center; }
+/* On a phone the providers, or the note that there are none, and the add row are one group. */
 @media (max-width: 899px) {
-  .search-list { gap: 12px; }
-  .search-order { gap: 0; overflow: hidden; border-radius: 18px; background: var(--bg-sunken); }
-  .search-order > * + * { border-top: 2px solid transparent; }
-  .search-empty { border: 0; border-radius: 18px; background: var(--bg-group); }
+  .search-list { gap: 0; overflow: hidden; border-radius: 18px; background: var(--bg-sunken); }
+  .search-list > * + *, .search-order > * + * { border-top: 2px solid transparent; }
+  .search-order { gap: 0; }
+  .search-empty { border: 0; border-radius: 0; background: var(--bg-group); background-clip: padding-box; }
 }
 </style>
