@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The sign-in page after signing out: which Wish server to use, and its token.
+// The sign-in page, after signing out or when a server wants a token: which Wish server to use, and
+// its token.
 import { errorText } from '../../core/errors.ts';
 import { ref } from 'vue';
 import Wordmark from '../../ui/components/Wordmark.vue';

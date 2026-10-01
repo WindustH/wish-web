@@ -5,9 +5,11 @@
 // Design decisions made where the spec is silent are marked [decision] and
 // mirrored in from-llm/32-decision-log.md.
 
+import manifest from '../../package.json' with { type: 'json' };
+
 export const cfg = Object.freeze({
   meta: {
-    appVersion: '2.0.0',
+    appVersion: manifest.version,
     storageNamespace: 'wish-webui',   // platform storage key prefix
     storageVersion: 1,                // bump on breaking pref changes
   },

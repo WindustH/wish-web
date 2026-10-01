@@ -24,7 +24,8 @@ import { closeOverlayKey } from './ui/composables/overlay.ts';
 const ProviderSetup = defineAsyncComponent(() => import('./features/onboarding/ProviderSetup.vue'));
 const ConnectView = defineAsyncComponent(() => import('./features/connection/ConnectView.vue'));
 const AccountDialog = defineAsyncComponent(() => import('./features/account/AccountDialog.vue'));
-// Signed out, nothing talks to a server until the sign-in page picks one.
+// Signed out, nothing talks to a server until the sign-in page picks one. A server that wants a
+// token this browser does not have shows that page too.
 const signedOut = isSignedOut();
 const gate = signedOut ? null : useProviderGate();
 const route = useRoute();
@@ -62,7 +63,7 @@ const online = computed(() => sync.online.value);
 
 <template>
   <TooltipProvider :delay-duration="450" :skip-delay-duration="150">
-  <ConnectView v-if="!gate" />
+  <ConnectView v-if="!gate || gate.state.value === 'locked'" />
   <ProviderSetup v-else-if="gate.state.value === 'required'" @complete="async () => { await router.replace('/new'); await gate!.refresh(); }" />
   <main v-else-if="gate.state.value !== 'ready'" class="provider-gate-status" aria-live="polite">
     <img class="brand-mark" src="/app-icons/mark.svg" alt="" />

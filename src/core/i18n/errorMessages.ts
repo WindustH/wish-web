@@ -32,7 +32,7 @@ const zh: Rule[] = [
   // Configuration saves (server/configuration.rs, server/config.rs).
   [/^configuration changed; reload before saving$/, () => '配置已在其他地方修改，请重新载入后再保存。'],
   [/^redacted (API key|refresh token|credential|header) has no stored value$/, kind => `${secrets[kind] ?? kind}显示为已隐藏，但服务器上没有保存它的值，请重新填写。`],
-  [/^listen, data_dir and bearer_token_env are startup settings; edit the file and restart$/, () => 'listen、data_dir 和 bearer_token_env 是启动参数，请直接编辑配置文件并重启服务。'],
+  [/^listen, data_dir, bearer_token_env, web_dir and allowed_hosts are startup settings; edit the file and restart$/, () => 'listen、data_dir、bearer_token_env、web_dir 和 allowed_hosts 是启动参数，请直接编辑配置文件并重启服务。'],
   [/^default provider does not exist$/, () => '默认模型所属的提供商不存在，请重新选择默认模型。'],
   [/^default cwd must be absolute$/, () => '默认工作目录必须是绝对路径。'],
   [/^shell program must be an absolute path$/, () => 'Shell 程序必须填写绝对路径。'],
