@@ -1,4 +1,5 @@
-import { providerCatalogPages, providerConfigs } from './api/endpoints.ts';
+import { providerCatalogPages, providerConfigs, providerDraftCatalogPages } from './api/endpoints.ts';
+import type { ProviderConfig } from './provider-presets.ts';
 
 export interface ModelInfo {
   id: string;
@@ -54,5 +55,12 @@ export async function readModels(provider: ProviderInfo, signal?: AbortSignal): 
 export async function readCatalogModels(id: string, signal?: AbortSignal) {
   const models: any[] = [];
   for await (const page of providerCatalogPages(id, { signal })) models.push(...page.models);
+  return models;
+}
+
+/** The catalog of a provider as a form holds it, before or without saving it. */
+export async function readDraftCatalogModels(id: string, provider: ProviderConfig, signal?: AbortSignal) {
+  const models: any[] = [];
+  for await (const page of providerDraftCatalogPages(id, provider, { signal })) models.push(...page.models);
   return models;
 }

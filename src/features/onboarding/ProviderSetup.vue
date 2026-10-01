@@ -1,76 +1,70 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+// The first-run setup: a provider, its credentials, then the default model, each a page of its
+// own under one header that shows where the setup is. See useProviderSetup for what the steps do.
+import './setup.css';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
-import { providerName, presetDescription } from '../../ui/providerPresentation.ts';
-import { protocolPresentation } from '../../ui/protocolPresentation.ts';
-import { MODEL_PROTOCOLS } from '../../core/provider-presets.ts';
-import SelectField from '../../ui/components/SelectField.vue';
 import Icon from '../../ui/components/Icon.vue';
-import { useProviderSetup } from './useProviderSetup.ts';
-import { REDACTED } from '../../core/secretRef.ts';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
+import { SETUP_STEPS, useProviderSetup, type SetupStep } from './useProviderSetup.ts';
+import SetupProviderStep from './SetupProviderStep.vue';
+import SetupAuthStep from './SetupAuthStep.vue';
+import SetupModelStep from './SetupModelStep.vue';
+
 const props = defineProps<{ preview?: boolean }>();
 const emit = defineEmits<{ complete: []; exit: [] }>();
-const { snapshot, catalog, loading, saving, error, choice, id, model, provider, preset, choose, load, save, setSecret, secretValue } = useProviderSetup({ preview: props.preview });
-const options = computed(() => [
-  ...Object.keys(snapshot.value?.config.providers ?? {}).map(id => ({ value: `existing:${id}`, label: tr('已有配置 · ', 'Existing · ') + id })),
-  ...catalog.value.presets.map(item => ({ value: `preset:${item.id}`, label: `${providerName(item.provider)} · ${presetDescription(item)}`, brand: item.provider })),
-  { value: 'custom', label: tr('自定义 / OpenAI 兼容', 'Custom / OpenAI compatible') },
-]);
-const credentials = computed(() => [...new Set([
-  ...(preset.value?.required_credentials ?? []),
-  ...(provider.value.auth === 'sig_v4' ? ['region', 'access_key_id', 'secret_access_key', 'session_token'] : []),
-])]);
-const authOptions = computed(() => [
-  { value:'bearer', label:'Bearer token' }, { value:'anthropic_key', label:'Anthropic API Key' },
-  { value:'google_key', label:'Google API Key' }, { value:'sig_v4', label:'AWS SigV4' },
-  { value:'none', label:tr('无需认证', 'No authentication') },
-]);
-async function finish() { if (await save()) emit('complete'); }
+const setup = reactive(useProviderSetup({ preview: props.preview }));
+const isMobile = useIsMobile();
+const LABELS: Record<SetupStep, () => string> = {
+  provider: () => tr('提供商', 'Provider'), auth: () => tr('认证', 'Credentials'), model: () => tr('模型', 'Model'),
+};
+const current = computed(() => SETUP_STEPS.indexOf(setup.step));
+// A step slides in from the way the setup moves: forward from the right, back from the left.
+const direction = ref<'forward' | 'back'>('forward');
+const page = ref<HTMLElement>();
+watch(() => setup.step, (next, previous) => {
+  direction.value = SETUP_STEPS.indexOf(next) >= SETUP_STEPS.indexOf(previous) ? 'forward' : 'back';
+  page.value?.scrollTo({ top: 0 });
+});
+// A new step takes the focus: its first field on a desktop, its title on a phone, where a field
+// would bring up the keyboard over the page.
+function focusStep() {
+  const step = page.value?.querySelector('.setup-step');
+  const target = (!isMobile.value && step?.querySelector<HTMLElement>('[data-autofocus]')) || step?.querySelector<HTMLElement>('h1');
+  target?.focus({ preventScroll: true });
+}
+watch(() => setup.loading, loading => { if (!loading) void nextTick(focusStep); });
+async function finish() { if (await setup.save()) emit('complete'); }
 </script>
+
 <template>
-  <main class="provider-setup" :class="{ preview }">
-    <div v-if="preview" class="setup-preview-bar" role="status"><span><Icon name="sparkles" />{{ tr('引导预览 · 不会保存任何配置', 'Setup preview · nothing is saved') }}</span><button type="button" class="btn ghost" @click="emit('exit')">{{ tr('退出预览', 'Exit preview') }}</button></div>
-    <div class="setup-content">
-      <header>
-        <img class="setup-brand" src="/app-icons/mark.svg" alt="" />
-        <p class="setup-eyebrow">{{ tr('欢迎使用 WISH', 'WELCOME TO WISH') }}</p>
-        <h1>{{ tr('连接你的第一个模型', 'Connect your first model') }}</h1>
-        <p class="setup-intro">{{ tr('还没有可用的提供商。完成配置后，就可以开始对话。', 'No provider is ready yet. Set one up to start a conversation.') }}</p>
+  <main ref="page" class="provider-setup" :class="{ preview }">
+    <div v-if="preview" class="setup-preview-bar" role="status">
+      <span><Icon name="sparkles" />{{ tr('引导预览 · 不会保存任何配置', 'Setup preview · nothing is saved') }}</span>
+      <button type="button" class="btn ghost" @click="emit('exit')">{{ tr('退出预览', 'Exit preview') }}</button>
+    </div>
+    <div class="setup-column">
+      <header class="setup-head">
+        <img class="setup-brand" src="/app-icons/mark.svg" alt="Wish" />
+        <ol v-if="setup.snapshot && !setup.loading" class="setup-steps" :aria-label="tr('设置步骤', 'Setup steps')">
+          <li v-for="(step, index) in SETUP_STEPS" :key="step" :class="{ done: index < current, current: index === current }" :aria-current="index === current ? 'step' : undefined">
+            <button type="button" :disabled="index >= current || setup.saving || setup.verifying" @click="setup.step = step">
+              <span class="setup-step-mark"><Icon v-if="index < current" name="check" /><template v-else>{{ index + 1 }}</template></span>
+              <span class="setup-step-label">{{ LABELS[step]() }}</span>
+            </button>
+          </li>
+        </ol>
       </header>
-      <p v-if="loading" role="status">{{tr('正在读取配置…', 'Loading configuration…')}}</p>
-      <form v-else-if="snapshot" @submit.prevent="finish">
-        <fieldset :disabled="saving">
-          <label>{{tr('提供商', 'Provider')}}<SelectField searchable :model-value="choice" :options="options" :disabled="saving" @update:model-value="choose" /></label>
-          <label>{{tr('服务地址', 'Service URL')}}<input class="input" v-model="provider.base_url" placeholder="https://api.example.com" type="url" required autocomplete="url" /></label>
-          <label v-if="!['none', 'sig_v4'].includes(provider.auth)">API Key<input class="input" type="password" :value="secretValue()" @input="setSecret(($event.target as HTMLInputElement).value)" :placeholder="provider.api_key === REDACTED ? tr('已配置，留空保留', 'Configured; leave unchanged to retain') : tr('填写密钥或 ${ENV_NAME}', 'API key or ${ENV_NAME}')" autocomplete="new-password" spellcheck="false" /></label>
-          <label v-for="field in credentials" :key="field">{{field}}<input class="input" type="password" :value="secretValue(field)" @input="setSecret(($event.target as HTMLInputElement).value, field)" :placeholder="provider.credentials[field] === REDACTED ? tr('已配置，留空保留', 'Configured; leave unchanged to retain') : '${ENV_NAME}'" autocomplete="new-password" /></label>
-          <label>{{tr('模型 ID', 'Model ID')}}<input class="input" v-model="model" required :placeholder="tr('填写提供商支持的模型 ID', 'Enter a model ID supported by the provider')" autocomplete="off" spellcheck="false" /></label>
-          <details class="setup-advanced"><summary>{{tr('连接选项', 'Connection options')}}</summary>
-            <label>{{tr('提供商 ID', 'Provider ID')}}<input class="input" v-model="id" required autocomplete="off" spellcheck="false" /></label>
-            <label>{{tr('请求协议', 'Request protocol')}}<SelectField v-model="provider.protocol" :disabled="saving" :options="MODEL_PROTOCOLS.map(value => ({value, ...protocolPresentation(value)}))" /></label>
-            <label>{{tr('请求路径', 'Request path')}}<input class="input" v-model="provider.path" required spellcheck="false" /></label>
-            <label>{{tr('认证方式', 'Authentication')}}<SelectField v-model="provider.auth" :disabled="saving" :options="authOptions" /></label>
-          </details>
-        </fieldset>
-        <p class="setup-note">{{tr('该模型将设为新会话的默认模型，之后可以在设置中修改。', 'This will be the default model for new conversations. You can change it in settings.')}}</p>
-        <div class="setup-actions"><button class="btn primary" type="submit" :disabled="saving"><Icon v-if="saving" name="loader-circle" class="spin" />{{ saving ? tr('正在保存…', 'Saving…') : tr('保存并开始', 'Save and start') }}</button><button v-if="error" type="button" class="btn ghost" :disabled="saving" @click="load">{{tr('重新读取配置', 'Reload configuration')}}</button></div>
-      </form>
-      <template v-else><p class="load-error" role="alert">{{error}}</p><button class="btn" @click="load">{{tr('重试', 'Retry')}}</button></template>
+      <p v-if="setup.loading" class="setup-status" role="status"><Icon name="loader-circle" class="spin" />{{ tr('正在读取配置…', 'Loading configuration…') }}</p>
+      <div v-else-if="!setup.snapshot" class="setup-status">
+        <p class="setup-load-error" role="alert">{{ setup.error }}</p>
+        <button type="button" class="btn" @click="setup.load">{{ tr('重试', 'Retry') }}</button>
+      </div>
+      <Transition v-else :name="`setup-${direction}`" mode="out-in" @after-enter="focusStep">
+        <SetupProviderStep v-if="setup.step === 'provider'" :setup="setup" />
+        <SetupAuthStep v-else-if="setup.step === 'auth'" :setup="setup" />
+        <SetupModelStep v-else :setup="setup" @finish="finish" />
+      </Transition>
     </div>
   </main>
 </template>
-<style scoped>
-.provider-setup{--setup-pad-y:48px;--setup-pad-x:28px;height:100dvh;overflow-y:auto;overscroll-behavior:contain;background:var(--bg);padding:var(--setup-pad-y) var(--setup-pad-x);box-sizing:border-box}
-.setup-preview-bar{position:sticky;top:calc(-1 * var(--setup-pad-y));z-index:1;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:calc(-1 * var(--setup-pad-y)) calc(-1 * var(--setup-pad-x)) 32px;padding:8px var(--setup-pad-x);border-bottom:1px solid var(--line);background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:500}
-.setup-preview-bar span{display:inline-flex;align-items:center;gap:8px}
-.setup-preview-bar .icon{width:15px;height:15px}
-.setup-preview-bar .btn{color:var(--accent)}
-.setup-content{width:min(100%,520px);margin:0 auto;padding-bottom:32px}
-.setup-brand{display:block;width:60px;height:auto}
-.setup-eyebrow{margin:28px 0 10px;font-size:11px;letter-spacing:.12em;color:var(--fg-subtle)}
-h1{font-size:28px;margin:0 0 12px}.setup-intro{color:var(--fg-subtle);line-height:1.7;margin-bottom:28px}
-fieldset{border:0;padding:0;margin:0;display:grid;gap:18px;min-width:0}label{display:grid;gap:8px;font-size:13px}.input{width:100%;box-sizing:border-box;min-height:44px}
-.setup-advanced{color:var(--fg-subtle)}summary{cursor:pointer;font-size:13px;padding:6px 0}.setup-advanced label{margin-top:16px;color:var(--fg)}
-.setup-note{font-size:12px;color:var(--fg-subtle);line-height:1.7;margin:22px 0}.setup-actions{display:flex;gap:10px;flex-wrap:wrap}.setup-actions .primary{min-height:44px}.load-error{overflow-wrap:anywhere}
-@media(max-width:899px){.provider-setup{--setup-pad-y:max(32px,env(safe-area-inset-top));--setup-pad-x:24px;padding-bottom:max(32px,env(safe-area-inset-bottom))}h1{font-size:25px}.setup-actions .primary{width:100%}}
-</style>

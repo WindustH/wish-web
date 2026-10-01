@@ -4,7 +4,7 @@ import { useIsMobile } from '../../ui/composables/useMedia.ts';
 const isMobile=useIsMobile();
 import { computed, nextTick, onScopeDispose, reactive, ref } from 'vue';
 import type { ProviderConfig, ProviderPreset } from '../../core/provider-presets.ts';
-import { readCatalogModels } from '../../core/provider-catalog.ts';
+import { readDraftCatalogModels } from '../../core/provider-catalog.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { peekCached, readCached, writeCached } from '../../core/util/responseCache.ts';
 import Icon from '../../ui/components/Icon.vue';
@@ -47,7 +47,8 @@ function apply(close=true){try{
   if(value.reasoning_efforts!=null&&(typeof value.reasoning_efforts!=='object'||Array.isArray(value.reasoning_efforts)))throw new Error(tr('思考等级必须是对象格式。','Reasoning efforts must be an object.'));
   if(originalId.value&&originalId.value!==id)delete props.value.models[originalId.value];props.value.models[id]=value;if(close)editing.value=false;return true;
 }catch(e){showError({title:tr('无法应用模型设置','Could not apply the model'),error:e});return false;}}
-// The last catalog shows at once and stays usable while a fresh read runs.
+// The last catalog shows at once and stays usable while a fresh read runs. It is read with the
+// provider as edited here, so a new provider or a changed key needs no save first.
 async function readCatalog(){
   const request=++catalogRequest;
   catalogController?.abort();
@@ -59,9 +60,9 @@ async function readCatalog(){
   if(cached)catalog.value=cached;
   catalogBusy.value=!cached;
   try{
-    const models = await readCatalogModels(props.id, catalogController.signal);
+    const models = await readDraftCatalogModels(props.id, JSON.parse(JSON.stringify(props.value)), catalogController.signal);
     if(request===catalogRequest){catalog.value=models;writeCached(key,models);}
-  }catch(e){if(request===catalogRequest){catalogFailed.value=true;if(!cached)showError({title:tr('无法读取模型目录','Could not read the model catalog'),error:e,hint:tr('新添加的提供商需要先保存配置。','Save newly added providers first.'),action:{label:tr('重试','Retry'),run:readCatalog}});}
+  }catch(e){if(request===catalogRequest){catalogFailed.value=true;if(!cached)showError({title:tr('无法读取模型目录','Could not read the model catalog'),error:e,action:{label:tr('重试','Retry'),run:readCatalog}});}
   }finally{if(request===catalogRequest)catalogBusy.value=false;}
 }
 function importModel(id:string){

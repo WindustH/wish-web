@@ -34,6 +34,10 @@ export const ICONS: Record<string, string> = {
   'loader-circle': '<circle cx="12" cy="12" r="8.5" stroke-opacity=".22"/><path d="M20.5 12A8.5 8.5 0 0 0 12 3.5"/>',
   'refresh-cw': '<path d="M20 12a8 8 0 0 1-13.9 5.4M4 12a8 8 0 0 1 13.9-5.4M18.5 3v4h-4M5.5 21v-4h4"/>',
   search: `<circle cx="10.5" cy="10.5" r="6.5" ${SOFT}/><path d="m15.5 15.5 5 5"/>`,
+  // An eye: what a password field shows, or (struck through) hides.
+  eye: `<path d="M2.5 12C4.7 7.7 8 5.5 12 5.5s7.3 2.2 9.5 6.5c-2.2 4.3-5.5 6.5-9.5 6.5S4.7 16.3 2.5 12Z" ${SOFT}/><circle cx="12" cy="12" r="2.8"/>`,
+  'eye-off': `<path d="M2.5 12C4.7 7.7 8 5.5 12 5.5s7.3 2.2 9.5 6.5c-2.2 4.3-5.5 6.5-9.5 6.5S4.7 16.3 2.5 12Z" ${SOFT}/><path d="M4.5 4.5l15 15"/>`,
+  key: `<circle cx="8" cy="15.5" r="4.5" ${SOFT}/><path d="m11.3 12.2 8.2-8.2m-3.2 3.2 2.6 2.6m-5.3-.1 1.8 1.8"/>`,
   // Send: a folded paper plane - the crane's cousin - its upper wing solid, the lower in shade,
   // the fold between them.
   send: '<path d="M21 3.25 3.5 10.25l7.5 3 3 7.5Z" fill="currentColor" fill-opacity=".3"/><path d="M21 3.25 3.5 10.25l7.5 3Z" fill="currentColor"/><path d="m11 13.25 10-10"/>',

@@ -3,7 +3,7 @@
 import { get, post, patch, put, del, api, getBaseUrl } from './client.ts';
 import { sessionView, entryView, providerView, type EntryView, type ProviderView, type ToolSwitches } from './projections.ts';
 import type { SeriesQuery, DailyQuery, UsageSeriesResponse, UsageDailyResponse } from '../usage/types.ts';
-import type { ConfigCatalog } from '../provider-presets.ts';
+import type { ConfigCatalog, ProviderConfig } from '../provider-presets.ts';
 import type {
   BlobInfo, ChatgptLogin, ConfigSnapshot, CreateSessionBody, DefaultModel, DirectoryListing, EffectiveConfig,
   EndpointOptions, HistoryHit, HistoryQuery, HistorySearchParams, McpServerStatus, McpTool, MessageBlock,
@@ -128,18 +128,21 @@ export const blobUrl = (reference: string) => `${getBaseUrl()}${blobPath(referen
 // Providers.
 export const providerConfigs = async (opts?: EndpointOptions): Promise<{ providers: ProviderView[] }> =>
   ({ providers: (await get('/providers', opts)).items.map(providerView) });
-export const providerModels = async (id: string, opts?: EndpointOptions) => {
-  const result = await get(`/providers/${encodeURIComponent(id)}/models`, opts);
-  return { ...result, models: result.items.map((m: any) => ({ ...m, display_name: m.name, allowed_for_provider: true })) };
-};
-/** Every page of a provider's model catalog, in order. A cursor the catalog repeats is an error, so
- *  a malformed one cannot keep a caller in an endless loop. */
-export async function* providerCatalogPages(id: string, opts?: EndpointOptions) {
+const catalogPage = (result: any) => ({ ...result, models: result.items.map((m: any) => ({ ...m, display_name: m.name, allowed_for_provider: true })) });
+export const providerModels = async (id: string, opts?: EndpointOptions) =>
+  catalogPage(await get(`/providers/${encodeURIComponent(id)}/models`, opts));
+/** A catalog page of a provider as a form holds it, saved or not; secrets it shows redacted are the
+ *  saved provider's of that id. */
+export const providerDraftModels = async (id: string, provider: ProviderConfig, cursor?: string, opts?: EndpointOptions) =>
+  catalogPage(await post('/provider-draft/models', { id, provider, cursor }, opts));
+/** Every page of a model catalog, in order. A cursor the catalog repeats is an error, so a malformed
+ *  one cannot keep a caller in an endless loop. */
+async function* catalogPages(id: string, read: (cursor?: string) => Promise<any>, signal?: AbortSignal) {
   const cursors = new Set<string>();
   let cursor: string | undefined;
   do {
-    opts?.signal?.throwIfAborted();
-    const page = await providerModels(id, { ...opts, query: { cursor } });
+    signal?.throwIfAborted();
+    const page = await read(cursor);
     yield page;
     cursor = page.next_cursor;
     if (cursor) {
@@ -148,6 +151,10 @@ export async function* providerCatalogPages(id: string, opts?: EndpointOptions) 
     }
   } while (cursor);
 }
+export const providerCatalogPages = (id: string, opts?: EndpointOptions) =>
+  catalogPages(id, cursor => providerModels(id, { ...opts, query: { cursor } }), opts?.signal);
+export const providerDraftCatalogPages = (id: string, provider: ProviderConfig, opts?: EndpointOptions) =>
+  catalogPages(id, cursor => providerDraftModels(id, provider, cursor, opts), opts?.signal);
 /** Refuses a model the provider does not offer: not configured, and not in its catalog when it has one. */
 export async function requireAvailableModel(provider: ModelCatalogSource | null | undefined, id: string): Promise<void> {
   if (!provider) throw new Error('Choose an existing provider before selecting a model.');
