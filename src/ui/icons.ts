@@ -37,6 +37,8 @@ export const ICONS: Record<string, string> = {
   // An eye: what a password field shows, or (struck through) hides.
   eye: `<path d="M2.5 12C4.7 7.7 8 5.5 12 5.5s7.3 2.2 9.5 6.5c-2.2 4.3-5.5 6.5-9.5 6.5S4.7 16.3 2.5 12Z" ${SOFT}/><circle cx="12" cy="12" r="2.8"/>`,
   'eye-off': `<path d="M2.5 12C4.7 7.7 8 5.5 12 5.5s7.3 2.2 9.5 6.5c-2.2 4.3-5.5 6.5-9.5 6.5S4.7 16.3 2.5 12Z" ${SOFT}/><path d="M4.5 4.5l15 15"/>`,
+  // A skill: a book of instructions, with the spark of the know-how in it.
+  skill: `<path d="M5.5 3.5h12a1 1 0 0 1 1 1V20.5h-13a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z" ${SOFT}/><path d="M3.5 18.5a2 2 0 0 1 2-2h13"/><path d="M11.5 6.5c.3 1.7 1 2.4 2.7 2.7-1.7.3-2.4 1-2.7 2.7-.3-1.7-1-2.4-2.7-2.7 1.7-.3 2.4-1 2.7-2.7Z" ${SOLID}/>`,
   key: `<circle cx="8" cy="15.5" r="4.5" ${SOFT}/><path d="m11.3 12.2 8.2-8.2m-3.2 3.2 2.6 2.6m-5.3-.1 1.8 1.8"/>`,
   // Send: a folded paper plane - the crane's cousin - its upper wing solid, the lower in shade,
   // the fold between them.

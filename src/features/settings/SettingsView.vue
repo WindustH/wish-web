@@ -13,6 +13,7 @@ import MobileSessionSettings from './MobileSessionSettings.vue';
 import Modal from '../../ui/components/Modal.vue';
 import ToolSettings from './ToolSettings.vue';
 import McpSettings from './McpSettings.vue';
+import SkillsSettings from './SkillsSettings.vue';
 import SearchSettings from './SearchSettings.vue';
 import { useStatuses } from './useStatuses.ts';
 import { searchProviders } from '../../core/api/endpoints.ts';
@@ -51,6 +52,9 @@ const sections = computed(() => [
   { id: 'mcp', icon: 'mcp', label: 'MCP',
     summary: tr('会话可以调用的 MCP 服务器', 'MCP servers sessions can call'),
     description: tr('智能体在会话的 Shell 里调用这些服务器。保存后从下一次调用开始生效。', 'Servers the agent calls from a session\'s shell. Saved changes apply from the next call.') },
+  { id: 'skills', icon: 'skill', label: tr('Skill', 'Skills'),
+    summary: tr('智能体按需查找和读取的 Skill', 'Skills the agent finds and reads as needed'),
+    description: tr('智能体在会话的 Shell 里查找和读取这些 Skill。保存后从下一条命令开始生效。', 'Skills the agent finds and reads from a session\'s shell. Saved changes apply from the next command.') },
   { id: 'ui', icon: 'appearance', label: tr('界面', 'Interface'),
     summary: tr('外观、通知与本地偏好', 'Appearance, notifications and preferences'),
     description: tr('外观、输入与本地数据，只保存在这个浏览器中。', 'Appearance, input and local data, stored in this browser only.') },
@@ -159,6 +163,7 @@ onMounted(load);
       <ToolSettings v-else-if="tab==='tools'" :config="draft" :shells="shells" :busy="busy" :search-available="searchAvailable"/>
       <SearchSettings v-else-if="tab==='search'" :config="draft" :models="providerOptions" :save="save" :busy="busy" :dirty="serverDirty" :statuses="search.statuses.value" @checked="search.refresh"/>
       <McpSettings v-else-if="tab==='mcp'" :config="draft" :providers="providerOptions" :save="save" :busy="busy" :dirty="serverDirty" :revision="revision"/>
+      <SkillsSettings v-else-if="tab==='skills'" :config="draft" :busy="busy" :revision="revision"/>
       <ProviderSettings v-else :save="save"/>
     </template>
     <div v-else-if="!busy" class="settings-empty"><p>{{tr('设置尚未载入。','Settings are not loaded.')}}</p><button class="btn" @click="load"><Icon name="refresh-cw"/>{{tr('重新载入','Reload')}}</button></div>

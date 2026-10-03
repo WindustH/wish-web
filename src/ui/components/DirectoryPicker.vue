@@ -1,14 +1,17 @@
 <script setup lang="ts">
+// Browses the server's directories and picks one: a session's working directory, or a folder to
+// read skills from. The trigger shows the chosen folder unless a `trigger` slot replaces it.
 import { computed, nextTick, ref, watch } from 'vue';
 import { PopoverRoot, PopoverTrigger, PopoverPortal, PopoverContent, PopoverArrow } from 'reka-ui';
 import { directoriesList } from '../../core/api/endpoints.ts';
 import { errorText } from '../../core/errors.ts';
-import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
-import Icon from '../../ui/components/Icon.vue';
-import BubbleSurface from '../../ui/components/BubbleSurface.vue';
+import { usePageActivity } from '../composables/usePageActivity.ts';
+import Icon from './Icon.vue';
+import BubbleSurface from './BubbleSurface.vue';
 import { tr } from '../../core/i18n/tr.ts';
 
-const props = defineProps<{ modelValue: string; disabled?: boolean }>();
+const props = withDefaults(defineProps<{ modelValue: string; disabled?: boolean; title?: string; side?: 'top' | 'bottom' }>(), { title: undefined, side: 'top' });
+const label = computed(() => props.title ?? tr('选择工作目录', 'Choose working directory'));
 const emit = defineEmits<{ 'update:modelValue': [path: string] }>();
 type DirectoryListing = Awaited<ReturnType<typeof directoriesList>>;
 const folderName = computed(() => props.modelValue.split('/').filter(Boolean).at(-1) || (props.modelValue.startsWith('/') ? '/' : ''));
@@ -87,13 +90,14 @@ function select() {
 
 <template>
   <PopoverRoot v-model:open="open" :modal="false">
-    <PopoverTrigger class="cwd-trigger" :disabled="disabled" :data-hint="tr('工作目录：', 'Working directory: ') + modelValue" :aria-label="tr('选择工作目录', 'Choose working directory')">
+    <PopoverTrigger v-if="$slots.trigger" as-child :disabled="disabled"><slot name="trigger" /></PopoverTrigger>
+    <PopoverTrigger v-else class="cwd-trigger" :disabled="disabled" :data-hint="tr('工作目录：', 'Working directory: ') + modelValue" :aria-label="label">
       <Icon name="folder" />
-      <span>{{ folderName || tr('选择工作目录', 'Choose working directory') }}</span>
+      <span>{{ folderName || label }}</span>
       <Icon name="chevron-down" />
     </PopoverTrigger>
     <PopoverPortal>
-      <PopoverContent class="directory-picker" :aria-label="tr('选择工作目录', 'Choose working directory')" side="top" align="start" :side-offset="10" :collision-padding="16" @open-auto-focus.prevent>
+      <PopoverContent class="directory-picker" :aria-label="label" :side="side" align="start" :side-offset="10" :collision-padding="16" @open-auto-focus.prevent>
         <BubbleSurface />
         <form class="directory-path" @submit.prevent="browse(path)">
           <button type="button" class="btn ghost icon-only" :disabled="!listing?.parent || pending" :aria-label="tr('上一级', 'Parent directory')" @click="browse(listing!.parent!)"><Icon name="arrow-left" /></button>

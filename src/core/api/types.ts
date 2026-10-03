@@ -57,6 +57,19 @@ export interface McpServerStatus {
   checked_at: number | null;
 }
 
+// Skills.
+/** A skill as settings list it: where it was found, whether it is off, and whether an earlier one of its name hides it. */
+export interface SkillEntry { name: string; description: string; category: string | null; dir: string; source: string; disabled: boolean; shadowed: boolean }
+export interface SkillsSnapshot {
+  /** Wish's own directory. */
+  dir: string;
+  roots: { source: string; dir: string; exists: boolean }[];
+  skills: SkillEntry[];
+  problems: { path: string; message: string }[];
+}
+/** A skill's instructions and the files beside them, relative to its directory. */
+export interface SkillContent { name: string; description: string; dir: string; body: string; files: string[]; more_files: number }
+
 // Web search.
 /** A search service Wish knows. `borrows_from` lists the model presets a subscription's search comes with. */
 export interface SearchPreset {

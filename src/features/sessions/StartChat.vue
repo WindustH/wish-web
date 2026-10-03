@@ -17,7 +17,7 @@ import { tr } from '../../core/i18n/tr.ts';
 import type { ModelSelection } from './useSessionSelection.ts';
 import RecentSessions from './RecentSessions.vue';
 import Composer from './Composer.vue';
-import DirectoryPicker from './DirectoryPicker.vue';
+import DirectoryPicker from '../../ui/components/DirectoryPicker.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
 import Icon from '../../ui/components/Icon.vue';

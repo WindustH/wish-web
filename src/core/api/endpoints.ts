@@ -8,6 +8,7 @@ import type {
   BlobInfo, ChatgptLogin, ConfigSnapshot, CreateSessionBody, DefaultModel, DirectoryListing, EffectiveConfig,
   EndpointOptions, HistoryHit, HistoryQuery, HistorySearchParams, McpServerStatus, McpTool, MessageBlock,
   ModelCatalogSource, ModelChange, PruneResult, QuestionAnswer, QueuedDelivery, SearchHit, SearchPreset,
+  SkillContent, SkillsSnapshot,
   SearchProviderStatus, SessionBytes, SessionStorage, SessionsListParams, SessionsPage, ShellCatalog, ShellSettings,
   StorageSnapshot, UploadedBlob, UsageSnapshot,
 } from './types.ts';
@@ -129,6 +130,10 @@ export const blobUrl = (reference: string) => `${getBaseUrl()}${blobPath(referen
 export const providerConfigs = async (opts?: EndpointOptions): Promise<{ providers: ProviderView[] }> =>
   ({ providers: (await get('/providers', opts)).items.map(providerView) });
 const catalogPage = (result: any) => ({ ...result, models: result.items.map((m: any) => ({ ...m, display_name: m.name, allowed_for_provider: true })) });
+// Skills.
+export const skillsList = (opts?: EndpointOptions): Promise<SkillsSnapshot> => get('/skills', opts);
+export const skillContent = (name: string, opts?: EndpointOptions): Promise<SkillContent> => get(`/skills/${encodeURIComponent(name)}`, opts);
+
 export const providerModels = async (id: string, opts?: EndpointOptions) =>
   catalogPage(await get(`/providers/${encodeURIComponent(id)}/models`, opts));
 /** A catalog page of a provider as a form holds it, saved or not; secrets it shows redacted are the

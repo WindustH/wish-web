@@ -1,4 +1,7 @@
 <script setup lang="ts">
+// The shell commands run under: a program, its arguments, and how a command is started. Given
+// `follow`, the program list starts with that choice - following a shell set elsewhere - and the
+// rest waits until another is chosen.
 import { computed, ref } from 'vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import { tr } from '../../core/i18n/tr.ts';
@@ -6,16 +9,20 @@ import { tr } from '../../core/i18n/tr.ts';
 import type { ShellCatalog } from '../../core/api/endpoints.ts';
 type ShellSettings = { program: string; args: string[] | null };
 
-const props = defineProps<{ value: ShellSettings; catalog: ShellCatalog | null }>();
+const props = defineProps<{ value: ShellSettings; catalog: ShellCatalog | null; follow?: string; followNote?: string }>();
+const following = defineModel<boolean>('following', { default: false });
 
 // Not a path, so it can never collide with an installed shell's program.
 const CUSTOM = 'custom:';
+const FOLLOW = 'follow:';
 const installed = computed(() => props.catalog?.installed ?? []);
 const customChosen = ref(false);
 const known = computed(() => !props.value.program ? props.catalog?.default : installed.value.find(shell => shell.program === props.value.program));
 const selection = computed({
-  get: () => customChosen.value || (props.value.program && !known.value) ? CUSTOM : props.value.program,
+  get: () => props.follow && following.value ? FOLLOW : customChosen.value || (props.value.program && !known.value) ? CUSTOM : props.value.program,
   set: (next: string) => {
+    following.value = next === FOLLOW;
+    if (next === FOLLOW) return;
     customChosen.value = next === CUSTOM;
     if (next !== CUSTOM) props.value.program = next;
     // Arguments belong to the shell they were written for.
@@ -23,6 +30,7 @@ const selection = computed({
   },
 });
 const options = computed(() => [
+  ...(props.follow ? [{ value: FOLLOW, label: props.follow, annotation: props.followNote }] : []),
   { value: '', label: tr('系统默认', 'System default'), annotation: props.catalog?.default.program },
   ...installed.value.map(shell => ({ value: shell.program, label: shell.name ?? shell.program, annotation: shell.program })),
   { value: CUSTOM, label: tr('自定义路径…', 'Custom path…') },
@@ -43,9 +51,11 @@ const preview = computed(() => {
 <template>
   <div class="shell-fields">
     <label class="set-row"><span class="set-label"><span>{{ tr('程序', 'Program') }}</span><small>{{ tr('执行命令使用的 Shell', 'The shell that runs commands') }}</small></span><SelectField mobile-page picker-title="Shell" v-model="selection" :options="options" /></label>
+    <template v-if="!(follow && following)">
     <label v-if="selection === CUSTOM" class="set-row"><span class="set-label"><span>{{ tr('程序路径', 'Program path') }}</span><small>{{ tr('可执行文件的绝对路径', 'Absolute path to the executable') }}</small></span><input class="input set-mono" v-model.trim="value.program" placeholder="/usr/bin/zsh" autocomplete="off" autocapitalize="off" spellcheck="false" /></label>
     <label class="set-row"><span class="set-label"><span>{{ tr('启动参数', 'Arguments') }}</span><small>{{ tr('留空时按 Shell 类型自动选择', 'Chosen from the shell type when empty') }}</small></span><input class="input set-mono" v-model.lazy="argsText" :placeholder="defaultArgs ? tr('默认：', 'Default: ') + defaultArgs : tr('自动', 'Automatic')" autocomplete="off" autocapitalize="off" spellcheck="false" /></label>
     <div v-if="preview" class="set-row shell-preview"><span class="set-label"><span>{{ tr('执行方式', 'Runs as') }}</span><small>{{ tr('每条命令实际的启动方式', 'How each command is started') }}</small></span><code>{{ preview }}</code></div>
+    </template>
   </div>
 </template>
 

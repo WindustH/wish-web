@@ -2,6 +2,7 @@
 // The MCP servers sessions can call from their shell, edited in the settings draft.
 import { computed, ref, toRef } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
+import SwitchRow from './SwitchRow.vue';
 import Modal from '../../ui/components/Modal.vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import McpServer, { type McpServerConfig } from './McpServer.vue';
@@ -56,7 +57,10 @@ function add() {
 
 <template>
   <section class="set-section">
-    <header class="set-section-head"><h3>{{ tr('MCP 服务器', 'MCP servers') }}</h3><p>{{ tr('智能体在会话的 Shell 里用 wish mcp 调用这些服务器。它们的工具不进入模型的工具列表，增删服务器、在会话里开关 MCP 都不会让提示缓存失效。', 'The agent calls these servers with wish mcp in a session\'s shell. Their tools stay out of the model\'s tool list, so adding or removing servers, or switching MCP for a session, never resets the prompt cache.') }}</p></header>
+    <div class="set-card"><SwitchRow v-model="config.defaults.tools.mcp" :name="tr('新会话默认启用', 'On for new sessions')" :hint="config.defaults.tools.shell ? tr('每个会话也可以在会话设置里单独开关', 'Each session can switch it in its own settings') : tr('目前需要 Shell，而新会话默认不开启 Shell', 'Needs the shell for now, which new sessions start without')" /></div>
+  </section>
+  <section class="set-section">
+    <header class="set-section-head"><h3>{{ tr('MCP 服务器', 'MCP servers') }}</h3></header>
     <div class="mcp-list">
       <McpServer v-for="(server, id) in servers" :key="id" :id="String(id)" :value="server" :status="statuses[id]" :providers="providers" :initially-open="id === opened" :save="save" :dirty="dirty" :busy="busy" @remove="delete servers[id]" @checked="refresh" />
       <p v-if="!Object.keys(servers).length" class="mcp-empty">{{ tr('还没有 MCP 服务器。', 'No MCP servers yet.') }}</p>

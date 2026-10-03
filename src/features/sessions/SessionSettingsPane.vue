@@ -16,6 +16,8 @@ import type { ToolSwitches } from '../../core/api/projections.ts';
 import ServerShellSettings from '../settings/ServerShellSettings.vue';
 import type { ShellCatalog } from '../../core/api/endpoints.ts';
 import '../settings/settings.css';
+import ToolSwitchRows from '../settings/ToolSwitchRows.vue';
+import SwitchRow from '../settings/SwitchRow.vue';
 
 defineEmits<{ close: [] }>();
 const isMobile = useIsMobile();
@@ -25,7 +27,7 @@ const running = computed(() => snapshot.value?.phase !== 'idle');
 type Compaction = { trigger_tokens: number; target_tokens: number; segment_tokens: number; [key: string]: unknown };
 type Shell = { program: string; args: string[] | null };
 const compaction = ref<Compaction | null>(null);
-const tools = ref<ToolSwitches>({ shell: false, ask_user: false, mcp: false, web_search: false });
+const tools = ref<ToolSwitches>({ shell: false, ask_user: false, mcp: false, web_search: false, skills: false });
 const ownShell = ref(false);
 const shell = ref<Shell>({ program: '', args: null });
 const source = ref('');
@@ -39,7 +41,7 @@ function reset() {
   loadedFor = current.id;
   compaction.value = current.config?.compaction ? structuredClone(current.config.compaction) : null;
   const switches = current.descriptor?.tools;
-  tools.value = { shell: !!switches?.shell, ask_user: !!switches?.ask_user, mcp: !!switches?.mcp, web_search: !!switches?.web_search };
+  tools.value = { shell: !!switches?.shell, ask_user: !!switches?.ask_user, mcp: !!switches?.mcp, web_search: !!switches?.web_search, skills: !!switches?.skills };
   const own = current.descriptor?.shell_command;
   ownShell.value = !!own;
   shell.value = own ? { program: own.program ?? '', args: own.args ?? null } : { program: '', args: null };
@@ -53,15 +55,11 @@ watch(snapshot, value => { if (value && value.id !== loadedFor) reset(); }, { im
 const defaults = ref<Compaction | null>(null);
 const catalog = ref<ShellCatalog | null>(null);
 const globalShell = ref<Shell | null>(null);
+const savedLater = () => tr('运行结束后才能保存这项修改', 'Can be saved once the current run ends');
+// MCP and skills work through the shell for now; their switches say so while it is off.
+const switchHint = (what: string) => running.value ? savedLater() : tools.value.shell ? what : tr('目前需要先开启 Shell', 'Needs the shell on for now');
 // Whether any search provider could answer a search now; unknown until read.
 const searchAvailable = ref<boolean | null>(null);
-// The tools a session can switch, each with what it does - or what it still needs.
-const toolRows = computed(() => [
-  { key: 'shell', name: 'Shell', hint: tr('在工作目录中执行命令', 'Run commands in the working directory') },
-  { key: 'ask_user', name: 'Ask User', hint: tr('需要你决定时，给出选项或请你填写', 'Offer choices or ask you to fill in details when your call is needed') },
-  { key: 'mcp', name: tr('MCP 服务器', 'MCP servers'), hint: tools.value.shell ? tr('允许在 Shell 里调用已配置的 MCP 服务器，切换不影响提示缓存', 'Let the shell reach the configured MCP servers. Switching keeps the prompt cache') : tr('需要先开启 Shell', 'Needs the shell on') },
-  { key: 'web_search', name: 'Web Search', hint: searchAvailable.value === false ? tr('还没有能用的搜索提供商，先在「设置 → 联网搜索」里添加', 'No search provider can answer yet; add one under Settings → Web search') : tr('在网上搜索资料，由设置里的搜索提供商完成', 'Search the web through the search providers in Settings') },
-] as const);
 let alive = true;
 onUnmounted(() => { alive = false; });
 onMounted(async () => {
@@ -79,9 +77,12 @@ const shellName = (value: Shell | null) => {
 const differsFromDefaults = computed(() => !!defaults.value && JSON.stringify(compaction.value) !== JSON.stringify(defaults.value));
 
 // Leaving the global shell starts from its values rather than a blank choice.
+// Following the global shell is the program list's first choice.
+const followGlobal = computed({ get: () => !ownShell.value, set: (follow: boolean) => setOwnShell(!follow) });
 function setOwnShell(own: boolean) {
   ownShell.value = own;
-  if (own && !snapshot.value?.descriptor?.shell_command && globalShell.value) shell.value = { program: globalShell.value.program ?? '', args: globalShell.value.args ?? null };
+  // In place: the shell fields may write the program chosen right after.
+  if (own && !snapshot.value?.descriptor?.shell_command && globalShell.value) Object.assign(shell.value, { program: globalShell.value.program ?? '', args: globalShell.value.args ?? null });
 }
 const useDefaults = () => { compaction.value = structuredClone(defaults.value); };
 function setCompaction(enabled: boolean) {
@@ -164,17 +165,25 @@ async function act(kind: 'compact' | 'clear') {
     <section class="set-section">
       <header class="set-section-head"><h3>{{ tr('工具', 'Tools') }}</h3><p>{{ tr('模型在这个会话里可以使用的内置工具。', 'Built-in tools the model can use in this session.') }}</p></header>
       <div class="set-card">
-        <div v-for="row in toolRows" :key="row.key" class="set-row inline toggle-row"><span class="set-label"><span>{{ row.name }}</span><small>{{ running ? tr('运行结束后才能保存这项修改', 'Can be saved once the current run ends') : row.hint }}</small></span><SwitchRoot v-model="tools[row.key]" class="cfg-switch" :aria-label="row.name"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
+        <ToolSwitchRows v-model="tools" :search-available="searchAvailable" :note="running ? savedLater() : undefined" />
+      </div>
+    </section>
+
+    <section class="set-section">
+      <header class="set-section-head"><h3>{{ tr('扩展', 'Extensions') }}</h3></header>
+      <div class="set-card">
+        <SwitchRow v-model="tools.mcp" :name="tr('MCP 服务器', 'MCP servers')" :hint="switchHint(tr('调用已配置的 MCP 服务器', 'Call the configured MCP servers'))" />
+        <SwitchRow v-model="tools.skills" name="Skill" :hint="switchHint(tr('查找和读取 Skill', 'Find and read skills'))" />
       </div>
     </section>
 
     <section v-if="tools.shell" class="set-section">
       <header class="set-section-head"><h3>Shell</h3><p>{{ tr('修改后从这个会话的下一条命令开始生效。', 'Applies from this session\'s next command.') }}</p></header>
       <div class="set-card">
-        <div class="set-row inline toggle-row"><span class="set-label"><span>{{ tr('跟随全局设置', 'Follow the global setting') }}</span><small>{{ tr('当前全局：', 'Global: ') }}{{ shellName(globalShell) }}</small></span><SwitchRoot :model-value="!ownShell" class="cfg-switch" :aria-label="tr('跟随全局设置', 'Follow the global setting')" @update:model-value="setOwnShell(!$event)"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
-        <ServerShellSettings v-if="ownShell" :value="shell" :catalog="catalog" />
+        <ServerShellSettings v-model:following="followGlobal" :follow="tr('跟随全局设置', 'Follow the global setting')" :follow-note="shellName(globalShell)" :value="shell" :catalog="catalog" />
       </div>
     </section>
+
 
     <template #footer>
       <span class="session-settings-status">{{ dirty ? tr('有未保存的修改', 'Unsaved changes') : tr('没有未保存的修改', 'No unsaved changes') }}</span>
