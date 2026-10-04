@@ -58,8 +58,14 @@ export interface McpServerStatus {
 }
 
 // Skills.
-/** A skill as settings list it: where it was found, whether it is off, and whether an earlier one of its name hides it. */
-export interface SkillEntry { name: string; description: string; category: string | null; dir: string; source: string; disabled: boolean; shadowed: boolean }
+/** A skill as settings list it: where it was found, whether it is off, and whether sessions see it or another of its name
+ *  keeps it out - one in an earlier directory (`shadowed`), or one beside it in the same directory (`conflict`). */
+export interface SkillEntry {
+  name: string; description: string;
+  /** Its folders, and its own directory, under the directory it was found in: `tools/git`, `tools/git/rebase`. */
+  category: string | null; path: string;
+  dir: string; source: string; disabled: boolean; standing: 'used' | 'shadowed' | 'conflict';
+}
 export interface SkillsSnapshot {
   /** Wish's own directory. */
   dir: string;

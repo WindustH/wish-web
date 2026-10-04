@@ -132,7 +132,8 @@ export const providerConfigs = async (opts?: EndpointOptions): Promise<{ provide
 const catalogPage = (result: any) => ({ ...result, models: result.items.map((m: any) => ({ ...m, display_name: m.name, allowed_for_provider: true })) });
 // Skills.
 export const skillsList = (opts?: EndpointOptions): Promise<SkillsSnapshot> => get('/skills', opts);
-export const skillContent = (name: string, opts?: EndpointOptions): Promise<SkillContent> => get(`/skills/${encodeURIComponent(name)}`, opts);
+export const skillContent = (name: string, dir: string, opts?: EndpointOptions): Promise<SkillContent> =>
+  get(`/skills/${encodeURIComponent(name)}?${new URLSearchParams({ dir })}`, opts);
 
 export const providerModels = async (id: string, opts?: EndpointOptions) =>
   catalogPage(await get(`/providers/${encodeURIComponent(id)}/models`, opts));
