@@ -52,8 +52,8 @@ function setEnabled(name: string, on: boolean) {
 const all = computed(() => snapshot.value?.skills ?? []);
 const usable = computed(() => all.value.filter(skill => skill.standing === 'used' && enabled(skill.name)).length);
 
-// Folders closed by hand; a search shows its matches with every folder open.
-const closed = ref(new Set<string>());
+// Folders start closed and open by hand; a search shows its matches with every folder open.
+const opened = ref(new Set<string>());
 const searching = computed(() => !!query.value.trim());
 const tree = computed(() => skillTree(all.value));
 const folders = computed(() => foldersOf(tree.value));
@@ -62,9 +62,9 @@ const matches = computed(() => {
   return all.value.filter(skill => terms.every(term => `${skill.name} ${skill.description} ${skill.path}`.toLocaleLowerCase().includes(term)));
 });
 function fold(folder: SkillFolder) {
-  const next = new Set(closed.value);
+  const next = new Set(opened.value);
   if (!next.delete(folder.path)) next.add(folder.path);
-  closed.value = next;
+  opened.value = next;
 }
 
 const skills = (count: number) => tr(`${count} 个 Skill`, `${count} skill${count === 1 ? '' : 's'}`);
@@ -100,7 +100,7 @@ function note(skill: SkillEntry): { text: string; warn?: boolean } | undefined {
   }
   return (snapshot.value?.roots.length ?? 0) > 1 ? { text: label(skill.source) } : undefined;
 }
-const rows = computed(() => skillRows(searching.value ? skillTree(matches.value) : tree.value, folder => searching.value || !closed.value.has(folder.path))
+const rows = computed(() => skillRows(searching.value ? skillTree(matches.value) : tree.value, folder => searching.value || opened.value.has(folder.path))
   .map(row => row.kind === 'folder'
     ? { ...row, key: `folder:${row.folder.path}`, state: folderState(row.folder), skill: undefined, note: undefined }
     : { ...row, key: `skill:${row.skill.dir}`, state: undefined, folder: undefined, note: note(row.skill) }));
@@ -152,7 +152,7 @@ async function view(skill: SkillEntry) {
         <motion.div v-for="row in rows" :key="row.key" class="skill-line" :style="{ '--depth': row.depth }"
           :initial="reduced ? false : { height: 0, opacity: 0 }" :animate="{ height: 'auto', opacity: 1 }" :exit="reduced ? undefined : { height: 0, opacity: 0 }" :transition="{ duration: 0.18, ease: 'easeOut' }">
           <div v-if="row.folder && row.state" class="set-row toggle-row skill-row skill-folder-row">
-            <button type="button" class="skill-fold" :aria-expanded="searching || !closed.has(row.folder.path)" :disabled="searching" @click="fold(row.folder)">
+            <button type="button" class="skill-fold" :aria-expanded="searching || opened.has(row.folder.path)" :disabled="searching" @click="fold(row.folder)">
               <Icon name="chevron-right" class="skill-chevron" />
               <span class="set-label">
                 <span>{{ row.folder.name }}</span>
