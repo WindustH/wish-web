@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <strong>The desktop and mobile app for the Wish AI agent.</strong>
+  <strong>The web app for Wish, a minimal yet ready-to-use AI agent harness.</strong>
 </p>
 
 <p align="center">
@@ -17,10 +17,8 @@
 
 ---
 
-Wish Web is the client for [Wish](https://github.com/WindustH/wish-core), a
-self-hosted AI agent that works on your own machine. It turns Wish's
-long-running sessions into a calm, focused chat workspace that feels at home on
-a large monitor and on a phone.
+Wish Web is the client for [Wish](https://github.com/WindustH/wish-core): one
+app for a large monitor and a phone.
 
 <p align="center">
   <img src="docs/assets/screenshot-desktop.png" alt="Wish on the desktop" width="74%">
@@ -30,41 +28,15 @@ a large monitor and on a phone.
 
 ## Features
 
-- **Watch the agent think and work.** Replies stream in as they are written,
-  with live reasoning. Every command shows its output, exit code and the exact
-  file changes it made, folded neatly so long tasks stay readable.
-- **Keep talking while it works.** Follow-up messages queue up; drag to
-  reorder them, edit or cancel them. Press Esc to interrupt, or ask a quick
-  side question in a bubble without disturbing the running task.
-- **Answer its questions in place.** When the agent needs your decision, a card
-  with options and fields appears in the conversation. Pick with a click or the
-  number keys; answer after it stopped waiting and your reply still reaches it.
-- **Rich input.** Paste or attach images and files right where they belong in
-  your message. Long pastes collapse into tidy, editable chips.
-- **Find anything.** Search a session's entire history and jump straight to
-  that moment in the conversation.
-- **Stay in control of each session.** See how full the context is and how
-  close it is to being compacted. Tune compaction, tools and the shell for a
-  single session, or switch models in the middle of a task.
-- **Usage at a glance.** An activity calendar, token usage per model over any
-  time range, estimated streaming speed, and the server's status and storage.
-- **Set up in a minute.** A first-run guide with 48 provider presets, ChatGPT
-  sign-in, a model editor, and proxy and shell settings, all applied without
-  restarting the server.
-- **MCP servers, one click to check.** Add local or remote MCP servers, see
-  their tools or why they failed to start, and switch them on per session. The
-  agent calls them from its shell, so they never crowd its context.
-- **Made for phones too.** A dedicated mobile layout that can be installed as
-  an app, with light and dark themes in English and Chinese.
-- **Fast with long histories.** Virtualized lists stay smooth in very long
-  conversations, and recent data appears instantly from cache while fresh data
-  loads.
-- **One app, many servers.** Sign out and connect to another Wish server with
-  its address and access token, so a single installed app can reach every
-  machine you run Wish on.
-- **Safe to publish.** The bundled server keeps your access token on the
-  server, answers only to host names you allow, and blocks cross-site
-  requests.
+- **See the work as it happens.** Replies, reasoning, command output and file
+  changes stream in, folded so long tasks stay readable.
+- **Keep talking while it works.** Queue, reorder or cancel follow-ups,
+  interrupt at any time, and answer the agent's questions right in the
+  conversation.
+- **Desktop and phone.** A layout for each, installable as an app, in light and
+  dark, English and Chinese.
+- **Set up in a minute.** A first-run guide with provider presets, and settings
+  that apply without restarting the server.
 
 ## Quick start
 
@@ -82,10 +54,6 @@ cd wish-web
 ./pnpmw build
 node serve.ts
 ```
-
-Open <http://127.0.0.1:8790>. The first-run guide helps you add a model
-provider; after that, choose a working directory on the start page and send
-your first message.
 
 `./pnpmw` runs the pinned pnpm through Corepack, so no global install is
 needed. The server is configured with environment variables:
