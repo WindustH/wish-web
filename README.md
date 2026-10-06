@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <strong>The web app for Wish, a minimal yet ready-to-use AI agent harness.</strong>
+  <strong>A minimal yet ready-to-use AI agent harness, built on best practices for frontier models.</strong>
 </p>
 
 <p align="center">
