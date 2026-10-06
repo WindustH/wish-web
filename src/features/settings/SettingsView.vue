@@ -240,8 +240,9 @@ onMounted(load);
   /* Tablets keep the phone layout, centered at a readable width. */
   .settings-sidebar { width: 100%; height: 100%; }
   .settings-sidebar-body { overflow: auto; padding: 20px max(16px, calc((100% - 640px) / 2)) max(20px, env(safe-area-inset-bottom)); }
-  /* A grouped list: rows one step above the page, parted by a sliver of it. */
-  .settings-sidebar nav { gap: 0; border: 0; border-radius: 18px; background: var(--bg-sunken); overflow: hidden; }
+  /* A grouped list: rows one step above the page, parted by a sliver of it. It keeps its own height,
+     since clipped for its corners it would otherwise shrink to the screen. */
+  .settings-sidebar nav { flex: none; gap: 0; border: 0; border-radius: 18px; background: var(--bg-sunken); overflow: hidden; }
   .settings-section { min-height: 66px; padding: 12px 14px; gap: 14px; border-radius: 0; background: var(--bg-group); background-clip: padding-box; color: var(--fg); font-size: 15px; font-weight: 500; }
   .settings-section + .settings-section { border-top: 2px solid transparent; }
   .settings-section:active { background-color: var(--bg-group-active); }
