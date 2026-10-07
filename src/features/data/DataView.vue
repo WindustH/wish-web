@@ -1,21 +1,23 @@
 <script setup lang="ts">
-// Every session and what it keeps: a window over the app on a desktop, a page of its own on a phone.
-// Sessions are cards in a grid, each with what it stores - its history, attachments and command
-// output. Clicking a card chooses it; the chosen ones are cleared of old history or deleted
-// together, and each card's menu opens, renames, tags, clears or deletes that one.
+// Every session and group and what it keeps, and the usage records: a window over the app on a
+// desktop, a page of its own on a phone. Each is a row with what it stores - a session's history,
+// attachments and command output, a group's messages and files. Clicking a row chooses it; the
+// chosen ones are deleted together, and the chosen sessions cleared of old history; each row's
+// menu opens, renames or deletes that one, and a session's also tags or clears it.
 import { computed, onActivated, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import Icon from '../../ui/components/Icon.vue';
 import Menu, { type MenuItem } from '../../ui/components/Menu.vue';
 import RefreshStamp from '../../ui/components/RefreshStamp.vue';
 import Spinner from '../../ui/components/Spinner.vue';
-import SessionListAction from '../sessions/SessionListAction.vue';
+import SessionListAction, { type ActionTarget } from '../sessions/SessionListAction.vue';
 import PruneDialog from '../sessions/PruneDialog.vue';
 import OverlayWindow from '../../ui/components/OverlayWindow.vue';
-import DataSessionCard from './DataSessionCard.vue';
+import DataRow, { type DataItem } from './DataRow.vue';
+import UsageRecords from './UsageRecords.vue';
 import DeleteSessionsDialog from '../sessions/DeleteSessionsDialog.vue';
 import * as api from '../../core/api/endpoints.ts';
-import type { SessionStorage, SessionBytes } from '../../core/api/endpoints.ts';
+import type { SessionBytes, StorageSnapshot } from '../../core/api/endpoints.ts';
 import { createCachedResource } from '../../core/util/cachedResource.ts';
 import { fmtBytes } from '../../core/util/fmt.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -24,12 +26,16 @@ import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 
 const router = useRouter();
 
-type Snapshot = { sessions: SessionStorage[]; bytes: SessionBytes; directory: number | null; at: number };
+type Snapshot = { items: DataItem[]; sessions: number; groups: number; bytes: SessionBytes; storage: StorageSnapshot | null; at: number };
 // The last reading shows at once; a fresh one replaces it.
 const reading = createCachedResource(async (_: void, signal): Promise<Snapshot> => {
-  const [found, directory] = await Promise.all([api.sessionsStorage({ signal }), api.storageStatus({ signal }).catch(() => null)]);
-  return { ...found, directory: directory?.bytes.total ?? null, at: Date.now() };
-}, () => ({ key: 'data-sessions', persist: true }));
+  const [found, storage] = await Promise.all([api.sessionsStorage({ signal }), api.storageStatus({ signal }).catch(() => null)]);
+  const items: DataItem[] = [
+    ...found.sessions.map(item => ({ kind: 'session' as const, ...item })),
+    ...found.groups.map(item => ({ kind: 'group' as const, ...item })),
+  ];
+  return { items, sessions: found.sessions.length, groups: found.groups.length, bytes: found.bytes, storage, at: Date.now() };
+}, () => ({ key: 'data-conversations', persist: true }));
 const snapshot = computed(() => reading.data.value ?? undefined);
 const loading = reading.loading;
 const failed = reading.error;
@@ -50,17 +56,18 @@ const orders = computed<MenuItem[]>(() => [
 const orderLabel = computed(() => orders.value.find(item => item.checked)?.label ?? '');
 const shown = computed(() => {
   const terms = query.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-  const list = (snapshot.value?.sessions ?? []).filter(item => {
-    const text = `${item.name} ${item.id} ${(item.tags ?? []).join(' ')}`.toLocaleLowerCase();
+  const list = (snapshot.value?.items ?? []).filter(item => {
+    const text = `${item.name} ${item.id} ${(item.kind === 'session' ? item.tags ?? [] : []).join(' ')}`.toLocaleLowerCase();
     return terms.every(term => text.includes(term));
   });
-  const by: Record<string, (a: SessionStorage, b: SessionStorage) => number> = {
+  const by: Record<string, (a: DataItem, b: DataItem) => number> = {
     updated: (a, b) => b.updated_at - a.updated_at,
     size: (a, b) => b.bytes.total - a.bytes.total,
     created: (a, b) => b.created_at - a.created_at,
   };
   return [...list].sort(by[order.value] ?? by.updated);
 });
+const scale = computed(() => Math.max(0, ...shown.value.map(item => item.bytes.total)));
 
 // What a session's bytes are made of, in the order the bars show them.
 const parts = computed(() => [
@@ -69,22 +76,24 @@ const parts = computed(() => [
   { key: 'shell' as const, label: tr('命令输出', 'Command output'), color: 'var(--chart-3)' },
 ]);
 
-// Opening, and the single-session actions the session list has too.
-function open(item: SessionStorage) {
-  void router.push(`/s/${item.id}`);
-}
-const actions = computed<MenuItem[]>(() => [
+// Opening, and the single actions the session list has too; a group is only renamed or deleted.
+const sessionActions = computed<MenuItem[]>(() => [
   { key: 'open', icon: 'external-link', label: tr('打开', 'Open') },
   { key: 'rename', icon: 'pencil', label: i18n.t('manage.rename') },
   { key: 'tags', icon: 'tag', label: i18n.t('sessions.editTags') },
   { key: 'prune', icon: 'eraser', label: tr('清理历史', 'Clear history') },
   { key: 'delete', icon: 'trash-2', label: i18n.t('sessions.delete'), danger: true, separator: true },
 ]);
-const action = ref<{ target: { id: string; name?: string }; kind: 'rename' | 'tags' | 'delete' }>();
-function act(item: SessionStorage, key: string) {
-  if (key === 'open') open(item);
+const groupActions = computed<MenuItem[]>(() => [
+  { key: 'open', icon: 'external-link', label: tr('打开', 'Open') },
+  { key: 'rename', icon: 'pencil', label: i18n.t('manage.rename') },
+  { key: 'delete', icon: 'trash-2', label: tr('删除群组', 'Delete group'), danger: true, separator: true },
+]);
+const action = ref<{ target: ActionTarget; kind: 'rename' | 'tags' | 'delete' }>();
+function act(item: DataItem, key: string) {
+  if (key === 'open') void router.push(`/${item.kind === 'group' ? 'g' : 's'}/${item.id}`);
   else if (key === 'prune') clearing.value = { targets: [{ id: item.id, name: sessionTitle(item) }] };
-  else action.value = { target: { id: item.id, name: item.name }, kind: key as 'rename' | 'tags' | 'delete' };
+  else action.value = { target: { id: item.id, name: item.name, kind: item.kind }, kind: key as 'rename' | 'tags' | 'delete' };
 }
 function actionClosed() {
   action.value = undefined;
@@ -96,21 +105,22 @@ const chosen = ref(new Set<string>());
 function clearChosen() {
   chosen.value = new Set();
 }
-function toggle(item: SessionStorage) {
+function toggle(item: DataItem) {
   const next = new Set(chosen.value);
   if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
   chosen.value = next;
 }
-const chosenItems = computed(() => (snapshot.value?.sessions ?? []).filter(item => chosen.value.has(item.id)));
+const chosenItems = computed(() => (snapshot.value?.items ?? []).filter(item => chosen.value.has(item.id)));
+const chosenSessions = computed(() => chosenItems.value.filter(item => item.kind === 'session'));
 const chosenBytes = computed(() => chosenItems.value.reduce((sum, item) => sum + item.bytes.total, 0));
 const allShownChosen = computed(() => shown.value.length > 0 && shown.value.every(item => chosen.value.has(item.id)));
 function chooseAllShown() {
   chosen.value = allShownChosen.value ? new Set() : new Set(shown.value.map(item => item.id));
 }
-// Clearing old history: every session (null), one, or those chosen.
+// Clearing old history: every session (null), one, or the sessions chosen.
 const clearing = ref<{ targets: { id: string; name: string }[] | null }>();
 function clearHistoryOfChosen() {
-  clearing.value = { targets: chosenItems.value.map(item => ({ id: item.id, name: sessionTitle(item) })) };
+  clearing.value = { targets: chosenSessions.value.map(item => ({ id: item.id, name: sessionTitle(item) })) };
 }
 function cleared() {
   clearing.value = undefined;
@@ -133,30 +143,34 @@ function deleted() {
         <p v-if="failed" class="load-error" role="alert">{{ failed }}<span v-if="snapshot">{{ tr('下方是上次读取的数据。', 'The last reading remains below.') }}</span></p>
         <Spinner v-if="loading && !snapshot" />
         <template v-if="snapshot">
-          <section class="data-summary">
-            <div class="data-total">
-              <strong>{{ fmtBytes(snapshot.bytes.total) }}</strong>
-              <span>{{ tr(`${snapshot.sessions.length} 个会话`, `${snapshot.sessions.length} session${snapshot.sessions.length === 1 ? '' : 's'}`) }}<template v-if="snapshot.directory != null"> · {{ tr(`数据目录共 ${fmtBytes(snapshot.directory)}`, `${fmtBytes(snapshot.directory)} in the data directory`) }}</template></span>
-              <button type="button" class="btn data-clear" :disabled="!snapshot.sessions.length" @click="clearing = { targets: null }"><Icon name="eraser" />{{ tr('清理历史', 'Clear history') }}</button>
-            </div>
-            <div class="data-bar" role="img" :aria-label="parts.map(part => `${part.label} ${fmtBytes(snapshot!.bytes[part.key])}`).join(', ')">
-              <template v-for="part in parts" :key="part.key"><span v-if="snapshot.bytes[part.key] > 0" :style="{ flexGrow: snapshot.bytes[part.key], background: part.color }" /></template>
-            </div>
-            <ul class="data-legend">
-              <li v-for="part in parts" :key="part.key"><i :style="{ background: part.color }" />{{ part.label }}<strong>{{ fmtBytes(snapshot.bytes[part.key]) }}</strong></li>
-            </ul>
-          </section>
+          <div class="data-top">
+            <section class="data-summary">
+              <div class="data-total">
+                <strong>{{ fmtBytes(snapshot.bytes.total) }}</strong>
+                <span>{{ tr(`${snapshot.sessions} 个会话 · ${snapshot.groups} 个群组`, `${snapshot.sessions} session${snapshot.sessions === 1 ? '' : 's'} · ${snapshot.groups} group${snapshot.groups === 1 ? '' : 's'}`) }}<template v-if="snapshot.storage"> · {{ tr(`数据目录共 ${fmtBytes(snapshot.storage.bytes.total)}`, `${fmtBytes(snapshot.storage.bytes.total)} in the data directory`) }}</template></span>
+                <button type="button" class="btn data-clear" :disabled="!snapshot.sessions" @click="clearing = { targets: null }"><Icon name="eraser" />{{ tr('清理历史', 'Clear history') }}</button>
+              </div>
+              <div class="data-bar" role="img" :aria-label="parts.map(part => `${part.label} ${fmtBytes(snapshot!.bytes[part.key])}`).join(', ')">
+                <template v-for="part in parts" :key="part.key"><span v-if="snapshot.bytes[part.key] > 0" :style="{ flexGrow: snapshot.bytes[part.key], background: part.color }" /></template>
+              </div>
+              <ul class="data-legend">
+                <li v-for="part in parts" :key="part.key"><i :style="{ background: part.color }" />{{ part.label }}<strong>{{ fmtBytes(snapshot.bytes[part.key]) }}</strong></li>
+              </ul>
+            </section>
+            <UsageRecords v-if="snapshot.storage" :storage="snapshot.storage" @changed="refresh" />
+          </div>
 
           <div class="data-toolbar">
-            <label class="data-search"><Icon name="search" /><input v-model="query" type="search" :placeholder="tr('搜索名称或标签', 'Search names or tags')" :aria-label="tr('搜索会话', 'Search sessions')" /></label>
+            <label class="data-search"><Icon name="search" /><input v-model="query" type="search" :placeholder="tr('搜索名称或标签', 'Search names or tags')" :aria-label="tr('搜索会话和群组', 'Search sessions and groups')" /></label>
             <Menu :items="orders" :label="tr('排序', 'Order')" @select="key => order = key">
               <template #trigger><button type="button" class="btn data-order" :aria-label="`${tr('排序', 'Order')}: ${orderLabel}`"><Icon name="chevrons-up-down" />{{ orderLabel }}</button></template>
             </Menu>
           </div>
 
-          <p v-if="!shown.length" class="data-empty">{{ snapshot.sessions.length ? tr('没有符合的会话。', 'No sessions match.') : tr('还没有会话。', 'No sessions yet.') }}</p>
-          <div class="data-grid">
-            <DataSessionCard v-for="item in shown" :key="item.id" :item="item" :parts="parts" :actions="actions" :chosen="chosen.has(item.id)" @toggle="toggle(item)" @act="key => act(item, key)" />
+          <p v-if="!shown.length" class="data-empty">{{ snapshot.items.length ? tr('没有符合的会话或群组。', 'Nothing matches.') : tr('还没有会话。', 'No sessions yet.') }}</p>
+          <div class="data-list">
+            <DataRow v-for="item in shown" :key="item.id" :item="item" :parts="parts" :scale="scale" :actions="item.kind === 'group' ? groupActions : sessionActions"
+              :chosen="chosen.has(item.id)" @toggle="toggle(item)" @act="key => act(item, key)" />
           </div>
         </template>
       </div>
@@ -165,25 +179,27 @@ function deleted() {
     <!-- Floats over the bottom of the window while anything is chosen. -->
     <template #overlay>
     <Transition name="data-float">
-      <div v-if="chosen.size" class="data-selection" role="toolbar" :aria-label="tr('已选的会话', 'Chosen sessions')">
+      <div v-if="chosen.size" class="data-selection" role="toolbar" :aria-label="tr('已选的会话和群组', 'Chosen sessions and groups')">
         <button type="button" class="btn ghost icon-only" :aria-label="tr('取消选择', 'Clear selection')" :data-hint="tr('取消选择', 'Clear selection')" @click="clearChosen"><Icon name="x" /></button>
         <span>{{ tr(`已选 ${chosen.size} 个，共 ${fmtBytes(chosenBytes)}`, `${chosen.size} chosen, ${fmtBytes(chosenBytes)}`) }}</span>
         <button type="button" class="btn ghost" :disabled="!shown.length" @click="chooseAllShown">{{ allShownChosen ? tr('取消全选', 'Clear all') : tr('全选', 'Choose all') }}</button>
-        <button type="button" class="btn data-clear" @click="clearHistoryOfChosen"><Icon name="eraser" />{{ tr('清理历史', 'Clear history') }}</button>
+        <button type="button" class="btn data-clear" :disabled="!chosenSessions.length" @click="clearHistoryOfChosen"><Icon name="eraser" />{{ tr('清理历史', 'Clear history') }}</button>
         <button type="button" class="btn danger solid" @click="confirming = true"><Icon name="trash-2" />{{ tr('删除', 'Delete') }}</button>
       </div>
     </Transition>
     </template>
   </OverlayWindow>
 
-  <PruneDialog v-if="clearing" :targets="clearing.targets" :total="snapshot?.sessions.length ?? 0" @close="clearing = undefined" @pruned="cleared" />
+  <PruneDialog v-if="clearing" :targets="clearing.targets" :total="snapshot?.sessions ?? 0" @close="clearing = undefined" @pruned="cleared" />
   <SessionListAction v-if="action" :key="`${action.target.id}:${action.kind}`" :target="action.target" :kind="action.kind" @close="actionClosed" />
-  <DeleteSessionsDialog v-if="confirming" :targets="chosenItems.map(item => ({ id: item.id, name: sessionTitle(item) }))" :bytes="chosenBytes" @close="confirming = false" @deleted="deleted" />
+  <DeleteSessionsDialog v-if="confirming" :targets="chosenItems.map(item => ({ id: item.id, name: sessionTitle(item), group: item.kind === 'group' }))" :bytes="chosenBytes" @close="confirming = false" @deleted="deleted" />
 </template>
 
 <style scoped>
 .data-body { display: grid; gap: 16px; max-width: 1100px; margin-inline: auto; }
 
+/* The totals, and under them the usage records, each the width of the page. */
+.data-top { display: grid; gap: 16px; }
 .data-summary { display: grid; gap: 10px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-raised); }
 .data-total { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; }
 .data-total strong { font-size: 24px; font-weight: 600; line-height: 1.2; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
@@ -217,7 +233,7 @@ function deleted() {
 .data-float-enter-from, .data-float-leave-to { opacity: 0; transform: translateY(12px); }
 .data-empty { margin: 24px 0; color: var(--fg-subtle); text-align: center; }
 
-.data-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.data-list { display: grid; gap: 8px; }
 
 @media (max-width: 899px) {
   .data-summary { border: 0; border-radius: 18px; background: var(--bg-group); }
@@ -231,6 +247,6 @@ function deleted() {
   .data-selection span { flex-basis: calc(100% - 48px); margin-right: 0; }
   .data-selection .btn:not(.icon-only) { flex: 1; justify-content: center; }
   .data-bar-room { height: calc(108px + env(safe-area-inset-bottom)); }
-  .data-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .data-list { gap: 6px; }
 }
 </style>

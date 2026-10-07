@@ -1,34 +1,34 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, ref, watch } from 'vue';
-import { sessionsList } from '../../core/api/endpoints.ts';
+import { conversationsList } from '../../core/api/endpoints.ts';
 import { bus } from '../../core/bus.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { createCachedResource } from '../../core/util/cachedResource.ts';
 import SessionListRow, { type RowAction } from './SessionListRow.vue';
-import SessionListAction from './SessionListAction.vue';
+import SessionListAction, { type ActionTarget } from './SessionListAction.vue';
 import PruneDialog from './PruneDialog.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
-import { sessionTitle } from '../../core/state/sessionsSlice.ts';
+import { sessionTitle, type GroupRow, type ListRow, type SessionRow } from '../../core/state/sessionsSlice.ts';
 const active = usePageActivity();
 // The home page comes and goes with every trip to a conversation or a setting; it shows the last
-// list at once, even after a reload, and swaps in the fresh one when it arrives.
-const recent = createCachedResource((_: void, signal) => sessionsList({ limit: 5, order: 'desc' }, { signal }).then(page => page.items),
+// list - sessions and groups - at once, even after a reload, and swaps in the fresh one when it arrives.
+const recent = createCachedResource((_: void, signal) => conversationsList({ limit: 5, order: 'desc', flat: true }, { signal }).then(page => (page.items as ListRow[]).filter((row): row is SessionRow | GroupRow => row.kind !== 'folder')),
   () => ({ key: 'recent-sessions', persist: true }));
 const rows = computed(() => recent.data.value ?? []);
-const action = ref<{ target: { id: string; name?: string }; kind: 'rename' | 'tags' | 'delete' }>();
+const action = ref<{ target: ActionTarget; kind: 'rename' | 'tags' | 'delete' }>();
 const clearing = ref<{ id: string; name: string }>();
-function onRowAction(row: { id: string; name?: string }, kind: RowAction) {
+function onRowAction(row: ListRow, kind: RowAction) {
   if (kind === 'prune') clearing.value = { id: row.id, name: sessionTitle(row) };
-  else if (kind !== 'select') action.value = { target: { id: row.id, name: row.name }, kind };
+  else if (kind === 'rename' || kind === 'tags' || kind === 'delete') action.value = { target: { id: row.id, name: row.name, kind: row.kind }, kind };
 }
 let timer: ReturnType<typeof setTimeout> | undefined;
 function refresh() {
   clearTimeout(timer);
   if (active.value) timer = setTimeout(() => recent.load(), 200);
 }
-const off = ['upsert.session', 'tombstone.session', 'sync.snapshot'].map(topic => bus.on(topic, refresh));
+const off = ['upsert.session', 'tombstone.session', 'upsert.group', 'tombstone.group', 'list.changed', 'sync.snapshot'].map(topic => bus.on(topic, refresh));
 watch(active, value => {
   if (value) void recent.load();
   else { recent.cancel(); clearTimeout(timer); action.value = undefined; clearing.value = undefined; }

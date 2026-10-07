@@ -37,7 +37,9 @@ export function saveAttachmentDrafts<T extends AttachmentInput>(sessionId: strin
   } else attachmentDrafts.delete(sessionId);
 }
 
-export async function uploadAttachments(sessionId: string, attachments: readonly AttachmentInput[], { signal, capabilities }: { signal?: AbortSignal; capabilities?: any } = {}) {
+// Uploads the attachments to their owner's files: a session's by default, or a group's with `upload`.
+export async function uploadAttachments(owner: string, attachments: readonly AttachmentInput[],
+  { signal, capabilities, upload = api.uploadSessionBlob }: { signal?: AbortSignal; capabilities?: any; upload?: typeof api.uploadSessionBlob } = {}) {
   const limits = attachmentLimits(capabilities);
   const blocks: UploadedAttachmentBlock[] = [], uploaded: (UploadedAttachmentBlock & { mime_type: string })[] = [];
   let images = 0, files = 0;
@@ -46,7 +48,7 @@ export async function uploadAttachments(sessionId: string, attachments: readonly
       throw new Error('Attachment exceeds size limit');
     }
     if (attachment.kind !== 'image' && attachment.kind !== 'file') throw new Error('Invalid attachment kind');
-    const blob = await api.uploadSessionBlob(sessionId, attachment.bytes, { signal });
+    const blob = await upload(owner, attachment.bytes, { signal });
     if (attachment.kind === 'image') images++; else files++;
     if (images > limits.imageCount || files > limits.fileCount) throw new Error('Too many attachments');
     const block = { type: attachment.kind, blob_id: blob.sha256, byte_count: blob.byte_count, ...(attachment.placeholder ? { placeholder: attachment.placeholder } : {}), ...(attachment.name ? { filename: attachment.name } : {}) };

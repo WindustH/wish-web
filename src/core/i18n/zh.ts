@@ -25,6 +25,7 @@ export const zh = {
   'nav.stats': '统计',
   'nav.settings': '设置',
   'sessions.new': '新建会话',
+  'sessions.newGroup': '新建群组',
   'sessions.collapseList': '收起会话列表',
   'sessions.expandList': '展开会话列表',
   'sessions.empty': '没有会话',

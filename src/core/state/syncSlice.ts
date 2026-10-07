@@ -39,6 +39,12 @@ export const sync = (() => {
         bus.emit('tombstone.session', { id: event.id });
       } else if (event.type === 'session_changed') {
         void sessions.refresh(event.id);
+      } else if (event.type === 'group_changed') {
+        bus.emit('upsert.group', { id: event.id });
+      } else if (event.type === 'group_deleted') {
+        bus.emit('tombstone.group', { id: event.id });
+      } else if (event.type === 'list_changed') {
+        bus.emit('list.changed', {});
       }
     } catch (error) { protocolError.value = error; }
   }

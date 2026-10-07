@@ -27,7 +27,7 @@ const running = computed(() => snapshot.value?.phase !== 'idle');
 type Compaction = { trigger_tokens: number; target_tokens: number; segment_tokens: number; [key: string]: unknown };
 type Shell = { program: string; args: string[] | null };
 const compaction = ref<Compaction | null>(null);
-const tools = ref<ToolSwitches>({ shell: false, ask_user: false, mcp: false, web_search: false, skills: false });
+const tools = ref<ToolSwitches>({ shell: false, ask_user: false, mcp: false, web_search: false, skills: false, sessions: false });
 const ownShell = ref(false);
 const shell = ref<Shell>({ program: '', args: null });
 const source = ref('');
@@ -41,7 +41,7 @@ function reset() {
   loadedFor = current.id;
   compaction.value = current.config?.compaction ? structuredClone(current.config.compaction) : null;
   const switches = current.descriptor?.tools;
-  tools.value = { shell: !!switches?.shell, ask_user: !!switches?.ask_user, mcp: !!switches?.mcp, web_search: !!switches?.web_search, skills: !!switches?.skills };
+  tools.value = { shell: !!switches?.shell, ask_user: !!switches?.ask_user, mcp: !!switches?.mcp, web_search: !!switches?.web_search, skills: !!switches?.skills, sessions: !!switches?.sessions };
   const own = current.descriptor?.shell_command;
   ownShell.value = !!own;
   shell.value = own ? { program: own.program ?? '', args: own.args ?? null } : { program: '', args: null };
@@ -174,6 +174,7 @@ async function act(kind: 'compact' | 'clear') {
       <div class="set-card">
         <SwitchRow v-model="tools.mcp" :name="tr('MCP 服务器', 'MCP servers')" :hint="switchHint(tr('调用已配置的 MCP 服务器', 'Call the configured MCP servers'))" />
         <SwitchRow v-model="tools.skills" name="Skill" :hint="switchHint(tr('查找和读取 Skill', 'Find and read skills'))" />
+        <SwitchRow v-model="tools.sessions" :name="tr('会话与群组', 'Sessions and groups')" :hint="switchHint(tr('查看、创建和联系其他会话', 'See, make and message other sessions'))" />
       </div>
     </section>
 

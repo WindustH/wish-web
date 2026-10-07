@@ -8,12 +8,13 @@ import { chartColor as color, modelColorIndex, modelKey as keyOf } from '../usag
 import UsageRangePicker from '../usage/UsageRangePicker.vue';
 import { stats } from '../../core/state/statsSlice.ts';
 import { i18n } from '../../core/i18n/index.ts';
-import { fmtBytes, fmtTokens } from '../../core/util/fmt.ts';
+import { fmtTokens } from '../../core/util/fmt.ts';
 import RefreshStamp from '../../ui/components/RefreshStamp.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 import { modelLabel } from '../../ui/modelLabel.ts';
 import { useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
 import OverlayWindow from '../../ui/components/OverlayWindow.vue';
+import StorageCard from './StorageCard.vue';
 import { tr } from '../../core/i18n/tr.ts';
 
 const UsagePlot = defineAsyncComponent(() => import('../usage/UsagePlot.vue'));
@@ -62,12 +63,6 @@ const pieTotal = computed(() => models.value.reduce((sum, item) => sum + item.va
 // The hovered slice takes over the donut's hole instead of a floating tooltip.
 const hovered = ref<number | null>(null);
 const hoveredSlice = computed(() => hovered.value == null ? null : slices.value[hovered.value] ?? null);
-const storageRows = computed(() => storage.value ? [
-  { name: tr('会话数据', 'Session data'), value: storage.value.bytes.session_data },
-  { name: tr('资源文件', 'Resource files'), value: storage.value.bytes.blobs },
-  { name: tr('执行输出', 'Execution output'), value: storage.value.bytes.executions },
-  { name: tr('服务数据', 'Service data'), value: storage.value.bytes.service_data },
-] : []);
 onActivated(stats.startAuto);
 onDeactivated(stats.stopAuto);
 </script>
@@ -110,18 +105,7 @@ onDeactivated(stats.stopAuto);
       </UsageCharts>
       <div class="statistics-grid">
         <div class="statistics-footer">
-        <section v-if="storage" class="statistics-panel">
-          <header class="panel-head"><h2>{{ i18n.t('stats.storage') }}</h2></header>
-          <dl class="panel-hero">
-            <div><dt>{{ tr('文件总大小', 'Total file size') }}</dt><dd><Hint :text="`${number(storage.bytes.total)} B`"><span>{{ fmtBytes(storage.bytes.total) }}</span></Hint></dd></div>
-          </dl>
-          <div class="storage-bar" role="img" :aria-label="storageRows.map(item => `${item.name}: ${fmtBytes(item.value)}`).join(', ')">
-            <template v-for="(item,index) in storageRows" :key="item.name"><span v-if="item.value > 0" :style="{ flexGrow: item.value, background: color(index) }" /></template>
-          </div>
-          <ul class="storage-legend">
-            <li v-for="(item,index) in storageRows" :key="index"><i :style="{ background: color(index) }" /><span>{{ item.name }}</span><small>{{ percent(storage.bytes.total ? item.value / storage.bytes.total : 0) }}</small><Hint :text="`${number(item.value)} B`"><strong>{{ fmtBytes(item.value) }}</strong></Hint></li>
-          </ul>
-        </section>
+        <StorageCard v-if="storage" :storage="storage" :color="color" />
         </div>
 
       </div>
@@ -165,12 +149,12 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 .load-error { margin-bottom: 20px; }
 .model-share { display: grid; grid-template-columns: minmax(120px, 180px) minmax(0, 1fr); gap: 16px; align-items: center; }
 .model-share :deep(.usage-canvas) { height: 180px; }
-.distribution-legend, .storage-legend { list-style: none; padding: 0; margin: 0; font-size: 13px; }
-.distribution-legend li, .storage-legend li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 7px 0; }
-.distribution-legend li + li, .storage-legend li + li { border-top: 1px solid var(--line); }
-.distribution-legend i, .storage-legend i { width: 8px; height: 8px; flex: none; border-radius: 50%; }
-.distribution-legend span, .storage-legend span { flex: 1; min-width: 0; color: var(--fg-muted); overflow-wrap: anywhere; }
-.distribution-legend strong, .storage-legend strong { font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.distribution-legend { list-style: none; padding: 0; margin: 0; font-size: 13px; }
+.distribution-legend li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 7px 0; }
+.distribution-legend li + li { border-top: 1px solid var(--line); }
+.distribution-legend i { width: 8px; height: 8px; flex: none; border-radius: 50%; }
+.distribution-legend span { flex: 1; min-width: 0; color: var(--fg-muted); overflow-wrap: anywhere; }
+.distribution-legend strong { font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .model-share-chart { position: relative; min-width: 0; }
 .model-share-total { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; line-height: 1.2; }
 .model-share-total strong { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
@@ -180,17 +164,7 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 .distribution-legend:has(li.active) li:not(.active) { opacity: .45; }
 /* Storage: a card matching the chart cards above. */
 .statistics-panel { min-width: 0; padding: 18px 20px 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); }
-.panel-head { display: flex; align-items: center; gap: 8px; min-width: 0; margin-bottom: 16px; }
-.panel-head h2 { margin: 0; font: 600 14px/1.5 var(--font); }
-.panel-hero { display: flex; flex-wrap: wrap; gap: 12px 40px; margin: 0; }
-.panel-hero dt { color: var(--fg-subtle); font-size: 12px; }
-.panel-hero dd { margin: 4px 0 0; font-size: 24px; font-weight: 600; line-height: 1.2; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.storage-bar { display: flex; gap: 2px; height: 10px; margin: 16px 0 10px; overflow: hidden; border-radius: 999px; background: var(--bg-sunken); }
-.storage-bar span { flex: 0 1 0; min-width: 6px; }
-.storage-legend small { min-width: 48px; color: var(--fg-subtle); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
-.storage-legend strong { min-width: 72px; text-align: right; }
 @media (max-width: 899px) { .statistics-footer { gap: 16px; } .statistics-grid { margin-top: 16px; } .statistics-panel { padding: 16px; } }
-@media (max-width: 599px) { .panel-hero { gap: 12px 32px; } }
 /* Two columns only once each card has room for its legends; narrower windows stack them. */
 @media (min-width: 1100px) {
   .statistics-body :deep(.usage-charts) { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }

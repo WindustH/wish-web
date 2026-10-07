@@ -7,8 +7,39 @@ export type EndpointOptions = Omit<RequestOptions, 'body' | 'raw'>;
 
 // Sessions.
 export interface SessionsListParams { cursor?: number | string | null; limit?: number; order?: string; query?: string; tag?: string }
+/** A folder of the list: it holds sessions, groups and folders, as a directory does. */
+export interface FolderView {
+  id: string; name: string;
+  /** The folder it is in; null for the root. */
+  parent: string | null;
+  pinned: boolean; created_at: number;
+  /** How many entries it holds directly; listings give it. */
+  items?: number;
+}
 export interface SessionsPage { items: SessionView[]; next_cursor: any; has_more: boolean }
-export interface CreateSessionBody { provider: string; model: string; name?: string; cwd?: string; reasoning_effort?: string; agent_custom?: string }
+
+// Groups: chats among the user and several sessions.
+export interface GroupView {
+  id: string; name: string;
+  /** Its sessions, in the order they joined; the user is in every group. */
+  members: string[];
+  /** The session that made it with `wish session`; null for one the user made. */
+  created_by: string | null;
+  created_at: number; updated_at: number;
+}
+export type GroupAuthor = { kind: 'user' } | { kind: 'session'; id: string; name: string };
+export interface GroupMessage {
+  seq: number; at: number; author: GroupAuthor; text: string;
+  /** Images and files the user posted, in the group's files. */
+  attachments?: { id: string; kind: 'image' | 'file'; name: string | null }[];
+}
+export interface GroupMessagesPage { items: GroupMessage[]; next: number | null }
+/** A row of the list a user browses: a session or a group. */
+/** Where an entry of the list is: its folder (null for the root), and whether it is pinned there. */
+export interface Placement { parent: string | null; pinned: boolean }
+export type Conversation = ({ kind: 'session' } & SessionView & Placement) | ({ kind: 'group' } & GroupView & Placement) | ({ kind: 'folder' } & FolderView);
+export interface ConversationsPage { items: Conversation[]; next_cursor: any; has_more: boolean }
+export interface CreateSessionBody { provider: string; model: string; name?: string; cwd?: string; reasoning_effort?: string; agent_custom?: string; folder?: string | null }
 export interface ModelChange { provider?: string; model?: string; reasoning_effort?: string }
 export interface ShellSettings { program: string; args: string[] | null }
 
@@ -125,7 +156,14 @@ export interface UsageSnapshot {
 export interface StorageSnapshot {
   bytes: { session_data: number; blobs: number; executions: number; service_data: number; total: number };
   counts: { executions: number; blobs: number; image_jobs: number; context_generations: number };
+  /** The streaming-speed samples kept, against the configured limit; null keeps every one. */
+  stream_samples: { count: number; limit: number | null };
+  /** Usage records deleted sessions left, which the statistics count until they are cleared. */
+  leftover_usage: { calls: number; stream_samples: number };
 }
+/** Each database by what it holds, in order, each kind's bytes on disk. */
+export interface StorageDetail { session_data: StorageKind[]; service_data: StorageKind[] }
+export interface StorageKind { kind: string; bytes: number }
 /** What one session keeps: its history in the database, its attachments and its commands' output. */
 export interface SessionBytes { history: number; attachments: number; shell: number; total: number }
 export interface SessionStorage {
@@ -141,6 +179,18 @@ export interface SessionStorage {
   tags: string[] | null;
   context_tokens: number | null;
   messages: { user: number; assistant: number; tool_calls: number };
+  bytes: SessionBytes;
+}
+/** What one group keeps: its transcript (`history`) and the files posted to it (`attachments`). */
+export interface GroupStorage {
+  id: string;
+  name: string;
+  /** How many sessions are in it. */
+  members: number;
+  created_at: number;
+  updated_at: number;
+  /** How many messages its transcript holds. */
+  messages: number;
   bytes: SessionBytes;
 }
 // What pruning released, or would: history outside the sessions' context and the files only it named.

@@ -1,3 +1,12 @@
+<script lang="ts">
+// Every open menu's closer, so a gesture that takes over from a press - a drag - can close the menu
+// that press opened.
+const closers = new Set<() => void>();
+export function closeMenus() {
+  for (const close of closers) close();
+}
+</script>
+
 <script setup lang="ts">
 // Every menu in the app. It opens from a button (the `trigger` slot, or an icon button around the
 // default slot), or - with `context` - by a right click, a long press or the context-menu key on
@@ -39,6 +48,8 @@ const open = ref(false);
 function setOpen(value: boolean) {
   open.value = value;
 }
+const close = () => { cancelPress(); setOpen(false); };
+closers.add(close);
 
 // Where a context menu hangs: a point inside the element that was pressed. The object exists from
 // the start and reads the point when asked: reka-ui forwards `reference` through its menu layers
@@ -104,7 +115,7 @@ function dropClickAfterPress(event: MouseEvent) {
   event.preventDefault();
   event.stopPropagation();
 }
-onBeforeUnmount(cancelPress);
+onBeforeUnmount(() => { cancelPress(); closers.delete(close); });
 </script>
 
 <template>

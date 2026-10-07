@@ -30,7 +30,9 @@
 /* The row a right click or a long press opened the menu for stays marked while it is open. */
 .sl-item[data-state="open"]:not(.active) { background: var(--bg-hover); }
 @media (pointer: coarse) { .sl-item { -webkit-user-select: none; user-select: none; } }
-.sl-row { flex: 1; min-width: 0; min-height: var(--h-session-row); display: flex; align-items: flex-start; gap: 10px; padding: 10px 4px 10px 12px; color: inherit; border-radius: inherit; }
+.sl-row { flex: 1; min-width: 0; min-height: var(--h-session-row); display: flex; align-items: flex-start; gap: 10px; padding: 8px 4px 8px 12px; color: inherit; border-radius: inherit; }
+/* A finger needs a taller row than a mouse does. */
+@media (pointer: coarse) { .sl-item, .sl-row { min-height: 40px; } .sl-row { padding-block: 10px; } }
 @media (hover: hover) { .sl-row:hover { text-decoration: none; color: var(--fg); } }
 .sl-main { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; flex: 1; min-width: 0; }
 .sl-name { max-width: 100%; font-size: 14px; font-weight: 500; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: clip; }
@@ -52,9 +54,19 @@
   .sl-item { position: relative; }
   .sl-row { padding-right: 12px; --sl-cover: -20px; mask-image: linear-gradient(to left, transparent var(--sl-cover), #000 calc(var(--sl-cover) + 20px)); transition: --sl-cover var(--dur-fast); }
   .sl-item:is(:hover, :has(:focus-visible), :has(.sl-menu-trigger[data-state="open"])) .sl-row { --sl-cover: 32px; }
-  .sl-menu-trigger { position: absolute; top: 6px; right: 4px; margin: 0; }
+  .sl-menu-trigger { position: absolute; top: 4px; right: 4px; margin: 0; }
 }
 .sl-status { margin-top: 7px; }
+/* Folders: a row that opens one in place of the list, as a file manager opens a directory. */
+.sl-folder .sl-row { align-items: center; gap: 8px; padding-left: 8px; }
+.sl-folder-icon { flex: none; width: 17px; height: 17px; color: var(--fg-muted); }
+.sl-folder .sl-main { flex-wrap: nowrap; }
+.sl-pin { flex: none; width: 12px; height: 12px; color: var(--fg-subtle); }
+.sl-count { flex: none; color: var(--fg-subtle); font-size: 12px; font-variant-numeric: tabular-nums; }
+.sl-enter { flex: none; width: 14px; height: 14px; color: var(--fg-subtle); }
+@media (hover: hover) and (pointer: fine) and (min-width: 900px) { .sl-folder:is(:hover, :has(:focus-visible)) :is(.sl-count, .sl-enter) { visibility: hidden; } }
+.sl-status.sl-group { display: grid; place-items: center; width: 14px; height: 14px; margin: 4px 0 0 -4px; color: var(--fg-subtle); }
+.sl-status.sl-group .icon { width: 14px; height: 14px; }
 /* Choosing several: the row is a button with a box in place of its status dot. */
 button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
 .sl-item.chosen { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--fg); }
@@ -84,6 +96,8 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .selection-dot { color: var(--fg-subtle); flex: none; }
 .model-chip, .reasoning-chip { display: inline-flex; align-items: center; min-width: 0; font-size: 12px; font-weight: var(--weight-latin-semibold); color: var(--fg-muted); background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 5px; cursor: pointer; }
 .model-chip { flex: 1 1 auto; }
+/* A group's bar says how many are in it, in the model chip's place. */
+.group-count { flex: none; padding: 5px; color: var(--fg-subtle); font-size: 12px; font-weight: var(--weight-latin-semibold); }
 .reasoning-chip { flex: 0 1 auto; max-width: 120px; }
 .model-chip span, .reasoning-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .model-selection:has(:focus-visible), .model-selection:has([aria-expanded="true"]) { background: var(--bg-hover); }
@@ -338,3 +352,34 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 @keyframes chat-breathe { 0%, 100% { opacity: .4; } 50% { opacity: .9; } }
 @media (max-width: 899px) { .history-skeleton { max-width: var(--mobile-content-width); padding-inline: 28px; } }
 @media (prefers-reduced-motion: reduce) { .chat-skeleton { animation: none; opacity: .6; } }
+
+/* Info windows, a session's and a group's: a heading with its mark, then cards of facts. */
+.info-members { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.info-members li { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.info-members li + li { border-top: 1px solid var(--line); }
+.info-member { display: inline-flex; align-items: center; gap: 6px; flex: 1; min-width: 0; color: var(--fg); font-size: 13.5px; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.info-member .icon { width: 14px; height: 14px; flex: none; color: var(--fg-subtle); }
+@media (hover: hover) { .info-member:hover { color: var(--accent); text-decoration: none; } }
+.info-members small { color: var(--fg-subtle); font-size: 12px; }
+.info-members-empty { color: var(--fg-subtle); font-size: 13px; }
+.info-members-error { margin: 8px 0 0; color: var(--danger); font-size: 12.5px; }
+.info-hero { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.info-mark { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 11px; background: var(--bg-raised); }
+.info-hero-text { flex: 1; min-width: 0; }
+.info-hero-text strong { display: block; font-size: 16px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.info-hero-text small { display: block; margin-top: 1px; font-size: 12px; color: var(--fg-subtle); }
+.info-card { margin-bottom: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); }
+.info-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.info-card h4 { margin: 0; font: 600 14px/1.4 var(--font); }
+.info-card dl { margin: 0; }
+.info-card dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.info-facts { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 16px; font-size: 13px; }
+.info-facts > div { grid-column: span 2; }
+.info-facts > .wide { grid-column: span 3; }
+.info-facts dt { margin-bottom: 3px; font-size: 12px; color: var(--fg-subtle); }
+.info-facts dd { color: var(--fg); }
+@media (max-width: 599px) {
+  .info-card { padding: 14px; }
+  .info-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .info-facts > div, .info-facts > .wide { grid-column: auto; }
+}

@@ -58,6 +58,10 @@ export const ICONS: Record<string, string> = {
   tag: `<path d="M4 12.4V5.5A1.5 1.5 0 0 1 5.5 4h6.9l7.6 7.6a1.8 1.8 0 0 1 0 2.5l-5.9 5.9a1.8 1.8 0 0 1-2.5 0Z" ${SOFT}/><path d="${dot(8.5, 8.5)}" stroke-width="3"/>`,
   // A folder: back leaf and the front panel over it, the front in shade.
   folder: `<path d="M3.5 8V6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V9"/><path d="M3.5 9.5h17v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z" ${SOFT}/>`,
+  // A new folder: the folder, and a plus on it.
+  'folder-plus': `<path d="M3.5 8V6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V9"/><path d="M3.5 9.5h17v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z" ${SOFT}/><path d="M12 11.8v5.4M9.3 14.5h5.4"/>`,
+  // Pinned to the top: a pushpin, its head filled.
+  pin: `<path d="M9 3.5h6l-.9 5.6 3.4 3.4H6.5l3.4-3.4Z" ${SOFT}/><path d="M9 3.5h6l-.9 5.6 3.4 3.4H6.5l3.4-3.4ZM12 12.5v8"/>`,
   house: `<path d="M4 10.5 12 4l8 6.5v8a1.5 1.5 0 0 1-1.5 1.5H15v-5.5H9V20H5.5A1.5 1.5 0 0 1 4 18.5Z" ${SOFT}/>`,
   'file-diff': `<path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8Z" ${SOFT}/><path d="M14 3v5h5M9.5 11.5h5M12 9v5m-2.5 3.5h5"/>`,
   terminal: `<rect x="3" y="4" width="18" height="16" rx="3.5" ${SOFT}/><path d="m7 9.5 3 2.5-3 2.5m6 .5h4"/>`,
@@ -83,6 +87,8 @@ export const ICONS: Record<string, string> = {
   service: `<path d="M6 5.5A2.5 2.5 0 0 1 8.5 3h7A2.5 2.5 0 0 1 18 5.5v3a2.5 2.5 0 0 1-2.5 2.5H11l-2.5 2.3V11A2.5 2.5 0 0 1 6 8.5Z" ${SOFT}/><rect x="3.5" y="15" width="17" height="5.5" rx="2"/><path d="${dot(7.2, 17.75)}" stroke-width="2.6"/>`,
   // Model providers: a cloud with a spark in it.
   providers: `<path d="M6.5 18.5a4 4 0 0 1-.3-8 5.8 5.8 0 0 1 11.1-1.4 4.6 4.6 0 0 1 .7 9.4Z" ${SOFT}/><path d="M12 10.8c.35 1.9 1.1 2.65 3 3-1.9.35-2.65 1.1-3 3-.35-1.9-1.1-2.65-3-3 1.9-.35 2.65-1.1 3-3Z" ${SOLID}/>`,
+  // Groups: two people.
+  users: `<circle cx="9" cy="8" r="3.5" ${SOFT}/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><path d="M15.5 4.8a3.5 3.5 0 0 1 0 6.4"/><path d="M16.5 14.3a5.5 5.5 0 0 1 4 5.2"/>`,
   // MCP: two servers linked through the bridge.
   mcp: `<rect x="3" y="3" width="8" height="8" rx="2.5" ${SOFT}/><rect x="13" y="13" width="8" height="8" rx="2.5"/><path d="M11 7h2.5A3.5 3.5 0 0 1 17 10.5V13M7 11v2.5a3.5 3.5 0 0 0 3.5 3.5H13"/>`,
   // Interface: a window, and light and dark in it.
@@ -109,6 +115,8 @@ export const ICONS: Record<string, string> = {
   model: `<path d="M12 3 20 7.5 12 12 4 7.5Z" ${SOFT}/><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9ZM4 7.5 12 12l8-4.5M12 12v9"/>`,
   // The model asked the user something.
   question: `<path d="${BUBBLE}" ${SOFT}/><path d="M9.7 8.6a2.4 2.4 0 0 1 4.6.9c0 1.6-2.3 2.1-2.3 2.1${dot(12, 14.2)}"/>`,
+  // A conversation with one session.
+  chat: `<path d="${BUBBLE}" ${SOFT}/><path d="${dot(8.5, 10.5)}${dot(12, 10.5)}${dot(15.5, 10.5)}"/>`,
   // A new conversation.
   'new-session': `<path d="${BUBBLE}" ${SOFT}/><path d="M12 7.2v6.6M8.7 10.5h6.6"/>`,
   // Messages waiting their turn (the count is a badge beside it).

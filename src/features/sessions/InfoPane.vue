@@ -17,6 +17,9 @@ import ProviderIcon from '../../ui/components/ProviderIcon.vue';
 import { contextGauge } from './contextUsage.ts';
 import { useModelCatalog } from '../../ui/composables/useModelCatalog.ts';
 import { useSessionRequests } from './useSessionRequests.ts';
+import { RouterLink } from 'vue-router';
+import Icon from '../../ui/components/Icon.vue';
+import type { GroupView } from '../../core/api/types.ts';
 
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 defineEmits<{ close: [] }>();
@@ -64,6 +67,16 @@ const levelLabel = computed(() => ({
 })[gauge.value.level]);
 const remaining = computed(() => gauge.value.tokens != null && gauge.value.trigger ? Math.max(0, gauge.value.trigger - gauge.value.tokens) : null);
 const phase = computed(() => snapshot.value?.phase || 'idle');
+
+// The groups the session is in.
+const groups = ref<GroupView[]>([]);
+async function loadGroups(id: string | null) {
+  groups.value = [];
+  if (!id) return;
+  const found = await api.sessionGroups(id).catch(() => []);
+  if (chat.sessionId.value === id) groups.value = found;
+}
+watch(() => chat.sessionId.value, loadGroups, { immediate: true });
 </script>
 
 <template>
@@ -98,6 +111,13 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
         </dl>
       </section>
 
+      <section v-if="groups.length" class="info-card">
+        <header class="info-card-head"><h4>{{ tr('所在群组', 'Groups') }}</h4></header>
+        <ul class="info-members">
+          <li v-for="item in groups" :key="item.id"><RouterLink :to="`/g/${item.id}`" class="info-member"><Icon name="users" />{{ item.name || item.id.slice(0, 8) }}</RouterLink><small>{{ tr(`${item.members.length} 个成员`, `${item.members.length} member${item.members.length === 1 ? '' : 's'}`) }}</small></li>
+        </ul>
+      </section>
+
       <section class="info-card">
         <dl class="info-facts">
           <div><dt>{{ i18n.t('info.compactionCount') }}</dt><dd>{{ snapshot.compaction_count }}</dd></div>
@@ -130,23 +150,12 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
 </template>
 
 <style scoped>
-.info-hero { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.info-mark { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 11px; background: var(--bg-raised); }
-.info-hero-text { flex: 1; min-width: 0; }
-.info-hero-text strong { display: block; font-size: 16px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
-.info-hero-text small { display: block; margin-top: 1px; font-size: 12px; color: var(--fg-subtle); }
 .info-phase { display: inline-flex; flex: none; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 99px; background: var(--bg-sunken); color: var(--fg-muted); font-size: 12px; font-weight: 500; }
 .info-phase i { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-faint); }
 .info-phase.running i { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); animation: info-pulse 1.6s ease-in-out infinite; }
 .info-phase.compacting i { background: var(--warn); }
 .info-phase.queued i { background: var(--fg-subtle); }
 @keyframes info-pulse { 50% { box-shadow: 0 0 0 5px transparent; } }
-
-.info-card { margin-bottom: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); }
-.info-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-h4 { margin: 0; font: 600 14px/1.4 var(--font); }
-dl { margin: 0; }
-dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 
 /* The gauge: the bar spans the model window, the tick marks the compaction trigger. */
 .context-card { --level: var(--fg-subtle); --level-soft: var(--bg-sunken); }
@@ -167,11 +176,6 @@ dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .context-figures .current dd { color: var(--level); }
 .context-figures small { display: block; margin-top: 2px; font-size: 11px; line-height: 1.5; color: var(--fg-subtle); }
 
-.info-facts { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 16px; font-size: 13px; }
-.info-facts > div { grid-column: span 2; }
-.info-facts > .wide { grid-column: span 3; }
-.info-facts dt { margin-bottom: 3px; font-size: 12px; color: var(--fg-subtle); }
-.info-facts dd { color: var(--fg); }
 .info-build { font-family: var(--mono); font-size: calc(12px * var(--mono-scale)); color: var(--fg-muted) !important; }
 .info-instructions h4 { margin-bottom: 8px; }
 .info-instructions p { margin: 0; font-size: 13px; line-height: 1.7; color: var(--fg-muted); white-space: pre-wrap; }
@@ -180,11 +184,8 @@ dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .info-usage dd { margin-top: 4px; font-size: 20px; font-weight: 600; line-height: 1.3; }
 .info-usage div:nth-child(even) { padding-left: 12px; border-left: 1px solid var(--line); }
 @media (max-width: 599px) {
-  .info-card { padding: 14px; }
   .context-figures dd, .info-usage dd { font-size: 17px; }
   .context-figures { gap: 8px; }
   .context-figures > div + div { padding-left: 8px; }
-  .info-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .info-facts > div, .info-facts > .wide { grid-column: auto; }
 }
 </style>

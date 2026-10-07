@@ -25,17 +25,22 @@ import ComposerSendButtons from './ComposerSendButtons.vue';
 import { useAutoGrow } from './useAutoGrow.ts';
 
 const props = defineProps<{
-  sessionId: string;
+  /** Whose drafts these are: the open session's id, a group's, or the start page's own key. */
+  owner: string;
   mobile: boolean;
+  /** The start page's composer, laid out larger with its send button in a footer. */
   start?: boolean;
   disabled?: boolean;
+  /** Where the message goes when it is not the open session: a new session, or a group. */
   sendMessage?: (text: string, attachments: AttachmentInput[]) => Promise<string>;
 }>();
 
+// Writing to the open session: the composer follows its run, can stop it and ask it aside.
+const live = computed(() => !props.sendMessage);
 const submitting = ref(false);
-const stream = computed(() => (props.start ? null : chat.stream.value));
-const sending = computed(() => submitting.value || (!props.start && chat.sending.value));
-const caps = computed(() => (props.start ? null : chat.capabilities.value));
+const stream = computed(() => (live.value ? chat.stream.value : null));
+const sending = computed(() => submitting.value || (live.value && chat.sending.value));
+const caps = computed(() => (live.value ? chat.capabilities.value : null));
 const sendOnEnter = computed(() => prefs.sendOnEnter.value);
 
 const composerEl = ref<HTMLElement | null>(null);
@@ -83,9 +88,9 @@ const {
   syncAttachmentTags,
   clearAttachmentUndo,
   revokeAll,
-} = useComposerAttachments(computed(() => props.sessionId), limits);
+} = useComposerAttachments(computed(() => props.owner), limits);
 
-const text = ref(chat.getDraft(props.sessionId));
+const text = ref(chat.getDraft(props.owner));
 const editorText = computed(() => btwMode.value ? btwDraft.value : text.value);
 
 function setTextOwned(v: string) {
@@ -128,7 +133,7 @@ function submitBtw() {
 }
 
 watch(
-  () => props.sessionId,
+  () => props.owner,
   (id) => {
     text.value = chat.getDraft(id);
     btwDraft.value = '';
@@ -155,7 +160,7 @@ useAutoGrow(() => ta.value?.el, [editorText, () => props.mobile], { mobile: () =
 async function submit() {
   if (btwMode.value) { submitBtw(); return; }
   if (sending.value || !canSend.value) return;
-  const owner = props.sessionId;
+  const owner = props.owner;
   const payload = text.value;
   const submittedAttachments = attachments.value;
   const sent = expandPastedText(payload, attachmentsForMessage(payload, submittedAttachments));
@@ -218,8 +223,8 @@ async function onStop() {
 function interruptWithEscape(event: KeyboardEvent) {
   if (event.key !== 'Escape' || event.repeat || event.isComposing || event.keyCode === 229 ||
       event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
-  if (props.start || !running.value || sending.value || interrupting.value ||
-      chat.sessionId.value !== props.sessionId || !composerEl.value?.getClientRects().length) return;
+  if (!live.value || !running.value || sending.value || interrupting.value ||
+      chat.sessionId.value !== props.owner || !composerEl.value?.getClientRects().length) return;
   // Capture before a popup closes: the same Escape must not also interrupt the session.
   const popup = [...document.querySelectorAll<HTMLElement>(
     '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]',
@@ -247,7 +252,7 @@ function onKeydown(e: KeyboardEvent) {
         @click="pickAttachment('image', $event)"><Icon name="image" /></button></Hint>
       <Hint :text="i18n.t('chat.attach')"><button class="btn ghost icon-only" :aria-label="i18n.t('chat.attach')"
         @click="pickAttachment('file', $event)"><Icon name="paperclip" /></button></Hint>
-      <button v-if="!start" ref="btwButton" type="button" class="btn ghost composer-btw" :aria-label="tr('BTW · 临时对话', 'BTW · Temporary chat')" :aria-expanded="btwOpen" aria-haspopup="dialog" aria-controls="btw-bubble" @click="toggleBtw">BTW</button>
+      <button v-if="live" ref="btwButton" type="button" class="btn ghost composer-btw" :aria-label="tr('BTW · 临时对话', 'BTW · Temporary chat')" :aria-expanded="btwOpen" aria-haspopup="dialog" aria-controls="btw-bubble" @click="toggleBtw">BTW</button>
       <slot name="tools" />
       <slot name="selection" />
       <div class="grow" />
@@ -272,13 +277,13 @@ function onKeydown(e: KeyboardEvent) {
         :aria-label="i18n.t('chat.image')" @click="pickAttachment('image', $event)"><Icon name="image" /></button></Hint>
       <Hint v-if="!btwMode" :text="i18n.t('chat.attach')"><button class="btn ghost icon-only"
         :aria-label="i18n.t('chat.attach')" @click="pickAttachment('file', $event)"><Icon name="paperclip" /></button></Hint>
-      <button v-if="!start" ref="btwButton" type="button" class="btn ghost composer-btw" :aria-label="tr('BTW · 临时对话', 'BTW · Temporary chat')" :aria-expanded="btwOpen" aria-haspopup="dialog" aria-controls="btw-bubble" @click="toggleBtw">BTW</button>
+      <button v-if="live" ref="btwButton" type="button" class="btn ghost composer-btw" :aria-label="tr('BTW · 临时对话', 'BTW · Temporary chat')" :aria-expanded="btwOpen" aria-haspopup="dialog" aria-controls="btw-bubble" @click="toggleBtw">BTW</button>
       <slot v-if="!btwMode" name="tools" />
       <div v-if="start" class="composer-start-selection"><slot name="selection" /></div>
       <div v-else class="grow" />
     </div>
     <div class="composer-editor">
-      <InlineMessageEditor ref="ta" :scope="`${sessionId}:${btwMode}`" :attachments="btwMode ? [] : attachments"
+      <InlineMessageEditor ref="ta" :scope="`${owner}:${btwMode}`" :attachments="btwMode ? [] : attachments"
         :placeholder="btwMode ? (tr('顺便问一下…', 'By the way…')) : running ? i18n.t('chat.placeholderRunning') : i18n.t('chat.placeholder')"
         :label="btwMode ? (tr('顺便问一下', 'By the way')) : i18n.t('chat.placeholder')" :text="editorText"
         @update:text="onEditorInput" @keydown="onKeydown" @paste="onEditorPaste" />
@@ -293,11 +298,11 @@ function onKeydown(e: KeyboardEvent) {
       <div v-if="$slots['footer-start']" class="composer-footer-start"><slot name="footer-start" /></div>
       <ComposerSendButtons :running="running" :sending="sending" :can-send="canSend" :queueable="queueable" :escape-stops="!mobile" @send="submit()" @stop="onStop()" />
     </div>
-    <Teleport v-if="!start" to="body">
+    <Teleport v-if="live" to="body">
       <Transition name="btw-popup" @after-leave="btwHidden = true">
         <div v-show="btwOpen" id="btw-bubble" ref="btwBubble" class="btw-bubble" :class="{ mobile }" role="dialog" :aria-label="tr('BTW 临时对话', 'BTW temporary chat')" :style="btwPosition">
           <BubbleSurface side="bottom" :tail-x="parseFloat(btwPosition['--bubble-tail-x'] || '24')" />
-          <AskContext ref="btwChat" :key="sessionId" :session-id="sessionId" :hidden="btwHidden" :external-input="mobile" @cleared="btwDraft=''" />
+          <AskContext ref="btwChat" :key="owner" :session-id="owner" :hidden="btwHidden" :external-input="mobile" @cleared="btwDraft=''" />
         </div>
       </Transition>
     </Teleport>

@@ -16,6 +16,8 @@ export interface SessionConfig {
 export interface SessionDescriptor {
   id: string;
   name: string;
+  /** The session that made this one with `wish session`, which may configure and delete it. */
+  created_by?: string | null;
   provider: string;
   revision: number;
   created_at: number;
@@ -28,7 +30,7 @@ export interface SessionDescriptor {
   pending_selection?: unknown;
 }
 /** `mcp` adds no tool of its own: the model reaches MCP servers with `wish mcp` in the shell. */
-export interface ToolSwitches { shell: boolean; ask_user: boolean; mcp: boolean; web_search: boolean; skills: boolean }
+export interface ToolSwitches { shell: boolean; ask_user: boolean; mcp: boolean; web_search: boolean; skills: boolean; sessions: boolean }
 /** One question of an `ask_user` form, with its optional fields settled by the server. */
 export interface AskQuestion {
   type: 'choice' | 'text';
@@ -61,7 +63,7 @@ export interface SessionView {
   last_error: DisplayFailure | null;
   agent_custom: any; config: SessionConfig; descriptor: SessionDescriptor; status: any;
 }
-export type EntryKind = 'run_error' | 'history_event' | 'system_message' | 'developer_message' | 'user_message' | 'assistant_message' | 'tool_result';
+export type EntryKind = 'run_error' | 'history_event' | 'system_message' | 'developer_message' | 'user_message' | 'assistant_message' | 'tool_result' | 'group_message' | 'group_sent';
 export interface EntryPayload {
   content: ContentBlock[];
   failure?: DisplayFailure | null;
@@ -114,6 +116,12 @@ export function sessionView(value: any): SessionView {
 export function entryView(item: any, sessionId: string): EntryView {
   if (item.content.kind === 'event') {
     const failure = operationFailure({outcome: item.content.value.Finished});
+    // A note of Wish's that the session sent a message to a group.
+    const sent = item.content.value.Application;
+    if (sent?.type === 'group_message_sent') {
+      return {seq: item.record.sequence, id: `event-${item.record.sequence}`, created_at: item.record.recorded_at,
+        kind: 'group_sent', payload: {metadata: sent, content: [{ type: 'text', text: sent.text ?? '' }]}};
+    }
     return {seq: item.record.sequence, id: `event-${item.record.sequence}`,
       created_at: item.record.recorded_at, kind: failure ? 'run_error' : 'history_event',
       payload: {failure, content: []}};
@@ -138,6 +146,10 @@ export function entryView(item: any, sessionId: string): EntryView {
         result.payload = {tool_name:'shell',background:true,command:completion?.command,
           result:completion?.result ? {status:'success',output:completion.result} : undefined,
           content:[{type:'text',text:raw}]};
+      } else if (message.metadata?.source === 'group') {
+        // A post a group told this session: who wrote it and where are in the metadata.
+        result.kind = 'group_message';
+        result.payload = { metadata: message.metadata, content: blocks(message.content) };
       } else { result.kind = type === 'Developer' ? 'developer_message' : 'user_message'; result.payload.content = blocks(message.content); }
       break;
     }

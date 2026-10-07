@@ -92,8 +92,8 @@ export const cfg = Object.freeze({
     sessionListWidth: 256,            // desktop list pane px (default; user-resizable)
     sessionListWidthMin: 200,
     sessionListWidthMax: 520,
-    sessionRowHeight: 40,
-    sessionRowGap: 4,
+    sessionRowHeight: 36,             // a row of the list; its sections part more widely
+    sessionRowGap: 2,
     topbarHeight: 56,
   },
 

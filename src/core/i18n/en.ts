@@ -25,6 +25,7 @@ export const en = {
   'nav.stats': 'Stats',
   'nav.settings': 'Settings',
   'sessions.new': 'New session',
+  'sessions.newGroup': 'New group',
   'sessions.collapseList': 'Collapse session list',
   'sessions.expandList': 'Expand session list',
   'sessions.empty': 'No sessions',

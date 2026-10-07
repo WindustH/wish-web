@@ -8,9 +8,9 @@ import type {
   BlobInfo, ChatgptLogin, ConfigSnapshot, CreateSessionBody, DefaultModel, DirectoryListing, EffectiveConfig,
   EndpointOptions, HistoryHit, HistoryQuery, HistorySearchParams, McpServerStatus, McpTool, MessageBlock,
   ModelCatalogSource, ModelChange, PruneResult, QuestionAnswer, QueuedDelivery, SearchHit, SearchPreset,
-  SkillContent, SkillsSnapshot,
+  SkillContent, SkillsSnapshot, Conversation, ConversationsPage, FolderView, GroupMessage, GroupMessagesPage, GroupStorage, GroupView,
   SearchProviderStatus, SessionBytes, SessionStorage, SessionsListParams, SessionsPage, ShellCatalog, ShellSettings,
-  StorageSnapshot, UploadedBlob, UsageSnapshot,
+  StorageDetail, StorageSnapshot, UploadedBlob, UsageSnapshot,
 } from './types.ts';
 export type * from './types.ts';
 
@@ -36,7 +36,7 @@ export async function sessionCreate(body: CreateSessionBody) {
   const instructions = body.agent_custom ?? defaults.instructions;
   const config = { ...session_config, model: body.model, max_output_tokens: model.max_output_tokens ?? provider?.max_output_tokens ?? session_config.max_output_tokens, reasoning: effort ? { ...session_config.reasoning, effort } : session_config.reasoning };
   const value = await post('/sessions', { provider: body.provider, name: body.name ?? '', cwd: body.cwd ?? defaults.cwd,
-    tools: defaults.tools, config, metadata: { agent_custom: instructions },
+    tools: defaults.tools, config, metadata: { agent_custom: instructions }, folder: body.folder ?? null,
     initial_messages: instructions ? [{ System: { content: [{ Text: { text: instructions } }] } }] : [] });
   return sessionView(value);
 }
@@ -44,6 +44,45 @@ export const sessionRename = async (id: string, name: string) => sessionView(awa
 export const sessionUpdateMeta = async (id: string, metadata: unknown, revision?: number | null, opts?: EndpointOptions) =>
   sessionView(await patch(path(id), { metadata }, revisionOptions(revision, opts)));
 export const sessionDelete = (id: string, opts?: EndpointOptions) => del(path(id), opts);
+/** What a user browses: one folder's listing (the root without `folder`), or, with words or a
+ *  tag to look for or `flat`, every session and group that matches, wherever it is. */
+export async function conversationsList(params: SessionsListParams & { folder?: string | null; flat?: boolean } = {}, opts?: EndpointOptions): Promise<ConversationsPage> {
+  const page = await get('/conversations', { query: { start: params.cursor ?? 0, limit: params.limit, order: params.order,
+    query: params.query, tag: params.tag, folder: params.folder ?? undefined, flat: params.flat || undefined }, ...opts });
+  const items: Conversation[] = page.items.map((item: any) => {
+    const placement = { parent: item.parent ?? null, pinned: !!item.pinned };
+    if (item.kind === 'folder') return { kind: 'folder', ...item.folder };
+    if (item.kind === 'group') return { kind: 'group', ...item.group, ...placement };
+    return { kind: 'session', ...sessionView(item), ...placement };
+  });
+  return { items, next_cursor: page.next, has_more: page.next != null };
+}
+
+// Folders, and where the list's entries are: sessions, groups and folders move and pin alike.
+export const foldersList = (opts?: EndpointOptions): Promise<FolderView[]> => get('/folders', opts);
+export const folderCreate = (name: string, parent: string | null): Promise<FolderView> => post('/folders', { name, parent });
+export const folderRename = (id: string, name: string): Promise<FolderView> => patch(`/folders/${encodeURIComponent(id)}`, { name });
+/** Deletes a folder; what it held goes to the folder it was in. */
+export const folderDelete = (id: string) => del(`/folders/${encodeURIComponent(id)}`);
+export const entriesMove = (ids: string[], folder: string | null) => post('/conversations/move', { ids, folder });
+export const entriesPin = (ids: string[], pinned: boolean) => post('/conversations/pin', { ids, pinned });
+export const sessionGroups = (id: string, opts?: EndpointOptions): Promise<GroupView[]> => get(`${path(id)}/groups`, opts);
+
+// Groups.
+const groupPath = (id: string) => `/groups/${encodeURIComponent(id)}`;
+export const groupGet = (id: string, opts?: EndpointOptions): Promise<GroupView> => get(groupPath(id), opts);
+export const groupCreate = (name: string, members: string[], folder: string | null = null): Promise<GroupView> => post('/groups', { name, members, folder });
+export const groupUpdate = (id: string, changes: { name?: string; members?: string[] }): Promise<GroupView> => patch(groupPath(id), changes);
+export const groupDelete = (id: string) => del(groupPath(id));
+export const groupMessages = (id: string, params: { before?: number; limit?: number; query?: string } = {}, opts?: EndpointOptions): Promise<GroupMessagesPage> =>
+  get(`${groupPath(id)}/messages`, { query: params, ...opts });
+/** The user's post: text, and the images and files uploaded to the group for it. */
+export const groupPost = (id: string, body: { content?: string; blocks?: readonly MessageBlock[] }): Promise<{ message: GroupMessage; woken: string[] }> =>
+  post(`${groupPath(id)}/messages`, { text: body.content ?? '', attachments: inputAttachments(body.blocks) });
+export const uploadGroupBlob = async (gid: string, bytes: ArrayBuffer | Uint8Array, opts?: EndpointOptions): Promise<UploadedBlob> => {
+  const blob = await api('POST', `${groupPath(gid)}/blobs`, { body: bytes, raw: true, headers: { 'content-type': 'application/octet-stream' }, ...opts });
+  return { ...blob, sha256: blob.id };
+};
 // Combines requests: the target provider's settings decide the effort and output limit.
 export async function sessionUpdateModel(id: string, body: ModelChange, revision?: number | null, opts?: EndpointOptions) {
   const [current, providers] = await Promise.all([sessionGet(id, opts), get('/providers', opts)]);
@@ -89,10 +128,11 @@ export async function historySearch(id: string, params: HistorySearchParams, opt
 
 // Input and the queue.
 // Queues the input; `entry` is its position in the session's message list.
+/** An input's attachments as the server takes them. */
+const inputAttachments = (blocks: readonly MessageBlock[] = []) => blocks.map(b => ({ id: b.blob_id, kind: b.type, name: b.filename ?? null,
+  ...(b.byte_count != null ? { byte_count: b.byte_count } : {}), ...(b.placeholder ? { placeholder: b.placeholder } : {}) }));
 export const messageSend = async (id: string, body: { content?: string; blocks?: readonly MessageBlock[] }, opts?: EndpointOptions): Promise<{ id: string; entry: number }> => {
-  const attachments = (body.blocks ?? []).map(b => ({ id: b.blob_id, kind: b.type, name: b.filename ?? null,
-    ...(b.byte_count != null ? { byte_count: b.byte_count } : {}), ...(b.placeholder ? { placeholder: b.placeholder } : {}) }));
-  const result = await post(`${path(id)}/input`, { text: body.content ?? '', attachments }, opts);
+  const result = await post(`${path(id)}/input`, { text: body.content ?? '', attachments: inputAttachments(body.blocks) }, opts);
   return { id: String(result.entry), entry: result.entry };
 };
 // Combines requests: the queue holds entry positions, and each input is read from its entry.
@@ -118,7 +158,12 @@ export const answerQuestion = (id: string, body: { call_id: string; answers?: Qu
   post(`${path(id)}/answer`, body);
 
 // Blobs: a session's uploads, named `<session>/<sha256>` outside the session.
-const blobPath = (reference: string) => { const [sid, hash] = reference.split('/'); return `${path(sid!)}/blobs/${hash}`; };
+// A blob is named `<session id>/<hash>`, or `group:<group id>/<hash>` for a file posted to a group.
+const blobPath = (reference: string) => {
+  const [owner, hash] = reference.split('/') as [string, string];
+  return `${owner.startsWith('group:') ? groupPath(owner.slice(6)) : path(owner)}/blobs/${hash}`;
+};
+export const groupBlob = (gid: string, hash: string) => `group:${gid}/${hash}`;
 export const uploadSessionBlob = async (sid: string, bytes: ArrayBuffer | Uint8Array, opts?: EndpointOptions): Promise<UploadedBlob> => {
   const blob = await api('POST', `${path(sid)}/blobs`, { body: bytes, raw: true, headers: { 'content-type': 'application/octet-stream' }, ...opts });
   return { ...blob, sha256: blob.id };
@@ -230,7 +275,12 @@ export const usageSeries = (id: string | undefined, params: SeriesQuery, opts?: 
 export const usageDaily = (id: string | undefined, params: DailyQuery, opts?: EndpointOptions): Promise<UsageDailyResponse> =>
   get(id ? `${path(id)}/usage/daily` : '/usage/daily', { query: params, ...opts });
 export const storageStatus = (opts?: EndpointOptions): Promise<StorageSnapshot> => get('/storage', opts);
-export const sessionsStorage = (opts?: EndpointOptions): Promise<{ sessions: SessionStorage[]; bytes: SessionBytes }> => get('/storage/sessions', opts);
+/** Each database by what it holds; it reads every page of both, so it is asked for when shown. */
+export const storageDetail = (opts?: EndpointOptions): Promise<StorageDetail> => get('/storage/detail', opts);
+export const sessionsStorage = (opts?: EndpointOptions): Promise<{ sessions: SessionStorage[]; groups: GroupStorage[]; bytes: SessionBytes }> => get('/storage/sessions', opts);
 // `sessions` absent prunes every session; `before` (Unix ms) keeps what was recorded since.
 export const storagePrune = (body: { sessions?: string[]; before?: number | null; dry_run?: boolean }, opts?: EndpointOptions): Promise<PruneResult> =>
   post('/storage/prune', body, { timeoutMs: 120_000, ...opts });
+/** Clears the usage records deleted sessions left, and shrinks the file they were in. */
+export const storagePruneUsage = (opts?: EndpointOptions): Promise<{ calls: number; stream_samples: number; database: { before: number; after: number } }> =>
+  post('/storage/prune-usage', undefined, { timeoutMs: 120_000, ...opts });

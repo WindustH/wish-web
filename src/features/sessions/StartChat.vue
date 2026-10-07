@@ -28,6 +28,9 @@ const route = useRoute(), router = useRouter();
 const mobile = useIsMobile();
 // All sessions opens as a sheet over the home page, which stays laid out beneath it.
 const home = computed(() => route.name === 'sessions' || route.name === 'all-sessions');
+// The folder the new session goes in, when the list asked for one (`/new?folder=`), and its name.
+const folder = computed(() => route.name === 'new-chat' && typeof route.query.folder === 'string' ? route.query.folder : null);
+const folderName = computed(() => sessions.path.value.find(item => item.id === folder.value)?.name ?? tr('文件夹', 'a folder'));
 const parentActive = usePageActivity(), active = ref(true);
 const visible = computed(() => parentActive.value && active.value);
 provide(pageActivityKey, visible);
@@ -102,7 +105,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
       const { provider, model, reasoning_effort } = selection.value;
       const remembered = { provider, model, reasoning_effort: reasoning_effort ?? effectiveEffort.value };
       const name = [...(text.trim().split('\n')[0] || attachments.find(file => file.name)?.name || '')].slice(0, 60).join('');
-      created.value = (await sessions.create({ provider, model, reasoningEffort: reasoning_effort ?? effectiveEffort.value, name, cwd: cwd.value.trim() })).id;
+      created.value = (await sessions.create({ provider, model, reasoningEffort: reasoning_effort ?? effectiveEffort.value, name, cwd: cwd.value.trim(), folder: folder.value })).id;
       try {
         await api.rememberDefaultModel(remembered);
         ++defaultGeneration;
@@ -135,7 +138,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
     <div v-if="mobile && home" class="home-actions"><AppMenu placement="header" /></div>
     <div class="start-surface">
       <div class="start-brand" aria-hidden="true"><img class="start-mark" src="/app-icons/mark.svg" alt="" /><Wordmark class="start-wordmark" /></div>
-      <Composer ref="composer" session-id="new-session" :mobile="mobile" start :send-message="send" :disabled="!selection.model || !cwd.trim() || busy || (!manuallySelected && !defaultReady)">
+      <Composer ref="composer" owner="new-session" :mobile="mobile" start :send-message="send" :disabled="!selection.model || !cwd.trim() || busy || (!manuallySelected && !defaultReady)">
         <template #selection>
           <div class="start-model-controls model-selection">
             <Hint :text="i18n.t('model.title')"><button class="model-chip" :aria-expanded="modelOpen" :disabled="busy || !!created" @click="modelOpen = true">{{ modelLabel || i18n.t('model.title') }}</button></Hint>
@@ -145,6 +148,8 @@ async function send(text: string, attachments: AttachmentInput[]) {
         </template>
         <template #footer-start><DirectoryPicker :model-value="cwd" :disabled="busy || !!created" @update:model-value="cwd=$event; manuallySetCwd=true" /></template>
       </Composer>
+      <p v-if="folder" class="start-folder"><Icon name="folder" /><span>{{ tr(`新会话会放在「${folderName}」`, `The new session goes in “${folderName}”`) }}</span>
+        <Hint :text="tr('放在根目录', 'Put it at the top level')"><button type="button" class="btn ghost icon-only" :aria-label="tr('放在根目录', 'Put it at the top level')" :disabled="busy || !!created" @click="router.replace('/new')"><Icon name="x" /></button></Hint></p>
       <p v-if="defaultReady && !cwd.trim()" class="hint" role="status">{{ tr('请填写工作目录后发送。','Enter a working directory before sending.') }}</p>
       <div v-if="defaultError" class="load-error" role="alert">{{ errorText(defaultError) }} <button class="btn ghost sm" @click="readDefaultModel">{{ i18n.t('common.retry') }}</button></div>
       <div v-if="catalog.error.value" class="load-error" role="alert">{{ errorText(catalog.error.value) }} <button class="btn ghost sm" @click="catalog.reload">{{ i18n.t('common.retry') }}</button></div>
@@ -173,6 +178,10 @@ async function send(text: string, attachments: AttachmentInput[]) {
 .home-actions .btn { width: 44px; height: 44px; }
 .start-back { position: absolute; top: 8px; left: 8px; }
 .start-empty { display: flex; align-items: center; gap: 8px; }
+.start-folder { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; padding-left: 4px; color: var(--fg-subtle); font-size: 12.5px; }
+.start-folder > .icon { width: 15px; height: 15px; flex: none; }
+.start-folder .btn.icon-only { width: 26px; height: 26px; min-height: 26px; }
+.start-folder .btn.icon-only .icon { width: 14px; height: 14px; }
 :deep(.composer-start) { border: 1px solid var(--line-strong); border-radius: 16px; background: var(--bg-raised); box-shadow: 0 4px 24px #0000000a; padding: 10px 14px 12px; min-height: 188px; }
 :deep(.composer-start.desktop) { --composer-send-clearance: 4px; padding: 10px 16px; }
 :deep(.composer-start:focus-within) { border-color: var(--accent); }

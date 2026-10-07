@@ -26,6 +26,11 @@ export const router = createRouter({
         { path: 'sessions/all', name: 'all-sessions', component: StartChat },
         { path: 'new', name: 'new-chat', component: StartChat },
         {
+          path: 'g/:id',
+          name: 'group',
+          component: () => import('./features/groups/GroupPane.vue'),
+        },
+        {
           path: 's/:id',
           component: () => import('./features/sessions/ChatPane.vue'),
           children: [

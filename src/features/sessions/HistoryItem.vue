@@ -10,12 +10,16 @@ import SystemEntry from './entries/SystemEntry.vue';
 import ProcessGroup from './entries/ProcessGroup.vue';
 import QuestionCard from './entries/QuestionCard.vue';
 import LateAnswerEntry from './entries/LateAnswerEntry.vue';
+import GroupSentEntry from './entries/GroupSentEntry.vue';
+import GroupMessageEntry from './entries/GroupMessageEntry.vue';
 
 const props = defineProps<{ item: any; forced?: boolean; session?: string }>();
 const comp = computed<Component>(() =>
   props.item.type === 'process' ? ProcessGroup
   : props.item.type === 'question' ? QuestionCard
   : props.item.entry?.payload?.metadata?.source === 'ask_user_answer' ? LateAnswerEntry
+  : props.item.entry?.kind === 'group_sent' ? GroupSentEntry
+  : props.item.entry?.kind === 'group_message' ? GroupMessageEntry
   : props.item.entry?.kind === 'run_error' ? ErrorEntry
   : props.item.entry?.kind === 'user_message' ? UserEntry
   : props.item.entry?.kind === 'assistant_message' ? AssistantEntry : SystemEntry);

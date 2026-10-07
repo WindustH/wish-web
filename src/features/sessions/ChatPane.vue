@@ -60,6 +60,11 @@ watch(chat.missingSessionId, (missingId) => {
 });
 
 const snapshot = computed(() => chat.snapshot.value);
+const tabs = computed(() => [
+  { key: 'info', icon: 'info', label: i18n.t('chatbar.info') },
+  { key: 'search', icon: 'search', label: i18n.t('chatbar.search') },
+  { key: 'settings', icon: 'tune', label: i18n.t('chatbar.settings') },
+]);
 const queued = computed(() => chat.deliveries.value);
 const composerRef = ref<{ fill: (v: string, attachments?: any[]) => void } | null>(null);
 const onQueueEdit = (text: string, attachments?: any[]) => composerRef.value?.fill(text, attachments);
@@ -101,23 +106,15 @@ const goTab = (t: SessionTab) => {
         </span>
       </div>
       <template v-if="!isMobile">
-        <Hint :text="i18n.t('chatbar.info')"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.info')"
-          :class="{ selected: tab === 'info' }" data-session-panel="info" :aria-pressed="tab === 'info'" @click="goTab('info')"><Icon name="info" /></button></Hint>
-        <Hint :text="i18n.t('chatbar.search')"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.search')"
-          :class="{ selected: tab === 'search' }" data-session-panel="search" :aria-pressed="tab === 'search'" @click="goTab('search')"><Icon name="search" /></button></Hint>
-        <Hint :text="i18n.t('chatbar.settings')"><button class="btn ghost icon-only" :aria-label="i18n.t('chatbar.settings')"
-          :class="{ selected: tab === 'settings' }" data-session-panel="settings" :aria-pressed="tab === 'settings'" @click="goTab('settings')"><Icon name="tune" /></button></Hint>
+        <Hint v-for="item in tabs" :key="item.key" :text="item.label"><button class="btn ghost icon-only" :aria-label="item.label"
+          :class="{ selected: tab === item.key }" :data-session-panel="item.key" :aria-pressed="tab === item.key" @click="goTab(item.key as SessionTab)"><Icon :name="item.icon" /></button></Hint>
       </template>
-      <Menu v-else :items="[
-        { key: 'info', icon: 'info', label: i18n.t('chatbar.info') },
-        { key: 'search', icon: 'search', label: i18n.t('chatbar.search') },
-        { key: 'settings', icon: 'tune', label: i18n.t('chatbar.settings') },
-      ]" :label="i18n.t('chatbar.more')" @select="goTab($event as SessionTab)">
+      <Menu v-else :items="tabs" :label="i18n.t('chatbar.more')" @select="goTab($event as SessionTab)">
         <Icon name="ellipsis-vertical" />
       </Menu>
     </div>
     <ChatLog :session-id="id" :mobile="isMobile" />
-    <Composer ref="composerRef" :session-id="id" :mobile="isMobile">
+    <Composer ref="composerRef" :owner="id" :mobile="isMobile">
       <template #tools><QueueDock v-if="queued.length > 0" :items="queued" :refill="onQueueEdit" /></template>
     </Composer>
     <RouterView v-slot="{ Component, route: panelRoute }">

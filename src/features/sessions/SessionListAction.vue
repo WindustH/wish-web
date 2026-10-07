@@ -5,13 +5,16 @@ import { errorDetail } from '../../core/errors.ts';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import * as api from '../../core/api/endpoints.ts';
-import { sessions, sessionTitle } from '../../core/state/sessionsSlice.ts';
+import { sessions, sessionTitle, type ListRow } from '../../core/state/sessionsSlice.ts';
 import { chat } from '../../core/state/chatSlice.ts';
 import { i18n } from '../../core/i18n/index.ts';
+import { tr } from '../../core/i18n/tr.ts';
 import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { deleteSession } from './sessionActions.ts';
-const props = defineProps<{ target: { id: string; name?: string }; kind: 'rename' | 'tags' | 'delete' }>();
+/** A row the dialog acts on: a session, or a group or folder, which can only be renamed or deleted. */
+export interface ActionTarget { id: string; name?: string; kind: ListRow['kind'] }
+const props = defineProps<{ target: ActionTarget; kind: 'rename' | 'tags' | 'delete' }>();
 const emit = defineEmits<{ close: [] }>();
 const router = useRouter();
 const snapshot = ref<any>();
@@ -47,7 +50,16 @@ async function save() {
   busy.value = true;
   error.value = '';
   try {
-    if (props.kind === 'delete') {
+    if (props.target.kind === 'folder') {
+      if (props.kind === 'delete') await sessions.deleteFolder(id);
+      else await sessions.renameFolder(id, name.value.trim());
+    } else if (props.target.kind === 'group') {
+      if (props.kind === 'delete') {
+        const open = router.currentRoute.value.name === 'group' && router.currentRoute.value.params.id === id;
+        await sessions.deleteGroup(id);
+        if (open) await router.push('/sessions');
+      } else await sessions.renameGroup(id, name.value.trim());
+    } else if (props.kind === 'delete') {
       const open = chat.sessionId.value === id;
       await deleteSession(id);
       if (open) await router.push('/sessions');
@@ -67,7 +79,8 @@ async function save() {
     <form id="session-list-action" @submit.prevent="save">
       <p class="sl-action-name">{{ sessionTitle(target) }}</p>
       <input v-if="kind === 'rename'" v-model="name" class="input" :aria-label="i18n.t('manage.rename')" :disabled="busy" />
-      <p v-else-if="kind === 'delete'">{{ i18n.t('manage.deleteConfirm') }}</p>
+      <p v-else-if="kind === 'delete' && target.kind === 'folder'">{{ tr('删除这个文件夹？里面的会话、群组和文件夹会移到上一级，不会被删除。', 'Delete this folder? What it holds moves up a level; nothing in it is deleted.') }}</p>
+      <p v-else-if="kind === 'delete'">{{ i18n.t('manage.deleteConfirm') }}<br v-if="target.kind === 'group'" />{{ target.kind === 'group' ? tr('群聊记录和发到群里的文件会一起删除，成员会话保留。', 'Its messages and the files posted to it go too; its member sessions stay.') : '' }}</p>
       <template v-else>
         <p v-if="loading" role="status">{{ i18n.t('sessions.loading') }}</p>
         <div v-else-if="snapshot" class="sl-tag-editor">

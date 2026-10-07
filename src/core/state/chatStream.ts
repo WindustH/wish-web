@@ -76,6 +76,11 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
         callbacks.onHistoryPruned();
         return current;
       }
+      // History written beside any run: a note that the session sent a message to a group.
+      if (data.type === 'history_changed') {
+        callbacks.onScheduleRefresh();
+        return current;
+      }
 
       if (data.type === 'snapshot' && Array.isArray(data.live_events)) {
         turnVersion++;

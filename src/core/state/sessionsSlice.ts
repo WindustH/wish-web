@@ -1,22 +1,24 @@
-// Sessions list slice: paginated, searchable, live-invalidated by the sync
-// stream. Authoritative data always comes from GET /sessions; sync frames
-// are invalidation signals, never a data source for lists.
+// The list a user browses - folders, sessions and groups - one folder at a time, the way a file
+// manager shows a directory: opening a folder replaces the list with what it holds, and the path
+// to it leads back up. Looking for words or a tag lists every match, flat, wherever it is.
+// Authoritative data always comes from GET /conversations; sync frames are invalidation signals,
+// never a data source for lists.
 //
 // Lifecycle (one implementation, review round-2):
 //  · bump() is the SINGLE invalidation point: it flips the request
 //    generation and resets every loading flag, so a stale in-flight
-//    response (old query, old filter, pre-reset) can neither write back
-//    nor wedge `loadingMore` for the next view. Collection identity
-//    changes (query/filter/sort) invalidate IMMEDIATELY; network debounce
-//    only delays the fetch, never the invalidation.
+//    response (old folder, old query, old filter, pre-reset) can neither
+//    write back nor wedge `loadingMore` for the next view. Collection
+//    identity changes (folder/query/filter) invalidate IMMEDIATELY;
+//    network debounce only delays the fetch, never the invalidation.
 //  · The cursor is an opaque server token bound to the current
-//    filter+sort (contract): any identity change reloads from page one.
+//    folder+filter+sort (contract): any identity change reloads from page one.
 //  · Full navigability: loadMore() appends without a resident cap — DOM
 //    size is bounded by the chunked Vlist, data is never unreachable.
-//  · rebuild() is the AUTHORITATIVE path (sync.snapshot resets, session
-//    upserts, metadata writes): it refetches up
-//    to the current navigation depth and REPLACES membership, order and
-//    cursor. It never merges — rows deleted while disconnected disappear.
+//  · rebuild() is the AUTHORITATIVE path (sync.snapshot resets, upserts,
+//    moves, metadata writes): it refetches up to the current navigation
+//    depth and REPLACES membership, order and cursor. It never merges —
+//    rows deleted while disconnected disappear.
 //  · Errors are surfaced (signal `error`), never swallowed into an empty
 //    or partial "success" list.
 import { cfg } from '../config.ts';
@@ -24,34 +26,41 @@ import { bus } from '../bus.ts';
 import { shallowRef, computed } from 'vue';
 import { debounce } from '../util/fmt.ts';
 import * as api from '../api/endpoints.ts';
-import type { CreateSessionBody, SessionsListParams } from '../api/endpoints.ts';
+import type { CreateSessionBody, FolderView, GroupView, Placement, SessionsListParams } from '../api/endpoints.ts';
 import type { SessionView } from '../api/projections.ts';
 import type { SessionUpsert, SessionTombstone } from './syncSlice.ts';
+import { platform } from '../../platform/index.ts';
 
-// One sessions-list row: the list-facing fields of a session snapshot. Rows
-// fetched from GET /sessions carry the whole snapshot; locally built ones only these.
-export type SessionRow = Pick<SessionView, 'id' | 'name' | 'phase' | 'updated_at' | 'revision' | 'metadata'>;
-// Opaque server pagination token, bound to the current filter + sort.
+// One list row: the list-facing fields of a session snapshot, a group, or a folder, with where it
+// is. Rows fetched from GET /conversations carry the whole snapshot.
+export type SessionRow = { kind: 'session' } & Placement & Pick<SessionView, 'id' | 'name' | 'phase' | 'updated_at' | 'revision' | 'metadata'>;
+export type GroupRow = { kind: 'group' } & Placement & Pick<GroupView, 'id' | 'name' | 'members' | 'updated_at'>;
+export type FolderRow = { kind: 'folder' } & FolderView;
+export type ListRow = SessionRow | GroupRow | FolderRow;
+// Opaque server pagination token, bound to the current folder, filter and sort.
 type SessionsCursor = NonNullable<SessionsListParams['cursor']>;
-export interface SessionCreateInput { name?: string; provider: string; model: string; reasoningEffort?: string; agentCustom?: string; cwd?: string }
+export interface SessionCreateInput { name?: string; provider: string; model: string; reasoningEffort?: string; agentCustom?: string; cwd?: string; folder?: string | null }
 // The metadata-bearing part of a session that updateMeta() needs.
 export interface SessionMetaTarget { id: string; revision?: number | null; metadata?: unknown }
+
+// Where the list was, kept for the next visit.
+const FOLDER_KEY = 'list.folder';
 
 // metadata accessors — the defined keys only; everything else is the
 // user's own JSON, carried untouched (decision-json-metadata).
 const metaOf = (row: { metadata?: unknown } | null | undefined): Record<string, unknown> => row?.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata) ? row.metadata as Record<string, unknown> : {};
 
 // The rows in order, each id once: pages fetched while the list moves can overlap.
-function uniqueById(rows: SessionRow[]): SessionRow[] {
+function uniqueById(rows: ListRow[]): ListRow[] {
   const seen = new Set<string>();
   return rows.filter(row => !seen.has(row.id) && seen.add(row.id));
 }
 
-/** What a session is called in lists: its name, or the start of its id. */
+/** What an entry is called in lists: its name, or the start of its id. */
 export const sessionTitle = (row: { id: string; name?: string | null }) => row.name || row.id.slice(0, 8);
 
 export const sessions = (() => {
-  const items = shallowRef<SessionRow[]>([]);            // newest first (order=desc)
+  const items = shallowRef<ListRow[]>([]);
   const cursor = shallowRef<SessionsCursor | null>(null);
   const hasMore = shallowRef(false);
   const loading = shallowRef(false);
@@ -59,15 +68,27 @@ export const sessions = (() => {
   const error = shallowRef<any>(null);
   const query = shallowRef('');
   const tagFilter = shallowRef('');        // '' = none; exact tag (contract)
+  // The folder shown (null for the root), and every folder, for the path to it and its names.
+  const folder = shallowRef<string | null>(readFolder());
+  const folders = shallowRef(new Map<string, FolderView>());
 
   let gen = 0;                         // request generation
 
   const list = computed(() => items.value);
   const filtered = computed(() => Boolean(query.value || tagFilter.value));
+  /** The folders from the root down to the one shown. */
+  const path = computed<FolderView[]>(() => {
+    const out: FolderView[] = [];
+    for (let id = folder.value; id && folders.value.has(id) && out.length < 64; id = folders.value.get(id)!.parent) {
+      out.unshift(folders.value.get(id)!);
+    }
+    return out;
+  });
 
   function requestParams() {
-    const p: SessionsListParams = { limit: cfg.sessions.pageSize, order: 'desc', query: query.value || undefined };
+    const p: SessionsListParams & { folder?: string } = { limit: cfg.sessions.pageSize, order: 'desc', query: query.value || undefined };
     if (tagFilter.value) p.tag = tagFilter.value;
+    if (folder.value && !filtered.value) p.folder = folder.value;
     return p;
   }
 
@@ -80,10 +101,11 @@ export const sessions = (() => {
   async function loadFirst(): Promise<void> {
     const myGen = ++gen;
     loading.value = true; loadingMore.value = false; error.value = null;
+    void loadFolders();
     try {
-      const page = await api.sessionsList(requestParams());
+      const page = await api.conversationsList(requestParams());
       if (myGen !== gen) return;
-      items.value = page.items;
+      items.value = page.items as ListRow[];
       cursor.value = page.next_cursor ?? null;
       hasMore.value = Boolean(page.has_more);
     } catch (err) {
@@ -98,13 +120,14 @@ export const sessions = (() => {
   async function rebuild(): Promise<void> {
     const myGen = ++gen;
     loading.value = true; loadingMore.value = false; error.value = null;
+    void loadFolders();
     const keep = Math.max(items.value.length, cfg.sessions.pageSize);
     try {
-      let rows: SessionRow[] = [], cur: SessionsCursor | null = null, more = true, pages = 0;
+      let rows: ListRow[] = [], cur: SessionsCursor | null = null, more = true, pages = 0;
       while (more && rows.length < keep && pages < cfg.sessions.rebuildMaxPages) {
-        const page = await api.sessionsList({ ...requestParams(), cursor: cur });
+        const page = await api.conversationsList({ ...requestParams(), cursor: cur });
         if (myGen !== gen) return;
-        rows = rows.concat(page.items);
+        rows = rows.concat(page.items as ListRow[]);
         cur = page.next_cursor ?? null;
         more = Boolean(page.has_more);
         pages += 1;
@@ -122,9 +145,9 @@ export const sessions = (() => {
     const myGen = gen;
     loadingMore.value = true;
     try {
-      const page = await api.sessionsList({ ...requestParams(), cursor: cursor.value });
+      const page = await api.conversationsList({ ...requestParams(), cursor: cursor.value });
       if (myGen !== gen) return false;
-      items.value = uniqueById([...items.value, ...page.items]);
+      items.value = uniqueById([...items.value, ...page.items as ListRow[]]);
       cursor.value = page.next_cursor ?? null;
       hasMore.value = Boolean(page.has_more);
       return true;
@@ -132,6 +155,24 @@ export const sessions = (() => {
       if (myGen === gen) error.value = err;
       return false;
     } finally { if (myGen === gen) loadingMore.value = false; }
+  }
+
+  // Every folder, for the path and the names; a folder shown that is gone leaves for the root.
+  async function loadFolders() {
+    try {
+      folders.value = new Map((await api.foldersList()).map(item => [item.id, item]));
+      if (folder.value && !folders.value.has(folder.value)) open(null);
+    } catch { /* The path falls back to the folder's id until the next reading. */ }
+  }
+
+  /** Shows a folder's listing in place of the list: null for the root. */
+  function open(id: string | null) {
+    if (id === folder.value) return;
+    folder.value = id;
+    try { platform('storage').set(FOLDER_KEY, id ?? ''); } catch { /* the list opens at the root next time */ }
+    bump();
+    items.value = [];
+    loadFirst();
   }
 
   const debouncedSearch = debounce(() => { loadFirst(); }, cfg.sessions.searchDebounceMs);
@@ -149,17 +190,16 @@ export const sessions = (() => {
     return loadFirst();
   }
 
-  async function create({ name, provider, model, reasoningEffort, agentCustom, cwd }: SessionCreateInput): Promise<SessionView> {
-    const body: CreateSessionBody = { provider, model };
+  async function create({ name, provider, model, reasoningEffort, agentCustom, cwd, folder: into }: SessionCreateInput): Promise<SessionView> {
+    const body: CreateSessionBody = { provider, model, folder: into ?? null };
     if (name) body.name = name;
     if (cwd != null) body.cwd = cwd;
     if (reasoningEffort) body.reasoning_effort = reasoningEffort;
     if (agentCustom != null && agentCustom !== '') body.agent_custom = agentCustom;
     const snap = await api.sessionCreate(body);
-    // The new row's position depends on the active collection (filters,
+    // The new row's position depends on the active collection (folder, filters,
     // ordering) — the server is the single sorting authority.
-    if (filtered.value) await rebuild();
-    else items.value = [snapToListRow(snap), ...items.value.filter((s) => s.id !== snap.id)];
+    await rebuild();
     return snap;
   }
 
@@ -187,8 +227,56 @@ export const sessions = (() => {
     items.value = items.value.filter((s) => s.id !== id);
   }
 
-  // Live invalidation from the control-plane stream. Every change a session reports can move it
-  // (its name, update time and metadata decide order and membership), so the list refetches.
+  async function createGroup(name: string, members: string[], into: string | null = null): Promise<GroupView> {
+    const group = await api.groupCreate(name, members, into);
+    await rebuild();
+    return group;
+  }
+  async function renameGroup(id: string, name: string): Promise<GroupView> {
+    const group = await api.groupUpdate(id, { name });
+    items.value = items.value.map((s) => (s.id === id ? { ...s, name: group.name } : s));
+    return group;
+  }
+  async function deleteGroup(id: string): Promise<void> {
+    await api.groupDelete(id);
+    dropRow(id);
+  }
+
+  async function createFolder(name: string, parent: string | null): Promise<FolderView> {
+    const made = await api.folderCreate(name, parent);
+    await rebuild();
+    return made;
+  }
+  async function renameFolder(id: string, name: string): Promise<FolderView> {
+    const renamed = await api.folderRename(id, name);
+    items.value = items.value.map((s) => (s.id === id ? { ...s, name: renamed.name } : s));
+    void loadFolders();
+    return renamed;
+  }
+  /** Deletes a folder; what it held goes up to the folder it was in. */
+  async function deleteFolder(id: string): Promise<void> {
+    await api.folderDelete(id);
+    await rebuild();
+  }
+  /** Moves sessions, groups and folders into `into` (null for the root). What leaves the folder
+   *  shown leaves the list at once, and the folder it goes into counts it; the server's reading
+   *  follows and settles both. */
+  async function move(ids: string[], into: string | null): Promise<void> {
+    if (!filtered.value && into !== folder.value) {
+      const leaving = new Set(ids);
+      items.value = items.value.filter(row => !leaving.has(row.id))
+        .map(row => row.kind === 'folder' && row.id === into ? { ...row, items: (row.items ?? 0) + ids.length } : row);
+    }
+    try { await api.entriesMove(ids, into); }
+    finally { await rebuild(); }
+  }
+  async function pin(ids: string[], pinned: boolean): Promise<void> {
+    await api.entriesPin(ids, pinned);
+    await rebuild();
+  }
+
+  // Live invalidation from the control-plane stream. Every change can move an entry (its name,
+  // update time, metadata and place decide order and membership), so the list refetches.
   const debouncedRebuild = debounce(() => { rebuild(); }, cfg.sessions.searchDebounceMs * 2);
   bus.on('upsert.session', (u: SessionUpsert) => {
     if ((u.body ?? u)?.id) debouncedRebuild();
@@ -196,20 +284,25 @@ export const sessions = (() => {
   bus.on('tombstone.session', (t: SessionTombstone) => {
     if (t?.id) dropRow(t.id);
   });
+  bus.on('upsert.group', () => debouncedRebuild());
+  bus.on('tombstone.group', (t: { id: string }) => dropRow(t.id));
+  bus.on('list.changed', () => debouncedRebuild());
   // Authoritative snapshot (reconnect / cursor reset): rebuild the
   // collection — membership, order and cursor are all re-derived.
   bus.on('sync.snapshot', debounce(() => { rebuild(); }, 300));
 
   return {
     items: list, hasMore, loading, loadingMore, error,
-    query, tagFilter,
-    loadFirst, loadMore,
+    query, tagFilter, filtered, folder, path,
+    loadFirst, loadMore, open,
     setQuery, setTagFilter, refresh,
     create, rename, updateMeta, dropRow,
+    createGroup, renameGroup, deleteGroup,
+    createFolder, renameFolder, deleteFolder, move, pin,
   };
 })();
 export type SessionsApi = typeof sessions;
 
-function snapToListRow(snap: SessionView): SessionRow {
-  return { id: snap.id, name: snap.name, phase: snap.phase, updated_at: snap.updated_at, revision: snap.revision, metadata: snap.metadata };
+function readFolder(): string | null {
+  try { return platform('storage').get(FOLDER_KEY) || null; } catch { return null; }
 }
