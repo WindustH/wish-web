@@ -105,6 +105,7 @@ p.setup-status { flex-direction: row; align-items: center; gap: 10px; }
 .setup-signin-button .icon { width: 16px; height: 16px; }
 .setup-signed { display: inline-flex; align-items: center; gap: 8px; margin: 0; color: var(--ok); font-weight: 500; }
 .setup-signed .icon { width: 17px; height: 17px; }
+.setup-code { font: 600 20px/1.4 var(--mono); letter-spacing: .12em; user-select: all; }
 .setup-callback { display: grid; gap: 8px; width: 100%; }
 .setup-callback-row { display: flex; gap: 8px; }
 .setup-callback-row .input { flex: 1; min-width: 0; }

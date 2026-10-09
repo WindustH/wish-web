@@ -70,6 +70,8 @@ export type ShellInfo = { name: string | null; program: string; args: string[] }
 export type ShellCatalog = { default: ShellInfo; installed: ShellInfo[] };
 // Signing a Codex provider in with ChatGPT in the browser.
 export interface ChatgptLogin { status: 'pending' | 'complete' | 'failed' | 'expired' | string; authorization_url?: string; error?: string }
+export interface CopilotLogin { status: 'idle' | 'pending' | 'complete' | 'failed' | 'expired' | string; error?: string | null }
+export interface CopilotDeviceCode { verification_uri: string; user_code: string; expires_in: number }
 // Just what requireAvailableModel reads from a provider's settings.
 export interface ModelCatalogSource { id: string; model_list?: unknown; models?: Record<string, any> | null }
 export interface DirectoryListing { path: string; parent: string | null; directories: string[] }

@@ -42,6 +42,7 @@ const extra: Record<string, {label:string;brand:string;annotation?:string}> = {
   google_models: {label:'Google Gemini Models',brand:'Google Gemini'},
   qwen_models: {label:'Qwen Models',brand:'Qwen'},
   bedrock_models: {label:'AWS Bedrock Models',brand:'AWS Bedrock'},
+  github_copilot_models: {label:'GitHub Copilot Models',brand:'GitHub Copilot'},
   openai_responses_streamed: {label:'OpenAI Responses · Streaming compaction',brand:'OpenAI'},
   qwen_messages: {label:'Qwen Messages',brand:'Qwen'},
   kimi_messages: {label:'Kimi Messages',brand:'Kimi'},
@@ -60,6 +61,8 @@ const extra: Record<string, {label:string;brand:string;annotation?:string}> = {
   hf_whoami_billing: {label:'Hugging Face Billing',brand:'Hugging Face Router'},
   qwen_workspace_quota: {label:'Qwen Workspace Quota',brand:'Qwen'},
   openai_codex_usage: {label:'ChatGPT Plan Usage',brand:'OpenAI'},
+  github_copilot_usage: {label:'GitHub Copilot Usage',brand:'GitHub Copilot'},
+  magpie_quotas: {label:'Magpie Quotas',brand:'Magpie'},
 };
 export function protocolPresentation(id: string) {
   const item = protocols[id] ?? extra[id] ?? {label:id,brand:''};

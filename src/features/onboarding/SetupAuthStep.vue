@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// Step 2: the credentials, in the form the provider takes them: a key, a ChatGPT account, AWS keys,
-// or nothing for a service on the Wish machine. Moving on reads the provider's model list with
-// them, so a refused key shows here, before anything is saved.
+// Step 2: the credentials, in the form the provider takes them: a key, a ChatGPT or GitHub account,
+// AWS keys, or nothing for a service on the Wish machine. Moving on reads the provider's model list
+// with them, so a refused key shows here, before anything is saved.
 import { computed, reactive, ref } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { MODEL_PROTOCOLS } from '../../core/provider-presets.ts';
@@ -12,6 +12,7 @@ import SelectField from '../../ui/components/SelectField.vue';
 import AnimatedDetails from '../../ui/components/AnimatedDetails.vue';
 import { credentialTitle } from '../settings/preset-profile.ts';
 import { useChatgptLogin } from '../settings/useChatgptLogin.ts';
+import { useCopilotLogin } from '../settings/useCopilotLogin.ts';
 import SetupChosen from './SetupChosen.vue';
 import type { SetupState } from './useProviderSetup.ts';
 
@@ -20,21 +21,26 @@ const setup = props.setup;
 const reveal = ref(false);
 // A ChatGPT account can also be given as a token by hand.
 const manualToken = ref(false);
-const login = reactive(useChatgptLogin(() => setup.id.trim(), setup.saveForSignIn, () => void setup.signedInWithChatgpt()));
+const login = reactive(useChatgptLogin(() => setup.id.trim(), setup.saveForSignIn, () => void setup.signedInWithAccount()));
+const copilotLogin = reactive(useCopilotLogin(() => setup.id.trim(), setup.saveForSignIn, () => void setup.signedInWithAccount()));
 
 const codex = computed(() => !!setup.profile?.codex);
+// A Copilot session lasts half an hour, so it only comes from signing in.
+const copilot = computed(() => setup.preset?.id === 'github_copilot');
 const local = computed(() => setup.provider.auth === 'none');
 const name = computed(() => setup.preset ? providerName(setup.preset.provider) : setup.custom ? tr('自定义提供商', 'your provider') : setup.id);
 const keyLabel = computed(() => setup.profile?.keyLabel || 'API Key');
 const title = computed(() => codex.value ? tr('登录 ChatGPT', 'Sign in to ChatGPT')
+  : copilot.value ? tr('登录 GitHub Copilot', 'Sign in to GitHub Copilot')
   : setup.custom ? tr('连接你的服务', 'Connect your service') : tr(`连接 ${name.value}`, `Connect ${name.value}`));
 const intro = computed(() => {
   if (codex.value) return tr('用 ChatGPT 账户登录，Wish 会按你的订阅调用模型，并自动刷新登录。', 'Sign in with your ChatGPT account. Wish calls models under your subscription and keeps the sign-in fresh.');
+  if (copilot.value) return tr('用 GitHub 账户登录，Wish 会按你的 Copilot 订阅调用模型，并自动续期。', 'Sign in with your GitHub account. Wish calls models under your Copilot subscription and keeps the session fresh.');
   if (setup.custom) return tr('填写服务地址和认证方式。下一步会用它们读取模型列表，确认能连上。', 'Enter the service address and how it signs requests. The next step reads its model list to make sure they work.');
   if (local.value) return tr('确认服务地址即可，本地服务不需要密钥。', 'Check the service address. A local service needs no key.');
   return setup.profile?.keyHint || tr(`填写 ${keyLabel.value}。它只保存在运行 Wish 的机器上。`, `Enter your ${keyLabel.value}. It stays on the machine Wish runs on.`);
 });
-const showKey = computed(() => setup.usesKey && (!codex.value || manualToken.value));
+const showKey = computed(() => setup.usesKey && !copilot.value && (!codex.value || manualToken.value));
 const credentials = computed(() => setup.credentialFields.filter(() => !codex.value || manualToken.value));
 // The service address is part of a preset; only a custom or local one asks for it up front.
 const addressFirst = computed(() => setup.custom || local.value);
@@ -83,6 +89,18 @@ const placeholder = (field?: string) => setup.stored(field) ? tr('已保存，�
               <button type="button" class="btn" :disabled="!login.callbackUrl || login.submitting" @click="login.complete">{{ login.submitting ? tr('验证中…', 'Checking…') : tr('完成登录', 'Finish') }}</button>
             </div>
           </div>
+        </template>
+      </div>
+      <div v-if="copilot" class="setup-signin">
+        <p v-if="setup.signedIn" class="setup-signed"><Icon name="check" />{{ tr('已登录 GitHub', 'Signed in to GitHub') }}</p>
+        <template v-else>
+          <button type="button" class="btn primary setup-signin-button" :disabled="setup.preview" @click="copilotLogin.start">
+            <Icon name="external-link" />{{ copilotLogin.busy ? tr('重新开始 GitHub 登录', 'Restart GitHub sign-in') : tr('通过 GitHub 登录', 'Sign in with GitHub') }}
+          </button>
+          <small v-if="setup.preview" class="setup-hint">{{ tr('预览中不会登录。', 'Sign-in is off in the preview.') }}</small>
+          <a v-if="copilotLogin.url" class="setup-link" :href="copilotLogin.url" target="_blank" rel="noopener noreferrer">{{ tr('重新打开登录页面', 'Open the sign-in page again') }}<Icon name="external-link" /></a>
+          <small v-if="copilotLogin.message" class="setup-hint" role="status">{{ copilotLogin.message }}</small>
+          <code v-if="copilotLogin.code" class="setup-code">{{ copilotLogin.code }}</code>
         </template>
       </div>
       <button v-if="codex && !setup.signedIn" type="button" class="setup-switch" @click="manualToken = !manualToken">

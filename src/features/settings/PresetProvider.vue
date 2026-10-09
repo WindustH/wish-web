@@ -5,6 +5,7 @@ import { computed, reactive, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import type { ProviderConfig, ProviderPreset } from '../../core/provider-presets.ts';
 import { presetProfile, credentialTitle } from './preset-profile.ts';
+import { useCopilotLogin } from './useCopilotLogin.ts';
 import { presetDescription, providerName } from '../../ui/providerPresentation.ts';
 import { protocolPresentation } from '../../ui/protocolPresentation.ts';
 import ProviderIcon from '../../ui/components/ProviderIcon.vue';
@@ -17,6 +18,7 @@ import { useSettingsReturn } from './settingsReturn.ts';
 import ProviderModels from './ProviderModels.vue';
 import { ACCOUNT_PROTOCOLS } from '../../core/provider-presets.ts';
 import SettingsItemCard, { type ItemState } from './SettingsItemCard.vue';
+import KeyValueEditor from './KeyValueEditor.vue';
 import { secretText, readSecret, writeCredential, REDACTED } from '../../core/secretRef.ts';
 import { useChatgptLogin } from './useChatgptLogin.ts';
 // `listTitle` names the provider in the phone list, where no ID is shown beside it.
@@ -27,6 +29,7 @@ const mobilePanel=ref('');
 const mobileReturning=ref(false);
 const modelEditor=ref<InstanceType<typeof ProviderModels>>();
 const login=reactive(useChatgptLogin(()=>props.id,props.save,()=>emit('loginComplete')));
+const copilotLogin=reactive(useCopilotLogin(()=>props.id,props.save,()=>emit('loginComplete')));
 function openModelAdd(){modelEditor.value?.openAdd();}
 async function backToProvider(){if(await returns.confirm()){mobileReturning.value=true;mobilePanel.value='';}}
 const returns=useSettingsReturn(()=>isMobile.value&&editing.value,async()=>{if(mobilePanel.value)await backToProvider();else if(await returns.confirm())closeEditor();});
@@ -42,6 +45,7 @@ const panels=computed(()=>[
 
 const state=computed<ItemState>(()=>props.value.enabled?{kind:'ok',text:tr('已启用','Enabled')}:{kind:'disabled',text:tr('已停用','Disabled')});
 const profile=computed(()=>props.preset?presetProfile(props.preset):undefined);
+const copilot=computed(()=>props.preset?.id==='github_copilot');
 const connectionCredentials=computed(()=>props.preset?.required_credentials.filter(field=>field==='workspace_id')??[]);
 const credentials=computed(()=>{
   if(props.value.auth==='sig_v4')return ['region','access_key_id','secret_access_key','session_token'];
@@ -86,6 +90,7 @@ const setCredential=(field:string,text:string)=>writeCredential(props.value.cred
       <label>{{tr('服务地址','Base URL')}}<input class="input" v-model="value.base_url"/></label>
       <label>{{tr('请求路径','Request path')}}<input class="input" v-model="value.path"/></label>
       <label v-for="field in connectionCredentials" :key="field">{{credentialTitle(field)||field}}<input class="input" :value="credentialValue(field)" :placeholder="value.credentials[field]===REDACTED?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" autocomplete="off" @input="setCredential(field,($event.target as HTMLInputElement).value)"/></label>
+      <div class="provider-headers"><span>{{tr('请求头','Headers')}}</span><KeyValueEditor :model-value="value.headers" :name-placeholder="tr('名称','Name')" :value-placeholder="tr('值','Value')" :add-label="tr('添加请求头','Add header')" @update:model-value="value.headers=$event??{}"/></div>
       <p v-if="profile?.note"  class="hint">{{profile.note}}</p>
     </section>
     <section v-show="!isMobile||mobilePanel==='auth'" class="preset-section">
@@ -109,10 +114,16 @@ const setCredential=(field:string,text:string)=>writeCredential(props.value.cred
           <div class="chatgpt-manual-input"><input v-model.trim="login.callbackUrl" class="input" type="url" :placeholder="tr('粘贴 localhost 授权链接','Paste the localhost redirect URL')" autocomplete="off" spellcheck="false" @keydown.enter.prevent="login.complete"/><button type="button" class="btn" :disabled="!login.callbackUrl||login.submitting" @click="login.complete">{{login.submitting?tr('验证中…','Verifying…'):tr('完成登录','Complete sign-in')}}</button></div>
         </div>
       </div>
+      <div v-if="copilot" class="chatgpt-login">
+        <button type="button" class="btn primary" :disabled="saving" @click="copilotLogin.start"><Icon name="external-link"/>{{copilotLogin.busy?tr('重新开始 GitHub 登录','Restart GitHub sign-in'):tr('通过 GitHub 登录','Sign in with GitHub')}}</button>
+        <a v-if="copilotLogin.url" :href="copilotLogin.url" target="_blank" rel="noopener noreferrer">{{tr('重新打开登录页面','Open sign-in page again')}}</a>
+        <small v-if="copilotLogin.message" class="hint" role="status">{{copilotLogin.message}}</small>
+        <code v-if="copilotLogin.code" class="copilot-code" :aria-label="tr('验证码','Code')">{{copilotLogin.code}}</code>
+      </div>
     </section>
     <AnimatedDetails v-show="!isMobile||mobilePanel==='advanced'" :open="isMobile" class="preset-section"><summary><span>{{tr('高级设置','Advanced settings')}}</span><Icon name="chevron-down"/></summary>
       <div class="advanced-fields">
-      <label>{{tr('模型列表协议','Catalog protocol')}}<SelectField mobile-page :model-value="value.model_list??''" :options="optional(['openai_models','openai_codex_models','anthropic_models','google_models','qwen_models','bedrock_models'])" @update:model-value="value.model_list=$event||null"/></label>
+      <label>{{tr('模型列表协议','Catalog protocol')}}<SelectField mobile-page :model-value="value.model_list??''" :options="optional(['openai_models','openai_codex_models','anthropic_models','google_models','qwen_models','bedrock_models','github_copilot_models'])" @update:model-value="value.model_list=$event||null"/></label>
       <label>{{tr('模型列表地址','Catalog base URL')}}<input class="input" :value="value.model_list_base_url??''" @input="value.model_list_base_url=($event.target as HTMLInputElement).value||null"/></label>
       <label>{{tr('模型列表路径','Catalog path')}}<input class="input" :value="value.model_list_path??''" @input="value.model_list_path=($event.target as HTMLInputElement).value||null"/></label>
       <label>{{tr('Token 计数协议','Token count protocol')}}<SelectField mobile-page :model-value="value.token_count??''" :options="optional(['openai_responses','anthropic_messages','google_generate_content'])" @update:model-value="value.token_count=$event||null"/></label>
@@ -135,6 +146,7 @@ const setCredential=(field:string,text:string)=>writeCredential(props.value.cred
 .provider-item :deep(.settings-item-mark){color:var(--fg)}
 .provider-item :deep(.settings-item-heading small){white-space:normal;overflow-wrap:anywhere}
 .chatgpt-login{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}.chatgpt-login .btn{display:inline-flex;align-items:center;gap:7px}.chatgpt-login .hint{width:100%}
+.copilot-code{width:100%;font:600 20px/1.4 var(--mono);letter-spacing:.12em;user-select:all}
 .chatgpt-manual{width:100%;display:grid;gap:8px}.chatgpt-manual-input{display:flex;gap:8px}.chatgpt-manual-input .input{flex:1;min-width:0}.chatgpt-manual-input .btn{flex:none}@media(max-width:599px){.chatgpt-manual-input{flex-direction:column}}
 
 
@@ -152,8 +164,8 @@ const setCredential=(field:string,text:string)=>writeCredential(props.value.cred
 .provider-models-chevron{width:15px;height:15px;margin-left:4px;transition:transform var(--dur-fast)}
 .provider-models[open] .provider-models-chevron{transform:rotate(180deg)}
 .provider-models :deep(.models-editor){padding:12px 16px 16px}
-.preset-section{display:grid;gap:14px;border-top:1px solid var(--line);padding-top:16px;margin-top:16px}.preset-section>header{display:flex;justify-content:space-between;align-items:center}.preset-section h3{font-size:14px;margin:0}.preset-section label{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:8px 16px;min-width:0}.preset-section label>small{grid-column:2}.preset-section p{margin:0}.advanced-fields{display:grid;gap:14px;padding-top:14px;min-width:0}.provider-name{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:8px 16px}.preset-section summary{cursor:pointer;font-weight:500}.input{width:100%;min-width:0}a,.hint{font-size:12px;color:var(--fg-subtle)}
-@media(max-width:599px){.provider-name{grid-template-columns:1fr}.preset-section label{grid-template-columns:minmax(0,1fr)}.preset-section label>small{grid-column:1}}
+.preset-section{display:grid;gap:14px;border-top:1px solid var(--line);padding-top:16px;margin-top:16px}.preset-section>header{display:flex;justify-content:space-between;align-items:center}.preset-section h3{font-size:14px;margin:0}.preset-section label{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:8px 16px;min-width:0}.preset-section label>small{grid-column:2}.provider-headers{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:start;gap:8px 16px;min-width:0}.provider-headers>span{padding-top:9px}.preset-section p{margin:0}.advanced-fields{display:grid;gap:14px;padding-top:14px;min-width:0}.provider-name{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:8px 16px}.preset-section summary{cursor:pointer;font-weight:500}.input{width:100%;min-width:0}a,.hint{font-size:12px;color:var(--fg-subtle)}
+@media(max-width:599px){.provider-name{grid-template-columns:1fr}.preset-section :is(label,.provider-headers){grid-template-columns:minmax(0,1fr)}.provider-headers>span{padding-top:0}.preset-section label>small{grid-column:1}}
 @media(min-width:900px){.preset-section{gap:10px;padding-top:12px;margin-top:12px}.advanced-fields{gap:10px;padding-top:10px}}
 @media(max-width:899px){
  /* Providers are rows of one grouped list; dividers start after the icon. */
@@ -173,7 +185,8 @@ const setCredential=(field:string,text:string)=>writeCredential(props.value.cred
  .provider-panel .preset-section{padding:0;gap:0;overflow:hidden}
  .provider-panel .preset-section>header{padding:0 14px}
  .provider-panel .preset-section>header:not(:has(a)){display:none}
- .provider-panel .preset-section label{padding:12px 14px}
+ .provider-panel .preset-section :is(label,.provider-headers){padding:12px 14px}
+ .provider-panel .provider-headers{font-size:13.5px;font-weight:500}
  .provider-panel .preset-section>.hint{padding:12px 14px}
  .provider-panel .preset-section label>.hint{display:block;margin-top:8px;line-height:1.6}
  .provider-panel .preset-section>.chatgpt-login{padding:14px;border-top:1px solid var(--line)}
@@ -201,8 +214,9 @@ const setCredential=(field:string,text:string)=>writeCredential(props.value.cred
  .preset-section>header,.preset-section>h3{margin:0;padding:14px 16px 4px;font-size:13px}
  .preset-section>header h3{font-size:13px}
  .preset-section>header a{font-size:12px}
- .preset-section>:is(label,.provider-toggle,.hint,.chatgpt-login){margin:0;padding:10px 16px}
- .preset-section>:is(label,.provider-toggle)+:is(label,.provider-toggle){border-top:1px solid var(--line)}
+ .preset-section>:is(label,.provider-toggle,.provider-headers,.hint,.chatgpt-login){margin:0;padding:10px 16px}
+ .preset-section>:is(label,.provider-toggle,.provider-headers)+:is(label,.provider-toggle,.provider-headers){border-top:1px solid var(--line)}
+ .provider-headers>span{font-weight:500}
  .preset-section>.hint{padding-block:2px 8px;font-size:12px;color:var(--fg-subtle)}
  .preset-section label{font-weight:500}
  .preset-section label>:is(.input,.control-select,small){font-weight:400}

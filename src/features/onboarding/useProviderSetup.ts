@@ -213,8 +213,8 @@ export function useProviderSetup({ preview = false } = {}) {
       return false;
     }
   }
-  /** After a ChatGPT sign-in: takes the provider as saved, with its tokens, and reads its catalog. */
-  async function signedInWithChatgpt() {
+  /** After a ChatGPT or GitHub sign-in: takes the provider as saved, with its tokens, and reads its catalog. */
+  async function signedInWithAccount() {
     try {
       snapshot.value = await configSnapshot({ signal: controller?.signal });
       const saved = snapshot.value.config.providers[id.value.trim()];
@@ -230,7 +230,7 @@ export function useProviderSetup({ preview = false } = {}) {
     preview, snapshot, catalog, loading, saving, error, step, choice, id, model, provider, preset, profile,
     existing, custom, usesKey, credentialFields, optionalCredential, authMissing, models, named, catalogState,
     verifying, verifyFailed, signedIn, choose, load, save, setSecret, secretValue, stored, verify, skipVerify,
-    saveForSignIn, signedInWithChatgpt,
+    saveForSignIn, signedInWithAccount,
   };
 }
 export type ProviderSetup = ReturnType<typeof useProviderSetup>;

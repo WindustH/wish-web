@@ -5,7 +5,8 @@ export function providerPriority(brand: string): number {
     'Z.ai': 4, 'Z.AI': 4, Zhipu: 4, MiMo: 5,
   };
   if (brand in preferred) return preferred[brand]!;
-  if (['SiliconFlow', 'AWS Bedrock', 'OpenRouter', 'Hugging Face Router', 'OpenCode', 'Groq', 'Cerebras'].includes(brand)) return 100;
-  if (['Ollama', 'LM Studio', 'vLLM'].includes(brand)) return 200;
+  if (['SiliconFlow', 'AWS Bedrock', 'OpenRouter', 'Hugging Face Router', 'OpenCode', 'Groq', 'Cerebras', 'Together AI', 'Fireworks',
+    'NVIDIA NIM', 'ModelScope', 'AiHubMix', '302.AI', 'CherryIN', 'PipeLLM', '鱼鱼连线', 'Command Code', 'Magpie'].includes(brand)) return 100;
+  if (['Ollama', 'LM Studio', 'vLLM', 'oMLX', 'MLX-Serve'].includes(brand)) return 200;
   return 20;
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The model providers and the network proxy they use, edited in the settings draft.
-import { inject } from 'vue';
+import { inject, onUnmounted } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
 import AddProvider from './AddProvider.vue';
 import PresetProvider from './PresetProvider.vue';
@@ -15,6 +15,8 @@ const {
   draft, busy, catalog, proxyEnvironment, adding, newProviderId, advanced, advancedPending,
   providerTitle, protocolOptions, findPreset, load, applyAdvanced, addProvider, changeProtocol, removeProvider,
 } = inject(configDraftKey)!;
+// A provider is new only until this page is left; coming back must not reopen its editor.
+onUnmounted(() => { newProviderId.value = ''; });
 </script>
 
 <template>

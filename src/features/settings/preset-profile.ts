@@ -17,6 +17,14 @@ const docs: Record<string, string> = {
   Mistral: 'https://docs.mistral.ai/', xAI: 'https://docs.x.ai/overview', Groq: 'https://console.groq.com/docs/quickstart',
   Cerebras: 'https://inference-docs.cerebras.ai/quickstart', Ollama: 'https://docs.ollama.com/api/authentication',
   'LM Studio': 'https://lmstudio.ai/docs/developer/core/authentication', vLLM: 'https://docs.vllm.ai/en/latest/serving/openai_compatible_server/',
+  'GitHub Copilot': 'https://docs.github.com/copilot', StepFun: 'https://platform.stepfun.ai',
+  'Baidu Qianfan': 'https://cloud.baidu.com/doc/qianfan/s/Dmrabu8b6', 'Volcengine Ark': 'https://www.volcengine.com/docs/82379/1925114',
+  'Huawei Cloud': 'https://support.huaweicloud.com/Token-plan-maas/tokenplan-maas-0001.html', 'Together AI': 'https://docs.together.ai/',
+  Fireworks: 'https://fireworks.ai', 'NVIDIA NIM': 'https://build.nvidia.com', ModelScope: 'https://modelscope.cn/docs/model-service/API-Inference/intro',
+  AiHubMix: 'https://aihubmix.com', '302.AI': 'https://302.ai', CherryIN: 'https://open.cherryin.ai', PipeLLM: 'https://www.pipellm.ai',
+  '鱼鱼连线': 'https://yylx.io', 'Command Code': 'https://commandcode.ai/docs/provider',
+  Magpie: 'https://github.com/yetone/magpie/blob/main/docs/reference.md#connecting-anything-else', oMLX: 'https://omlx.ai',
+  'MLX-Serve': 'https://github.com/ddalcu/mlx-serve',
 };
 export function presetProfile(p: ProviderPreset) {
   const brand = providerName(p.provider);
@@ -35,6 +43,20 @@ export function presetProfile(p: ProviderPreset) {
     documentation = 'https://developers.openai.com/codex/auth/';
   } else if (aws) {
     note = tr('此预设使用 AWS SigV4 签名。地区决定 Bedrock 服务地址；临时凭据必须同时填写 Session Token。', 'This preset uses AWS SigV4 signing. The region determines the Bedrock host; temporary credentials also require a Session Token.');
+  } else if (p.id === 'github_copilot') {
+    keyLabel = 'Copilot Token';
+    keyHint = tr('通过 GitHub 登录获取；会话令牌约半小时过期，Wish 会用 GitHub 令牌自动续期。', 'Sign in with GitHub. The session token lasts about half an hour; Wish renews it from the GitHub token.');
+    note = tr('Copilot 的多数模型走 Chat Completions，最新的 GPT 模型只走 Responses，Claude 也可走 Messages。一个提供商只用一种协议，其他协议的模型请另建一个 Copilot 提供商并单独登录。', 'Copilot serves most models on Chat Completions, its newest GPT models only on Responses, and Claude on Messages too. A provider speaks one protocol; add another Copilot provider, signed in on its own, for models of another protocol.');
+  } else if (p.id === 'magpie') {
+    keyLabel = 'Magpie API Key';
+    keyHint = tr('Magpie 与 Wish 后端在同一台机器时任意值都可以；局域网共享的 Magpie 需要它的网关密钥。', 'Any value works for a Magpie on the Wish server\'s machine; a Magpie shared on its network needs one of its gateway keys.');
+    note = tr('模型名称为 provider/model。服务地址相对于运行 Wish 后端的机器；连接另一台机器的 Magpie 时，同时修改服务地址和账户查询地址。', 'Models are named provider/model. The address is relative to the Wish server; for a Magpie on another machine, change both the base URL and the account base URL.');
+  } else if (p.id === 'ollama_cloud') {
+    keyHint = tr('填写 ollama.com 创建的 API Key，用于 Ollama 的云端模型。', 'Use an API key created on ollama.com, for Ollama\'s cloud models.');
+    documentation = 'https://docs.ollama.com/cloud';
+  } else if (!Object.values(p.variants).some(variant => variant.model_list)) {
+    keyHint = tr('填写该服务或套餐对应的 API Key。', 'Use the API key of this service or plan.');
+    note = tr('该服务不提供模型列表，请在模型中手动添加模型 ID，以服务或套餐页面列出的为准。', 'The service offers no model list; add model IDs by hand, as its service or plan page lists them.');
   } else if (local) {
     note = tr('服务地址相对于运行 Wish 后端的机器；127.0.0.1 不是浏览器所在的机器。服务需已启动并提供所选模型。', 'The address is relative to the Wish backend host; 127.0.0.1 is not the browser host. Start the service and make the selected model available.');
   } else if (p.id === 'huggingface_router') {
@@ -72,7 +94,7 @@ export function presetProfile(p: ProviderPreset) {
     note = tr('填写 OpenRouter 签发的 API Key；模型名称使用其目录中的完整 ID。', 'Use an OpenRouter-issued API key and the full model ID from its catalog.');
   } else if (p.id === 'anthropic') {
     keyHint = tr('填写 Claude Console 签发的 API Key；当前预设通过 x-api-key 发送。', 'Use an API key from Claude Console; this preset sends it through x-api-key.');
-    note = tr('多 workspace 密钥需要在额外请求头中填写 anthropic-workspace-id。', 'Multi-workspace keys require anthropic-workspace-id in additional headers.');
+    note = tr('未限定 workspace 的密钥需要在请求头中添加 anthropic-workspace-id，值为 workspace ID。', 'A key not scoped to a workspace needs an anthropic-workspace-id header carrying the workspace ID.');
   }
   return { codex, keyLabel, keyHint, note, documentation };
 }

@@ -111,6 +111,10 @@ const UNIT_NOUNS: Record<string, [string, string]> = {
 const WINDOW_NOUNS: Record<string, [string, string]> = {
   // Zhipu / Z.AI coding plans: the monthly calls to their MCP tools (search, reader, repositories).
   'ZaiCodingPlanMonitor:TIME_LIMIT': ['MCP 调用次数', 'MCP calls'],
+  // GitHub Copilot's monthly allowances, by the snapshot each comes from.
+  'GitHubCopilotUsage:chat': ['对话请求', 'Chat requests'],
+  'GitHubCopilotUsage:completions': ['代码补全', 'Code completions'],
+  'GitHubCopilotUsage:premium_interactions': ['高级请求', 'Premium requests'],
 };
 
 /** "Tokens · 5 hours", or the service's own name for a window it does not describe. */

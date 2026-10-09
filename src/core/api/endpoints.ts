@@ -5,7 +5,7 @@ import { sessionView, entryView, providerView, type EntryView, type ProviderView
 import type { SeriesQuery, DailyQuery, UsageSeriesResponse, UsageDailyResponse } from '../usage/types.ts';
 import type { ConfigCatalog, ProviderConfig } from '../provider-presets.ts';
 import type {
-  BlobInfo, ChatgptLogin, ConfigSnapshot, CreateSessionBody, DefaultModel, DirectoryListing, EffectiveConfig,
+  BlobInfo, ChatgptLogin, ConfigSnapshot, CopilotDeviceCode, CopilotLogin, CreateSessionBody, DefaultModel, DirectoryListing, EffectiveConfig,
   EndpointOptions, HistoryHit, HistoryQuery, HistorySearchParams, McpServerStatus, McpTool, MessageBlock,
   ModelCatalogSource, ModelChange, PruneResult, QuestionAnswer, QueuedDelivery, SearchHit, SearchPreset,
   SkillContent, SkillsSnapshot, Conversation, ConversationsPage, FolderView, GroupMessage, GroupMessagesPage, GroupStorage, GroupView,
@@ -230,6 +230,9 @@ const chatgptLogin = (provider: string) => `/providers/${encodeURIComponent(prov
 export const chatgptLoginStart = (provider: string): Promise<{ authorization_url: string }> => post(chatgptLogin(provider), {});
 export const chatgptLoginStatus = (provider: string): Promise<ChatgptLogin> => get(chatgptLogin(provider));
 export const chatgptLoginComplete = (provider: string, callbackUrl: string) => post(`${chatgptLogin(provider)}/complete`, { callback_url: callbackUrl });
+const copilotLogin = (provider: string) => `/providers/${encodeURIComponent(provider)}/copilot-login`;
+export const copilotLoginStart = (provider: string): Promise<CopilotDeviceCode> => post(copilotLogin(provider), {});
+export const copilotLoginStatus = (provider: string): Promise<CopilotLogin> => get(copilotLogin(provider));
 
 // Configuration.
 export const configEffective = (opts?: EndpointOptions): Promise<EffectiveConfig> => get('/defaults', opts);
