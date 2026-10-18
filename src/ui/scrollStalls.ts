@@ -16,8 +16,9 @@ export interface ScrollStall {
   touchAction?: string;
   /** Moves cancelled by the page's listeners, moves stopped before reaching the window, and all moves. */
   moves?: string;
-  /** For a tap: whether a click came at all, and whether a listener on the way stopped it. */
+  /** For a tap: whether a click came at all, whether a listener on the way stopped it, and which. */
   click?: string;
+  swallowedBy?: string;
   /** The list's scrollTop / scrollHeight / clientHeight. */
   scroll: string;
   page: string;
@@ -104,6 +105,9 @@ const menuInSight = () => [...document.querySelectorAll('.menu-pop, [role="dialo
 // it comes down, and again last of all, as it goes back up. Seen only coming down, a listener on the
 // way stopped it; not seen at all, nothing took the tap as one.
 let clickDown = 0, clickUp = 0;
+let swallowed: { by: string; at: number } | undefined;
+/** Called by the page's own listeners that keep a click from what it landed on, saying why. */
+export function noteSwallowedClick(by: string) { swallowed = { by, at: performance.now() }; }
 const ANSWERS = 'a, button, [role="button"], [role="option"], [role="menuitem"], input, label, summary, .sl-item';
 function watchTap(gesture: Touch) {
   const target = gesture.target instanceof Element ? gesture.target.closest(ANSWERS) : null;
@@ -112,7 +116,10 @@ function watchTap(gesture: Touch) {
   setTimeout(() => {
     if (clickUp > tappedAt || performance.now() - lastRecord < 2000) return;
     lastRecord = performance.now();
-    record('tap', gesture.x, gesture.y, gesture.target, null, { click: clickDown > tappedAt ? 'stopped on the way' : 'none came' });
+    record('tap', gesture.x, gesture.y, gesture.target, null, {
+      click: clickDown > tappedAt ? 'stopped on the way' : 'none came',
+      swallowedBy: swallowed && swallowed.at > tappedAt - 50 ? swallowed.by : undefined,
+    });
   }, 350);
 }
 

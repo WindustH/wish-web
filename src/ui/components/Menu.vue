@@ -31,6 +31,7 @@ import Icon from './Icon.vue';
 import MenuBackdrop from './MenuBackdrop.vue';
 import { usePageActivity } from '../composables/usePageActivity.ts';
 import { covers, glyphAt } from '../textAtPoint.ts';
+import { noteSwallowedClick } from '../scrollStalls.ts';
 
 // `checked` marks the current choice of a menu that picks one of several.
 export type MenuItem = { key: string; label: string; icon?: string; danger?: boolean; shortcut?: string; separator?: boolean; checked?: boolean };
@@ -162,6 +163,7 @@ function dropClickAfterPress(event: MouseEvent) {
   if (performance.now() - openedAt > 800) return;
   event.preventDefault();
   event.stopPropagation();
+  noteSwallowedClick('menu: lifting the finger that opened it');
 }
 watch(pageActive, active => { if (!active) close(); });
 // The ancestors that clip an element, and the part of it they and the window leave in sight.

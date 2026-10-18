@@ -12,6 +12,7 @@ import Icon from './Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { copyText } from '../clipboard.ts';
 import { caretAt, covers, glyphAt } from '../textAtPoint.ts';
+import { noteSwallowedClick } from '../scrollStalls.ts';
 
 // The text a held finger selects in: what a message says. base.css names the same parts.
 const ROOTS = '.entry.user .bubble, .entry.assistant .body > .markdown';
@@ -170,6 +171,7 @@ function onClick(event: MouseEvent) {
   if (performance.now() < quietUntil && !isUi(event.target)) {
     event.preventDefault();
     event.stopPropagation();
+    noteSwallowedClick('touch selection: lifting the finger that selected');
   }
 }
 

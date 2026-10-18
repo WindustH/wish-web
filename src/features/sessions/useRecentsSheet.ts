@@ -2,6 +2,7 @@ import { onBeforeUnmount, watch, type Ref } from 'vue';
 import { useRoute, useRouter, type Router } from 'vue-router';
 import { animate, motionValue, type AnimationPlaybackControls, type MotionValue } from 'motion-v';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
+import { noteSwallowedClick } from '../../ui/scrollStalls.ts';
 
 // On a phone the full session list is a sheet over the home page. Its two resting places are the
 // two routes - closed on /sessions, open on /sessions/all - and between them it follows a finger or
@@ -11,6 +12,7 @@ import { useIsMobile } from '../../ui/composables/useMedia.ts';
 // recent rows opens it, a pull down at the top of the list closes it; a touch while it moves takes
 // hold of it where it is. A pull down on the recent rows only stretches them. Taps, links and the
 // back button move it along the same path. Motion stops at the end it heads for, never past it.
+// A touch that only takes hold, without moving, is still a tap: the sheet settles and the tap acts.
 const FLING = 350;        // px/s of release that decides the way on its own
 const MAX_STRETCH = 96;   // px the recent rows stretch at most
 const SPRING = { type: 'spring', bounce: 0, visualDuration: .32 } as const;
@@ -28,21 +30,23 @@ const stretchOf = (distance: number) => MAX_STRETCH * (1 - 1 / (1 + Math.max(0, 
 const pullOf = (offset: number) => MAX_STRETCH * 2 * (1 / (1 - Math.min(offset, MAX_STRETCH - 1) / MAX_STRETCH) - 1);
 
 // Springs `value` to `to` and stops it there the moment it gets there, rather than letting it
-// swing past and back.
-function settleAt(value: MotionValue<number>, to: number, done: () => void): AnimationPlaybackControls {
+// swing past and back. Stopped before then, it lets go of the value entirely: a spring stopped
+// mid-way must not later snap the value to where it was heading.
+function settleAt(value: MotionValue<number>, to: number, done: () => void): { stop: () => void } {
   let finished = false;
+  let controls: AnimationPlaybackControls | undefined;
   const finish = () => {
     if (finished) return;
     finished = true;
-    stop();
-    controls.stop();
+    unwatch();
+    controls?.stop();
     value.jump(to);
     done();
   };
   const from = value.get();
-  const stop = value.on('change', current => { if ((current - to) * (from - to) <= 0) finish(); });
-  const controls = animate(value, to, { ...SPRING, velocity: value.getVelocity(), onComplete: finish });
-  return controls;
+  const unwatch = value.on('change', current => { if ((current - to) * (from - to) <= 0) finish(); });
+  controls = animate(value, to, { ...SPRING, velocity: value.getVelocity(), onComplete: finish });
+  return { stop: () => { finished = true; unwatch(); controls?.stop(); } };
 }
 
 export function useRecentsSheet(split: Ref<HTMLElement | null>) {
@@ -53,13 +57,13 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
 
   const progress = motionValue(restOf(route.name) ?? 0);  // 0 closed, 1 open
   const stretch = motionValue(0);
-  let settling: AnimationPlaybackControls | undefined;
+  let settling: { stop: () => void } | undefined;
   let target: 0 | 1 = progress.get() ? 1 : 0;
   let shift = 0;       // px the sheet travels between closed and open
   let headers: HTMLElement[] = [];
   let extras: HTMLElement[] = [];  // rows the home page does not show
   let resting: 0 | 1 | undefined;
-  let quietUntil = 0;  // clicks before this time end a drag, not open anything
+  let quietUntil = 0;  // a click before this time (performance.now) ends a drag, not opens anything
   type Drag = { kind: 'open' | 'close' | 'hold'; mode?: 'sheet' | 'stretch'; x: number; y: number; from: number };
   let drag: Drag | undefined;
 
@@ -157,6 +161,8 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
 
   function onTouchStart(event: TouchEvent) {
     drag = undefined;
+    // Whatever the last touch was, this one is new; only its own drag may keep its click.
+    quietUntil = 0;
     const touch = event.touches[0];
     if (!phone.value || event.touches.length !== 1 || !touch) return;
     const at = event.target as Element;
@@ -213,7 +219,7 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
     const ended = drag;
     drag = undefined;
     if (!ended) return;
-    if (ended.mode || ended.kind === 'hold') quietUntil = event.timeStamp + 400;
+    if (ended.mode) quietUntil = performance.now() + 400;
     if (ended.mode === 'stretch') {
       settleAt(stretch, 0, () => {});
       return;
@@ -232,7 +238,11 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   }
 
   function onClick(event: MouseEvent) {
-    if (event.timeStamp < quietUntil) { event.preventDefault(); event.stopPropagation(); }
+    if (performance.now() >= quietUntil) return;
+    quietUntil = 0;
+    event.preventDefault();
+    event.stopPropagation();
+    noteSwallowedClick('recents sheet: the touch dragged it');
   }
 
   watch(split, (element, _, cleanup) => {

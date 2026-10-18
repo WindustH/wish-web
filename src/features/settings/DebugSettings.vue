@@ -30,7 +30,7 @@ const closeSettings = inject(closeOverlayKey);
 const copyStalls = () => copyText(JSON.stringify(stalls.value, null, 2));
 const summary = (stall: typeof stalls.value[number]) => [
   stall.coveredBy ? tr(`被 ${stall.coveredBy} 盖住`, `covered by ${stall.coveredBy}`) : stall.target,
-  stall.moves, stall.click && tr(`点击：${stall.click}`, `click: ${stall.click}`), stall.layers.join(', '),
+  stall.moves, stall.click && tr(`点击：${stall.click}`, `click: ${stall.click}`), stall.swallowedBy, stall.layers.join(', '),
 ].filter(Boolean).join(' · ');
 async function previewOnboarding() {
   // The desktop settings dialog is modal and would take every click meant for
