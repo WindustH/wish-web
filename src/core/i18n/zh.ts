@@ -141,5 +141,6 @@ export const zh = {
   'pwa.updateFailed': '更新失败，请稍后重试',
   'pwa.reload': '立即更新',
   'pwa.later': '稍后',
+  'pwa.reloadHint': '更新后页面会重新载入',
   'sync.protocolError': '同步流数据帧格式错误,已忽略该帧',
 };

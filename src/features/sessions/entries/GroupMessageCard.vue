@@ -112,7 +112,7 @@ onBeforeUnmount(() => observer?.disconnect());
 .group-card-meta { display: inline-flex; flex: none; align-items: center; gap: 8px; margin-left: auto; padding-left: 8px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .group-card-body { display: grid; gap: 10px; margin-top: 8px; }
 /* The first lines only, fading out when there is more; the window has the rest. */
-.group-card-preview { max-height: calc(var(--message-size, 15px) * 1.75 * 5); overflow: hidden; color: var(--fg); pointer-events: none; }
+.group-card-preview { max-height: calc(var(--message-size) * var(--message-leading) * 5); overflow: hidden; color: var(--fg); pointer-events: none; }
 .group-card-preview.clipped { mask-image: linear-gradient(to bottom, #000 60%, transparent); }
 .group-card-preview :deep(.markdown > :first-child) { margin-top: 0; }
 .group-card-preview :deep(.markdown > :last-child) { margin-bottom: 0; }

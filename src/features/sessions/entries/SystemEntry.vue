@@ -5,9 +5,11 @@ import Modal from '../../../ui/components/Modal.vue';
 import CopyButton from '../../../ui/components/CopyButton.vue';
 import ProcessDetail from './ProcessDetail.vue';
 import Icon from '../../../ui/components/Icon.vue';
+import { useIsMobile } from '../../../ui/composables/useMedia.ts';
 
 const props = defineProps<{ item: any }>();
 const open = ref(false);
+const isMobile = useIsMobile();
 const detailModal = ref<InstanceType<typeof Modal> | null>(null);
 const background = computed(() => props.item.entry.payload?.background);
 const backgroundOutput = computed(() => props.item.entry.payload?.result?.output);
@@ -43,7 +45,6 @@ const SOURCE_LABELS: Record<string, string> = {
 const source = computed(() => props.item.entry.payload?.source ?? '');
 const tone = computed(() => (source.value === 'wish_run_failed'
   ? 'error' : WARN_SOURCES.has(source.value) ? 'warn' : 'system'));
-// Only a warning or an error has a chip of its own; plain system notes fold.
 const iconName = computed(() => (tone.value === 'error' ? 'x' : 'triangle-alert'));
 const label = computed(() => props.item.entry.kind === 'developer_message' ? 'Developer Message' : i18n.t(props.item.entry.kind === 'run_interrupted'
   ? 'entry.interruption' : props.item.entry.kind === 'background_terminal'
@@ -53,26 +54,26 @@ const text = computed(() => (props.item.entry.payload?.content ?? [])
 </script>
 
 <template>
-  <div class="entry system">
-    <div class="body">
-      <button v-if="background" class="fold-chip" @click="open=true"><Icon name="terminal"/>{{backgroundLabel}}</button>
-      <span v-else-if="item.entry.kind === 'run_interrupted'" class="stop-marker" role="status"><Icon name="square" />{{ i18n.t('entry.stopped') }}</span>
-      <button v-else-if="tone !== 'system'" class="notice-chip" :class="tone" @click="open = true"><Icon :name="iconName" />{{ label }}</button>
-      <button v-else class="fold-chip" @click="open = true"><Icon name="circle-dot" />{{ label }}</button>
+  <!-- A notice is a button among the reply's words, as a run of steps is. -->
+  <span class="history-chip-host">
+      <button v-if="background" class="history-chip" :class="{ error: backgroundFailed }" @click="open=true"><Icon name="terminal"/><span class="history-chip-text">{{backgroundLabel}}</span></button>
+      <span v-else-if="item.entry.kind === 'run_interrupted'" class="history-chip stop" role="status"><Icon name="square" /><span class="history-chip-text">{{ i18n.t('entry.stopped') }}</span></span>
+      <button v-else class="history-chip" :class="tone" @click="open = true"><Icon :name="tone === 'system' ? 'circle-dot' : iconName" /><span class="history-chip-text">{{ label }}</span></button>
       <ProcessDetail v-if="open && item.entry.payload?.background" :step="{kind:'entry',entry:item.entry}" @close="open=false"/>
-      <Modal v-else ref="detailModal" :open="open" :title="label" compact content-class="system-detail" @close="open = false">
-        <div class="system-detail-actions">
+      <!-- On a phone it slides up as a run's card does, with the same head; elsewhere a small window. -->
+      <Modal v-else ref="detailModal" :open="open" :sheet="isMobile" :title="label" :compact="!isMobile" content-class="system-detail" @close="open = false">
+        <template v-if="isMobile" #actions><CopyButton :text="text" /></template>
+        <div v-if="!isMobile" class="system-detail-actions">
           <CopyButton :text="text" />
           <button type="button" class="btn ghost icon-only" :aria-label="i18n.t('common.close')" @click="detailModal?.close()"><Icon name="x" /></button>
         </div>
         <pre class="detail-pre">{{ text }}</pre>
       </Modal>
-    </div>
-  </div>
+  </span>
 </template>
 
 <style scoped>
-:global(.modal-card.system-detail:not(.modal-page)){width:max-content;max-width:min(94vw,42.5rem)}
+:global(.modal-card.system-detail:not(.modal-page):not(.modal-sheet)){width:max-content;max-width:min(94vw,42.5rem)}
 :global(.system-detail.compact .modal-body){position:relative;padding:14px 16px 16px;min-width:min(270px,calc(100vw - 48px))}
 :global(.system-detail .modal-body){overflow:hidden}
 :global(.system-detail .modal-flow-title){padding-right:70px;margin-bottom:10px}
@@ -80,14 +81,4 @@ const text = computed(() => (props.item.entry.payload?.content ?? [])
 :global(.system-detail .system-detail-actions .btn){min-width:28px;width:28px;min-height:28px;height:28px;padding:0}
 :global(.system-detail .modal-body > .detail-pre){margin:0;max-height:calc(84dvh - 140px);overflow:auto;white-space:pre-wrap}
 
-.stop-marker { color: var(--err); }
-.stop-marker :deep(svg) { width: 14px; height: 14px; }
-.notice-chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; margin: 3px 0; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; color: var(--fg-subtle); font: 400 13px/1.6 var(--font); text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer; transition: filter var(--dur-fast); }
-.notice-chip :deep(svg) { width: 14px; height: 14px; flex: none; }
-.notice-chip.warn { color: var(--warn); background: var(--warn-bg); border-color: var(--warn-border); }
-.notice-chip.error { color: var(--err); background: var(--err-bg); border-color: var(--err-border); }
-/* Hover stays inside the chip's own hue: brightening the whole chip reads
-   as emphasis without swapping the foreground to the accent, which clashed
-   (amber chip, orange hover). Applies equally to the warn and error tones. */
-@media (hover: hover) { .notice-chip:hover { filter: brightness(1.06); } }
 </style>

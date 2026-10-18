@@ -39,11 +39,8 @@ onUnmounted(() => { newProviderId.value = ''; });
 </template>
 
 <style scoped>
-@media (min-width: 900px) {
-  .provider-list { display: grid; gap: 12px; }
-}
+.provider-list { display: grid; gap: 12px; }
 @media (max-width: 899px) {
-  .provider-list { border: 0; border-radius: 18px; background: var(--bg-sunken); overflow: hidden; }
-  .provider-list > * + * { border-top: 2px solid transparent; }
+  .provider-list { gap: 10px; }
 }
 </style>

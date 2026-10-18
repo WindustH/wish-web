@@ -13,10 +13,12 @@ import { i18n } from '../../core/i18n/index.ts';
 import { useDialogLayer } from '../composables/useDialogLayer.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
 import { prefersReducedMotion } from '../motion/reducedMotion.ts';
+import { useSheetDrag } from '../composables/useSheetDrag.ts';
 const focus = useDialogFocus();
 const pageActive = usePageActivity();
 
-const props = withDefaults(defineProps<{ open: boolean; title: string; beforeClose?: () => boolean | Promise<boolean>; layer?: number; wide?: boolean; page?: boolean; back?: () => void; contentClass?: string; dismissable?: boolean; compact?: boolean }>(), { dismissable: true });
+// `sheet`: a card that slides up from the bottom of a phone's screen rather than one in its middle.
+const props = withDefaults(defineProps<{ open: boolean; title: string; beforeClose?: () => boolean | Promise<boolean>; layer?: number; wide?: boolean; page?: boolean; sheet?: boolean; back?: () => void; contentClass?: string; dismissable?: boolean; compact?: boolean }>(), { dismissable: true });
 const emit = defineEmits<{ close: [] }>();
 const closing = ref(false);
 let closeCompleted = false;
@@ -69,6 +71,11 @@ watch(() => props.open, open => { if (open) { clearCloseTimer(); closing.value =
 watch(pageActive, active => { if (!active) { clearCloseTimer(); closing.value = false; closeCompleted = false; } }, { flush: 'sync' });
 watch([pageActive, bubble], async ([active]) => { if (active) { await nextTick(); positionBubble(); } });
 const anchorStyle = ref<Record<string, string>>({});
+// A sheet is pulled down to put it away, as a phone's own are. The card is found by a mark of its
+// own: the content component's root is not the card.
+const mark = `m${Math.random().toString(36).slice(2, 9)}`;
+useSheetDrag(() => props.sheet && props.open && pageActive.value ? document.querySelector<HTMLElement>(`[data-modal="${mark}"]`) : null,
+  () => !!props.sheet && props.dismissable !== false, () => void requestClose());
 function positionBubble() {
   if (!bubble.value) return;
   const button = document.querySelector('.chatbar [data-session-panel][aria-pressed="true"]');
@@ -103,7 +110,7 @@ async function requestClose() {
   }
 }
 function onCloseAnimationEnd(event: AnimationEvent) {
-  if (event.target === event.currentTarget && ['popup-fade-out', 'page-out', 'session-panel-out', 'session-bubble-out'].includes(event.animationName)) finishClose();
+  if (event.target === event.currentTarget && ['popup-fade-out', 'page-out', 'sheet-out', 'session-panel-out', 'session-bubble-out'].includes(event.animationName)) finishClose();
 }
 defineExpose({ close: requestClose });
 </script>
@@ -112,14 +119,14 @@ defineExpose({ close: requestClose });
   <DialogRoot :modal="!bubble" :open="pageActive && open && !closing" @update:open="(v: boolean) => { if (!v) requestClose(); }">
     <DialogPortal v-if="pageActive">
       <DialogOverlay v-if="!bubble" class="modal-overlay" :style="{ zIndex: layer }" />
-      <DialogContent @pointerdown.capture="ownFieldDrag" @animationend="onCloseAnimationEnd" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'session-bubble': bubble, compact: compactCard }, contentClass]" :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }" :aria-describedby="undefined"
+      <DialogContent :data-modal="mark" @pointerdown.capture="ownFieldDrag" @animationend="onCloseAnimationEnd" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'modal-sheet': sheet, 'session-bubble': bubble, compact: compactCard }, contentClass]" :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }" :aria-describedby="undefined"
         @escape-key-down="(e: KeyboardEvent) => { if (dismissable === false) e.preventDefault(); else if (page && back) { e.preventDefault(); back(); } }"
         @interact-outside="outside"
         @pointer-down-outside="outside">
         <BubbleSurface v-if="bubble" class="session-bubble-surface" side="top" :tail-x="24" align-end />
         <DialogTitle v-if="bubble" class="visually-hidden">{{ title }}</DialogTitle>
         <div v-else-if="!compactCard" class="modal-head">
-          <button v-if="page" type="button" class="btn ghost icon-only" :disabled="dismissable === false"
+          <button v-if="page || back" type="button" class="btn ghost icon-only" :disabled="dismissable === false"
             :aria-label="i18n.t('chatbar.back')" @click="back ? back() : requestClose()"><Icon name="arrow-left" /></button>
           <DialogTitle class="modal-title">{{ title }}</DialogTitle>
           <div class="modal-head-actions">

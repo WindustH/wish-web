@@ -20,6 +20,7 @@ import { AnimatePresence, ReorderGroup, ReorderItem, useDragControls } from 'mot
 import { tr } from '../../core/i18n/tr.ts';
 import { prefersReducedMotion } from '../../ui/motion/reducedMotion.ts';
 import { awaitsAnswer } from '../../core/questionWatch.ts';
+import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 
 const props = defineProps<{ items: any[]; refill: (text: string, attachments?: any[]) => void }>();
 
@@ -37,6 +38,8 @@ const refillable = (item: any): boolean =>
 // The run waits on an ask_user form; what is queued goes in once the form is answered.
 const awaitingAnswer=computed(()=>awaitsAnswer(chat.snapshot.value));
 const open=ref(false);
+// A page left with the queue open would leave its backdrop over the next one.
+watch(usePageActivity(),active=>{if(!active)open.value=false;});
 const label=computed(()=>tr(`待发送消息（${props.items.length} 条）`,`Queued messages (${props.items.length})`));
 // A message joining the queue while the bubble is shut nudges the button.
 const trigger=ref<HTMLElement>();

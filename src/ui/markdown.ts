@@ -17,9 +17,11 @@ markdown.renderer.rules.link_open = (tokens, index, options, _env, renderer) => 
   return renderer.renderToken(tokens, index, options);
 };
 const fence = markdown.renderer.rules.fence!;
+// A fenced block gets a head: the language it names, and a button that copies it.
 markdown.renderer.rules.fence = (tokens, index, options, env, renderer) => {
   const label = markdown.utils.escapeHtml((env as { copyLabel: string }).copyLabel);
-  return `<div class="code-block"><button class="code-copy btn ghost sm" type="button">${label}</button>${fence(tokens, index, options, env, renderer)}</div>`;
+  const language = markdown.utils.escapeHtml(tokens[index]!.info.trim().split(/\s+/)[0] ?? '');
+  return `<div class="code-block"><div class="code-head"><span class="code-lang">${language}</span><button class="code-copy btn ghost sm" type="button">${label}</button></div>${fence(tokens, index, options, env, renderer)}</div>`;
 };
 
 // Large/streaming answers must not retain 500 full intermediate renderings.

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // Skills: the folders sessions find them in, and every skill found there, in a tree of the folders
-// it sits in, each with a switch and a view of what it says. A folder's switch turns all of its
-// skills on, or off when they all are. The model is told of none of them; it looks with
+// it sits in, each with a box that turns it on and a view of what it says. A folder opens in a
+// window of its own (on a phone, a page), and its box turns all of its skills on, or off when they
+// all are; a search lists what it finds right here, in the folders it sits in. The model is told of none of them; it looks with
 // `wish skill` in its shell. Folders and switches are part of the configuration draft, saved with
 // the rest of settings.
 import { computed, ref, watch } from 'vue';
-import { SwitchRoot, SwitchThumb } from 'reka-ui';
-import { AnimatePresence, motion } from 'motion-v';
+import { CheckboxIndicator, CheckboxRoot, PopoverAnchor, PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui';
 import { tr } from '../../core/i18n/tr.ts';
 import { skillContent, skillsList } from '../../core/api/endpoints.ts';
 import type { SkillContent, SkillEntry, SkillsSnapshot } from '../../core/api/types.ts';
@@ -15,9 +15,10 @@ import Modal from '../../ui/components/Modal.vue';
 import Markdown from '../../ui/components/Markdown.vue';
 import DirectoryPicker from '../../ui/components/DirectoryPicker.vue';
 import SwitchRow from './SwitchRow.vue';
-import { foldersOf, skillRows, skillsIn, skillTree, type SkillFolder } from './skillTree.ts';
+import { foldersOf, skillRows, skillsIn, skillTree, type SkillFolder, type SkillRow } from './skillTree.ts';
 import { showError } from '../../ui/errorDialog.ts';
-import { prefersReducedMotion } from '../../ui/motion/reducedMotion.ts';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
+import SkillList, { type FolderState, type SkillListRow } from './SkillList.vue';
 
 const props = defineProps<{ config: any; busy: boolean; revision: string }>();
 const snapshot = ref<SkillsSnapshot | null>(null);
@@ -52,8 +53,7 @@ function setEnabled(name: string, on: boolean) {
 const all = computed(() => snapshot.value?.skills ?? []);
 const usable = computed(() => all.value.filter(skill => skill.standing === 'used' && enabled(skill.name)).length);
 
-// Folders start closed and open by hand; a search shows its matches with every folder open.
-const opened = ref(new Set<string>());
+const isMobile = useIsMobile();
 const searching = computed(() => !!query.value.trim());
 const tree = computed(() => skillTree(all.value));
 const folders = computed(() => foldersOf(tree.value));
@@ -61,16 +61,17 @@ const matches = computed(() => {
   const terms = query.value.trim().toLocaleLowerCase().split(/\s+/);
   return all.value.filter(skill => terms.every(term => `${skill.name} ${skill.description} ${skill.path}`.toLocaleLowerCase().includes(term)));
 });
-function fold(folder: SkillFolder) {
-  const next = new Set(opened.value);
-  if (!next.delete(folder.path)) next.add(folder.path);
-  opened.value = next;
-}
+// The folders opened, the one shown last: a folder in the window opens in its place, and back
+// returns to the one it was in.
+const stack = ref<string[]>([]);
+const current = computed(() => folders.value.get(stack.value.at(-1) ?? '\0'));
+const openFolder = (folder: SkillFolder) => { stack.value = [...stack.value, folder.path]; };
+const backFolder = () => { stack.value = stack.value.slice(0, -1); };
 
 const skills = (count: number) => tr(`${count} 个 Skill`, `${count} skill${count === 1 ? '' : 's'}`);
 const label = (source: string) => source === 'wish' ? tr('Wish 的 Skill 目录', 'Wish\'s skill folder') : source;
 // A folder counts the skills in it that sessions can see, a search or not.
-function folderState(shown: SkillFolder) {
+function folderState(shown: SkillFolder): FolderState {
   const inside = skillsIn(folders.value.get(shown.path) ?? shown);
   const switchable = inside.filter(skill => skill.standing === 'used');
   const on = switchable.filter(skill => enabled(skill.name)).length;
@@ -81,6 +82,8 @@ function folderState(shown: SkillFolder) {
       : on === total ? skills(total)
       : !on ? tr(`${total} 个 Skill，都已关闭`, `${skills(total)}, all off`)
       : tr(`${total} 个 Skill，开启了 ${on} 个`, `${on} of ${skills(total)} on`),
+    // The folder's box: ticked with all of its skills on, a dash with some.
+    checked: on === total ? true : on ? 'indeterminate' as const : false,
     conflict: inside.some(skill => skill.standing === 'conflict'),
   };
 }
@@ -100,11 +103,20 @@ function note(skill: SkillEntry): { text: string; warn?: boolean } | undefined {
   }
   return (snapshot.value?.roots.length ?? 0) > 1 ? { text: label(skill.source) } : undefined;
 }
-const rows = computed(() => skillRows(searching.value ? skillTree(matches.value) : tree.value, folder => searching.value || opened.value.has(folder.path))
-  .map(row => row.kind === 'folder'
-    ? { ...row, key: `folder:${row.folder.path}`, state: folderState(row.folder), skill: undefined, note: undefined }
-    : { ...row, key: `skill:${row.skill.dir}`, state: undefined, folder: undefined, note: note(row.skill) }));
-const reduced = prefersReducedMotion();
+const decorate = (rows: SkillRow[]): SkillListRow[] => rows.map(row => row.kind === 'folder'
+  ? { depth: row.depth, folder: row.folder, key: `folder:${row.folder.path}`, state: folderState(row.folder) }
+  : { depth: row.depth, skill: row.skill, key: `skill:${row.skill.dir}`, note: note(row.skill) });
+// Here, the top level; in the window, what the folder holds.
+const rows = computed(() => decorate(skillRows(tree.value, () => false)));
+// A search lists what it finds under the box, and leaves the list below as it is.
+const searchOpen = ref(false);
+watch(query, text => { searchOpen.value = !!text.trim(); });
+const found = computed(() => matches.value.slice(0, 50));
+function outsideSearch(event: Event) {
+  const target = (event as CustomEvent).detail?.originalEvent?.target;
+  if (target instanceof Element && target.closest('.skill-search')) event.preventDefault();
+}
+const folderRows = computed(() => current.value ? decorate(skillRows(current.value, () => false)) : []);
 
 async function view(skill: SkillEntry) {
   try { viewing.value = await skillContent(skill.name, skill.dir); }
@@ -118,19 +130,17 @@ async function view(skill: SkillEntry) {
   </section>
   <section class="set-section">
     <header class="set-section-head"><h3>{{ tr('Skill 目录', 'Skill folders') }}</h3></header>
-    <div class="set-card">
-      <div class="set-row toggle-row skill-folder">
+    <div class="skill-list">
+      <div class="set-card"><div class="set-row toggle-row skill-folder">
         <span class="set-label"><span>{{ tr('Wish 的 Skill 目录', 'Wish\'s skill folder') }}</span><small class="set-mono">{{ snapshot?.dir ?? '…' }}</small></span>
-      </div>
-      <div v-for="(dir, index) in settings.dirs" :key="dir" class="set-row toggle-row skill-folder">
+      </div></div>
+      <div v-for="(dir, index) in settings.dirs" :key="dir" class="set-card"><div class="set-row toggle-row skill-folder">
         <span class="set-label"><span class="set-mono">{{ dir }}</span><small v-if="missing(dir)" class="skill-missing">{{ tr('这个目录不存在', 'This folder does not exist') }}</small></span>
         <button type="button" class="btn ghost icon-only" :aria-label="tr('移除这个目录', 'Remove this folder')" :disabled="busy" @click="settings.dirs.splice(index, 1)"><Icon name="trash-2" /></button>
-      </div>
-      <div class="set-row skill-add">
-        <DirectoryPicker model-value="~" side="bottom" :title="tr('选择 Skill 目录', 'Choose a skill folder')" :disabled="busy" @update:model-value="addDir">
-          <template #trigger><button type="button" class="skill-add-button"><span class="provider-add-icon"><Icon name="plus" /></span>{{ tr('添加目录', 'Add a folder') }}</button></template>
-        </DirectoryPicker>
-      </div>
+      </div></div>
+      <DirectoryPicker model-value="~" side="bottom" :title="tr('选择 Skill 目录', 'Choose a skill folder')" :disabled="busy" @update:model-value="addDir">
+        <template #trigger><button type="button" class="provider-add" :disabled="busy"><span class="provider-add-icon"><Icon name="plus" /></span><span>{{ tr('添加目录', 'Add a folder') }}</span></button></template>
+      </DirectoryPicker>
     </div>
     <p v-if="dirsChanged" class="hint skill-pending">{{ tr('保存后会读取修改后的目录。', 'Changed folders are read once saved.') }}</p>
   </section>
@@ -143,37 +153,29 @@ async function view(skill: SkillEntry) {
       </div>
       <button type="button" class="btn ghost icon-only" :aria-label="tr('重新读取', 'Read again')" :disabled="loading" @click="load"><Icon name="refresh-cw" :class="{ spin: loading }" /></button>
     </header>
-    <label v-if="all.length > 8" class="skill-search"><Icon name="search" /><input v-model="query" type="search" :placeholder="tr('搜索 Skill', 'Search skills')" :aria-label="tr('搜索 Skill', 'Search skills')" autocomplete="off" spellcheck="false" /></label>
-    <div class="set-card skill-tree">
+    <PopoverRoot v-if="all.length > 8" :open="searchOpen && searching" @update:open="searchOpen = $event">
+      <PopoverAnchor as-child>
+        <label class="skill-search"><Icon name="search" /><input v-model="query" type="search" :placeholder="tr('搜索 Skill', 'Search skills')" :aria-label="tr('搜索 Skill', 'Search skills')" autocomplete="off" spellcheck="false"
+          @focus="searchOpen = true" @keydown.escape="searchOpen = false" /></label>
+      </PopoverAnchor>
+      <PopoverPortal>
+        <PopoverContent class="skill-results" side="bottom" align="start" :side-offset="6" :collision-padding="12" @open-auto-focus.prevent @close-auto-focus.prevent @interact-outside="outsideSearch">
+          <p v-if="!found.length" class="skill-results-empty">{{ tr('没有匹配的 Skill。', 'No skill matches.') }}</p>
+          <div v-for="skill in found" :key="skill.dir" class="skill-result" :class="{ off: skill.standing !== 'used' || !enabled(skill.name) }">
+            <button type="button" class="skill-result-open" @click="view(skill)">
+              <span class="skill-result-name">{{ skill.name }}</span>
+              <small>{{ [skill.category, skill.description].filter(Boolean).join(' · ') }}</small>
+            </button>
+            <CheckboxRoot v-if="skill.standing === 'used'" :model-value="enabled(skill.name)" class="skill-check" :aria-label="skill.name" :disabled="busy"
+              @update:model-value="setEnabled(skill.name, $event === true)"><CheckboxIndicator class="skill-check-mark"><Icon name="check" /></CheckboxIndicator></CheckboxRoot>
+          </div>
+        </PopoverContent>
+      </PopoverPortal>
+    </PopoverRoot>
+    <div class="skill-list skill-tree">
       <p v-if="!snapshot" class="skill-empty">{{ loading ? tr('正在读取…', 'Reading…') : tr('没有读取到 Skill。', 'Skills could not be read.') }}</p>
       <p v-else-if="!all.length" class="skill-empty">{{ tr('还没有 Skill。把 Skill 文件夹（每个里面有一个 SKILL.md）放进上面的目录即可，也可以按类别放在子文件夹里。', 'No skills yet. Put skill folders, each holding a SKILL.md, in a folder above, in subfolders by kind if you like.') }}</p>
-      <p v-else-if="!rows.length" class="skill-empty">{{ tr('没有匹配的 Skill。', 'No skill matches.') }}</p>
-      <AnimatePresence :initial="false">
-        <motion.div v-for="row in rows" :key="row.key" class="skill-line" :style="{ '--depth': row.depth }"
-          :initial="reduced ? false : { height: 0, opacity: 0 }" :animate="{ height: 'auto', opacity: 1 }" :exit="reduced ? undefined : { height: 0, opacity: 0 }" :transition="{ duration: 0.18, ease: 'easeOut' }">
-          <div v-if="row.folder && row.state" class="set-row toggle-row skill-row skill-folder-row">
-            <button type="button" class="skill-fold" :aria-expanded="searching || opened.has(row.folder.path)" :disabled="searching" @click="fold(row.folder)">
-              <Icon name="chevron-right" class="skill-chevron" />
-              <span class="set-label">
-                <span>{{ row.folder.name }}</span>
-                <small>{{ row.state.summary }}<template v-if="row.state.conflict"> · <span class="skill-warn">{{ tr('有重名的 Skill', 'Has skills sharing a name') }}</span></template></small>
-              </span>
-            </button>
-            <SwitchRoot v-if="row.state.total" :model-value="row.state.on === row.state.total" class="cfg-switch" :class="{ partial: row.state.on && row.state.on < row.state.total }"
-              :aria-label="row.folder.name" :disabled="busy" @update:model-value="setFolder(row.state.switchable, $event)"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot>
-          </div>
-          <div v-else-if="row.skill" class="set-row toggle-row skill-row" :class="{ off: row.skill.standing !== 'used' || !enabled(row.skill.name) }">
-            <button type="button" class="skill-open" @click="view(row.skill)">
-              <span class="set-label">
-                <span class="skill-name">{{ row.skill.name }}</span>
-                <small class="skill-description">{{ row.skill.description }}</small>
-                <small v-if="row.note" class="skill-note" :class="{ 'skill-warn': row.note.warn }">{{ row.note.text }}</small>
-              </span>
-            </button>
-            <SwitchRoot v-if="row.skill.standing === 'used'" :model-value="enabled(row.skill.name)" class="cfg-switch" :aria-label="row.skill.name" :disabled="busy" @update:model-value="setEnabled(row.skill!.name, $event)"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot>
-          </div>
-        </motion.div>
-      </AnimatePresence>
+      <SkillList :rows="rows" :busy="busy" :enabled="enabled" @open="openFolder" @view="view" @set-folder="setFolder" @set-skill="setEnabled" />
     </div>
     <div v-if="snapshot?.problems.length" class="skill-problems" role="status">
       <p>{{ tr('这些文件读取失败：', 'These files could not be read:') }}</p>
@@ -181,7 +183,15 @@ async function view(skill: SkillEntry) {
     </div>
   </section>
 
-  <Modal :open="!!viewing" wide :title="viewing?.name ?? ''" @close="viewing = null">
+  <Modal :open="!!current" :page="isMobile" wide :title="current?.name ?? ''" :back="stack.length > 1 ? backFolder : undefined" @close="stack = []">
+    <template v-if="current" #actions>
+      <CheckboxRoot v-if="folderState(current).total" :model-value="folderState(current).checked" class="skill-check" :aria-label="tr(`开启 ${current.name} 中的全部 Skill`, `Turn on every skill in ${current.name}`)" :disabled="busy"
+        @update:model-value="setFolder(folderState(current!).switchable, $event === true)"><CheckboxIndicator class="skill-check-mark"><Icon :name="folderState(current).checked === 'indeterminate' ? 'minus' : 'check'" /></CheckboxIndicator></CheckboxRoot>
+    </template>
+    <div class="skill-list skill-tree"><SkillList :rows="folderRows" :busy="busy" :enabled="enabled" @open="openFolder" @view="view" @set-folder="setFolder" @set-skill="setEnabled" /></div>
+  </Modal>
+
+  <Modal :open="!!viewing" wide :layer="72" :title="viewing?.name ?? ''" @close="viewing = null">
     <div v-if="viewing" class="skill-view">
       <p v-if="viewing.description" class="skill-view-description">{{ viewing.description }}</p>
       <dl class="skill-view-meta">
@@ -196,10 +206,9 @@ async function view(skill: SkillEntry) {
 <style scoped>
 .skill-folder .set-label > .set-mono, .skill-folder small.set-mono { overflow-wrap: anywhere; }
 .skill-missing { color: var(--warn); }
-.skill-add { grid-template-columns: minmax(0, 1fr); min-height: 0; padding-block: 8px; }
-.skill-add-button { display: flex; align-items: center; gap: 10px; justify-self: start; padding: 4px 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; }
-.skill-add-button:disabled { opacity: .5; cursor: default; }
-@media (hover: hover) { .skill-add-button:hover:not(:disabled) { text-decoration: underline; } }
+/* Folders and skills are found and added, so each is a card of its own, not a row of a fixed form. */
+.skill-list { display: grid; gap: 10px; }
+.skill-list.skill-tree { gap: 8px; }
 .skill-pending { margin: 8px 4px 0; }
 .skill-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .skill-head .btn .icon { width: 16px; height: 16px; }
@@ -207,29 +216,23 @@ async function view(skill: SkillEntry) {
 .skill-search:focus-within { border-color: var(--accent); }
 .skill-search .icon { width: 16px; height: 16px; flex: none; }
 .skill-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--fg); font: inherit; }
-.skill-empty { margin: 0; padding: 18px 16px; color: var(--fg-subtle); font-size: 13px; text-align: center; }
-.skill-open { display: block; min-width: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-@media (hover: hover) { .skill-open:hover .skill-name { color: var(--accent); } }
-.skill-open:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; border-radius: 4px; }
-.skill-name { min-width: 0; font-family: var(--mono); overflow-wrap: anywhere; transition: color var(--dur-fast); }
-.skill-description { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.set-label > small.skill-note { color: var(--fg-faint); overflow-wrap: anywhere; }
-.set-label > small .skill-warn, .set-label > small.skill-warn { color: var(--warn); }
-.skill-row.off .skill-name, .skill-row.off .skill-description { opacity: .55; }
-/* The tree: each level in by the width of a folder's chevron and the gap after it, so a folder's
-   skills line up with its name. */
-.skill-line { overflow: hidden; }
-.skill-line + .skill-line { border-top: 1px solid var(--line); }
-.skill-line > .set-row { padding-left: calc(16px + var(--depth) * 24px); }
-.skill-fold { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.skill-fold:disabled { cursor: default; }
-.skill-fold:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; border-radius: 4px; }
-.skill-chevron { flex: none; width: 16px; height: 16px; color: var(--fg-subtle); transition: transform var(--dur-fast) ease; }
-.skill-fold[aria-expanded="true"] .skill-chevron { transform: rotate(90deg); }
-@media (hover: hover) { .skill-fold:not(:disabled):hover .set-label > span { color: var(--accent); } }
-/* Some of a folder's skills on: the thumb halfway, and turning it on turns them all on. */
-.cfg-switch.partial { background: color-mix(in srgb, var(--accent) 30%, var(--bg-sunken)); border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
-.cfg-switch.partial .cfg-switch-thumb { transform: translateX(8.5px); background: var(--bg); }
+.skill-empty { margin: 0; padding: 18px 16px; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--fg-subtle); font-size: 13px; text-align: center; }
+/* What a search finds: a menu's surface under the box, as wide as it. The popover's own root takes
+   this component's scope, not the element given the class, so the rule is global. */
+:global(.skill-results) { z-index: 75; display: grid; gap: 2px; width: var(--reka-popper-anchor-width); max-height: min(360px, 60dvh); overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-overlay); box-shadow: var(--shadow-menu); animation: menu-in var(--dur-fast) var(--ease-out); }
+.skill-results-empty { margin: 0; padding: 14px; color: var(--fg-subtle); font-size: 13px; text-align: center; }
+.skill-result { display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 4px; border-radius: 8px; }
+@media (hover: hover) { .skill-result:hover { background: var(--bg-hover); } }
+.skill-result-open { display: grid; gap: 2px; flex: 1; min-width: 0; padding: 2px 6px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.skill-result-name { font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
+.skill-result-open small { overflow: hidden; color: var(--fg-subtle); font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+.skill-result.off .skill-result-open { opacity: .55; }
+/* The folder window's own box, in its head, as its rows' are. */
+.skill-check { display: grid; place-items: center; flex: none; width: 20px; height: 20px; margin-right: 6px; padding: 0; border: 1.5px solid var(--line-strong); border-radius: 6px; background: transparent; color: var(--accent-fg); cursor: pointer; }
+.skill-check:is([data-state="checked"], [data-state="indeterminate"]) { border-color: var(--accent); background: var(--accent); }
+.skill-check-mark { display: grid; place-items: center; }
+.skill-check-mark .icon { width: 14px; height: 14px; stroke-width: 3; }
+@media (max-width: 899px) { .skill-empty { border-radius: 16px; } }
 .skill-problems { margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: var(--warn-bg); color: var(--fg-muted); font-size: 12.5px; line-height: 1.6; }
 .skill-problems p { margin: 0; overflow-wrap: anywhere; }
 .skill-view { display: grid; gap: 14px; }
@@ -240,8 +243,6 @@ async function view(skill: SkillEntry) {
 .skill-view-body { min-width: 0; }
 @media (max-width: 899px) {
   .skill-search { border: 0; border-radius: 14px; background: var(--bg-group); }
-  .skill-line + .skill-line { border-top: 2px solid transparent; }
-  .skill-line > .set-row { padding-left: calc(14px + var(--depth) * 24px); }
 }
 @media (prefers-reduced-motion: reduce) {
   .skill-chevron { transition: none; }

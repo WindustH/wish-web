@@ -21,7 +21,7 @@ input, textarea { accent-color: var(--accent); }
 input::placeholder, textarea::placeholder { color: var(--fg-subtle); opacity: 1; }
 a { color: var(--accent); text-decoration: none; }
 @media (hover: hover) { a:hover { text-decoration: underline; } }
-::selection { background: var(--accent-soft); color: var(--fg); }
+::selection { background: var(--selection); }
 :focus-visible { outline: none; border-color: var(--accent) !important; }
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible, [role="option"]:focus-visible, [role="menuitem"]:focus-visible { border: 1px solid var(--accent) !important; }
 .hint { font-size: 13px; line-height: 1.75; color: var(--fg-subtle); }
@@ -57,12 +57,16 @@ html { -webkit-tap-highlight-color: transparent; }
   -webkit-user-select: none;
   user-select: none;
 }
-
-/* Segment selection on touch screens will have its own message action later. */
-@media (max-width: 899px) {
-  .chatlog, .chatlog * {
-    -webkit-user-select: none !important;
-    user-select: none !important;
-    -webkit-touch-callout: none;
+/* On a touch screen Wish selects a message's words itself (TouchSelection), so the platform may
+   not; a caret is read under `reading-caret`, for that moment only. */
+@media (pointer: coarse) {
+  html.touch-selection :is(.entry.user .bubble, .entry.assistant .body > .markdown),
+  html.touch-selection :is(.entry.user .bubble, .entry.assistant .body > .markdown) * {
+    -webkit-user-select: none;
+    user-select: none;
   }
+}
+.reading-caret, .reading-caret * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
 }

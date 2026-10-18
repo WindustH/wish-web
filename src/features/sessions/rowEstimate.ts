@@ -5,10 +5,10 @@
 // measuring real conversations at desktop and phone widths.
 import type { GroupBlock, GroupItem } from './grouping.ts';
 
-const LINE = 28.8;          // message text: 16px at line-height 1.8
+const LINE = 28.05;        // message text: 17px at line-height 1.65
 const PARAGRAPH = 18;       // what each further source line adds in rendered Markdown (margins, lists, headings)
-const WIDE = 16;            // a CJK or full-width character at message size
-const NARROW = 8.6;         // the average of everything else
+const WIDE = 17;            // a CJK or full-width character at message size
+const NARROW = 9.1;         // the average of everything else
 const WRAP = 1.06;          // room lost to breaking at word boundaries
 const MAX_LINES = 400;
 
@@ -34,6 +34,8 @@ const count = (blocks: readonly GroupBlock[], type: string) => blocks.filter(blo
 export function estimateRow(row: GroupItem | { type: string }, width: number): number {
   const compact = width < 600;
   if (row.type === 'process') return compact ? 62 : 53;
+  // A row of buttons with no reply to sit beside.
+  if (row.type === 'chips') return compact ? 50 : 42;
   if (row.type === 'question') {
     const questions = ((row as { arguments?: { questions?: unknown[] } }).arguments?.questions?.length) ?? 1;
     return 110 + 80 * questions;

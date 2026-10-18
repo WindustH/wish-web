@@ -11,6 +11,7 @@ import { protocolPresentation } from '../../ui/protocolPresentation.ts';
 import ProviderIcon from '../../ui/components/ProviderIcon.vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import AnimatedDetails from '../../ui/components/AnimatedDetails.vue';
+import Hint from '../../ui/components/Hint.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
@@ -25,6 +26,8 @@ import { useChatgptLogin } from './useChatgptLogin.ts';
 const props=defineProps<{ id:string; value:ProviderConfig; preset?:ProviderPreset; protocols:string[]; initiallyOpen?:boolean; save?:()=>Promise<boolean>; saving?:boolean; listTitle?:string }>();
 const emit=defineEmits<{remove:[];protocol:[value:string];loginComplete:[]}>();
 const editing=ref(props.initiallyOpen??false);
+// On a desktop the models open in a window of their own, from the button beside "edit".
+const modelsOpen=ref(false);
 const mobilePanel=ref('');
 const mobileReturning=ref(false);
 const modelEditor=ref<InstanceType<typeof ProviderModels>>();
@@ -69,7 +72,11 @@ const setCredential=(field:string,text:string)=>writeCredential(props.value.cred
   <SettingsItemCard class="provider-item" :title="isMobile?(listTitle||displayName):displayName" :summary="`${Object.keys(value.models).length} ${tr('个模型','models')}${preset?' · '+presetDescription(preset):''}`" :state="state" :mobile-state="value.enabled?null:state" :label="id" :edit-hint="tr('编辑提供商','Edit provider')" :remove-hint="tr('删除提供商','Delete provider')" @open="mobilePanel='';editing=true" @remove="emit('remove')">
     <template #mark><ProviderIcon :brand="preset?.provider"/></template>
     <template #detail>{{id}}<template v-if="preset"> · {{presetDescription(preset)}}</template></template>
-    <AnimatedDetails v-if="!isMobile" class="provider-models"><summary><span class="provider-models-label"><Icon name="model"/>{{tr('模型','Models')}}</span><span class="provider-model-count">{{Object.keys(value.models).length}}</span><button type="button" class="btn ghost icon-only provider-model-add" :aria-label="tr('添加模型','Add model')" :data-hint="tr('添加模型','Add model')" @click.stop.prevent="openModelAdd"><Icon name="plus"/></button><Icon name="chevron-down" class="provider-models-chevron"/></summary><ProviderModels ref="modelEditor" :id="id" :value="value" :preset="preset"/></AnimatedDetails>
+    <template v-if="!isMobile" #actions><Hint :text="tr('模型','Models')"><button type="button" class="btn ghost provider-models-button" :aria-label="`${tr('模型','Models')} ${displayName}`" @click="modelsOpen=true"><Icon name="model"/><span>{{Object.keys(value.models).length}}</span></button></Hint></template>
+    <Modal v-if="!isMobile" :open="modelsOpen" :title="tr('模型 · ','Models · ')+displayName" wide @close="modelsOpen=false">
+      <template #actions><Hint :text="tr('添加模型','Add model')"><button type="button" class="btn ghost icon-only" :aria-label="tr('添加模型','Add model')" @click="openModelAdd"><Icon name="plus"/></button></Hint></template>
+      <ProviderModels ref="modelEditor" :id="id" :value="value" :preset="preset"/>
+    </Modal>
     <Modal compact :before-close="isMobile?returns.confirm:undefined" :content-class="isMobile?'settings-editor mobile-settings-page provider-panel':'settings-editor'" :back="isMobile&&mobilePanel?backToProvider:undefined" :page="isMobile" :open="editing" :title="isMobile?(panels.find(p=>p.id===mobilePanel)?.label||displayName):tr('编辑提供商 · ','Edit provider · ')+id" wide @close="closeEditor">
 
     <div class="provider-form" :key="isMobile?mobilePanel:'desktop'" :class="{'mobile-fields':isMobile,'returning':mobileReturning}">
@@ -142,6 +149,9 @@ const setCredential=(field:string,text:string)=>writeCredential(props.value.cred
   </SettingsItemCard>
 </template>
 <style scoped>
+/* The models button: the model mark and how many there are, beside "edit". */
+.provider-models-button{display:inline-flex;align-items:center;gap:6px;height:32px;min-height:32px;padding:0 9px;color:var(--fg-muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+.provider-models-button .icon{width:16px;height:16px}
 /* A provider's card beside the shared one: its brand at full strength, its id wrapping rather than cut. */
 .provider-item :deep(.settings-item-mark){color:var(--fg)}
 .provider-item :deep(.settings-item-heading small){white-space:normal;overflow-wrap:anywhere}
@@ -152,18 +162,6 @@ const setCredential=(field:string,text:string)=>writeCredential(props.value.cred
 
 .provider-mark{display:grid;place-items:center;flex:none;width:40px;height:40px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg)}
 
-.provider-models{margin:0}
-.provider-models>summary{display:flex;align-items:center;gap:8px;min-height:42px;padding:8px 16px;cursor:pointer;color:var(--fg-muted);font-size:12px;list-style:none;transition:background var(--dur-fast),color var(--dur-fast)}
-.provider-models>summary::-webkit-details-marker{display:none}
-@media (hover: hover) { .provider-models>summary:hover{background:var(--bg-hover);color:var(--fg)} }
-.provider-models-label{display:inline-flex;align-items:center;gap:8px}
-.provider-models-label .icon{width:14px;height:14px}
-.provider-model-count{min-width:22px;padding:1px 6px;border-radius:5px;background:var(--bg-sunken);text-align:center;font-variant-numeric:tabular-nums}
-.provider-model-add{width:28px;height:28px;min-height:28px;margin-left:auto;color:var(--fg-subtle)}
-.provider-model-add .icon{width:15px;height:15px}
-.provider-models-chevron{width:15px;height:15px;margin-left:4px;transition:transform var(--dur-fast)}
-.provider-models[open] .provider-models-chevron{transform:rotate(180deg)}
-.provider-models :deep(.models-editor){padding:12px 16px 16px}
 .preset-section{display:grid;gap:14px;border-top:1px solid var(--line);padding-top:16px;margin-top:16px}.preset-section>header{display:flex;justify-content:space-between;align-items:center}.preset-section h3{font-size:14px;margin:0}.preset-section label{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:8px 16px;min-width:0}.preset-section label>small{grid-column:2}.provider-headers{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:start;gap:8px 16px;min-width:0}.provider-headers>span{padding-top:9px}.preset-section p{margin:0}.advanced-fields{display:grid;gap:14px;padding-top:14px;min-width:0}.provider-name{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:8px 16px}.preset-section summary{cursor:pointer;font-weight:500}.input{width:100%;min-width:0}a,.hint{font-size:12px;color:var(--fg-subtle)}
 @media(max-width:599px){.provider-name{grid-template-columns:1fr}.preset-section :is(label,.provider-headers){grid-template-columns:minmax(0,1fr)}.provider-headers>span{padding-top:0}.preset-section label>small{grid-column:1}}
 @media(min-width:900px){.preset-section{gap:10px;padding-top:12px;margin-top:12px}.advanced-fields{gap:10px;padding-top:10px}}

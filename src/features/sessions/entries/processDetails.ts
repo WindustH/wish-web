@@ -30,6 +30,49 @@ export function toolIcon(name?:string):string {
   if(name==='web_search')return 'globe';
   return 'tool';
 }
+/**
+ * What a run of steps did, said in a line: "ran 3 commands, searched the web". A command's polls,
+ * input and stop count with the command; tools of their own are named; only thinking is said as such.
+ */
+export function summarizeSteps(steps:any[], zh:boolean):string {
+  const calls=new Map<string,number>();
+  for(const step of steps){
+    if(step.kind!=='block'||step.block?.type!=='tool_call')continue;
+    const name=stepToolName(step)??'';
+    calls.set(name,(calls.get(name)??0)+1);
+  }
+  const count=(...names:string[])=>names.reduce((sum,name)=>sum+(calls.get(name)??0),0);
+  const files=new Set(steps.flatMap(step=>fileEdits(step).map((edit:any)=>edit.path))).size||count('shell_edit');
+  const plural=(n:number,word:string)=>`${n} ${word}${n===1?'':'s'}`;
+  const parts:string[]=[];
+  const commands=count('shell_start','shell');
+  if(commands)parts.push(zh?`运行了 ${commands} 条命令`:`ran ${plural(commands,'command')}`);
+  if(files)parts.push(zh?`修改了 ${files} 个文件`:`edited ${plural(files,'file')}`);
+  const searches=count('web_search');
+  if(searches)parts.push(zh?(searches===1?'搜索了网页':`搜索了 ${searches} 次网页`):(searches===1?'searched the web':`searched the web ${searches} times`));
+  if(count('history_search','history_read','history_query'))parts.push(zh?'查阅了会话历史':'looked through the history');
+  const images=count('view_image');
+  if(images)parts.push(zh?`查看了 ${images} 张图片`:`viewed ${plural(images,'image')}`);
+  for(const name of calls.keys()){
+    if(name.startsWith('shell')||name.startsWith('history_')||['web_search','view_image','ask_user'].includes(name))continue;
+    parts.push(zh?`调用了 ${toolTitle(name)}`:`used ${toolTitle(name)}`);
+  }
+  if(!parts.length)return zh?'思考了一会儿':'Thought it over';
+  const line=parts.join(zh?'、':', ');
+  return zh?line:line[0]!.toUpperCase()+line.slice(1);
+}
+/** The kinds of thing a run of steps did, as icons in the order they first came: a command, a file
+ *  edited, the web searched... Only thinking shows as thinking. A few at most. */
+export function stepIcons(steps:any[]):string[] {
+  const icons:string[]=[];
+  for(const step of steps){
+    if(step.kind!=='block'||step.block?.type!=='tool_call')continue;
+    const name=stepToolName(step);
+    const icon=name==='shell_edit'?'file-diff':toolIcon(name);
+    if(!icons.includes(icon))icons.push(icon);
+  }
+  return icons.length?icons.slice(0,4):['thinking'];
+}
 // Full diffs live in the result's metadata when the model did not ask to see them.
 export function fileEdits(step:any):any[] {
   if(step.entry?.payload?.tool_name!=='shell_edit') return [];

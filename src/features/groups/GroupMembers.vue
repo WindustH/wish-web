@@ -18,7 +18,8 @@ const props = defineProps<{ group: GroupView }>();
 const emit = defineEmits<{ close: []; changed: [group: GroupView] }>();
 const isMobile = useIsMobile();
 
-// The name of each member, and of the session that made the group, as their sessions have it now.
+// The name of each member, and of the session that made the group, as their sessions have it now;
+// blank while it is read, rather than the ID standing in for it.
 const names = ref<Record<string, string>>({});
 watch(() => [...props.group.members, props.group.created_by ?? ''], async (sessions) => {
   const missing = sessions.filter(id => id && !(id in names.value));
@@ -59,7 +60,7 @@ async function setMembers(members: string[]) {
       <header class="info-card-head"><h4>{{ tr('成员', 'Members') }}</h4><button type="button" class="btn ghost sm" :disabled="busy" @click="adding = true">{{ tr('添加', 'Add') }}</button></header>
       <ul class="info-members">
         <li v-for="id in group.members" :key="id">
-          <RouterLink :to="`/s/${id}`" class="info-member">{{ names[id] ?? id.slice(0, 8) }}</RouterLink>
+          <RouterLink :to="`/s/${id}`" class="info-member">{{ names[id] ?? '' }}</RouterLink>
           <button type="button" class="btn ghost icon-only sm" :aria-label="tr('移出群组', 'Remove from the group')" :disabled="busy" @click="setMembers(group.members.filter(member => member !== id))"><Icon name="x" /></button>
         </li>
         <li v-if="!group.members.length" class="info-members-empty">{{ tr('还没有成员。', 'No members yet.') }}</li>
@@ -70,7 +71,7 @@ async function setMembers(members: string[]) {
 
     <section class="info-card">
       <dl class="info-facts">
-        <div v-if="group.created_by" class="wide"><dt>{{ tr('创建者', 'Made by') }}</dt><dd><RouterLink :to="`/s/${group.created_by}`" class="info-member">{{ names[group.created_by] ?? group.created_by.slice(0, 8) }}</RouterLink></dd></div>
+        <div v-if="group.created_by" class="wide"><dt>{{ tr('创建者', 'Made by') }}</dt><dd><RouterLink :to="`/s/${group.created_by}`" class="info-member">{{ names[group.created_by] ?? '' }}</RouterLink></dd></div>
         <div class="wide"><dt>{{ i18n.t('info.createdAt') }}</dt><dd>{{ fmtDateTime(group.created_at) }}</dd></div>
         <div class="wide"><dt>{{ i18n.t('info.updatedAt') }}</dt><dd>{{ fmtDateTime(group.updated_at) }}</dd></div>
       </dl>

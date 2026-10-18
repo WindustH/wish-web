@@ -32,6 +32,15 @@ export interface QuestionItem<E extends GroupEntry = GroupEntry> {
   result: E | null; late: E | null;
 }
 export type GroupItem<E extends GroupEntry = GroupEntry> = ProcessItem<E> | EntryItem<E> | QuestionItem<E>;
+/**
+ * Something said beside the reply rather than as a row of its own - a run of steps, or a notice the
+ * system left - shown as a small button among the reply's words that opens what it holds.
+ */
+export type ChipItem<E extends GroupEntry = GroupEntry> = ProcessItem<E> | EntryItem<E>;
+/** A reply's text with the buttons that came since the text before it, at its start. */
+export interface TextItem<E extends GroupEntry = GroupEntry> extends EntryItem<E> { before?: ChipItem<E>[] }
+/** Buttons with no reply text to sit beside: a row of their own. */
+export interface ChipsItem<E extends GroupEntry = GroupEntry> { type: 'chips'; key: string; chips: ChipItem<E>[] }
 
 const QUESTION_BLOCK = (b: GroupBlock) => b.type === 'tool_call' && b.name === 'ask_user';
 const PROCESS_BLOCK = (b: GroupBlock) => b.type === 'reasoning' || (b.type === 'tool_call' && !QUESTION_BLOCK(b));
@@ -136,4 +145,39 @@ export function groupEntries<E extends GroupEntry>(entries: readonly E[]): Group
   }
   flushGroup();
   return items;
+}
+
+// The entries the transcript tells of in passing: a notice, an interruption, a background command
+// done, an instruction - everything that is not a turn of the conversation itself.
+const TURNS = new Set(['user_message', 'assistant_message', 'run_error', 'group_sent', 'group_message']);
+/** Whether an entry is a notice, shown as a button beside the reply rather than as a row. */
+export const isNotice = (entry: GroupEntry) =>
+  !TURNS.has(entry.kind) && payloadOf(entry).metadata?.source !== 'ask_user_answer';
+
+/**
+ * Sets steps and notices among the replies' words, always at a reply's start: each goes before the
+ * next reply text in its turn, and those with no reply text after them in their turn - the steps
+ * still running, a turn that ended on them - make a row of their own.
+ */
+export function inlineChips<E extends GroupEntry>(items: GroupItem<E>[]): (GroupItem<E> | TextItem<E> | ChipsItem<E>)[] {
+  const rows: (GroupItem<E> | TextItem<E> | ChipsItem<E>)[] = [];
+  let pending: ChipItem<E>[] = [];
+  const flush = () => {
+    if (pending.length) rows.push({ type: 'chips', key: `c${pending[0]!.key}`, chips: pending });
+    pending = [];
+  };
+  for (const item of items) {
+    if (item.type === 'process' || (item.type === 'entry' && isNotice(item.entry))) {
+      pending.push(item);
+    } else if (item.type === 'entry' && item.entry.kind === 'assistant_message') {
+      rows.push({ ...item, ...(pending.length ? { before: pending } : {}) });
+      pending = [];
+    } else {
+      // A turn of anyone else's ends the one the buttons belong to.
+      flush();
+      rows.push(item);
+    }
+  }
+  flush();
+  return rows;
 }

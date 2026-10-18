@@ -21,7 +21,7 @@ const props = defineProps<{
 
 const servers = computed<Record<string, McpServerConfig>>(() => (props.config.mcp ??= { servers: {} }).servers);
 // A save may close instances or change servers, so they are read again after one.
-const { statuses, refresh } = useStatuses(mcpServers, (list: McpServerStatus[]) => list, toRef(props, 'revision'));
+const { statuses, known, refresh } = useStatuses(mcpServers, (list: McpServerStatus[]) => list, toRef(props, 'revision'));
 
 const adding = ref(false);
 const newName = ref('');
@@ -62,7 +62,7 @@ function add() {
   <section class="set-section">
     <header class="set-section-head"><h3>{{ tr('MCP 服务器', 'MCP servers') }}</h3></header>
     <div class="mcp-list">
-      <McpServer v-for="(server, id) in servers" :key="id" :id="String(id)" :value="server" :status="statuses[id]" :providers="providers" :initially-open="id === opened" :save="save" :dirty="dirty" :busy="busy" @remove="delete servers[id]" @checked="refresh" />
+      <McpServer v-for="(server, id) in servers" :key="id" :id="String(id)" :value="server" :status="statuses[id]" :status-known="known" :providers="providers" :initially-open="id === opened" :save="save" :dirty="dirty" :busy="busy" @remove="delete servers[id]" @checked="refresh" />
       <p v-if="!Object.keys(servers).length" class="mcp-empty">{{ tr('还没有 MCP 服务器。', 'No MCP servers yet.') }}</p>
       <button type="button" class="provider-add" :disabled="busy" @click="startAdding"><span class="provider-add-icon"><Icon name="plus" /></span><span>{{ tr('添加 MCP 服务器', 'Add MCP server') }}</span></button>
     </div>
@@ -85,9 +85,7 @@ function add() {
 .mcp-add-field small.problem { color: var(--err); }
 .mcp-add .input::placeholder { font-family: var(--font); }
 @media (max-width: 899px) {
-  /* A grouped list: rows one step above the page, parted by a sliver of it. */
-  .mcp-list { gap: 0; overflow: hidden; border: 0; border-radius: 18px; background: var(--bg-sunken); }
-  .mcp-list > * + * { border-top: 2px solid transparent; }
-  .mcp-empty { border: 0; border-radius: 0; background: var(--bg-group); background-clip: padding-box; }
+  .mcp-list { gap: 10px; }
+  .mcp-empty { border-radius: 16px; }
 }
 </style>

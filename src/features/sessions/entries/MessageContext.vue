@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // Right-click, a long press or the context-menu key on a message opens its menu: copy the text, or
-// save the image.
+// save the image. On a touch screen a long press on the words selects them instead (TouchSelection),
+// and one on the blank of the message opens the menu. A right click on a selection acts on what was
+// selected.
 import { computed } from 'vue';
 import { apiFetch } from '../../../core/api/client.ts';
 import Menu, { type MenuItem } from '../../../ui/components/Menu.vue';
@@ -14,7 +16,11 @@ const hasMenu = computed(() => !!props.image || !!props.text.trim());
 const items = computed<MenuItem[]>(() => props.image
   ? [{ key: 'save', icon: 'download', label: tr('保存图片', 'Save image') }]
   : [{ key: 'copy', icon: 'copy', label: tr('复制消息', 'Copy message') }]);
-const choose = (key: string) => void (key === 'save' ? saveImage() : copyMessage());
+const selectionItems: MenuItem[] = [{ key: 'copy-selection', icon: 'copy', label: tr('复制', 'Copy') }];
+function choose(key: string, selection?: string) {
+  if (key === 'copy-selection') void copyText(selection ?? '');
+  else void (key === 'save' ? saveImage() : copyMessage());
+}
 
 async function saveImage() {
   if (!props.image) return;
@@ -35,7 +41,7 @@ const copyMessage = () => copyText(props.text);
 </script>
 
 <template>
-  <Menu context :items="items" :disabled="!hasMenu" :within="kind === 'user' ? '.bubble' : '.body'" @select="choose">
+  <Menu context selects-text :items="items" :selection-items="selectionItems" :disabled="!hasMenu" :within="kind === 'user' ? '.bubble' : '.body'" @select="choose">
     <div class="message-context" :class="kind" :tabindex="hasMenu ? 0 : undefined">
       <slot />
     </div>

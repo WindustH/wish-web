@@ -30,7 +30,7 @@ const mobile = useIsMobile();
 const home = computed(() => route.name === 'sessions' || route.name === 'all-sessions');
 // The folder the new session goes in, when the list asked for one (`/new?folder=`), and its name.
 const folder = computed(() => route.name === 'new-chat' && typeof route.query.folder === 'string' ? route.query.folder : null);
-const folderName = computed(() => sessions.path.value.find(item => item.id === folder.value)?.name ?? tr('文件夹', 'a folder'));
+const folderName = computed(() => sessions.path.value.find(item => item.id === folder.value)?.name);
 const parentActive = usePageActivity(), active = ref(true);
 const visible = computed(() => parentActive.value && active.value);
 provide(pageActivityKey, visible);
@@ -44,6 +44,9 @@ const created = ref<string>();
 const failed = ref(false);
 const defaultModel = ref<ModelSelection>();
 const defaultReady = ref(false);
+// Whether the defaults have been read once: until then the model and the folder say nothing,
+// rather than a placeholder for a moment. Reading them again on a return keeps what is shown.
+const defaultsKnown = ref(false);
 const defaultError = ref<unknown>();
 const manuallySelected = ref(false);
 const cwd = ref('');
@@ -61,8 +64,9 @@ async function readDefaultModel() {
     defaultCwd.value = config.defaults.cwd || '';
     if (!manuallySetCwd.value) cwd.value = defaultCwd.value;
     defaultReady.value = true;
+    defaultsKnown.value = true;
   } catch (error) {
-    if (generation === defaultGeneration) defaultError.value = error;
+    if (generation === defaultGeneration) { defaultError.value = error; defaultsKnown.value = true; }
   }
 }
 const stopConfiguration = bus.on('configuration.changed', () => {
@@ -140,15 +144,15 @@ async function send(text: string, attachments: AttachmentInput[]) {
       <div class="start-brand" aria-hidden="true"><img class="start-mark" src="/app-icons/mark.svg" alt="" /><Wordmark class="start-wordmark" /></div>
       <Composer ref="composer" owner="new-session" :mobile="mobile" start :send-message="send" :disabled="!selection.model || !cwd.trim() || busy || (!manuallySelected && !defaultReady)">
         <template #selection>
-          <div class="start-model-controls model-selection">
+          <div class="start-model-controls model-selection" :class="{ unread: !defaultsKnown && !manuallySelected }">
             <Hint :text="i18n.t('model.title')"><button class="model-chip" :aria-expanded="modelOpen" :disabled="busy || !!created" @click="modelOpen = true">{{ modelLabel || i18n.t('model.title') }}</button></Hint>
             <span class="selection-dot" aria-hidden="true">·</span>
             <Hint :text="i18n.t('reasoning.title')"><button class="reasoning-chip" :aria-expanded="reasoningOpen" :disabled="!selection.model || busy || !!created" @click="reasoningOpen = true">{{ effortLabel(effectiveEffort).toUpperCase() }}</button></Hint>
           </div>
         </template>
-        <template #footer-start><DirectoryPicker :model-value="cwd" :disabled="busy || !!created" @update:model-value="cwd=$event; manuallySetCwd=true" /></template>
+        <template #footer-start><DirectoryPicker :class="{ unread: !defaultsKnown && !manuallySetCwd }" :model-value="cwd" :disabled="busy || !!created" @update:model-value="cwd=$event; manuallySetCwd=true" /></template>
       </Composer>
-      <p v-if="folder" class="start-folder"><Icon name="folder" /><span>{{ tr(`新会话会放在「${folderName}」`, `The new session goes in “${folderName}”`) }}</span>
+      <p v-if="folder && folderName" class="start-folder"><Icon name="folder" /><span>{{ tr(`新会话会放在「${folderName}」`, `The new session goes in “${folderName}”`) }}</span>
         <Hint :text="tr('放在根目录', 'Put it at the top level')"><button type="button" class="btn ghost icon-only" :aria-label="tr('放在根目录', 'Put it at the top level')" :disabled="busy || !!created" @click="router.replace('/new')"><Icon name="x" /></button></Hint></p>
       <p v-if="defaultReady && !cwd.trim()" class="hint" role="status">{{ tr('请填写工作目录后发送。','Enter a working directory before sending.') }}</p>
       <div v-if="defaultError" class="load-error" role="alert">{{ errorText(defaultError) }} <button class="btn ghost sm" @click="readDefaultModel">{{ i18n.t('common.retry') }}</button></div>
@@ -171,6 +175,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
 .start-brand { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
 .start-mark { display: block; width: 64px; height: auto; }
 .start-wordmark { height: 36px; color: var(--fg); }
+.unread { visibility: hidden; }
 .start-model-controls { display: inline-flex; width: max-content; max-width: 100%; align-items: center; min-width: 0; gap: 3px; }
 .start-model-controls button { font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .start-model-controls .model-chip { flex: 0 1 auto; max-width: min(38vw, 320px); }
@@ -201,7 +206,8 @@ async function send(text: string, attachments: AttachmentInput[]) {
   .mobile-home .start-brand { margin-bottom: 16px; }
   .mobile-home .start-mark { width: 44px; }
   .mobile-home .start-wordmark { height: 26px; }
-  :deep(.composer-start) { min-height: 0; padding: 12px 12px 14px; }
+  /* Not docked at the screen's edge, so none of the safe-area room a docked composer keeps. */
+  :deep(.composer-start.mobile) { min-height: 0; padding: 12px 12px 14px; }
   :deep(.composer-start .composer-mobile-actions) { margin-bottom: 12px; }
   :deep(.composer-start.mobile .composer-editor), :deep(.composer-start.mobile .composer-input) { min-height: 72px; }
 }

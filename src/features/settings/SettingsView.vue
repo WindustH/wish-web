@@ -97,6 +97,7 @@ const {
   serverDirty,
   providerOptions,
   effortOptions,
+  searchCatalog,
   accept,
   load,
   saveConfig,
@@ -161,7 +162,7 @@ onMounted(load);
       <MobileSessionSettings v-if="isMobile&&tab==='service'" :config="draft" :providers="providerOptions" :efforts="effortOptions"/>
       <SessionDefaults v-else-if="tab==='service'"/>
       <ToolSettings v-else-if="tab==='tools'" :config="draft" :shells="shells" :busy="busy" :search-available="searchAvailable"/>
-      <SearchSettings v-else-if="tab==='search'" :config="draft" :models="providerOptions" :save="save" :busy="busy" :dirty="serverDirty" :statuses="search.statuses.value" @checked="search.refresh"/>
+      <SearchSettings v-else-if="tab==='search'" :config="draft" :presets="searchCatalog" :models="providerOptions" :save="save" :busy="busy" :dirty="serverDirty" :statuses="search.statuses.value" :statuses-known="search.known.value" @checked="search.refresh"/>
       <McpSettings v-else-if="tab==='mcp'" :config="draft" :providers="providerOptions" :save="save" :busy="busy" :dirty="serverDirty" :revision="revision"/>
       <SkillsSettings v-else-if="tab==='skills'" :config="draft" :busy="busy" :revision="revision"/>
       <ProviderSettings v-else :save="save"/>

@@ -82,31 +82,57 @@
 .toast { background: var(--bg-overlay); color: var(--fg); border: 1px solid var(--line); padding: 8px 12px; border-radius: var(--radius); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; box-shadow: var(--shadow-pop); }
 .toast-enter-active, .toast-leave-active { transition: opacity var(--dur-fast), transform var(--dur-fast); }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(6px); }
-/* Text is the primary surface. Long prose, code and tables have distinct rhythms. */
-.markdown { font-family: var(--prose); line-height: 1.8; overflow-wrap: anywhere; line-break: strict; }
+/* Text is the primary surface. Long prose, code and tables have distinct rhythms, kept close
+   together: a reply reads as one piece, not as a page of spaced-out parts. */
+.markdown { font-family: var(--prose); line-height: var(--message-leading); overflow-wrap: anywhere; line-break: strict; }
 .markdown > :first-child { margin-top: 0; }
-.markdown p { margin: 0 0 1em; }
+.markdown p { margin: 0 0 .75em; }
 .markdown > :last-child { margin-bottom: 0; }
-.markdown h1, .markdown h2, .markdown h3, .markdown h4, .markdown h5, .markdown h6 { font-family: var(--display); margin: 1.5em 0 .6em; font-weight: 600; line-height: 1.5; text-wrap: pretty; letter-spacing: 0; }
-.markdown h1 { font: 600 1.5em/1.4 var(--display); }
-.markdown h2 { font: 600 1.25em/1.45 var(--display); }
-.markdown h3 { font-size: 1.1em; }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4, .markdown h5, .markdown h6 { font-family: var(--display); margin: 1.25em 0 .45em; font-weight: 600; line-height: 1.45; text-wrap: pretty; letter-spacing: 0; }
+.markdown h1 { font: 600 1.35em/1.4 var(--display); }
+.markdown h2 { font: 600 1.2em/1.45 var(--display); }
+.markdown h3 { font-size: 1.07em; }
+.markdown :is(h4, h5, h6) { font-size: 1em; }
 .markdown strong { font-weight: 600; }
-.markdown ul, .markdown ol { margin: 0 0 1em; padding-left: 1.5em; }
-.markdown li { margin: .35em 0; padding-left: .2em; }
+/* Lists: items close together; a loose list's paragraphs no further apart than its items. */
+.markdown ul, .markdown ol { margin: 0 0 .75em; padding-left: 1.45em; }
+.markdown li { margin: .2em 0; padding-left: .15em; }
+.markdown li > p { margin: 0; }
+.markdown li > p + p { margin-top: .35em; }
+.markdown li > :is(ul, ol) { margin: .2em 0 0; }
 .markdown li::marker { color: var(--fg-subtle); font-variant-numeric: tabular-nums; }
-.markdown a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .2em; }
-.markdown code { color: var(--accent); font: inherit; font-family: var(--mono); font-size: calc(1em * var(--mono-scale)); line-height: 1.65; background: var(--bg-sunken); border: 1px solid var(--line); border-radius: 4px; padding: .18em .4em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-.markdown pre { margin: 0 0 1.4em; background: var(--bg-sunken); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1em; overflow-x: auto; font: calc(1em * var(--mono-scale))/1.8 var(--mono); }
+/* Links: the accent, with a faint underline that firms up when pointed at. */
+.markdown a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .22em; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); transition: text-decoration-color var(--dur-fast); }
+@media (hover: hover) { .markdown a:hover { text-decoration-color: currentColor; } }
+/* Inline code sits in the line without making it taller. */
+.markdown code { color: var(--accent); font: inherit; font-family: var(--mono); font-size: calc(1em * var(--mono-scale)); line-height: 1; background: var(--bg-sunken); border: 1px solid var(--line); border-radius: 5px; padding: .14em .36em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.markdown pre { margin: 0 0 .9em; background: var(--bg-sunken); border: 1px solid var(--line); border-radius: var(--radius); padding: .75em 1em; overflow-x: auto; font: calc(1em * var(--mono-scale))/1.6 var(--mono); }
 .markdown pre code { color: var(--fg); background: none; border: 0; padding: 0; font: inherit; box-decoration-break: slice; -webkit-box-decoration-break: slice; }
-.markdown blockquote { margin: 1.4em 0; padding: .2em 0 .2em 1.2em; border-left: 2px solid var(--accent); color: var(--fg-muted); }
+/* A fenced block: a slim head with its language and the copy button, over the code. */
+.markdown .code-block { margin: 0 0 .9em; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-sunken); overflow: hidden; }
+.markdown .code-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; padding: 0 4px 0 12px; border-bottom: 1px solid var(--line); color: var(--fg-subtle); font: 500 11.5px/1 var(--font); letter-spacing: .02em; }
+.markdown .code-block pre { margin: 0; border: 0; border-radius: 0; background: none; }
+.markdown .code-copy { min-height: 24px; height: 24px; padding: 0 8px; font-size: 11.5px; }
+.markdown blockquote { margin: .9em 0; padding: .1em 0 .1em .9em; border-left: 3px solid color-mix(in srgb, var(--accent) 55%, transparent); color: var(--fg-muted); }
 .markdown blockquote > :last-child { margin-bottom: 0; }
-.markdown hr { border: 0; border-top: 1px solid var(--line-strong); margin: 2em 0; }
-.markdown table { display: block; width: max-content; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 1.5em 0; font: 400 13px/1.65 var(--font); font-variant-numeric: tabular-nums; }
-.markdown th, .markdown td { border: 0; border-bottom: 1px solid var(--line); padding: 10px 14px; text-align: left; }
-.markdown th { border-top: 1px solid var(--line-strong); border-bottom-color: var(--line-strong); background: var(--bg-sunken); font-weight: 600; }
+.markdown hr { border: 0; border-top: 1px solid var(--line); margin: 1.4em 0; }
+/* Tables: a card of rows, each on one line. A table wider than the column scrolls sideways
+   rather than wrap its cells into tall rows. */
+.markdown table { display: block; width: max-content; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; border-collapse: collapse; margin: .9em 0; border: 1px solid var(--line); border-radius: var(--radius); font: 400 13.5px/1.55 var(--font); font-variant-numeric: tabular-nums; }
+.markdown th, .markdown td { padding: 7px 12px; border: 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; white-space: nowrap; }
+.markdown tr:last-child > td { border-bottom: 0; }
+.markdown th { background: var(--bg-sunken); color: var(--fg-muted); font-size: 12.5px; font-weight: 600; }
 .markdown img { max-width: 100%; height: auto; border-radius: var(--radius); }
-.pwa-update { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: var(--radius); background: var(--bg-overlay); color: var(--fg); border: 1px solid var(--line); box-shadow: var(--shadow-pop); font-size: 13px; z-index: 300; max-width: calc(100vw - 32px); }
+/* The offer of a new version: a card at the bottom - what is new, what updating does, and the two
+   choices beside it, or under it where a phone has no room. Centred with `translate`, so the
+   entrance's transform does not move it off centre. */
+.pwa-update { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); translate: -50% 0; z-index: 300; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; width: max-content; max-width: calc(100vw - 24px); padding: 12px 12px 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-overlay); color: var(--fg); box-shadow: var(--shadow-pop); font-size: 13.5px; animation: menu-in var(--dur) var(--ease-out); }
+.pwa-update-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); }
+.pwa-update-mark .icon { width: 17px; height: 17px; }
+.pwa-update-text { display: grid; gap: 1px; min-width: 0; }
+.pwa-update-text strong { font-weight: 600; }
+.pwa-update-text small { color: var(--fg-subtle); font-size: 12px; }
+.pwa-update-actions { display: flex; gap: 6px; }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes menu-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @keyframes modal-show { from { opacity: 0; transform: translate(-50%, calc(-50% + 12px)) scale(.985); } to { opacity: 1; transform: translate(-50%, -50%); } }
@@ -117,7 +143,8 @@
   .modal-card.compact .modal-body { padding: 14px 16px 0; } .modal-actions { padding: 12px 16px 14px; }
   .modal-head h2 { font-size: 16px; }
   .menu-item { padding: 8px 12px; font-size: 14px; }
-  .pwa-update { flex-wrap: wrap; }
+  .pwa-update { grid-template-columns: auto minmax(0, 1fr); width: calc(100vw - 24px); }
+  .pwa-update-actions { grid-column: 1 / -1; justify-content: flex-end; }
 }
 
 .modal-head-actions { display: flex; align-items: center; gap: 6px; flex: none; }
@@ -160,6 +187,9 @@
 /* Every page a phone opens over another has the same bar: back, the title, then the page's own
    actions. Page sheets (a session's info, search and settings) wear it as their head. */
 @media (max-width: 899px) {
+  /* The page under its bar is the settings' own: its cards and groups one step above it. */
+  .modal-card.modal-page { background: var(--bg-sunken); }
+  .modal-page.history-search-window .search-row .input { padding: 10px 14px; border: 0; border-radius: 14px; background: var(--bg-group); }
   .page-bar, .modal-page > .modal-head { display: flex; flex: none; align-items: center; justify-content: flex-start; gap: 4px; min-height: var(--h-topbar); padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--bg); }
   :is(.page-bar-title, .modal-page > .modal-head > .modal-title) { flex: 1; min-width: 0; margin: 0; overflow: hidden; color: var(--fg); font: 600 17px/1.4 var(--font); text-overflow: ellipsis; white-space: nowrap; }
 }
@@ -200,4 +230,13 @@
 .modal-card.date-range-dialog { width: min(440px, calc(100vw - 32px)); }
 
 .modal-card.modal-page[data-state="closed"] { animation: page-out 140ms ease-in; }
+/* A sheet: the card slides up from the bottom of a phone's screen, as wide as it, its top rounded,
+   with a grip along its top edge. */
+.modal-card.modal-sheet { inset: auto 0 0; transform: none; width: 100%; max-height: 80dvh; padding-bottom: env(safe-area-inset-bottom); border: 0; border-top: 1px solid var(--line); border-radius: 18px 18px 0 0; animation: sheet-in var(--dur-slow) var(--ease-out); }
+.modal-card.modal-sheet::before { content: ''; flex: none; align-self: center; width: 36px; height: 4px; margin-top: 8px; border-radius: 2px; background: var(--line-strong); }
+.modal-card.modal-sheet > .modal-head { padding: 6px 10px 6px 18px; border-bottom: 0; }
+.modal-card.modal-sheet > .modal-body { padding: 4px 18px 18px; }
+.modal-card.modal-sheet[data-state="closed"] { animation: sheet-out 180ms ease-in; }
+@keyframes sheet-in { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sheet-out { from { transform: translateY(var(--sheet-drag, 0px)); } to { transform: translateY(100%); } }
 @keyframes page-out { from { opacity:1; transform:translateX(0); } to { opacity:0; transform:translateX(20px); } }

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // One configured item in a settings list - a model provider, an MCP server, a search provider.
 // On a phone it is a row that opens its editor; on a desktop, a header with its state and actions
-// (try it, edit it, delete it). What sits under the header - notes, details, the editor itself -
-// comes in the default slot.
+// (try it, edit it, delete it, and any of its own in the `actions` slot, first). What sits under the
+// header - notes, details, the editor itself - comes in the default slot.
 import { computed } from 'vue';
 import Hint from '../../ui/components/Hint.vue';
 import Icon from '../../ui/components/Icon.vue';
@@ -18,7 +18,7 @@ const props = defineProps<{
   mobileState?: ItemState | null;
   // Its place in an ordered list, shown before the mark.
   position?: number;
-  // The item is moved by dragging its header.
+  // The item is moved by dragging its header, or on a phone the grip at the end of its row.
   draggable?: boolean;
   // What the actions call the item for assistive technology; the title by default.
   label?: string;
@@ -29,7 +29,8 @@ const props = defineProps<{
   checking?: boolean;
   busy?: boolean;
 }>();
-const emit = defineEmits<{ open: []; remove: []; check: [] }>();
+// `grab`: a finger pressed the row's grip, to move the item.
+const emit = defineEmits<{ open: []; remove: []; check: []; grab: [event: PointerEvent] }>();
 const isMobile = useIsMobile();
 const name = computed(() => props.label ?? props.title);
 const phoneState = computed(() => props.mobileState === undefined ? props.state : props.mobileState);
@@ -39,12 +40,15 @@ const openFrom = (event: MouseEvent) => { if (!(event.target as Element).closest
 
 <template>
   <div class="settings-item">
-    <button v-if="isMobile" type="button" class="mobile-settings-row settings-item-row" @click="emit('open')">
-      <span class="settings-item-mark"><slot name="mark" /></span>
-      <span>{{ title }}<small class="row-preview">{{ summary }}</small></span>
-      <small v-if="phoneState" class="settings-item-state" :class="phoneState.kind">{{ phoneState.text }}</small>
-      <Icon name="chevron-right" />
-    </button>
+    <div v-if="isMobile" class="settings-item-phone">
+      <button type="button" class="mobile-settings-row settings-item-row" @click="emit('open')">
+        <span class="settings-item-mark"><slot name="mark" /></span>
+        <span>{{ title }}<small class="row-preview">{{ summary }}</small></span>
+        <small v-if="phoneState" class="settings-item-state" :class="phoneState.kind">{{ phoneState.text }}</small>
+        <Icon name="chevron-right" />
+      </button>
+      <span v-if="draggable" class="settings-item-grip" aria-hidden="true" @pointerdown="emit('grab', $event)"><Icon name="grip" /></span>
+    </div>
     <header v-else class="settings-item-heading" :class="{ draggable }" @click="openFrom">
       <span v-if="position != null" class="settings-item-position">{{ position }}</span>
       <span class="settings-item-mark"><slot name="mark" /></span>
@@ -53,6 +57,7 @@ const openFrom = (event: MouseEvent) => { if (!(event.target as Element).closest
         <small><slot name="detail">{{ summary }}</slot></small>
       </div>
       <div class="settings-item-actions">
+        <slot name="actions" />
         <Hint v-if="checkHint" :text="checkHint"><button type="button" class="btn ghost icon-only" :disabled="checking || busy" :aria-label="`${checkHint} ${name}`" @click="emit('check')"><Icon :name="checking ? 'loader-circle' : 'refresh-cw'" :class="{ spin: checking }" /></button></Hint>
         <Hint :text="editHint"><button type="button" class="btn ghost icon-only" :aria-label="`${editHint} ${name}`" @click="emit('open')"><Icon name="pencil" /></button></Hint>
         <Hint :text="removeHint"><button type="button" class="btn ghost icon-only settings-item-remove" :aria-label="`${removeHint} ${name}`" @click="emit('remove')"><Icon name="trash-2" /></button></Hint>
@@ -63,6 +68,10 @@ const openFrom = (event: MouseEvent) => { if (!(event.target as Element).closest
 </template>
 
 <style scoped>
+.settings-item-phone { display: flex; align-items: stretch; background: var(--bg-group); }
+.settings-item-phone > .mobile-settings-row { flex: 1; min-width: 0; }
+.settings-item-grip { display: grid; place-items: center; flex: none; width: 44px; color: var(--fg-faint); touch-action: none; cursor: grab; }
+.settings-item-grip .icon { width: 18px; height: 18px; }
 .settings-item { min-width: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-raised); overflow: hidden; }
 .settings-item-heading { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; transition: background var(--dur-fast); }
 .settings-item-heading.draggable { padding-left: 12px; cursor: grab; }
@@ -81,7 +90,9 @@ const openFrom = (event: MouseEvent) => { if (!(event.target as Element).closest
 .settings-item-remove { color: var(--fg-subtle); }
 @media (hover: hover) { .settings-item-remove:hover { color: var(--err); background: var(--err-bg); } }
 @media (max-width: 899px) {
-  .settings-item { border: 0; border-radius: 0; background: var(--bg-group); background-clip: padding-box; }
+  /* A list of items is a column of cards of their own, as on a desktop: grouped rows parted by
+     lines are for settings that are always there. */
+  .settings-item { border: 0; border-radius: 16px; background: var(--bg-group); }
   .settings-item-row { width: 100%; min-height: 64px; gap: 14px; }
   .settings-item-row .settings-item-mark { width: 34px; height: 34px; }
   .settings-item-row .settings-item-state { flex: none; }

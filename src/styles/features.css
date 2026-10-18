@@ -113,7 +113,7 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .entry-anchor { width: 100%; }
 .entry { padding-bottom: 20px; contain: layout style; }
 .entry.user { display: flex; justify-content: flex-end; align-items: flex-end; gap: 6px; padding-top: 4px; }
-.entry.user .bubble { background: var(--user-bubble); color: var(--user-bubble-fg); border: 0; border-radius: 12px; padding: 12px 16px; max-width: 92%; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--message-size); line-height: 1.8; transition: transform var(--dur) var(--ease-out), background var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out); }
+.entry.user .bubble { background: var(--user-bubble); color: var(--user-bubble-fg); border: 0; border-radius: 12px; padding: 12px 16px; max-width: 92%; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--message-size); line-height: var(--message-leading); transition: transform var(--dur) var(--ease-out), background var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out); }
 .entry.user .bubble.attachment-bubble { background: transparent; padding: 0; border-radius: 0; }
 .entry.user .bubble.image-bubble img { border-radius: 12px; }
 .entry.user .bubble img, .proc-step > img { max-width: 100%; border-radius: var(--radius); margin-top: 8px; display: block; }
@@ -131,30 +131,40 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .entry.assistant > .body > .markdown:last-child > :last-child { margin-bottom: 0; }
 .assistant-img { max-width: min(320px, 100%); border-radius: var(--radius); margin: 8px 0; display: block; }
 .fold { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 18px; }
-.fold-chip, .proc-head, .thinking-tool, .live-status, .stop-marker { display: inline-flex; align-items: center; gap: 8px; padding: 7px 0; border: 0; background: transparent; color: var(--fg-subtle); font: 400 13px/1.6 var(--font); text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer; transition: color var(--dur-fast); }
-@media (hover: hover) { .fold-chip:hover, .proc-head:hover { color: var(--accent); } }
-.fold-chip .icon, .proc-head .icon, .thinking-tool .icon, .live-status .icon, .stop-marker .icon { flex: none; width: 14px; height: 14px; }
-.proc-group, .entry.system { padding: 0 0 18px; contain: layout style; }
-.proc-head { max-width: 100%; }
-.proc-count { padding: 0 6px; border-radius: 3px; background: var(--bg-sunken); font-variant-numeric: tabular-nums; }
-.proc-chevron { transition: transform var(--dur); }
-.proc-chevron.expanded { transform: rotate(180deg); }
-.proc-steps { margin-top: 8px; padding-left: 12px; display: flex; flex-direction: column; gap: 4px; max-height: min(60dvh, 30rem); overflow: auto; }
-.proc-step { display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left; padding: 8px; background: transparent; border: 0; color: var(--fg); cursor: pointer; border-radius: 4px; font-size: 12px; }
-@media (hover: hover) { .proc-step:hover { background: var(--bg-sunken); } }
+.thinking-tool, .live-status { display: inline-flex; align-items: center; gap: 8px; padding: 7px 0; border: 0; background: transparent; color: var(--fg-subtle); font: 400 13px/1.6 var(--font); text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer; transition: color var(--dur-fast); }
+.thinking-tool .icon, .live-status .icon { flex: none; width: 14px; height: 14px; }
+/* Steps and notices are small buttons at the start of the reply that follows them, its first
+   paragraph set inline to share their line, or in a row of their own when no reply follows. They
+   open what they hold; nothing in the log grows or folds. */
+.history-chips, .history-chip-host { display: inline; }
+/* Centred on the line's Chinese glyphs, which sit higher than the middle of a Latin x: middle
+   alignment, then a nudge up that moves it without moving the line. */
+.history-chip { position: relative; top: -.13em; display: inline-flex; align-items: center; gap: 6px; max-width: min(100%, 26em); height: 24px; margin: 0 8px 0 0; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg-sunken); color: var(--fg-subtle); font: 400 12.5px/1 var(--font); vertical-align: middle; cursor: pointer; transition: color var(--dur-fast), border-color var(--dur-fast); }
+.history-chip .icon { flex: none; width: 13px; height: 13px; }
+.history-chip-text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.history-chip.icons { gap: 5px; padding: 0 7px; }
+@media (hover: hover) { button.history-chip:hover { color: var(--fg); border-color: var(--line-strong); } }
+.history-chip.warn { color: var(--warn); background: var(--warn-bg); border-color: var(--warn-border); }
+.history-chip.error { color: var(--err); background: var(--err-bg); border-color: var(--err-border); }
+.history-chip.stop { color: var(--err); cursor: default; }
+.body.chips-before > .markdown { display: inline; }
+.body.chips-before > .markdown:first-of-type > p:first-child { display: inline; }
+.body.chips-before > .markdown:first-of-type > p:first-child + * { margin-top: .75em; }
+.history-chip-row { padding: 0 0 18px; }
+.history-chip-row .history-chip { top: 0; margin: 0 6px 6px 0; }
 .proc-step .icon { width: 12px; height: 12px; }
 .proc-step .seq { color: var(--fg-subtle); font: calc(1em * var(--mono-scale))/1.65 var(--mono); flex: none; }
 .proc-step .type { color: var(--fg-subtle); font-size: 11px; flex: none; }
 .proc-step .name { font-size: 12px; flex: none; }
 .proc-step .pv { color: var(--fg-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.live-row { padding: 12px 0 20px; color: var(--fg); font: 400 var(--message-size)/1.8 var(--prose); white-space: pre-wrap; }
+.live-row { padding: 12px 0 20px; color: var(--fg); font: 400 var(--message-size)/var(--message-leading) var(--prose); white-space: pre-wrap; }
 .jump-latest { position: absolute; bottom: 18px; right: 20px; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; background: var(--bg-raised); border: 1px solid var(--line-strong); border-radius: 50%; color: var(--fg); cursor: pointer; box-shadow: 0 2px 8px rgb(0 0 0 / 12%); transition: background var(--dur-fast); }
 @media (hover: hover) { .jump-latest:hover { background: var(--bg-hover); } }
 /* Highlight the content silhouette, never the virtual row or its trailing gap. */
 .history-target .entry.user .bubble { animation: located-bubble 3s ease-out; }
 .history-target .entry.assistant .body > .markdown,
 .history-target .entry.assistant .assistant-img,
-.history-target .proc-head { border-radius: var(--radius); animation: located-content 3s ease-out; }
+.history-target .history-chip { animation: located-content 3s ease-out; }
 @keyframes located-bubble {
   0%, 30% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px var(--accent-soft); }
   100% { box-shadow: 0 0 0 2px transparent, 0 0 0 5px transparent; }
@@ -167,7 +177,7 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
   .history-target .entry.user .bubble { animation: none; box-shadow: 0 0 0 2px var(--accent); }
   .history-target .entry.assistant .body > .markdown,
   .history-target .entry.assistant .assistant-img,
-  .history-target .proc-head { animation: none; box-shadow: 0 0 0 2px var(--accent-soft); }
+  .history-target .history-chip { animation: none; box-shadow: 0 0 0 2px var(--accent-soft); }
 }
 /* Desktop writing desk: explicit height and draggable separator. Mobile grows with content. */
 /* Queue dock sizes to its longest message until the reading-width cap. */
@@ -251,8 +261,9 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .attach-thumb .rm .icon { width: 12px; height: 12px; }
 /* Supporting information uses rules and alignment instead of more cards. */
 .search-row { display: flex; gap: 8px; margin-bottom: 20px; }
-.search-results { display: flex; flex-direction: column; gap: 0; }
-.search-result { display: flex; flex-direction: column; gap: 8px; width: 100%; text-align: left; padding: 20px 0; background: none; border: 0; border-bottom: 1px solid var(--line); cursor: pointer; color: var(--fg); }
+/* What a search found: a card for each match. */
+.search-results { display: flex; flex-direction: column; gap: 8px; }
+.search-result { display: flex; flex-direction: column; gap: 8px; width: 100%; text-align: left; padding: 12px 14px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; color: var(--fg); }
 @media (hover: hover) { .search-result:hover .sr-snippet { color: var(--accent); } }
 .search-result:disabled { cursor: wait; opacity: .6; }
 .sr-meta { font-size: 11px; color: var(--fg-subtle); }
@@ -288,7 +299,6 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
   .entry { padding-bottom: 20px; }
   .entry.user .bubble { max-width: 100%; }
   .entry .meta { gap: 6px; font-size: 11px; }
-  .proc-head { gap: 6px; }
   .setting-row { gap: 16px; }
 }
 
@@ -296,7 +306,8 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .search-row .input { flex: 1; }
 .search-status { display: flex; align-items: center; gap: 8px; color: var(--fg-subtle); font-size: 12px; padding: 4px 0; }
 .load-error { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--err); font-size: 13px; padding: 12px 0; overflow-wrap: anywhere; }
-@media (max-width: 899px) { .proc-head, .fold-chip { min-height: 44px; } }
+/* A finger's room around a button that keeps the line's height. */
+@media (pointer: coarse) { .history-chip::before { content: ''; position: absolute; inset: -9px -3px; } }
 
 .session-window:not(.usage-info-window) > .modal-body > h4 { font: 600 18px/1.6 var(--font); margin: 32px 0 20px; padding-top: 24px; border-top: 1px solid var(--line); }
 .info-instructions { flex-direction: column; align-items: stretch; gap: 12px; }
@@ -379,7 +390,8 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .info-facts dt { margin-bottom: 3px; font-size: 12px; color: var(--fg-subtle); }
 .info-facts dd { color: var(--fg); }
 @media (max-width: 599px) {
-  .info-card { padding: 14px; }
+  .info-card { padding: 14px; border: 0; border-radius: 18px; background: var(--bg-group); }
+  .search-result { border: 0; border-radius: 16px; background: var(--bg-group); }
   .info-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .info-facts > div, .info-facts > .wide { grid-column: auto; }
 }

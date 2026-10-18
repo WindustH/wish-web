@@ -26,7 +26,7 @@ import './styles/base.css';
 import './styles/layout.css';
 import './styles/components.css';
 import './styles/features.css';
-import { MOBILE_QUERY } from './ui/composables/useMedia.ts';
+import { installScrollStallLog } from './ui/scrollStalls.ts';
 
 applyTokens();
 registerBrowserPlatform();
@@ -37,13 +37,10 @@ prefs.load();
 // should not appear on right-click or touch hold elsewhere in the UI. Parts
 // with a context menu of their own (marked data-context-menu) take the event
 // themselves, and suppress the browser's too, even where theirs does not open.
+installScrollStallLog();
+
 document.addEventListener('contextmenu', event => {
   if (!(event.target instanceof Element && event.target.closest('[data-context-menu]'))) event.preventDefault();
-}, true);
-document.addEventListener('selectstart', event => {
-  if (matchMedia(MOBILE_QUERY).matches && event.target instanceof Element && event.target.closest('.chatlog')) {
-    event.preventDefault();
-  }
 }, true);
 
 // theme: system watch + apply resolved + meta theme-color sync

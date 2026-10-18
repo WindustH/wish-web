@@ -141,5 +141,6 @@ export const en = {
   'pwa.updateFailed': 'Update failed; please retry later',
   'pwa.reload': 'Update now',
   'pwa.later': 'Later',
+  'pwa.reloadHint': 'The page reloads to update.',
   'sync.protocolError': 'Malformed sync stream frame; frame ignored',
 };

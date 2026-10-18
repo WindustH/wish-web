@@ -8,6 +8,8 @@ import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-rou
 import { useIsMobile } from './ui/composables/useMedia.ts';
 import AttachmentPreview from './ui/components/AttachmentPreview.vue';
 import ToastHost from './ui/components/ToastHost.vue';
+import Icon from './ui/components/Icon.vue';
+import TouchSelection from './ui/components/TouchSelection.vue';
 import ErrorDialogHost from './ui/components/ErrorDialogHost.vue';
 import { onboardingPreview, closeOnboardingPreview } from './features/onboarding/preview.ts';
 import CachedPage from './ui/components/CachedPage.vue';
@@ -90,14 +92,18 @@ const online = computed(() => sync.online.value);
     </div>
     <DialogRoot v-model:open="needRefresh" :modal="false"><DialogPortal>
     <DialogContent class="pwa-update" :aria-describedby="undefined" @interact-outside.prevent @open-auto-focus.prevent>
-      <DialogTitle as-child><span>{{ i18n.t('pwa.updateAvailable') }}</span></DialogTitle>
-      <button class="btn" @click="refreshApp()">{{ i18n.t('pwa.reload') }}</button>
-      <button class="btn ghost" @click="needRefresh = false">{{ i18n.t('pwa.later') }}</button>
+      <span class="pwa-update-mark" aria-hidden="true"><Icon name="sparkles" /></span>
+      <span class="pwa-update-text"><DialogTitle as-child><strong>{{ i18n.t('pwa.updateAvailable') }}</strong></DialogTitle><small>{{ i18n.t('pwa.reloadHint') }}</small></span>
+      <span class="pwa-update-actions">
+        <button class="btn ghost" @click="needRefresh = false">{{ i18n.t('pwa.later') }}</button>
+        <button class="btn primary" @click="refreshApp()">{{ i18n.t('pwa.reload') }}</button>
+      </span>
     </DialogContent>
     </DialogPortal></DialogRoot>
     <AccountDialog v-if="!isMobile" :open="accountDialogOpen" @close="accountDialogOpen = false" />
     <ToastHost />
     <AttachmentPreview />
+    <TouchSelection />
   </div>
   <!-- Above the settings dialog (51), below pickers (80) and error dialogs (200). -->
   <ProviderSetup v-if="onboardingPreview" preview class="onboarding-preview" @complete="closeOnboardingPreview" @exit="closeOnboardingPreview" />

@@ -168,7 +168,10 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
   </div>
 </template>
 <style scoped>
-.models-editor,.model-form{display:grid;gap:14px}.model-row{display:flex;align-items:center;gap:8px;padding:8px 0}.model-edit{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;align-items:flex-start;border:0;background:transparent;color:inherit;cursor:pointer;text-align:left}.model-edit strong{overflow-wrap:anywhere}
+.models-editor,.model-form{display:grid;gap:14px}
+/* Each model a card of its own: models are added and removed, not a fixed form. */
+.models-editor{gap:8px}
+.model-row{display:flex;align-items:center;gap:8px;padding:10px 8px 10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg-raised)}.model-edit{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;align-items:flex-start;border:0;background:transparent;color:inherit;cursor:pointer;text-align:left}.model-edit strong{overflow-wrap:anywhere}
 .model-title{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;min-width:0}.model-title code{font-family:var(--mono);font-size:12px;color:var(--fg-subtle);overflow-wrap:anywhere}
 .model-facts{display:flex;flex-wrap:wrap;gap:6px}.model-fact{display:inline-flex;align-items:baseline;gap:6px;padding:2px 8px;border-radius:6px;background:var(--bg-sunken);font-size:12px;line-height:1.6;color:var(--fg-muted);font-variant-numeric:tabular-nums}.model-fact span{color:var(--fg-subtle)}
 .model-form label,.model-form .model-field{display:flex;flex-direction:column;gap:6px}.model-form .input{width:100%;min-width:0}.model-form summary{cursor:pointer}
@@ -201,15 +204,12 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
 .model-form>details>summary .icon{width:15px;height:15px;transition:transform var(--dur-fast)}
 .model-form>details[open]>summary .icon{transform:rotate(180deg)}
 .model-form>details textarea{margin:0 0 14px;font-family:var(--mono);font-size:calc(12.5px * var(--mono-scale))}
-.model-row+.model-row{border-top:1px solid var(--line)}
 @media(max-width:899px){
-.models-editor{gap:0;border:0;border-radius:18px;background:var(--bg-group);overflow:hidden}
-.models-editor .model-row+.model-row{border-top:2px solid var(--bg-sunken)}
 .models-editor>.hint{margin:0;padding:14px}
 .model-form{border:0;border-radius:18px;background:var(--bg-group)}
 .model-form>*+:is(label,.model-field,.model-toggle,details){border-top:2px solid var(--bg-sunken)}
 .model-form>label,.model-form>.model-field,.model-form>.model-toggle{padding:12px 14px}
-.model-row{padding:12px 8px 12px 14px;gap:4px}
+.model-row{padding:12px 8px 12px 14px;gap:4px;border:0;border-radius:16px;background:var(--bg-group)}
 .model-edit strong{font-size:14px}.model-title code,.model-fact{font-size:11px}
 .efforts-chips{gap:8px}
 .effort-chip{min-height:36px;padding:6px 14px;font-size:13px}

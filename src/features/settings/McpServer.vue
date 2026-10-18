@@ -35,6 +35,7 @@ const props = defineProps<{
   id: string;
   value: McpServerConfig;
   status?: McpServerStatus;
+  statusKnown?: boolean;
   providers: { value: string; label: string; brand?: string }[];
   initiallyOpen?: boolean;
   save?: () => Promise<boolean>;
@@ -54,8 +55,10 @@ const tools = computed(() => props.status?.tools ?? null);
 const summary = (text?: string) => text?.split('\n').map(line => line.trim()).find(Boolean) ?? '';
 // The server's message leads; the program's own output follows it on later lines.
 const errorSummary = computed(() => props.status?.error ? describeError(props.status.error.split('\n')[0]).message : '');
-const state = computed<ItemState>(() => {
+// Unknown until the statuses are read, so no state rather than a wrong one for a moment.
+const state = computed<ItemState | null>(() => {
   if (!props.value.enabled) return { kind: 'disabled', text: tr('已停用', 'Disabled') };
+  if (!props.statusKnown) return null;
   if (props.status?.error) return { kind: 'error', text: tr('连接失败', 'Failed') };
   if (tools.value) return { kind: 'ok', text: tr(`${tools.value.length} 个工具`, `${tools.value.length} tool${tools.value.length === 1 ? '' : 's'}`) };
   return { kind: 'idle', text: tr('尚未连接', 'Not connected yet') };
@@ -103,7 +106,7 @@ async function check() {
 </script>
 
 <template>
-  <SettingsItemCard class="mcp-item" :title="id" :summary="target || (stdio ? tr('未填写命令', 'No command') : tr('未填写地址', 'No URL'))" :state="state" :edit-hint="tr('编辑服务器', 'Edit server')" :remove-hint="tr('删除服务器', 'Delete server')" :check-hint="tr('连接并列出工具', 'Connect and list tools')" :checking="checking" :busy="busy" @open="editing = true" @remove="emit('remove')" @check="check">
+  <SettingsItemCard class="mcp-item" :title="id" :summary="target || (stdio ? tr('未填写命令', 'No command') : tr('未填写地址', 'No URL'))" :state="state" :edit-hint="tr('编辑服务器', 'Edit server')" :remove-hint="tr('删除服务器', 'Delete server')" :check-hint="tr('测试', 'Test')" :checking="checking" :busy="busy" @open="editing = true" @remove="emit('remove')" @check="check">
     <template #mark><Icon :name="stdio ? 'terminal' : 'globe'" /></template>
     <template #title-extra><small v-if="running" class="mcp-running">{{ running }}</small></template>
     <template #detail>{{ stdio ? tr('本地程序', 'Local program') : tr('远程服务', 'Remote server') }} · <span class="set-mono">{{ target || '—' }}</span></template>
@@ -142,7 +145,7 @@ async function check() {
         </div>
 
         <div v-if="isMobile" class="set-card">
-          <div class="set-row inline"><span class="set-label"><span>{{ state.text }}</span><small>{{ running || tr('连接一次，读取它提供的工具', 'Connect once and read its tools') }}</small></span><button type="button" class="btn" :disabled="checking || busy" @click="check"><Icon v-if="checking" name="loader-circle" class="spin" />{{ tr('检查', 'Check') }}</button></div>
+          <div class="set-row inline"><span class="set-label"><span>{{ state?.text }}</span><small>{{ running || tr('连接一次，读取它提供的工具', 'Connect once and read its tools') }}</small></span><button type="button" class="btn" :disabled="checking || busy" @click="check"><Icon v-if="checking" name="loader-circle" class="spin" />{{ tr('测试', 'Test') }}</button></div>
           <div v-if="status?.error" class="mcp-error"><Icon name="triangle-alert" /><div><p>{{ errorSummary }}</p><details><summary>{{ tr('完整信息', 'Full message') }}</summary><pre>{{ status.error }}</pre></details></div></div>
           <div v-for="tool in tools ?? []" :key="tool.name" class="set-row stacked mcp-tool-row"><span class="set-label"><span class="set-mono">{{ tool.name }}</span><small>{{ summary(tool.description) }}</small></span></div>
         </div>

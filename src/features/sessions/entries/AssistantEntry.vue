@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// A text segment of an assistant entry (grouping guarantees process blocks
-// live in the adjacent thumbnails, never here).
+// A text segment of an assistant entry, with the runs of steps and notices that came before it as
+// buttons at the start of its words.
 import { computed } from 'vue';
 import { i18n } from '../../../core/i18n/index.ts';
 import { blobUrl } from '../../../core/api/endpoints.ts';
@@ -8,8 +8,10 @@ import { fmtTokens } from '../../../core/util/fmt.ts';
 import Markdown from '../../../ui/components/Markdown.vue';
 import MessageContext from './MessageContext.vue';
 import ApiImage from '../../../ui/components/ApiImage.vue';
+import HistoryChips from './HistoryChips.vue';
 
-const props = defineProps<{ item: any }>();
+const props = defineProps<{ item: any; session?: string; forcedKeys?: ReadonlySet<string> }>();
+const before = computed(() => props.item.before ?? []);
 const texts = computed(() => (props.item.blocks || []).filter((b: any) => b.type === 'text'));
 const images = computed(() => (props.item.blocks || []).filter((b: any) => b.type === 'image'));
 const blobSrc = (b: any) => b.data_base64
@@ -22,7 +24,8 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
 <template>
   <MessageContext :text="joined" kind="assistant">
     <div class="entry assistant">
-      <div class="body">
+      <div class="body" :class="{ 'chips-before': before.length }">
+        <HistoryChips v-if="before.length" :chips="before" :session="session" :forced-keys="forcedKeys" />
         <Markdown v-for="(b, i) in texts" :key="i" :text="b.text" />
         <template v-for="(b, i) in images" :key="'img' + i">
           <ApiImage v-if="blobSrc(b)" class="assistant-img" :src="blobSrc(b)!" alt="" loading="lazy" decoding="async" />

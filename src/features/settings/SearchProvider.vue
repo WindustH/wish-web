@@ -29,10 +29,10 @@ export interface SearchProviderConfig {
 const props = defineProps<{
   id: string;
   position: number;
-  count: number;
   value: SearchProviderConfig;
   preset?: SearchPreset;
   status?: SearchProviderStatus;
+  statusKnown?: boolean;
   // Model providers this one can borrow: the ones whose preset the search comes with.
   lenders: { value: string; label: string; brand?: string }[];
   initiallyOpen?: boolean;
@@ -40,7 +40,7 @@ const props = defineProps<{
   dirty?: boolean;
   busy?: boolean;
 }>();
-const emit = defineEmits<{ remove: []; checked: []; move: [delta: number] }>();
+const emit = defineEmits<{ remove: []; checked: []; grab: [event: PointerEvent] }>();
 const isMobile = useIsMobile();
 const editing = ref(props.initiallyOpen ?? false);
 const checking = ref(false);
@@ -53,8 +53,10 @@ const subtitle = computed(() => borrowed.value
   ? tr(`借用 ${lenderName.value} 的账户`, `Uses ${lenderName.value}'s account`)
   : [props.preset?.key === 'none' ? tr('无需密钥', 'No key') : tr('自带密钥', 'Own key'), address.value].filter(Boolean).join(' · '));
 const problem = computed(() => props.status?.problem ? describeError(props.status.problem).message : '');
-const state = computed<ItemState>(() => {
+// Unknown until the statuses are read, so no state rather than a wrong one for a moment.
+const state = computed<ItemState | null>(() => {
   if (!props.value.enabled) return { kind: 'disabled', text: tr('已停用', 'Disabled') };
+  if (!props.statusKnown) return null;
   if (!props.status) return { kind: 'idle', text: tr('未保存', 'Not saved') };
   if (!props.status.available) return { kind: 'error', text: tr('不可用', 'Unavailable') };
   return { kind: 'ok', text: tr('可用', 'Ready') };
@@ -96,7 +98,7 @@ async function check() {
 </script>
 
 <template>
-  <SettingsItemCard :title="name" :summary="subtitle" :state="state" :position="position" draggable :edit-hint="tr('编辑', 'Edit')" :remove-hint="tr('删除', 'Delete')" :check-hint="tr('试搜一次', 'Try a search')" :checking="checking" :busy="busy" @open="editing = true" @remove="emit('remove')" @check="check">
+  <SettingsItemCard :title="name" :summary="subtitle" :state="state" :position="position" draggable :edit-hint="tr('编辑', 'Edit')" :remove-hint="tr('删除', 'Delete')" :check-hint="tr('测试', 'Test')" :checking="checking" :busy="busy" @open="editing = true" @remove="emit('remove')" @check="check" @grab="emit('grab', $event)">
     <template #mark><ProviderIcon :brand="preset?.brand" fallback="globe" /></template>
     <div v-if="!isMobile && problem && value.enabled" class="search-problem"><Icon name="triangle-alert" /><p>{{ problem }}</p></div>
 
@@ -114,12 +116,8 @@ async function check() {
           <div class="set-row inline toggle-row"><span class="set-label"><span>{{ tr('使用代理', 'Use proxy') }}</span><small>{{ tr('按「提供商」中的网络代理设置连接', 'Connect through the network proxy set under Providers') }}</small></span><SwitchRoot v-model="value.proxy_enabled" class="cfg-switch" :aria-label="tr('使用代理', 'Use proxy')"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
         </div>
         <p v-if="preset?.docs_url" class="search-docs"><a :href="preset.docs_url" target="_blank" rel="noreferrer">{{ tr('查看这个服务的文档', 'Read this service\'s documentation') }}</a></p>
-
-        <div v-if="isMobile && count > 1" class="set-card">
-          <div class="set-row inline"><span class="set-label"><span>{{ tr(`第 ${position} 个询问`, `Asked ${position} of ${count}`) }}</span><small>{{ tr('前一个用不了时才轮到后面的', 'A later one is asked only when the earlier ones cannot answer') }}</small></span><span class="search-move"><button type="button" class="btn icon-only" :disabled="position === 1" :aria-label="tr('上移', 'Move up')" @click="emit('move', -1)"><Icon name="arrow-up" /></button><button type="button" class="btn icon-only" :disabled="position === count" :aria-label="tr('下移', 'Move down')" @click="emit('move', 1)"><Icon name="arrow-down" /></button></span></div>
-        </div>
         <div v-if="isMobile" class="set-card">
-          <div class="set-row inline"><span class="set-label"><span>{{ state.text }}</span><small>{{ problem || tr('用它搜一次，确认能用', 'Search once to see that it works') }}</small></span><button type="button" class="btn" :disabled="checking || busy" @click="check"><Icon v-if="checking" name="loader-circle" class="spin" />{{ tr('试搜', 'Try') }}</button></div>
+          <div class="set-row inline"><span class="set-label"><span>{{ state?.text }}</span><small>{{ problem || tr('用它搜一次，确认能用', 'Search once to see that it works') }}</small></span><button type="button" class="btn" :disabled="checking || busy" @click="check"><Icon v-if="checking" name="loader-circle" class="spin" />{{ tr('测试', 'Test') }}</button></div>
         </div>
         <button v-if="isMobile" type="button" class="btn danger solid search-mobile-remove" @click="editing = false; emit('remove')"><Icon name="trash-2" />{{ tr('删除', 'Delete') }}</button>
       </div>
@@ -136,7 +134,6 @@ async function check() {
 .search-form .set-row input::placeholder { font-family: var(--font); }
 .search-form .set-row.inline > .btn { display: inline-flex; align-items: center; gap: 6px; }
 .search-docs { margin: -4px 4px 0; font-size: 12.5px; }
-.search-move { display: flex; gap: 6px; }
 .hint { font-size: 12px; color: var(--fg-subtle); margin-right: auto; }
 @media (max-width: 899px) {
   .search-mobile-remove { width: 100%; min-height: 52px; justify-content: center; border-radius: 18px; }

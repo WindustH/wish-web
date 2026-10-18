@@ -17,6 +17,8 @@ export const ICONS: Record<string, string> = {
   'chevron-down': '<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>',
   'chevron-left': '<path d="m14.5 6-6 6 6 6"/>',
   'chevron-right': '<path d="m9.5 6 6 6-6 6"/>',
+  // What a finger holds to move a row.
+  grip: `<path d="${dot(9, 6)}${dot(15, 6)}${dot(9, 12)}${dot(15, 12)}${dot(9, 18)}${dot(15, 18)}" stroke-width="3"/>`,
   'chevrons-up-down': '<path d="m7.5 9 4.5-4.5L16.5 9m-9 6 4.5 4.5 4.5-4.5"/>',
   'arrow-left': '<path d="M20 12H5m6-6.5L4.5 12l6.5 6.5"/>',
   'arrow-down': '<path d="M12 4v15m-6.5-6.5L12 19l6.5-6.5"/>',
@@ -24,6 +26,7 @@ export const ICONS: Record<string, string> = {
   x: '<path d="m6 6 12 12M18 6 6 18"/>',
   plus: '<path d="M12 4.5v15M4.5 12h15"/>',
   check: '<path d="m4.5 12.5 5 5 10-11"/>',
+  minus: '<path d="M6 12h12"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h10"/>',
   'ellipsis-vertical': `<path d="${dot(12, 5.5)}${dot(12, 12)}${dot(12, 18.5)}" stroke-width="3"/>`,
   'external-link': '<path d="M10 5H7a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3v-3M14 4h6v6m0-6-8.5 8.5"/>',

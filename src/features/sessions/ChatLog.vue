@@ -9,7 +9,7 @@ import { chatWorkIndicator } from './phaseIndicator.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { announce } from '../../ui/live.ts';
-import { groupEntries, type GroupItem } from './grouping.ts';
+import { groupEntries, inlineChips, type ChipsItem, type GroupItem, type TextItem } from './grouping.ts';
 import type { EntryView } from '../../core/api/projections.ts';
 import HistoryItem from './HistoryItem.vue';
 import Markdown from '../../ui/components/Markdown.vue';
@@ -46,9 +46,9 @@ const requestFailure = computed(() => displayFailure(chat.error.value));
 // Keep status cards inside the measured list so its size matches the scroll
 // container's actual content height.
 // History rows, then a closing row for a failed request or run.
-type ChatRow = GroupItem<EntryView> | { type: 'status_request_error' | 'status_run_error'; key: string };
+type ChatRow = GroupItem<EntryView> | TextItem<EntryView> | ChipsItem<EntryView> | { type: 'status_request_error' | 'status_run_error'; key: string };
 const groups = computed(() => {
-  const items: ChatRow[] = groupEntries(chat.entries.value);
+  const items: ChatRow[] = inlineChips(groupEntries(chat.entries.value));
   if (requestFailure.value) items.push({ type: 'status_request_error', key: `request-error:${props.sessionId}` });
   if (runFailure.value) items.push({ type: 'status_run_error', key: `run-error:${props.sessionId}` });
   return items;
@@ -132,7 +132,6 @@ const {
 
 // Search locate & virtual item expansion
 const { targetSeq, forcedOpen } = useSearchLocate(
-  scrollEl,
   groups,
   virtualizer,
   owns,
@@ -143,10 +142,11 @@ const { targetSeq, forcedOpen } = useSearchLocate(
   },
 );
 // Whether a row holds the history entry a search result points at.
-function holdsTarget(row: ChatRow | undefined) {
+function holdsTarget(row: ChatRow | undefined): boolean {
   const seq = targetSeq.value;
   if (seq == null || !row) return false;
-  if (row.type === 'entry') return row.entry.seq === seq;
+  if (row.type === 'chips') return row.chips.some(holdsTarget);
+  if (row.type === 'entry') return row.entry.seq === seq || ((row as TextItem<EntryView>).before ?? []).some(holdsTarget);
   if (row.type === 'process') return row.steps.some(step => stepSeq(step) === seq);
   if (row.type === 'question') return row.entry.seq === seq || row.result?.seq === seq;
   return false;
@@ -206,9 +206,8 @@ watch(scrollContentEl, (content, _, onCleanup) => {
           :data-index="v.index"
           :class="{ 'status-error-row': groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error', 'history-target': holdsTarget(groups[v.index]), 'row-enter': fresh.has(groups[v.index]?.key ?? '') }"
           :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }">
-          <HistoryItem v-if="groups[v.index]?.type === 'entry' || groups[v.index]?.type === 'process' || groups[v.index]?.type === 'question'" :item="groups[v.index]!"
-            :forced="groups[v.index]!.type === 'process' && forcedOpen.has(groups[v.index]!.key)"
-            :session="sessionId" />
+          <HistoryItem v-if="['entry', 'process', 'chips', 'question'].includes(groups[v.index]?.type ?? '')" :item="groups[v.index]!"
+            :forced-keys="forcedOpen" :session="sessionId" />
           <div v-else-if="groups[v.index]?.type === 'status_request_error' && requestFailure" class="chat-run-error" role="alert">
             <strong>{{ i18n.t('chat.requestFailed') }}</strong>
             <p>{{ requestFailure.message }}</p>

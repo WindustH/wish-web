@@ -21,6 +21,9 @@
   --accent-fg: #fffaf5;
   --accent-soft: #f3e6df;
   --accent-hover: #8e3b27;
+  /* Selected text: the accent laid thin over whatever surface it is on, keeping the text's colour. */
+  --selection: rgb(166 74 51 / 20%);
+  --selection-blend: multiply;
   --ok: #4e715b;
   --warn: #8d672a;
   --warn-bg: #fdf5e4;
@@ -44,7 +47,8 @@
   --radius: 8px;
   --prose: var(--font);
   --font: 'Montserrat Variable', 'Sarasa Gothic SC', system-ui, sans-serif;
-  --message-size: 16px;
+  --message-size: 17px;
+  --message-leading: 1.65;
   --mono: 'Maple Mono NF CN', ui-monospace, monospace;
   /* Mean A–Z/a–z ink height: Montserrat 400 / Maple Mono 400 ≈ 0.944. */
   --mono-scale: .944;
@@ -82,6 +86,8 @@ html[data-theme='dark'] {
   --accent-fg: #291d17;
   --accent-soft: #42332b;
   --accent-hover: #efac91;
+  --selection: rgb(223 148 122 / 30%);
+  --selection-blend: screen;
   --ok: #96bb9d;
   --warn: #d9b777;
   --warn-bg: #363020;
