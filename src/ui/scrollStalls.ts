@@ -91,12 +91,12 @@ function record(kind: ScrollStall['kind'], x: number, y: number, target: Element
 }
 
 let scrolledAt = 0;
-type Touch = { x: number; y: number; dy: number; at: number; moves: number; seen: number; cancelled: number; target: Element | null; menu: boolean };
+type Touch = { x: number; y: number; dy: number; far: number; at: number; moves: number; seen: number; cancelled: number; target: Element | null; menu: boolean };
 let touch: Touch | undefined;
 let wheelPending = false;
 let lastRecord = 0;
 // A menu in sight takes the next press only to close; that press scrolling nothing is no stall.
-const menuInSight = () => [...document.querySelectorAll('.menu-pop, [role="dialog"]')].some(element => {
+const menuInSight = () => [...document.querySelectorAll('.menu-pop, [role="dialog"]:not(.pwa-update)')].some(element => {
   const box = element.getBoundingClientRect();
   return box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth && getComputedStyle(element).visibility === 'visible';
 });
@@ -131,7 +131,7 @@ export function installScrollStallLog() {
   window.addEventListener('touchstart', event => {
     const point = event.touches[0];
     touch = event.touches.length === 1 && point
-      ? { x: point.clientX, y: point.clientY, dy: 0, at: performance.now(), moves: 0, seen: 0, cancelled: 0, target: event.target as Element, menu: menuInSight() }
+      ? { x: point.clientX, y: point.clientY, dy: 0, far: 0, at: performance.now(), moves: 0, seen: 0, cancelled: 0, target: event.target as Element, menu: menuInSight() }
       : undefined;
   }, { capture: true, passive: true });
   // First of all, every move; last of all, whether the page's listeners cancelled it.
@@ -140,6 +140,7 @@ export function installScrollStallLog() {
     if (!touch || !point) return;
     touch.moves++;
     touch.dy = point.clientY - touch.y;
+    touch.far = Math.max(touch.far, Math.hypot(point.clientX - touch.x, touch.dy));
   }, { capture: true, passive: true });
   window.addEventListener('touchmove', event => {
     if (!touch) return;
@@ -149,7 +150,8 @@ export function installScrollStallLog() {
   window.addEventListener('touchend', () => {
     const gesture = touch;
     touch = undefined;
-    if (gesture && !gesture.menu && !gesture.moves && performance.now() - gesture.at < 500) watchTap(gesture);
+    // A tap may tremble a few pixels; it is still a tap that should make a click.
+    if (gesture && !gesture.menu && gesture.far < 10 && performance.now() - gesture.at < 500) watchTap(gesture);
     if (!gesture || gesture.menu || Math.abs(gesture.dy) < 48) return;
     // A scroll that did happen has fired by the next frames.
     setTimeout(() => {

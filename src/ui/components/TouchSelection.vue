@@ -8,14 +8,13 @@
 // WebKit skips on text that cannot be selected, so it is boxes laid over the words. A mouse keeps
 // the browser's own selection.
 import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
+import { useRouter } from 'vue-router';
 import Icon from './Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { copyText } from '../clipboard.ts';
-import { caretAt, covers, glyphAt } from '../textAtPoint.ts';
+import { caretAt, covers, glyphAt, SELECTABLE_TEXT as ROOTS } from '../textAtPoint.ts';
 import { noteSwallowedClick } from '../scrollStalls.ts';
 
-// The text a held finger selects in: what a message says. base.css names the same parts.
-const ROOTS = '.entry.user .bubble, .entry.assistant .body > .markdown';
 // As long as a held finger takes to open a message's menu, so the two gestures read alike.
 const HOLD_MS = 500;
 const supported = !!(document.caretPositionFromPoint || document.caretRangeFromPoint);
@@ -33,12 +32,28 @@ let root: Element | null = null;
 function show(next: Range | null) {
   range.value = next;
   place();
+  if (next && !following) { followedAt = ''; following = requestAnimationFrame(follow); }
 }
 function clear() {
   root = null;
   barOpen.value = false;
   show(null);
+  cancelAnimationFrame(following);
+  following = 0;
 }
+// Rows above re-measure and replies grow without a scroll; while there is a selection, the marks
+// follow its message wherever it moves.
+let following = 0, followedAt = '';
+function follow() {
+  following = 0;
+  if (!range.value || !root) return;
+  const box = root.getBoundingClientRect();
+  const at = `${box.left} ${box.top} ${box.width} ${box.height}`;
+  if (at !== followedAt) { followedAt = at; place(); }
+  if (range.value) following = requestAnimationFrame(follow);
+}
+// Another page has none of these words.
+onBeforeUnmount(useRouter().afterEach(() => clear()));
 
 // The caret box at one end of the selection: where its handle stands.
 function caretBox(node: Node, offset: number): DOMRect {
@@ -110,7 +125,10 @@ let lastTouch = -Infinity;
 let quietUntil = 0;
 const isUi = (target: EventTarget | null) => target instanceof Element && !!target.closest('.touch-selection-ui');
 function onPointerDown(event: PointerEvent) {
-  if (event.pointerType !== 'touch' || !event.isPrimary) return;
+  if (!event.isPrimary) return;
+  // Whatever the last press was, this one is new: only a hold of its own may keep its click.
+  quietUntil = 0;
+  if (event.pointerType !== 'touch') return;
   lastTouch = performance.now();
   if (press?.timer) clearTimeout(press.timer);
   press = undefined;
@@ -134,8 +152,9 @@ function onPointerDown(event: PointerEvent) {
     word.setEnd(glyph.node, to);
     root = textRoot;
     barOpen.value = true;
-    // Lifting the finger must not also act on what it held, a link among the words say.
-    quietUntil = performance.now() + 800;
+    // Lifting the finger must not also act on what it held, a link among the words say: no click
+    // counts until it is lifted, and for the moment after.
+    quietUntil = Infinity;
     show(word);
   }, HOLD_MS);
 }
@@ -150,6 +169,7 @@ function onPointerUp(event: PointerEvent) {
   const { x, y, moved, held, timer } = press;
   if (timer) clearTimeout(timer);
   press = undefined;
+  if (held) quietUntil = performance.now() + 400;
   if (moved || held || !range.value) return;
   if (onSelection(x, y)) barOpen.value = !barOpen.value;
   else clear();
@@ -172,6 +192,7 @@ function onClick(event: MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
     noteSwallowedClick('touch selection: lifting the finger that selected');
+    quietUntil = 0;
   }
 }
 

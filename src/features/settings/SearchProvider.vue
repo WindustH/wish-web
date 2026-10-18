@@ -40,7 +40,7 @@ const props = defineProps<{
   dirty?: boolean;
   busy?: boolean;
 }>();
-const emit = defineEmits<{ remove: []; checked: []; grab: [event: PointerEvent] }>();
+const emit = defineEmits<{ remove: []; checked: []; grab: [event: PointerEvent]; move: [delta: number] }>();
 const isMobile = useIsMobile();
 const editing = ref(props.initiallyOpen ?? false);
 const checking = ref(false);
@@ -98,7 +98,7 @@ async function check() {
 </script>
 
 <template>
-  <SettingsItemCard :title="name" :summary="subtitle" :state="state" :position="position" draggable :edit-hint="tr('编辑', 'Edit')" :remove-hint="tr('删除', 'Delete')" :check-hint="tr('测试', 'Test')" :checking="checking" :busy="busy" @open="editing = true" @remove="emit('remove')" @check="check" @grab="emit('grab', $event)">
+  <SettingsItemCard :title="name" :summary="subtitle" :state="state" :position="position" draggable :edit-hint="tr('编辑', 'Edit')" :remove-hint="tr('删除', 'Delete')" :check-hint="tr('测试', 'Test')" :checking="checking" :busy="busy" @open="editing = true" @remove="emit('remove')" @check="check" @grab="emit('grab', $event)" @move="emit('move', $event)">
     <template #mark><ProviderIcon :brand="preset?.brand" fallback="globe" /></template>
     <div v-if="!isMobile && problem && value.enabled" class="search-problem"><Icon name="triangle-alert" /><p>{{ problem }}</p></div>
 

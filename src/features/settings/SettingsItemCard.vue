@@ -3,7 +3,8 @@
 // On a phone it is a row that opens its editor; on a desktop, a header with its state and actions
 // (try it, edit it, delete it, and any of its own in the `actions` slot, first). What sits under the
 // header - notes, details, the editor itself - comes in the default slot.
-import { computed } from 'vue';
+import { computed, nextTick } from 'vue';
+import { tr } from '../../core/i18n/tr.ts';
 import Hint from '../../ui/components/Hint.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
@@ -18,7 +19,8 @@ const props = defineProps<{
   mobileState?: ItemState | null;
   // Its place in an ordered list, shown before the mark.
   position?: number;
-  // The item is moved by dragging its header, or on a phone the grip at the end of its row.
+  // The item is moved by dragging its header, or on a phone the grip at the end of its row; from the
+  // keyboard, by the up and down keys on its place number or grip.
   draggable?: boolean;
   // What the actions call the item for assistive technology; the title by default.
   label?: string;
@@ -29,13 +31,20 @@ const props = defineProps<{
   checking?: boolean;
   busy?: boolean;
 }>();
-// `grab`: a finger pressed the row's grip, to move the item.
-const emit = defineEmits<{ open: []; remove: []; check: []; grab: [event: PointerEvent] }>();
+// `grab`: a finger pressed the row's grip, to move the item; `move`: a key moved it by one place.
+const emit = defineEmits<{ open: []; remove: []; check: []; grab: [event: PointerEvent]; move: [delta: number] }>();
 const isMobile = useIsMobile();
 const name = computed(() => props.label ?? props.title);
 const phoneState = computed(() => props.mobileState === undefined ? props.state : props.mobileState);
 // A click anywhere on the header but its buttons opens the editor.
 const openFrom = (event: MouseEvent) => { if (!(event.target as Element).closest('button')) emit('open'); };
+const moveHint = computed(() => tr(`移动 ${name.value}（上下方向键）`, `Move ${name.value} (up and down keys)`));
+// The list moves the item's element; the key that moved it keeps it in hand for the next press.
+function moveBy(delta: number, event: KeyboardEvent) {
+  const handle = event.currentTarget as HTMLElement;
+  emit('move', delta);
+  void nextTick(() => handle.focus());
+}
 </script>
 
 <template>
@@ -47,10 +56,13 @@ const openFrom = (event: MouseEvent) => { if (!(event.target as Element).closest
         <small v-if="phoneState" class="settings-item-state" :class="phoneState.kind">{{ phoneState.text }}</small>
         <Icon name="chevron-right" />
       </button>
-      <span v-if="draggable" class="settings-item-grip" aria-hidden="true" @pointerdown="emit('grab', $event)"><Icon name="grip" /></span>
+      <button v-if="draggable" type="button" class="settings-item-grip" :aria-label="moveHint" @pointerdown="emit('grab', $event)"
+        @keydown.up.prevent="moveBy(-1, $event)" @keydown.down.prevent="moveBy(1, $event)"><Icon name="grip" /></button>
     </div>
     <header v-else class="settings-item-heading" :class="{ draggable }" @click="openFrom">
-      <span v-if="position != null" class="settings-item-position">{{ position }}</span>
+      <button v-if="position != null && draggable" type="button" class="settings-item-position" :aria-label="moveHint"
+        @keydown.up.prevent="moveBy(-1, $event)" @keydown.down.prevent="moveBy(1, $event)">{{ position }}</button>
+      <span v-else-if="position != null" class="settings-item-position">{{ position }}</span>
       <span class="settings-item-mark"><slot name="mark" /></span>
       <div class="settings-item-identity">
         <div class="settings-item-title"><h2>{{ title }}</h2><span v-if="state" class="settings-item-state" :class="state.kind">{{ state.text }}</span><slot name="title-extra" /></div>
@@ -70,13 +82,14 @@ const openFrom = (event: MouseEvent) => { if (!(event.target as Element).closest
 <style scoped>
 .settings-item-phone { display: flex; align-items: stretch; background: var(--bg-group); }
 .settings-item-phone > .mobile-settings-row { flex: 1; min-width: 0; }
-.settings-item-grip { display: grid; place-items: center; flex: none; width: 44px; color: var(--fg-faint); touch-action: none; cursor: grab; }
+.settings-item-grip { display: grid; place-items: center; flex: none; width: 44px; padding: 0; border: 0; background: none; color: var(--fg-faint); touch-action: none; cursor: grab; }
 .settings-item-grip .icon { width: 18px; height: 18px; }
 .settings-item { min-width: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-raised); overflow: hidden; }
 .settings-item-heading { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; transition: background var(--dur-fast); }
 .settings-item-heading.draggable { padding-left: 12px; cursor: grab; }
 @media (hover: hover) { .settings-item-heading:hover { background: var(--bg-hover); } }
-.settings-item-position { flex: none; width: 18px; color: var(--fg-faint); font-size: 12px; font-variant-numeric: tabular-nums; text-align: center; }
+.settings-item-position { flex: none; width: 18px; padding: 0; border: 0; background: none; color: var(--fg-faint); font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; text-align: center; }
+button.settings-item-position { cursor: inherit; }
 .settings-item-mark { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg-muted); }
 .settings-item-identity { flex: 1; min-width: 0; }
 .settings-item-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }

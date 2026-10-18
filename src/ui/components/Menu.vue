@@ -30,7 +30,7 @@ import {
 import Icon from './Icon.vue';
 import MenuBackdrop from './MenuBackdrop.vue';
 import { usePageActivity } from '../composables/usePageActivity.ts';
-import { covers, glyphAt } from '../textAtPoint.ts';
+import { covers, glyphAt, SELECTABLE_TEXT } from '../textAtPoint.ts';
 import { noteSwallowedClick } from '../scrollStalls.ts';
 
 // `checked` marks the current choice of a menu that picks one of several.
@@ -135,7 +135,9 @@ function onPointerDown(event: PointerEvent) {
   touchPress = event.pointerType === 'touch';
   if (!touchPress || props.disabled && pressSelection === null) return;
   cancelPress();
-  blankPress = pressSelection !== null || !props.selectsText || !glyphAt(x, y, element);
+  // Only words that a held finger selects count as text; elsewhere a hold opens the menu.
+  const words = (event.target as Element | null)?.closest?.(SELECTABLE_TEXT);
+  blankPress = pressSelection !== null || !props.selectsText || !words || !element.contains(words) || !glyphAt(x, y, words);
   const part = pressed(event);
   if (!part || !blankPress) return;
   const selection = pressSelection;

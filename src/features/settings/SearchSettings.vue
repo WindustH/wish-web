@@ -34,6 +34,13 @@ watch(() => Object.keys(search.value.providers), ids => {
   search.value.order = [...order, ...ids.filter(id => !order.includes(id))];
 }, { immediate: true });
 const order = computed({ get: () => search.value.order, set: (ids: string[]) => { search.value.order = ids; } });
+// From the keyboard: one place up or down.
+function move(id: string, delta: number) {
+  const ids = [...order.value], from = ids.indexOf(id), to = from + delta;
+  if (from < 0 || to < 0 || to >= ids.length) return;
+  ids.splice(to, 0, ...ids.splice(from, 1));
+  order.value = ids;
+}
 
 const presetOf = (id: string) => props.presets.find(preset => preset.id === id);
 const lendersFor = (preset?: SearchPreset) => props.models.filter(model => model.preset && preset?.borrows_from?.includes(model.preset));
@@ -64,7 +71,7 @@ const controlsOf = (id: string) => controls.get(id) ?? controls.set(id, useDragC
     <div class="search-list">
       <ReorderGroup v-if="order.length" v-model:values="order" as="div" axis="y" class="search-order">
         <ReorderItem v-for="(id, index) in order" :key="id" :value="id" as="div" :drag-listener="!isMobile" :drag-controls="controlsOf(id)">
-          <SearchProvider :id="id" :position="index + 1" :value="search.providers[id]!" :preset="presetOf(search.providers[id]!.preset)" :status="statuses[id]" :status-known="statusesKnown" :lenders="lendersFor(presetOf(search.providers[id]!.preset))" :initially-open="id === opened" :save="save" :dirty="dirty" :busy="busy" @remove="remove(id)" @checked="emit('checked')" @grab="controlsOf(id).start($event)" />
+          <SearchProvider :id="id" :position="index + 1" :value="search.providers[id]!" :preset="presetOf(search.providers[id]!.preset)" :status="statuses[id]" :status-known="statusesKnown" :lenders="lendersFor(presetOf(search.providers[id]!.preset))" :initially-open="id === opened" :save="save" :dirty="dirty" :busy="busy" @remove="remove(id)" @checked="emit('checked')" @grab="controlsOf(id).start($event)" @move="move(id, $event)" />
         </ReorderItem>
       </ReorderGroup>
       <p v-if="!order.length" class="search-empty">{{ tr('还没有搜索提供商。', 'No search providers yet.') }}</p>

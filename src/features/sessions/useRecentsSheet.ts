@@ -14,6 +14,7 @@ import { noteSwallowedClick } from '../../ui/scrollStalls.ts';
 // back button move it along the same path. Motion stops at the end it heads for, never past it.
 // A touch that only takes hold, without moving, is still a tap: the sheet settles and the tap acts.
 const FLING = 350;        // px/s of release that decides the way on its own
+const SLOP = 6;           // px a finger moves before it drags rather than taps
 const MAX_STRETCH = 96;   // px the recent rows stretch at most
 const SPRING = { type: 'spring', bounce: 0, visualDuration: .32 } as const;
 
@@ -64,6 +65,7 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   let extras: HTMLElement[] = [];  // rows the home page does not show
   let resting: 0 | 1 | undefined;
   let quietUntil = 0;  // a click before this time (performance.now) ends a drag, not opens anything
+  let stretching: { stop: () => void } | undefined;
   type Drag = { kind: 'open' | 'close' | 'hold'; mode?: 'sheet' | 'stretch'; x: number; y: number; from: number };
   let drag: Drag | undefined;
 
@@ -126,7 +128,8 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   function clear() {
     settling?.stop();
     settling = undefined;
-    stretch.stop();
+    stretching?.stop();
+    stretching = undefined;
     stretch.jump(0);
     drag = undefined;
     resting = undefined;
@@ -177,7 +180,8 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
     if (!kind) return;
     // Taking hold stops it where it is.
     if (kind === 'hold') { settling?.stop(); settling = undefined; }
-    stretch.stop();
+    stretching?.stop();
+    stretching = undefined;
     drag = { kind, x: touch.clientX, y: touch.clientY, from: 0 };
   }
 
@@ -186,7 +190,8 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
     if (!drag || !touch) return;
     if (!drag.mode) {
       const dx = touch.clientX - drag.x, dy = touch.clientY - drag.y;
-      if (!dx && !dy) return;
+      // A finger that only trembles is still tapping: its click stays its own.
+      if (Math.hypot(dx, dy) < SLOP) return;
       if (drag.kind === 'hold') drag.mode = 'sheet';
       else if (Math.abs(dx) > Math.abs(dy)) { drag = undefined; return; }
       else if (drag.kind === 'close') {
@@ -221,7 +226,7 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
     if (!ended) return;
     if (ended.mode) quietUntil = performance.now() + 400;
     if (ended.mode === 'stretch') {
-      settleAt(stretch, 0, () => {});
+      stretching = settleAt(stretch, 0, () => { stretching = undefined; });
       return;
     }
     if (ended.mode !== 'sheet' && ended.kind !== 'hold') return;

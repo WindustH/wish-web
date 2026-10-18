@@ -12,8 +12,8 @@ import type { SkillFolder } from './skillTree.ts';
 
 export interface FolderState { switchable: SkillEntry[]; on: number; total: number; summary: string; checked: boolean | 'indeterminate'; conflict: boolean }
 export type SkillListRow =
-  | { key: string; depth: number; folder: SkillFolder; state: FolderState; skill?: undefined; note?: undefined }
-  | { key: string; depth: number; skill: SkillEntry; note?: { text: string; warn?: boolean }; folder?: undefined; state?: undefined };
+  | { key: string; folder: SkillFolder; state: FolderState; skill?: undefined; note?: undefined }
+  | { key: string; skill: SkillEntry; note?: { text: string; warn?: boolean }; folder?: undefined; state?: undefined };
 
 defineProps<{ rows: SkillListRow[]; busy: boolean; enabled: (name: string) => boolean }>();
 const emit = defineEmits<{ open: [folder: SkillFolder]; view: [skill: SkillEntry]; setFolder: [skills: SkillEntry[], on: boolean]; setSkill: [name: string, on: boolean] }>();
@@ -22,7 +22,7 @@ const reduced = prefersReducedMotion();
 
 <template>
   <AnimatePresence :initial="false">
-    <motion.div v-for="row in rows" :key="row.key" class="skill-line" :style="{ '--depth': row.depth }"
+    <motion.div v-for="row in rows" :key="row.key" class="skill-line"
       :initial="reduced ? false : { height: 0, opacity: 0 }" :animate="{ height: 'auto', opacity: 1 }" :exit="reduced ? undefined : { height: 0, opacity: 0 }" :transition="{ duration: 0.18, ease: 'easeOut' }">
       <div v-if="row.folder" class="set-row toggle-row skill-row skill-folder-row">
         <button type="button" class="skill-fold" aria-haspopup="dialog" @click="emit('open', row.folder)">
@@ -60,26 +60,15 @@ const reduced = prefersReducedMotion();
 .set-label > small.skill-note { color: var(--fg-faint); overflow-wrap: anywhere; }
 .set-label > small .skill-warn, .set-label > small.skill-warn { color: var(--warn); }
 .skill-row.off .skill-name, .skill-row.off .skill-description { opacity: .55; }
-/* A card for each folder and skill; in a search's tree, each level in by the width of a folder's
-   icon and the gap after it, so a folder's skills line up under its name. */
-.skill-line { overflow: hidden; margin-left: calc(var(--depth) * 26px); border: 1px solid var(--line); border-radius: 12px; background: var(--bg-raised); }
+/* A card for each folder and skill. */
+.skill-line { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-raised); }
 .skill-fold { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .skill-fold > .set-label { flex: 1; min-width: 0; }
 .skill-fold:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; border-radius: 4px; }
 .skill-folder-icon { flex: none; width: 16px; height: 16px; color: var(--fg-subtle); }
 .skill-chevron { flex: none; width: 15px; height: 15px; color: var(--fg-faint); }
 @media (hover: hover) { .skill-fold:hover .set-label > span { color: var(--accent); } }
-/* Ticked as files are picked: a dash on a folder with some of its skills on, and ticking it turns
-   them all on. */
-.skill-check { display: grid; place-items: center; flex: none; justify-self: end; width: 20px; height: 20px; padding: 0; border: 1.5px solid var(--line-strong); border-radius: 6px; background: transparent; color: var(--accent-fg); cursor: pointer; transition: background var(--dur-fast), border-color var(--dur-fast); }
-.skill-check:is([data-state="checked"], [data-state="indeterminate"]) { border-color: var(--accent); background: var(--accent); }
-.skill-check:disabled { opacity: .5; cursor: default; }
-.skill-check:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.skill-check-mark { display: grid; place-items: center; }
-.skill-check-mark .icon { width: 14px; height: 14px; stroke-width: 3; }
 @media (max-width: 899px) {
   .skill-line { border: 0; border-radius: 16px; background: var(--bg-group); }
-  .skill-check { width: 24px; height: 24px; border-radius: 7px; }
-  .skill-check-mark .icon { width: 16px; height: 16px; }
 }
 </style>

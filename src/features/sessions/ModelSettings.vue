@@ -6,7 +6,7 @@ import { computed, ref, toRef, watch } from 'vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { errorText } from '../../core/errors.ts';
 import { presetBrand } from '../../ui/providerPresentation.ts';
-import { useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
+import { providerTitlesRead, useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
 import { useSessionSelection, type ModelSelection } from './useSessionSelection.ts';
 import { useModelCatalog } from '../../ui/composables/useModelCatalog.ts';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
@@ -52,7 +52,7 @@ async function apply(value: string) {
 
 <template>
   <CommandPanel ref="panel" :title="i18n.t('model.title')" :busy="saving" @close="emit('close')">
-    <PickerList v-model="selected" :items="choices" :placeholder="i18n.t('model.search')" :disabled="saving || loading" @select="apply">
+    <PickerList v-model="selected" :class="{ unread: !providerTitlesRead }" :items="choices" :placeholder="i18n.t('model.search')" :disabled="saving || loading" @select="apply">
       <template #suffix="{ itemKey }"><Hint :text="i18n.t('model.visionHint')" v-if="visionChoices.has(itemKey)"><span class="model-vision" :aria-label="i18n.t('model.vision')"><Icon name="image" :size="13" aria-hidden="true" /></span></Hint></template>
       <template #status>
         <SelectionStatus :running="snapshot?.running" :error="error" :conflict="conflict" :loading="loading" :saving="saving" :busy="loading || saving || catalog.pending.value" :loading-text="i18n.t('model.loading')" @retry="reload">

@@ -30,7 +30,7 @@ const mobile = useIsMobile();
 const home = computed(() => route.name === 'sessions' || route.name === 'all-sessions');
 // The folder the new session goes in, when the list asked for one (`/new?folder=`), and its name.
 const folder = computed(() => route.name === 'new-chat' && typeof route.query.folder === 'string' ? route.query.folder : null);
-const folderName = computed(() => sessions.path.value.find(item => item.id === folder.value)?.name);
+const folderName = computed(() => folder.value ? sessions.folders.value.get(folder.value)?.name : undefined);
 const parentActive = usePageActivity(), active = ref(true);
 const visible = computed(() => parentActive.value && active.value);
 provide(pageActivityKey, visible);
@@ -144,13 +144,14 @@ async function send(text: string, attachments: AttachmentInput[]) {
       <div class="start-brand" aria-hidden="true"><img class="start-mark" src="/app-icons/mark.svg" alt="" /><Wordmark class="start-wordmark" /></div>
       <Composer ref="composer" owner="new-session" :mobile="mobile" start :send-message="send" :disabled="!selection.model || !cwd.trim() || busy || (!manuallySelected && !defaultReady)">
         <template #selection>
-          <div class="start-model-controls model-selection" :class="{ unread: !defaultsKnown && !manuallySelected }">
+          <div class="start-model-controls model-selection" :class="{ unread: !manuallySelected && (!defaultsKnown || (!selection.model && catalog.pending.value)) }">
             <Hint :text="i18n.t('model.title')"><button class="model-chip" :aria-expanded="modelOpen" :disabled="busy || !!created" @click="modelOpen = true">{{ modelLabel || i18n.t('model.title') }}</button></Hint>
             <span class="selection-dot" aria-hidden="true">·</span>
             <Hint :text="i18n.t('reasoning.title')"><button class="reasoning-chip" :aria-expanded="reasoningOpen" :disabled="!selection.model || busy || !!created" @click="reasoningOpen = true">{{ effortLabel(effectiveEffort).toUpperCase() }}</button></Hint>
           </div>
         </template>
-        <template #footer-start><DirectoryPicker :class="{ unread: !defaultsKnown && !manuallySetCwd }" :model-value="cwd" :disabled="busy || !!created" @update:model-value="cwd=$event; manuallySetCwd=true" /></template>
+        <!-- The picker renders no element of its own to take a class; this one holds its place. -->
+        <template #footer-start><span class="cwd-hold" :class="{ unread: !defaultsKnown && !manuallySetCwd }"><DirectoryPicker :model-value="cwd" :disabled="busy || !!created" @update:model-value="cwd=$event; manuallySetCwd=true" /></span></template>
       </Composer>
       <p v-if="folder && folderName" class="start-folder"><Icon name="folder" /><span>{{ tr(`新会话会放在「${folderName}」`, `The new session goes in “${folderName}”`) }}</span>
         <Hint :text="tr('放在根目录', 'Put it at the top level')"><button type="button" class="btn ghost icon-only" :aria-label="tr('放在根目录', 'Put it at the top level')" :disabled="busy || !!created" @click="router.replace('/new')"><Icon name="x" /></button></Hint></p>
@@ -175,7 +176,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
 .start-brand { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
 .start-mark { display: block; width: 64px; height: auto; }
 .start-wordmark { height: 36px; color: var(--fg); }
-.unread { visibility: hidden; }
+.cwd-hold { display: contents; }
 .start-model-controls { display: inline-flex; width: max-content; max-width: 100%; align-items: center; min-width: 0; gap: 3px; }
 .start-model-controls button { font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .start-model-controls .model-chip { flex: 0 1 auto; max-width: min(38vw, 320px); }

@@ -4,8 +4,8 @@ import type { SkillEntry } from '../../core/api/types.ts';
 
 export interface SkillFolder { path: string; name: string; folders: SkillFolder[]; skills: SkillEntry[] }
 export type SkillRow =
-  | { kind: 'folder'; folder: SkillFolder; depth: number }
-  | { kind: 'skill'; skill: SkillEntry; depth: number };
+  | { kind: 'folder'; folder: SkillFolder }
+  | { kind: 'skill'; skill: SkillEntry };
 
 /** The tree of the skills, each folder's folders first, then its skills, in name order. */
 export function skillTree(skills: SkillEntry[]): SkillFolder {
@@ -42,12 +42,9 @@ export function skillsIn(folder: SkillFolder): SkillEntry[] {
 }
 
 /** The rows shown, a closed folder's without what is in it. */
-export function skillRows(folder: SkillFolder, open: (folder: SkillFolder) => boolean, depth = 0): SkillRow[] {
+export function skillRows(folder: SkillFolder): SkillRow[] {
   return [
-    ...folder.folders.flatMap(child => [
-      { kind: 'folder' as const, folder: child, depth },
-      ...(open(child) ? skillRows(child, open, depth + 1) : []),
-    ]),
-    ...folder.skills.map(skill => ({ kind: 'skill' as const, skill, depth })),
+    ...folder.folders.map(child => ({ kind: 'folder' as const, folder: child })),
+    ...folder.skills.map(skill => ({ kind: 'skill' as const, skill })),
   ];
 }

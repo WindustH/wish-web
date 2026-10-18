@@ -188,7 +188,7 @@
   .native-settings .ui-settings .setting-row > .control-select svg { width: 16px; color: var(--fg-faint); }
 }
 
-/* Adding a provider: a dashed card after the list on desktop, the list's last row on phones. */
+/* Adding to a list of cards: a dashed card after them on desktop, a plain row on phones. */
 .provider-add { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 56px; padding: 10px 16px; border: 1px dashed var(--line-strong); border-radius: 12px; background: transparent; color: var(--fg-muted); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast); }
 .provider-add-icon { display: grid; place-items: center; flex: none; width: 26px; height: 26px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
 .provider-add-icon .icon { width: 15px; height: 15px; }
@@ -198,4 +198,18 @@
   .provider-add:active { background-color: var(--bg-group); }
   .provider-add-icon { width: 34px; height: 34px; border-radius: 10px; }
   .provider-add-icon .icon { width: 18px; height: 18px; }
+}
+
+/* A box that turns a skill, or a folder's skills, on: ticked, or a dash for some of a folder's. In
+   the lists, the search's results and a folder window's head alike. */
+.skill-check { display: grid; place-items: center; flex: none; justify-self: end; width: 20px; height: 20px; padding: 0; border: 1.5px solid var(--line-strong); border-radius: 6px; background: transparent; color: var(--accent-fg); cursor: pointer; transition: background var(--dur-fast), border-color var(--dur-fast); }
+.skill-check:is([data-state="checked"], [data-state="indeterminate"]) { border-color: var(--accent); background: var(--accent); }
+.skill-check:disabled { opacity: .5; cursor: default; }
+.skill-check:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.skill-check-mark { display: grid; place-items: center; }
+.skill-check-mark .icon { width: 14px; height: 14px; stroke-width: 3; }
+.modal-head-actions > .skill-check { margin-right: 6px; }
+@media (max-width: 899px) {
+  .skill-check { width: 24px; height: 24px; border-radius: 7px; }
+  .skill-check-mark .icon { width: 16px; height: 16px; }
 }

@@ -81,7 +81,8 @@ export function useConfigDraft() {
       const [configuration, presets, searches, environment, installed] = await Promise.all([
         configSnapshot(),
         providerPresets(),
-        searchPresets(),
+        // Without them, search providers show by their ids; the rest of settings still loads.
+        searchPresets().catch(() => ({ presets: [] })),
         readProxyEnvironment(),
         // Only the picker needs it; the shell stays editable as a path without it.
         shellCatalog().catch(() => null),

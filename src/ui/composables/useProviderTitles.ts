@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue';
+import { computed, readonly, ref } from 'vue';
 import { providerConfigs } from '../../core/api/endpoints.ts';
 import { providerTitles } from '../providerPresentation.ts';
 import { readCached, writeCached } from '../../core/util/responseCache.ts';
@@ -10,6 +10,8 @@ const known = ref<Record<string, { display_name?: string | null; preset: string 
 // than its ID standing in for a moment.
 const read = ref(false);
 let pending: Promise<void> | undefined;
+/** Whether provider names can be shown yet; until then, what shows one keeps its place empty. */
+export const providerTitlesRead = readonly(read);
 
 function load() {
   // Names from the last launch cover the wait; the fresh list replaces them.

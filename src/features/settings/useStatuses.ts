@@ -9,17 +9,18 @@ import { ref, shallowRef, watch, type Ref } from 'vue';
 export function useStatuses<Reply, Status extends { id: string }>(read: () => Promise<Reply>, list: (reply: Reply) => Status[], revision: Ref<string>) {
   const reply = shallowRef<Reply>();
   const statuses = shallowRef<Record<string, Status>>({});
-  // Whether there has been a reading: before it, an item's state is unknown, not "never checked".
+  // Whether what is known is current: before the first reading, after one that failed, and from a
+  // save until the reading after it, an item's state is unknown - not "never checked", nor "not
+  // saved" for one just saved.
   const known = ref(false);
   async function refresh() {
     try {
       const value = await read();
       reply.value = value;
       statuses.value = Object.fromEntries(list(value).map(status => [status.id, status]));
-    } catch { /* see above */ } finally {
       known.value = true;
-    }
+    } catch { /* see above */ }
   }
-  watch(revision, refresh, { immediate: true });
+  watch(revision, () => { known.value = false; void refresh(); }, { immediate: true });
   return { reply, statuses, known, refresh };
 }

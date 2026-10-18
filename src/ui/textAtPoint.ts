@@ -1,5 +1,8 @@
 // The text under a point on the screen, for gestures that act on words rather than on elements.
 
+/** The text a held finger selects in: what a message says. base.css names the same parts. */
+export const SELECTABLE_TEXT = '.entry.user .bubble, .entry.assistant .body > .markdown';
+
 /** Whether a box covers the point. */
 export const covers = (box: DOMRect, x: number, y: number) => x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
 

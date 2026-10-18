@@ -2,7 +2,7 @@
 import { displayFailure } from '../../core/api/failures.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onUnmounted, provide, ref, watch } from 'vue';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { chat } from '../../core/state/chatSlice.ts';
 import { chatWorkIndicator } from './phaseIndicator.ts';
@@ -21,7 +21,8 @@ import { useSearchLocate } from './useSearchLocate.ts';
 import { estimateRow } from './rowEstimate.ts';
 import { useFreshRows } from './useFreshRows.ts';
 import { awaitsAnswer } from '../../core/questionWatch.ts';
-import { stepSeq } from './entries/processDetails.ts';
+import { toolResultsKey } from './entries/processDetails.ts';
+import { forgetSession } from './expandState.ts';
 
 const props = defineProps<{ sessionId: string; mobile: boolean }>();
 
@@ -53,6 +54,15 @@ const groups = computed(() => {
   if (runFailure.value) items.push({ type: 'status_run_error', key: `run-error:${props.sessionId}` });
   return items;
 });
+
+// Open run windows outlast their rows while the log is shown, not a trip away from it.
+watch(() => props.sessionId, (_, previous) => { if (previous) forgetSession(previous); });
+onUnmounted(() => forgetSession(props.sessionId));
+
+// A call's result may come in a later run than the call, past a question or a notice.
+provide(toolResultsKey, computed(() => new Map(chat.entries.value
+  .filter(entry => entry.kind === 'tool_result' && entry.payload?.tool_call_id)
+  .map(entry => [String(entry.payload!.tool_call_id), { kind: 'entry', entry, key: `r${entry.seq}` }]))));
 
 const workIndicator = computed(() => chatWorkIndicator({
   running: running.value,
@@ -141,13 +151,12 @@ const { targetSeq, forcedOpen } = useSearchLocate(
     measureScroll();
   },
 );
-// Whether a row holds the history entry a search result points at.
+// Whether a row is itself the history entry a search result points at; a step or notice found
+// among a reply's buttons is marked on its own (useSearchLocate).
 function holdsTarget(row: ChatRow | undefined): boolean {
   const seq = targetSeq.value;
   if (seq == null || !row) return false;
-  if (row.type === 'chips') return row.chips.some(holdsTarget);
-  if (row.type === 'entry') return row.entry.seq === seq || ((row as TextItem<EntryView>).before ?? []).some(holdsTarget);
-  if (row.type === 'process') return row.steps.some(step => stepSeq(step) === seq);
+  if (row.type === 'entry') return row.entry.seq === seq;
   if (row.type === 'question') return row.entry.seq === seq || row.result?.seq === seq;
   return false;
 }

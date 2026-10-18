@@ -2,8 +2,8 @@
 // Skills: the folders sessions find them in, and every skill found there, in a tree of the folders
 // it sits in, each with a box that turns it on and a view of what it says. A folder opens in a
 // window of its own (on a phone, a page), and its box turns all of its skills on, or off when they
-// all are; a search lists what it finds right here, in the folders it sits in. The model is told of none of them; it looks with
-// `wish skill` in its shell. Folders and switches are part of the configuration draft, saved with
+// all are; a search lists what it finds under its box. The model is told of none of them; it looks
+// with `wish skill` in its shell. Folders and switches are part of the configuration draft, saved with
 // the rest of settings.
 import { computed, ref, watch } from 'vue';
 import { CheckboxIndicator, CheckboxRoot, PopoverAnchor, PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui';
@@ -19,6 +19,7 @@ import { foldersOf, skillRows, skillsIn, skillTree, type SkillFolder, type Skill
 import { showError } from '../../ui/errorDialog.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import SkillList, { type FolderState, type SkillListRow } from './SkillList.vue';
+import { useSettingsReturn } from './settingsReturn.ts';
 
 const props = defineProps<{ config: any; busy: boolean; revision: string }>();
 const snapshot = ref<SkillsSnapshot | null>(null);
@@ -67,6 +68,8 @@ const stack = ref<string[]>([]);
 const current = computed(() => folders.value.get(stack.value.at(-1) ?? '\0'));
 const openFolder = (folder: SkillFolder) => { stack.value = [...stack.value, folder.path]; };
 const backFolder = () => { stack.value = stack.value.slice(0, -1); };
+// On a phone, the system's back goes back a folder, as the page's own back does.
+useSettingsReturn(() => isMobile.value && stack.value.length > 0, async () => backFolder());
 
 const skills = (count: number) => tr(`${count} 个 Skill`, `${count} skill${count === 1 ? '' : 's'}`);
 const label = (source: string) => source === 'wish' ? tr('Wish 的 Skill 目录', 'Wish\'s skill folder') : source;
@@ -104,10 +107,10 @@ function note(skill: SkillEntry): { text: string; warn?: boolean } | undefined {
   return (snapshot.value?.roots.length ?? 0) > 1 ? { text: label(skill.source) } : undefined;
 }
 const decorate = (rows: SkillRow[]): SkillListRow[] => rows.map(row => row.kind === 'folder'
-  ? { depth: row.depth, folder: row.folder, key: `folder:${row.folder.path}`, state: folderState(row.folder) }
-  : { depth: row.depth, skill: row.skill, key: `skill:${row.skill.dir}`, note: note(row.skill) });
+  ? { folder: row.folder, key: `folder:${row.folder.path}`, state: folderState(row.folder) }
+  : { skill: row.skill, key: `skill:${row.skill.dir}`, note: note(row.skill) });
 // Here, the top level; in the window, what the folder holds.
-const rows = computed(() => decorate(skillRows(tree.value, () => false)));
+const rows = computed(() => decorate(skillRows(tree.value)));
 // A search lists what it finds under the box, and leaves the list below as it is.
 const searchOpen = ref(false);
 watch(query, text => { searchOpen.value = !!text.trim(); });
@@ -116,7 +119,34 @@ function outsideSearch(event: Event) {
   const target = (event as CustomEvent).detail?.originalEvent?.target;
   if (target instanceof Element && target.closest('.skill-search')) event.preventDefault();
 }
-const folderRows = computed(() => current.value ? decorate(skillRows(current.value, () => false)) : []);
+// From the keyboard: down or Tab from the box goes into what it found, up and down move through
+// them, and Escape comes back to the box.
+const searchInput = ref<HTMLInputElement | null>(null);
+const resultButtons = () => [...document.querySelectorAll<HTMLElement>('#skill-results button')];
+function intoResults(event: KeyboardEvent) {
+  const first = resultButtons()[0];
+  if (!searchOpen.value || !searching.value || !first || event.shiftKey) return;
+  event.preventDefault();
+  first.focus();
+}
+// Escape puts the results away, and only them: the settings around stay open.
+function closeSearch(event: KeyboardEvent) {
+  if (!searchOpen.value || !searching.value) return;
+  event.preventDefault();
+  event.stopPropagation();
+  // Back in the box first: its focus opens the results, which then close.
+  searchInput.value?.focus();
+  searchOpen.value = false;
+}
+function moveInResults(event: KeyboardEvent) {
+  const buttons = resultButtons(), at = buttons.indexOf(document.activeElement as HTMLElement);
+  if (event.key === 'Escape') return closeSearch(event);
+  const to = event.key === 'ArrowDown' ? at + 1 : event.key === 'ArrowUp' ? at - 1 : -2;
+  if (to === -2) return;
+  event.preventDefault();
+  if (to < 0) searchInput.value?.focus(); else buttons[Math.min(to, buttons.length - 1)]?.focus();
+}
+const folderRows = computed(() => current.value ? decorate(skillRows(current.value)) : []);
 
 async function view(skill: SkillEntry) {
   try { viewing.value = await skillContent(skill.name, skill.dir); }
@@ -155,11 +185,14 @@ async function view(skill: SkillEntry) {
     </header>
     <PopoverRoot v-if="all.length > 8" :open="searchOpen && searching" @update:open="searchOpen = $event">
       <PopoverAnchor as-child>
-        <label class="skill-search"><Icon name="search" /><input v-model="query" type="search" :placeholder="tr('搜索 Skill', 'Search skills')" :aria-label="tr('搜索 Skill', 'Search skills')" autocomplete="off" spellcheck="false"
-          @focus="searchOpen = true" @keydown.escape="searchOpen = false" /></label>
+        <label class="skill-search"><Icon name="search" /><input ref="searchInput" v-model="query" type="search" :placeholder="tr('搜索 Skill', 'Search skills')" :aria-label="tr('搜索 Skill', 'Search skills')" autocomplete="off" spellcheck="false"
+          :aria-expanded="searchOpen && searching" aria-controls="skill-results"
+          @focus="searchOpen = true" @click="searchOpen = true" @keydown.escape="closeSearch" @keydown.down="intoResults" @keydown.tab="intoResults" /></label>
       </PopoverAnchor>
       <PopoverPortal>
-        <PopoverContent class="skill-results" side="bottom" align="start" :side-offset="6" :collision-padding="12" @open-auto-focus.prevent @close-auto-focus.prevent @interact-outside="outsideSearch">
+        <PopoverContent class="skill-results" side="bottom" align="start" :side-offset="6" :collision-padding="12" @open-auto-focus.prevent @close-auto-focus.prevent @interact-outside="outsideSearch" @keydown="moveInResults">
+          <!-- reka names the popover itself; this names what the box controls. -->
+          <div id="skill-results" class="skill-results-list">
           <p v-if="!found.length" class="skill-results-empty">{{ tr('没有匹配的 Skill。', 'No skill matches.') }}</p>
           <div v-for="skill in found" :key="skill.dir" class="skill-result" :class="{ off: skill.standing !== 'used' || !enabled(skill.name) }">
             <button type="button" class="skill-result-open" @click="view(skill)">
@@ -168,6 +201,8 @@ async function view(skill: SkillEntry) {
             </button>
             <CheckboxRoot v-if="skill.standing === 'used'" :model-value="enabled(skill.name)" class="skill-check" :aria-label="skill.name" :disabled="busy"
               @update:model-value="setEnabled(skill.name, $event === true)"><CheckboxIndicator class="skill-check-mark"><Icon name="check" /></CheckboxIndicator></CheckboxRoot>
+          </div>
+          <p v-if="matches.length > found.length" class="skill-results-empty">{{ tr(`还有 ${matches.length - found.length} 个，再多输入一些来缩小范围`, `${matches.length - found.length} more; type more to narrow it down`) }}</p>
           </div>
         </PopoverContent>
       </PopoverPortal>
@@ -183,7 +218,7 @@ async function view(skill: SkillEntry) {
     </div>
   </section>
 
-  <Modal :open="!!current" :page="isMobile" wide :title="current?.name ?? ''" :back="stack.length > 1 ? backFolder : undefined" @close="stack = []">
+  <Modal :open="!!current" :page="isMobile" wide :content-class="isMobile ? 'mobile-settings-page' : undefined" :title="current?.name ?? ''" :back="stack.length > 1 ? backFolder : undefined" @close="stack = []">
     <template v-if="current" #actions>
       <CheckboxRoot v-if="folderState(current).total" :model-value="folderState(current).checked" class="skill-check" :aria-label="tr(`开启 ${current.name} 中的全部 Skill`, `Turn on every skill in ${current.name}`)" :disabled="busy"
         @update:model-value="setFolder(folderState(current!).switchable, $event === true)"><CheckboxIndicator class="skill-check-mark"><Icon :name="folderState(current).checked === 'indeterminate' ? 'minus' : 'check'" /></CheckboxIndicator></CheckboxRoot>
@@ -220,6 +255,7 @@ async function view(skill: SkillEntry) {
 /* What a search finds: a menu's surface under the box, as wide as it. The popover's own root takes
    this component's scope, not the element given the class, so the rule is global. */
 :global(.skill-results) { z-index: 75; display: grid; gap: 2px; width: var(--reka-popper-anchor-width); max-height: min(360px, 60dvh); overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-overlay); box-shadow: var(--shadow-menu); animation: menu-in var(--dur-fast) var(--ease-out); }
+.skill-results-list { display: contents; }
 .skill-results-empty { margin: 0; padding: 14px; color: var(--fg-subtle); font-size: 13px; text-align: center; }
 .skill-result { display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 4px; border-radius: 8px; }
 @media (hover: hover) { .skill-result:hover { background: var(--bg-hover); } }
@@ -227,11 +263,6 @@ async function view(skill: SkillEntry) {
 .skill-result-name { font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
 .skill-result-open small { overflow: hidden; color: var(--fg-subtle); font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
 .skill-result.off .skill-result-open { opacity: .55; }
-/* The folder window's own box, in its head, as its rows' are. */
-.skill-check { display: grid; place-items: center; flex: none; width: 20px; height: 20px; margin-right: 6px; padding: 0; border: 1.5px solid var(--line-strong); border-radius: 6px; background: transparent; color: var(--accent-fg); cursor: pointer; }
-.skill-check:is([data-state="checked"], [data-state="indeterminate"]) { border-color: var(--accent); background: var(--accent); }
-.skill-check-mark { display: grid; place-items: center; }
-.skill-check-mark .icon { width: 14px; height: 14px; stroke-width: 3; }
 @media (max-width: 899px) { .skill-empty { border-radius: 16px; } }
 .skill-problems { margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: var(--warn-bg); color: var(--fg-muted); font-size: 12.5px; line-height: 1.6; }
 .skill-problems p { margin: 0; overflow-wrap: anywhere; }
@@ -243,8 +274,5 @@ async function view(skill: SkillEntry) {
 .skill-view-body { min-width: 0; }
 @media (max-width: 899px) {
   .skill-search { border: 0; border-radius: 14px; background: var(--bg-group); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skill-chevron { transition: none; }
 }
 </style>

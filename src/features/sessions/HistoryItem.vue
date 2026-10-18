@@ -30,8 +30,8 @@ const comp = computed<Component>(() =>
 // the session they belong to.
 const bound = computed(() => props.item.type === 'chips' ? { chips: props.item.chips, forcedKeys: props.forcedKeys, session: props.session }
   : props.item.type === 'process' ? { item: props.item, forced: props.forcedKeys?.has(props.item.key), session: props.session }
-  : props.item.entry?.kind === 'assistant_message' ? { item: props.item, forcedKeys: props.forcedKeys, session: props.session }
-  : props.item.type === 'question' ? { item: props.item, session: props.session } : { item: props.item });
+  : props.item.type === 'question' ? { item: props.item, session: props.session }
+  : props.item.entry?.kind === 'assistant_message' ? { item: props.item, forcedKeys: props.forcedKeys, session: props.session } : { item: props.item });
 </script>
 
 <template>

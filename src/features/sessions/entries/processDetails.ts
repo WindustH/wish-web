@@ -1,3 +1,4 @@
+import type { InjectionKey, Ref } from 'vue';
 export function stepText(step:any):string {
   if(step.kind==='entry')return (step.entry.payload?.content??[]).map((block:any)=>block.text??'').join('\n');
   if(step.block?.type==='tool_call')return JSON.stringify(step.block.arguments??{},null,2);
@@ -30,29 +31,39 @@ export function toolIcon(name?:string):string {
   if(name==='web_search')return 'globe';
   return 'tool';
 }
+// The tools a run used, once per use: its calls, and the results it holds whose call came in an
+// earlier run.
+function toolsUsed(steps:any[]):string[] {
+  const called=new Set(steps.filter(step=>step.block?.type==='tool_call').map(step=>step.block.id));
+  return steps.flatMap(step=>step.block?.type==='tool_call'||(step.kind==='entry'&&!called.has(step.entry.payload?.tool_call_id))
+    ? [stepToolName(step)??''] : []).filter(Boolean);
+}
 /**
  * What a run of steps did, said in a line: "ran 3 commands, searched the web". A command's polls,
- * input and stop count with the command; tools of their own are named; only thinking is said as such.
+ * input and stop count with the command, or are said on their own when the run started none; tools
+ * of their own are named; only thinking is said as such.
  */
 export function summarizeSteps(steps:any[], zh:boolean):string {
   const calls=new Map<string,number>();
-  for(const step of steps){
-    if(step.kind!=='block'||step.block?.type!=='tool_call')continue;
-    const name=stepToolName(step)??'';
-    calls.set(name,(calls.get(name)??0)+1);
-  }
+  for(const name of toolsUsed(steps))calls.set(name,(calls.get(name)??0)+1);
   const count=(...names:string[])=>names.reduce((sum,name)=>sum+(calls.get(name)??0),0);
   const files=new Set(steps.flatMap(step=>fileEdits(step).map((edit:any)=>edit.path))).size||count('shell_edit');
   const plural=(n:number,word:string)=>`${n} ${word}${n===1?'':'s'}`;
   const parts:string[]=[];
   const commands=count('shell_start','shell');
   if(commands)parts.push(zh?`运行了 ${commands} 条命令`:`ran ${plural(commands,'command')}`);
+  else {
+    if(count('shell_poll'))parts.push(zh?'查看了命令输出':'checked on a command');
+    if(count('shell_write'))parts.push(zh?'向命令发送了输入':'sent input to a command');
+    if(count('shell_kill'))parts.push(zh?'停止了命令':'stopped a command');
+  }
   if(files)parts.push(zh?`修改了 ${files} 个文件`:`edited ${plural(files,'file')}`);
   const searches=count('web_search');
   if(searches)parts.push(zh?(searches===1?'搜索了网页':`搜索了 ${searches} 次网页`):(searches===1?'searched the web':`searched the web ${searches} times`));
   if(count('history_search','history_read','history_query'))parts.push(zh?'查阅了会话历史':'looked through the history');
   const images=count('view_image');
   if(images)parts.push(zh?`查看了 ${images} 张图片`:`viewed ${plural(images,'image')}`);
+  if(count('ask_user'))parts.push(zh?'向你提问':'asked you');
   for(const name of calls.keys()){
     if(name.startsWith('shell')||name.startsWith('history_')||['web_search','view_image','ask_user'].includes(name))continue;
     parts.push(zh?`调用了 ${toolTitle(name)}`:`used ${toolTitle(name)}`);
@@ -65,14 +76,19 @@ export function summarizeSteps(steps:any[], zh:boolean):string {
  *  edited, the web searched... Only thinking shows as thinking. A few at most. */
 export function stepIcons(steps:any[]):string[] {
   const icons:string[]=[];
-  for(const step of steps){
-    if(step.kind!=='block'||step.block?.type!=='tool_call')continue;
-    const name=stepToolName(step);
+  for(const name of toolsUsed(steps)){
     const icon=name==='shell_edit'?'file-diff':toolIcon(name);
     if(!icons.includes(icon))icons.push(icon);
   }
   return icons.length?icons.slice(0,4):['thinking'];
 }
+/** Whether a result says its tool failed: an error, or a command that exited otherwise than 0. */
+export function stepFailed(step:any):boolean {
+  const result=toolResult(step), output=toolOutput(step);
+  return result?.status==='failed'||['failed','killed'].includes(output?.process?.status)||(output?.process?.exit_code!=null&&output.process.exit_code!==0);
+}
+/** The session's tool results by the call they answer, for a call whose result came in another run. */
+export const toolResultsKey:InjectionKey<Ref<Map<string,any>>>=Symbol('tool results');
 // Full diffs live in the result's metadata when the model did not ask to see them.
 export function fileEdits(step:any):any[] {
   if(step.entry?.payload?.tool_name!=='shell_edit') return [];

@@ -293,7 +293,7 @@ export const sessions = (() => {
 
   return {
     items: list, hasMore, loading, loadingMore, error,
-    query, tagFilter, filtered, folder, path,
+    query, tagFilter, filtered, folder, path, folders,
     loadFirst, loadMore, open,
     setQuery, setTagFilter, refresh,
     create, rename, updateMeta, dropRow,

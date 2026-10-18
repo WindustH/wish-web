@@ -34,21 +34,31 @@ export function useSearchLocate(
     const sessionAtStart = chat.sessionId.value;
     for (let attempt = 0; attempt < 10; attempt++) {
       if (!owns(gen) || chat.sessionId.value !== sessionAtStart) return;
-      // A step shows in its run's window, outside the log.
-      const node = document.querySelector(`[data-seq="${seq}"]`) as HTMLElement | null;
+      // The run or notice that holds it opens its window: a step shows there, outside the log, and a
+      // result with its call.
+      const idx = groupIndexOf(seq);
+      const opening = idx < 0 ? [] : chipsOf(groups.value[idx]).filter(chip => holds(chip, seq) && !forcedOpen.value.has(chip.key));
+      if (opening.length) {
+        for (const chip of opening) forcedOpen.value.add(chip.key);
+        await nextTick();
+        await nextFrame();
+      }
+      const node = document.querySelector(`[data-seq="${seq}"], [data-result-seq="${seq}"]`) as HTMLElement | null;
       if (!node) {
-        const idx = groupIndexOf(seq);
         if (idx < 0) break;
-        const group = groups.value[idx]!;
-        forcedOpen.value.add(group.key);
-        // The run of steps that holds it opens its window.
-        for (const chip of chipsOf(group)) if (holds(chip, seq)) forcedOpen.value.add(chip.key);
+        forcedOpen.value.add(groups.value[idx]!.key);
         virtualizer.value.scrollToIndex(idx, { align: 'center' });
         await nextTick();
         await nextFrame();
         continue;
       }
       node.scrollIntoView({ block: 'center' });
+      // A step in a run's window, or a notice's button, shows itself as the one found.
+      if (!node.classList.contains('entry-anchor')) {
+        node.classList.remove('located');
+        void node.offsetWidth;
+        node.classList.add('located');
+      }
       targetSeq.value = seq;
       if (targetTimer) clearTimeout(targetTimer);
       targetTimer = setTimeout(() => { targetSeq.value = null; }, 4000);
@@ -57,7 +67,8 @@ export function useSearchLocate(
       onLocated('history');
       return;
     }
-    if (owns(gen)) chat.clearPendingSeq();
+    // Not found: nothing stays held open to pop up again as its row comes back.
+    if (owns(gen)) { chat.clearPendingSeq(); forcedOpen.value = new Set(); }
   });
 
   onUnmounted(() => {

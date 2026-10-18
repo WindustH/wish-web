@@ -78,6 +78,11 @@ test('a run of steps is said in a line of what it did', () => {
     '运行了 2 条命令、搜索了网页');
   assert.equal(summarizeSteps([call('web_search', 'a'), call('web_search', 'b'), call('context7', 'c')], false), 'Searched the web 2 times, used context7');
   assert.equal(summarizeSteps([{ kind: 'block', key: 'r', block: { type: 'reasoning', text: 'hmm' } }], true), '思考了一会儿');
+  // A run that only checks on a command says so; a result whose call came earlier counts as its tool.
+  assert.equal(summarizeSteps([call('shell_poll', 'a'), call('shell_poll', 'b')], true), '查看了命令输出');
+  const result = { kind: 'entry', key: 'e', entry: { kind: 'tool_result', seq: 9, payload: { tool_call_id: 'x', tool_name: 'web_search' } } };
+  assert.equal(summarizeSteps([result], false), 'Searched the web');
+  assert.deepEqual(stepIcons([result]), ['globe']);
   // On its button, an icon for each kind of thing, in the order they first came.
   assert.deepEqual(stepIcons([call('web_search', 'a'), call('shell_start', 'b'), call('shell_poll', 'c'), call('web_search', 'd')]), ['globe', 'terminal']);
   assert.deepEqual(stepIcons([{ kind: 'block', key: 'r', block: { type: 'reasoning', text: 'hmm' } }]), ['thinking']);

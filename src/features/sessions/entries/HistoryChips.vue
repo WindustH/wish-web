@@ -11,7 +11,7 @@ defineProps<{ chips: ChipItem<any>[]; session?: string; forcedKeys?: ReadonlySet
   <span class="history-chips">
     <template v-for="chip in chips" :key="chip.key">
       <ProcessGroup v-if="chip.type === 'process'" :item="chip" :session="session" :forced="forcedKeys?.has(chip.key)" />
-      <SystemEntry v-else :item="chip" />
+      <SystemEntry v-else :item="chip" :forced="forcedKeys?.has(chip.key)" />
     </template>
   </span>
 </template>

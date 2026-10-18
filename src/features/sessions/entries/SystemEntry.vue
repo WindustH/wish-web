@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { i18n } from '../../../core/i18n/index.ts';
 import Modal from '../../../ui/components/Modal.vue';
 import CopyButton from '../../../ui/components/CopyButton.vue';
@@ -7,8 +7,10 @@ import ProcessDetail from './ProcessDetail.vue';
 import Icon from '../../../ui/components/Icon.vue';
 import { useIsMobile } from '../../../ui/composables/useMedia.ts';
 
-const props = defineProps<{ item: any }>();
+const props = defineProps<{ item: any; forced?: boolean }>();
 const open = ref(false);
+// A search that found something in the notice opens it.
+watch(() => props.forced, forced => { if (forced) open.value = true; }, { immediate: true });
 const isMobile = useIsMobile();
 const detailModal = ref<InstanceType<typeof Modal> | null>(null);
 const background = computed(() => props.item.entry.payload?.background);
@@ -46,18 +48,16 @@ const source = computed(() => props.item.entry.payload?.source ?? '');
 const tone = computed(() => (source.value === 'wish_run_failed'
   ? 'error' : WARN_SOURCES.has(source.value) ? 'warn' : 'system'));
 const iconName = computed(() => (tone.value === 'error' ? 'x' : 'triangle-alert'));
-const label = computed(() => props.item.entry.kind === 'developer_message' ? 'Developer Message' : i18n.t(props.item.entry.kind === 'run_interrupted'
-  ? 'entry.interruption' : props.item.entry.kind === 'background_terminal'
-    ? 'entry.backgroundTerminal' : SOURCE_LABELS[source.value] ?? 'entry.system'));
+const label = computed(() => props.item.entry.kind === 'developer_message' ? 'Developer Message' : i18n.t(props.item.entry.kind === 'background_terminal'
+  ? 'entry.backgroundTerminal' : SOURCE_LABELS[source.value] ?? 'entry.system'));
 const text = computed(() => (props.item.entry.payload?.content ?? [])
   .map((block: { text?: string }) => block.text ?? '').join('\n') || props.item.entry.payload?.text || '');
 </script>
 
 <template>
   <!-- A notice is a button among the reply's words, as a run of steps is. -->
-  <span class="history-chip-host">
+  <span class="history-chip-host" :data-seq="item.entry.seq">
       <button v-if="background" class="history-chip" :class="{ error: backgroundFailed }" @click="open=true"><Icon name="terminal"/><span class="history-chip-text">{{backgroundLabel}}</span></button>
-      <span v-else-if="item.entry.kind === 'run_interrupted'" class="history-chip stop" role="status"><Icon name="square" /><span class="history-chip-text">{{ i18n.t('entry.stopped') }}</span></span>
       <button v-else class="history-chip" :class="tone" @click="open = true"><Icon :name="tone === 'system' ? 'circle-dot' : iconName" /><span class="history-chip-text">{{ label }}</span></button>
       <ProcessDetail v-if="open && item.entry.payload?.background" :step="{kind:'entry',entry:item.entry}" @close="open=false"/>
       <!-- On a phone it slides up as a run's card does, with the same head; elsewhere a small window. -->

@@ -46,7 +46,11 @@ watch([bubble, pageActive], ([value, active]) => {
   else if (panelClose.value === requestClose) panelClose.value = null;
 }, { immediate: true });
 onBeforeUnmount(() => { if (panelClose?.value === requestClose) panelClose.value = null; });
+// Counts the card's showings: it is put on the page a moment after `open`, and again when its page
+// comes back, and what holds it - the sheet's drag - looks for it then.
+const shown = ref(0);
 function opened(event: Event) {
+  shown.value++;
   if (bubble.value) event.preventDefault();
   else focus.opened(event);
 }
@@ -68,13 +72,21 @@ function outside(event: Event) {
   if ((target instanceof Element && target.closest('.pwa-update')) || !props.dismissable || (bubble.value && (event.target as Element)?.closest?.('[data-session-panel]'))) event.preventDefault();
 }
 watch(() => props.open, open => { if (open) { clearCloseTimer(); closing.value = false; closeCompleted = false; } });
-watch(pageActive, active => { if (!active) { clearCloseTimer(); closing.value = false; closeCompleted = false; } }, { flush: 'sync' });
+// Left while closing, it is closed: the page must not bring it back.
+watch(pageActive, active => {
+  if (active) return;
+  const wasClosing = closing.value && !closeCompleted;
+  clearCloseTimer();
+  closing.value = false;
+  closeCompleted = false;
+  if (wasClosing) emit('close');
+}, { flush: 'sync' });
 watch([pageActive, bubble], async ([active]) => { if (active) { await nextTick(); positionBubble(); } });
 const anchorStyle = ref<Record<string, string>>({});
 // A sheet is pulled down to put it away, as a phone's own are. The card is found by a mark of its
 // own: the content component's root is not the card.
 const mark = `m${Math.random().toString(36).slice(2, 9)}`;
-useSheetDrag(() => props.sheet && props.open && pageActive.value ? document.querySelector<HTMLElement>(`[data-modal="${mark}"]`) : null,
+useSheetDrag(() => props.sheet && props.open && pageActive.value && shown.value ? document.querySelector<HTMLElement>(`[data-modal="${mark}"]`) : null,
   () => !!props.sheet && props.dismissable !== false, () => void requestClose());
 function positionBubble() {
   if (!bubble.value) return;

@@ -12,7 +12,7 @@ import { fmtTokens } from '../../core/util/fmt.ts';
 import RefreshStamp from '../../ui/components/RefreshStamp.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 import { modelLabel } from '../../ui/modelLabel.ts';
-import { useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
+import { providerTitlesRead, useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
 import OverlayWindow from '../../ui/components/OverlayWindow.vue';
 import StorageCard from './StorageCard.vue';
 import { tr } from '../../core/i18n/tr.ts';
@@ -52,7 +52,7 @@ const models = computed(() => rows.value.flatMap(row => {
   const label = modelName(row.model);
   const duplicate = rows.value.some(other => other !== row && other.model === row.model);
   return [{
-    name: duplicate ? `${label} · ${providerLabel(row.provider)}` : label,
+    name: duplicate ? [label, providerLabel(row.provider)].filter(Boolean).join(' · ') : label,
     value: row.totals.tokens.total_tokens,
     colorIndex,
   }];
@@ -80,7 +80,7 @@ onDeactivated(stats.stopAuto);
           <div class="statistics-models" role="group" :aria-label="tr('用量统计模型','Usage model')">
             <button v-for="row in rows" :key="modelKey(row)" class="statistics-model" :aria-pressed="!hiddenModels.has(modelKey(row))" @click="toggleModel(modelKey(row))">
               <i class="statistics-model-dot" :style="{background:modelColor(row)}"/>
-              <span>{{modelName(row.model)}}<small>{{providerLabel(row.provider)}}<em class="statistics-model-share-inline"> · {{percent(totalTokens>0?row.totals.tokens.total_tokens/totalTokens:0)}}</em></small></span>
+              <span>{{modelName(row.model)}}<small :class="{ unread: !providerTitlesRead }">{{providerLabel(row.provider)}}<em class="statistics-model-share-inline"> · {{percent(totalTokens>0?row.totals.tokens.total_tokens/totalTokens:0)}}</em></small></span>
               <small class="statistics-model-share">{{percent(totalTokens>0?row.totals.tokens.total_tokens/totalTokens:0)}}</small>
             </button>
           </div>

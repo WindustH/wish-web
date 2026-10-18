@@ -6,9 +6,9 @@ const SPRING = { type: 'spring', bounce: 0, visualDuration: 0.28 } as const;
 const FLICK = 600;
 
 /**
- * A sheet a finger pulls down to put away: from its head, or from its body once that is scrolled to
- * the top. Let go past a third of its height, or with a flick, and it goes on down and closes;
- * short of that it springs back. The pull moves `translate`, so the sheet's own entrance and exit
+ * A sheet a finger pulls down to put away: from its head, or from its body once whatever the finger
+ * is on is scrolled to the top. Let go past a third of its height, or with a flick, and it goes on
+ * down and closes; short of that it springs back. The pull moves `translate`, so the sheet's own entrance and exit
  * keep `transform`; the exit picks up from where the finger left it, through `--sheet-drag`.
  */
 export function useSheetDrag(element: () => HTMLElement | null | undefined, enabled: () => boolean, close: () => void) {
@@ -23,8 +23,10 @@ export function useSheetDrag(element: () => HTMLElement | null | undefined, enab
     const touch = event.touches[0];
     start = undefined;
     if (!enabled() || event.touches.length !== 1 || !touch) return;
-    const body = event.target instanceof Element ? event.target.closest('.modal-body') : null;
-    if (body && body.scrollTop > 0) return;
+    // On something scrolled down - the body, or a long block within it - a pull down scrolls it back.
+    for (let node = event.target instanceof Element ? event.target : null; node && node !== event.currentTarget; node = node.parentElement) {
+      if (node.scrollTop > 0) return;
+    }
     offset.stop();
     start = touch.clientY - offset.get();
     pulling = false;

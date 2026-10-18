@@ -10,7 +10,7 @@ import { tr } from '../../core/i18n/tr.ts';
 import { fmtDateTime, fmtTokens } from '../../core/util/fmt.ts';
 import type { UsageSnapshot } from '../../core/state/statsSlice.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
-import { useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
+import { providerTitlesRead, useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
 import { modelLabel } from '../../ui/modelLabel.ts';
 import { presetBrand } from '../../ui/providerPresentation.ts';
 import ProviderIcon from '../../ui/components/ProviderIcon.vue';
@@ -90,7 +90,7 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
         <span class="info-mark"><ProviderIcon :brand="brand" /></span>
         <div class="info-hero-text">
           <strong>{{ snapshot.name || tr('未命名会话', 'Untitled session') }}</strong>
-          <small>{{ modelLabel(snapshot.model || '') || '—' }} · {{ snapshot.provider ? providerTitle(snapshot.provider) : '—' }}</small>
+          <small :class="{ unread: !!snapshot.provider && !providerTitlesRead }">{{ modelLabel(snapshot.model || '') || '—' }} · {{ snapshot.provider ? providerTitle(snapshot.provider) : '—' }}</small>
         </div>
         <span class="info-phase" :class="phase"><i aria-hidden="true" />{{ i18n.t(`phase.${phase}`) }}</span>
       </header>

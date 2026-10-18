@@ -44,8 +44,12 @@ export function estimateRow(row: GroupItem | { type: string }, width: number): n
   const { entry, blocks } = row as Extract<GroupItem, { type: 'entry' }>;
   const media = count(blocks, 'image') * 220 + count(blocks, 'file') * 44;
   if (entry.kind === 'assistant_message') {
-    const { wrapped, source } = textLines(textOf(blocks), width);
-    return 20 + LINE * wrapped + PARAGRAPH * Math.max(0, source - 1) + media;
+    const text = textOf(blocks);
+    const { wrapped, source } = textLines(text, width);
+    // Buttons before a reply share its first line, unless that line is a heading, list, quote,
+    // table or code: then they take one of their own.
+    const chips = (row as { before?: unknown[] }).before?.length && /^\s*([#>|*+-]|\d+[.)]|```)/.test(text) ? 30 : 0;
+    return 20 + LINE * wrapped + PARAGRAPH * Math.max(0, source - 1) + media + chips;
   }
   if (entry.kind === 'user_message') {
     // The bubble: at most 92% of the column, 16px padding each side, 12px above and below.
