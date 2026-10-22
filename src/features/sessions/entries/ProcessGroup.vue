@@ -1,7 +1,9 @@
 <script setup lang="ts">
-// A run of steps - thinking, tool calls and their results - on a compact rail; what it did in words ("ran 3 commands, searched the
-// web") is its label and its window's title. It opens the run as a timeline: a card sliding up on a
-// phone, a window on a desktop. Each step opens to show all of it.
+// A run of steps - thinking, tool calls and their results - as one node on the activity rail: its
+// first act's icon, how many things it did on its badge, what it did in words ("ran 3 commands,
+// searched the web") in its tip and its window's title. The window is the run as a timeline: a
+// card sliding up on a phone, a window on a desktop, every step opening to show all of it. A ghost
+// variant hosts the window with no node of its own, opening at the rail's request or a search's.
 import { computed, inject, ref, watch } from 'vue';
 import { i18n } from '../../../core/i18n/index.ts';
 import { firstLine } from '../../../core/util/fmt.ts';
@@ -12,8 +14,10 @@ import { useIsMobile } from '../../../ui/composables/useMedia.ts';
 import ProcessDetail from './ProcessDetail.vue';
 import { fileEdits, parseDiff, toolIcon, toolOutput, toolTitle, stepSeq, stepToolName, diffCounts, searchResults, stepIcons, summarizeSteps, stepFailed, toolResultsKey } from './processDetails.ts';
 import { expandedBefore, setExpanded, setStep, stepBefore } from '../expandState.ts';
+import { chipFace } from './railMeta.ts';
 
-const props = defineProps<{ item: any; forced?: boolean; session?: string; rail?: boolean }>();
+const props = defineProps<{ item: any; forced?: boolean; session?: string; variant?: 'chip' | 'node' | 'ghost';
+  openTick?: number; openStep?: { key: string; tick: number } }>();
 const isMobile = useIsMobile();
 const steps = computed(() => props.item.steps ?? []);
 // The window and the step open in it outlast this button: the button moves into the reply that
@@ -24,14 +28,22 @@ const detail = ref<any>(kept ? steps.value.find((step: any) => step.key === kept
 const diffOnly = ref(kept?.diffOnly ?? false);
 watch(open, value => { if (props.session) setExpanded(props.session, props.item.key, value); });
 watch([detail, diffOnly], ([step, only]) => { if (props.session) setStep(props.session, props.item.key, step ? { key: step.key, diffOnly: only } : undefined); });
-// A search that found something in the run opens it.
-watch(() => props.forced, forced => { if (forced) open.value = true; }, { immediate: true });
+watch(() => props.openTick, tick => { if (tick) open.value = true; });
+// The activity list picking one step opens the window straight on it: the timeline above, the
+// step's detail below - one layer, no stop between.
+watch(() => props.openStep, pick => {
+  if (!pick) return;
+  const event = timeline.value.find((entry: any) => entry.key === pick.key);
+  if (event) { diffOnly.value = false; detail.value = event.step; }
+  open.value = true;
+});
 // A call's result: in the run, or for a call made beside a question or a notice, in a later one.
 const sessionResults = inject(toolResultsKey, null);
 const resultOf = (callId: string) => steps.value.find((step: any) => step.kind === 'entry' && step.entry.payload?.tool_call_id === callId)
   ?? sessionResults?.value.get(callId) ?? null;
 const summary = computed(() => summarizeSteps(steps.value, i18n.locale.value === 'zh'));
 const icons = computed(() => stepIcons(steps.value));
+const face = computed(() => chipFace(props.item, resultOf));
 
 // What a step shows of itself in a line.
 const preview = (s: any): string => {
@@ -72,7 +84,15 @@ const timeline = computed(() => steps.value.flatMap((s: any) => {
 const relatedResult = computed(() => detail.value?.block?.type === 'tool_call' ? resultOf(detail.value.block.id) : null);
 const diffs = computed(() => steps.value.flatMap((step: any) => fileEdits(step).map((edit: any, index: number) => ({ step, edit, key: `${step.key}:${index}` })))
   .map((item: any) => ({ ...item, ...diffCounts(parseDiff(item.edit.diff ?? '')) })));
-function openStep(step: any) { open.value = true; show(step); }
+// A click on the run's own node - and a search that found it: when the run did one thing, its
+// window opens straight on that thing's detail, no tour of a one-row timeline first.
+function openNode() {
+  const only = timeline.value.length === 1 ? timeline.value[0]! : null;
+  if (only) { diffOnly.value = false; detail.value = only.step; }
+  open.value = true;
+}
+// A search that found something in the run opens it the same way a click on its node would.
+watch(() => props.forced, forced => { if (forced) openNode(); }, { immediate: true });
 function show(step: any, onlyDiff = false) {
   diffOnly.value = onlyDiff;
   detail.value = step;
@@ -80,17 +100,17 @@ function show(step: any, onlyDiff = false) {
 </script>
 
 <template>
-  <span class="history-chip-host" :class="{ 'history-rail-process': rail }">
-    <template v-if="rail">
-      <button v-for="event in timeline.slice(0, 4)" :key="event.key" type="button" class="history-rail-node"
-        :class="{ failed: event.failed }" :aria-label="event.tip" aria-haspopup="dialog" :data-seq="event.seq" :data-result-seq="event.resultSeq" @click="openStep(event.step)">
-        <Icon :name="event.icon || 'thinking'" /><span class="history-rail-tip" aria-hidden="true">{{ event.tip }}</span>
-      </button>
-      <button v-if="timeline.length > 4" type="button" class="history-rail-node history-rail-more" :aria-label="tr(`还有 ${timeline.length - 4} 个步骤`, `${timeline.length - 4} more steps`)" aria-haspopup="dialog" @click="open = true">
-        +{{ timeline.length - 4 }}<span class="history-rail-tip" aria-hidden="true">{{ summary }}</span>
-      </button>
-    </template>
-    <button v-else type="button" class="history-chip icons" :title="summary" :aria-label="summary" aria-haspopup="dialog" @click="open = true">
+  <span class="history-chip-host">
+    <!-- The rail's node: everything the run did, gathered. Its first step's place is where a
+         search finds it; every step stays in the window below. -->
+    <button v-if="variant === 'node'" type="button" class="history-rail-node" :class="{ failed: face.failed }"
+      :aria-label="face.tip" aria-haspopup="dialog" :data-seq="face.seq" @click="openNode">
+      <Icon :name="face.icon" />
+      <span v-if="face.count > 1" class="history-rail-badge" aria-hidden="true">{{ face.count }}</span>
+      <span class="history-rail-tip" aria-hidden="true">{{ face.tip }}</span>
+    </button>
+    <!-- A ghost hosts the window with no node: the rail's gathered node opens it instead. -->
+    <button v-else-if="variant !== 'ghost'" type="button" class="history-chip icons" :title="summary" :aria-label="summary" aria-haspopup="dialog" @click="open = true">
       <Icon v-for="name in icons" :key="name" :name="name" />
     </button>
     <Modal :open="open" :sheet="isMobile" wide :title="summary" content-class="process-window" @close="open = false">

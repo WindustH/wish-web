@@ -9,7 +9,7 @@ import { chatWorkIndicator } from './phaseIndicator.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { announce } from '../../ui/live.ts';
-import { groupEntries, inlineChips, type ChipsItem, type GroupItem, type TextItem } from './grouping.ts';
+import { groupEntries, inlineChips, railLineRows, type ChipsItem, type GroupItem, type TextItem } from './grouping.ts';
 import type { EntryView } from '../../core/api/projections.ts';
 import HistoryItem from './HistoryItem.vue';
 import Markdown from '../../ui/components/Markdown.vue';
@@ -48,8 +48,12 @@ const requestFailure = computed(() => displayFailure(chat.error.value));
 // container's actual content height.
 // History rows, then a closing row for a failed request or run.
 type ChatRow = GroupItem<EntryView> | TextItem<EntryView> | ChipsItem<EntryView> | { type: 'status_request_error' | 'status_run_error'; key: string };
+// `line` says the row sits in a turn that holds activity, and so carries the rail's 1px spine.
+type LinedRow = ChatRow & { line?: boolean };
 const groups = computed(() => {
-  const items: ChatRow[] = inlineChips(groupEntries(chat.entries.value));
+  const items: LinedRow[] = inlineChips(groupEntries(chat.entries.value));
+  const lines = railLineRows(items);
+  items.forEach((row, index) => { row.line = lines[index]; });
   if (requestFailure.value) items.push({ type: 'status_request_error', key: `request-error:${props.sessionId}` });
   if (runFailure.value) items.push({ type: 'status_run_error', key: `run-error:${props.sessionId}` });
   return items;
@@ -213,7 +217,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
         <div v-for="v in virtualizer.getVirtualItems()" :key="groups[v.index]?.key" class="chat-virtual-row"
           :ref="measureElement"
           :data-index="v.index"
-          :class="{ 'status-error-row': groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error', 'history-target': holdsTarget(groups[v.index]), 'row-enter': fresh.has(groups[v.index]?.key ?? '') }"
+          :class="{ 'status-error-row': groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error', 'history-target': holdsTarget(groups[v.index]), 'row-enter': fresh.has(groups[v.index]?.key ?? ''), 'rail-line': !!groups[v.index]?.line }"
           :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }">
           <HistoryItem v-if="['entry', 'process', 'chips', 'question'].includes(groups[v.index]?.type ?? '')" :item="groups[v.index]!"
             :forced-keys="forcedOpen" :session="sessionId" />

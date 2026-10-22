@@ -22,7 +22,7 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
 
 <template>
   <MessageContext :text="joined" kind="assistant">
-    <div class="entry assistant" :class="{ 'has-rail': before.length }">
+    <div class="entry assistant">
       <HistoryChips v-if="before.length" :chips="before" :session="session" :forced-keys="forcedKeys" />
       <div class="body">
         <Markdown v-for="(b, i) in texts" :key="i" :text="b.text" />

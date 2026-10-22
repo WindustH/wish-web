@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { effectScope, nextTick, ref } from 'vue';
 import { approach } from '../src/features/sessions/glide.ts';
 import { estimateRow } from '../src/features/sessions/rowEstimate.ts';
-import { groupEntries, inlineChips } from '../src/features/sessions/grouping.ts';
+import { groupEntries, inlineChips, railLineRows, stripShown } from '../src/features/sessions/grouping.ts';
 import { stepIcons, summarizeSteps } from '../src/features/sessions/entries/processDetails.ts';
 import { useFreshRows } from '../src/features/sessions/useFreshRows.ts';
 
@@ -88,37 +88,39 @@ test('a run of steps is said in a line of what it did', () => {
   assert.deepEqual(stepIcons([{ kind: 'block', key: 'r', block: { type: 'reasoning', text: 'hmm' } }]), ['thinking']);
 });
 
-test('a reply is as tall as its rail when the rail is taller than the words', () => {
-  const reply = (text: string, before?: unknown[]) => ({ type: 'entry', key: 'k', usage: null, entry: { kind: 'assistant_message' }, blocks: [{ type: 'text', text }], ...(before ? { before } : {}) });
-  const call = (id: string) => ({ kind: 'block', key: id, block: { type: 'tool_call', id, name: 'shell_start' } });
-  const run = { type: 'process', key: 'p1', steps: [call('a'), call('b'), { kind: 'block', key: 't', block: { type: 'reasoning', text: 'hmm' } }] };
-  const notice = { type: 'entry', key: 'n1', entry: { kind: 'system_message', seq: 9, payload: { content: [{ type: 'text', text: 'note' }] } } };
-  // Three icons on the run and one for the notice: 4 * 24 + 3 * 3 = 105, taller than one line.
-  assert.equal(estimateRow(reply('好的。', [run, notice]) as never, 736), 20 + 105);
-  // With no rail, the same reply is the words and their padding alone.
-  assert.equal(Math.round(estimateRow(reply('好的。') as never, 736)), 48);
+test('a reply is never taller for what its rail holds', () => {
+  const reply = (text: string, line = false) => ({ type: 'entry', key: 'k', usage: null, entry: { kind: 'assistant_message' }, blocks: [{ type: 'text', text }], line });
+  // However much came before it, the gathered node floats in the gutter: the words alone decide.
+  assert.equal(Math.round(estimateRow(reply('好的。', true) as never, 736)), 48);
+  assert.equal(estimateRow({ type: 'chips', key: 'c', chips: [] } as never, 736), 48);
+  assert.equal(estimateRow({ type: 'chips', key: 'c', chips: [] } as never, 334), 54);
 });
 
-test('a run of more than four things folds into one more icon', () => {
-  const steps = Array.from({ length: 6 }, (_, i) => ({ kind: 'block', key: `c${i}`, block: { type: 'tool_call', id: `id${i}`, name: 'shell_start' } }));
-  // Four icons and the "+2": 5 * 24 + 4 * 3 = 132, over the row's 18px bottom padding.
-  assert.equal(estimateRow({ type: 'chips', key: 'c', chips: [{ type: 'process', key: 'p', steps }] } as never, 736), 132 + 18);
+test('a lined turn takes its gutter from the words, so they wrap sooner', () => {
+  const reply = (line: boolean) => ({ type: 'entry', key: 'k', usage: null, entry: { kind: 'assistant_message' }, blocks: [{ type: 'text', text: '好'.repeat(43) }], line });
+  // 43 CJK characters: two lines in a 400px column, three in the 362px left of the gutter.
+  assert.equal(Math.round(estimateRow(reply(false) as never, 400)), Math.round(20 + 2 * 28.05));
+  assert.equal(Math.round(estimateRow(reply(true) as never, 400)), Math.round(20 + 3 * 28.05));
 });
 
-test('a result that rides its call adds no icon of its own', () => {
-  const call = { kind: 'block', key: 'c1', block: { type: 'tool_call', id: 'call-1' } };
-  const rides = { kind: 'entry', key: 'r1', entry: { kind: 'tool_result', seq: 5, payload: { tool_call_id: 'call-1' } } };
-  const lone = { kind: 'entry', key: 'r2', entry: { kind: 'tool_result', seq: 6, payload: { tool_call_id: 'call-2' } } };
-  const row = (steps: unknown[]) => ({ type: 'chips', key: 'c', chips: [{ type: 'process', key: 'p', steps }] }) as never;
-  // The call and its own result: one icon. A result whose call came in an earlier run stands: two.
-  assert.equal(estimateRow(row([call, rides]), 736), 24 + 18);
-  assert.equal(estimateRow(row([call, rides, lone]), 736), (24 * 2 + 3) + 18);
+test('the rail line runs by the turn', () => {
+  const user = (seq: number) => ({ type: 'entry', entry: { kind: 'user_message', seq } });
+  const reply = (seq: number, before?: unknown[]) => ({ type: 'entry', entry: { kind: 'assistant_message', seq }, ...(before ? { before } : {}) });
+  const chips = { type: 'chips', chips: [] };
+  const question = { type: 'question' };
+  // A turn with work in it: every reply and chips row of the turn stays connected; the ask card
+  // and the user's own rows do not carry the line.
+  assert.deepEqual(railLineRows([user(1), chips, reply(2, [{}]), question, reply(3)] as never),
+    [false, true, true, false, true]);
+  // A turn of plain words draws nothing at all.
+  assert.deepEqual(railLineRows([user(1), reply(2), user(3), reply(4)] as never), [false, false, false, false]);
+  // Another speaker's words end a turn as the user's do.
+  assert.deepEqual(railLineRows([chips, { type: 'entry', entry: { kind: 'group_message', seq: 5 } }, chips] as never),
+    [true, false, true]);
 });
 
-test('the rail takes its column from the words, so they wrap sooner', () => {
-  const reply = (before?: unknown[]) => ({ type: 'entry', key: 'k', usage: null, entry: { kind: 'assistant_message' }, blocks: [{ type: 'text', text: '好'.repeat(43) }], ...(before ? { before } : {}) });
-  const notice = { type: 'entry', key: 'n', entry: { kind: 'system_message', seq: 1, payload: {} } };
-  // 43 CJK characters: two lines in a 400px column, three in the 362px left beside a rail.
-  assert.equal(Math.round(estimateRow(reply() as never, 400)), Math.round(20 + 2 * 28.05));
-  assert.equal(Math.round(estimateRow(reply([notice]) as never, 400)), Math.round(20 + 3 * 28.05));
+test('a process-only row shows at most three of its chips, the rest behind a +N', () => {
+  assert.deepEqual(stripShown(1), { shown: 1, more: 0 });
+  assert.deepEqual(stripShown(3), { shown: 3, more: 0 });
+  assert.deepEqual(stripShown(5), { shown: 3, more: 2 });
 });

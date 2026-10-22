@@ -12,16 +12,10 @@ const NARROW = 9.1;         // the average of everything else
 const WRAP = 1.06;          // room lost to breaking at word boundaries
 const MAX_LINES = 400;
 
-// The activity rail down the left of a reply (features.css): 24px icons stacked with 3px between
-// them, in a 24px column, 14px clear of the words.
-const RAIL_NODE = 24;
-const RAIL_GAP = 3;
-const RAIL_WIDTH = 24;
-const RAIL_COLUMN = 14;
-// A run shows four icons at most; past that one more icon counts what is left ("+3").
-const RAIL_SHOWN = 4;
-// A row of chips with no reply beside it keeps its own bottom padding.
-const CHIP_ROW_PAD = 18;
+// The gutter a lined turn keeps at the left of its rows: the rail's one 24px node with 14px clear
+// of the words (features.css). The node is absolutely placed, so it never adds to a reply's
+// height - only the words' width narrows.
+const RAIL_GUTTER = 38;
 
 const wide = /[　-鿿가-힯＀-￯]/g;
 
@@ -41,32 +35,13 @@ function textLines(text: string, width: number): { wrapped: number; source: numb
 const textOf = (blocks: readonly GroupBlock[]) => blocks.filter(block => block.type === 'text').map(block => block.text ?? '').join('\n');
 const count = (blocks: readonly GroupBlock[], type: string) => blocks.filter(block => block.type === type).length;
 
-// The icons a run of steps puts on the rail: one per thing it did, in order; a result rides the
-// call it answers and takes none of its own, while one whose call came in an earlier run stands.
-function runNodes(steps: readonly any[]): number {
-  const called = new Set(steps.filter(step => step.block?.type === 'tool_call').map(step => step.block.id));
-  const events = steps.filter(step => step.kind !== 'entry' || !called.has(step.entry?.payload?.tool_call_id)).length;
-  return events > RAIL_SHOWN ? RAIL_SHOWN + 1 : events;
-}
-/** The icons a chip puts on the rail: a notice is one; a run folds past four. */
-function chipNodes(chip: ChipItem): number {
-  return chip.type === 'process' ? runNodes(chip.steps ?? []) : 1;
-}
-/** How tall the rail is for a row's chips, or 0 when the row has none. */
-function railHeight(chips: readonly ChipItem[] | undefined): number {
-  const nodes = (chips ?? []).reduce((sum, chip) => sum + chipNodes(chip), 0);
-  return nodes ? nodes * RAIL_NODE + (nodes - 1) * RAIL_GAP : 0;
-}
-
 /** `width` is the conversation column's; below 600px the phone layout's sizes apply. */
 export function estimateRow(row: GroupItem | { type: string }, width: number): number {
   const compact = width < 600;
   if (row.type === 'process') return compact ? 62 : 53;
-  // A row of icons with no reply to sit beside: as tall as its rail.
-  if (row.type === 'chips') {
-    const rail = railHeight((row as { chips?: ChipItem[] }).chips);
-    return rail ? rail + CHIP_ROW_PAD : (compact ? 50 : 42);
-  }
+  // A process-only row: a strip of at most three 24px nodes side by side, one row tall whatever
+  // it holds - gathered nodes never stack.
+  if (row.type === 'chips') return compact ? 54 : 48;
   if (row.type === 'question') {
     const questions = ((row as { arguments?: { questions?: unknown[] } }).arguments?.questions?.length) ?? 1;
     return 110 + 80 * questions;
@@ -76,12 +51,11 @@ export function estimateRow(row: GroupItem | { type: string }, width: number): n
   const media = count(blocks, 'image') * 220 + count(blocks, 'file') * 44;
   if (entry.kind === 'assistant_message') {
     const text = textOf(blocks);
-    const rail = railHeight((row as { before?: ChipItem[] }).before);
-    // The rail takes a column of its own: the words wrap in what is left of the width.
-    const { wrapped, source } = textLines(text, rail ? width - RAIL_WIDTH - RAIL_COLUMN : width);
-    const body = LINE * wrapped + PARAGRAPH * Math.max(0, source - 1) + media;
-    // As tall as the taller of the two: the words, or the icons that came before them.
-    return 20 + Math.max(body, rail);
+    // In a lined turn the words wrap in what the gutter leaves them; the rail's gathered node is
+    // absolutely placed, so it never makes the reply taller.
+    const lined = (row as { line?: boolean }).line || (row as { before?: ChipItem[] }).before?.length;
+    const { wrapped, source } = textLines(text, lined ? width - RAIL_GUTTER : width);
+    return 20 + LINE * wrapped + PARAGRAPH * Math.max(0, source - 1) + media;
   }
   if (entry.kind === 'user_message') {
     // The bubble: at most 92% of the column, 16px padding each side, 12px above and below.
