@@ -134,6 +134,18 @@
 /* The offer of a new version: a card at the bottom - what is new, what updating does, and the two
    choices beside it, or under it where a phone has no room. Centred with `translate`, so the
    entrance's transform does not move it off centre. */
+/* A picture in the log opens whole: the cursor says so, and the overlay is the page dimmed,
+   the image as large as the window allows, closed by a click anywhere or by Escape. */
+img.zoomable { cursor: zoom-in; }
+.image-lightbox { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
+  padding: calc(env(safe-area-inset-top) + 20px) 20px calc(env(safe-area-inset-bottom) + 20px);
+  background: rgb(0 0 0 / 78%); animation: fade-in var(--dur-fast) ease; cursor: zoom-out; }
+.image-lightbox-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px;
+  box-shadow: 0 18px 60px rgb(0 0 0 / 45%); }
+.image-lightbox-close { position: fixed; top: calc(env(safe-area-inset-top) + 10px); right: 10px;
+  color: #fff; background: rgb(0 0 0 / 45%); }
+.image-lightbox-close:hover { background: rgb(0 0 0 / 64%); color: #fff; }
+@media (prefers-reduced-motion: reduce) { .image-lightbox { animation: none; } }
 .pwa-update { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); translate: -50% 0; z-index: 300; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; width: max-content; max-width: calc(100vw - 24px); padding: 12px 12px 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-overlay); color: var(--fg); box-shadow: var(--shadow-pop); font-size: 13.5px; animation: menu-in var(--dur) var(--ease-out); }
 .pwa-update-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); }
 .pwa-update-mark .icon { width: 17px; height: 17px; }

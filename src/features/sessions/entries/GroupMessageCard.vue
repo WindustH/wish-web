@@ -2,6 +2,7 @@
 // A message that went through a group, as one card in a session's history: who wrote it, in a
 // colour of its own, or that this session sent it; the group; the start of the words with the
 // images under them. The whole card opens a window with all of it.
+import { openImageLightbox } from '../../../ui/imageLightbox.ts';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import CopyButton from '../../../ui/components/CopyButton.vue';
@@ -82,7 +83,7 @@ onBeforeUnmount(() => observer?.disconnect());
           <span v-if="note">· {{ note }}</span>
         </p>
         <Markdown v-if="text.trim()" :text="text" />
-        <img v-for="(src, index) in images" :key="index" class="group-card-image" :src="src" alt="" loading="lazy" decoding="async" />
+        <img v-for="(src, index) in images" :key="index" class="group-card-image zoomable" :src="src" alt="" loading="lazy" decoding="async" @click.stop="openImageLightbox(src)" />
       </div>
     </Modal>
   </section>

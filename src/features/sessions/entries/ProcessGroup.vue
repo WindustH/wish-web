@@ -26,8 +26,8 @@ const open = ref(!!props.session && expandedBefore(props.session, props.item.key
 const kept = props.session ? stepBefore(props.session, props.item.key) : undefined;
 const detail = ref<any>(kept ? steps.value.find((step: any) => step.key === kept.key) ?? null : null);
 const diffOnly = ref(kept?.diffOnly ?? false);
-// One step, on its own: a window of its own, opened instead of the run's - never inside it. The
-// list closes before the step's window opens, so only one dialog is ever up.
+// One step, on its own: a window of its own, over the list when the list is up - the list stays,
+// as it always did, and closing the step returns to it.
 const solo = ref<any>(null);
 watch(open, value => { if (props.session) setExpanded(props.session, props.item.key, value); });
 watch([detail, diffOnly], ([step, only]) => { if (props.session) setStep(props.session, props.item.key, step ? { key: step.key, diffOnly: only } : undefined); });
@@ -40,7 +40,7 @@ watch(() => props.openStep, pick => {
   if (!step) return;
   diffOnly.value = false;
   detail.value = step;
-  open.value = false;
+  open.value = true;
   solo.value = step;
 });
 // A call's result: in the run, or for a call made beside a question or a notice, in a later one.
@@ -110,7 +110,7 @@ watch(() => props.forced, forced => { if (forced) openNode(); }, { immediate: tr
 function show(step: any, onlyDiff = false) {
   diffOnly.value = onlyDiff;
   detail.value = step;
-  open.value = false;
+  open.value = true;
   solo.value = step;
 }
 </script>
@@ -142,7 +142,7 @@ function show(step: any, onlyDiff = false) {
         <Icon name="file-diff" /><span>{{ change.edit.path }}<small>{{ tr('文件修改', 'File changes') }}</small></span><span v-if="change.edit.diff" class="process-diff-count"><b>+{{ change.added }}</b><b>−{{ change.removed }}</b></span><Icon name="chevron-right" />
       </button>
     </Modal>
-    <!-- One step's own window: the list above has closed, so this is the only dialog up. -->
+    <!-- One step's own window, over the list: closing it returns to the list. -->
     <ProcessDetail v-if="solo" :step="solo" :related-result="relatedResult" :session="session" :diff-only="diffOnly" @close="solo = null" />
   </span>
 </template>

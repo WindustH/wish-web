@@ -8,6 +8,7 @@ import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-rou
 import { useIsMobile } from './ui/composables/useMedia.ts';
 import AttachmentPreview from './ui/components/AttachmentPreview.vue';
 import ToastHost from './ui/components/ToastHost.vue';
+import ImageLightbox from './ui/components/ImageLightbox.vue';
 import Icon from './ui/components/Icon.vue';
 import TouchSelection from './ui/components/TouchSelection.vue';
 import ErrorDialogHost from './ui/components/ErrorDialogHost.vue';
@@ -103,6 +104,7 @@ const online = computed(() => sync.online.value);
     <AccountDialog v-if="!isMobile" :open="accountDialogOpen" @close="accountDialogOpen = false" />
     <ToastHost />
     <AttachmentPreview />
+    <ImageLightbox />
     <TouchSelection />
   </div>
   <!-- Above the settings dialog (51), below pickers (80) and error dialogs (200). -->

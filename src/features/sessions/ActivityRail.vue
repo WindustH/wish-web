@@ -4,7 +4,7 @@
 // holds nothing of its own - only the placed nodes of railLayout and the one line they hang on;
 // no row bounds it and no row is taller for it. A single event's node opens that event's detail;
 // a gathered one opens a window shaped like a run's own - a timeline of one-line steps, each
-// opening its detail as a window of its own once the list has closed, never a second over it.
+// opening its detail in a window of its own over the list.
 import { computed, inject, ref } from 'vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
@@ -33,10 +33,9 @@ const gatherTitle = computed(() => {
 });
 // Thinking shows as the quiet dot it shows as in a run's window, never an icon of its own.
 const isThinking = (event: RailEvent) => !!event.step && event.step.kind !== 'entry' && event.step.block?.type !== 'tool_call';
-// A row of the list: the list goes, the step's own window comes up in its place.
+// A row of the list: the step's own window comes up over the list, which stays up.
 function pick(event: RailEvent) {
   if (!event.step) return;
-  gathered.value = null;
   solo.value = event.step;
 }
 function click(node: RailNode) {
@@ -75,7 +74,7 @@ const label = (node: RailNode) => node.events.length === 1 ? node.tip
         </li>
       </ol>
     </Modal>
-    <!-- A picked step's own window: the gathered list has closed, so this is the only dialog up. -->
+    <!-- A picked step's own window, over the gathered list: closing it returns to the list. -->
     <ProcessDetail v-if="solo" :step="solo" :related-result="relatedResult" :session="session" @close="solo = null" />
   </div>
 </template>
