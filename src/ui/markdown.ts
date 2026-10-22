@@ -21,7 +21,7 @@ const fence = markdown.renderer.rules.fence!;
 markdown.renderer.rules.fence = (tokens, index, options, env, renderer) => {
   const label = markdown.utils.escapeHtml((env as { copyLabel: string }).copyLabel);
   const language = markdown.utils.escapeHtml(tokens[index]!.info.trim().split(/\s+/)[0] ?? '');
-  return `<div class="code-block"><div class="code-head"><span class="code-lang">${language}</span><button class="code-copy btn ghost sm" type="button">${label}</button></div>${fence(tokens, index, options, env, renderer)}</div>`;
+  return `<div class="code-block"><div class="code-head"><span class="code-lang">${language}</span><button class="code-copy btn ghost sm" type="button" aria-label="${label}" title="${label}"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15.5 8.5v-2A2.5 2.5 0 0 0 13 4H6.5A2.5 2.5 0 0 0 4 6.5V13a2.5 2.5 0 0 0 2.5 2.5h2"/><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5" fill="currentColor" fill-opacity=".18"/></svg></button></div>${fence(tokens, index, options, env, renderer)}</div>`;
 };
 
 // Large/streaming answers must not retain 500 full intermediate renderings.

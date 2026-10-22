@@ -86,13 +86,16 @@ const railRows = computed<RailRow[]>(() => {
   // The virtualizer's cache holds its VirtualItem records, not bare numbers: the height of a
   // measured row is its `size`. A measured row of height 0 - an unseen chips host - stays 0
   // (`??` catches only the unmeasured), so the running top never drifts or turns NaN.
-  const cache = (virtualizer.value as { measurementsCache?: Array<{ size: number }> }).measurementsCache;
+  // Refresh the lazy cache before reading it: history can replace a chips host with reply
+  // text (or prepend a page) before this render has asked the virtualizer for its new total.
+  virtualizer.value.getTotalSize();
+  const cache = virtualizer.value.measurementsCache;
   const width = scrollContentEl.value?.querySelector<HTMLElement>('.chatlog-inner')?.clientWidth || 736;
   let top = 0;
   return groups.value.map((row, index) => {
     const height = cache?.[index]?.size ?? estimateRow(row, width);
-    const placed = { top, height, events: rowEvents(row) };
-    top += height;
+    const placed = { top: cache[index]?.start ?? top, height, events: rowEvents(row) };
+    top = placed.top + height;
     return placed;
   });
 });
@@ -115,7 +118,7 @@ const rowEvents = (row: ChatRow): RailEvent[] => {
 const wrapEl = ref<HTMLElement | null>(null);
 const innerEl = ref<HTMLElement | null>(null);
 const railVersion = ref(0);
-const railTotal = computed(() => virtualizer.value.getTotalSize());
+const railTotal = computed(() => Math.max(36, virtualizer.value.getTotalSize()));
 // The phone's lane gesture lives on the frame, never on the scroll container; its state outlives
 // a session switch - it is the pane's preference, not the conversation's.
 const railSwipe = useRailSwipe({ wrap: wrapEl, scroll: scrollEl, enabled: computed(() => props.mobile) });

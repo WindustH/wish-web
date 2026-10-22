@@ -172,7 +172,10 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
    (24), its badge (7) and air (9). Hidden outright - not merely empty: visibility takes its
    nodes out of hit-testing, so a closed rail is never a dead patch the wheel falls into. */
 .chatlog-content { position: relative; }
-.rail-clip { position: absolute; top: 0; left: calc((100% - var(--max-content)) / 2 - 40px); z-index: 1; pointer-events: none; }
+/* Out-of-flow decorations must never add a second scroll range below the virtual list.
+   Clip vertically while leaving horizontal tooltips visible; unlike hidden, clip does not
+   turn the rail into a nested scroll container that can swallow wheel/touch scrolling. */
+.rail-clip { position: absolute; top: 0; left: calc((100% - var(--max-content)) / 2 - 40px); z-index: 1; pointer-events: none; overflow-y: clip; }
 .rail-clip .history-rail-node { position: absolute; left: 0; pointer-events: auto; }
 .rail-clip.hidden { opacity: 0; visibility: hidden; }
 .rail-line { position: absolute; left: 12px; width: 1px; background: var(--line); pointer-events: none; }

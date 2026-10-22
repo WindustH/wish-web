@@ -125,7 +125,8 @@ test('nodes that would crowd merge into one, and stay merged', () => {
   const event = (seq: number): RailEvent => ({ chipKey: 'p', stepKey: `s${seq}`, icon: 'terminal', failed: seq === 3, warn: false, tip: `#${seq}`, seq });
   // Three unseen host rows 10px apart, one event each: a single gathered node of three, standing
   // at their weighted middle, coloured by the worst that happened among them.
-  const rows: RailRow[] = [0, 10, 20].map(top => ({ top, height: 0, events: [event(top / 10 + 1)] }));
+  const rows: RailRow[] = [...[0, 10, 20].map(top => ({ top, height: 0, events: [event(top / 10 + 1)] })),
+    { top: 20, height: 80, events: [] }];
   const merged = layoutRail(rows);
   assert.equal(merged.nodes.length, 1);
   assert.equal(merged.nodes[0]!.count, 3);
@@ -153,4 +154,37 @@ test('the line runs from the first event to the last, across user messages', () 
   assert.ok(Math.abs(line!.top - nodes[0]!.y) < 0.01);
   assert.ok(Math.abs(line!.bottom - nodes.at(-1)!.y) < 0.01);
   assert.ok(line!.bottom > 210, 'the line crosses the user message below it');
+});
+
+test('the final activity run folds within the transcript instead of extending its scroll range', () => {
+  const events: RailEvent[] = Array.from({ length: 200 }, (_, i) =>
+    ({ chipKey: 'tail', stepKey: `s${i}`, icon: 'terminal', failed: i === 199, warn: false, tip: `#${i}` }));
+  const { nodes, line } = layoutRail([{ top: 0, height: 120, events }]);
+  assert.ok(nodes.at(-1)!.y + 16 <= 120, 'nodes and badges must fit in the real content height');
+  assert.ok(nodes.length < events.length, 'the last run must have a finite number of slots');
+  assert.equal(nodes.reduce((sum, node) => sum + node.count, 0), events.length);
+  assert.deepEqual(nodes.flatMap(node => node.events), events, 'folding keeps every activity reachable');
+  assert.ok(nodes.at(-1)!.failed, 'a folded failure stays visible');
+  assert.ok(line!.bottom <= 120);
+});
+
+test('a zero-height trailing host folds into one node at the end of the content', () => {
+  const events: RailEvent[] = Array.from({ length: 20 }, (_, i) =>
+    ({ chipKey: 'tail', stepKey: `s${i}`, icon: 'terminal', failed: false, warn: false, tip: `#${i}` }));
+  const { nodes } = layoutRail([{ top: 0, height: 120, events: [] }, { top: 120, height: 0, events }]);
+  assert.equal(nodes.length, 1, 'one available slot gathers all events, rather than making two nodes');
+  assert.equal(nodes[0]!.count, 20);
+  assert.ok(nodes[0]!.y + 16 <= 120, 'a ghost host cannot push the scroll bottom past the text');
+});
+
+test('rail folding follows the current total as measurements shrink and grow', () => {
+  const events: RailEvent[] = Array.from({ length: 40 }, (_, i) =>
+    ({ chipKey: 'run', stepKey: `s${i}`, icon: 'terminal', failed: false, warn: false, tip: `#${i}` }));
+  const rows = [{ top: 0, height: 900, events }];
+  for (const total of [900, 120, 36, 300, 80]) {
+    const { nodes } = layoutRail(rows, total);
+    assert.ok(nodes.every(node => node.y - 12 >= 0 && node.y + 16 <= total), `all nodes fit after measuring ${total}px`);
+    assert.equal(nodes.flatMap(node => node.events).length, events.length);
+    for (let i = 1; i < nodes.length; i++) assert.ok(nodes[i]!.y - nodes[i - 1]!.y >= 26);
+  }
 });
