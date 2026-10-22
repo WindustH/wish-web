@@ -36,23 +36,34 @@ export interface ImageAlbumItem<E extends GroupEntry = GroupEntry> {
 export function imageAlbums<E extends GroupEntry>(rows: readonly Row<E>[]): (Row<E> | ImageAlbumItem<E>)[] {
   const result: (Row<E> | ImageAlbumItem<E>)[] = [];
   let pending: TextItem<E>[] = [];
+  let originals: Row<E>[] = [];
+  let between: ChipsItem<E>[] = [];
   const flush = () => {
     const count = pending.reduce((n, item) => n + item.blocks.length, 0);
     if (count >= ALBUM_MIN_IMAGES) result.push({ type: 'image_album', key: pending[0]!.key, items: pending });
-    else result.push(...pending);
+    else result.push(...originals);
+    // Work after the last picture belongs after the album, until another picture arrives.
+    result.push(...between);
     pending = [];
+    originals = [];
+    between = [];
   };
   for (const row of rows) {
+    // Tool-produced pictures are native User messages. inlineChips leaves the work between
+    // those pictures in standalone rail hosts, unlike work before Assistant pictures. Both
+    // kinds of rail-only activity must be transparent to visual image grouping.
+    if (row.type === 'chips' && pending.length) { between.push(row); continue; }
     const blocks = row.type === 'entry' ? row.blocks.filter(block => block.type !== 'text' || block.text?.trim()) : [];
     const imagesOnly = row.type === 'entry'
       && (row.entry.kind === 'user_message' || row.entry.kind === 'assistant_message')
       && blocks.length > 0 && blocks.every((b: GroupBlock) => b.type === 'image');
     if (!imagesOnly) { flush(); result.push(row); continue; }
-    const item = (blocks.length === (row as TextItem<E>).blocks.length ? row : { ...row, blocks }) as TextItem<E>;
-    // Tools live on the activity rail; they do not interrupt visually consecutive pictures.
-    // A speaker change or an actual system notice still starts another album.
-    if (pending[0]?.entry.kind !== item.entry.kind || item.before?.some(chip => chip.type !== 'process')) flush();
-    pending.push(item);
+    const item = row as TextItem<E>;
+    if (pending[0] && pending[0].entry.kind !== item.entry.kind) flush();
+    const bridge = between.flatMap(host => host.chips);
+    originals.push(...between, row);
+    pending.push({ ...item, blocks, before: [...bridge, ...(item.before ?? [])] });
+    between = [];
   }
   flush();
   return result;
