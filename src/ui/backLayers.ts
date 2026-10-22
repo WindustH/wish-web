@@ -12,6 +12,7 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
   const layers: Layer[] = [];
   let sentinel: { token: string; url: string } | undefined;
   let cleanup: { promise: Promise<void>; resolve: () => void } | undefined;
+  let queuedPop: ReturnType<typeof setTimeout> | undefined;
   let navigating: Layer[] | undefined;
   let handling = false;
   let serial = 0;
@@ -37,13 +38,26 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
     let resolve!: () => void;
     const promise = new Promise<void>(done => { resolve = done; });
     cleanup = { promise, resolve };
-    browser.history.back();
+    // One task's grace: a window dismissed by choosing something in it (the phone's menu, a link
+    // inside a card) starts a navigation in the same click. A pop delivered while the router is
+    // on its way reads as a rival navigation and the router drops the push - every chat-bar tab
+    // went dead behind a menu that had been opened once. A navigation that starts first takes the
+    // entry over (beforeNavigation abandons it) and this pop is cancelled.
+    queuedPop = setTimeout(() => { queuedPop = undefined; if (cleanup) browser.history.back(); }, 0);
     return promise;
   }
   browser.addEventListener('popstate', event => {
     if (!sentinel || browser.location.href !== sentinel.url || event.state?.[MARK] === sentinel.token) {
-      // In particular, a settings guard can open a confirmation while a route pop is pending.
-      // Wait for the router's restoration instead of pushing history over that pending pop.
+      // A settings guard can open a confirmation while a route pop is pending: wait for the
+      // router's restoration instead of pushing history over that pending pop. A pop that is not
+      // our own entry being consumed - a link, a route change, or the removal below landing on
+      // another URL - must also release whoever is waiting on it: a router stopped in
+      // beforeNavigation would otherwise stay stopped for good, and every later page dead with it.
+      // A sentinel the page has left behind is dropped, so the stack arms again on the new page.
+      if (browser.location.href !== sentinel?.url) sentinel = undefined;
+      const waiting = cleanup;
+      cleanup = undefined;
+      waiting?.resolve();
       queueMicrotask(arm);
       return;
     }
@@ -66,6 +80,15 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
 
   return {
     add(close: () => unknown, priority: () => number = () => 60) {
+      // A window opening before a dismissal's pop has gone out keeps the entry the stack is on:
+      // the sentinel is still wanted, so the queued removal is called off.
+      if (queuedPop !== undefined) {
+        clearTimeout(queuedPop);
+        queuedPop = undefined;
+        const waiting = cleanup;
+        cleanup = undefined;
+        waiting?.resolve();
+      }
       const layer = { close, priority };
       layers.push(layer);
       arm();
@@ -79,7 +102,15 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
     async beforeNavigation() {
       const ticket = ++navigation;
       navigating ??= [...layers];
-      await removeSentinel();
+      // Never pop history while the router is on its way: a popstate arriving mid-navigation reads
+      // as a rival navigation and the router drops the push, which left every tab of the phone's
+      // chat bar dead once a menu had been opened and closed. The sentinel entry is abandoned
+      // instead - one identical stop in history - and the stack re-arms on arrival.
+      if (queuedPop !== undefined) { clearTimeout(queuedPop); queuedPop = undefined; }
+      const waiting = cleanup;
+      cleanup = undefined;
+      waiting?.resolve();
+      sentinel = undefined;
       return ticket;
     },
     afterNavigation(succeeded: boolean, ticket = navigation, preserve = false) {

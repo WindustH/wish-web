@@ -38,7 +38,10 @@ function harness(canArm = () => true) {
   const stack = createBackLayers(browser, canArm);
   const flush = () => { while (pending.length) pending.shift()!(); };
   const back = () => { browser.history.back(); flush(); };
-  return { stack, browser, pages, routed, flush, back, get index() { return index; } };
+  // The sentinel a dismissed window pushed is popped one task later, so a navigation starting in
+  // the same click can take that entry over instead of being cancelled by a rival popstate.
+  const tick = async () => { await new Promise(done => setTimeout(done, 0)); flush(); };
+  return { stack, browser, pages, routed, flush, back, tick, get index() { return index; } };
 }
 
 test('Back closes the viewer, preserves the page and router state; the next Back navigates', () => {
@@ -83,7 +86,7 @@ test('equally high windows close in reverse opening order', () => {
   releases.forEach(release => release());
 });
 
-test('manual dismissal leaves no extra Back stop and reopening during cleanup is safe', () => {
+test('manual dismissal leaves no extra Back stop and reopening during cleanup is safe', async () => {
   const h = harness();
   const first = h.stack.add(() => {});
   first();
@@ -93,11 +96,12 @@ test('manual dismissal leaves no extra Back stop and reopening during cleanup is
   assert.equal(closed, false, 'finishing the first close cannot dismiss the newly opened window');
   h.back();
   assert.equal(closed, true);
+  await h.tick();
   h.back();
   assert.deepEqual(h.routed, ['https://wish.test/#/sessions']);
 });
 
-test('busy windows and asynchronous closing keep Back away from the background page', () => {
+test('busy windows and asynchronous closing keep Back away from the background page', async () => {
   const h = harness();
   let attempts = 0;
   const release = h.stack.add(() => { attempts++; });
@@ -105,7 +109,7 @@ test('busy windows and asynchronous closing keep Back away from the background p
   assert.equal(attempts, 2);
   assert.equal(h.routed.length, 0);
   release(); // a close animation or confirmation finally completes
-  h.flush();
+  await h.tick();
   h.back();
   assert.deepEqual(h.routed, ['https://wish.test/#/sessions']);
 });
@@ -148,8 +152,13 @@ test('an older cancelled navigation cannot rearm history over a newer destinatio
   const second = h.stack.beforeNavigation();
   h.flush();
   const [oldTicket, currentTicket] = await Promise.all([first, second]);
+  // The sentinel entry the window pushed is abandoned rather than popped: popping it while the
+  // router is on its way reads as a rival navigation and the router drops the push (the phone's
+  // chat-bar tabs went dead behind an opened menu). What matters is that no *further* entry is
+  // pushed - the stack must not build history under a navigation that is still in flight.
+  const armed = h.index;
   h.stack.afterNavigation(false, oldTicket);
-  assert.equal(h.index, 1, 'a superseded cancellation must not push another local history entry');
+  assert.equal(h.index, armed, 'a superseded cancellation must not push another local history entry');
   h.browser.history.pushState({ position: 2 }, '', 'https://wish.test/#/settings');
   h.stack.afterNavigation(true, currentTicket);
   assert.equal(closed, true);
