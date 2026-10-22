@@ -13,16 +13,31 @@
   --chatlog-end-fade: 28px;
 }
 
-/* The island: no 0 5px 20px glow around the rounded surface, just its ring. A 1px contact
-   shadow seats it on the page; the blur reads the page through the 10% that is not opaque. */
+/* The island: no 0 5px 20px glow around the rounded surface, just its ring. A 1px contact shadow
+   seats it on the page; the blur reads what passes under it through the 10% that is not opaque.
+   It therefore floats over the log's foot rather than sitting below it: the conversation runs to
+   the pane's bottom edge and scrolls away beneath the island, which is what the blur is for.
+   `--composer-height` (set by ChatPane) keeps the last line resting clear of it. */
+.chat-pane { position: relative; }
 div.chat-pane > .composer.desktop,
 div.chat-pane > .composer.mobile {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
   background-color: var(--composer-island-surface);
   border-color: var(--composer-island-ring);
   box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
 }
+
+/* The log reaches the pane's foot, under the island; its own padding is the room the last line
+   needs to come to rest above it. */
+div.chat-pane .chatlog { padding-bottom: calc(var(--composer-height, 96px) + 12px); }
+/* The jump button stands on the island's top edge, never under it. */
+div.chat-pane .jump-latest { bottom: calc(var(--composer-height, 96px) + 14px); }
 
 /* Keyboard focus keeps marking the island with the accent, as it did before. */
 div.chat-pane > .composer.desktop:focus-within,
@@ -37,8 +52,8 @@ div.chat-pane > .composer.mobile:focus-within { border-color: var(--accent); }
    fades with the text instead, and stays grabbable. No transition: the mask swaps in one frame, so
    there is nothing to still for prefers-reduced-motion. */
 .chat-pane .chatlog[data-following='false'] {
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--chatlog-end-fade)), transparent);
-  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--chatlog-end-fade)), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--composer-height, 96px) - var(--chatlog-end-fade)), transparent calc(100% - var(--composer-height, 96px)));
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--composer-height, 96px) - var(--chatlog-end-fade)), transparent calc(100% - var(--composer-height, 96px)));
 }
 
 /* Browsers without masks keep the old hard edge; the island itself needs no fallback, since 90%

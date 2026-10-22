@@ -7,7 +7,7 @@ import Hint from '../../ui/components/Hint.vue';
 // Chat surface: top bar (desktop three actions / mobile back+menu), log,
 // composer, and child-route dialogs (mobile subpages). Opening session
 // actions never rebuilds the conversation.
-import { computed, provide, shallowRef, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, provide, shallowRef, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -67,6 +67,22 @@ const tabs = computed(() => [
 ]);
 const queued = computed(() => chat.deliveries.value);
 const composerRef = ref<{ fill: (v: string, attachments?: any[]) => void } | null>(null);
+// The composer floats over the log's foot, so the pane tells its styles how tall that island is:
+// the log keeps its last line clear of it, the fade above it and the jump button stand on its top.
+const paneEl = ref<HTMLElement | null>(null);
+let composerObserver: ResizeObserver | null = null;
+const measureComposer = (composer: Element | null) => {
+  composerObserver?.disconnect();
+  composerObserver = null;
+  if (!(composer instanceof HTMLElement)) { paneEl.value?.style.removeProperty('--composer-height'); return; }
+  const apply = () => paneEl.value?.style.setProperty('--composer-height', `${Math.round(composer.getBoundingClientRect().height)}px`);
+  apply();
+  composerObserver = new ResizeObserver(apply);
+  composerObserver.observe(composer);
+};
+onMounted(() => measureComposer(paneEl.value?.querySelector('.composer') ?? null));
+watch(isMobile, () => measureComposer(paneEl.value?.querySelector('.composer') ?? null));
+onBeforeUnmount(() => { composerObserver?.disconnect(); composerObserver = null; });
 const onQueueEdit = (text: string, attachments?: any[]) => composerRef.value?.fill(text, attachments);
 const { effort, error: effortError } = useResolvedEffort(snapshot);
 const modelOpen = ref(false);
@@ -91,7 +107,7 @@ const goTab = (t: SessionTab) => {
 </script>
 
 <template>
-  <div class="chat-pane">
+  <div class="chat-pane" ref="paneEl">
     <div class="chatbar">
       <button v-if="isMobile" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')"
         @click="router.push(sessionParent)"><Icon name="arrow-left" /></button>
