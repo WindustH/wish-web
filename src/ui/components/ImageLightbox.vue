@@ -127,7 +127,8 @@ watch(imageLightbox, async (image, previous) => {
   window.removeEventListener('keydown', onKey, true);
   touches.clear();
   pinch = 0;
-  if (previous) returnTo?.focus?.();
+  // Back to the picture, without the browser scrolling the log to bring it into view.
+  if (previous) returnTo?.focus?.({ preventScroll: true });
   returnTo = null;
 }, { immediate: true });
 </script>

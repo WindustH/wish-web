@@ -140,7 +140,7 @@ img.zoomable { cursor: zoom-in; }
 .image-lightbox { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
   padding: calc(env(safe-area-inset-top) + 20px) 20px calc(env(safe-area-inset-bottom) + 20px);
   background: rgb(0 0 0 / 78%); animation: fade-in var(--dur-fast) ease; cursor: zoom-out; }
-.image-lightbox-img { position: absolute; left: 50%; top: 50%; max-width: 100%; max-height: 100%;
+.image-lightbox-img { position: absolute; left: 50%; top: 50%; max-width: calc(100% - 40px); max-height: calc(100% - 40px);
   object-fit: contain; border-radius: 8px; box-shadow: 0 18px 60px rgb(0 0 0 / 45%);
   transform-origin: center; touch-action: none; user-select: none; -webkit-user-drag: none; }
 .image-lightbox.zoomed { cursor: grab; }
