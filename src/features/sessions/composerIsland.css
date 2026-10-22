@@ -14,9 +14,9 @@
 }
 
 /* The island: no 0 5px 20px glow around the rounded surface, just its ring. A 1px contact shadow
-   seats it on the page; the blur reads what passes under it through the 10% that is not opaque.
+   seats it on the page; the 10% that is not opaque lets what passes under it show through.
    It therefore floats over the log's foot rather than sitting below it: the conversation runs to
-   the pane's bottom edge and scrolls away beneath the island, which is what the blur is for.
+   the pane's bottom edge and scrolls away beneath the island, which is what the transparency is for.
    `--composer-height` (set by ChatPane) keeps the last line resting clear of it. */
 .chat-pane { position: relative; }
 div.chat-pane > .composer.desktop,
@@ -29,8 +29,8 @@ div.chat-pane > .composer.mobile {
   background-color: var(--composer-island-surface);
   border-color: var(--composer-island-ring);
   box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  /* No blur: what passes under the island is seen as it is, softened only by the 10% that lets
+     it through. A frosted pane would smear the very words the reader is following away from. */
 }
 
 /* The log reaches the pane's foot, under the island; its own padding is the room the last line
@@ -43,10 +43,10 @@ div.chat-pane .jump-latest { bottom: calc(var(--composer-height, 96px) + 14px); 
 div.chat-pane > .composer.desktop:focus-within,
 div.chat-pane > .composer.mobile:focus-within { border-color: var(--accent); }
 
-/* The log runs under the island and is seen through it: no mask. A fade here would erase exactly
-   the lines the island is meant to show blurred beneath its 10% of open surface, and the island's
-   own blur is the soft edge the reader sees. The fade rules that used to live here belong to the
-   old layout, where the log ended above the composer and had to dissolve into the gap. */
+/* The log runs under the island and is seen through it: no mask and no blur. A fade here would
+   erase exactly the lines the island is meant to show through its 10% of open surface. The fade
+   rules that used to live here belong to the old layout, where the log ended above the composer
+   and had to dissolve into the gap. */
 
 /* Browsers without masks keep the old hard edge; the island itself needs no fallback, since 90%
    of --bg-raised over --bg stays legible either way. */
