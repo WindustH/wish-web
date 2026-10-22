@@ -3,12 +3,13 @@ import { useRoute, useRouter, type Router } from 'vue-router';
 import { animate, motionValue, type AnimationPlaybackControls, type MotionValue } from 'motion-v';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { noteSwallowedClick } from '../../ui/scrollStalls.ts';
+import { clearRecentsTransition, paintRecentsTransition } from './recentsTransition.ts';
 
 // On a phone the full session list is a sheet over the home page. Its two resting places are the
 // two routes - closed on /sessions, open on /sessions/all - and between them it follows a finger or
-// a spring (Motion's, which carries the finger's speed on and can be caught mid-way). Closed, its
-// rows lie exactly over the home page's recent rows; opening, it slides up from there, its heading
-// and search fading in, and the rows the home page did not show fading in around them. A swipe up on the
+// a spring (Motion's, which carries the finger's speed on and can be caught mid-way). The home
+// view crossfades to the folder-aware full list, which rises a little as a whole. These lists do
+// not share an ordering, so no individual rows are matched or moved between them. A swipe up on the
 // recent rows opens it, a pull down at the top of the list closes it; a touch while it moves takes
 // hold of it where it is. A pull down on the recent rows only stretches them. Taps, links and the
 // back button move it along the same path. Motion stops at the end it heads for, never past it.
@@ -16,7 +17,7 @@ import { noteSwallowedClick } from '../../ui/scrollStalls.ts';
 const FLING = 350;        // px/s of release that decides the way on its own
 const SLOP = 6;           // px a finger moves before it drags rather than taps
 const MAX_STRETCH = 96;   // px the recent rows stretch at most
-const SPRING = { type: 'spring', bounce: 0, visualDuration: .32 } as const;
+const SPRING = { type: 'spring', bounce: 0, visualDuration: .24 } as const;
 
 const restOf = (name: unknown) => name === 'all-sessions' ? 1 : name === 'sessions' ? 0 : undefined;
 
@@ -60,10 +61,7 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   const stretch = motionValue(0);
   let settling: { stop: () => void } | undefined;
   let target: 0 | 1 = progress.get() ? 1 : 0;
-  let shift = 0;       // px the sheet travels between closed and open
-  let headers: HTMLElement[] = [];
-  let extras: HTMLElement[] = [];  // rows the home page does not show
-  let resting: 0 | 1 | undefined;
+  let shift = 120;     // px of finger travel between closed and open
   let quietUntil = 0;  // a click before this time (performance.now) ends a drag, not opens anything
   let stretching: { stop: () => void } | undefined;
   type Drag = { kind: 'open' | 'close' | 'hold'; mode?: 'sheet' | 'stretch'; x: number; y: number; from: number };
@@ -74,50 +72,17 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   const recents = () => home()?.querySelector<HTMLElement>('.recent-sessions') ?? null;
   const moving = () => !!settling || drag?.mode === 'sheet' || (progress.get() > 0 && progress.get() < 1);
 
-  // Where the sheet's rows must sit to lie over the recent rows; read once as a motion starts.
+  // Gesture distance depends on the viewport, never on which rows a folder happens to show.
   function measure() {
-    const pane = sheet(), area = split.value;
-    if (!pane || !area) return;
-    const recent = recents()?.querySelector<HTMLElement>('.sl-item[data-session-id]');
-    const id = recent?.dataset.sessionId;
-    const row = (id && pane.querySelector<HTMLElement>(`.sl-item[data-session-id="${CSS.escape(id)}"]`))
-      || pane.querySelector<HTMLElement>('.sl-item[data-session-id]')
-      || pane.querySelector<HTMLElement>('.sl-scroll');
-    const rowOffset = row ? row.getBoundingClientRect().top - pane.getBoundingClientRect().top : 0;
-    const homeOffset = recent ? recent.getBoundingClientRect().top - area.getBoundingClientRect().top - stretch.get() : area.clientHeight * .45;
-    shift = Math.max(120, homeOffset - rowOffset);
-    headers = [...pane.querySelectorAll<HTMLElement>(':scope > :is(.page-bar, .sl-masthead, .sl-filters)')];
-    const shown = new Set([...recents()?.querySelectorAll<HTMLElement>('.sl-item[data-session-id]') ?? []].map(node => node.dataset.sessionId));
-    for (const node of extras) node.classList.remove('sheet-extra');
-    extras = [...pane.querySelectorAll<HTMLElement>('.sl-scroll [data-index]')]
-      .filter(node => !shown.has(node.querySelector<HTMLElement>('.sl-item')?.dataset.sessionId));
-    for (const node of extras) node.classList.add('sheet-extra');
+    shift = Math.max(120, Math.min(320, (split.value?.clientHeight ?? 0) * .35));
   }
 
-  // Only transform and opacity change from frame to frame; the rest only when it comes to rest or
-  // starts moving.
+  // The two whole views crossfade; the full list also makes a small upward move.
   function paint() {
+    if (!phone.value || restOf(route.name) === undefined) return;
     const pane = sheet(), page = home();
     if (!pane || !page) return;
-    const value = progress.get();
-    const rest = moving() ? undefined : value >= 1 ? 1 : 0;
-    if (rest !== resting || rest === undefined) {
-      pane.style.visibility = rest === 0 ? 'hidden' : 'visible';
-      pane.inert = rest === 0;
-      pane.style.willChange = rest === undefined ? 'transform' : '';
-      if (rest !== undefined) {
-        pane.style.removeProperty('--sheet-reveal');
-        for (const node of extras) node.classList.remove('sheet-extra');
-        extras = [];
-      }
-      page.style.visibility = rest === 1 ? 'hidden' : 'visible';
-      page.inert = rest === 1;
-      resting = rest;
-    }
-    pane.style.transform = rest === undefined ? `translateY(${(1 - value) * shift}px)` : '';
-    for (const node of headers) node.style.opacity = rest === undefined ? String(Math.min(1, value * 1.4)) : '';
-    // The other rows come in once the sheet is on its way, and are all there a little before it lands.
-    if (rest === undefined) pane.style.setProperty('--sheet-reveal', String(Math.min(1, Math.max(0, (value - .1) / .6))));
+    paintRecentsTransition(pane, page, progress.get(), moving());
   }
   progress.on('change', paint);
   stretch.on('change', offset => {
@@ -132,17 +97,7 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
     stretching = undefined;
     stretch.jump(0);
     drag = undefined;
-    resting = undefined;
-    const pane = sheet(), page = home();
-    for (const node of [pane, page]) {
-      if (!node) continue;
-      node.style.visibility = node.style.transform = node.style.willChange = '';
-      node.inert = false;
-    }
-    for (const node of headers) node.style.opacity = '';
-    pane?.style.removeProperty('--sheet-reveal');
-    for (const node of extras) node.classList.remove('sheet-extra');
-    extras = [];
+    clearRecentsTransition(sheet(), home());
   }
 
   // Once at rest, the route follows where the sheet came to rest.
@@ -157,7 +112,7 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   function settle(to: 0 | 1) {
     target = to;
     settling?.stop();
-    if (reduced.matches) { settling = undefined; progress.jump(to); arrive(); return; }
+    if (reduced.matches || progress.get() === to) { settling = undefined; progress.jump(to); arrive(); return; }
     settling = settleAt(progress, to, arrive);
     paint();
   }
@@ -271,8 +226,8 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
     const rest = restOf(name);
     if (!mobile || rest === undefined) { clear(); progress.jump(rest ?? 0); target = rest ?? 0; return; }
     if (drag?.mode === 'sheet' || (settling && target === rest)) return;
-    if (!settling && progress.get() === rest) { resting = undefined; paint(); return; }
-    if (restOf(previous) === undefined || !sheet()) { settling?.stop(); settling = undefined; progress.jump(rest); resting = undefined; paint(); return; }
+    if (!settling && progress.get() === rest) { paint(); return; }
+    if (restOf(previous) === undefined || !sheet()) { settling?.stop(); settling = undefined; progress.jump(rest); paint(); return; }
     if (!moving()) {
       if (!progress.get()) {
         const list = sheet()?.querySelector<HTMLElement>('.sl-scroll');

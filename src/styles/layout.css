@@ -15,10 +15,9 @@
 /* On a phone all sessions is a sheet over the home page (useRecentsSheet moves it); until that has
    run, the route alone decides which of the two shows. */
 .shell.mobile .sessions-split { position: relative; }
-.shell.mobile .sessions-split > .sessions-pane { position: absolute; inset: 0; z-index: 2; background: transparent; }
-/* Its parts are opaque on their own, so its heading can fade in over the home page as it opens. */
-.shell.mobile .sessions-split > .sessions-pane > * { background: var(--bg); }
-.shell.mobile .sessions-pane .sheet-extra { opacity: var(--sheet-reveal, 1); translate: 0 calc((1 - var(--sheet-reveal, 1)) * 16px); }
+/* Fade the complete page, its background included. Opaque child panels with only their rows
+   fading used to cover the recent list with a solid rectangle during the transition. */
+.shell.mobile .sessions-split > .sessions-pane { position: absolute; inset: 0; z-index: 2; background: var(--bg); }
 .shell.mobile .sessions-pane.sheet-closed, .shell.mobile .content-pane.sheet-covered { visibility: hidden; }
 /* Mobile tools are secondary pages; resizing never changes their route. */
 .shell.mobile .main-col { flex-direction: column; }
