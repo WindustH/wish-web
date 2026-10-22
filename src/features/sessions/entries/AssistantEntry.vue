@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// A text segment of an assistant entry, with the runs of steps and notices that came before it as
-// buttons at the start of its words.
+// A text segment of an assistant entry, with its preceding steps and notices on a quiet left rail.
 import { computed } from 'vue';
 import { i18n } from '../../../core/i18n/index.ts';
 import { blobUrl } from '../../../core/api/endpoints.ts';
@@ -23,9 +22,9 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
 
 <template>
   <MessageContext :text="joined" kind="assistant">
-    <div class="entry assistant">
-      <div class="body" :class="{ 'chips-before': before.length }">
-        <HistoryChips v-if="before.length" :chips="before" :session="session" :forced-keys="forcedKeys" />
+    <div class="entry assistant" :class="{ 'has-rail': before.length }">
+      <HistoryChips v-if="before.length" :chips="before" :session="session" :forced-keys="forcedKeys" />
+      <div class="body">
         <Markdown v-for="(b, i) in texts" :key="i" :text="b.text" />
         <template v-for="(b, i) in images" :key="'img' + i">
           <ApiImage v-if="blobSrc(b)" class="assistant-img" :src="blobSrc(b)!" alt="" loading="lazy" decoding="async" />

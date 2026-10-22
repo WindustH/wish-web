@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// A run of steps - thinking, tool calls and their results - as a small button among the reply's
-// words, an icon for each kind of thing it did; what it did in words ("ran 3 commands, searched the
+// A run of steps - thinking, tool calls and their results - on a compact rail; what it did in words ("ran 3 commands, searched the
 // web") is its label and its window's title. It opens the run as a timeline: a card sliding up on a
 // phone, a window on a desktop. Each step opens to show all of it.
 import { computed, inject, ref, watch } from 'vue';
@@ -14,7 +13,7 @@ import ProcessDetail from './ProcessDetail.vue';
 import { fileEdits, parseDiff, toolIcon, toolOutput, toolTitle, stepSeq, stepToolName, diffCounts, searchResults, stepIcons, summarizeSteps, stepFailed, toolResultsKey } from './processDetails.ts';
 import { expandedBefore, setExpanded, setStep, stepBefore } from '../expandState.ts';
 
-const props = defineProps<{ item: any; forced?: boolean; session?: string }>();
+const props = defineProps<{ item: any; forced?: boolean; session?: string; rail?: boolean }>();
 const isMobile = useIsMobile();
 const steps = computed(() => props.item.steps ?? []);
 // The window and the step open in it outlast this button: the button moves into the reply that
@@ -50,24 +49,30 @@ const preview = (s: any): string => {
 };
 // The timeline: thinking and calls in order. A call's result opens with it, and a search for it
 // finds the call; a result with no call in the run stands on its own. A failure shows on the step.
+// `tip` is what a rail node says of itself in one or two words: the act, never the reasoning's
+// own words - those stay inside the window.
 const called = computed(() => new Set(steps.value.filter((s: any) => s.block?.type === 'tool_call').map((s: any) => s.block.id)));
 const timeline = computed(() => steps.value.flatMap((s: any) => {
   if (s.kind === 'entry') {
     if (called.value.has(s.entry.payload?.tool_call_id)) return [];
+    const title = `${toolTitle(stepToolName(s))} · ${i18n.t('entry.toolResult')}`;
     return [{ key: s.key, step: s, seq: stepSeq(s), resultSeq: undefined, failed: stepFailed(s), thinking: false, icon: toolIcon(stepToolName(s)),
-      title: `${toolTitle(stepToolName(s))} · ${i18n.t('entry.toolResult')}`, detail: preview(s) }];
+      title, tip: title, detail: preview(s) }];
   }
   if (s.block?.type === 'tool_call') {
     const result = resultOf(s.block.id);
+    const title = toolTitle(stepToolName(s)) || '—';
     return [{ key: s.key, step: s, seq: stepSeq(s), resultSeq: result ? stepSeq(result) : undefined, failed: !!result && stepFailed(result), thinking: false,
-      icon: toolIcon(stepToolName(s)), title: toolTitle(stepToolName(s)) || '—', detail: preview(s) }];
+      icon: toolIcon(stepToolName(s)), title, tip: title, detail: preview(s) }];
   }
-  return [{ key: s.key, step: s, seq: stepSeq(s), resultSeq: undefined, failed: false, thinking: true, icon: '', title: preview(s) || i18n.t('entry.thinking'), detail: '' }];
+  return [{ key: s.key, step: s, seq: stepSeq(s), resultSeq: undefined, failed: false, thinking: true, icon: '', title: preview(s) || i18n.t('entry.thinking'),
+    tip: i18n.t('entry.thinking'), detail: '' }];
 }));
 // A call shown with its result.
 const relatedResult = computed(() => detail.value?.block?.type === 'tool_call' ? resultOf(detail.value.block.id) : null);
 const diffs = computed(() => steps.value.flatMap((step: any) => fileEdits(step).map((edit: any, index: number) => ({ step, edit, key: `${step.key}:${index}` })))
   .map((item: any) => ({ ...item, ...diffCounts(parseDiff(item.edit.diff ?? '')) })));
+function openStep(step: any) { open.value = true; show(step); }
 function show(step: any, onlyDiff = false) {
   diffOnly.value = onlyDiff;
   detail.value = step;
@@ -75,8 +80,17 @@ function show(step: any, onlyDiff = false) {
 </script>
 
 <template>
-  <span class="history-chip-host">
-    <button type="button" class="history-chip icons" :title="summary" :aria-label="summary" aria-haspopup="dialog" @click="open = true">
+  <span class="history-chip-host" :class="{ 'history-rail-process': rail }">
+    <template v-if="rail">
+      <button v-for="event in timeline.slice(0, 4)" :key="event.key" type="button" class="history-rail-node"
+        :class="{ failed: event.failed }" :aria-label="event.tip" aria-haspopup="dialog" :data-seq="event.seq" :data-result-seq="event.resultSeq" @click="openStep(event.step)">
+        <Icon :name="event.icon || 'thinking'" /><span class="history-rail-tip" aria-hidden="true">{{ event.tip }}</span>
+      </button>
+      <button v-if="timeline.length > 4" type="button" class="history-rail-node history-rail-more" :aria-label="tr(`还有 ${timeline.length - 4} 个步骤`, `${timeline.length - 4} more steps`)" aria-haspopup="dialog" @click="open = true">
+        +{{ timeline.length - 4 }}<span class="history-rail-tip" aria-hidden="true">{{ summary }}</span>
+      </button>
+    </template>
+    <button v-else type="button" class="history-chip icons" :title="summary" :aria-label="summary" aria-haspopup="dialog" @click="open = true">
       <Icon v-for="name in icons" :key="name" :name="name" />
     </button>
     <Modal :open="open" :sheet="isMobile" wide :title="summary" content-class="process-window" @close="open = false">

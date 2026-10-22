@@ -43,7 +43,18 @@ export function useSearchLocate(
         await nextTick();
         await nextFrame();
       }
-      const node = document.querySelector(`[data-seq="${seq}"], [data-result-seq="${seq}"]`) as HTMLElement | null;
+      // A step's seq is the seq of the entry its block came from, so the reply's own anchor
+      // carries it too - and as an ancestor it answers a plain query first. Ask for the step
+      // itself: in an open process window first, then on the rail, then a notice's host; the
+      // reply's anchor only if nothing inner holds it. (The same session's windows are the only
+      // others in the document that can match, and they hold their own steps, not this reply's.)
+      const hold = (selector: string) => document.querySelector(
+        `${selector}[data-seq="${seq}"], ${selector}[data-result-seq="${seq}"]`) as HTMLElement | null;
+      const node = hold('.proc-event-button')
+        ?? hold('.history-rail-node')
+        ?? hold('.history-chip-host')
+        ?? hold('.entry-anchor')
+        ?? document.querySelector(`[data-seq="${seq}"], [data-result-seq="${seq}"]`) as HTMLElement | null;
       if (!node) {
         if (idx < 0) break;
         forcedOpen.value.add(groups.value[idx]!.key);

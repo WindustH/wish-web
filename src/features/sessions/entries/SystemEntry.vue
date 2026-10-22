@@ -7,7 +7,7 @@ import ProcessDetail from './ProcessDetail.vue';
 import Icon from '../../../ui/components/Icon.vue';
 import { useIsMobile } from '../../../ui/composables/useMedia.ts';
 
-const props = defineProps<{ item: any; forced?: boolean }>();
+const props = defineProps<{ item: any; forced?: boolean; rail?: boolean }>();
 const open = ref(false);
 // A search that found something in the notice opens it.
 watch(() => props.forced, forced => { if (forced) open.value = true; }, { immediate: true });
@@ -55,10 +55,10 @@ const text = computed(() => (props.item.entry.payload?.content ?? [])
 </script>
 
 <template>
-  <!-- A notice is a button among the reply's words, as a run of steps is. -->
+  <!-- A notice shares the assistant's activity rail; its detail stays in the existing window. -->
   <span class="history-chip-host" :data-seq="item.entry.seq">
-      <button v-if="background" class="history-chip" :class="{ error: backgroundFailed }" @click="open=true"><Icon name="terminal"/><span class="history-chip-text">{{backgroundLabel}}</span></button>
-      <button v-else class="history-chip" :class="tone" @click="open = true"><Icon :name="tone === 'system' ? 'circle-dot' : iconName" /><span class="history-chip-text">{{ label }}</span></button>
+      <button v-if="background" type="button" :class="rail ? ['history-rail-node', { failed: backgroundFailed }] : ['history-chip', { error: backgroundFailed }]" :aria-label="backgroundLabel" aria-haspopup="dialog" @click="open=true"><Icon name="terminal"/><span :class="rail ? 'history-rail-tip' : 'history-chip-text'" :aria-hidden="rail || undefined">{{backgroundLabel}}</span></button>
+      <button v-else type="button" :class="rail ? ['history-rail-node', tone] : ['history-chip', tone]" :aria-label="label" aria-haspopup="dialog" @click="open = true"><Icon :name="tone === 'system' ? 'circle-dot' : iconName" /><span :class="rail ? 'history-rail-tip' : 'history-chip-text'" :aria-hidden="rail || undefined">{{ label }}</span></button>
       <ProcessDetail v-if="open && item.entry.payload?.background" :step="{kind:'entry',entry:item.entry}" @close="open=false"/>
       <!-- On a phone it slides up as a run's card does, with the same head; elsewhere a small window. -->
       <Modal v-else ref="detailModal" :open="open" :sheet="isMobile" :title="label" :compact="!isMobile" content-class="system-detail" @close="open = false">
