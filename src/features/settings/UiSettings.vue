@@ -9,6 +9,8 @@ import { prefs } from '../../core/state/prefsSlice.ts';
 import { platform } from '../../platform/index.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { toast } from '../../ui/toast.ts';
+import { hasNewWebBuild } from '../../ui/buildUpdate.ts';
+import { needRefresh, prepareWebUpdate } from '../../ui/pwa.ts';
 import { clearCached } from '../../core/util/responseCache.ts';
 import { keepConnection } from '../../core/connection.ts';
 import { useMedia } from '../../ui/composables/useMedia.ts';
@@ -36,6 +38,24 @@ const textSizes = computed(() => [
 ]);
 const app = platform('app');
 const clearOpen = ref(false);
+const checkingUpdate = ref(false);
+async function checkUpdate() {
+  if (checkingUpdate.value) return;
+  checkingUpdate.value = true;
+  try {
+    if (needRefresh.value) { toast(tr('新版本已就绪，请确认更新。', 'An update is ready; confirm to reload.')); return; }
+    if (!await hasNewWebBuild(__WEB_BUILD_ID__)) {
+      toast(tr('当前已是最新版本。', 'You are up to date.'));
+      return;
+    }
+    const state = await prepareWebUpdate();
+    if (state === 'waiting') toast(tr('发现新版本，正在准备更新。准备好后会提示你。', 'A new version is being prepared. You will be prompted when it is ready.'));
+    // Other states open the shared update confirmation. Never reload mid-session.
+  } catch (error) {
+    showError({ title: tr('无法检查更新', 'Could not check for updates'), error });
+  } finally { checkingUpdate.value = false; }
+}
+
 const notificationsFailed = (error: unknown) => showError({ title: tr('无法开启通知', 'Could not turn on notifications'), error });
 async function setNotifications(enabled: boolean) {
   if (!enabled) { prefs.setNotifyOnFailure(false); return; }
@@ -80,6 +100,7 @@ function clearPreferences() {
           <div class="setting-row"><div><label for="failure-notifications">{{ tr('需要我处理时通知我', 'Notify me when I\'m needed') }}</label></div><SettingHint id="failure-notifications-hint" :text="tr('运行失败或模型向你提问时，如果页面在后台，显示系统通知。', 'Show a system notification when a run fails or the model asks you something while the page is in the background.')" /><SwitchRoot id="failure-notifications" aria-describedby="failure-notifications-hint" :model-value="notifyOnFailure" class="cfg-switch" @update:model-value="setNotifications"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
         </template>
         <template v-if="section === 'local'">
+          <div class="setting-row"><div><span>{{ tr('Web 更新', 'Web updates') }}</span></div><SettingHint :text="tr('向服务器检查当前 Web 界面是否有新版本。更新前会征求确认；局域网 HTTP 也能使用。', 'Check the server for a new Web build. You will be asked before reloading; also works over LAN HTTP.')" /><button id="ui-check-update" type="button" class="btn" :disabled="checkingUpdate" @click="checkUpdate">{{ checkingUpdate ? tr('正在检查…', 'Checking…') : tr('检查更新', 'Check for updates') }}</button></div>
           <div class="setting-row"><div><span>{{ tr('安装 Wish', 'Install Wish') }}</span></div><button id="ui-install" class="btn" @click="install"><Icon name="download" :size="16" />{{ tr('安装', 'Install') }}</button></div>
           <div class="setting-row"><div><span>{{ tr('本地设置', 'Local preferences') }}</span></div><SettingHint :text="tr('清除浏览器保存的偏好、输入草稿和缓存的模型列表与统计。后端会话不受影响。', 'Clear preferences, drafts and cached model lists and statistics stored in this browser. Server sessions remain available.')" /><button id="ui-clear-local" class="btn danger" @click="clearOpen = true">{{ tr('清除本地数据', 'Clear local data') }}</button></div>
         </template>

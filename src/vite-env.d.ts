@@ -2,3 +2,5 @@
 /// <reference types="vite-plugin-pwa/vanillajs" />
 /** Build identifier injected by vite define (git sha prefix, 'dev' outside git). */
 declare const __BUILD_ID__: string;
+
+declare const __WEB_BUILD_ID__: string;

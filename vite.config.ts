@@ -7,6 +7,8 @@ const buildId = (() => {
   try { return execSync('git rev-parse HEAD').toString().trim().slice(0, 12); }
   catch { return 'dev'; }
 })();
+// Unique for every build, including two deployments built from the same commit.
+const webBuildId = `${buildId}-${Date.now().toString(36)}`;
 import vue from '@vitejs/plugin-vue';
 import pxtorem from 'postcss-pxtorem';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -32,6 +34,18 @@ export default defineConfig({
   pxtorem({ rootValue: 16, propList: ['font', 'font-size', 'line-height', 'letter-spacing', '--message-size'], minPixelValue: 2 }),
   ] } },
   plugins: [
+    // Kept out of Workbox's precache (which only includes HTML/CSS/JS/images).
+    // Fetching this file therefore asks the live server even from an old tab.
+    { name: 'wish-build-info',
+      configureServer(server) {
+        server.middlewares.use('/build-info.json', (_req, res) => {
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Cache-Control', 'no-store');
+          res.end(JSON.stringify({ id: webBuildId }));
+        });
+      },
+      generateBundle() { this.emitFile({ type: 'asset', fileName: 'build-info.json', source: JSON.stringify({ id: webBuildId }) }); },
+    },
     vue(),
     VitePWA({
       registerType: 'prompt',
@@ -53,7 +67,7 @@ export default defineConfig({
       },
     }),
   ],
-  define: { __BUILD_ID__: JSON.stringify(buildId) },
+  define: { __BUILD_ID__: JSON.stringify(buildId), __WEB_BUILD_ID__: JSON.stringify(webBuildId) },
   build: { target: 'es2022', manifest: true },
   server: {
     proxy: {
