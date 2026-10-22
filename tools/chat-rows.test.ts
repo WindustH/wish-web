@@ -99,23 +99,26 @@ test('a row is never taller or narrower for the events it carries', () => {
   assert.equal(estimateRow({ type: 'chips', key: 'c', chips: [] } as never, 736), 0);
 });
 
-test('a tall message spreads its events along its height, a short one folds them', () => {
+test('a row spreads its events into the open rail below, folding only when the next event stands close', () => {
   const events = (n: number): RailEvent[] => Array.from({ length: n }, (_, i) =>
     ({ chipKey: 'p', stepKey: `s${i}`, icon: 'terminal', failed: false, warn: false, tip: `#${i}`, seq: i + 1 }));
-  // A 150px row fits five slots: six events show five nodes and gather the last into a count.
-  assert.equal(rowSlots(150), 5);
-  const tall = layoutRail([{ top: 0, height: 150, events: events(6) }]);
-  assert.equal(tall.nodes.length, 5);
-  assert.equal(tall.nodes.at(-1)!.count, 2);
-  // Down the row's height, one pitch apart, starting half a pitch in.
-  assert.ok(Math.abs(tall.nodes[1]!.y - tall.nodes[0]!.y - RAIL_PITCH) < 0.01);
-  assert.ok(Math.abs(tall.nodes[0]!.y - (4 + RAIL_PITCH / 2)) < 0.01);
-  // A one-line row fits one: everything but the first gathers into a single count node.
-  assert.equal(rowSlots(30), 1);
-  const short = layoutRail([{ top: 0, height: 30, events: events(3) }]);
-  assert.equal(short.nodes.length, 2);
+  // Slots are the room before the next event's first place: a next event at y 167.5 leaves five.
+  assert.equal(rowSlots(0, 4 + 150 + RAIL_PITCH / 2), 5);
+  // With nothing coming after, even a one-line row's events spread down the open rail, one pitch
+  // apart from half a pitch in - past the row's own height, into the empty conversation below.
+  const open = layoutRail([{ top: 0, height: 30, events: events(5) }, { top: 30, height: 300, events: [] }]);
+  assert.equal(open.nodes.length, 5);
+  assert.ok(open.nodes.every(node => node.count === 1));
+  assert.ok(Math.abs(open.nodes[1]!.y - open.nodes[0]!.y - RAIL_PITCH) < 0.01);
+  assert.ok(Math.abs(open.nodes[0]!.y - (4 + RAIL_PITCH / 2)) < 0.01);
+  assert.ok(open.nodes.at(-1)!.y > 30, 'the last node stands below the short row that owns it');
+  // A next event standing close leaves two slots: the first shows, the rest gather into a count.
+  assert.equal(rowSlots(0, 60 + 4 + RAIL_PITCH / 2), 2);
+  const short = layoutRail([{ top: 0, height: 30, events: events(3) }, { top: 60, height: 200, events: events(1).slice(0, 1) }]);
+  assert.equal(short.nodes.length, 3);
   assert.equal(short.nodes[0]!.count, 1);
-  assert.equal(short.nodes.at(-1)!.count, 2);
+  assert.equal(short.nodes[1]!.count, 2);
+  assert.ok(Math.abs(short.nodes[2]!.y - (60 + 4 + RAIL_PITCH / 2)) < 0.01, 'the next event keeps its own place');
 });
 
 test('nodes that would crowd merge into one, and stay merged', () => {

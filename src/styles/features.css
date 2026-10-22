@@ -105,7 +105,7 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .model-chip:active, .reasoning-chip:active, .model-chip[aria-expanded="true"], .reasoning-chip[aria-expanded="true"] { color: var(--accent); }
 .model-chip:disabled, .reasoning-chip:disabled { cursor: default; opacity: .5; }
 .chatlog-wrap { position: relative; flex: 1; min-height: 0; display: flex; overflow: hidden; }
-.chatlog { flex: 1; display: block; overflow-y: auto; overscroll-behavior-y: contain; overflow-anchor: none; padding: 24px 24px 20px; padding-left: calc(24px + var(--rail-reveal, 0px)); min-height: 0; }
+.chatlog { flex: 1; display: block; overflow-y: auto; overscroll-behavior-y: contain; overflow-anchor: none; padding: 24px 24px 20px; min-height: 0; }
 .chatlog-content { display: flow-root; width: 100%; }
 .chatlog-inner, .live-row { max-width: var(--max-content); margin-inline: auto; }
 .chat-empty { text-align: center; color: var(--fg-subtle); padding: 80px 24px; }
@@ -166,22 +166,34 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 @media (hover: hover) { .history-rail-node:hover > .history-rail-tip { display: block; } }
 .history-rail-node:focus-visible > .history-rail-tip { display: block; }
 /* The floating rail (ActivityRail): clipped to the chat's frame, translated by the log's scroll
-   (the --rail-scroll var ChatLog keeps current), pointer-live only on its own nodes. Hidden
-   outright - not merely empty - when the margin cannot spare it or the phone has it covered. */
+   (the scroll prop ChatLog keeps current - never a style write on the frame, which would
+   re-validate the whole log subtree on every scroll event), pointer-live only on its own nodes.
+   Hidden outright - not merely empty: visibility takes its nodes out of hit-testing, so a closed
+   rail is never a dead patch the wheel falls into. */
 .rail-clip { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
-.rail-clip.hidden { opacity: 0; }
+.rail-clip.hidden { opacity: 0; visibility: hidden; transform: translateX(-28px); }
 .rail-overlay { position: absolute; top: 0; pointer-events: none; }
 .rail-overlay .history-rail-node { position: absolute; left: 0; pointer-events: auto; }
 .rail-line { position: absolute; left: 12px; width: 1px; background: var(--line); pointer-events: none; }
 /* The list a gathered node opens: one line per thing done, leading to its own window. */
-.activity-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
-.activity-list button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
-.activity-list button > .icon:first-child { flex: none; width: 15px; height: 15px; color: var(--fg-muted); }
-.activity-list button.failed > .icon:first-child { color: var(--err); }
-.activity-list button.warn > .icon:first-child { color: var(--warn); }
-.activity-list-text { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13.5px; }
-.activity-list button > .icon:last-child { flex: none; width: 14px; color: var(--fg-faint); }
-@media (hover: hover) { .activity-list button:hover { background: var(--bg-hover); } }
+/* The timeline: each step's mark on a thin line, its title and one line of what it did beside. */
+.proc-timeline { position: relative; display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.proc-timeline::before { content: ''; position: absolute; top: 14px; bottom: 14px; left: 15px; border-left: 1px solid var(--line); }
+.proc-event-button { position: relative; display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 6px 8px 6px 2px; border: 0; border-radius: 8px; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+/* The step whose panel is open below: a quiet mark, no more. */
+.proc-event-button.current { background: var(--bg-hover); }
+.proc-event-button.current::after { content: ''; position: absolute; left: -6px; top: 8px; bottom: 8px; border-left: 2px solid var(--accent); border-radius: 1px; }
+.proc-event-button.current strong { font-weight: 600; }
+@media (hover: hover) { .proc-event-button:hover { background: var(--bg-hover); } }
+.proc-event-mark { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-overlay); color: var(--fg-muted); }
+.proc-event-mark .icon { width: 15px; height: 15px; }
+.proc-event.thinking .proc-event-mark { border: 0; background: none; }
+.proc-event.thinking .proc-event-mark::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--fg-faint); }
+.proc-event-text { display: grid; gap: 2px; min-width: 0; padding-top: 3px; }
+.proc-event-text strong { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.proc-event.thinking .proc-event-text strong { color: var(--fg-muted); font-weight: 400; }
+.proc-event.failed .proc-event-text strong, .proc-event.failed .proc-event-mark { color: var(--err); }
+.proc-event-text small { color: var(--fg-subtle); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 /* What a search located glows on the rail as it does in the reply it belongs to. */
 .history-chip-host.located > .history-rail-node, .history-rail-node.located { animation: located-content 3s ease-out; }
 @media (prefers-reduced-motion: reduce) { .history-chip-host.located > .history-rail-node, .history-rail-node.located { animation: none; box-shadow: 0 0 0 2px var(--accent-soft); } }
@@ -325,7 +337,18 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
   .model-selection { max-width: 70%; }
   .reasoning-chip { max-width: 72px; }
   .model-chip, .reasoning-chip { min-height: 32px; padding: 3px; font-size: 10px; }
-  .chatlog { padding: 20px 24px; }
+  /* The phone's rail lane, as a gesture: closed, the rail is wholly gone (not even hit-testable)
+     and the words start at 24. A rightward drag slides the words aside on a transform - the list's
+     geometry never moves during the drag - and letting go settles the lane open with one animated
+     padding change. Vertical drags stay the browser's: touch-action keeps pan-y for it. */
+  .chatlog { padding: 20px 24px; touch-action: pan-y; overflow-x: hidden; overscroll-behavior-x: contain; }
+  .chatlog.rail-open { padding-left: calc(24px + 44px); }
+  .chatlog.rail-settling { transition: padding-left 180ms cubic-bezier(.2, .7, .2, 1); }
+  .chatlog.rail-gesture .chatlog-content, .chatlog.rail-settling .chatlog-content { transform: translate3d(var(--rail-drag, 0px), 0, 0); }
+  .chatlog.rail-settling .chatlog-content { transition: transform 180ms cubic-bezier(.2, .7, .2, 1); }
+  .chatlog.rail-gesture .chatlog-content { user-select: none; -webkit-user-select: none; }
+  .chatlog-wrap.rail-gesture .rail-clip { opacity: 1; visibility: visible; transform: translateX(calc(-28px + min(var(--rail-peek, 0px), 28px))); }
+  .chatlog-wrap.rail-settling .rail-clip { transition: transform 180ms cubic-bezier(.2, .7, .2, 1), opacity 180ms cubic-bezier(.2, .7, .2, 1); }
   .entry { padding-bottom: 20px; }
   .entry.user .bubble { max-width: 100%; }
   .entry .meta { gap: 6px; font-size: 11px; }

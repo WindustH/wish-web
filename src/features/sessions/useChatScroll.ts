@@ -66,12 +66,30 @@ export function useChatScroll(options: UseChatScrollOptions) {
   function onWheel(event: WheelEvent) {
     cancelGlide();
     if (event.deltaY) scrollIntent(event.deltaY < 0 ? 'history' : 'latest');
+    const el = scrollEl.value;
+    // A wheel over one of the log's own overlays (the activity rail, the jump button) is not
+    // inside the scroll container: the browser walks the target's ancestors, finds nothing that
+    // may scroll, and moves nothing - the log locks up mid-stream. Carry such a wheel ourselves.
+    // Intent first, then the write: the write fires a scroll, and a still-sticking log would be
+    // dragged back to its bottom on the next frame.
+    if (!el || el.contains(event.target as Node)) return;
+    // deltaMode: 0 = pixels (Chrome's wheel, 1:1 as measured), 1 = lines, 2 = pages.
+    const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? el.clientHeight : 1;
+    const max = Math.max(0, el.scrollHeight - el.clientHeight);
+    el.scrollTop = Math.max(0, Math.min(el.scrollTop + event.deltaY * unit, max));
   }
 
   let touchY: number | undefined;
+  // A finger that came down on an overlay cannot pan the log either: same ancestor walk, same
+  // nothing. Pan it by hand for that one gesture - no momentum, a documented trade-off the real
+  // fix (the hidden rail taking no hits) mostly makes moot.
+  let panFrom: { y: number; top: number } | null = null;
   function onTouchStart(event: TouchEvent) {
     cancelGlide();
-    touchY = event.touches[0]?.clientY;
+    const point = event.touches[0];
+    touchY = point?.clientY;
+    const el = scrollEl.value;
+    panFrom = el && point && !el.contains(event.target as Node) ? { y: point.clientY, top: el.scrollTop } : null;
   }
   function onTouchMove(event: TouchEvent) {
     const next = event.touches[0]?.clientY;
@@ -79,10 +97,16 @@ export function useChatScroll(options: UseChatScrollOptions) {
       scrollIntent(next > touchY ? 'history' : 'latest');
     }
     touchY = next;
+    const el = scrollEl.value;
+    if (panFrom && el && next != null) {
+      const max = Math.max(0, el.scrollHeight - el.clientHeight);
+      el.scrollTop = Math.max(0, Math.min(panFrom.top + (panFrom.y - next), max));
+    }
   }
 
   function onTouchEnd() {
     touchY = undefined;
+    panFrom = null;
   }
 
   function onKeydown(event: KeyboardEvent) {

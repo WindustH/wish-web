@@ -7,8 +7,13 @@ export const RAIL_PITCH = 27;   // a node's 24px plus its 3px of air
 const MIN_GAP = 26;             // two nodes never stand closer than this
 const TOP_PAD = 4;              // the first node's air below its row's top
 
-/** One thing that happened: a step of a run (with its step key), or a notice (stepKey null). */
-export interface RailEvent { chipKey: string; stepKey: string | null; icon: string; failed: boolean; warn: boolean; tip: string; seq?: number }
+/** One thing that happened: a step of a run (with its step key), or a notice (stepKey null).
+ *  `step` and `preview` ride along for the window a gathered node opens; the placing here never
+ *  reads them. */
+export interface RailEvent {
+  chipKey: string; stepKey: string | null; icon: string; failed: boolean; warn: boolean; tip: string; seq?: number;
+  step?: any; preview?: string;
+}
 /** A conversation row as the rail sees it: where it starts, how tall it is, what happened in it. */
 export interface RailRow { top: number; height: number; events: RailEvent[] }
 /** A placed node: one event when `event` is set, or a gathered count of several. */
@@ -20,14 +25,18 @@ export interface RailNode {
 const node = (event: RailEvent, y: number): RailNode =>
   ({ y, icon: event.icon, count: 1, failed: event.failed, warn: event.warn, tip: event.tip, seq: event.seq, event, events: [event] });
 
-/** A row's slots: how many nodes fit along its height, at least one whatever the height. */
-export const rowSlots = (height: number): number => Math.max(1, Math.floor((height - 8) / RAIL_PITCH));
+/** A row's slots: how many nodes fit between its top and the next event's first ideal place,
+ *  at least one wherever it is. A short message over open rail below spreads down it; only when
+ *  the next event stands close does the row fold what cannot fit into a count. */
+export const rowSlots = (rowTop: number, nextIdealY = Infinity): number =>
+  Math.max(1, Math.floor((nextIdealY - rowTop - 8) / RAIL_PITCH));
 
-/** The events of one row as nodes: as many as fit down its height, the rest gathered into one. */
-function rowNodes(row: RailRow): RailNode[] {
+/** The events of one row as nodes: as many as the open rail before the next event takes, the
+ *  rest gathered into one count node. */
+function rowNodes(row: RailRow, nextIdealY: number): RailNode[] {
   const events = row.events;
   if (!events.length) return [];
-  const slots = rowSlots(row.height);
+  const slots = rowSlots(row.top, nextIdealY);
   if (events.length <= slots) return events.map((event, i) => node(event, row.top + TOP_PAD + i * RAIL_PITCH + RAIL_PITCH / 2));
   const shown = events.slice(0, Math.max(1, slots - 1));
   const rest = events.slice(shown.length);
@@ -74,7 +83,16 @@ function thinOut(nodes: RailNode[]): RailNode[] {
  * and replies alike, never broken by a turn.
  */
 export function layoutRail(rows: readonly RailRow[]): { nodes: RailNode[]; line: { top: number; bottom: number } | null } {
-  const nodes = thinOut(rows.flatMap(rowNodes).sort((a, b) => a.y - b.y));
+  // The first ideal place of every row that holds events: where its first node would stand.
+  const nextIdeals = rows.filter(row => row.events.length).map(row => row.top + TOP_PAD + RAIL_PITCH / 2);
+  let next = 0;
+  const nodes = thinOut(rows.flatMap(row => {
+    if (!row.events.length) return [];
+    // The next event's ideal place, or as good as none: the open rail below this row.
+    const nextIdealY = nextIdeals[next + 1] ?? Infinity;
+    next++;
+    return rowNodes(row, nextIdealY);
+  }).sort((a, b) => a.y - b.y));
   const first = nodes[0], last = nodes.at(-1);
   return { nodes, line: first && last && nodes.length ? { top: first.y, bottom: last.y } : null };
 }

@@ -132,24 +132,8 @@ function show(step: any, onlyDiff = false) {
 </template>
 
 <style scoped>
-/* The timeline: each step's mark on a thin line, its title and one line of what it did beside. */
-.proc-timeline { position: relative; display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
-.proc-timeline::before { content: ''; position: absolute; top: 14px; bottom: 14px; left: 15px; border-left: 1px solid var(--line); }
-.proc-event-button { position: relative; display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 6px 8px 6px 2px; border: 0; border-radius: 8px; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
-/* The step whose panel is open below: a quiet mark, no more. */
-.proc-event-button.current { background: var(--bg-hover); }
-.proc-event-button.current::after { content: ''; position: absolute; left: -6px; top: 8px; bottom: 8px; border-left: 2px solid var(--accent); border-radius: 1px; }
-.proc-event-button.current strong { font-weight: 600; }
-@media (hover: hover) { .proc-event-button:hover { background: var(--bg-hover); } }
-.proc-event-mark { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-overlay); color: var(--fg-muted); }
-.proc-event-mark .icon { width: 15px; height: 15px; }
-.proc-event.thinking .proc-event-mark { border: 0; background: none; }
-.proc-event.thinking .proc-event-mark::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--fg-faint); }
-.proc-event-text { display: grid; gap: 2px; min-width: 0; padding-top: 3px; }
-.proc-event-text strong { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
-.proc-event.thinking .proc-event-text strong { color: var(--fg-muted); font-weight: 400; }
-.proc-event.failed .proc-event-text strong, .proc-event.failed .proc-event-mark { color: var(--err); }
-.proc-event-text small { color: var(--fg-subtle); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+/* The timeline itself - its line, marks, rows - is shared with the activity rail's gathered
+   window, and lives with the rest of the window styles in features.css. */
 .process-diff-card { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; margin: 10px 0 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); color: var(--fg); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
 @media (hover: hover) { .process-diff-card:hover { background: var(--bg-hover); } }
 .process-diff-card > span:first-of-type { flex: 1; min-width: 0; overflow-wrap: anywhere; }
