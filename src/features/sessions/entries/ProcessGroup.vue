@@ -26,16 +26,22 @@ const open = ref(!!props.session && expandedBefore(props.session, props.item.key
 const kept = props.session ? stepBefore(props.session, props.item.key) : undefined;
 const detail = ref<any>(kept ? steps.value.find((step: any) => step.key === kept.key) ?? null : null);
 const diffOnly = ref(kept?.diffOnly ?? false);
+// One step, on its own: a window of its own, opened instead of the run's - never inside it. The
+// list closes before the step's window opens, so only one dialog is ever up.
+const solo = ref<any>(null);
 watch(open, value => { if (props.session) setExpanded(props.session, props.item.key, value); });
 watch([detail, diffOnly], ([step, only]) => { if (props.session) setStep(props.session, props.item.key, step ? { key: step.key, diffOnly: only } : undefined); });
 watch(() => props.openTick, tick => { if (tick) open.value = true; });
-// The activity list picking one step opens the window straight on it: the timeline above, the
-// step's detail below - one layer, no stop between.
+// A pick in the rail's gathered window: the step opens in a window of its own, the list gone first.
 watch(() => props.openStep, pick => {
   if (!pick) return;
   const event = timeline.value.find((entry: any) => entry.key === pick.key);
-  if (event) { diffOnly.value = false; detail.value = event.step; }
-  open.value = true;
+  const step = event?.step ?? steps.value.find((s: any) => s.key === pick.key);
+  if (!step) return;
+  diffOnly.value = false;
+  detail.value = step;
+  open.value = false;
+  solo.value = step;
 });
 // A call's result: in the run, or for a call made beside a question or a notice, in a later one.
 const sessionResults = inject(toolResultsKey, null);
@@ -84,18 +90,28 @@ const timeline = computed(() => steps.value.flatMap((s: any) => {
 const relatedResult = computed(() => detail.value?.block?.type === 'tool_call' ? resultOf(detail.value.block.id) : null);
 const diffs = computed(() => steps.value.flatMap((step: any) => fileEdits(step).map((edit: any, index: number) => ({ step, edit, key: `${step.key}:${index}` })))
   .map((item: any) => ({ ...item, ...diffCounts(parseDiff(item.edit.diff ?? '')) })));
-// A click on the run's own node - and a search that found it: when the run did one thing, its
-// window opens straight on that thing's detail, no tour of a one-row timeline first.
+// A click on the run's own node - and a search that found it. One act opens its own window; a run
+// of acts opens the list, whose every row then opens a window of its own.
 function openNode() {
   const only = timeline.value.length === 1 ? timeline.value[0]! : null;
-  if (only) { diffOnly.value = false; detail.value = only.step; }
+  if (only) {
+    diffOnly.value = false;
+    detail.value = only.step;
+    open.value = false;
+    solo.value = only.step;
+    return;
+  }
+  solo.value = null;
   open.value = true;
 }
 // A search that found something in the run opens it the same way a click on its node would.
 watch(() => props.forced, forced => { if (forced) openNode(); }, { immediate: true });
+// A row of the list - or a file-changes card: its window rises as the list goes down.
 function show(step: any, onlyDiff = false) {
   diffOnly.value = onlyDiff;
   detail.value = step;
+  open.value = false;
+  solo.value = step;
 }
 </script>
 
@@ -125,9 +141,9 @@ function show(step: any, onlyDiff = false) {
       <button v-for="change in diffs" :key="change.key" type="button" class="process-diff-card" @click="show(change.step, true)">
         <Icon name="file-diff" /><span>{{ change.edit.path }}<small>{{ tr('文件修改', 'File changes') }}</small></span><span v-if="change.edit.diff" class="process-diff-count"><b>+{{ change.added }}</b><b>−{{ change.removed }}</b></span><Icon name="chevron-right" />
       </button>
-      <!-- The step's detail as a panel of this window, never a second dialog over it. -->
-      <ProcessDetail v-if="detail" inline :step="detail" :related-result="relatedResult" :session="session" :diff-only="diffOnly" @close="detail = null" />
     </Modal>
+    <!-- One step's own window: the list above has closed, so this is the only dialog up. -->
+    <ProcessDetail v-if="solo" :step="solo" :related-result="relatedResult" :session="session" :diff-only="diffOnly" @close="solo = null" />
   </span>
 </template>
 

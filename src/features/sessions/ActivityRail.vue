@@ -4,7 +4,7 @@
 // holds nothing of its own - only the placed nodes of railLayout and the one line they hang on;
 // no row bounds it and no row is taller for it. A single event's node opens that event's detail;
 // a gathered one opens a window shaped like a run's own - a timeline of one-line steps, each
-// opening its detail as a panel of that same window, never a second over it.
+// opening its detail as a window of its own once the list has closed, never a second over it.
 import { computed, inject, ref } from 'vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
@@ -21,9 +21,10 @@ const isMobile = useIsMobile();
 const rail = computed(() => layoutRail(props.rows, props.total));
 
 // The gathered window: what the node holds, as the run windows show a run. Its title says all of
-// it in a line; its rows are the acts; a row's detail rises in the same window, under the list.
+// it in a line; its rows are the acts, each opening a window of its own once the list has closed.
 const gathered = ref<RailNode | null>(null);
-const detail = ref<any>(null);
+const solo = ref<any>(null);
+const detail = computed(() => solo.value);
 const sessionResults = inject(toolResultsKey, null);
 const relatedResult = computed(() => detail.value?.block?.type === 'tool_call' ? sessionResults?.value.get(detail.value.block.id) ?? null : null);
 const gatherTitle = computed(() => {
@@ -32,14 +33,20 @@ const gatherTitle = computed(() => {
 });
 // Thinking shows as the quiet dot it shows as in a run's window, never an icon of its own.
 const isThinking = (event: RailEvent) => !!event.step && event.step.kind !== 'entry' && event.step.block?.type !== 'tool_call';
+// A row of the list: the list goes, the step's own window comes up in its place.
+function pick(event: RailEvent) {
+  if (!event.step) return;
+  gathered.value = null;
+  solo.value = event.step;
+}
 function click(node: RailNode) {
   // One thing: straight to it. Several: the window, and nothing else opening behind it.
   if (node.events.length === 1) {
     const event = node.events[0]!;
     emit('open', { chipKey: event.chipKey, stepKey: event.stepKey });
   } else {
+    solo.value = null;
     gathered.value = node;
-    detail.value = null;
   }
 }
 const label = (node: RailNode) => node.events.length === 1 ? node.tip
@@ -56,18 +63,19 @@ const label = (node: RailNode) => node.events.length === 1 ? node.tip
       <span v-if="node.count > 1" class="history-rail-badge" aria-hidden="true">{{ node.count }}</span>
       <span class="history-rail-tip" aria-hidden="true">{{ label(node) }}</span>
     </button>
-    <Modal :open="!!gathered" :sheet="isMobile" wide :title="gatherTitle" content-class="process-window" @close="gathered = null; detail = null">
+    <Modal :open="!!gathered" :sheet="isMobile" wide :title="gatherTitle" content-class="process-window" @close="gathered = null">
       <ol class="proc-timeline">
         <li v-for="event in gathered?.events ?? []" :key="`${event.chipKey}:${event.stepKey ?? ''}`" class="proc-event"
           :class="{ thinking: isThinking(event), failed: event.failed }">
           <button type="button" class="proc-event-button" :class="{ current: detail?.key === (event.stepKey ?? event.chipKey) }"
-            :data-seq="event.seq" @click="detail = event.step">
+            :data-seq="event.seq" @click="pick(event)">
             <span class="proc-event-mark"><Icon v-if="event.icon && !isThinking(event)" :name="event.icon" /></span>
             <span class="proc-event-text"><strong>{{ event.tip }}</strong><small v-if="event.preview">{{ event.preview }}</small></span>
           </button>
         </li>
       </ol>
-      <ProcessDetail v-if="detail" inline :step="detail" :related-result="relatedResult" :session="session" @close="detail = null" />
     </Modal>
+    <!-- A picked step's own window: the gathered list has closed, so this is the only dialog up. -->
+    <ProcessDetail v-if="solo" :step="solo" :related-result="relatedResult" :session="session" @close="solo = null" />
   </div>
 </template>
