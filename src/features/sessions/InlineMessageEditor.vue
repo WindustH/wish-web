@@ -201,5 +201,5 @@ defineExpose({ focus: () => el.value?.focus(), blur: () => el.value?.blur(), el,
 <style scoped>
 .composer-input { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; cursor:text; }
 .composer-input:empty::before { content:attr(data-placeholder); color:var(--fg-subtle); pointer-events:none; }
-.composer-input :deep(.inline-attachment-token) { display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 7px; margin:0 2px; border-radius:6px; background:var(--bg-hover); border:1px solid var(--line-strong); color:var(--fg); font-size:.85em; line-height:1.6; vertical-align:baseline; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; cursor:grab; touch-action:none; }
+.composer-input :deep(.inline-attachment-token) { display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 7px; margin:0 2px; border-radius:6px; background:var(--bg-hover); border:1px solid var(--line-strong); color:var(--fg); font-size:.85em; line-height:1.6; vertical-align:middle; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; cursor:grab; touch-action:none; }
 </style>
