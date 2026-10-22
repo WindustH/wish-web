@@ -4,6 +4,9 @@ import { defineConfig } from 'vite';
 // Short source revision, surfaced in the UI so "did this deploy reach me?"
 // is answerable at a glance (info panel build row).
 const buildId = (() => {
+  // CI and constrained builders can supply the revision even when spawning Git is unavailable.
+  const supplied = process.env.WISH_BUILD_ID?.trim();
+  if (supplied) return supplied.slice(0, 12);
   try { return execSync('git rev-parse HEAD').toString().trim().slice(0, 12); }
   catch { return 'dev'; }
 })();
