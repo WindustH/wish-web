@@ -1,0 +1,45 @@
+/* The conversation's composer as a light island, and the soft end of the log above it.
+   Composer.vue imports this sheet, so it lands after the shared ones. Everything is scoped to
+   .chat-pane: the start page's composer-start (StartChat.vue) keeps its own look, and no other
+   page gains a translucent surface. The `div` qualifier only buys precedence over features.css,
+   whose rules carry the same class weight and may be re-appended by a live reload. */
+
+.chat-pane {
+  /* A raised surface at 90% opacity: the page tints it faintly, the text keeps its contrast. */
+  --composer-island-surface: color-mix(in srgb, var(--bg-raised) 90%, transparent);
+  /* One clear ring, a touch lighter than --line-strong, in place of the old halo. */
+  --composer-island-ring: color-mix(in srgb, var(--line-strong) 75%, transparent);
+  /* How far the log dissolves into the composer's gap. */
+  --chatlog-end-fade: 28px;
+}
+
+/* The island: no 0 5px 20px glow around the rounded surface, just its ring. A 1px contact
+   shadow seats it on the page; the blur reads the page through the 10% that is not opaque. */
+div.chat-pane > .composer.desktop,
+div.chat-pane > .composer.mobile {
+  background-color: var(--composer-island-surface);
+  border-color: var(--composer-island-ring);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* Keyboard focus keeps marking the island with the accent, as it did before. */
+div.chat-pane > .composer.desktop:focus-within,
+div.chat-pane > .composer.mobile:focus-within { border-color: var(--accent); }
+
+/* The log no longer ends in a sliced line: while the reader is away from the newest message its
+   last stretch dissolves into the gap above the island. Nothing is masked once the log sits at the
+   bottom, so the last message stays whole, and the jump button lives outside .chatlog, so it is
+   never dimmed. One mask layer only: Chrome paints the scrollbar inside this box, so a second
+   layer sparing the gutter would leave a crisper 12px strip beside faded text -- a seam for no
+   gain, and a half-faded thumb wherever a browser's scrollbar is wider than the strip. The thumb
+   fades with the text instead, and stays grabbable. No transition: the mask swaps in one frame, so
+   there is nothing to still for prefers-reduced-motion. */
+.chat-pane .chatlog[data-following='false'] {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--chatlog-end-fade)), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--chatlog-end-fade)), transparent);
+}
+
+/* Browsers without masks keep the old hard edge; the island itself needs no fallback, since 90%
+   of --bg-raised over --bg stays legible either way. */

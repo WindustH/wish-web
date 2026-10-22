@@ -23,6 +23,7 @@ import { tr } from '../../core/i18n/tr.ts';
 import { isSendKey } from '../../ui/sendKey.ts';
 import ComposerSendButtons from './ComposerSendButtons.vue';
 import { useAutoGrow } from './useAutoGrow.ts';
+import './composerIsland.css';
 
 const props = defineProps<{
   /** Whose drafts these are: the open session's id, a group's, or the start page's own key. */
