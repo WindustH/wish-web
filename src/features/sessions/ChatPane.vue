@@ -115,7 +115,11 @@ const goTab = (t: SessionTab) => {
     </div>
     <ChatLog :session-id="id" :mobile="isMobile" />
     <Composer ref="composerRef" :owner="id" :mobile="isMobile">
-      <template #tools><QueueDock v-if="queued.length > 0" :items="queued" :refill="onQueueEdit" /></template>
+      <template #tools>
+        <Transition name="queue-dock" appear>
+          <div v-if="queued.length > 0" class="queue-dock-slot"><QueueDock :items="queued" :refill="onQueueEdit" /></div>
+        </Transition>
+      </template>
     </Composer>
     <RouterView v-slot="{ Component, route: panelRoute }">
       <component :is="Component" v-if="isMobile" :key="panelRoute.fullPath" @close="closeTab(panelRoute.fullPath)" />
@@ -127,3 +131,18 @@ const goTab = (t: SessionTab) => {
     <ReasoningSettings v-if="reasoningOpen" :session-id="id" @close="reasoningOpen = false" />
   </div>
 </template>
+
+<style scoped>
+/* Reserve the button's width gradually, so its arrival does not jerk the toolbar. */
+.queue-dock-slot { display: flex; align-items: center; flex: none; width: 36px; }
+.queue-dock-enter-active, .queue-dock-leave-active {
+  overflow: clip;
+  transition: width 230ms var(--ease-out), opacity 170ms ease, transform 230ms var(--ease-out);
+}
+.queue-dock-enter-from { width: 0; opacity: 0; transform: translateY(5px) scale(.9); }
+.queue-dock-leave-to { width: 0; opacity: 0; }
+.queue-dock-leave-active { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .queue-dock-enter-active, .queue-dock-leave-active { transition: none; }
+}
+</style>

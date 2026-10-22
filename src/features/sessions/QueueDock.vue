@@ -40,7 +40,19 @@ const awaitingAnswer=computed(()=>awaitsAnswer(chat.snapshot.value));
 const open=ref(false);
 // A page left with the queue open would leave its backdrop over the next one.
 watch(usePageActivity(),active=>{if(!active)open.value=false;});
+// The last queued message can disappear while the bubble is open. Let it close
+// before the toolbar's leave transition removes its trigger.
+watch(()=>props.items.length,count=>{if(!count)open.value=false;});
 const label=computed(()=>tr(`待发送消息（${props.items.length} 条）`,`Queued messages (${props.items.length})`));
+function closedFocus(event: Event) {
+  if(props.items.length)return;
+  // The trigger is about to leave the toolbar; do not return keyboard focus
+  // to a button that no longer exists. Leave focus elsewhere untouched.
+  event.preventDefault();
+  const active=document.activeElement;
+  if(active===trigger.value||active?.closest('.queue-bubble'))
+    trigger.value?.closest('.composer')?.querySelector<HTMLElement>('.composer-input')?.focus({preventScroll:true});
+}
 // A message joining the queue while the bubble is shut nudges the button.
 const trigger=ref<HTMLElement>();
 let arrivalAnimation:Animation|undefined;
@@ -145,7 +157,7 @@ async function edit(item: any) {
       <span class="queue-badge">{{items.length}}</span>
     </button></PopoverTrigger>
     <PopoverPortal>
-      <PopoverContent class="queue-bubble" :aria-label="label" side="top" align="start" :side-offset="10" :collision-padding="16" :aria-busy="busy" @open-auto-focus.prevent>
+      <PopoverContent class="queue-bubble" :aria-label="label" side="top" align="start" :side-offset="10" :collision-padding="16" :aria-busy="busy" @open-auto-focus.prevent @close-auto-focus="closedFocus">
         <BubbleSurface />
         <header class="queue-heading"><span>{{tr('待发送','Queued')}} <small>{{items.length}}</small></span><span v-if="awaitingAnswer" class="queue-note">{{tr('回答上面的问题后送达','Goes in once the questions above are answered')}}</span></header>
         <div ref="list" class="queue-scroll" @pointermove="slide" @pointerup="release" @pointercancel="release" @touchmove="holdStill">
@@ -177,5 +189,17 @@ async function edit(item: any) {
 .composer-queue .queue-badge { position: absolute; top: 3px; right: 4px; min-width: 13px; height: 13px; padding: 0 3px; border-radius: 7px; background: var(--accent); color: var(--accent-fg); box-shadow: 0 0 0 1.5px var(--bg-raised); font: 600 8.5px/13px var(--font); font-variant-numeric: tabular-nums; text-align: center; }
 .composer-queue[data-state="open"] { color: var(--fg); background: var(--bg-hover); }
 .queue-bubble { --bubble-surface: var(--bg-overlay); z-index: 75; width: min(420px, calc(100vw - 32px)); max-height: min(380px, var(--reka-popover-content-available-height)); display: flex; flex-direction: column; border: 1px solid transparent; border-radius: 14px; background: transparent; color: var(--fg); isolation: isolate; transform-origin: var(--reka-popover-content-transform-origin); }
+.queue-bubble[data-state="open"] { animation: queue-bubble-in 210ms var(--ease-out); }
+.queue-bubble[data-state="closed"] { pointer-events: none; animation: queue-bubble-out 150ms ease-in forwards; }
+@keyframes queue-bubble-in {
+  from { opacity: 0; transform: translateY(7px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes queue-bubble-out {
+  to { opacity: 0; transform: translateY(5px) scale(.98); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .queue-bubble[data-state="open"], .queue-bubble[data-state="closed"] { animation: none; }
+}
 .queue-tail-anchor { display: block; width: 30px; height: 9px; opacity: 0; pointer-events: none; }
 </style>
