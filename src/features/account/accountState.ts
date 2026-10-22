@@ -60,13 +60,20 @@ export function quotaPercent(quota: QuotaWindow): number | null {
   const reported = number(quota.used_percent);
   const used = number(quota.used), limit = number(quota.limit);
   const percent = reported ?? (used != null && limit ? (used / limit) * 100 : null);
+  // A window the service marks reached but gives no share of its own reads as full: the
+  // percentage is the only thing the card shows, so "reached" has to become one. A window
+  // that does report a share keeps it — on the codex endpoint the flag arrives per meter,
+  // not per window, so it is stamped on a weekly window that is barely touched too.
+  if (percent == null && quota.reached === true) return 100;
   return percent == null ? null : Math.min(100, Math.max(0, percent));
 }
 
 /** Same thresholds as the context gauge: plenty, getting close, nearly spent. */
 export function quotaLevel(quota: QuotaWindow): 'low' | 'mid' | 'high' {
+  // The share decides, never the reached flag on its own: a reached window without a share
+  // is read as 100 by quotaPercent and lands high, while one that reports 1% stays low.
   const percent = quotaPercent(quota);
-  if (quota.reached || (percent ?? 0) >= 85) return 'high';
+  if ((percent ?? 0) >= 85) return 'high';
   return (percent ?? 0) >= 60 ? 'mid' : 'low';
 }
 

@@ -14,7 +14,18 @@ test('usage uses the reported share, or the amounts when that is all there is', 
   assert.equal(quotaPercent(quota({ unlimited: true, used_percent: '50' })), null);
   assert.equal(quotaPercent(quota({})), null);
   assert.equal(quotaLevel(quota({ used_percent: '70' })), 'mid');
-  assert.equal(quotaLevel(quota({ used_percent: '1', reached: true })), 'high');
+  // The weekly window of a codex meter whose 5-hour window is spent: the reached flag is
+  // stamped on every window of the meter, so the window's own 1% has to win.
+  assert.equal(quotaLevel(quota({ used_percent: '1', reached: true })), 'low');
+  // A window marked reached with no share of its own reads as a full 100, and levels high.
+  assert.equal(quotaPercent(quota({ reached: true })), 100);
+  assert.equal(quotaLevel(quota({ reached: true })), 'high');
+  assert.equal(quotaPercent(quota({ used_percent: '100' })), 100);
+  assert.equal(quotaLevel(quota({ used_percent: '100' })), 'high');
+  // Unlimited outranks the flag: no share at all, whatever the meter says.
+  assert.equal(quotaPercent(quota({ unlimited: true, reached: true })), null);
+  // No component test covers the card: AccountStatus.vue's label prints quotaPercent (or
+  // "Unlimited"), so "used up" is gone with the helpers above, not with a template branch.
 });
 
 test('windows are named by what they count and how long they last', () => {
