@@ -75,7 +75,13 @@ const measureComposer = (composer: Element | null) => {
   composerObserver?.disconnect();
   composerObserver = null;
   if (!(composer instanceof HTMLElement)) { paneEl.value?.style.removeProperty('--composer-height'); return; }
-  const apply = () => paneEl.value?.style.setProperty('--composer-height', `${Math.round(composer.getBoundingClientRect().height)}px`);
+  // The island's height above the pane's foot, its margins included, is what the log must clear.
+  const apply = () => {
+    const pane = paneEl.value;
+    if (!pane) return;
+    const span = pane.getBoundingClientRect().bottom - composer.getBoundingClientRect().top;
+    pane.style.setProperty('--composer-height', `${Math.round(span)}px`);
+  };
   apply();
   composerObserver = new ResizeObserver(apply);
   composerObserver.observe(composer);

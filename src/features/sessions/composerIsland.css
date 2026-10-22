@@ -43,18 +43,10 @@ div.chat-pane .jump-latest { bottom: calc(var(--composer-height, 96px) + 14px); 
 div.chat-pane > .composer.desktop:focus-within,
 div.chat-pane > .composer.mobile:focus-within { border-color: var(--accent); }
 
-/* The log no longer ends in a sliced line: while the reader is away from the newest message its
-   last stretch dissolves into the gap above the island. Nothing is masked once the log sits at the
-   bottom, so the last message stays whole, and the jump button lives outside .chatlog, so it is
-   never dimmed. One mask layer only: Chrome paints the scrollbar inside this box, so a second
-   layer sparing the gutter would leave a crisper 12px strip beside faded text -- a seam for no
-   gain, and a half-faded thumb wherever a browser's scrollbar is wider than the strip. The thumb
-   fades with the text instead, and stays grabbable. No transition: the mask swaps in one frame, so
-   there is nothing to still for prefers-reduced-motion. */
-.chat-pane .chatlog[data-following='false'] {
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--composer-height, 96px) - var(--chatlog-end-fade)), transparent calc(100% - var(--composer-height, 96px)));
-  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--composer-height, 96px) - var(--chatlog-end-fade)), transparent calc(100% - var(--composer-height, 96px)));
-}
+/* The log runs under the island and is seen through it: no mask. A fade here would erase exactly
+   the lines the island is meant to show blurred beneath its 10% of open surface, and the island's
+   own blur is the soft edge the reader sees. The fade rules that used to live here belong to the
+   old layout, where the log ended above the composer and had to dissolve into the gap. */
 
 /* Browsers without masks keep the old hard edge; the island itself needs no fallback, since 90%
    of --bg-raised over --bg stays legible either way. */
