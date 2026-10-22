@@ -9,6 +9,7 @@ import { usePageActivity } from '../composables/usePageActivity.ts';
 import Icon from './Icon.vue';
 import BubbleSurface from './BubbleSurface.vue';
 import { tr } from '../../core/i18n/tr.ts';
+import { useBackLayer } from '../composables/useBackLayer.ts';
 
 const props = withDefaults(defineProps<{ modelValue: string; disabled?: boolean; title?: string; side?: 'top' | 'bottom' }>(), { title: undefined, side: 'top' });
 const label = computed(() => props.title ?? tr('选择工作目录', 'Choose working directory'));
@@ -17,6 +18,7 @@ type DirectoryListing = Awaited<ReturnType<typeof directoriesList>>;
 const folderName = computed(() => props.modelValue.split('/').filter(Boolean).at(-1) || (props.modelValue.startsWith('/') ? '/' : ''));
 const active = usePageActivity();
 const open = ref(false), pending = ref(false), error = ref(''), path = ref('');
+useBackLayer(() => open.value && active.value, () => { open.value = false; }, () => 75);
 const listing = ref<DirectoryListing>();
 const sidebarListing = ref<DirectoryListing>();
 const sidebarPending = ref(false), sidebarError = ref('');

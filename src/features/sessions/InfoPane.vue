@@ -80,7 +80,7 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
 </script>
 
 <template>
-  <Modal :open="true" content-class="session-window usage-info-window" :title="i18n.t('info.title')" :page="isMobile" @close="$emit('close')">
+  <Modal :open="true" :back-layer="!isMobile" content-class="session-window usage-info-window" :title="i18n.t('info.title')" :page="isMobile" @close="$emit('close')">
     <div v-if="err" class="load-error" role="alert">
       <span>{{ errorDetail(err) }}</span>
       <button class="btn ghost sm" @click="refresh">{{ i18n.t('common.retry') }}</button>

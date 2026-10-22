@@ -10,6 +10,7 @@ import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { announce } from '../../ui/live.ts';
 import { groupEntries, inlineChips, type ChipsItem, type GroupItem, type TextItem } from './grouping.ts';
+import { imageAlbums, type ImageAlbumItem } from './imageAlbums.ts';
 import ActivityRail from './ActivityRail.vue';
 import { railOpenKey, type RailOpen } from './railState.ts';
 import type { RailEvent, RailRow } from './railLayout.ts';
@@ -24,7 +25,7 @@ import { useChatScroll } from './useChatScroll.ts';
 import { useSearchLocate } from './useSearchLocate.ts';
 import { useRailSwipe } from './useRailSwipe.ts';
 import { estimateRow } from './rowEstimate.ts';
-import { chatViewportRect, measureChatElement, observeChatRect } from './virtualMeasurements.ts';
+import { measureChatElement, observeChatRect, refreshChatViewport } from './virtualMeasurements.ts';
 import { useFreshRows } from './useFreshRows.ts';
 import { awaitsAnswer } from '../../core/questionWatch.ts';
 import { toolResultsKey } from './entries/processDetails.ts';
@@ -53,9 +54,9 @@ const requestFailure = computed(() => displayFailure(chat.error.value));
 // Keep status cards inside the measured list so its size matches the scroll
 // container's actual content height.
 // History rows, then a closing row for a failed request or run.
-type ChatRow = GroupItem<EntryView> | TextItem<EntryView> | ChipsItem<EntryView> | { type: 'status_request_error' | 'status_run_error'; key: string };
+type ChatRow = GroupItem<EntryView> | TextItem<EntryView> | ChipsItem<EntryView> | ImageAlbumItem<EntryView> | { type: 'status_request_error' | 'status_run_error'; key: string };
 const groups = computed(() => {
-  const items: ChatRow[] = inlineChips(groupEntries(chat.entries.value));
+  const items: ChatRow[] = imageAlbums(inlineChips(groupEntries(chat.entries.value)));
   if (requestFailure.value) items.push({ type: 'status_request_error', key: `request-error:${props.sessionId}` });
   if (runFailure.value) items.push({ type: 'status_run_error', key: `run-error:${props.sessionId}` });
   return items;
@@ -101,7 +102,7 @@ const railRows = computed<RailRow[]>(() => {
   });
 });
 const rowEvents = (row: ChatRow): RailEvent[] => {
-  const chips: any[] = row.type === 'chips' ? row.chips : row.type === 'entry' && row.entry?.kind === 'assistant_message' ? (row as TextItem<EntryView>).before ?? [] : [];
+  const chips: any[] = row.type === 'chips' ? row.chips : row.type === 'image_album' ? row.items.flatMap(item => item.before ?? []) : row.type === 'entry' && row.entry?.kind === 'assistant_message' ? (row as TextItem<EntryView>).before ?? [] : [];
   return chips.flatMap((chip: any): RailEvent[] => chip.type === 'process'
     ? chipEvents(chip, resultLookup(chip, toolResults.value)).map(event => ({ chipKey: chip.key, stepKey: event.key, icon: event.icon,
       failed: event.failed, warn: false, tip: event.title, seq: event.seq, step: event.step, preview: event.preview }))
@@ -233,6 +234,7 @@ function holdsTarget(row: ChatRow | undefined): boolean {
   const seq = targetSeq.value;
   if (seq == null || !row) return false;
   if (row.type === 'entry') return row.entry.seq === seq;
+  if (row.type === 'image_album') return row.items.some(item => item.entry.seq === seq);
   if (row.type === 'question') return row.entry.seq === seq || row.result?.seq === seq;
   return false;
 }
@@ -244,13 +246,7 @@ watch(running, (now, was) => {
 
 function refreshVirtualMeasurements(reset = false) {
   if (!pageActive.value) return;
-  const rect = chatViewportRect(scrollEl.value);
-  if (!rect) return;
-  const instance = virtualizer.value;
-  if (reset || instance.scrollRect?.width !== rect.width || instance.scrollRect?.height !== rect.height) {
-    instance.scrollRect = rect;
-    instance.measure();
-  }
+  refreshChatViewport(virtualizer.value, reset);
 }
 
 // A cached page can reappear with the same DOM and no new model output. Restore its viewport
@@ -343,7 +339,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
           :data-index="v.index"
           :class="{ 'status-error-row': groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error', 'history-target': holdsTarget(groups[v.index]), 'row-enter': fresh.has(groups[v.index]?.key ?? '') }"
           :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }">
-          <HistoryItem v-if="['entry', 'process', 'chips', 'question'].includes(groups[v.index]?.type ?? '')" :item="groups[v.index]!"
+          <HistoryItem v-if="['entry', 'image_album', 'process', 'chips', 'question'].includes(groups[v.index]?.type ?? '')" :item="groups[v.index]!"
             :forced-keys="forcedOpen" :session="sessionId" />
           <div v-else-if="groups[v.index]?.type === 'status_request_error' && requestFailure" class="chat-run-error" role="alert">
             <strong>{{ i18n.t('chat.requestFailed') }}</strong>

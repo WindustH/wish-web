@@ -32,6 +32,7 @@ import MenuBackdrop from './MenuBackdrop.vue';
 import { usePageActivity } from '../composables/usePageActivity.ts';
 import { covers, glyphAt, SELECTABLE_TEXT } from '../textAtPoint.ts';
 import { noteSwallowedClick } from '../scrollStalls.ts';
+import { useBackLayer } from '../composables/useBackLayer.ts';
 
 // `checked` marks the current choice of a menu that picks one of several.
 export type MenuItem = { key: string; label: string; icon?: string; danger?: boolean; shortcut?: string; separator?: boolean; checked?: boolean };
@@ -59,6 +60,7 @@ function setOpen(value: boolean) {
   open.value = value;
 }
 const close = () => { cancelPress(); setOpen(false); };
+useBackLayer(() => open.value && pageActive.value, close, () => 70);
 closers.add(close);
 
 // Where a context menu hangs: a point inside the element that was pressed. The object exists from

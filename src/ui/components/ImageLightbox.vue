@@ -6,6 +6,8 @@ import { computed, nextTick, ref, watch } from 'vue';
 import Icon from './Icon.vue';
 import { closeImageLightbox, imageLightbox } from '../imageLightbox.ts';
 import { tr } from '../../core/i18n/tr.ts';
+import { useBackLayer } from '../composables/useBackLayer.ts';
+useBackLayer(() => !!imageLightbox.value, closeImageLightbox, () => 200);
 
 const MAX_SCALE = 8;
 const step = 1.25;

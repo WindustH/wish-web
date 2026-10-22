@@ -99,7 +99,7 @@ onUnmounted(() => { if (searchDebounce) clearTimeout(searchDebounce); });
 </script>
 
 <template>
-  <Modal :open="true" content-class="session-window history-search-window" :title="i18n.t('search.title')" :page="isMobile" @close="$emit('close')">
+  <Modal :open="true" :back-layer="!isMobile" content-class="session-window history-search-window" :title="i18n.t('search.title')" :page="isMobile" @close="$emit('close')">
     <div class="search-row">
       <input v-model="q" class="input" data-initial-focus type="search" :disabled="locating !== null"
         @compositionstart="composing = true" @compositionend="composing = false; scheduleSearch()" :placeholder="i18n.t('search.placeholder')"

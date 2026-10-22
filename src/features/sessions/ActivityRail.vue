@@ -58,8 +58,8 @@ const label = (node: RailNode) => node.events.length === 1 ? node.tip
     <button v-for="(node, index) in rail.nodes" :key="index" type="button" class="history-rail-node"
       :class="{ failed: node.failed, warn: !node.failed && node.warn }" :style="{ top: `${node.y - 12}px` }"
       :aria-label="label(node)" aria-haspopup="dialog" :data-seq="node.seq" @click="click(node)">
-      <Icon :name="node.icon" />
-      <span v-if="node.count > 1" class="history-rail-badge" aria-hidden="true">{{ node.count }}</span>
+      <span v-if="node.count > 1" class="history-rail-count" aria-hidden="true">+{{ node.count }}</span>
+      <Icon v-else :name="node.icon" />
       <span class="history-rail-tip" aria-hidden="true">{{ label(node) }}</span>
     </button>
     <Modal :open="!!gathered" :sheet="isMobile" wide :title="gatherTitle" content-class="process-window" @close="gathered = null">

@@ -4,6 +4,7 @@
 // small, so scrolling up through history stays steady. The numbers come from
 // measuring real conversations at desktop and phone widths.
 import type { GroupBlock, GroupItem } from './grouping.ts';
+import { albumHeight, imageParts, type ImageAlbumItem } from './imageAlbums.ts';
 
 const LINE = 28.05;        // message text: 17px at line-height 1.65
 const PARAGRAPH = 18;       // what each further source line adds in rendered Markdown (margins, lists, headings)
@@ -29,22 +30,28 @@ function textLines(text: string, width: number): { wrapped: number; source: numb
 }
 
 const textOf = (blocks: readonly GroupBlock[]) => blocks.filter(block => block.type === 'text').map(block => block.text ?? '').join('\n');
-const count = (blocks: readonly GroupBlock[], type: string) => blocks.filter(block => block.type === type).length;
+const mediaHeight = (blocks: readonly GroupBlock[], width: number) => imageParts(blocks).reduce((height, part) => height + (part.type === 'album'
+  ? albumHeight(part.blocks.length, width) : part.block.type === 'image' ? 220 : part.block.type === 'file' ? 44 : 0), 0);
 
 /** `width` is the conversation column's; below 600px the phone layout's sizes apply. */
-export function estimateRow(row: GroupItem | { type: string }, width: number): number {
+export function estimateRow(row: GroupItem | ImageAlbumItem | { type: string }, width: number): number {
   const compact = width < 600;
   if (row.type === 'process') return compact ? 62 : 53;
   // A process-only row is an unseen host: its events ride the rail that floats beside the log,
   // so the row itself takes no height at all.
   if (row.type === 'chips') return 0;
+  if (row.type === 'image_album') {
+    const album = row as ImageAlbumItem;
+    const user = album.items[0]?.entry.kind === 'user_message';
+    return (user ? 24 : 20) + albumHeight(album.items.reduce((n, item) => n + item.blocks.length, 0), user && !compact ? width * 0.92 : width);
+  }
   if (row.type === 'question') {
     const questions = ((row as { arguments?: { questions?: unknown[] } }).arguments?.questions?.length) ?? 1;
     return 110 + 80 * questions;
   }
   if (row.type !== 'entry') return 110;
   const { entry, blocks } = row as Extract<GroupItem, { type: 'entry' }>;
-  const media = count(blocks, 'image') * 220 + count(blocks, 'file') * 44;
+  const media = mediaHeight(blocks, entry.kind === 'user_message' && !compact ? width * 0.92 : width);
   if (entry.kind === 'assistant_message') {
     const text = textOf(blocks);
     // The rail floats in the margin beside the log: the words keep the whole column, and no

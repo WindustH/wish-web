@@ -4,6 +4,8 @@ import { attachmentPreview } from '../attachmentPreview.ts';
 import { apiFetch } from '../../core/api/client.ts';
 import BubbleSurface from './BubbleSurface.vue';
 import { tr } from '../../core/i18n/tr.ts';
+import { useBackLayer } from '../composables/useBackLayer.ts';
+useBackLayer(() => !!attachmentPreview.value, () => { attachmentPreview.value = null; }, () => 80);
 const panel = ref<HTMLElement | null>(null);
 const position = ref<Record<string, string>>({});
 const side = ref('above');

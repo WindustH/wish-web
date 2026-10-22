@@ -144,7 +144,7 @@ async function act(kind: 'compact' | 'clear') {
 </script>
 
 <template>
-  <Modal :open="true" content-class="session-window session-settings-window" :title="tr('会话设置', 'Session settings')" :page="isMobile" @close="$emit('close')">
+  <Modal :open="true" :back-layer="!isMobile" content-class="session-window session-settings-window" :title="tr('会话设置', 'Session settings')" :page="isMobile" @close="$emit('close')">
     <p class="session-settings-intro">{{ tr('只影响这个会话。新建会话仍使用设置里的默认值。', 'These apply to this session only. New sessions keep using the defaults from Settings.') }}</p>
 
     <section class="set-section">

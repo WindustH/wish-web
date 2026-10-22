@@ -14,11 +14,12 @@ import { useDialogLayer } from '../composables/useDialogLayer.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
 import { prefersReducedMotion } from '../motion/reducedMotion.ts';
 import { useSheetDrag } from '../composables/useSheetDrag.ts';
+import { useBackLayer } from '../composables/useBackLayer.ts';
 const focus = useDialogFocus();
 const pageActive = usePageActivity();
 
 // `sheet`: a card that slides up from the bottom of a phone's screen rather than one in its middle.
-const props = withDefaults(defineProps<{ open: boolean; title: string; beforeClose?: () => boolean | Promise<boolean>; layer?: number; wide?: boolean; page?: boolean; sheet?: boolean; back?: () => void; contentClass?: string; dismissable?: boolean; compact?: boolean }>(), { dismissable: true });
+const props = withDefaults(defineProps<{ open: boolean; title: string; beforeClose?: () => boolean | Promise<boolean>; layer?: number; wide?: boolean; page?: boolean; sheet?: boolean; back?: () => void; contentClass?: string; dismissable?: boolean; compact?: boolean; backLayer?: boolean }>(), { dismissable: true, backLayer: true });
 const emit = defineEmits<{ close: [] }>();
 const closing = ref(false);
 let closeCompleted = false;
@@ -34,6 +35,8 @@ function finishClose() {
   emit('close');
 }
 const layer = useDialogLayer(() => props.layer ?? 60);
+useBackLayer(() => props.backLayer && props.open && pageActive.value,
+  () => { if (props.dismissable) return props.page && props.back ? props.back() : requestClose(); }, () => layer.value);
 // A session window opens as a bubble under its chat-bar button instead of a centered card.
 const bubble = computed(() => !props.page && !!props.contentClass?.split(' ').includes('session-window'));
 // Compact cards drop the head and footer bands: the title joins the content

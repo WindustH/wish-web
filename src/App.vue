@@ -23,6 +23,8 @@ import { isSignedOut } from './core/connection.ts';
 import { accountDialogOpen } from './features/account/accountDialog.ts';
 import SignOutButton from './features/connection/SignOutButton.vue';
 import { closeOverlayKey } from './ui/composables/overlay.ts';
+import { useBackLayer } from './ui/composables/useBackLayer.ts';
+useBackLayer(() => onboardingPreview.value, closeOnboardingPreview, () => 55);
 
 const ProviderSetup = defineAsyncComponent(() => import('./features/onboarding/ProviderSetup.vue'));
 const ConnectView = defineAsyncComponent(() => import('./features/connection/ConnectView.vue'));

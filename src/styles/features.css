@@ -160,8 +160,7 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 @media (pointer: coarse) { .history-rail-node::after { content: ''; position: absolute; inset: -1px -6px; } }
 .history-rail-node.warn { color: var(--warn); }
 .history-rail-node.error, .history-rail-node.failed { color: var(--err); }
-.history-rail-badge { position: absolute; right: -7px; bottom: -4px; min-width: 15px; padding: 1px 3px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-raised); color: var(--fg-subtle); font: 500 9.5px/1.2 var(--font); font-variant-numeric: tabular-nums; text-align: center; }
-.history-rail-node.failed .history-rail-badge { border-color: var(--err-border); color: var(--err); }
+.history-rail-count { display:block; padding:2px 1px; border-radius:5px; background:var(--bg); font:500 10px/1.2 var(--font); font-variant-numeric:tabular-nums; white-space:nowrap; }
 .history-rail-tip { display: none; position: absolute; left: calc(100% + 10px); top: 50%; translate: 0 -50%; z-index: 6; max-width: min(300px, calc(100vw - 120px)); padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-raised); color: var(--fg-muted); font: 400 12px/1.4 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; box-shadow: 0 2px 8px rgb(0 0 0 / 12%); }
 @media (hover: hover) { .history-rail-node:hover > .history-rail-tip { display: block; } }
 .history-rail-node:focus-visible > .history-rail-tip { display: block; }

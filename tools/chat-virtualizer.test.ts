@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Virtualizer, measureElement } from '@tanstack/vue-virtual';
-import { chatViewportRect, measureChatElement, observeChatRect } from '../src/features/sessions/virtualMeasurements.ts';
+import { chatViewportRect, measureChatElement, observeChatRect, refreshChatViewport } from '../src/features/sessions/virtualMeasurements.ts';
 
 function setup() {
   const viewport = { isConnected: true, offsetWidth: 736, offsetHeight: 400, scrollHeight: 1000, clientHeight: 400 };
@@ -61,4 +61,32 @@ test('a stale zero viewport observation reads current geometry instead of blanki
     resize([{ borderBoxSize: [{ inlineSize: 0, blockSize: 0 }] }]);
     assert.equal(v.scrollRect?.height, 400, 'a hidden observation keeps the last useful viewport');
   } finally { stop?.(); }
+});
+
+test('dragging the window size preserves measured message heights and the visible range', () => {
+  const { v, viewport } = setup();
+  v.resizeItem(0, 900); // a picture or long reply, much taller than its first estimate
+  v.scrollOffset = 500;
+  const before = v.getVirtualItems().map(item => item.key);
+  for (let frame = 0; frame < 30; frame++) {
+    viewport.offsetWidth = 736 - frame;
+    viewport.offsetHeight = 400 + frame;
+    refreshChatViewport(v);
+    assert.equal(v.itemSizeCache.get('row-0'), 900);
+    assert.equal(v.getTotalSize(), 1800);
+    const visible = v.getVirtualItems().map(item => item.key);
+    assert.equal(visible[0], before[0], 'the first row stays anchored as the viewport grows');
+    assert.ok(before.every(key => visible.includes(key)), 'growing the viewport retains rows already on screen');
+  }
+  refreshChatViewport(v, true);
+  assert.equal(v.itemSizeCache.size, 0, 'activation can still discard a previous session or hidden layout');
+});
+
+test('a recycled message measures its current wrapping instead of keeping an old width cache', () => {
+  const { v, row, rowBox } = setup();
+  v.resizeItem(0, 320);
+  rowBox.offsetHeight = 180;
+  assert.equal(measureElement(row, undefined, v), 320);
+  v.resizeItem(0, measureChatElement(row, undefined, v));
+  assert.equal(v.itemSizeCache.get('row-0'), 180);
 });

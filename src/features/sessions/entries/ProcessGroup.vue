@@ -122,8 +122,8 @@ function show(step: any, onlyDiff = false) {
          search finds it; every step stays in the window below. -->
     <button v-if="variant === 'node'" type="button" class="history-rail-node" :class="{ failed: face.failed }"
       :aria-label="face.tip" aria-haspopup="dialog" :data-seq="face.seq" @click="openNode">
-      <Icon :name="face.icon" />
-      <span v-if="face.count > 1" class="history-rail-badge" aria-hidden="true">{{ face.count }}</span>
+      <span v-if="face.count > 1" class="history-rail-count" aria-hidden="true">+{{ face.count }}</span>
+      <Icon v-else :name="face.icon" />
       <span class="history-rail-tip" aria-hidden="true">{{ face.tip }}</span>
     </button>
     <!-- A ghost hosts the window with no node: the rail's gathered node opens it instead. -->

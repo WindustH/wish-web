@@ -8,6 +8,7 @@ import Modal from './Modal.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { ToggleGroupRoot, ToggleGroupItem, SelectRoot, SelectTrigger, SelectValue, SelectIcon, SelectPortal, SelectContent, SelectViewport, SelectItem, SelectItemText, SelectItemIndicator } from 'reka-ui';
 import { usePageActivity } from '../composables/usePageActivity.ts';
+import { useBackLayer } from '../composables/useBackLayer.ts';
 
 defineOptions({ inheritAttrs: false });
 export interface SelectOption { value: string; label: string; icon?: string; brand?: string; annotation?: string; description?: string; disabled?: boolean }
@@ -17,6 +18,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 const pageActive = usePageActivity();
 const mobile = useIsMobile();
 const open = ref(false);
+useBackLayer(() => open.value && pageActive.value && !(props.mobilePage && mobile.value), () => { open.value = false; }, () => 80);
 const query = ref('');
 const searchInput = ref<HTMLInputElement>();
 const filtered = computed(() => {

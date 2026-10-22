@@ -13,11 +13,13 @@ import QuestionCard from './entries/QuestionCard.vue';
 import LateAnswerEntry from './entries/LateAnswerEntry.vue';
 import GroupSentEntry from './entries/GroupSentEntry.vue';
 import GroupMessageEntry from './entries/GroupMessageEntry.vue';
+import ImageAlbumEntry from './entries/ImageAlbumEntry.vue';
 
 // `forcedKeys` are the groups a search holds open to show what it found.
 const props = defineProps<{ item: any; forcedKeys?: ReadonlySet<string>; session?: string }>();
 const comp = computed<Component>(() =>
   props.item.type === 'process' ? ProcessGroup
+  : props.item.type === 'image_album' ? ImageAlbumEntry
   : props.item.type === 'chips' ? HistoryChips
   : props.item.type === 'question' ? QuestionCard
   : props.item.entry?.payload?.metadata?.source === 'ask_user_answer' ? LateAnswerEntry
@@ -31,6 +33,7 @@ const comp = computed<Component>(() =>
 const bound = computed(() => props.item.type === 'chips' ? { chips: props.item.chips, forcedKeys: props.forcedKeys, session: props.session }
   : props.item.type === 'process' ? { item: props.item, forced: props.forcedKeys?.has(props.item.key), session: props.session }
   : props.item.type === 'question' ? { item: props.item, session: props.session }
+  : props.item.type === 'image_album' ? { item: props.item, forcedKeys: props.forcedKeys, session: props.session }
   : props.item.entry?.kind === 'assistant_message' ? { item: props.item, forcedKeys: props.forcedKeys, session: props.session } : { item: props.item });
 </script>
 

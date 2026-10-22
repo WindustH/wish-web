@@ -3,6 +3,7 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 import SessionsView from './features/sessions/SessionsView.vue';
 import StartChat from './features/sessions/StartChat.vue';
 import { installSessionNavigation } from './features/shell/sessionNavigation.ts';
+import { createBackLayers, setBackLayers } from './ui/backLayers.ts';
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -52,4 +53,17 @@ export const router = createRouter({
   ],
 });
 
+const windows = createBackLayers(window, () => new URL(router.options.history.createHref(router.currentRoute.value.fullPath), window.location.href).href === window.location.href);
+setBackLayers(windows);
+const windowNavigations = new WeakMap<object, number>();
+router.beforeEach(async (to, from) => {
+  if (to.fullPath !== from.fullPath) windowNavigations.set(to, await windows.beforeNavigation());
+});
+router.afterEach((to, from, failure) => {
+  const ticket = windowNavigations.get(to);
+  // Crossing the desktop breakpoint turns a routed session panel into a local window and
+  // normalizes its child URL. That window stays open through the normalization.
+  const normalizedPanel = to.name === 'chat' && from.name !== 'chat' && !!to.params.id && to.params.id === from.params.id;
+  if (ticket != null) windows.afterNavigation(!failure, ticket, normalizedPanel);
+});
 installSessionNavigation(router);

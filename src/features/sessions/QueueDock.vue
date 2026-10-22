@@ -21,6 +21,7 @@ import { tr } from '../../core/i18n/tr.ts';
 import { prefersReducedMotion } from '../../ui/motion/reducedMotion.ts';
 import { awaitsAnswer } from '../../core/questionWatch.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
 
 const props = defineProps<{ items: any[]; refill: (text: string, attachments?: any[]) => void }>();
 
@@ -38,6 +39,7 @@ const refillable = (item: any): boolean =>
 // The run waits on an ask_user form; what is queued goes in once the form is answered.
 const awaitingAnswer=computed(()=>awaitsAnswer(chat.snapshot.value));
 const open=ref(false);
+useBackLayer(() => open.value, () => { open.value = false; }, () => 75);
 // A page left with the queue open would leave its backdrop over the next one.
 watch(usePageActivity(),active=>{if(!active)open.value=false;});
 // The last queued message can disappear while the bubble is open. Let it close

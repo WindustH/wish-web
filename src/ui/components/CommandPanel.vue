@@ -8,11 +8,13 @@ import { i18n } from '../../core/i18n/index.ts';
 import { useDialogLayer } from '../composables/useDialogLayer.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
 import { prefersReducedMotion } from '../motion/reducedMotion.ts';
+import { useBackLayer } from '../composables/useBackLayer.ts';
 
 const props = defineProps<{ title: string; busy?: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 const focus = useDialogFocus();
 const layer = useDialogLayer();
+useBackLayer(() => pageActive.value, close, () => layer.value);
 const closing = ref(false);
 let closeCompleted = false;
 let closeTimer: ReturnType<typeof setTimeout> | undefined;

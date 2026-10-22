@@ -17,9 +17,10 @@ export function useSearchLocate(
   let targetTimer: ReturnType<typeof setTimeout> | null = null;
 
   // The buttons a row carries: those beside a reply's words, or a row of them.
-  const chipsOf = (g: any): any[] => g.type === 'chips' ? g.chips : g.before ?? [];
+  const chipsOf = (g: any): any[] => g.type === 'chips' ? g.chips : g.type === 'image_album' ? g.items.flatMap((item: any) => item.before ?? []) : g.before ?? [];
   const holds = (g: any, seq: number): boolean =>
     (g.type === 'entry' && g.entry?.seq === seq)
+    || (g.type === 'image_album' && g.items.some((item: any) => holds(item, seq)))
     || (g.type === 'process' && (g.steps ?? []).some((st: any) => stepSeq(st) === seq))
     || chipsOf(g).some(chip => holds(chip, seq));
   const groupIndexOf = (seq: number) => groups.value.findIndex((g: any) => holds(g, seq));
