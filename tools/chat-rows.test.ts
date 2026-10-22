@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { effectScope, nextTick, ref } from 'vue';
 import { approach } from '../src/features/sessions/glide.ts';
 import { estimateRow } from '../src/features/sessions/rowEstimate.ts';
-import { groupEntries, inlineChips, railLineRows, stripShown } from '../src/features/sessions/grouping.ts';
+import { groupEntries, inlineChips } from '../src/features/sessions/grouping.ts';
+import { layoutRail, RAIL_PITCH, rowSlots, type RailEvent, type RailRow } from '../src/features/sessions/railLayout.ts';
 import { stepIcons, summarizeSteps } from '../src/features/sessions/entries/processDetails.ts';
 import { useFreshRows } from '../src/features/sessions/useFreshRows.ts';
 
@@ -88,39 +89,65 @@ test('a run of steps is said in a line of what it did', () => {
   assert.deepEqual(stepIcons([{ kind: 'block', key: 'r', block: { type: 'reasoning', text: 'hmm' } }]), ['thinking']);
 });
 
-test('a reply is never taller for what its rail holds', () => {
-  const reply = (text: string, line = false) => ({ type: 'entry', key: 'k', usage: null, entry: { kind: 'assistant_message' }, blocks: [{ type: 'text', text }], line });
-  // However much came before it, the gathered node floats in the gutter: the words alone decide.
-  assert.equal(Math.round(estimateRow(reply('好的。', true) as never, 736)), 48);
-  assert.equal(estimateRow({ type: 'chips', key: 'c', chips: [] } as never, 736), 48);
-  assert.equal(estimateRow({ type: 'chips', key: 'c', chips: [] } as never, 334), 54);
+test('a row is never taller or narrower for the events it carries', () => {
+  const reply = (text: string) => ({ type: 'entry', key: 'k', usage: null, entry: { kind: 'assistant_message' }, blocks: [{ type: 'text', text }] });
+  const long = '好'.repeat(43);
+  // The rail floats in the margin: the words keep the whole column, whatever came before them.
+  assert.equal(Math.round(estimateRow(reply('好的。') as never, 736)), 48);
+  assert.equal(estimateRow(reply(long) as never, 400), estimateRow(reply(long) as never, 400));
+  // A process-only row is an unseen host: no height at all.
+  assert.equal(estimateRow({ type: 'chips', key: 'c', chips: [] } as never, 736), 0);
 });
 
-test('a lined turn takes its gutter from the words, so they wrap sooner', () => {
-  const reply = (line: boolean) => ({ type: 'entry', key: 'k', usage: null, entry: { kind: 'assistant_message' }, blocks: [{ type: 'text', text: '好'.repeat(43) }], line });
-  // 43 CJK characters: two lines in a 400px column, three in the 362px left of the gutter.
-  assert.equal(Math.round(estimateRow(reply(false) as never, 400)), Math.round(20 + 2 * 28.05));
-  assert.equal(Math.round(estimateRow(reply(true) as never, 400)), Math.round(20 + 3 * 28.05));
+test('a tall message spreads its events along its height, a short one folds them', () => {
+  const events = (n: number): RailEvent[] => Array.from({ length: n }, (_, i) =>
+    ({ chipKey: 'p', stepKey: `s${i}`, icon: 'terminal', failed: false, warn: false, tip: `#${i}`, seq: i + 1 }));
+  // A 150px row fits five slots: six events show five nodes and gather the last into a count.
+  assert.equal(rowSlots(150), 5);
+  const tall = layoutRail([{ top: 0, height: 150, events: events(6) }]);
+  assert.equal(tall.nodes.length, 5);
+  assert.equal(tall.nodes.at(-1)!.count, 2);
+  // Down the row's height, one pitch apart, starting half a pitch in.
+  assert.ok(Math.abs(tall.nodes[1]!.y - tall.nodes[0]!.y - RAIL_PITCH) < 0.01);
+  assert.ok(Math.abs(tall.nodes[0]!.y - (4 + RAIL_PITCH / 2)) < 0.01);
+  // A one-line row fits one: everything but the first gathers into a single count node.
+  assert.equal(rowSlots(30), 1);
+  const short = layoutRail([{ top: 0, height: 30, events: events(3) }]);
+  assert.equal(short.nodes.length, 2);
+  assert.equal(short.nodes[0]!.count, 1);
+  assert.equal(short.nodes.at(-1)!.count, 2);
 });
 
-test('the rail line runs by the turn', () => {
-  const user = (seq: number) => ({ type: 'entry', entry: { kind: 'user_message', seq } });
-  const reply = (seq: number, before?: unknown[]) => ({ type: 'entry', entry: { kind: 'assistant_message', seq }, ...(before ? { before } : {}) });
-  const chips = { type: 'chips', chips: [] };
-  const question = { type: 'question' };
-  // A turn with work in it: every reply and chips row of the turn stays connected; the ask card
-  // and the user's own rows do not carry the line.
-  assert.deepEqual(railLineRows([user(1), chips, reply(2, [{}]), question, reply(3)] as never),
-    [false, true, true, false, true]);
-  // A turn of plain words draws nothing at all.
-  assert.deepEqual(railLineRows([user(1), reply(2), user(3), reply(4)] as never), [false, false, false, false]);
-  // Another speaker's words end a turn as the user's do.
-  assert.deepEqual(railLineRows([chips, { type: 'entry', entry: { kind: 'group_message', seq: 5 } }, chips] as never),
-    [true, false, true]);
+test('nodes that would crowd merge into one, and stay merged', () => {
+  const event = (seq: number): RailEvent => ({ chipKey: 'p', stepKey: `s${seq}`, icon: 'terminal', failed: seq === 3, warn: false, tip: `#${seq}`, seq });
+  // Three unseen host rows 10px apart, one event each: a single gathered node of three, standing
+  // at their weighted middle, coloured by the worst that happened among them.
+  const rows: RailRow[] = [0, 10, 20].map(top => ({ top, height: 0, events: [event(top / 10 + 1)] }));
+  const merged = layoutRail(rows);
+  assert.equal(merged.nodes.length, 1);
+  assert.equal(merged.nodes[0]!.count, 3);
+  assert.ok(Math.abs(merged.nodes[0]!.y - 27.5) < 0.01, 'the weighted middle of the three');
+  assert.ok(merged.nodes[0]!.failed, 'a failure anywhere colours the gathered node');
+  assert.ok(merged.nodes[0]!.events.length === 3, 'what it gathers stays reachable behind it');
+  // Whatever the input, no two placed nodes stand closer than 26px.
+  const crowded: RailRow[] = Array.from({ length: 8 }, (_, i) => ({ top: i * 10, height: 0, events: [event(i + 1)] }));
+  const thin = layoutRail(crowded).nodes;
+  for (let i = 1; i < thin.length; i++) assert.ok(thin[i]!.y - thin[i - 1]!.y >= 26, `gap ${thin[i]!.y - thin[i - 1]!.y}`);
 });
 
-test('a process-only row shows at most three of its chips, the rest behind a +N', () => {
-  assert.deepEqual(stripShown(1), { shown: 1, more: 0 });
-  assert.deepEqual(stripShown(3), { shown: 3, more: 0 });
-  assert.deepEqual(stripShown(5), { shown: 3, more: 2 });
+test('the line runs from the first event to the last, across user messages', () => {
+  const event = (seq: number): RailEvent => ({ chipKey: 'p', stepKey: `s${seq}`, icon: 'terminal', failed: false, warn: false, tip: `#${seq}`, seq });
+  // A user row sits between two rows of events, tall enough that nothing merges.
+  const rows: RailRow[] = [
+    { top: 0, height: 120, events: [event(1), event(2)] },
+    { top: 120, height: 90, events: [] },          // the user's words: nothing of the rail's
+    { top: 210, height: 120, events: [event(3)] },
+  ];
+  const { nodes, line } = layoutRail(rows);
+  assert.equal(nodes.length, 3);
+  // The line spans the whole conversation's activity, not the turn's; it is never broken by a row.
+  assert.ok(line);
+  assert.ok(Math.abs(line!.top - nodes[0]!.y) < 0.01);
+  assert.ok(Math.abs(line!.bottom - nodes.at(-1)!.y) < 0.01);
+  assert.ok(line!.bottom > 210, 'the line crosses the user message below it');
 });

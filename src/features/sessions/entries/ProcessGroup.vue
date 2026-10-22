@@ -116,7 +116,7 @@ function show(step: any, onlyDiff = false) {
     <Modal :open="open" :sheet="isMobile" wide :title="summary" content-class="process-window" @close="open = false">
       <ol class="proc-timeline">
         <li v-for="event in timeline" :key="event.key" class="proc-event" :class="{ thinking: event.thinking, failed: event.failed }">
-          <button type="button" class="proc-event-button" :data-seq="event.seq" :data-result-seq="event.resultSeq" @click="show(event.step)">
+          <button type="button" class="proc-event-button" :class="{ current: detail?.key === event.key }" :data-seq="event.seq" :data-result-seq="event.resultSeq" @click="show(event.step)">
             <span class="proc-event-mark"><Icon v-if="event.icon" :name="event.icon" /></span>
             <span class="proc-event-text"><strong>{{ event.title }}</strong><small v-if="event.detail">{{ event.detail }}</small></span>
           </button>
@@ -125,7 +125,8 @@ function show(step: any, onlyDiff = false) {
       <button v-for="change in diffs" :key="change.key" type="button" class="process-diff-card" @click="show(change.step, true)">
         <Icon name="file-diff" /><span>{{ change.edit.path }}<small>{{ tr('文件修改', 'File changes') }}</small></span><span v-if="change.edit.diff" class="process-diff-count"><b>+{{ change.added }}</b><b>−{{ change.removed }}</b></span><Icon name="chevron-right" />
       </button>
-      <ProcessDetail v-if="detail" :step="detail" :related-result="relatedResult" :session="session" :diff-only="diffOnly" @close="detail = null" />
+      <!-- The step's detail as a panel of this window, never a second dialog over it. -->
+      <ProcessDetail v-if="detail" inline :step="detail" :related-result="relatedResult" :session="session" :diff-only="diffOnly" @close="detail = null" />
     </Modal>
   </span>
 </template>
@@ -135,6 +136,10 @@ function show(step: any, onlyDiff = false) {
 .proc-timeline { position: relative; display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .proc-timeline::before { content: ''; position: absolute; top: 14px; bottom: 14px; left: 15px; border-left: 1px solid var(--line); }
 .proc-event-button { position: relative; display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 6px 8px 6px 2px; border: 0; border-radius: 8px; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+/* The step whose panel is open below: a quiet mark, no more. */
+.proc-event-button.current { background: var(--bg-hover); }
+.proc-event-button.current::after { content: ''; position: absolute; left: -6px; top: 8px; bottom: 8px; border-left: 2px solid var(--accent); border-radius: 1px; }
+.proc-event-button.current strong { font-weight: 600; }
 @media (hover: hover) { .proc-event-button:hover { background: var(--bg-hover); } }
 .proc-event-mark { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-overlay); color: var(--fg-muted); }
 .proc-event-mark .icon { width: 15px; height: 15px; }

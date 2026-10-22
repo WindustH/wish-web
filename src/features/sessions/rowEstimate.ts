@@ -3,7 +3,7 @@
 // each correction shifts the scroll position; close guesses keep those shifts
 // small, so scrolling up through history stays steady. The numbers come from
 // measuring real conversations at desktop and phone widths.
-import type { ChipItem, GroupBlock, GroupItem } from './grouping.ts';
+import type { GroupBlock, GroupItem } from './grouping.ts';
 
 const LINE = 28.05;        // message text: 17px at line-height 1.65
 const PARAGRAPH = 18;       // what each further source line adds in rendered Markdown (margins, lists, headings)
@@ -12,10 +12,6 @@ const NARROW = 9.1;         // the average of everything else
 const WRAP = 1.06;          // room lost to breaking at word boundaries
 const MAX_LINES = 400;
 
-// The gutter a lined turn keeps at the left of its rows: the rail's one 24px node with 14px clear
-// of the words (features.css). The node is absolutely placed, so it never adds to a reply's
-// height - only the words' width narrows.
-const RAIL_GUTTER = 38;
 
 const wide = /[　-鿿가-힯＀-￯]/g;
 
@@ -39,9 +35,9 @@ const count = (blocks: readonly GroupBlock[], type: string) => blocks.filter(blo
 export function estimateRow(row: GroupItem | { type: string }, width: number): number {
   const compact = width < 600;
   if (row.type === 'process') return compact ? 62 : 53;
-  // A process-only row: a strip of at most three 24px nodes side by side, one row tall whatever
-  // it holds - gathered nodes never stack.
-  if (row.type === 'chips') return compact ? 54 : 48;
+  // A process-only row is an unseen host: its events ride the rail that floats beside the log,
+  // so the row itself takes no height at all.
+  if (row.type === 'chips') return 0;
   if (row.type === 'question') {
     const questions = ((row as { arguments?: { questions?: unknown[] } }).arguments?.questions?.length) ?? 1;
     return 110 + 80 * questions;
@@ -51,10 +47,9 @@ export function estimateRow(row: GroupItem | { type: string }, width: number): n
   const media = count(blocks, 'image') * 220 + count(blocks, 'file') * 44;
   if (entry.kind === 'assistant_message') {
     const text = textOf(blocks);
-    // In a lined turn the words wrap in what the gutter leaves them; the rail's gathered node is
-    // absolutely placed, so it never makes the reply taller.
-    const lined = (row as { line?: boolean }).line || (row as { before?: ChipItem[] }).before?.length;
-    const { wrapped, source } = textLines(text, lined ? width - RAIL_GUTTER : width);
+    // The rail floats in the margin beside the log: the words keep the whole column, and no
+    // reply is taller or narrower for the events that came with it.
+    const { wrapped, source } = textLines(text, width);
     return 20 + LINE * wrapped + PARAGRAPH * Math.max(0, source - 1) + media;
   }
   if (entry.kind === 'user_message') {

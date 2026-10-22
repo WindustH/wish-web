@@ -105,7 +105,7 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .model-chip:active, .reasoning-chip:active, .model-chip[aria-expanded="true"], .reasoning-chip[aria-expanded="true"] { color: var(--accent); }
 .model-chip:disabled, .reasoning-chip:disabled { cursor: default; opacity: .5; }
 .chatlog-wrap { position: relative; flex: 1; min-height: 0; display: flex; overflow: hidden; }
-.chatlog { flex: 1; display: block; overflow-y: auto; overscroll-behavior-y: contain; overflow-anchor: none; padding: 24px 24px 20px; min-height: 0; }
+.chatlog { flex: 1; display: block; overflow-y: auto; overscroll-behavior-y: contain; overflow-anchor: none; padding: 24px 24px 20px; padding-left: calc(24px + var(--rail-reveal, 0px)); min-height: 0; }
 .chatlog-content { display: flow-root; width: 100%; }
 .chatlog-inner, .live-row { max-width: var(--max-content); margin-inline: auto; }
 .chat-empty { text-align: center; color: var(--fg-subtle); padding: 80px 24px; }
@@ -146,20 +146,17 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 @media (hover: hover) { button.history-chip:hover { color: var(--fg); border-color: var(--line-strong); } }
 .history-chip.warn { color: var(--warn); background: var(--warn-bg); border-color: var(--warn-border); }
 .history-chip.error { color: var(--err); background: var(--err-bg); border-color: var(--err-border); }
-/* A turn's activity rides a rail: a quiet 38px gutter at the left of the reply's rows, a 1px
-   spine its length, and ONE gathered 24px node in it - first act's icon, count on a badge, all
-   it did in a tip that hover or keyboard focus brings out. The gutter is padding and the node is
-   absolutely placed: no reply is ever taller for what its rail holds. */
-.history-chip-row { padding: 12px 0; }
-.chat-virtual-row.rail-line::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; border-left: 1px solid var(--line); pointer-events: none; }
-.chat-virtual-row.rail-line .entry.assistant { position: relative; padding-left: 38px; }
-.history-rail { position: absolute; left: 0; top: 2px; display: flex; flex-direction: column; align-items: flex-start; }
-.history-rail .history-chip-host, .history-strip .history-chip-host { display: contents; }
+/* A conversation's activity rides a rail of its own: a layer floating in the chat's frame, left
+   of the words in the writing desk's margin, one 24px node per thing done along the log's
+   height, the line they hang on running the conversation's length. No row is taller, narrower or
+   otherwise moved for it - the hosts it opens windows from are unseen inside the rows. */
+.history-rail-host { display: contents; }
+.history-chip-row { padding: 0; }
 .history-rail-node { position: relative; z-index: 1; display: grid; place-items: center; flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 7px; background: var(--bg); color: var(--fg-subtle); font: 500 11px/1 var(--font); font-variant-numeric: tabular-nums; cursor: pointer; transition: color var(--dur-fast); }
 .history-rail-node .icon { width: 14px; height: 14px; }
-.history-rail-node.history-strip-more { color: var(--fg-faint); font-weight: 600; }
 @media (hover: hover) { .history-rail-node:hover { color: var(--fg); background: var(--bg-hover); } }
-/* A finger misses 24px: the target widens past the mark without moving anything laid out. */
+/* A finger misses 24px: the target widens past the mark without reaching a neighbour - the
+   layout keeps gathered nodes 26px apart. */
 @media (pointer: coarse) { .history-rail-node::after { content: ''; position: absolute; inset: -1px -6px; } }
 .history-rail-node.warn { color: var(--warn); }
 .history-rail-node.error, .history-rail-node.failed { color: var(--err); }
@@ -168,8 +165,14 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .history-rail-tip { display: none; position: absolute; left: calc(100% + 10px); top: 50%; translate: 0 -50%; z-index: 6; max-width: min(300px, calc(100vw - 120px)); padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-raised); color: var(--fg-muted); font: 400 12px/1.4 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; box-shadow: 0 2px 8px rgb(0 0 0 / 12%); }
 @media (hover: hover) { .history-rail-node:hover > .history-rail-tip { display: block; } }
 .history-rail-node:focus-visible > .history-rail-tip { display: block; }
-/* A row the turn ended on with no reply: a short strip of nodes side by side, never a stack. */
-.history-strip { display: flex; align-items: center; gap: 6px; }
+/* The floating rail (ActivityRail): clipped to the chat's frame, translated by the log's scroll
+   (the --rail-scroll var ChatLog keeps current), pointer-live only on its own nodes. Hidden
+   outright - not merely empty - when the margin cannot spare it or the phone has it covered. */
+.rail-clip { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+.rail-clip.hidden { opacity: 0; }
+.rail-overlay { position: absolute; top: 0; pointer-events: none; }
+.rail-overlay .history-rail-node { position: absolute; left: 0; pointer-events: auto; }
+.rail-line { position: absolute; left: 12px; width: 1px; background: var(--line); pointer-events: none; }
 /* The list a gathered node opens: one line per thing done, leading to its own window. */
 .activity-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .activity-list button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }

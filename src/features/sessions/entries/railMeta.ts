@@ -3,7 +3,7 @@
 // it, and what it is called in a word or two. The notice faces are shared with SystemEntry's own
 // drawing, so the rail and the notice itself can never disagree.
 import { i18n } from '../../../core/i18n/index.ts';
-import { stepFailed, stepToolName, summarizeSteps, toolIcon, toolTitle } from './processDetails.ts';
+import { stepFailed, stepSeq, stepToolName, summarizeSteps, toolIcon, toolTitle } from './processDetails.ts';
 
 // Transcript notices come in two severities plus the neutral system face: red = a turn failed
 // outright (wish_run_failed), amber = the backend is handling a problem by itself.
@@ -85,7 +85,7 @@ export function chipFace(chip: any, resultOf: (callId: string) => any): ChipFace
     tip: summarizeSteps(steps, i18n.locale.value === 'zh') };
 }
 
-export interface ChipEvent { key: string; step: any; icon: string; title: string; failed: boolean }
+export interface ChipEvent { key: string; step: any; icon: string; title: string; failed: boolean; seq: number | undefined }
 
 /** A run's steps as list rows, in the order they came: what a gathered node opens, one line per
  *  thing done. The titles are acts, never the reasoning's own words. A result rides its call. */
@@ -97,13 +97,13 @@ export function chipEvents(chip: any, resultOf: (callId: string) => any): ChipEv
     if (step.kind === 'entry') {
       if (called.has(step.entry.payload?.tool_call_id)) return [];
       return [{ key: step.key, step, icon: toolIcon(stepToolName(step)),
-        title: `${toolTitle(stepToolName(step))} · ${i18n.t('entry.toolResult')}`, failed: stepFailed(step) }];
+        title: `${toolTitle(stepToolName(step))} · ${i18n.t('entry.toolResult')}`, failed: stepFailed(step), seq: stepSeq(step) }];
     }
     if (step.block?.type === 'tool_call') {
       const result = resultOf(step.block.id);
       return [{ key: step.key, step, icon: toolIcon(stepToolName(step)),
-        title: toolTitle(stepToolName(step)) || '—', failed: !!result && stepFailed(result) }];
+        title: toolTitle(stepToolName(step)) || '—', failed: !!result && stepFailed(result), seq: stepSeq(step) }];
     }
-    return [{ key: step.key, step, icon: 'thinking', title: i18n.t('entry.thinking'), failed: false }];
+    return [{ key: step.key, step, icon: 'thinking', title: i18n.t('entry.thinking'), failed: false, seq: stepSeq(step) }];
   });
 }

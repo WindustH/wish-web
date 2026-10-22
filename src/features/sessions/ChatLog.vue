@@ -9,7 +9,11 @@ import { chatWorkIndicator } from './phaseIndicator.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { announce } from '../../ui/live.ts';
-import { groupEntries, inlineChips, railLineRows, type ChipsItem, type GroupItem, type TextItem } from './grouping.ts';
+import { groupEntries, inlineChips, type ChipsItem, type GroupItem, type TextItem } from './grouping.ts';
+import ActivityRail from './ActivityRail.vue';
+import { railOpenKey, type RailOpen } from './railState.ts';
+import type { RailEvent, RailRow } from './railLayout.ts';
+import { chipEvents, noticeFailed, noticeIconName, noticeLabel, noticeTone, resultLookup } from './entries/railMeta.ts';
 import type { EntryView } from '../../core/api/projections.ts';
 import HistoryItem from './HistoryItem.vue';
 import Markdown from '../../ui/components/Markdown.vue';
@@ -48,12 +52,8 @@ const requestFailure = computed(() => displayFailure(chat.error.value));
 // container's actual content height.
 // History rows, then a closing row for a failed request or run.
 type ChatRow = GroupItem<EntryView> | TextItem<EntryView> | ChipsItem<EntryView> | { type: 'status_request_error' | 'status_run_error'; key: string };
-// `line` says the row sits in a turn that holds activity, and so carries the rail's 1px spine.
-type LinedRow = ChatRow & { line?: boolean };
 const groups = computed(() => {
-  const items: LinedRow[] = inlineChips(groupEntries(chat.entries.value));
-  const lines = railLineRows(items);
-  items.forEach((row, index) => { row.line = lines[index]; });
+  const items: ChatRow[] = inlineChips(groupEntries(chat.entries.value));
   if (requestFailure.value) items.push({ type: 'status_request_error', key: `request-error:${props.sessionId}` });
   if (runFailure.value) items.push({ type: 'status_run_error', key: `run-error:${props.sessionId}` });
   return items;
@@ -64,9 +64,89 @@ watch(() => props.sessionId, (_, previous) => { if (previous) forgetSession(prev
 onUnmounted(() => forgetSession(props.sessionId));
 
 // A call's result may come in a later run than the call, past a question or a notice.
-provide(toolResultsKey, computed(() => new Map(chat.entries.value
+const toolResults = computed(() => new Map(chat.entries.value
   .filter(entry => entry.kind === 'tool_result' && entry.payload?.tool_call_id)
-  .map(entry => [String(entry.payload!.tool_call_id), { kind: 'entry', entry, key: `r${entry.seq}` }]))));
+  .map(entry => [String(entry.payload!.tool_call_id), { kind: 'entry', entry, key: `r${entry.seq}` }])));
+provide(toolResultsKey, toolResults);
+
+// The rail's open requests, carried to whichever row hosts the chip asked for.
+const railOpen = ref<RailOpen | null>(null);
+provide(railOpenKey, railOpen);
+let railTick = 0;
+function openFromRail(request: { chipKey: string; stepKey: string | null }) {
+  railOpen.value = { ...request, tick: ++railTick };
+}
+
+// The rail's rows: where each row starts and how tall it is - measured where the log has
+// measured it, estimated where it has not - with the events that came in it.
+const measureVersion = ref(0);
+const railRows = computed<RailRow[]>(() => {
+  void measureVersion.value;
+  // The virtualizer's cache holds its VirtualItem records, not bare numbers: the height of a
+  // measured row is its `size`. A measured row of height 0 - an unseen chips host - stays 0
+  // (`??` catches only the unmeasured), so the running top never drifts or turns NaN.
+  const cache = (virtualizer.value as { measurementsCache?: Array<{ size: number }> }).measurementsCache;
+  const width = scrollContentEl.value?.querySelector<HTMLElement>('.chatlog-inner')?.clientWidth || 736;
+  let top = 0;
+  return groups.value.map((row, index) => {
+    const height = cache?.[index]?.size ?? estimateRow(row, width);
+    const placed = { top, height, events: rowEvents(row) };
+    top += height;
+    return placed;
+  });
+});
+const rowEvents = (row: ChatRow): RailEvent[] => {
+  const chips: any[] = row.type === 'chips' ? row.chips : row.type === 'entry' && row.entry?.kind === 'assistant_message' ? (row as TextItem<EntryView>).before ?? [] : [];
+  return chips.flatMap((chip: any): RailEvent[] => chip.type === 'process'
+    ? chipEvents(chip, resultLookup(chip, toolResults.value)).map(event => ({ chipKey: chip.key, stepKey: event.key, icon: event.icon,
+      failed: event.failed, warn: false, tip: event.title, seq: event.seq }))
+    : [{ chipKey: chip.key, stepKey: null, icon: noticeIconName(chip.entry), failed: noticeFailed(chip.entry) || noticeTone(chip.entry) === 'error',
+      warn: noticeTone(chip.entry) === 'warn', tip: noticeLabel(chip.entry), seq: chip.entry?.seq }]);
+};
+// Where the rail stands: in the writing desk's left margin when there is one, x = the words'
+// left edge less a node and its air; hidden outright when the margin cannot spare that. On a
+// phone it waits in the padding a rightward drag reveals.
+const wrapEl = ref<HTMLElement | null>(null);
+const railVersion = ref(0);
+const railReveal = ref(0);
+const railTotal = computed(() => virtualizer.value.getTotalSize());
+const railPlace = computed(() => {
+  void railVersion.value;
+  const wrap = wrapEl.value;
+  const inner = scrollContentEl.value?.querySelector<HTMLElement>('.chatlog-inner');
+  if (!wrap || !inner) return { x: 24, visible: false };
+  // The phone's rail waits in the padding a drag reveals: the node stands at x 24..48, wholly
+  // inside the revealed padding (0..24+44), at least 20px clear of the words beside it.
+  if (props.mobile) return { x: 24, visible: railReveal.value > 0 };
+  const wordsLeft = inner.getBoundingClientRect().left - wrap.getBoundingClientRect().left;
+  const x = Math.max(24, Math.round(wordsLeft - 40));
+  // Known limit, by design for now: on a writing desk too narrow to spare the margin (the words
+  // begin closer than 64px to the frame's left), the rail hides outright - there is no gesture to
+  // reveal it there, as there is on a phone. Not a bug; widen the window or open it on a phone.
+  return { x, visible: wordsLeft - x >= 40 };
+});
+// A finger drags the page aside to uncover the rail; let go, and it settles open or closed.
+let railDrag: { x: number; y: number; from: number } | null = null;
+function railPointerDown(event: PointerEvent) {
+  if (!props.mobile || event.pointerType === 'mouse') return;
+  railDrag = { x: event.clientX, y: event.clientY, from: railReveal.value };
+}
+function railPointerMove(event: PointerEvent) {
+  if (!railDrag) return;
+  const dx = event.clientX - railDrag.x, dy = event.clientY - railDrag.y;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8)
+    railReveal.value = Math.max(0, Math.min(44, Math.round(railDrag.from + dx)));
+}
+function railPointerUp() {
+  if (!railDrag) return;
+  railReveal.value = railReveal.value >= 22 ? 44 : 0;
+  railDrag = null;
+}
+// The rail scrolls with the log by translation; this is the only scroll work it needs.
+function onRailScroll(event: Event) {
+  wrapEl.value?.style.setProperty('--rail-scroll', `${(event.target as HTMLElement).scrollTop}px`);
+  onScroll();
+}
 
 const workIndicator = computed(() => chatWorkIndicator({
   running: running.value,
@@ -173,12 +253,24 @@ watch(running, (now, was) => {
 // After every layout change (measure, groups, stream) re-derive scroll state
 watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().length], async () => {
   const gen = epoch;
+  measureVersion.value++;
   await nextTick();
   if (owns(gen)) measureScroll();
 });
 
 // Initial estimates can settle after the first tail landing. Follow late
 // content growth only while the reader still wants the latest.
+watch([wrapEl, scrollContentEl], () => { railVersion.value++; });
+// The rail starts where the log already is, not at the top of it.
+watch([wrapEl, scrollEl], () => {
+  if (wrapEl.value && scrollEl.value) wrapEl.value.style.setProperty('--rail-scroll', `${scrollEl.value.scrollTop}px`);
+}, { immediate: true });
+watch(wrapEl, (wrap, _, onCleanup) => {
+  if (!wrap) return;
+  const observer = new ResizeObserver(() => { railVersion.value++; });
+  observer.observe(wrap);
+  onCleanup(() => observer.disconnect());
+});
 watch(scrollContentEl, (content, _, onCleanup) => {
   if (!content) return;
   let frame = 0;
@@ -200,12 +292,13 @@ watch(scrollContentEl, (content, _, onCleanup) => {
 </script>
 
 <template>
-  <div class="chatlog-wrap">
+  <div ref="wrapEl" class="chatlog-wrap" :style="{ '--rail-reveal': `${railReveal}px` }"
+    @pointerdown="railPointerDown" @pointermove="railPointerMove" @pointerup="railPointerUp" @pointercancel="railPointerUp">
     <div v-if="chat.loadingOlder.value" class="history-loading" role="status" :aria-label="i18n.t('sessions.loading')"><span class="chat-skeleton older-skeleton" aria-hidden="true" /></div>
-    <div ref="scrollEl" class="chatlog" data-scroll-preserve :data-following="stick" tabindex="0" @scroll.passive="onScroll"
+    <div ref="scrollEl" class="chatlog" data-scroll-preserve :data-following="stick" tabindex="0"
       @wheel.passive="onWheel" @touchstart.passive="onTouchStart" @touchmove.passive="onTouchMove"
       @touchend.passive="onTouchEnd" @touchcancel.passive="onTouchEnd"
-      @keydown="onKeydown" @pointerdown="onPointerDown" :data-scrollbar-held="scrollbarHeld">
+      @keydown="onKeydown" @pointerdown="onPointerDown" :data-scrollbar-held="scrollbarHeld" @scroll.passive="onRailScroll">
       <div ref="scrollContentEl" class="chatlog-content">
 
       <div v-if="chat.loadingInitial.value && !groups.length" class="history-skeleton" role="status" :aria-label="i18n.t('sessions.loading')" aria-busy="true">
@@ -217,7 +310,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
         <div v-for="v in virtualizer.getVirtualItems()" :key="groups[v.index]?.key" class="chat-virtual-row"
           :ref="measureElement"
           :data-index="v.index"
-          :class="{ 'status-error-row': groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error', 'history-target': holdsTarget(groups[v.index]), 'row-enter': fresh.has(groups[v.index]?.key ?? ''), 'rail-line': !!groups[v.index]?.line }"
+          :class="{ 'status-error-row': groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error', 'history-target': holdsTarget(groups[v.index]), 'row-enter': fresh.has(groups[v.index]?.key ?? '') }"
           :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }">
           <HistoryItem v-if="['entry', 'process', 'chips', 'question'].includes(groups[v.index]?.type ?? '')" :item="groups[v.index]!"
             :forced-keys="forcedOpen" :session="sessionId" />
@@ -262,6 +355,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
       <div class="font-warmup" aria-hidden="true"><b>永</b><i>永</i><b><i>永</i></b><span class="warm-display">标题</span><code>code</code></div>
       </div>
     </div>
+    <ActivityRail :rows="railRows" :total="railTotal" :x="railPlace.x" :visible="railPlace.visible" @open="openFromRail" />
     <Hint :text="i18n.t('chat.jumpLatest')" v-if="showJump"><button type="button" class="jump-latest"
        :aria-label="i18n.t('chat.jumpLatest')" @click="jumpLatest">
       <Icon name="arrow-down" :size="20" aria-hidden="true" />

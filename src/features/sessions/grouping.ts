@@ -147,43 +147,6 @@ export function groupEntries<E extends GroupEntry>(entries: readonly E[]): Group
   return items;
 }
 
-/**
- * Which rows carry the activity rail's line: within one turn - the rows between a user message
- * and the next, where another speaker's words end a turn as the user's do - every reply row and
- * chips row stays connected while the turn holds any activity (a run of steps or a notice);
- * a turn of plain words draws nothing. Pure, so the shape can be tested without a page.
- */
-export interface LineRow { type: string; entry?: { kind?: string }; before?: unknown[] }
-export function railLineRows(rows: readonly LineRow[]): boolean[] {
-  const marks = new Array<boolean>(rows.length).fill(false);
-  // Whose words a turn runs between; a question stands inside its turn, unanswered rows do not
-  // break it, and the log's own status rows are no one's.
-  const boundary = (row: LineRow) => row.type === 'entry'
-    && (row.entry?.kind === 'user_message' || row.entry?.kind === 'group_message' || row.entry?.kind === 'group_sent');
-  // Only the rows that own the gutter - replies and chips rows - draw the line; others (question
-  // cards, late answers, failures) read as interruptions of it rather than links.
-  const carries = (row: LineRow) => row.type === 'chips' || (row.type === 'entry' && row.entry?.kind === 'assistant_message');
-  let start = 0, active = false;
-  const close = (end: number) => {
-    if (!active) return;
-    for (let i = start; i < end; i++) marks[i] = carries(rows[i]!);
-    active = false;
-  };
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]!;
-    if (boundary(row)) { close(i); start = i + 1; continue; }
-    if (row.type === 'chips' || (row.type === 'entry' && row.entry?.kind === 'assistant_message' && row.before?.length)) active = true;
-  }
-  close(rows.length);
-  return marks;
-}
-
-/** A process-only row shows at most three chips side by side; the rest wait behind a "+N". */
-export function stripShown(count: number): { shown: number; more: number } {
-  const shown = Math.min(count, 3);
-  return { shown, more: Math.max(0, count - shown) };
-}
-
 // The entries the transcript tells of in passing: a notice, an interruption, a background command
 // done, an instruction - everything that is not a turn of the conversation itself.
 const TURNS = new Set(['user_message', 'assistant_message', 'run_error', 'group_sent', 'group_message']);
