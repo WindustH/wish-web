@@ -188,7 +188,10 @@ function onContextMenu(event: Event) {
   }
 }
 function onClick(event: MouseEvent) {
-  if (performance.now() < quietUntil && !isUi(event.target)) {
+  // Suppress only a synthetic click on the words that this hold selected.
+  // A delayed click on an unrelated button (or a keyboard click) is not its
+  // follow-up and must never be swallowed at document capture.
+  if (performance.now() < quietUntil && root?.contains(event.target as Node) && !isUi(event.target)) {
     event.preventDefault();
     event.stopPropagation();
     noteSwallowedClick('touch selection: lifting the finger that selected');

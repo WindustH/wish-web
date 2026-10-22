@@ -111,13 +111,16 @@ export function noteSwallowedClick(by: string) { swallowed = { by, at: performan
 const ANSWERS = 'a, button, [role="button"], [role="option"], [role="menuitem"], input, label, summary, .sl-item';
 function watchTap(gesture: Touch) {
   const target = gesture.target instanceof Element ? gesture.target.closest(ANSWERS) : null;
-  if (!target) return;
+  // A stranded clear menu backdrop catches taps before they can reach any button.
+  // Those taps have no clickable target, so the ordinary missing-click check misses them.
+  const strayBackdrop = gesture.target instanceof Element && !!gesture.target.closest('.menu-backdrop') && !menuInSight();
+  if (!target && !strayBackdrop) return;
   const tappedAt = performance.now();
   setTimeout(() => {
-    if (clickUp > tappedAt || performance.now() - lastRecord < 2000) return;
+    if ((!strayBackdrop && clickUp > tappedAt) || performance.now() - lastRecord < 2000) return;
     lastRecord = performance.now();
     record('tap', gesture.x, gesture.y, gesture.target, null, {
-      click: clickDown > tappedAt ? 'stopped on the way' : 'none came',
+      click: strayBackdrop ? 'stray menu backdrop caught the tap' : clickDown > tappedAt ? 'stopped on the way' : 'none came',
       swallowedBy: swallowed && swallowed.at > tappedAt - 50 ? swallowed.by : undefined,
     });
   }, 350);

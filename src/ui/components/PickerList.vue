@@ -4,8 +4,9 @@ import { computed } from 'vue';
 import { ListboxRoot, ListboxFilter, ListboxContent, ListboxItem, ListboxVirtualizer, ListboxItemIndicator } from 'reka-ui';
 import { i18n } from '../../core/i18n/index.ts';
 import ProviderIcon from './ProviderIcon.vue';
+import { pickerFingerprint, pickerHeading } from '../pickerFingerprint.ts';
 
-export interface PickerItem { key: string; title: string; description?: string; search?: string; group?: string; brand?: string; icon?: string; alwaysVisible?: boolean; disabled?: boolean }
+export interface PickerItem { key: string; title: string; description?: string; search?: string; group?: string; groupKey?: string; brand?: string; icon?: string; alwaysVisible?: boolean; disabled?: boolean }
 const props = withDefaults(defineProps<{ items: PickerItem[]; placeholder: string; disabled?: boolean; icons?: boolean }>(), { icons: true });
 const emit = defineEmits<{ select: [key: string] }>();
 const selected = defineModel<string>();
@@ -14,15 +15,14 @@ const filtered = computed(() => {
   const terms = query.value.trim().toLocaleLowerCase().split(/\s+/);
   return props.items.filter(item => item.alwaysVisible || terms.every(term => `${item.title} ${item.description || ''} ${item.group || ''} ${item.search || ''}`.toLocaleLowerCase().includes(term)));
 });
-const rows = computed(() => new Map(filtered.value.map((item, index, all) => [item.key, { ...item, heading: item.group && item.group !== all[index - 1]?.group }])));
+const rows = computed(() => new Map(filtered.value.map((item, index, all) => [item.key, { ...item, heading: pickerHeading(item, all[index - 1]) }])));
 const keys = computed(() => filtered.value.map(item => item.key));
 const estimate = (index: number) => rows.value.get(keys.value[index]!)!.heading ? 84 : 52;
 const listHeight = computed(() => Math.max(80, keys.value.reduce((height, _, index) => height + estimate(index), 0)));
 const textContent = (key: string) => rows.value.get(key)!.title;
-// A result-set change must rekey the content, but serializing every row on
-// each keystroke rebuilt the whole list. The query plus the length and the
-// boundary keys identify the set just as uniquely, at O(1).
-const listFingerprint = computed(() => `${query.value}|${filtered.value.length}|${filtered.value[0]?.key ?? ''}|${filtered.value[filtered.value.length - 1]?.key ?? ''}`);
+// Reka caches row sizes by index. A stable groupKey reserves the heading's
+// height even before its display name arrives; changed rows still remount.
+const listFingerprint = computed(() => pickerFingerprint(filtered.value));
 </script>
 
 <template>

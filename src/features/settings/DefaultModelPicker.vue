@@ -35,7 +35,7 @@ const choices = computed(() => props.providers.flatMap(provider => {
   if (provider.value === defaults.value.provider && defaults.value.model && !models.has(defaults.value.model)) ids.unshift(defaults.value.model);
   return ids.map(id => ({key: JSON.stringify([provider.value, id]), title: modelLabel(id), search: id,
     description: models.has(id) ? undefined : tr('配置和上游目录中都没有','Not configured or in the upstream catalog'),
-    disabled: !models.has(id), group: provider.label, brand: provider.brand, vision: models.get(id)?.input_modalities?.includes('image')}));
+    disabled: !models.has(id), group: provider.label, groupKey: provider.value, brand: provider.brand, vision: models.get(id)?.input_modalities?.includes('image')}));
 }));
 const efforts = computed(() => {
   const items = [{key: '', title: tr('上游默认', 'Upstream default')}, ...props.efforts.map(option => ({key:option.value,title:option.label}))];

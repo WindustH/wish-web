@@ -99,6 +99,13 @@ export function useChatScroll(options: UseChatScrollOptions) {
   let releaseMerge: (() => void) | undefined;
   let mergeReady: Promise<void> | undefined;
   let dragOffset = 0;
+  let scrollbarReleaseTimer: ReturnType<typeof setTimeout> | undefined;
+  // Pointerup may be lost outside the browser. Do not leave pagination and
+  // scroll measurement waiting forever on a drag that no longer exists.
+  function armScrollbarRelease() {
+    clearTimeout(scrollbarReleaseTimer);
+    scrollbarReleaseTimer = setTimeout(releaseScrollbar, 3000);
+  }
 
   function beforeHistoryMerge() {
     return mergeReady;
@@ -114,6 +121,7 @@ export function useChatScroll(options: UseChatScrollOptions) {
     const gutter = el.offsetWidth - el.clientWidth;
     if (event.clientX < rect.right - Math.max(gutter, 12)) return;
     scrollbarHeld.value = true;
+    armScrollbarRelease();
     stick.value = false;
     direction = undefined;
     dragOffset = el.scrollTop;
@@ -123,6 +131,8 @@ export function useChatScroll(options: UseChatScrollOptions) {
   }
 
   function releaseScrollbar() {
+    clearTimeout(scrollbarReleaseTimer);
+    scrollbarReleaseTimer = undefined;
     if (!scrollbarHeld.value) return;
     scrollbarHeld.value = false;
     releaseMerge?.();
@@ -132,7 +142,9 @@ export function useChatScroll(options: UseChatScrollOptions) {
   }
 
   function onPointerMove(event: PointerEvent) {
-    if (scrollbarHeld.value && !(event.buttons & 1)) releaseScrollbar();
+    if (!scrollbarHeld.value) return;
+    if (!(event.buttons & 1)) releaseScrollbar();
+    else armScrollbarRelease();
   }
 
   watch(scrollEl, (el, _, cleanup) => {

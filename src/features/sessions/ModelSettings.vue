@@ -35,7 +35,7 @@ const choices = computed(() => catalog.groups.value.flatMap(group => {
     key: key(provider.id, model.id), title: modelLabel(model.id),
     vision: model.input_modalities?.includes('image') === true,
     search: model.id, description: model.source === 'current' ? (tr('目录中未找到', 'Not found in catalog')) : undefined,
-    disabled: model.source === 'current', group: title, brand, provider: provider.id, model: model.id,
+    disabled: model.source === 'current', group: title, groupKey: provider.id, brand, provider: provider.id, model: model.id,
   }));
 }));
 const visionChoices = computed(() => new Set(choices.value.filter(choice => choice.vision).map(choice => choice.key)));
