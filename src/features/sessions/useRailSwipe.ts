@@ -1,23 +1,24 @@
-// The phone's rail gesture: a rightward drag slides the words aside - on a transform, never on
-// the log's geometry, so no frame of it reflows the list - and letting go settles the lane open
-// or shut with one animated padding change. A vertical drag is the browser's to scroll: the
-// gesture yields the moment it sees one, and any surprise (a pointercancel, a second finger, the
-// window losing focus) puts everything back exactly as it was, so the rail can never lock up.
+// The phone's rail drawer: the conversation is a panel with the rail hidden under its left edge;
+// a rightward drag slides the whole panel aside - on a transform, so not one line of it reflows -
+// and the words' far right is simply clipped away while it is open. Letting go settles the slide
+// at closed (0) or open (44). A vertical drag is the browser's to scroll: the gesture yields the
+// moment it sees one, and any surprise (a pointercancel, a second finger, the window losing
+// focus) puts everything back exactly as it was, so the drawer can never lock up.
 //
 // What it touches: pointer listeners on .chatlog-wrap (never the scroll container itself), the
-// classes rail-gesture / rail-settling / rail-open on .chatlog, and two element-scoped custom
-// properties - --rail-drag on .chatlog for the content's transform, --rail-peek on .chatlog-wrap
-// for the rail's own slide. Nothing global; --rail-scroll stays the scroll handler's alone.
+// classes rail-gesture / rail-settling on .chatlog, rail-out / rail-settling on .chatlog-wrap,
+// and one element-scoped custom property - --rail-x on .chatlog-wrap, the drawer's current
+// offset. The log's own geometry (padding, widths) is never written, open or closed.
 import { onScopeDispose, ref, watch, type Ref } from 'vue';
 
-const LANE = 44;      // px of padding an open rail adds to the log
+const LANE = 44;      // px the panel slides aside when the drawer stands open
 const LOCK = 10;      // px of travel before the gesture owns the drag
 const BIAS = 1.5;     // horizontal must beat vertical by this much to lock
-const FLICK = 0.3;    // px/ms that settles the lane on its own
+const FLICK = 0.3;    // px/ms that settles the drawer on its own
 const SETTLE = 200;   // ms the settle animation runs
 
 export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: Ref<HTMLElement | null>; enabled: Ref<boolean> }) {
-  /** Whether the lane stands open. Kept across session switches, a pane-level preference. */
+  /** Whether the drawer stands open. Kept across session switches, a pane-level preference. */
   const open = ref(false);
 
   type Phase = 'idle' | 'pending' | 'locked';
@@ -33,24 +34,23 @@ export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: R
   const wrap = () => options.wrap.value;
   const scroll = () => options.scroll.value;
 
-  // The drag writes only what a compositor can honor: the content's transform (against whichever
-  // padding it starts from) and the rail's own slide.
-  function drag(reveal: number) {
-    scroll()?.style.setProperty('--rail-drag', `${fromOpen ? reveal - LANE : reveal}px`);
-    wrap()?.style.setProperty('--rail-peek', `${reveal}px`);
+  // The drawer's whole state is one number on one element: the offset the content translates by
+  // and the rail slides in to. Nothing here can reflow a line.
+  function setX(x: number) {
+    wrap()?.style.setProperty('--rail-x', `${x}px`);
+    wrap()?.classList.toggle('rail-out', x > 0);
   }
   function classes(gesture: boolean, settle: boolean) {
     scroll()?.classList.toggle('rail-gesture', gesture);
     scroll()?.classList.toggle('rail-settling', settle);
+    wrap()?.classList.toggle('rail-settling', settle);
   }
-  // One layout change, once: the padding snaps to the settled lane while the drag's transform
-  // unwinds beside it, both under the same 180ms ease.
+  // Letting go: the slide settles at closed or open, one 180ms ease - the only change is the
+  // transform's value.
   function settle(toOpen: boolean) {
     open.value = toOpen;
-    scroll()?.classList.toggle('rail-open', toOpen);
     classes(false, true);
-    scroll()?.style.setProperty('--rail-drag', '0px');   // the padding takes it from here
-    wrap()?.style.setProperty('--rail-peek', `${toOpen ? LANE : 0}px`);
+    setX(toOpen ? LANE : 0);
     clearTimeout(settling);
     settling = window.setTimeout(() => classes(false, false), SETTLE);
   }
@@ -95,7 +95,7 @@ export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: R
     const now = performance.now();
     samples.push({ x: event.clientX, t: now });
     while (samples.length > 2 && now - samples[0]!.t > 100) samples.shift();
-    drag(Math.max(0, Math.min(LANE, (fromOpen ? LANE : 0) + dx)));
+    setX(Math.max(0, Math.min(LANE, (fromOpen ? LANE : 0) + dx)));
   }
 
   function onUp(event: PointerEvent) {

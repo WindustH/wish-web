@@ -165,16 +165,25 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .history-rail-tip { display: none; position: absolute; left: calc(100% + 10px); top: 50%; translate: 0 -50%; z-index: 6; max-width: min(300px, calc(100vw - 120px)); padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-raised); color: var(--fg-muted); font: 400 12px/1.4 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; box-shadow: 0 2px 8px rgb(0 0 0 / 12%); }
 @media (hover: hover) { .history-rail-node:hover > .history-rail-tip { display: block; } }
 .history-rail-node:focus-visible > .history-rail-tip { display: block; }
-/* The floating rail (ActivityRail): clipped to the chat's frame, translated by the log's scroll
-   (the scroll prop ChatLog keeps current - never a style write on the frame, which would
-   re-validate the whole log subtree on every scroll event), pointer-live only on its own nodes.
-   Hidden outright - not merely empty: visibility takes its nodes out of hit-testing, so a closed
-   rail is never a dead patch the wheel falls into. */
-.rail-clip { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
-.rail-clip.hidden { opacity: 0; visibility: hidden; transform: translateX(-28px); }
-.rail-overlay { position: absolute; top: 0; pointer-events: none; }
-.rail-overlay .history-rail-node { position: absolute; left: 0; pointer-events: auto; }
+/* The rail (ActivityRail) lives inside the scrolling content: it rides the log's native scroll
+   with no JS on the path, so it is never a frame behind the messages. It stands above the rows
+   (z-index; the rows' transforms make stacking contexts but carry no z-index of their own) yet
+   takes no part in any row's layout. Horizontally it holds the words' left margin, less a node
+   (24), its badge (7) and air (9). Hidden outright - not merely empty: visibility takes its
+   nodes out of hit-testing, so a closed rail is never a dead patch the wheel falls into. */
+.chatlog-content { position: relative; }
+.rail-clip { position: absolute; top: 0; left: calc((100% - var(--max-content)) / 2 - 40px); z-index: 1; pointer-events: none; }
+.rail-clip .history-rail-node { position: absolute; left: 0; pointer-events: auto; }
+.rail-clip.hidden { opacity: 0; visibility: hidden; }
 .rail-line { position: absolute; left: 12px; width: 1px; background: var(--line); pointer-events: none; }
+/* The lane a narrow writing desk buys: the words yield 40px of padding and the rail stands in it,
+   left of the content box - padding scrolls with the log, so nothing is clipped away. */
+.chatlog.rail-lane .rail-clip { left: -40px; }
+/* A writing desk too narrow to float the rail in its margin buys a lane instead: the words yield
+   40px and the rail stands at x 24 - on a desk the rail is always somewhere, never hidden. */
+@media (min-width: 900px) {
+  .chatlog.rail-lane { padding-left: calc(24px + 40px); }
+}
 /* The list a gathered node opens: one line per thing done, leading to its own window. */
 /* The timeline: each step's mark on a thin line, its title and one line of what it did beside. */
 .proc-timeline { position: relative; display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
@@ -337,18 +346,21 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
   .model-selection { max-width: 70%; }
   .reasoning-chip { max-width: 72px; }
   .model-chip, .reasoning-chip { min-height: 32px; padding: 3px; font-size: 10px; }
-  /* The phone's rail lane, as a gesture: closed, the rail is wholly gone (not even hit-testable)
-     and the words start at 24. A rightward drag slides the words aside on a transform - the list's
-     geometry never moves during the drag - and letting go settles the lane open with one animated
-     padding change. Vertical drags stay the browser's: touch-action keeps pan-y for it. */
+  /* The phone's rail drawer, all translation and never a reflow: the conversation is a panel with
+     the rail hidden under its left edge; a rightward drag slides the panel aside (--rail-x), the
+     words' far right clipped away by the log's own overflow, no line ever re-wrapped and no
+     padding ever changed. The rail fades in under the reveal; closed, it is wholly gone. Vertical
+     drags stay the browser's: touch-action keeps pan-y for it. */
   .chatlog { padding: 20px 24px; touch-action: pan-y; overflow-x: hidden; overscroll-behavior-x: contain; }
-  .chatlog.rail-open { padding-left: calc(24px + 44px); }
-  .chatlog.rail-settling { transition: padding-left 180ms cubic-bezier(.2, .7, .2, 1); }
-  .chatlog.rail-gesture .chatlog-content, .chatlog.rail-settling .chatlog-content { transform: translate3d(var(--rail-drag, 0px), 0, 0); }
-  .chatlog.rail-settling .chatlog-content { transition: transform 180ms cubic-bezier(.2, .7, .2, 1); }
+  .chatlog-content { transform: translate3d(var(--rail-x, 0px), 0, 0); }
   .chatlog.rail-gesture .chatlog-content { user-select: none; -webkit-user-select: none; }
-  .chatlog-wrap.rail-gesture .rail-clip { opacity: 1; visibility: visible; transform: translateX(calc(-28px + min(var(--rail-peek, 0px), 28px))); }
-  .chatlog-wrap.rail-settling .rail-clip { transition: transform 180ms cubic-bezier(.2, .7, .2, 1), opacity 180ms cubic-bezier(.2, .7, .2, 1); }
+  .chatlog.rail-settling .chatlog-content { transition: transform 180ms cubic-bezier(.2, .7, .2, 1); }
+  /* The drawer's rail rides the content's own translate: with the panel slid 44 aside it stands
+     at 8..32 of the frame (24 padding + 44 slide - 60 = 8; its line at 20). Closed, it waits at
+     -36 of the frame, outside the log's edge, clipped and invisible. */
+  .chatlog-content .rail-clip { left: -60px; }
+  .chatlog-wrap.rail-out .rail-clip { opacity: 1; visibility: visible; }
+  .chatlog-wrap.rail-settling .rail-clip { transition: opacity 180ms cubic-bezier(.2, .7, .2, 1); }
   .entry { padding-bottom: 20px; }
   .entry.user .bubble { max-width: 100%; }
   .entry .meta { gap: 6px; font-size: 11px; }

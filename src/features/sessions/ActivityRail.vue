@@ -1,10 +1,10 @@
 <script setup lang="ts">
-// The rail itself: a layer floating in the chat's frame, beside the log and above it, holding
-// nothing of its own - only the placed nodes of railLayout and the one line they hang on. It
-// scrolls with the log by translation, not by living in it, so no row bounds it and no row is
-// taller for it. A single event's node opens that event's detail; a gathered one opens a window
-// shaped like a run's own - a timeline of one-line steps, each opening its detail as a panel of
-// that same window, never a second over it.
+// The rail itself: a layer inside the log's own scrolling content, so it rides the native scroll
+// with no JS on the path - never a frame behind, never a style written while the log moves. It
+// holds nothing of its own - only the placed nodes of railLayout and the one line they hang on;
+// no row bounds it and no row is taller for it. A single event's node opens that event's detail;
+// a gathered one opens a window shaped like a run's own - a timeline of one-line steps, each
+// opening its detail as a panel of that same window, never a second over it.
 import { computed, inject, ref } from 'vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
@@ -15,7 +15,7 @@ import { layoutRail, type RailEvent, type RailNode, type RailRow } from './railL
 import ProcessDetail from './entries/ProcessDetail.vue';
 import { summarizeSteps, toolResultsKey } from './entries/processDetails.ts';
 
-const props = defineProps<{ rows: RailRow[]; total: number; x: number; visible: boolean; scroll: number; session?: string }>();
+const props = defineProps<{ rows: RailRow[]; total: number; visible: boolean; session?: string }>();
 const emit = defineEmits<{ open: [request: { chipKey: string; stepKey: string | null }] }>();
 const isMobile = useIsMobile();
 const rail = computed(() => layoutRail(props.rows));
@@ -47,17 +47,15 @@ const label = (node: RailNode) => node.events.length === 1 ? node.tip
 </script>
 
 <template>
-  <div class="rail-clip" :class="{ hidden: !visible }" :aria-hidden="visible ? undefined : 'true'">
-    <div class="rail-overlay" :style="{ height: `${total}px`, left: `${x}px`, transform: `translate3d(0, ${-scroll}px, 0)` }">
-      <div v-if="rail.line" class="rail-line" :style="{ top: `${rail.line.top}px`, height: `${rail.line.bottom - rail.line.top}px` }" />
-      <button v-for="(node, index) in rail.nodes" :key="index" type="button" class="history-rail-node"
-        :class="{ failed: node.failed, warn: !node.failed && node.warn }" :style="{ top: `${node.y - 12}px` }"
-        :aria-label="label(node)" aria-haspopup="dialog" :data-seq="node.seq" @click="click(node)">
-        <Icon :name="node.icon" />
-        <span v-if="node.count > 1" class="history-rail-badge" aria-hidden="true">{{ node.count }}</span>
-        <span class="history-rail-tip" aria-hidden="true">{{ label(node) }}</span>
-      </button>
-    </div>
+  <div class="rail-clip" :class="{ hidden: !visible }" :style="{ height: `${total}px` }" :aria-hidden="visible ? undefined : 'true'">
+    <div v-if="rail.line" class="rail-line" :style="{ top: `${rail.line.top}px`, height: `${rail.line.bottom - rail.line.top}px` }" />
+    <button v-for="(node, index) in rail.nodes" :key="index" type="button" class="history-rail-node"
+      :class="{ failed: node.failed, warn: !node.failed && node.warn }" :style="{ top: `${node.y - 12}px` }"
+      :aria-label="label(node)" aria-haspopup="dialog" :data-seq="node.seq" @click="click(node)">
+      <Icon :name="node.icon" />
+      <span v-if="node.count > 1" class="history-rail-badge" aria-hidden="true">{{ node.count }}</span>
+      <span class="history-rail-tip" aria-hidden="true">{{ label(node) }}</span>
+    </button>
     <Modal :open="!!gathered" :sheet="isMobile" wide :title="gatherTitle" content-class="process-window" @close="gathered = null; detail = null">
       <ol class="proc-timeline">
         <li v-for="event in gathered?.events ?? []" :key="`${event.chipKey}:${event.stepKey ?? ''}`" class="proc-event"

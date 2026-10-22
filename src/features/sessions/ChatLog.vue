@@ -105,37 +105,31 @@ const rowEvents = (row: ChatRow): RailEvent[] => {
       warn: noticeTone(chip.entry) === 'warn', tip: noticeLabel(chip.entry), seq: chip.entry?.seq,
       step: { kind: 'entry', entry: chip.entry, key: chip.key }, preview: noticeText(chip.entry) }]);
 };
-// Where the rail stands: on a phone, a lane a rightward drag reveals (useRailSwipe) - tucked
-// wholly out of sight until it is opened, then nodes at 8..32 with the line at 20 and the words
-// from 68. On a writing desk, in the left margin when there is one, x = the words' left edge less
-// a node and its air; when the margin runs out it tucks into the frame's own 24px padding
-// (x 0-24, its line at x+12), never under the words, and hides only when the words themselves
-// are driven into that padding.
+// Where the rail stands. It lives inside the scrolling content, so its own y needs no thought -
+// rows and nodes share one origin. On a phone, a drawer a rightward drag reveals (useRailSwipe):
+// the panel translates aside and the rail rides with it, hidden wholly from hits until opened.
+// On a writing desk it never hides: with margin to spare it floats in it beside the words; when
+// the margin cannot hold a node (24), its badge (7) and air (9) there, the log itself yields a
+// lane (.rail-lane, +40px of padding) and the rail stands in it. The lane is judged on the
+// margin the words would have without it, so granting it cannot oscillate.
 const wrapEl = ref<HTMLElement | null>(null);
 const innerEl = ref<HTMLElement | null>(null);
 const railVersion = ref(0);
 const railTotal = computed(() => virtualizer.value.getTotalSize());
-// The rail follows the log's scroll as a prop, not as an inherited custom property on the frame:
-// writing a style there would invalidate the whole log subtree on every scroll event.
-const railScroll = ref(0);
 // The phone's lane gesture lives on the frame, never on the scroll container; its state outlives
 // a session switch - it is the pane's preference, not the conversation's.
 const railSwipe = useRailSwipe({ wrap: wrapEl, scroll: scrollEl, enabled: computed(() => props.mobile) });
 const railPlace = computed(() => {
-  if (props.mobile) return { x: 8, visible: railSwipe.open.value };
+  if (props.mobile) return { visible: railSwipe.open.value, lane: false };
   void railVersion.value;
   const wrap = wrapEl.value;
   const inner = innerEl.value;
-  if (!wrap || !inner) return { x: 24, visible: false };
-  const wordsLeft = inner.getBoundingClientRect().left - wrap.getBoundingClientRect().left;
-  const x = Math.max(0, Math.min(24, Math.round(wordsLeft - 40)));
-  return { x, visible: wordsLeft >= x + 24 };
+  const scroll = scrollEl.value;
+  if (!wrap || !inner) return { visible: true, lane: false };
+  const lane = scroll?.classList.contains('rail-lane') ?? false;
+  const wordsLeft = inner.getBoundingClientRect().left - wrap.getBoundingClientRect().left - (lane ? 40 : 0);
+  return { visible: true, lane: wordsLeft - 24 < 40 };
 });
-// The rail scrolls with the log by translation; this is the only scroll work it needs.
-function onRailScroll(event: Event) {
-  railScroll.value = (event.target as HTMLElement).scrollTop;
-  onScroll();
-}
 
 const workIndicator = computed(() => chatWorkIndicator({
   running: running.value,
@@ -249,10 +243,11 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
 
 // Initial estimates can settle after the first tail landing. Follow late
 // content growth only while the reader still wants the latest.
-// The rail's place is read from the layout around it - the frame, the words' column, the window -
+// The rail's lane is read from the layout around it - the frame, the words' column, the window -
 // so every one of them is watched: a sidebar opening, the composer growing, the window resized.
-// Each change is re-read a frame later, when the new layout has settled, so the rail follows a
-// resize instead of vanishing on a stale measurement.
+// Each change is re-read a frame later, when the new layout has settled, so the lane follows a
+// resize instead of vanishing on a stale measurement. The rail itself needs none of this to
+// scroll: it lives in the content and rides the native scroll with no JS on the path.
 watch([wrapEl, innerEl], (elements, _, onCleanup) => {
   const alive = elements.filter(Boolean) as HTMLElement[];
   if (!alive.length) return;
@@ -269,10 +264,6 @@ watch([wrapEl, innerEl], (elements, _, onCleanup) => {
     window.removeEventListener('resize', measure);
     if (frame) cancelAnimationFrame(frame);
   });
-}, { immediate: true });
-// The rail starts where the log already is, not at the top of it.
-watch([wrapEl, scrollEl], () => {
-  if (scrollEl.value) railScroll.value = scrollEl.value.scrollTop;
 }, { immediate: true });
 watch(scrollContentEl, (content, _, onCleanup) => {
   if (!content) return;
@@ -299,8 +290,8 @@ watch(scrollContentEl, (content, _, onCleanup) => {
     @wheel.passive="onWheel" @touchstart.passive="onTouchStart" @touchmove.passive="onTouchMove"
     @touchend.passive="onTouchEnd" @touchcancel.passive="onTouchEnd">
     <div v-if="chat.loadingOlder.value" class="history-loading" role="status" :aria-label="i18n.t('sessions.loading')"><span class="chat-skeleton older-skeleton" aria-hidden="true" /></div>
-    <div ref="scrollEl" class="chatlog" data-scroll-preserve :data-following="stick" tabindex="0"
-      @keydown="onKeydown" @pointerdown="onPointerDown" :data-scrollbar-held="scrollbarHeld" @scroll.passive="onRailScroll">
+    <div ref="scrollEl" class="chatlog" :class="{ 'rail-lane': railPlace.lane }" data-scroll-preserve :data-following="stick" tabindex="0"
+      @keydown="onKeydown" @pointerdown="onPointerDown" :data-scrollbar-held="scrollbarHeld" @scroll.passive="onScroll">
       <div ref="scrollContentEl" class="chatlog-content">
 
       <div v-if="chat.loadingInitial.value && !groups.length" class="history-skeleton" role="status" :aria-label="i18n.t('sessions.loading')" aria-busy="true">
@@ -355,9 +346,11 @@ watch(scrollContentEl, (content, _, onCleanup) => {
       </Transition>
       <!-- Font-instance warmup: instantiates variable font styles once to prevent frame drops -->
       <div class="font-warmup" aria-hidden="true"><b>永</b><i>永</i><b><i>永</i></b><span class="warm-display">标题</span><code>code</code></div>
+      <!-- The rail lives in the scrolling content itself: it rides the log's native scroll with no
+           JS on the path, so it can never run a frame behind the messages it annotations. -->
+      <ActivityRail :rows="railRows" :total="railTotal" :visible="railPlace.visible" :session="sessionId" @open="openFromRail" />
       </div>
     </div>
-    <ActivityRail :rows="railRows" :total="railTotal" :x="railPlace.x" :visible="railPlace.visible" :scroll="railScroll" :session="sessionId" @open="openFromRail" />
     <Hint :text="i18n.t('chat.jumpLatest')" v-if="showJump"><button type="button" class="jump-latest"
        :aria-label="i18n.t('chat.jumpLatest')" @click="jumpLatest">
       <Icon name="arrow-down" :size="20" aria-hidden="true" />
