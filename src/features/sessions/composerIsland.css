@@ -30,6 +30,11 @@ div.chat-pane > .composer.mobile {
   background-color: var(--composer-island-surface);
   border-color: var(--composer-island-ring);
   box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+  /* Focus closes the 5% that is open: the surface settles to solid over a beat, never with a
+     jolt. The margin and shadow transitions the shared sheet gives the phone's composer ride
+     along, since this rule would otherwise replace them. */
+  transition: background-color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out),
+    margin var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
   /* No blur: what passes under the island is seen as it is, softened only by the 5% that lets it
      through. A frosted pane would smear the very words the reader is following away from. */
 }
@@ -46,6 +51,10 @@ div.chat-pane > .composer.desktop:focus-within,
 div.chat-pane > .composer.mobile:focus-within {
   border-color: var(--accent);
   background-color: var(--bg-raised);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  div.chat-pane > .composer.desktop, div.chat-pane > .composer.mobile { transition: none; }
 }
 
 /* The log runs under the island and is seen through it: no mask and no blur. A fade here would
