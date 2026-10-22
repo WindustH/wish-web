@@ -24,6 +24,7 @@ import { useChatScroll } from './useChatScroll.ts';
 import { useSearchLocate } from './useSearchLocate.ts';
 import { useRailSwipe } from './useRailSwipe.ts';
 import { estimateRow } from './rowEstimate.ts';
+import { chatViewportRect, measureChatElement, observeChatRect } from './virtualMeasurements.ts';
 import { useFreshRows } from './useFreshRows.ts';
 import { awaitsAnswer } from '../../core/questionWatch.ts';
 import { toolResultsKey } from './entries/processDetails.ts';
@@ -164,13 +165,17 @@ const fresh = useFreshRows(groups, computed(() => props.sessionId), () => !chat.
 const virtualizer = useVirtualizer(
   computed(() => {
     const items = groups.value;
+    const session = props.sessionId;
     const width = scrollContentEl.value?.querySelector<HTMLElement>('.chatlog-inner')?.clientWidth || 736;
     return {
       count: items.length,
+      enabled: pageActive.value,
       getScrollElement: () => scrollEl.value,
+      observeElementRect: observeChatRect,
+      measureElement: measureChatElement,
       estimateSize: (i: number) => estimateRow(items[i]!, width),
       overscan: 6,
-      getItemKey: (i: number) => items[i]!.key,
+      getItemKey: (i: number) => `${session}:${items[i]!.key}`,
       // Older pages are anchored after Vue commits the new sizer. The
       // virtualizer's end anchor writes before that commit and gets clamped
       // to the old scroll range, jumping to unrelated earlier messages.
@@ -237,6 +242,27 @@ watch(running, (now, was) => {
   if (was && !now) announce(i18n.t('a11y.runDone'));
 });
 
+function refreshVirtualMeasurements(reset = false) {
+  if (!pageActive.value) return;
+  const rect = chatViewportRect(scrollEl.value);
+  if (!rect) return;
+  const instance = virtualizer.value;
+  if (reset || instance.scrollRect?.width !== rect.width || instance.scrollRect?.height !== rect.height) {
+    instance.scrollRect = rect;
+    instance.measure();
+  }
+}
+
+// A cached page can reappear with the same DOM and no new model output. Restore its viewport
+// and discard hidden/previous-session row sizes now, rather than waiting for a new response.
+watch([pageActive, () => props.sessionId], async (_, __, cleanup) => {
+  let cancelled = false;
+  cleanup(() => { cancelled = true; });
+  const gen = epoch;
+  await nextTick();
+  if (!cancelled && owns(gen)) refreshVirtualMeasurements(true);
+}, { immediate: true, flush: 'post' });
+
 // After every layout change (measure, groups, stream) re-derive scroll state
 watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().length], async () => {
   const gen = epoch;
@@ -260,6 +286,7 @@ watch([wrapEl, innerEl], (elements, _, onCleanup) => {
     if (frame) return;
     frame = requestAnimationFrame(() => {
       frame = 0;
+      refreshVirtualMeasurements();
       railVersion.value++;
       void ensureHistoryScrollable();
     });
@@ -311,7 +338,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
       </div>
       <div v-else-if="!groups.length && !running" class="chat-empty hint">{{ i18n.t('chat.empty') }}</div>
       <div ref="innerEl" class="chatlog-inner" :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }">
-        <div v-for="v in virtualizer.getVirtualItems()" :key="groups[v.index]?.key" class="chat-virtual-row"
+        <div v-for="v in virtualizer.getVirtualItems()" :key="String(v.key)" class="chat-virtual-row"
           :ref="measureElement"
           :data-index="v.index"
           :class="{ 'status-error-row': groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error', 'history-target': holdsTarget(groups[v.index]), 'row-enter': fresh.has(groups[v.index]?.key ?? '') }"
