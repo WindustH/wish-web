@@ -3,5 +3,7 @@
 // request to the HistoryChips hosting that chip's window.
 import type { InjectionKey, Ref } from 'vue';
 
-export interface RailOpen { chipKey: string; stepKey: string | null; tick: number }
+// `solo` asks for that step's own window alone: a node that stands for one event opens it and
+// never the list behind it.
+export interface RailOpen { chipKey: string; stepKey: string | null; tick: number; solo?: boolean }
 export const railOpenKey: InjectionKey<Ref<RailOpen | null>> = Symbol('rail open');

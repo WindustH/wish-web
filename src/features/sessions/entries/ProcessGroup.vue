@@ -17,7 +17,7 @@ import { expandedBefore, setExpanded, setStep, stepBefore } from '../expandState
 import { chipFace } from './railMeta.ts';
 
 const props = defineProps<{ item: any; forced?: boolean; session?: string; variant?: 'chip' | 'node' | 'ghost';
-  openTick?: number; openStep?: { key: string; tick: number } }>();
+  openTick?: number; openStep?: { key: string; tick: number; solo?: boolean } }>();
 const isMobile = useIsMobile();
 const steps = computed(() => props.item.steps ?? []);
 // The window and the step open in it outlast this button: the button moves into the reply that
@@ -40,7 +40,8 @@ watch(() => props.openStep, pick => {
   if (!step) return;
   diffOnly.value = false;
   detail.value = step;
-  open.value = true;
+  // A node that stands for one event asks for that event alone: no list behind it.
+  open.value = !pick.solo;
   solo.value = step;
 });
 // A call's result: in the run, or for a call made beside a question or a notice, in a later one.

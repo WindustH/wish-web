@@ -11,7 +11,7 @@ import SystemEntry from './SystemEntry.vue';
 
 const props = defineProps<{ chips: ChipItem<any>[]; session?: string; forcedKeys?: ReadonlySet<string> }>();
 // A step preset for a run, a plain open for a notice - the same ticks the rail's list trips.
-const stepPicks = ref<Record<string, { key: string; tick: number }>>({});
+const stepPicks = ref<Record<string, { key: string; tick: number; solo?: boolean }>>({});
 const noticeTicks = ref<Record<string, number>>({});
 const openRequest = inject(railOpenKey, null);
 watch(() => openRequest?.value, request => {
@@ -19,7 +19,7 @@ watch(() => openRequest?.value, request => {
   const chip = props.chips.find(entry => entry.key === request.chipKey);
   if (!chip) return;
   if (chip.type === 'process' && request.stepKey)
-    stepPicks.value = { ...stepPicks.value, [chip.key]: { key: request.stepKey, tick: (stepPicks.value[chip.key]?.tick ?? 0) + 1 } };
+    stepPicks.value = { ...stepPicks.value, [chip.key]: { key: request.stepKey, tick: (stepPicks.value[chip.key]?.tick ?? 0) + 1, solo: request.solo } };
   else
     noticeTicks.value = { ...noticeTicks.value, [chip.key]: (noticeTicks.value[chip.key] ?? 0) + 1 };
 }, { deep: false });

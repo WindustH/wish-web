@@ -16,7 +16,7 @@ import ProcessDetail from './entries/ProcessDetail.vue';
 import { summarizeSteps, toolResultsKey } from './entries/processDetails.ts';
 
 const props = defineProps<{ rows: RailRow[]; total: number; visible: boolean; session?: string }>();
-const emit = defineEmits<{ open: [request: { chipKey: string; stepKey: string | null }] }>();
+const emit = defineEmits<{ open: [request: { chipKey: string; stepKey: string | null; solo?: boolean }] }>();
 const isMobile = useIsMobile();
 const rail = computed(() => layoutRail(props.rows, props.total));
 
@@ -42,7 +42,7 @@ function click(node: RailNode) {
   // One thing: straight to it. Several: the window, and nothing else opening behind it.
   if (node.events.length === 1) {
     const event = node.events[0]!;
-    emit('open', { chipKey: event.chipKey, stepKey: event.stepKey });
+    emit('open', { chipKey: event.chipKey, stepKey: event.stepKey, solo: true });
   } else {
     solo.value = null;
     gathered.value = node;
