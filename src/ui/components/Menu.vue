@@ -32,7 +32,6 @@ import MenuBackdrop from './MenuBackdrop.vue';
 import { usePageActivity } from '../composables/usePageActivity.ts';
 import { covers, glyphAt, SELECTABLE_TEXT } from '../textAtPoint.ts';
 import { noteSwallowedClick } from '../scrollStalls.ts';
-import { useBackLayer } from '../composables/useBackLayer.ts';
 
 // `checked` marks the current choice of a menu that picks one of several.
 export type MenuItem = { key: string; label: string; icon?: string; danger?: boolean; shortcut?: string; separator?: boolean; checked?: boolean };
@@ -60,7 +59,10 @@ function setOpen(value: boolean) {
   open.value = value;
 }
 const close = () => { cancelPress(); setOpen(false); };
-useBackLayer(() => open.value && pageActive.value, close, () => 70);
+// No Back stop of its own. A menu is almost always dismissed *by* choosing something in it, and
+// that choice is a navigation: the local entry the menu had pushed would be left behind - one
+// Back press that closes nothing on the way out of the page it chose. Tapping outside, Esc and
+// choosing an item all close it; a Back that leaves the page takes the menu with it.
 closers.add(close);
 
 // Where a context menu hangs: a point inside the element that was pressed. The object exists from

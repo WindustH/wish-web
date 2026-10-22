@@ -35,7 +35,11 @@ function finishClose() {
   emit('close');
 }
 const layer = useDialogLayer(() => props.layer ?? 60);
-useBackLayer(() => props.backLayer && props.open && pageActive.value,
+// A page window is a route of its own: its entry in history already is the Back stop, and Back
+// pops to the page it rose from. Claiming a second, local stop on top of that entry left two
+// dismissals for one window (the phone's info, search and settings panels needed three Backs to
+// reach the list).
+useBackLayer(() => props.backLayer && !props.page && props.open && pageActive.value,
   () => { if (props.dismissable) return props.page && props.back ? props.back() : requestClose(); }, () => layer.value);
 // A session window opens as a bubble under its chat-bar button instead of a centered card.
 const bubble = computed(() => !props.page && !!props.contentClass?.split(' ').includes('session-window'));
