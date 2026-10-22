@@ -190,6 +190,7 @@ const {
   scrollbarHeld,
   showJump,
   measureScroll,
+  ensureHistoryScrollable,
   scrollIntent,
   onWheel,
   onTouchStart,
@@ -257,7 +258,11 @@ watch([wrapEl, innerEl], (elements, _, onCleanup) => {
   let frame = 0;
   const measure = () => {
     if (frame) return;
-    frame = requestAnimationFrame(() => { frame = 0; railVersion.value++; });
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      railVersion.value++;
+      void ensureHistoryScrollable();
+    });
   };
   const observer = new ResizeObserver(measure);
   for (const el of alive) observer.observe(el);
@@ -275,6 +280,9 @@ watch(scrollContentEl, (content, _, onCleanup) => {
     if (frame) return;
     frame = requestAnimationFrame(() => {
       frame = 0;
+      // Estimates can shrink after measurement or the viewport can grow. A short log
+      // still needs older pages, even when no native scroll event can fire.
+      void ensureHistoryScrollable();
       if (!pageActive.value || !stick.value || scrollbarHeld.value) return;
       const el = scrollEl.value;
       if (el) el.scrollTop = el.scrollHeight;

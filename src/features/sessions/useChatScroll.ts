@@ -60,7 +60,13 @@ export function useChatScroll(options: UseChatScrollOptions) {
 
   function scrollIntent(toward: 'history' | 'latest') {
     direction = toward;
-    if (toward === 'history') stick.value = false;
+    if (toward === 'history') {
+      stick.value = false;
+      pausedFill = null;
+      // A folded page may have no scroll range at all. Upward intent must still reach
+      // older history: the browser cannot emit a scroll event when scrollTop is already 0.
+      if (scrollEl.value?.scrollTop === 0) void loadOlderAnchored();
+    }
   }
 
   function onWheel(event: WheelEvent) {
@@ -197,11 +203,15 @@ export function useChatScroll(options: UseChatScrollOptions) {
   // ── History Pagination ──────────────────────────────────────────────
   let loadingOlderBusy = false;
   let chained = 0;
+  let pausedFill: { session: string; oldest: number | undefined } | null = null;
+  watch(chat.loadingInitial, loading => { if (loading) pausedFill = null; }, { flush: 'sync' });
 
   async function loadOlderAnchored() {
-    if (loadingOlderBusy || scrollbarHeld.value || !pageActive.value) return;
+    if (loadingOlderBusy || scrollbarHeld.value || !pageActive.value || chat.loadingInitial.value
+      || chat.loadingOlder.value || !chat.hasMoreBefore.value || !scrollEl.value) return;
     loadingOlderBusy = true;
     const gen = getEpoch();
+    const oldest = chat.entries.value[0]?.seq;
     const anchor: { value: { top: number; height: number } | null } = { value: null };
     try {
       const added = await chat.loadOlder({ beforeMerge: async () => {
@@ -218,9 +228,18 @@ export function useChatScroll(options: UseChatScrollOptions) {
         el.scrollTop = anchor.value.top + el.scrollHeight - anchor.value.height;
       }
       measureScroll();
-      if (added && nearTop.value && chat.hasMoreBefore.value && chained < 12 && !scrollbarHeld.value) {
+      const el = scrollEl.value;
+      const unfilled = el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight + 1;
+      const nextOldest = chat.entries.value[0]?.seq;
+      const progressed = nextOldest != null && (oldest == null || nextOldest < oldest);
+      pausedFill = added && progressed ? null : { session: sessionId.value, oldest: nextOldest };
+      // Tool-only pages collapse to a zero-height chips host. Keep reading until there
+      // is something to scroll or the history ends, even beyond the ordinary prefetch cap.
+      // A non-advancing page or failure must stop rather than spin on the same cursor.
+      if (added && progressed && chat.hasMoreBefore.value && !scrollbarHeld.value
+        && (unfilled || (nearTop.value && chained < 12))) {
         chained++;
-        queueMicrotask(loadOlderAnchored);
+        queueMicrotask(() => { if (owns(gen) && pageActive.value) void loadOlderAnchored(); });
       } else {
         chained = 0;
       }
@@ -228,6 +247,24 @@ export function useChatScroll(options: UseChatScrollOptions) {
       if (owns(gen)) loadingOlderBusy = false;
     }
   }
+
+  async function ensureHistoryScrollable() {
+    const gen = getEpoch();
+    await nextTick();
+    if (!owns(gen) || !pageActive.value) return;
+    // Error cards and unchanged pages can also resize the log. They must not start
+    // an automatic retry loop; a fresh upward gesture explicitly retries this cursor.
+    if (pausedFill?.session === sessionId.value && pausedFill.oldest === chat.entries.value[0]?.seq) return;
+    const el = scrollEl.value;
+    if (el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight + 1) {
+      await loadOlderAnchored();
+    }
+  }
+
+  // Opening a long-running tool loop can load forty records but no visible text. Do not
+  // wait for a scroll event to fetch the older page that would make scrolling possible.
+  watch([scrollEl, pageActive, chat.loadingInitial, chat.hasMoreBefore, groups],
+    () => { void ensureHistoryScrollable(); }, { immediate: true, flush: 'post' });
 
   async function fetchNewerBelow() {
     if (chat.loadingNewer.value || scrollbarHeld.value || !pageActive.value) return;
@@ -316,6 +353,7 @@ export function useChatScroll(options: UseChatScrollOptions) {
     farUp.value = false;
     chained = 0;
     loadingOlderBusy = false;
+    pausedFill = null;
   });
 
   watch(streamState, (s) => {
@@ -333,6 +371,7 @@ export function useChatScroll(options: UseChatScrollOptions) {
     scrollbarHeld,
     showJump,
     measureScroll,
+    ensureHistoryScrollable,
     scrollIntent,
     onWheel,
     onTouchStart,
