@@ -7,7 +7,7 @@
 .chat-pane {
   /* A raised surface just short of opaque: the conversation under it shows as a faint shadow of
      itself and the text keeps its contrast. Focus takes even that away - see below. */
-  --composer-island-surface: color-mix(in srgb, var(--bg-raised) 95%, transparent);
+  --composer-island-surface: color-mix(in srgb, var(--bg-raised) 98%, transparent);
   /* One clear ring, a touch lighter than --line-strong, in place of the old halo. */
   --composer-island-ring: color-mix(in srgb, var(--line-strong) 75%, transparent);
   /* How far the log dissolves into the composer's gap. */
@@ -15,7 +15,7 @@
 }
 
 /* The island: no 0 5px 20px glow around the rounded surface, just its ring. A 1px contact shadow
-   seats it on the page; the 5% that is not opaque lets what passes under it show through.
+   seats it on the page; the 2% that is not opaque lets what passes under it show through.
    It therefore floats over the log's foot rather than sitting below it: the conversation runs to
    the pane's bottom edge and scrolls away beneath the island, which is what the transparency is for.
    `--composer-height` (set by ChatPane) keeps the last line resting clear of it. */
@@ -30,12 +30,12 @@ div.chat-pane > .composer.mobile {
   background-color: var(--composer-island-surface);
   border-color: var(--composer-island-ring);
   box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
-  /* Focus closes the 5% that is open: the surface settles to solid over a beat, never with a
+  /* Focus closes the 2% that is open: the surface settles to solid over a beat, never with a
      jolt. The margin and shadow transitions the shared sheet gives the phone's composer ride
      along, since this rule would otherwise replace them. */
   transition: background-color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out),
     margin var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
-  /* No blur: what passes under the island is seen as it is, softened only by the 5% that lets it
+  /* No blur: what passes under the island is seen as it is, softened only by the 2% that lets it
      through. A frosted pane would smear the very words the reader is following away from. */
 }
 
