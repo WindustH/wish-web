@@ -5,8 +5,9 @@
    whose rules carry the same class weight and may be re-appended by a live reload. */
 
 .chat-pane {
-  /* A raised surface at 90% opacity: the page tints it faintly, the text keeps its contrast. */
-  --composer-island-surface: color-mix(in srgb, var(--bg-raised) 90%, transparent);
+  /* A raised surface just short of opaque: the conversation under it shows as a faint shadow of
+     itself and the text keeps its contrast. Focus takes even that away - see below. */
+  --composer-island-surface: color-mix(in srgb, var(--bg-raised) 95%, transparent);
   /* One clear ring, a touch lighter than --line-strong, in place of the old halo. */
   --composer-island-ring: color-mix(in srgb, var(--line-strong) 75%, transparent);
   /* How far the log dissolves into the composer's gap. */
@@ -14,7 +15,7 @@
 }
 
 /* The island: no 0 5px 20px glow around the rounded surface, just its ring. A 1px contact shadow
-   seats it on the page; the 10% that is not opaque lets what passes under it show through.
+   seats it on the page; the 5% that is not opaque lets what passes under it show through.
    It therefore floats over the log's foot rather than sitting below it: the conversation runs to
    the pane's bottom edge and scrolls away beneath the island, which is what the transparency is for.
    `--composer-height` (set by ChatPane) keeps the last line resting clear of it. */
@@ -29,8 +30,8 @@ div.chat-pane > .composer.mobile {
   background-color: var(--composer-island-surface);
   border-color: var(--composer-island-ring);
   box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
-  /* No blur: what passes under the island is seen as it is, softened only by the 10% that lets
-     it through. A frosted pane would smear the very words the reader is following away from. */
+  /* No blur: what passes under the island is seen as it is, softened only by the 5% that lets it
+     through. A frosted pane would smear the very words the reader is following away from. */
 }
 
 /* The log reaches the pane's foot, under the island; its own padding is the room the last line
@@ -39,9 +40,13 @@ div.chat-pane .chatlog { padding-bottom: calc(var(--composer-height, 96px) + 12p
 /* The jump button stands on the island's top edge, never under it. */
 div.chat-pane .jump-latest { bottom: calc(var(--composer-height, 96px) + 14px); }
 
-/* Keyboard focus keeps marking the island with the accent, as it did before. */
+/* Keyboard focus keeps marking the island with the accent, as it did before - and makes it wholly
+   solid, so nothing of the log shows through the words being typed. */
 div.chat-pane > .composer.desktop:focus-within,
-div.chat-pane > .composer.mobile:focus-within { border-color: var(--accent); }
+div.chat-pane > .composer.mobile:focus-within {
+  border-color: var(--accent);
+  background-color: var(--bg-raised);
+}
 
 /* The log runs under the island and is seen through it: no mask and no blur. A fade here would
    erase exactly the lines the island is meant to show through its 10% of open surface. The fade
