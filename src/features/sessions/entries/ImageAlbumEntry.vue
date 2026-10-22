@@ -22,8 +22,8 @@ const assistant = computed(() => ({ ...props.item.items[0], blocks: images.value
       <HistoryChips :chips="activity" :session="session" :forced-keys="forcedKeys" />
     </div>
     <div class="entry user">
-      <ImageGrid class="user-album" :count="images.length">
-        <div v-for="image in images" :key="image.key" class="entry-anchor" :data-seq="image.seq">
+      <ImageGrid v-slot="{ limit }" class="user-album" :count="images.length" :force-open="forcedKeys?.has(item.key)">
+        <div v-for="image in images.slice(0, limit)" :key="image.key" class="entry-anchor" :data-seq="image.seq">
           <UserBubble :block="image.block" />
         </div>
       </ImageGrid>

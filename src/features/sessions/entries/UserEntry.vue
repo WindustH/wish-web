@@ -25,8 +25,8 @@ const groups = computed(() => {
   <div class="user-message-parts">
     <template v-for="(group, index) in groups" :key="index">
       <div v-if="group.images" class="entry user">
-        <ImageGrid class="user-album" :count="group.images.length">
-          <UserBubble v-for="(image, imageIndex) in group.images" :key="imageIndex" :block="image" />
+        <ImageGrid v-slot="{ limit }" class="user-album" :count="group.images.length">
+          <UserBubble v-for="(image, imageIndex) in group.images.slice(0, limit)" :key="imageIndex" :block="image" />
         </ImageGrid>
       </div>
       <div v-else-if="group.files" class="file-group">

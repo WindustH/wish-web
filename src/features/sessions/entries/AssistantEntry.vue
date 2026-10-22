@@ -28,8 +28,8 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
       <HistoryChips v-if="before.length" :chips="before" :session="session" :forced-keys="forcedKeys" />
       <div class="body">
         <template v-for="(part, i) in parts" :key="i">
-          <ImageGrid v-if="part.type === 'album'" :count="part.blocks.length">
-            <div v-for="(image, index) in part.blocks" :key="index" class="entry-anchor" :data-seq="item.imageSeqs?.[index]">
+          <ImageGrid v-if="part.type === 'album'" v-slot="{ limit }" :count="part.blocks.length" :force-open="forcedKeys?.has(item.key)">
+            <div v-for="(image, index) in part.blocks.slice(0, limit)" :key="index" class="entry-anchor" :data-seq="item.imageSeqs?.[index]">
               <ApiImage v-if="blobSrc(image)" :src="blobSrc(image)!" :alt="image.filename || ''" loading="lazy" decoding="async" />
             </div>
           </ImageGrid>

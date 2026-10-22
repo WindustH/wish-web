@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { groupEntries, inlineChips, type GroupBlock, type GroupEntry } from '../src/features/sessions/grouping.ts';
-import { albumHeight, imageAlbums, imageParts } from '../src/features/sessions/imageAlbums.ts';
+import { albumHeight, albumPreview, imageAlbums, imageParts } from '../src/features/sessions/imageAlbums.ts';
 import { estimateRow } from '../src/features/sessions/rowEstimate.ts';
 import { entryView } from '../src/core/api/projections.ts';
 
@@ -156,4 +156,18 @@ test('grid height estimates match its columns rather than a vertical stack of fu
   const content: GroupBlock[] = [{ type: 'text', text: 'caption' }, ...[1, 2, 3, 4].map(image)];
   const row = groupEntries([{ kind: 'assistant_message', seq: 1, payload: { content } }])[0]!;
   assert.ok(estimateRow(row, 334) < 4 * 220);
+});
+
+test('nine pictures fit, while larger albums reserve the ninth cell for every hidden picture', () => {
+  assert.deepEqual(albumPreview(4), { visible: 4, hidden: 0, cells: 4 });
+  assert.deepEqual(albumPreview(9), { visible: 9, hidden: 0, cells: 9 });
+  assert.deepEqual(albumPreview(10), { visible: 8, hidden: 2, cells: 9 });
+  assert.deepEqual(albumPreview(114), { visible: 8, hidden: 106, cells: 9 });
+});
+
+test('large albums occupy only a compact nine-cell preview in virtual scroll estimates', () => {
+  assert.equal(albumHeight(114, 736), albumHeight(9, 736));
+  assert.ok(albumHeight(114, 736) < 240);
+  assert.ok(albumHeight(4, 736) < 240);
+  assert.ok(albumHeight(9, 200) < albumHeight(9, 736));
 });

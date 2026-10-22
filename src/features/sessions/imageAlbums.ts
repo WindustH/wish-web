@@ -1,13 +1,20 @@
 import type { ChipsItem, GroupBlock, GroupEntry, GroupItem, TextItem } from './grouping.ts';
 
 export const ALBUM_MIN_IMAGES = 4;
-export const ALBUM_WIDTH = 480;
-export const ALBUM_GAP = 4;
+export const ALBUM_WIDTH = 288;
+export const ALBUM_GAP = 6;
+export const ALBUM_ASPECT_RATIO = 4 / 3;
+export const ALBUM_PREVIEW_LIMIT = 9;
 export const albumColumns = (count: number) => count === 4 ? 2 : 3;
+export function albumPreview(count: number) {
+  const visible = count > ALBUM_PREVIEW_LIMIT ? ALBUM_PREVIEW_LIMIT - 1 : count;
+  const hidden = count - visible;
+  return { visible, hidden, cells: visible + (hidden > 0 ? 1 : 0) };
+}
 export const albumHeight = (count: number, width: number) => {
   const columns = albumColumns(count);
-  const rows = Math.ceil(count / columns);
-  return rows * (Math.min(ALBUM_WIDTH, width) - (columns - 1) * ALBUM_GAP) / columns + (rows - 1) * ALBUM_GAP;
+  const rows = Math.ceil(albumPreview(count).cells / columns);
+  return rows * (Math.min(ALBUM_WIDTH, width) - (columns - 1) * ALBUM_GAP) / columns / ALBUM_ASPECT_RATIO + (rows - 1) * ALBUM_GAP;
 };
 
 /** Consecutive images within a message; words and files keep their exact positions. */
