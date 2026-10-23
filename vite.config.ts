@@ -58,7 +58,9 @@ export default defineConfig({
       workbox: {
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
-        navigateFallbackDenylist: [/^\/api(?:\/|$)/, /^\/healthz$/],
+        // Requests the auth proxy in front of the app must answer itself: the service worker's
+        // shell would otherwise stand in for a login page (and for a logout that redirects).
+        navigateFallbackDenylist: [/^\/api(?:\/|$)/, /^\/healthz$/, /^\/login(?:\/|\?|$)/, /^\/logout(?:\/|\?|$)/],
         cleanupOutdatedCaches: true,
         // Fontsource splits CJK by unicode range. Cache only requested shards;
         // precaching the complete font families would download unused glyphs.
