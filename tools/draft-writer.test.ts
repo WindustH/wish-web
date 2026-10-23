@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { use } from '../src/platform/index.ts';
-import { DRAFT_PERSIST_MS, chat, createDraftWriter } from '../src/core/state/chatSlice.ts';
+import {
+  DRAFT_PERSIST_MS, POLL_FAILURES_BEFORE_CARD, chat, createDraftWriter, shouldSurfacePollFailure,
+} from '../src/core/state/chatSlice.ts';
 
 /** A storage stand-in that records every write, so a debounce is visible as an absent call. */
 function fakeStore() {
@@ -99,4 +101,12 @@ test('the chat slice writes drafts through platform storage, on the same delay',
   assert.deepEqual(store.writes, [['draft.s9', 'typed']]);
   chat.flushDrafts('s9');       // nothing pending: no second write
   assert.equal(store.writes.length, 1);
+});
+
+test('a poll that fails once is not worth a card, a poll that keeps failing is', () => {
+  assert.equal(shouldSurfacePollFailure(0), false);
+  assert.equal(shouldSurfacePollFailure(1), false, 'a blink: offline for a moment, the poll asks again');
+  assert.equal(shouldSurfacePollFailure(POLL_FAILURES_BEFORE_CARD - 1), false);
+  assert.equal(shouldSurfacePollFailure(POLL_FAILURES_BEFORE_CARD), true);
+  assert.equal(shouldSurfacePollFailure(POLL_FAILURES_BEFORE_CARD + 5), true);
 });

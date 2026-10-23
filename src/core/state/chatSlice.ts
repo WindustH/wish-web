@@ -29,6 +29,13 @@ export function shouldSurfaceSseError(state: SseState, err?: SseError | null): b
   return err.internal !== true;
 }
 
+/** A reconciliation poll that fails once is a blink — an offline phone, a proxy hop — and the poll
+ *  simply runs again; only a poll that keeps failing is worth a card in the log. */
+export const POLL_FAILURES_BEFORE_CARD = 3;
+export function shouldSurfacePollFailure(failures: number): boolean {
+  return failures >= POLL_FAILURES_BEFORE_CARD;
+}
+
 /** How long a draft waits after the last keystroke before it reaches storage. */
 export const DRAFT_PERSIST_MS = 400;
 
@@ -91,6 +98,8 @@ export const chat = (() => {
   let offSync: (() => void) | null = null;
   let refreshing = false;
   let connectionError: unknown = null;
+  let pollError: unknown = null;
+  let pollFailures = 0;
   // The storage adapter is looked up per call: the platform registers its adapters after import.
   const drafts = createDraftWriter({
     get: (key) => platform('storage').get(key),
@@ -201,6 +210,8 @@ export const chat = (() => {
   async function open(id: string): Promise<void> {
     if (sessionId.value === id) return;
     drafts.flush();          // leaving the last session: its draft lands before the switch
+    pollFailures = 0;
+    pollError = null;
     close();
 
     sessionId.value = id;
@@ -315,8 +326,17 @@ export const chat = (() => {
       }
 
       if (result.ok && !result.drained) scheduleRefresh();
+      pollFailures = 0;
+      if (error.value === pollError) { error.value = null; pollError = null; }
     } catch (cause) {
-      if (current(own)) error.value = cause;
+      // A failed poll is not a failed run: the stream is the source of truth for the reader, and
+      // the poll asks again on its own. Only a poll that keeps failing takes the card.
+      if (!current(own)) return;
+      pollFailures++;
+      if (shouldSurfacePollFailure(pollFailures)) {
+        pollError = cause;
+        error.value = cause;
+      }
     } finally {
       if (current(own)) refreshing = false;
     }
