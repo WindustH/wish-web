@@ -137,7 +137,10 @@
 /* A picture in the log opens whole: the cursor says so, and the overlay is the page dimmed,
    the image as large as the window allows, closed by a click anywhere or by Escape. */
 img.zoomable { cursor: zoom-in; }
-.image-lightbox { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
+/* Above every window, and answering to the pointer itself: an open window locks the page with
+   `body { pointer-events: none }`, and this overlay is a child of the body - without its own
+   `auto` it would sit on top while every click fell through to the window underneath. */
+.image-lightbox { position: fixed; inset: 0; z-index: 200; pointer-events: auto; display: grid; place-items: center;
   padding: calc(env(safe-area-inset-top) + 20px) 20px calc(env(safe-area-inset-bottom) + 20px);
   background: rgb(0 0 0 / 78%); animation: fade-in var(--dur-fast) ease; cursor: zoom-out; }
 .image-lightbox-img { position: absolute; left: 50%; top: 50%; max-width: calc(100% - 40px); max-height: calc(100% - 40px);

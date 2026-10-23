@@ -109,7 +109,9 @@ export const ICONS: Record<string, string> = {
   // Account status: balances and quotas, read off a gauge.
   account: `<path d="M3.5 17a8.5 8.5 0 0 1 17 0Z" ${SOFT}/><path d="m12 17 3.8-5.5"/><path d="${dot(12, 17)}" stroke-width="3.4"/>`,
   // Reasoning: the model's side of the conversation, still thinking.
-  thinking: `<path d="${BUBBLE}" ${SOFT}/><path d="${dot(8, 10.5)}${dot(12, 10.5)}${dot(16, 10.5)}" stroke-width="2.8"/>`,
+  // Reasoning: the brain, as this app has always drawn it. Two hemispheres with their folds, split
+  // down the middle; a soft wash under the outline so it holds up at the rail's 16px.
+  thinking: `<path d="M12 4.6a2.9 2.9 0 1 0-5.8.1 3.9 3.9 0 0 0-2.4 5.6 3.9 3.9 0 0 0 .5 6.4A3.9 3.9 0 1 0 12 16.9Z" ${SOFT}/><path d="M12 4.6a2.9 2.9 0 1 1 5.8.1 3.9 3.9 0 0 1 2.4 5.6 3.9 3.9 0 0 1-.5 6.4A3.9 3.9 0 1 1 12 16.9Z" ${SOFT}/><path d="M15 12.4a4.4 4.4 0 0 1-3-3.9 4.4 4.4 0 0 1-3 3.9"/><path d="M17 6.1a2.9 2.9 0 0 0 .4-1.3M6.6 4.8A2.9 2.9 0 0 0 7 6.1M4 10.4a3.9 3.9 0 0 1 .6-.4M19.9 10a3.9 3.9 0 0 1 .6.4M6.6 17.1A3.9 3.9 0 0 1 4.7 16.6M19.9 16.6a3.9 3.9 0 0 1-1.9.5"/>`,
   // A tool call.
   tool: `<path d="M14.7 3.5a5 5 0 0 0-4.6 6.9l-6.2 6.2a2.1 2.1 0 0 0 3 3l6.2-6.2a5 5 0 0 0 6.9-4.6l-3.3 1.6-2.6-.6-.6-2.6Z" ${SOFT}/>`,
   // A run's work: steps climbed.

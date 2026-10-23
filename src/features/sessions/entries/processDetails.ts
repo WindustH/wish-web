@@ -24,6 +24,9 @@ const TOOL_TITLES:Record<string,string>={
 };
 export const toolTitle=(name?:string)=>name?TOOL_TITLES[name]??name:'';
 export function toolIcon(name?:string):string {
+  // An edit reads as the change it makes: the diff mark, wherever the tool is shown - the rail,
+  // a window's rows, a step's heading.
+  if(name==='shell_edit')return 'file-diff';
   if(name?.startsWith('shell'))return 'terminal';
   if(name==='view_image')return 'image';
   if(name?.startsWith('history_'))return 'search';
