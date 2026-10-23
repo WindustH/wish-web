@@ -3,7 +3,7 @@ import { shallowRef } from 'vue';
 import { cfg } from '../config.ts';
 import { bus } from '../bus.ts';
 import { platform } from '../../platform/index.ts';
-import { createSse, type SseConnection } from '../api/sse.ts';
+import { createSse, type SseConnection, type SseError, type SseState } from '../api/sse.ts';
 import { absUrl } from '../api/client.ts';
 import { createChatDeliveries } from './chatDeliveries.ts';
 import * as api from '../api/endpoints.ts';
@@ -17,6 +17,62 @@ export interface SessionCapabilities { input_modalities: string[] | null }
 export interface CapabilitiesOk { status: 'ok'; data: SessionCapabilities }
 export interface CapabilitiesErr { status: 'error'; error: unknown }
 export type ChatCapabilities = CapabilitiesOk | CapabilitiesErr;
+
+/** Whether a connection event is a failure the reader should be shown. The client reconnects by
+ *  itself after an internal cause — a silent heartbeat, a connect timeout, a stream that ended or
+ *  overran a frame — so those only move the connection state and schedule the retry: a phone that
+ *  slept or a proxy that blinked must not raise an error card. An auth refusal, an HTTP failure or
+ *  a network error is a real one. */
+export function shouldSurfaceSseError(state: SseState, err?: SseError | null): boolean {
+  if (state === 'denied') return true;
+  if (state !== 'reconnecting' || !err) return false;
+  return err.internal !== true;
+}
+
+/** How long a draft waits after the last keystroke before it reaches storage. */
+export const DRAFT_PERSIST_MS = 400;
+
+export interface DraftStorage { get(key: string): string | null; set(key: string, value: string): void }
+export interface DraftWriter {
+  read(id: string): string;
+  write(id: string, text: string): void;
+  /** Land one draft, or every draft waiting. */
+  flush(id?: string): void;
+  hasPending(id?: string): boolean;
+}
+
+/** Drafts are written a moment after typing stops rather than on every keystroke. The pending
+ *  text stays here, so reading a draft returns what was typed, not what was persisted last.
+ *  Emptying a field lands at once (that is a message going out), and a draft that is still
+ *  waiting when another id is written lands first (the composer has moved on). */
+export function createDraftWriter(store: DraftStorage, delayMs = DRAFT_PERSIST_MS): DraftWriter {
+  const pending = new Map<string, string>();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const key = (id: string) => `draft.${id}`;
+  function land(id: string) {
+    if (!pending.has(id)) return;
+    const text = pending.get(id)!;
+    pending.delete(id);
+    store.set(key(id), text);
+  }
+  function flush(id?: string) {
+    if (id != null) { land(id); return; }
+    clearTimeout(timer); timer = undefined;
+    for (const pendingId of [...pending.keys()]) land(pendingId);
+  }
+  return {
+    read: (id) => pending.get(id) ?? store.get(key(id)) ?? '',
+    write(id, text) {
+      for (const other of [...pending.keys()]) if (other !== id) land(other);
+      pending.set(id, text);
+      clearTimeout(timer);
+      if (text === '') { flush(); return; }
+      timer = setTimeout(() => flush(), delayMs);
+    },
+    flush,
+    hasPending: (id) => (id == null ? pending.size > 0 : pending.has(id)),
+  };
+}
 
 export const chat = (() => {
   const sessionId = shallowRef<string | null>(null);
@@ -35,6 +91,11 @@ export const chat = (() => {
   let offSync: (() => void) | null = null;
   let refreshing = false;
   let connectionError: unknown = null;
+  // The storage adapter is looked up per call: the platform registers its adapters after import.
+  const drafts = createDraftWriter({
+    get: (key) => platform('storage').get(key),
+    set: (key, value) => platform('storage').set(key, value),
+  });
 
   const current = (e: number) => e === epoch;
   const options = () => ({ signal: controller?.signal });
@@ -139,6 +200,7 @@ export const chat = (() => {
 
   async function open(id: string): Promise<void> {
     if (sessionId.value === id) return;
+    drafts.flush();          // leaving the last session: its draft lands before the switch
     close();
 
     sessionId.value = id;
@@ -171,7 +233,9 @@ export const chat = (() => {
       onState: ({ state: s, err }) => {
         if (!current(own)) return;
         if (s === 'gone') { markMissing(); return; }
-        if (s === 'denied' || (s === 'reconnecting' && err)) {
+        // A reconnect after a heartbeat or connect timeout is the client doing its job; only a
+        // real failure takes over the page's error card.
+        if (shouldSurfaceSseError(s, err)) {
           connectionError = err;
           error.value = err;
         }
@@ -273,11 +337,16 @@ export const chat = (() => {
   }
 
   function getDraft(id: string | null = sessionId.value): string {
-    return id ? platform('storage').get(`draft.${id}`) ?? '' : '';
+    return id ? drafts.read(id) : '';
   }
 
   function setDraft(text: string, id: string | null = sessionId.value) {
-    if (id) platform('storage').set(`draft.${id}`, text);
+    if (id) drafts.write(id, text);
+  }
+
+  /** Land waiting drafts now: a sent message, a session switch, a closing page. */
+  function flushDrafts(id?: string) {
+    drafts.flush(id);
   }
 
   /** Shows a snapshot the server returned for a change made here, unless the open session is
@@ -328,6 +397,7 @@ export const chat = (() => {
     interrupt,
     getDraft,
     setDraft,
+    flushDrafts,
     clearPendingSeq,
     reloadCapabilities,
     adoptSnapshot,

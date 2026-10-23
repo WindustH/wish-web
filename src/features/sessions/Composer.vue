@@ -135,7 +135,9 @@ function submitBtw() {
 
 watch(
   () => props.owner,
-  (id) => {
+  (id, previous) => {
+    // The drafts previously typed belong to the owner being left: land them before reading the next.
+    if (previous && previous !== id) chat.flushDrafts(previous);
     text.value = chat.getDraft(id);
     btwDraft.value = '';
     btwOpen.value = false;
@@ -237,6 +239,19 @@ function interruptWithEscape(event: KeyboardEvent) {
 }
 onMounted(() => window.addEventListener('keydown', interruptWithEscape, true));
 onBeforeUnmount(() => window.removeEventListener('keydown', interruptWithEscape, true));
+
+// Drafts are written a moment after typing stops; landing them on the way out keeps the last
+// keystrokes, and an emptied field (a sent message) is already written at once by the writer.
+const flushDrafts = () => chat.flushDrafts();
+onMounted(() => {
+  window.addEventListener('beforeunload', flushDrafts);
+  window.addEventListener('pagehide', flushDrafts);   // a phone may hide the page, never unload it
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', flushDrafts);
+  window.removeEventListener('pagehide', flushDrafts);
+  flushDrafts();
+});
 
 function onKeydown(e: KeyboardEvent) {
   if (props.mobile || !isSendKey(e, sendOnEnter.value) || sending.value) return;

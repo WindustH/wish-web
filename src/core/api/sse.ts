@@ -14,7 +14,14 @@ const DENIED_STATUSES = new Set([401, 403]);    // auth failure — never retrie
 const MAX_FRAME_CHARS = 16 * 1024 * 1024;
 
 export type SseState = 'connecting' | 'open' | 'reconnecting' | 'gone' | 'denied' | 'disabled' | 'closed';
-export type SseError = Error & { status?: number };
+export type SseError = Error & { status?: number; internal?: boolean };
+/** A reason this client handles itself — a silent stream, a connect that timed out, a stream
+ *  that ended or overran a frame — rather than a failure the reader has to be told about. The
+ *  connection keeps reconnecting underneath; callers can tell it apart by `internal`. */
+export class SseInternalError extends Error {
+  readonly internal = true;
+  constructor(message: string) { super(message); this.name = 'SseInternalError'; }
+}
 export interface SseStateEvent { state: SseState; attempt: number; err?: SseError; lastEventId: string }
 export interface SseFrame { event: string; id: string; data: string; retry: number }
 export interface SseOptions {
@@ -37,6 +44,9 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   let heartbeatTimer: ReturnType<typeof setTimeout> | undefined;
   let connectTimer: ReturnType<typeof setTimeout> | undefined;
+  // The reason this client last aborted with. Engines differ on whether a body read errors
+  // with the abort reason or with a bare AbortError of their own; either way, the cause was ours.
+  let internalAbort: SseInternalError | null = null;
 
   const emitState = (s: SseState, err?: SseError) => {
     for (const fn of stateListeners) fn({ state: s, attempt, err, lastEventId });
@@ -62,11 +72,15 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
   function armHeartbeat() {
     if (aborted || terminal) return;
     clearTimeout(heartbeatTimer);
-    heartbeatTimer = setTimeout(() => controller?.abort(new Error('heartbeat timeout')), cfg.sse.heartbeatTimeoutMs);
+    heartbeatTimer = setTimeout(() => {
+      internalAbort = new SseInternalError('heartbeat timeout');
+      controller?.abort(internalAbort);
+    }, cfg.sse.heartbeatTimeoutMs);
   }
 
   async function connect() {
     if (aborted || terminal) return;
+    internalAbort = null;
     controller = new AbortController();
     const headers: Record<string, string> = { accept: 'text/event-stream', ...authHeaders(), ...(extraHeaders || {}) };
     if (lastEventId) headers['last-event-id'] = lastEventId;
@@ -74,10 +88,10 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
     // Connect timeout: headers must arrive within this window or we abort
     // and retry (covers black-holed connections, not just refused ones).
     const connectDeadline = firstTimeoutMs ?? cfg.sse.connectTimeoutMs;
-    connectTimer = setTimeout(
-      () => controller!.abort(new Error('connect timeout')),
-      connectDeadline,
-    );
+    connectTimer = setTimeout(() => {
+      internalAbort = new SseInternalError('connect timeout');
+      controller!.abort(internalAbort);
+    }, connectDeadline);
     try {
       const res = await fetch(url, { headers, signal: controller.signal });
       clearTimeout(connectTimer);
@@ -105,44 +119,26 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
 
       const reader = res.body.getReader();
       const dec = new TextDecoder();
-      let buf = '';
+      const splitter = createFrameSplitter();
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         armHeartbeat();                        // bytes = alive (frames, partials, comments)
-        buf += dec.decode(value, { stream: true });
-        // Incremental CRLF handling: a lone trailing CR is AMBIGUOUS — it
-        // may be the first half of a CRLF split across network chunks. Only
-        // complete CR sequences are normalized; the trailing CR is held
-        // back until the next chunk disambiguates it (review #3).
-        let heldCr = false;
-        if (buf.endsWith('\r')) { buf = buf.slice(0, -1); heldCr = true; }
-        buf = buf.replace(/\r\n?/g, '\n');
-        let idx;
-        while ((idx = buf.indexOf('\n\n')) >= 0) {
-          const chunk = buf.slice(0, idx);
-          buf = buf.slice(idx + 2);
-          const frame = parseFrame(chunk);
-          if (!frame) continue;                // keepalive comment / blank
+        for (const frame of splitter.push(dec.decode(value, { stream: true }))) {
           if (frame.id) lastEventId = frame.id;
           if (!aborted && !terminal) onFrame?.(frame);
         }
-        if (heldCr) buf += '\r';
-        // A stream that keeps sending bytes but never a blank-line frame
-        // boundary would grow `buf` without limit; treat it as a broken
-        // connection and reconnect instead of buffering forever.
-        if (buf.length > MAX_FRAME_CHARS) throw new Error('SSE frame exceeded 16MiB');
         if (aborted || terminal) { reader.cancel().catch(() => {}); return; }
       }
       if (aborted || terminal) return;
       // Server closed the stream cleanly: reconnect (durable tails end).
-      scheduleReconnect(new Error('stream ended'));
+      scheduleReconnect(new SseInternalError('stream ended'));
     } catch (err) {
       clearTimeout(connectTimer);
       if (aborted) return;                     // close(): zero callbacks after
       if (terminal) return;
-      scheduleReconnect(err as SseError);
+      scheduleReconnect((internalAbort ?? err) as SseError);
     }
   }
 
@@ -158,6 +154,37 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
     },
     getLastEventId: () => lastEventId,
     isTerminal: () => terminal,
+  };
+}
+
+/** Turns a byte stream's decoded text into frames, holding what a chunk cannot settle yet.
+ *  CRLF may be split across chunks: a lone trailing CR is ambiguous, so it waits for the next
+ *  chunk to say whether it is one line break or the first half of two (a frame boundary). */
+export interface SseFrameSplitter { push(text: string): SseFrame[] }
+
+export function createFrameSplitter(): SseFrameSplitter {
+  let buf = '';
+  return {
+    push(text) {
+      buf += text;
+      let heldCr = false;
+      if (buf.endsWith('\r')) { buf = buf.slice(0, -1); heldCr = true; }
+      buf = buf.replace(/\r\n?/g, '\n');
+      const frames: SseFrame[] = [];
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) >= 0) {
+        const chunk = buf.slice(0, idx);
+        buf = buf.slice(idx + 2);
+        const frame = parseFrame(chunk);
+        if (frame) frames.push(frame);        // a keepalive comment or blank block is no frame
+      }
+      if (heldCr) buf += '\r';
+      // A stream that keeps sending bytes but never a blank-line frame boundary would grow
+      // `buf` without limit; treat it as a broken connection and reconnect instead of
+      // buffering forever.
+      if (buf.length > MAX_FRAME_CHARS) throw new SseInternalError('SSE frame exceeded 16MiB');
+      return frames;
+    },
   };
 }
 
