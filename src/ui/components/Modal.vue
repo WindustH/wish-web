@@ -11,6 +11,7 @@ import Icon from './Icon.vue';
 import BubbleSurface from './BubbleSurface.vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { useDialogLayer } from '../composables/useDialogLayer.ts';
+import { imageLightbox } from '../imageLightbox.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
 import { prefersReducedMotion } from '../motion/reducedMotion.ts';
 import { useSheetDrag } from '../composables/useSheetDrag.ts';
@@ -74,9 +75,13 @@ function ownFieldDrag(event: Event) {
     try { target.setPointerCapture((event as PointerEvent).pointerId); } catch { /* already gone */ }
   }
 }
+// A picture opened from this window belongs to it: pressing outside or Escape closes the picture,
+// not the window it was opened from. The viewer is a sibling of the window on the body, so without
+// this the window reads every click on it as a click outside.
+function looking() { return !!imageLightbox.value; }
 function outside(event: Event) {
   const target = (event as CustomEvent).detail?.originalEvent?.target as Node | undefined;
-  if ((target instanceof Element && target.closest('.pwa-update')) || !props.dismissable || (bubble.value && (event.target as Element)?.closest?.('[data-session-panel]'))) event.preventDefault();
+  if (looking() || (target instanceof Element && target.closest('.pwa-update')) || !props.dismissable || (bubble.value && (event.target as Element)?.closest?.('[data-session-panel]'))) event.preventDefault();
 }
 watch(() => props.open, open => { if (open) { clearCloseTimer(); closing.value = false; closeCompleted = false; } });
 // Left while closing, it is closed: the page must not bring it back.
@@ -139,7 +144,7 @@ defineExpose({ close: requestClose });
     <DialogPortal v-if="pageActive">
       <DialogOverlay v-if="!bubble" class="modal-overlay" :style="{ zIndex: layer }" />
       <DialogContent :data-modal="mark" @pointerdown.capture="ownFieldDrag" @animationend="onCloseAnimationEnd" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'modal-sheet': sheet, 'session-bubble': bubble, compact: compactCard }, contentClass]" :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }" :aria-describedby="undefined"
-        @escape-key-down="(e: KeyboardEvent) => { if (dismissable === false) e.preventDefault(); else if (page && back) { e.preventDefault(); back(); } }"
+        @escape-key-down="(e: KeyboardEvent) => { if (looking()) e.preventDefault(); else if (dismissable === false) e.preventDefault(); else if (page && back) { e.preventDefault(); back(); } }"
         @interact-outside="outside"
         @pointer-down-outside="outside">
         <BubbleSurface v-if="bubble" class="session-bubble-surface" side="top" :tail-x="24" align-end />
