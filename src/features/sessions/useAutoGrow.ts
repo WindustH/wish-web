@@ -16,6 +16,10 @@ export function useAutoGrow(element: () => HTMLElement | null | undefined, sourc
       el.style.overflowY = 'auto';
       return;
     }
+    // `height: auto` collapses the field for a moment, which is enough for the browser to scroll
+    // it back to its first line. Keep the writer's place across the measurement.
+    const top = el.scrollTop;
+    const atEnd = top + el.clientHeight >= el.scrollHeight - 1;
     el.style.height = 'auto';
     const style = getComputedStyle(el);
     const lineH = parseFloat(style.lineHeight);
@@ -24,7 +28,9 @@ export function useAutoGrow(element: () => HTMLElement | null | undefined, sourc
       lineH * (options.mobile() ? cfg.composer.mobileMaxRows : cfg.composer.desktopMaxRows) + padding,
       window.innerHeight * cfg.composer.maxHeightVh,
     );
+    const limit = el.scrollHeight > maxPx;
     el.style.height = Math.min(el.scrollHeight, maxPx) + 'px';
-    el.style.overflowY = el.scrollHeight > maxPx ? 'auto' : 'hidden';
+    el.style.overflowY = limit ? 'auto' : 'hidden';
+    el.scrollTop = atEnd ? el.scrollHeight : top;
   });
 }

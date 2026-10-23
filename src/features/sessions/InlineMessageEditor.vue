@@ -96,7 +96,14 @@ function render(text: string, restore?: Selection) {
     }
   }
   if (text.endsWith('\n')) { const tail = document.createElement('br'); tail.dataset.editorTail = ''; fragment.append(tail); }
+  // Rewriting the children throws away the field's scroll position: a draft longer than the box
+  // jumped back to its first line on every keystroke. Put the view back where it was, and follow
+  // the caret when the writer was already at the end of the draft.
+  const top = el.value.scrollTop, left = el.value.scrollLeft;
+  const atEnd = top + el.value.clientHeight >= el.value.scrollHeight - 1;
   el.value.replaceChildren(fragment);
+  el.value.scrollTop = atEnd ? el.value.scrollHeight : top;
+  el.value.scrollLeft = left;
   if (restore) setSelection(restore.start, restore.end);
 }
 function update(text: string, record = true) {
