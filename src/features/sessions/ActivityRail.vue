@@ -14,6 +14,7 @@ import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { layoutRail, type RailEvent, type RailNode, type RailRow } from './railLayout.ts';
 import ProcessDetail from './entries/ProcessDetail.vue';
 import { summarizeSteps, toolResultsKey } from './entries/processDetails.ts';
+import VirtualRows from '../../ui/components/VirtualRows.vue';
 
 const props = defineProps<{ rows: RailRow[]; total: number; visible: boolean; session?: string }>();
 const emit = defineEmits<{ open: [request: { chipKey: string; stepKey: string | null; solo?: boolean }] }>();
@@ -63,16 +64,16 @@ const label = (node: RailNode) => node.events.length === 1 ? node.tip
       <span class="history-rail-tip" aria-hidden="true">{{ label(node) }}</span>
     </button>
     <Modal :open="!!gathered" :sheet="isMobile" wide :title="gatherTitle" content-class="process-window" @close="gathered = null">
-      <ol class="proc-timeline">
-        <li v-for="event in gathered?.events ?? []" :key="`${event.chipKey}:${event.stepKey ?? ''}`" class="proc-event"
+      <VirtualRows v-slot="{ index }" class="process-virtual" :count="gathered?.events.length ?? 0" :item-key="index => `${gathered!.events[index]!.chipKey}:${gathered!.events[index]!.stepKey ?? ''}`">
+        <div v-for="event in [gathered!.events[index]!]" :key="`${event.chipKey}:${event.stepKey ?? ''}`" class="proc-event"
           :class="{ thinking: isThinking(event), failed: event.failed }">
           <button type="button" class="proc-event-button" :class="{ current: detail?.key === (event.stepKey ?? event.chipKey) }"
             :data-seq="event.seq" @click="pick(event)">
             <span class="proc-event-mark"><Icon v-if="event.icon && !isThinking(event)" :name="event.icon" /></span>
             <span class="proc-event-text"><strong>{{ event.tip }}</strong><small v-if="event.preview">{{ event.preview }}</small></span>
           </button>
-        </li>
-      </ol>
+        </div>
+      </VirtualRows>
     </Modal>
     <!-- A picked step's own window, over the gathered list: closing it returns to the list. -->
     <ProcessDetail v-if="solo" :step="solo" :related-result="relatedResult" :session="session" @close="solo = null" />

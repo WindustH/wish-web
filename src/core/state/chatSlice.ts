@@ -70,6 +70,7 @@ export const chat = (() => {
     },
     onTurnComplete(kind, turnVersion) {
       if (history.viewingPast()) return;
+      if (loadingInitial.value) { scheduleRefresh(); return; }
       const own = epoch;
       void fetchNewer().then((result) => {
         if (
@@ -206,7 +207,7 @@ export const chat = (() => {
     } catch (cause) {
       if (current(own)) error.value = cause;
     } finally {
-      if (current(own)) loadingInitial.value = false;
+      if (current(own)) { loadingInitial.value = false; scheduleRefresh(); }
     }
 
     if (!current(own)) return;
@@ -225,6 +226,9 @@ export const chat = (() => {
 
   async function refresh() {
     if (refreshing || !sessionId.value) return;
+    // Initial history may be completing a large album. Reconciliation must not publish a
+    // separate partial window (from sequence zero) while that atomic read is still pending.
+    if (loadingInitial.value) { scheduleRefresh(); return; }
     refreshing = true;
     const own = epoch;
     const id = sessionId.value;

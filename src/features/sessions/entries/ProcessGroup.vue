@@ -15,9 +15,10 @@ import ProcessDetail from './ProcessDetail.vue';
 import { fileEdits, parseDiff, toolIcon, toolOutput, toolTitle, stepSeq, stepToolName, diffCounts, searchResults, stepIcons, summarizeSteps, stepFailed, toolResultsKey } from './processDetails.ts';
 import { expandedBefore, setExpanded, setStep, stepBefore } from '../expandState.ts';
 import { chipFace } from './railMeta.ts';
+import VirtualRows from '../../../ui/components/VirtualRows.vue';
 
 const props = defineProps<{ item: any; forced?: boolean; session?: string; variant?: 'chip' | 'node' | 'ghost';
-  openTick?: number; openStep?: { key: string; tick: number; solo?: boolean } }>();
+  openTick?: number; openStep?: { key: string; tick: number; solo?: boolean }; targetSeq?: number }>();
 const isMobile = useIsMobile();
 const steps = computed(() => props.item.steps ?? []);
 // The window and the step open in it outlast this button: the button moves into the reply that
@@ -31,9 +32,9 @@ const diffOnly = ref(kept?.diffOnly ?? false);
 const solo = ref<any>(null);
 watch(open, value => { if (props.session) setExpanded(props.session, props.item.key, value); });
 watch([detail, diffOnly], ([step, only]) => { if (props.session) setStep(props.session, props.item.key, step ? { key: step.key, diffOnly: only } : undefined); });
-watch(() => props.openTick, tick => { if (tick) open.value = true; });
+watch(() => props.openTick, tick => { if (tick) open.value = true; }, { immediate: true });
 // A pick in the rail's gathered window: the step opens in a window of its own, the list gone first.
-watch(() => props.openStep, pick => {
+function receivePick(pick: typeof props.openStep) {
   if (!pick) return;
   const event = timeline.value.find((entry: any) => entry.key === pick.key);
   const step = event?.step ?? steps.value.find((s: any) => s.key === pick.key);
@@ -43,11 +44,12 @@ watch(() => props.openStep, pick => {
   // A node that stands for one event asks for that event alone: no list behind it.
   open.value = !pick.solo;
   solo.value = step;
-});
+}
 // A call's result: in the run, or for a call made beside a question or a notice, in a later one.
 const sessionResults = inject(toolResultsKey, null);
-const resultOf = (callId: string) => steps.value.find((step: any) => step.kind === 'entry' && step.entry.payload?.tool_call_id === callId)
-  ?? sessionResults?.value.get(callId) ?? null;
+const localResults = computed(() => new Map<string, any>(steps.value.filter((step: any) => step.kind === 'entry' && step.entry.payload?.tool_call_id)
+  .map((step: any) => [step.entry.payload.tool_call_id, step])));
+const resultOf = (callId: string) => localResults.value.get(callId) ?? sessionResults?.value.get(callId) ?? null;
 const summary = computed(() => summarizeSteps(steps.value, i18n.locale.value === 'zh'));
 const icons = computed(() => stepIcons(steps.value));
 const face = computed(() => chipFace(props.item, resultOf));
@@ -87,10 +89,16 @@ const timeline = computed(() => steps.value.flatMap((s: any) => {
   return [{ key: s.key, step: s, seq: stepSeq(s), resultSeq: undefined, failed: false, thinking: true, icon: '', title: preview(s) || i18n.t('entry.thinking'),
     tip: i18n.t('entry.thinking'), detail: '' }];
 }));
+watch(() => props.openStep, receivePick, { immediate: true });
 // A call shown with its result.
 const relatedResult = computed(() => detail.value?.block?.type === 'tool_call' ? resultOf(detail.value.block.id) : null);
-const diffs = computed(() => steps.value.flatMap((step: any) => fileEdits(step).map((edit: any, index: number) => ({ step, edit, key: `${step.key}:${index}` })))
-  .map((item: any) => ({ ...item, ...diffCounts(parseDiff(item.edit.diff ?? '')) })));
+const diffs = computed(() => steps.value.flatMap((step: any) => fileEdits(step).map((edit: any, index: number) => ({ step, edit, key: `${step.key}:${index}` }))));
+const changeCounts = (change: any) => diffCounts(parseDiff(change.edit.diff ?? ''));
+const windowRows = computed(() => open.value ? [
+  ...timeline.value.map((event: any) => ({ kind: 'event', key: event.key, event })),
+  ...diffs.value.map((change: any) => ({ kind: 'diff', key: `diff:${change.key}`, change })),
+] : []);
+const locateIndex = computed(() => props.targetSeq == null ? undefined : timeline.value.findIndex((event: any) => event.seq === props.targetSeq || event.resultSeq === props.targetSeq));
 // A click on the run's own node - and a search that found it. One act opens its own window; a run
 // of acts opens the list, whose every row then opens a window of its own.
 function openNode() {
@@ -131,17 +139,21 @@ function show(step: any, onlyDiff = false) {
       <Icon v-for="name in icons" :key="name" :name="name" />
     </button>
     <Modal :open="open" :sheet="isMobile" wide :title="summary" content-class="process-window" @close="open = false">
-      <ol class="proc-timeline">
-        <li v-for="event in timeline" :key="event.key" class="proc-event" :class="{ thinking: event.thinking, failed: event.failed }">
-          <button type="button" class="proc-event-button" :class="{ current: detail?.key === event.key }" :data-seq="event.seq" :data-result-seq="event.resultSeq" @click="show(event.step)">
-            <span class="proc-event-mark"><Icon v-if="event.icon" :name="event.icon" /></span>
-            <span class="proc-event-text"><strong>{{ event.title }}</strong><small v-if="event.detail">{{ event.detail }}</small></span>
+      <VirtualRows v-slot="{ index }" class="process-virtual" :count="windowRows.length" :item-key="index => windowRows[index]!.key" :locate-index="locateIndex">
+        <template v-if="windowRows[index]!.kind === 'event'">
+          <div v-for="event in [windowRows[index]!.event]" :key="event.key" class="proc-event" :class="{ thinking: event.thinking, failed: event.failed }">
+            <button type="button" class="proc-event-button" :class="{ current: detail?.key === event.key }" :data-seq="event.seq" :data-result-seq="event.resultSeq" @click="show(event.step)">
+              <span class="proc-event-mark"><Icon v-if="event.icon" :name="event.icon" /></span>
+              <span class="proc-event-text"><strong>{{ event.title }}</strong><small v-if="event.detail">{{ event.detail }}</small></span>
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <button v-for="change in [windowRows[index]!.change]" :key="change.key" type="button" class="process-diff-card" @click="show(change.step, true)">
+            <Icon name="file-diff" /><span>{{ change.edit.path }}<small>{{ tr('文件修改', 'File changes') }}</small></span><span v-if="change.edit.diff" class="process-diff-count"><template v-for="totals in [changeCounts(change)]"><b>+{{ totals.added }}</b><b>−{{ totals.removed }}</b></template></span><Icon name="chevron-right" />
           </button>
-        </li>
-      </ol>
-      <button v-for="change in diffs" :key="change.key" type="button" class="process-diff-card" @click="show(change.step, true)">
-        <Icon name="file-diff" /><span>{{ change.edit.path }}<small>{{ tr('文件修改', 'File changes') }}</small></span><span v-if="change.edit.diff" class="process-diff-count"><b>+{{ change.added }}</b><b>−{{ change.removed }}</b></span><Icon name="chevron-right" />
-      </button>
+        </template>
+      </VirtualRows>
     </Modal>
     <!-- One step's own window, over the list: closing it returns to the list. -->
     <ProcessDetail v-if="solo" :step="solo" :related-result="relatedResult" :session="session" :diff-only="diffOnly" @close="solo = null" />

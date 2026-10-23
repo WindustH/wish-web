@@ -12,7 +12,7 @@ const props = defineProps<{ item: any; forced?: boolean; variant?: 'chip' | 'nod
 const open = ref(false);
 // A search that found something in the notice opens it; so does the rail's list picking it.
 watch(() => props.forced, forced => { if (forced) open.value = true; }, { immediate: true });
-watch(() => props.openTick, tick => { if (tick) open.value = true; });
+watch(() => props.openTick, tick => { if (tick) open.value = true; }, { immediate: true });
 const isMobile = useIsMobile();
 const detailModal = ref<InstanceType<typeof Modal> | null>(null);
 // The notice's faces live in railMeta.ts, shared with the rail that gathers it, so the two can

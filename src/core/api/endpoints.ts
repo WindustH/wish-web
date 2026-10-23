@@ -2,6 +2,8 @@
 // combine requests say so. The shapes they take and return are in types.ts.
 import { get, post, patch, put, del, api, getBaseUrl } from './client.ts';
 import { sessionView, entryView, providerView, type EntryView, type ProviderView, type ToolSwitches } from './projections.ts';
+import { completeHistoryContext } from './historyContext.ts';
+import { cfg } from '../config.ts';
 import type { SeriesQuery, DailyQuery, UsageSeriesResponse, UsageDailyResponse } from '../usage/types.ts';
 import type { ConfigCatalog, ProviderConfig } from '../provider-presets.ts';
 import type {
@@ -117,8 +119,15 @@ export async function sessionCapabilities(id: string, opts?: EndpointOptions): P
 
 // History.
 export async function historyPage(id: string, params: HistoryQuery, opts?: EndpointOptions): Promise<{ items: EntryView[]; has_more: boolean; next_cursor: any }> {
-  const page = await get(`${path(id)}/history`, { query: { ...params, include_outcomes: true }, ...opts });
-  return { items: page.items.map((item: unknown) => entryView(item, id)), has_more: page.next != null, next_cursor: page.next };
+  const read = async (query: HistoryQuery) => {
+    const page = await get(`${path(id)}/history`, { query: { ...query, include_outcomes: true }, ...opts });
+    return { items: page.items.map((item: unknown) => entryView(item, id)) as EntryView[], has_more: page.next != null, next_cursor: page.next };
+  };
+  const order = params.order ?? 'desc';
+  const page = await read(params);
+  const complete = await completeHistoryContext(page, order, edge => read({ order, limit: cfg.history.contextPageSize,
+    ...(order === 'desc' ? { before: edge } : { after: edge }) }), opts?.signal);
+  return { ...complete, next_cursor: complete.has_more ? { ...page.next_cursor, after_sequence: complete.items.at(-1)?.seq } : null };
 }
 export async function historySearch(id: string, params: HistorySearchParams, opts?: EndpointOptions): Promise<{ items: HistoryHit[]; has_more: boolean; next_cursor: null }> {
   const result = await post(`${path(id)}/history/search`, { query: { text: params.q, mode: 'substring', limit: params.limit ?? 50 },

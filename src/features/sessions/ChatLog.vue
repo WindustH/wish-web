@@ -340,7 +340,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
           :class="{ 'status-error-row': groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error', 'history-target': holdsTarget(groups[v.index]), 'row-enter': fresh.has(groups[v.index]?.key ?? '') }"
           :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }">
           <HistoryItem v-if="['entry', 'image_album', 'process', 'chips', 'question'].includes(groups[v.index]?.type ?? '')" :item="groups[v.index]!"
-            :forced-keys="forcedOpen" :session="sessionId" />
+            :forced-keys="forcedOpen" :session="sessionId" :locate-seq="chat.pendingSeq.value ?? undefined" />
           <div v-else-if="groups[v.index]?.type === 'status_request_error' && requestFailure" class="chat-run-error" role="alert">
             <strong>{{ i18n.t('chat.requestFailed') }}</strong>
             <p>{{ requestFailure.message }}</p>

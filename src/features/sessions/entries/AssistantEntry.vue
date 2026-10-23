@@ -11,10 +11,11 @@ import HistoryChips from './HistoryChips.vue';
 import ImageGrid from './ImageGrid.vue';
 import { imageParts } from '../imageAlbums.ts';
 
-const props = defineProps<{ item: any; session?: string; forcedKeys?: ReadonlySet<string> }>();
+const props = defineProps<{ item: any; session?: string; forcedKeys?: ReadonlySet<string>; locateSeq?: number }>();
 const before = computed(() => props.item.before ?? []);
 const texts = computed(() => (props.item.blocks || []).filter((b: any) => b.type === 'text'));
 const parts = computed(() => imageParts<any>(props.item.blocks || []));
+const locateIndex = computed(() => props.locateSeq == null ? undefined : props.item.imageSeqs?.indexOf(props.locateSeq));
 const blobSrc = (b: any) => b.data_base64
   ? `data:${b.mime_type || 'image/png'};base64,${b.data_base64}`
   : b.blob_id || b.sha256 ? blobUrl(b.blob_id || b.sha256) : null;
@@ -25,11 +26,11 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
 <template>
   <MessageContext :text="joined" kind="assistant">
     <div class="entry assistant">
-      <HistoryChips v-if="before.length" :chips="before" :session="session" :forced-keys="forcedKeys" />
+      <HistoryChips v-if="before.length" :chips="before" :session="session" :forced-keys="forcedKeys" :locate-seq="locateSeq" />
       <div class="body">
         <template v-for="(part, i) in parts" :key="i">
-          <ImageGrid v-if="part.type === 'album'" v-slot="{ limit }" :count="part.blocks.length" :force-open="forcedKeys?.has(item.key)">
-            <div v-for="(image, index) in part.blocks.slice(0, limit)" :key="index" class="entry-anchor" :data-seq="item.imageSeqs?.[index]">
+          <ImageGrid v-if="part.type === 'album'" v-slot="{ start, limit }" :count="part.blocks.length" :force-open="forcedKeys?.has(item.key)" :locate-index="locateIndex">
+            <div v-for="(image, index) in part.blocks.slice(start, limit)" :key="start + index" class="entry-anchor" :data-seq="item.imageSeqs?.[start + index]">
               <ApiImage v-if="blobSrc(image)" :src="blobSrc(image)!" :alt="image.filename || ''" loading="lazy" decoding="async" />
             </div>
           </ImageGrid>

@@ -6,12 +6,19 @@ import { shallowRef } from 'vue';
 export type LightboxImage = { src: string; alt?: string };
 
 export const imageLightbox = shallowRef<LightboxImage | null>(null);
+let ownedUrl: string | undefined;
+function releaseImage() { if (ownedUrl) URL.revokeObjectURL(ownedUrl); ownedUrl = undefined; }
 
-export function openImageLightbox(src: string, alt?: string) {
+export function openImageLightbox(src: string, alt?: string, blob?: Blob) {
   if (!src) return;
-  imageLightbox.value = { src, alt };
+  releaseImage();
+  // A thumbnail in a virtual grid can unmount while its original is still open. The viewer
+  // owns its own URL, independently of the thumbnail's authenticated fetch and cleanup.
+  if (blob) ownedUrl = URL.createObjectURL(blob);
+  imageLightbox.value = { src: ownedUrl ?? src, alt };
 }
 
 export function closeImageLightbox() {
   imageLightbox.value = null;
+  releaseImage();
 }

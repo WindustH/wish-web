@@ -60,8 +60,9 @@ export interface ChipFace { icon: string; count: number; failed: boolean; warn: 
 /** Where a call's result is for the merge below: in the run, or in a later one the session kept. */
 export function resultLookup(chip: any, sessionResults?: Map<string, any> | null) {
   const steps: any[] = chip?.type === 'process' ? chip.steps ?? [] : [];
-  return (callId: string) => steps.find(step => step.kind === 'entry' && step.entry.payload?.tool_call_id === callId)
-    ?? sessionResults?.get(callId) ?? null;
+  const results = new Map(steps.filter(step => step.kind === 'entry' && step.entry.payload?.tool_call_id)
+    .map(step => [step.entry.payload.tool_call_id, step]));
+  return (callId: string) => results.get(callId) ?? sessionResults?.get(callId) ?? null;
 }
 
 /** A chip as one rail node: its first act as the icon, its events as the count badge, the worst

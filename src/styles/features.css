@@ -190,6 +190,7 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 /* The timeline: each step's mark on a thin line, its title and one line of what it did beside. */
 .proc-timeline { position: relative; display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .proc-timeline::before { content: ''; position: absolute; top: 14px; bottom: 14px; left: 15px; border-left: 1px solid var(--line); }
+.process-virtual .virtual-rows-space { background:linear-gradient(var(--line), var(--line)) 15px 14px / 1px calc(100% - 28px) no-repeat; }
 .proc-event-button { position: relative; display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 6px 8px 6px 2px; border: 0; border-radius: 8px; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
 /* The step whose panel is open below: a quiet mark, no more. */
 .proc-event-button.current { background: var(--bg-hover); }

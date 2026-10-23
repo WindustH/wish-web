@@ -36,6 +36,7 @@ export const cfg = Object.freeze({
 
   history: {
     pageSize: 40,                     // /history page (also the DOM chunk size)
+    contextPageSize: 256,             // finish a picture/activity group cut by a page
     reconcileDelayMs: 250,            // wait after response_complete before fetch
     maxDrainPages: 8,                // fetchNewer(): pages per drain burst (safety cap)
     prefetchOlderTriggerPx: 320,      // load older when scroll within this of top

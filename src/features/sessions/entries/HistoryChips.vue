@@ -8,8 +8,9 @@ import type { ChipItem } from '../grouping.ts';
 import { railOpenKey } from '../railState.ts';
 import ProcessGroup from './ProcessGroup.vue';
 import SystemEntry from './SystemEntry.vue';
+import { expandedBefore } from '../expandState.ts';
 
-const props = defineProps<{ chips: ChipItem<any>[]; session?: string; forcedKeys?: ReadonlySet<string> }>();
+const props = defineProps<{ chips: ChipItem<any>[]; session?: string; forcedKeys?: ReadonlySet<string>; locateSeq?: number }>();
 // A step preset for a run, a plain open for a notice - the same ticks the rail's list trips.
 const stepPicks = ref<Record<string, { key: string; tick: number; solo?: boolean }>>({});
 const noticeTicks = ref<Record<string, number>>({});
@@ -23,13 +24,17 @@ watch(() => openRequest?.value, request => {
   else
     noticeTicks.value = { ...noticeTicks.value, [chip.key]: (noticeTicks.value[chip.key] ?? 0) + 1 };
 }, { deep: false });
-const hosted = computed(() => props.chips);
+// A rail can represent thousands of steps. Mount a window host only after it is requested,
+// rather than creating every closed modal and all its watchers along with the rail.
+const hosted = computed(() => props.chips.filter(chip => props.forcedKeys?.has(chip.key)
+  || stepPicks.value[chip.key] || noticeTicks.value[chip.key]
+  || (!!props.session && expandedBefore(props.session, chip.key))));
 </script>
 
 <template>
   <span class="history-rail-host">
     <ProcessGroup v-for="chip in hosted.filter(entry => entry.type === 'process')" :key="chip.key" variant="ghost" :item="chip" :session="session"
-      :forced="forcedKeys?.has(chip.key)" :open-step="stepPicks[chip.key]" />
+      :forced="forcedKeys?.has(chip.key)" :open-step="stepPicks[chip.key]" :open-tick="noticeTicks[chip.key]" :target-seq="locateSeq" />
     <SystemEntry v-for="chip in hosted.filter(entry => entry.type !== 'process')" :key="chip.key" variant="ghost" :item="chip"
       :forced="forcedKeys?.has(chip.key)" :open-tick="noticeTicks[chip.key]" />
   </span>
