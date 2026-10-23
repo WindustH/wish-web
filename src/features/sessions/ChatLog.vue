@@ -19,6 +19,7 @@ import type { EntryView } from '../../core/api/projections.ts';
 import HistoryItem from './HistoryItem.vue';
 import Markdown from '../../ui/components/Markdown.vue';
 import ThinkingViewport from './ThinkingViewport.vue';
+import RetryStatus from './RetryStatus.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useLiveBlocks } from './useLiveBlocks.ts';
 import { useChatScroll } from './useChatScroll.ts';
@@ -43,6 +44,7 @@ onUnmounted(() => { epoch++; });
 const scrollEl = ref<HTMLElement | null>(null);
 const scrollContentEl = ref<HTMLElement | null>(null);
 const streamState = computed(() => chat.stream.value);
+const retries = computed(() => Object.values(streamState.value.retries));
 const running = computed(() => streamState.value?.active);
 const runFailure = computed(() => {
   if (running.value) return null;
@@ -359,7 +361,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
       <div v-if="workIndicator === 'run'" :key="sessionId" class="live-row" aria-live="polite">
         <div v-if="streamText" class="live-text"><Markdown v-for="(b, i) in liveBlocks.stable" :key="i" :text="b" /><Markdown v-if="liveBlocks.tail" :key="'tail'" :text="liveBlocks.tail" /></div>
         <ThinkingViewport v-else-if="streamReasoning" :key="sessionId" :text="streamReasoning" :tool="streamState?.currentTool" />
-        <div class="work-status-slot"><Transition name="work-status">
+        <div v-if="!retries.length" class="work-status-slot"><Transition name="work-status">
           <div :key="workStatus" class="live-status" role="status">
             <Icon class="work-spinner" name="loader-circle" />
             <span>{{ workStatus }}</span>
@@ -368,6 +370,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
         </Transition></div>
       </div>
       </Transition>
+      <RetryStatus v-if="retries.length" class="live-row" :retries="retries" />
       <Transition name="live-work">
       <div v-if="workIndicator === 'compacting'" :key="sessionId" class="live-row" role="status">
         <div class="work-status-slot"><div class="live-status"><Icon class="work-spinner" name="loader-circle" /><span>{{ i18n.t('chat.compacting') }}</span></div></div>

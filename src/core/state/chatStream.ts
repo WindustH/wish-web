@@ -1,4 +1,5 @@
 import { operationFailure } from '../api/failures.ts';
+import { readUpstreamRetry, type UpstreamRetry } from '../upstreamRetry.ts';
 // Stream event processing and live execution state for chat sessions.
 import { i18n } from '../i18n/index.ts';
 
@@ -20,6 +21,7 @@ export interface StreamState {
   gap: boolean;
   startedAt: number;
   standbyPreparing: boolean;
+  retries: Record<string, UpstreamRetry>;
 }
 
 export function createEmptyStream(): StreamState {
@@ -36,6 +38,7 @@ export function createEmptyStream(): StreamState {
     gap: false,
     startedAt: 0,
     standbyPreparing: false,
+    retries: {},
   };
 }
 
@@ -89,6 +92,10 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
         for (const event of data.live_events) {
           next = processFrame(JSON.stringify({ type: 'session_event', event }), next);
         }
+        next.retries = Object.fromEntries((data.retries ?? []).flatMap((value: any) => {
+          const retry = readUpstreamRetry(value, data.server_time);
+          return retry ? [[retry.requestId, retry]] : [];
+        }));
         callbacks.onScheduleRefresh();
         return next;
       }
@@ -98,9 +105,20 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
         return { ...current, gap: data.type === 'gap' };
       }
 
+      if (data.type === 'upstream_retry') {
+        const retries = { ...current.retries };
+        const value = data.retry;
+        if (value?.phase === 'finished') delete retries[value.request_id];
+        else {
+          const retry = readUpstreamRetry(value);
+          if (retry) retries[retry.requestId] = retry;
+        }
+        return { ...current, retries };
+      }
+
       if (data.type === 'operation_failed' || data.type === 'operation_finished') {
         callbacks.onScheduleRefresh();
-        return { ...current, active: false, phase: 'idle', error: operationFailure(data) };
+        return { ...current, active: false, phase: 'idle', error: operationFailure(data), retries: {} };
       }
 
       if (data.type !== 'session_event') {
@@ -114,6 +132,7 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
         reasoningBlocks.clear();
         return {
           ...createEmptyStream(),
+          retries: current.retries,
           active: true,
           phase: 'streaming',
           startedAt: Date.now(),
