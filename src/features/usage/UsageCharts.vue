@@ -10,11 +10,11 @@ import { cfg } from '../../core/config.ts';
 import type { SeriesQuery, DailyQuery } from '../../core/usage/types.ts';
 const props = defineProps<{ sessionId?: string }>();
 const active = usePageActivity();
-const range = ref<RangeSelection>({period:'day'});
+const range = ref<RangeSelection>({period:'week'});
 const rangeSwitching = ref(false);
 const calendarSwitching = ref(false);
 const calendarColumns = ref(44);
-const calendarRange = ref<RangeSelection>({period:'year'});
+const calendarRange = ref<RangeSelection>({period:'week'});
 const timezone = ref(offsetLabel(-new Date().getTimezoneOffset()));
 // The last response per query opens instantly; per-session charts stay in memory only.
 const cacheKey = (kind: string) => (input: { sessionId?: string; query: object }) => ({ key: `usage-${kind}:${input.sessionId ?? ''}:${JSON.stringify(input.query)}`, persist: !input.sessionId });

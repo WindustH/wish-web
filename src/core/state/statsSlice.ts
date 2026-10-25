@@ -23,7 +23,7 @@ export const stats = (() => {
   const error = shallowRef<unknown>(null);
   const updatedAt = shallowRef<number | null>(null);
   // Usage totals follow a chosen window; the other figures are always current.
-  const usageRange = shallowRef<TotalsRange>({ period: 'all' });
+  const usageRange = shallowRef<TotalsRange>({ period: 'week' });
   const usageSwitching = shallowRef(false);
   const usageKey = (range: TotalsRange) => `stats-usage:${JSON.stringify(range)}`;
   let usageController: AbortController | null = null;

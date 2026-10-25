@@ -302,3 +302,9 @@ export interface InspectionHistoryPage { items: { record: { sequence: number; re
 export const sessionInspectContext = (id: string, opts?: EndpointOptions): Promise<ContextInspection> => get(`${path(id)}/context/inspect`, opts);
 export const sessionInspectHistory = (id: string, cursor: unknown | null, opts?: EndpointOptions): Promise<InspectionHistoryPage> => post(`${path(id)}/history/query`, { page: { limit: 50, order: 'oldest_first', cursor } }, opts);
 export const sessionInspectRecord = (id: string, sequence: number, opts?: EndpointOptions): Promise<unknown> => get(`${path(id)}/history/${sequence}`, opts);
+
+export interface StoredGeneration { id: number; status: 'Active' | 'Standby' | 'Sealed'; entries: unknown; config: Record<string, unknown>; compaction_cursor: number; source: [number, number] | null }
+export interface GenerationEntry { id: number; origin: string; recorded_at: number; model_call_id: number | null; message: Record<string, any> }
+export interface GenerationStructure { generation: StoredGeneration; count: number; start: number; next: number | null; positions: number[]; items: GenerationEntry[] }
+export const sessionGenerations = (id: string, start: number, opts?: EndpointOptions): Promise<{ items: StoredGeneration[]; next: number | null }> => get(`${path(id)}/generations`, { ...opts, query: { start, limit: 100 } });
+export const sessionGenerationStructure = (id: string, generation: number, start: number, kind: string, origin: string, opts?: EndpointOptions): Promise<GenerationStructure> => get(`${path(id)}/generations/${generation}/structure`, { ...opts, query: { start, limit: 20, ...(kind ? { kind } : {}), ...(origin ? { origin } : {}) } });

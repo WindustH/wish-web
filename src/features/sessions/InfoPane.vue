@@ -21,7 +21,7 @@ import { RouterLink } from 'vue-router';
 import Icon from '../../ui/components/Icon.vue';
 import type { GroupView } from '../../core/api/types.ts';
 
-const ContextInspector = defineAsyncComponent(() => import('./ContextInspector.vue'));
+const GenerationInspector = defineAsyncComponent(() => import('./GenerationInspector.vue'));
 const inspectOpen = ref(false);
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 defineEmits<{ close: [] }>();
@@ -102,7 +102,6 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
           <h4>{{ tr('上下文', 'Context') }}</h4>
           <span class="context-state"><i aria-hidden="true" />{{ levelLabel }}</span>
         </header>
-        <button class="btn ghost sm" @click="inspectOpen = true">{{ tr('检视模型上下文与历史', 'Inspect model context and history') }}</button>
         <div class="context-bar" role="meter" :aria-valuenow="gauge.tokens ?? 0" aria-valuemin="0" :aria-valuemax="gauge.trigger ?? gauge.window ?? 0" :aria-valuetext="gauge.ratio == null ? levelLabel : percent(gauge.ratio)">
           <span class="context-fill" :style="{ width: at(gauge.tokens) }" />
           <span v-if="gauge.trigger" class="context-trigger" :style="{ left: at(gauge.trigger) }" />
@@ -112,6 +111,7 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
           <div class="trigger"><dt><i aria-hidden="true" />{{ tr('触发压缩', 'Compaction at') }}</dt><dd>{{ gauge.trigger ? fmtTokens(gauge.trigger) : tr('未启用', 'Off') }}</dd><small>{{ remaining != null ? tr('还剩 ', '') + fmtTokens(remaining) + tr('', ' left') : '' }}</small></div>
           <div class="window"><dt>{{ tr('模型上限', 'Model window') }}</dt><dd>{{ gauge.window ? fmtTokens(gauge.window) : tr('未知', 'Unknown') }}</dd><small>{{ gauge.window ? '' : tr('可在模型设置中填写', 'Set it in model settings') }}</small></div>
         </dl>
+        <button class="context-structure-link" @click="inspectOpen = true"><Icon name="instruction" /><span><strong>{{ tr('查看上下文结构', 'View context structure') }}</strong><small>{{ tr('当前与历史 Generation', 'Current and historical generations') }}</small></span><Icon name="chevron-right" /></button>
       </section>
 
       <section v-if="groups.length" class="info-card">
@@ -150,10 +150,17 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
     </section>
     <UsageCharts v-if="chat.sessionId.value" :session-id="chat.sessionId.value" />
   </Modal>
-<ContextInspector v-if="inspectOpen && snapshot" :session-id="snapshot.id" @close="inspectOpen = false" />
+<GenerationInspector v-if="inspectOpen && snapshot" :session-id="snapshot.id" @close="inspectOpen = false" />
 </template>
 
 <style scoped>
+.context-structure-link { display:flex; align-items:center; gap:12px; width:100%; padding:16px 0 0; margin-top:16px; border:0; border-top:1px solid var(--border); background:transparent; color:inherit; text-align:left; cursor:pointer; }
+.context-structure-link > span { display:flex; flex:1; flex-direction:column; gap:4px; }
+.context-structure-link strong { font-size:14px; font-weight:500; }
+.context-structure-link small { font-size:12px; color:var(--fg-subtle); }
+.context-structure-link:hover { color:var(--accent); }
+.context-structure-link > .icon { width:20px; height:20px; flex-shrink:0; }
+
 .info-phase { display: inline-flex; flex: none; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 99px; background: var(--bg-sunken); color: var(--fg-muted); font-size: 12px; font-weight: 500; }
 .info-phase i { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-faint); }
 .info-phase.running i { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); animation: info-pulse 1.6s ease-in-out infinite; }

@@ -11,6 +11,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import { createApp, h, ref, provide } from 'vue';
 import { TooltipProvider } from 'reka-ui';
+import GenerationInspector from '/src/features/sessions/GenerationInspector.vue';
 import ContextInspector from '/src/features/sessions/ContextInspector.vue';
 import ToolExecutionRow from '/src/features/settings/ToolExecutionRow.vue';
 import PickerDialog from '/src/ui/components/PickerDialog.vue';
@@ -39,7 +40,18 @@ window.inspectionReads=0;
 window.fetch=async (input,options)=>{
  const url=String(input);
  let value;
- if(url.endsWith('/context/inspect')) value={provider:'fixture',captured_at:0,request:{model:'fixture',conversation:Array.from({length:2000},(_,i)=>({System:{content:[{Text:{text:'Full system instructions '+i}}]}})),tools:[{name:'shell_start',description:'Run command',input_schema:{type:'object'}}]}};
+ const parsed=new URL(url,location.href);
+ const generations=[{id:0,status:'Sealed',config:{model:'old'},compaction_cursor:0,source:null},{id:1,status:'Standby',config:{model:'new'},compaction_cursor:0,source:[2,10]},{id:2,status:'Active',config:{model:'new'},compaction_cursor:3,source:null}];
+ if(parsed.pathname.endsWith('/generations')) value={items:generations,next:null};
+ else if(parsed.pathname.endsWith('/structure')) {
+  const generation=generations[Number(parsed.pathname.split('/').at(-2))];
+  const start=Number(parsed.searchParams.get('start')||0),kind=parsed.searchParams.get('kind'),origin=parsed.searchParams.get('origin');
+  const all=Array.from({length:45},(_,i)=>({position:i,entry:{id:i+100,origin:i%2?'Input':'Model',recorded_at:0,model_call_id:null,message:{[i%2?'User':'Assistant']:{content:[{Text:{text:'# raw **text** generation '+generation.id+' item '+i}}]}}}}));
+  const shown=all.filter(row=>row.position>=start&&(!kind||Object.keys(row.entry.message)[0]===kind)&&(!origin||row.entry.origin===origin)).slice(0,20);
+  const after=(shown.at(-1)?.position??44)+1;
+  value={generation,count:45,start,next:after<45?after:null,positions:shown.map(row=>row.position),items:shown.map(row=>row.entry)};
+ }
+ else if(url.endsWith('/context/inspect')) value={provider:'fixture',captured_at:0,request:{model:'fixture',conversation:Array.from({length:2000},(_,i)=>({System:{content:[{Text:{text:'Full system instructions '+i}}]}})),tools:[{name:'shell_start',description:'Run command',input_schema:{type:'object'}}]}};
  else if(url.endsWith('/history/query')) value={items:Array.from({length:50},(_,i)=>({record:{sequence:i+1},message_type:'System'})),next:null};
  else if(url.endsWith('/history/1')) {window.inspectionReads++;value=[{content:{value:{message:{System:{content:[{Text:{text:'Original system instructions'}}]}}}}}];}
  else return realFetch(input,options);
@@ -48,6 +60,7 @@ window.fetch=async (input,options)=>{
 const executionMode=ref('Parallel');
 const choices=Array.from({length:500},(_,i)=>({key:String(i),title:'Provider '+i,description:'Search provider or subscription'}));
 createApp({setup(){provide(pageActivityKey,active);return()=>h(TooltipProvider, {}, {default:()=>h('main',{style:{height:'100vh',display:active.value?'flex':'none',flexDirection:'column'}},[groupMode.value?h(GroupLog,{groupId:'group-fixture',messages:groupMessages.value,loading:false,hasOlder:false}):h(ChatLog,{sessionId:session.value,mobile:mobile.value}),
+ dialog.value==='generation'?h(GenerationInspector,{sessionId:'fixture',onClose:()=>dialog.value=''}):null,
  dialog.value==='inspect'?h(ContextInspector,{sessionId:'fixture',onClose:()=>dialog.value=''}):null,
  dialog.value==='execution'?h(Modal,{open:true,title:'工具执行方式',onClose:()=>dialog.value=''}, {default:()=>h(ToolExecutionRow,{modelValue:executionMode.value,'onUpdate:modelValue':value=>executionMode.value=value})}):null,
  dialog.value==='picker'?h(PickerDialog,{title:'添加搜索提供商',items:choices,placeholder:'搜索服务或订阅…',onClose:()=>dialog.value=''}, {'footer-start':()=>h('button',{class:'btn'},'自定义提供商')}):null,
@@ -136,6 +149,23 @@ try {
   await until(`fixture.executionMode.value==='Serial'`,'serial mode selected');
   await js(`document.querySelector('.choice-capsule [value="Parallel"]').click()`);
   await until(`fixture.executionMode.value==='Parallel'`,'parallel mode selected');
+  await js(`fixture.dialog.value=''`);await sleep(350);
+  await js(`fixture.dialog.value='generation'`);
+  await until(`document.querySelectorAll('.generation-entry').length===20`,'generation defaults to current with bounded page');
+  assert.equal(await js(`document.querySelector('.generation-filters select').value`),'2');
+  assert.ok(await js(`document.querySelector('.generation-entry pre').textContent.includes('# raw **text** generation 2')`),'raw text preserves markup');
+  await js(`(()=>{const select=document.querySelectorAll('.generation-filters select')[1];select.value='User';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await until(`document.querySelectorAll('.generation-entry[data-role="User"]').length===20`,'generation type filter');
+  assert.equal(await js(`document.querySelectorAll('.generation-entry').length`),20);
+  await js(`document.querySelector('.generation-pagination button:last-child').click()`);
+  await until(`document.querySelectorAll('.generation-entry').length===2`,'filtered next page');
+  await js(`(()=>{const select=document.querySelector('.generation-filters select');select.value='0';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await until(`document.querySelector('.generation-entry pre')?.textContent.includes('generation 0')`,'historical generation switch');
+  await js(`document.querySelector('.generation-entry footer button').click()`);
+  await until(`!!document.querySelector('.generation-full-text')`,'full raw text detail');
+  await js('history.back()');
+  await until(`!document.querySelector('.generation-full-text')`,'Back closes entry detail only');
+  assert.equal(await js('fixture.dialog.value'),'generation');
   await js(`fixture.dialog.value=''`);await sleep(350);
   await js(`fixture.dialog.value='inspect'`);
   await until(`document.querySelectorAll('.context-inspector .inspection-row').length>0`,'context loaded');
