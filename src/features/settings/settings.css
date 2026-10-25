@@ -218,5 +218,5 @@
 .provider-list-empty { margin: 0; padding: 18px 16px; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--fg-subtle); font-size: 13px; text-align: center; }
 @media (max-width: 899px) { .provider-list-empty { border-radius: 16px; } }
 
-.settings-delete { color: var(--err); }
-.settings-delete:disabled { color: var(--fg-subtle); }
+.btn.ghost.settings-delete { color: var(--err); }
+.btn.ghost.settings-delete:disabled { color: var(--fg-subtle); }

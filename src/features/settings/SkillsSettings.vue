@@ -160,16 +160,19 @@ async function view(skill: SkillEntry) {
   </section>
   <section class="set-section">
     <header class="set-section-head"><h3>{{ tr('Skill 目录', 'Skill folders') }}</h3></header>
-    <div class="skill-list">
-      <div class="set-card"><div class="set-row toggle-row skill-folder">
-        <span class="set-label"><span>{{ tr('Wish 的 Skill 目录', 'Wish\'s skill folder') }}</span><small class="set-mono">{{ snapshot?.dir ?? '…' }}</small></span>
-      </div></div>
-      <div v-for="(dir, index) in settings.dirs" :key="dir" class="set-card"><div class="set-row toggle-row skill-folder">
-        <span class="set-label"><span class="set-mono">{{ dir }}</span><small v-if="missing(dir)" class="skill-missing">{{ tr('这个目录不存在', 'This folder does not exist') }}</small></span>
-        <button type="button" class="btn ghost icon-only" :aria-label="tr('移除这个目录', 'Remove this folder')" :disabled="busy" @click="settings.dirs.splice(index, 1)"><Icon name="trash-2" /></button>
-      </div></div>
+    <div class="skill-paths">
+      <ul class="skill-path-list" :aria-label="tr('Skill 目录', 'Skill folders')">
+        <li class="skill-path-row">
+          <span class="skill-path" :title="snapshot?.dir">{{ snapshot?.dir ?? '…' }}</span>
+          <button type="button" class="btn ghost icon-only settings-delete" disabled :aria-label="tr('默认目录不可移除', 'The default folder cannot be removed')"><Icon name="trash-off" /></button>
+        </li>
+        <li v-for="(dir, index) in settings.dirs" :key="dir" class="skill-path-row">
+          <div class="skill-path-text"><span class="skill-path" :title="dir">{{ dir }}</span><small v-if="missing(dir)" class="skill-missing">{{ tr('这个目录不存在', 'This folder does not exist') }}</small></div>
+          <button type="button" class="btn ghost icon-only settings-delete" :aria-label="tr('移除这个目录', 'Remove this folder')" :disabled="busy" @click="settings.dirs.splice(index, 1)"><Icon name="trash-2" /></button>
+        </li>
+      </ul>
       <DirectoryPicker model-value="~" side="bottom" :title="tr('选择 Skill 目录', 'Choose a skill folder')" :disabled="busy" @update:model-value="addDir">
-        <template #trigger><button type="button" class="provider-add" :disabled="busy"><span class="provider-add-icon"><Icon name="plus" /></span><span>{{ tr('添加目录', 'Add a folder') }}</span></button></template>
+        <template #trigger><button type="button" class="skill-path-add" :disabled="busy"><Icon name="plus" /><span>{{ tr('添加目录', 'Add a folder') }}</span></button></template>
       </DirectoryPicker>
     </div>
     <p v-if="dirsChanged" class="hint skill-pending">{{ tr('保存后会读取修改后的目录。', 'Changed folders are read once saved.') }}</p>
@@ -239,9 +242,20 @@ async function view(skill: SkillEntry) {
 </template>
 
 <style scoped>
-.skill-folder .set-label > .set-mono, .skill-folder small.set-mono { overflow-wrap: anywhere; }
+/* One compact path list, with a shared border and an inline add action. */
+.skill-paths { min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); overflow: hidden; }
+.skill-path-list { list-style: none; margin: 0; padding: 4px; max-height: 252px; overflow-y: auto; }
+.skill-path-row { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 36px; padding: 2px 6px 2px 10px; border-radius: 5px; }
+.skill-path-row > .skill-path, .skill-path-text { flex: 1; min-width: 0; }
+.skill-path-text { display: grid; gap: 2px; }
+.skill-path { font: calc(12.5px * var(--mono-scale))/1.5 var(--mono); overflow-wrap: anywhere; }
+.skill-path-row > .btn { flex: none; width: 30px; min-height: 30px; padding: 5px; }
+.skill-path-row .icon, .skill-path-add .icon { width: 16px; height: 16px; }
+.skill-path-add { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 36px; padding: 8px 14px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--fg-muted); font: inherit; font-size: 12.5px; cursor: pointer; }
+@media (hover: hover) { .skill-path-row:hover, .skill-path-add:hover:not(:disabled) { background: var(--bg-hover); } }
+@media (max-width: 899px) { .skill-paths { background: var(--bg-group); } .skill-path-row, .skill-path-add { min-height: 44px; } .skill-path-row > .btn { width: 40px; min-height: 40px; } }
 .skill-missing { color: var(--warn); }
-/* Folders and skills are found and added, so each is a card of its own, not a row of a fixed form. */
+/* The discovered skills keep their own card layout below the path list. */
 .skill-list { display: grid; gap: 10px; }
 .skill-list.skill-tree { gap: 8px; }
 .skill-pending { margin: 8px 4px 0; }
