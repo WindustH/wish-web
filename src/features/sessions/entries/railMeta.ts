@@ -51,11 +51,7 @@ export function noticeLabel(entry: any): string {
 }
 
 export const noticeIconName = (entry: any): string => {
-  const title = entry.payload?.instruction_title ?? '';
-  if (title.includes('技能')) return 'skill';
-  if (title.includes('协作')) return 'users';
-  if (title.includes('MCP') || title.includes('工具')) return 'terminal';
-  if (title.includes('图片')) return 'image';
+  if (entry.payload?.instruction_title || entry.kind === 'developer_message' && !entry.payload?.background) return 'instruction';
   if (entry.payload?.background) return 'terminal';
   const tone = noticeTone(entry);
   return tone === 'system' ? 'circle-dot' : tone === 'error' ? 'x' : 'triangle-alert';

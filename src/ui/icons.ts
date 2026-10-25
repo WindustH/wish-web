@@ -13,6 +13,7 @@ const dot = (x: number, y: number) => `M${x} ${y}h.01`;
 const BUBBLE = 'M3 7.5A3.5 3.5 0 0 1 6.5 4h11A3.5 3.5 0 0 1 21 7.5v6a3.5 3.5 0 0 1-3.5 3.5H10.5L6 20.5V17h-.5A2.5 2.5 0 0 1 3 14.5Z';
 
 export const ICONS: Record<string, string> = {
+  instruction: `<path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8Z" ${SOFT}/><path d="M14 3v5h5M9 12h6M9 16h6"/>`,
   // Controls
   'chevron-down': '<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>',
   'chevron-left': '<path d="m14.5 6-6 6 6 6"/>',

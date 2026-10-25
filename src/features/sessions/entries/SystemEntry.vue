@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { tr } from '../../../core/i18n/tr.ts';
 import { i18n } from '../../../core/i18n/index.ts';
 import Modal from '../../../ui/components/Modal.vue';
 import CopyButton from '../../../ui/components/CopyButton.vue';
@@ -52,7 +51,6 @@ const text = computed(() => (props.item.entry.payload?.content ?? [])
           <CopyButton :text="text" />
           <button type="button" class="btn ghost icon-only" :aria-label="i18n.t('common.close')" @click="detailModal?.close()"><Icon name="x" /></button>
         </div>
-        <p v-if="item.entry.payload?.instruction_supplemental" class="instruction-note">{{ tr('按当前配置补充展示；旧历史未保存这部分，不能确认当时的原文。', 'Supplemented from current settings; this section was not saved in the old history, so its original wording cannot be confirmed.') }}</p>
         <pre class="detail-pre">{{ text }}</pre>
       </Modal>
   </span>

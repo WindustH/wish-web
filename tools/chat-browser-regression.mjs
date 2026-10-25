@@ -180,7 +180,7 @@ try {
   await until(`!!document.querySelector('button[aria-label="技能使用指令"]')`,'independent instruction node');
   await js(`document.querySelector('button[aria-label="技能使用指令"]').click()`);
   await until(`document.querySelector('.system-detail .detail-pre')?.textContent==='Skills instructions'`,'instruction opens its own text directly');
-  assert.ok(await js(`document.querySelector('.instruction-note')?.textContent.includes('按当前配置')`),'legacy supplement is labeled');
+  assert.ok(await js(`!document.querySelector('.instruction-note')`),'instruction body has no supplemental banner');
   assert.ok(await js(`!document.querySelector('.context-inspector')`),'timeline does not route into the history inspector');
   await js('history.back()');
   await until(`!document.querySelector('.system-detail')`,'Back closes instruction');
