@@ -176,6 +176,14 @@ try {
   }
   console.log(JSON.stringify({groupRows:5000,groupBefore,groupAfter,dialogs}));
   assert.deepEqual(exceptions,[],'no browser runtime exceptions');
+  await js(`fixture.groupMode.value=false; fixture.chat.entries.value=[{seq:1,id:1,kind:'system_message',payload:{content:[],instruction_sections:[{title:'系统指令',content:'Base instructions'},{title:'MCP 使用指令',content:'MCP instructions'},{title:'技能使用指令',content:'Skills instructions',supplemental:true},{title:'会话与群组协作指令',content:'Session instructions'}]}},{seq:2,id:2,kind:'assistant_message',payload:{content:[{type:'text',text:'Reply '.repeat(200)}]}}]`);
+  await until(`!!document.querySelector('button[aria-label="技能使用指令"]')`,'independent instruction node');
+  await js(`document.querySelector('button[aria-label="技能使用指令"]').click()`);
+  await until(`document.querySelector('.system-detail .detail-pre')?.textContent==='Skills instructions'`,'instruction opens its own text directly');
+  assert.ok(await js(`document.querySelector('.instruction-note')?.textContent.includes('按当前配置')`),'legacy supplement is labeled');
+  assert.ok(await js(`!document.querySelector('.context-inspector')`),'timeline does not route into the history inspector');
+  await js('history.back()');
+  await until(`!document.querySelector('.system-detail')`,'Back closes instruction');
   assert.deepEqual(await js('window.fixtureErrors'),[],'no layout observer errors');
   console.log(JSON.stringify({ok:true,entries:2000,toolCalls:1000,before,beforeWheel,after,transform}));
 } finally {

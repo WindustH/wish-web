@@ -38,6 +38,7 @@ export function noticeFailed(entry: any): boolean {
 
 /** What a notice is called, in the words its own window is titled with. */
 export function noticeLabel(entry: any): string {
+  if (entry.payload?.instruction_title) return entry.payload.instruction_title;
   if (entry.payload?.background) {
     const output = entry.payload.result?.output;
     const zh = i18n.locale.value === 'zh';
@@ -45,11 +46,16 @@ export function noticeLabel(entry: any): string {
     if (noticeFailed(entry)) return zh ? '后台 Shell 执行失败' : 'Background shell failed';
     return zh ? '后台 Shell 已完成' : 'Background shell completed';
   }
-  if (entry.kind === 'developer_message') return 'Developer Message';
+  if (entry.kind === 'developer_message') return i18n.locale.value === 'zh' ? '开发者指令' : 'Developer instructions';
   return i18n.t(entry.kind === 'background_terminal' ? 'entry.backgroundTerminal' : SOURCE_LABELS[entry.payload?.source ?? ''] ?? 'entry.system');
 }
 
 export const noticeIconName = (entry: any): string => {
+  const title = entry.payload?.instruction_title ?? '';
+  if (title.includes('技能')) return 'skill';
+  if (title.includes('协作')) return 'users';
+  if (title.includes('MCP') || title.includes('工具')) return 'terminal';
+  if (title.includes('图片')) return 'image';
   if (entry.payload?.background) return 'terminal';
   const tone = noticeTone(entry);
   return tone === 'system' ? 'circle-dot' : tone === 'error' ? 'x' : 'triangle-alert';

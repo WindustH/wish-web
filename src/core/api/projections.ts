@@ -1,3 +1,4 @@
+import { instructionSections } from '../../features/sessions/instructionSections.ts';
 import { orderedUserContent, type ContentBlock } from './userContent.ts';
 import { operationFailure, type DisplayFailure } from './failures.ts';
 export type { ContentBlock } from './userContent.ts';
@@ -65,6 +66,9 @@ export interface SessionView {
 }
 export type EntryKind = 'run_error' | 'history_event' | 'system_message' | 'developer_message' | 'user_message' | 'assistant_message' | 'tool_result' | 'group_message' | 'group_sent';
 export interface EntryPayload {
+  instruction_title?: string;
+  instruction_sections?: { title: string; content: string; supplemental?: boolean }[];
+  instruction_supplemental?: boolean;
   content: ContentBlock[];
   failure?: DisplayFailure | null;
   tool_name?: string;
@@ -118,6 +122,13 @@ export function entryView(item: any, sessionId: string): EntryView {
     const failure = operationFailure({outcome: item.content.value.Finished});
     // A note of Wish's that the session sent a message to a group.
     const sent = item.content.value.Application;
+    if (sent?.type === 'model_instruction') {
+      const note = sent.instruction;
+      const text = (note.content ?? []).map((block: any) => block.Text?.text ?? '').join('\n\n');
+      return { seq: item.record.sequence, id: `event-${item.record.sequence}`, created_at: item.record.recorded_at,
+        kind: 'system_message', payload: { instruction_title: note.title, content: [{ type: 'text', text }],
+          instruction_sections: note.title?.startsWith('系统指令') ? instructionSections(text) : undefined } };
+    }
     if (sent?.type === 'group_message_sent') {
       return {seq: item.record.sequence, id: `event-${item.record.sequence}`, created_at: item.record.recorded_at,
         kind: 'group_sent', payload: {metadata: sent, content: [{ type: 'text', text: sent.text ?? '' }]}};
@@ -150,7 +161,7 @@ export function entryView(item: any, sessionId: string): EntryView {
         // A post a group told this session: who wrote it and where are in the metadata.
         result.kind = 'group_message';
         result.payload = { metadata: message.metadata, content: blocks(message.content) };
-      } else { result.kind = type === 'Developer' ? 'developer_message' : 'user_message'; result.payload.content = blocks(message.content); }
+      } else { result.kind = type === 'Developer' ? 'developer_message' : 'user_message'; result.payload = { metadata: message.metadata, content: blocks(message.content) }; }
       break;
     }
     case 'Assistant': result.kind = 'assistant_message'; result.payload.content = blocks(message.content); break;
@@ -158,6 +169,13 @@ export function entryView(item: any, sessionId: string): EntryView {
     case 'ToolUse': result.kind = 'assistant_message'; result.payload.content = [{ type: 'tool_call', id: message.call_id, name: message.name, arguments: message.arguments }]; break;
     case 'ToolResult': result.kind = 'tool_result'; result.payload = { tool_name: message.name, tool_call_id: message.call_id, result: message.content, metadata: message.metadata, content: [{ type: 'text', text: typeof message.content === 'string' ? message.content : JSON.stringify(message.content, null, 2) }] }; break;
     default: result.payload = { metadata: message.metadata, content: message.content ? blocks(message.content) : [{ type: 'text', text: JSON.stringify(message, null, 2) }] };
+  }
+  if (type === 'System' && message.metadata?.source === 'wish_agent_instructions') {
+    result.payload.instruction_sections = instructionSections((message.content ?? []).map((block: any) => block.Text?.text ?? '').join('\n\n'), item.instruction_preview);
+  }
+  if (entry.origin === 'Summary' || entry.origin === 'Context' || type === 'UpstreamCompaction') {
+    result.kind = 'system_message';
+    result.payload.instruction_title = type === 'UpstreamCompaction' ? '上游上下文压缩' : '上下文摘要';
   }
   if (type === 'User' && Array.isArray(message.metadata?.input_parts)) {
     result.payload.content = orderedUserContent(message, sessionId, result.payload.content);

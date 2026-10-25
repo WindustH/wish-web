@@ -82,6 +82,16 @@ export function groupEntries<E extends GroupEntry>(entries: readonly E[]): Group
 
   for (const entry of entries) {
     if (entry.kind === 'history_event') continue;
+    const sections = payloadOf(entry).instruction_sections;
+    if (sections?.length) {
+      flushGroup();
+      sections.forEach((section: { title: string; content: string; supplemental?: boolean }, index: number) => {
+        const content = [{ type: 'text', text: section.content }];
+        const notice = { ...entry, payload: { ...payloadOf(entry), content, instruction_title: section.title, instruction_supplemental: section.supplemental } } as E;
+        items.push({ type: 'entry', entry: notice, blocks: content, key: `${entryId(entry)}instruction${index}`, usage: null });
+      });
+      continue;
+    }
     // A question's result shows on its card; a late answer stays where it arrived, as a notice.
     const result = questionResult(entry);
     if (result && !failed(entry)) continue;
