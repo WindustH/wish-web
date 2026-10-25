@@ -76,7 +76,7 @@ async function move() {
 
 <style scoped>
 .move-dialog { display: grid; gap: 10px; }
-.move-tree { display: grid; max-height: min(52dvh, 420px); overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); }
+.move-tree { display: grid; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); }
 /* The root stands first, and each folder in from the one it is in, as in a file tree. */
 .move-choice { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px 0 calc(12px + var(--move-depth, 0) * 18px); border: 0; background: none; color: var(--fg); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; }
 .move-choice + .move-choice { border-top: 1px solid var(--line); }

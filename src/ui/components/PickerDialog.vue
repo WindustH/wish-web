@@ -11,8 +11,6 @@ defineProps<{
   title: string;
   items: PickerItem[];
   placeholder: string;
-  // How much of a phone's height the page keeps for itself besides the list.
-  pageChrome: number;
 }>();
 const emit = defineEmits<{ close: []; choose: [key: string] }>();
 const isMobile = useIsMobile();
@@ -20,10 +18,10 @@ const selected = ref('');
 </script>
 
 <template>
-  <Modal :page="isMobile" :open="true" compact :title="title" @close="emit('close')">
-    <PickerList v-model="selected" :items="items" :placeholder="placeholder" :style="{ '--picker-page-chrome': `${pageChrome}px` }" @select="key => { if (isMobile) emit('choose', key); }" />
+  <Modal :page="isMobile" :open="true" body-scroll="content" content-class="picker-dialog" compact :title="title" @close="emit('close')">
+    <PickerList class="modal-scroll-region" v-model="selected" :items="items" :placeholder="placeholder" @select="key => { if (isMobile) emit('choose', key); }" />
     <slot />
-    <template #footer>
+    <template v-if="!isMobile || $slots['footer-start']" #footer>
       <div class="picker-dialog-actions">
         <slot name="footer-start" />
         <template v-if="!isMobile">
@@ -37,5 +35,7 @@ const selected = ref('');
 
 <style scoped>
 .picker-dialog-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; width: 100%; }
-@media (max-width: 899px) { :deep(.picker-viewport) { height: calc(100dvh - var(--picker-page-chrome)) !important; } }
+@media (max-width: 899px) {
+  :global(.picker-dialog.modal-page .picker-viewport) { height: auto !important; flex: 1; }
+}
 </style>

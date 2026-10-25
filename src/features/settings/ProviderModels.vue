@@ -147,7 +147,7 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
       </div>
       <template v-if="!isMobile" #footer><button class="btn" @click="editing=false">{{tr('取消','Cancel')}}</button><button class="btn primary" @click="apply()">{{tr('应用到配置','Apply to configuration')}}</button></template>
     </Modal>
-    <Modal ref="catalogModal" compact content-class="catalog-picker" :open="catalogOpen" :title="tr('上游模型目录','Upstream model catalog')" @close="closeCatalog">
+    <Modal ref="catalogModal" compact body-scroll="content" content-class="catalog-picker" :open="catalogOpen" :title="tr('上游模型目录','Upstream model catalog')" @close="closeCatalog">
       <template #compact-heading>
         <div class="dialog-topline">
           <h2>{{tr('上游模型目录','Upstream model catalog')}}</h2>
@@ -158,7 +158,7 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
           </div>
         </div>
       </template>
-      <PickerList :items="choices" :disabled="catalogBusy" :placeholder="tr('搜索模型…','Search models…')" @select="importModel">
+      <PickerList class="modal-scroll-region" :items="choices" :disabled="catalogBusy" :placeholder="tr('搜索模型…','Search models…')" @select="importModel">
         <template #status>
           <p v-if="catalogFailed" class="catalog-status hint">{{catalog.length?tr('刷新失败，显示的是上次读取的目录。','Refresh failed; showing the last catalog read.'):tr('未能读取模型目录，可以点击刷新重试，或使用自定义模型。','The catalog could not be read. Reload to retry, or add a custom model.')}}</p>
           <p v-else-if="catalogBusy" class="catalog-status hint" role="status">{{tr('正在读取…','Loading…')}}</p>

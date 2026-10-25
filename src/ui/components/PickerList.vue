@@ -54,11 +54,12 @@ const listFingerprint = computed(() => pickerFingerprint(filtered.value));
 </template>
 
 <style scoped>
-.picker { min-width: 0; }
+.picker { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.picker > :not(.picker-viewport) { flex-shrink: 0; }
 .picker-search { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 6px; margin-bottom: 10px; }
 .picker-search:focus-within { border-color: var(--accent); }
 .picker-search input { flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; outline: none; font: inherit; }
-.picker-viewport { transition: height 240ms cubic-bezier(.2,.7,.2,1); overflow: hidden; }
+.picker-viewport { min-height: 0; flex-shrink: 1; overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .picker-viewport { transition: none; } }
 .picker-list { height: 100%; overflow: auto; overscroll-behavior: contain; }
 .picker-option { width: 100%; outline: none; cursor: pointer; }

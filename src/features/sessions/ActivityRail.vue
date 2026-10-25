@@ -63,8 +63,8 @@ const label = (node: RailNode) => node.events.length === 1 ? node.tip
       <Icon v-else :name="node.icon" />
       <span class="history-rail-tip" aria-hidden="true">{{ label(node) }}</span>
     </button>
-    <Modal :open="!!gathered" :sheet="isMobile" wide :title="gatherTitle" content-class="process-window" @close="gathered = null">
-      <VirtualRows v-slot="{ index }" class="process-virtual" :count="gathered?.events.length ?? 0" :item-key="index => `${gathered!.events[index]!.chipKey}:${gathered!.events[index]!.stepKey ?? ''}`">
+    <Modal :open="!!gathered" :sheet="isMobile" wide :title="gatherTitle" body-scroll="content" content-class="process-window" @close="gathered = null">
+      <VirtualRows v-slot="{ index }" class="process-virtual modal-scroll-region" :count="gathered?.events.length ?? 0" :item-key="index => `${gathered!.events[index]!.chipKey}:${gathered!.events[index]!.stepKey ?? ''}`">
         <div v-for="event in [gathered!.events[index]!]" :key="`${event.chipKey}:${event.stepKey ?? ''}`" class="proc-event"
           :class="{ thinking: isThinking(event), failed: event.failed }">
           <button type="button" class="proc-event-button" :class="{ current: detail?.key === (event.stepKey ?? event.chipKey) }"

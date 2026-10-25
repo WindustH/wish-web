@@ -20,7 +20,7 @@ const focus = useDialogFocus();
 const pageActive = usePageActivity();
 
 // `sheet`: a card that slides up from the bottom of a phone's screen rather than one in its middle.
-const props = withDefaults(defineProps<{ open: boolean; title: string; beforeClose?: () => boolean | Promise<boolean>; layer?: number; wide?: boolean; page?: boolean; sheet?: boolean; back?: () => void; contentClass?: string; dismissable?: boolean; compact?: boolean; backLayer?: boolean }>(), { dismissable: true, backLayer: true });
+const props = withDefaults(defineProps<{ open: boolean; title: string; beforeClose?: () => boolean | Promise<boolean>; layer?: number; wide?: boolean; page?: boolean; sheet?: boolean; back?: () => void; contentClass?: string; bodyScroll?: 'auto' | 'content'; dismissable?: boolean; compact?: boolean; backLayer?: boolean }>(), { dismissable: true, backLayer: true });
 const emit = defineEmits<{ close: [] }>();
 const closing = ref(false);
 let closeCompleted = false;
@@ -36,11 +36,9 @@ function finishClose() {
   emit('close');
 }
 const layer = useDialogLayer(() => props.layer ?? 60);
-// A page window is a route of its own: its entry in history already is the Back stop, and Back
-// pops to the page it rose from. Claiming a second, local stop on top of that entry left two
-// dismissals for one window (the phone's info, search and settings panels needed three Backs to
-// reach the list).
-useBackLayer(() => props.backLayer && !props.page && props.open && pageActive.value,
+// Presentation does not determine navigation ownership: local pickers/editors can also
+// fill the screen. Routed panels opt out explicitly with backLayer=false.
+useBackLayer(() => props.backLayer && props.open && pageActive.value,
   () => { if (props.dismissable) return props.page && props.back ? props.back() : requestClose(); }, () => layer.value);
 // A session window opens as a bubble under its chat-bar button instead of a centered card.
 const bubble = computed(() => !props.page && !!props.contentClass?.split(' ').includes('session-window'));
@@ -161,7 +159,7 @@ defineExpose({ close: requestClose });
             </button>
           </div>
         </div>
-        <div class="modal-body">
+        <div class="modal-body" :class="{ 'content-scroll': bodyScroll === 'content' }">
           <template v-if="compactCard">
             <DialogTitle :class="$slots['compact-heading'] ? 'visually-hidden' : 'modal-flow-title'">{{ title }}</DialogTitle>
             <slot name="compact-heading" />

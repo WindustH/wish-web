@@ -55,5 +55,5 @@ function choose(key: string) {
 </script>
 
 <template>
-  <PickerDialog :title="tr('添加搜索提供商', 'Add search provider')" :items="items" :placeholder="tr('搜索服务或订阅…', 'Search services or subscriptions…')" :page-chrome="160" @close="emit('close')" @choose="choose" />
+  <PickerDialog :title="tr('添加搜索提供商', 'Add search provider')" :items="items" :placeholder="tr('搜索服务或订阅…', 'Search services or subscriptions…')" @close="emit('close')" @choose="choose" />
 </template>

@@ -138,8 +138,8 @@ function show(step: any, onlyDiff = false) {
     <button v-else-if="variant !== 'ghost'" type="button" class="history-chip icons" :title="summary" :aria-label="summary" aria-haspopup="dialog" @click="open = true">
       <Icon v-for="name in icons" :key="name" :name="name" />
     </button>
-    <Modal :open="open" :sheet="isMobile" wide :title="summary" content-class="process-window" @close="open = false">
-      <VirtualRows v-slot="{ index }" class="process-virtual" :count="windowRows.length" :item-key="index => windowRows[index]!.key" :locate-index="locateIndex">
+    <Modal :open="open" :sheet="isMobile" wide :title="summary" body-scroll="content" content-class="process-window" @close="open = false">
+      <VirtualRows v-slot="{ index }" class="process-virtual modal-scroll-region" :count="windowRows.length" :item-key="index => windowRows[index]!.key" :locate-index="locateIndex">
         <template v-if="windowRows[index]!.kind === 'event'">
           <div v-for="event in [windowRows[index]!.event]" :key="event.key" class="proc-event" :class="{ thinking: event.thinking, failed: event.failed }">
             <button type="button" class="proc-event-button" :class="{ current: detail?.key === event.key }" :data-seq="event.seq" :data-result-seq="event.resultSeq" @click="show(event.step)">

@@ -11,21 +11,31 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import { createApp, h, ref, provide } from 'vue';
 import { TooltipProvider } from 'reka-ui';
+import PickerDialog from '/src/ui/components/PickerDialog.vue';
+import Modal from '/src/ui/components/Modal.vue';
+import VirtualImageGrid from '/src/features/sessions/entries/VirtualImageGrid.vue';
+import VirtualRows from '/src/ui/components/VirtualRows.vue';
 import ChatLog from '/src/features/sessions/ChatLog.vue';
 import { chat } from '/src/core/state/chatSlice.ts';
 import { registerBrowserPlatform } from '/src/platform/browser/index.ts';
 import { pageActivityKey } from '/src/ui/composables/usePageActivity.ts';
+import { createBackLayers, setBackLayers } from '/src/ui/backLayers.ts';
 import { applyTokens } from '/src/ui/applyTokens.ts';
 import '/src/styles/tokens.css'; import '/src/styles/base.css'; import '/src/styles/layout.css';
 import '/src/styles/components.css'; import '/src/styles/features.css';
 window.fixtureErrors=[]; window.addEventListener('error',event=>window.fixtureErrors.push(event.message));
-registerBrowserPlatform(); applyTokens();
+registerBrowserPlatform(); applyTokens(); setBackLayers(createBackLayers(window));
 chat.sessionId.value='fixture'; chat.loadingInitial.value=false;
 chat.entries.value=Array.from({length:2000},(_,i)=>({seq:i+1,id:i+1,created_at:0,kind:i%2?'assistant_message':'user_message',payload:{content:[{type:'text',text:'Message '+(i+1)+' — '+ '长会话滚动与手势验证。'.repeat(30)}]}}));
 chat.entries.value=chat.entries.value.map((entry,i)=>i>=500&&i<1500?{...entry,kind:'assistant_message',payload:{content:[{type:'tool_call',id:'call-'+i,name:'shell_edit',arguments:{command:'echo '+i}}]}}:entry);
-const active=ref(true), mobile=ref(true), session=ref('fixture');
-createApp({setup(){provide(pageActivityKey,active);return()=>h(TooltipProvider, {}, {default:()=>h('main',{style:{height:'100vh',display:active.value?'flex':'none',flexDirection:'column'}},[h(ChatLog,{sessionId:session.value,mobile:mobile.value})])});}}).mount('#app');
-window.fixture={chat,active,mobile,session};
+const active=ref(true), mobile=ref(true), session=ref('fixture'), dialog=ref('');
+const choices=Array.from({length:500},(_,i)=>({key:String(i),title:'Provider '+i,description:'Search provider or subscription'}));
+createApp({setup(){provide(pageActivityKey,active);return()=>h(TooltipProvider, {}, {default:()=>h('main',{style:{height:'100vh',display:active.value?'flex':'none',flexDirection:'column'}},[h(ChatLog,{sessionId:session.value,mobile:mobile.value}),
+ dialog.value==='picker'?h(PickerDialog,{title:'添加搜索提供商',items:choices,placeholder:'搜索服务或订阅…',onClose:()=>dialog.value=''}, {'footer-start':()=>h('button',{class:'btn'},'自定义提供商')}):null,
+ dialog.value==='album'?h(Modal,{open:true,title:'500 张图片',bodyScroll:'content',contentClass:'image-album-window',onClose:()=>dialog.value=''}, {default:()=>h('div',{class:'album-thumbnails modal-scroll-region'},[h(VirtualImageGrid,{count:500},{default:({start,limit})=>Array.from({length:limit-start},(_,i)=>h('div',{style:{aspectRatio:'4/3',background:'#888'}},'Image '+(start+i)))})])}):null,
+ dialog.value==='activity'?h(Modal,{open:true,title:'1000 项活动',bodyScroll:'content',sheet:mobile.value,onClose:()=>dialog.value=''}, {default:()=>h(VirtualRows,{count:1000,class:'modal-scroll-region'}, {default:({index})=>h('div',{},'Activity '+index)})}):null
+])});}}).mount('#app');
+window.fixture={chat,active,mobile,session,dialog};
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__chat_regression', async (_, res) => {
@@ -77,6 +87,31 @@ try {
     await js(`fixture.mobile.value=${width<700}`);await sleep(150);
     const g=await geometry();assert.ok(g.rows>0&&g.rows<80,'resizing retains a bounded visible range');
   }
+  const dialogs=[];
+  for(const kind of ['picker','activity','album']){
+    await js(`fixture.dialog.value='${kind}'`);
+    for(const [width,height] of [[390,844],[390,380],[1100,400]]){
+      await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<900});
+      await js(`fixture.mobile.value=${width<900}`);await sleep(100);
+      await until(`!!document.querySelector('.modal-card') && document.querySelector('.modal-card').getAnimations().every(a=>a.playState!=='running')`,'dialog animation settled');
+      const layout=await js(`(()=>{const body=document.querySelector('.modal-body'),list=document.querySelector('${kind==='picker'?'.picker-list':'.virtual-rows'}');return {outer:body.scrollHeight-body.clientHeight,inner:list.scrollHeight-list.clientHeight,height:list.clientHeight,card:document.querySelector('.modal-card').getBoundingClientRect().toJSON()}})()`);
+      assert.ok(layout.outer<=1,kind+' outer body must not also scroll: '+JSON.stringify(layout));
+      assert.ok(layout.height>40&&layout.inner>0,kind+' inner viewport remains usable');
+      assert.ok(layout.card.bottom<=height+1,kind+' dialog fits viewport '+JSON.stringify({width,height,layout}));
+      await js(`(()=>{const list=document.querySelector('${kind==='picker'?'.picker-list':'.virtual-rows'}');list.scrollTop=list.scrollHeight;})()`);await sleep(100);
+      assert.ok(await js(`(()=>{const list=document.querySelector('${kind==='picker'?'.picker-list':'.virtual-rows'}');return list.scrollTop>0})()`),'inner list can reach later records');
+      dialogs.push({kind,width,height,outer:layout.outer,innerHeight:layout.height});
+    }
+    await js(`fixture.dialog.value=''`);await sleep(350);
+  }
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await js(`fixture.mobile.value=true;fixture.dialog.value='picker'`);
+  await until(`!!document.querySelector('.picker-dialog.modal-page')`,'full-screen local picker');
+  const url=await js('location.href');
+  await js('history.back()');
+  await until(`fixture.dialog.value===''`,'Back closes the full-screen local picker');
+  assert.equal(await js('location.href'),url,'Back leaves the underlying page unchanged');
+  console.log(JSON.stringify({dialogs}));
   assert.deepEqual(exceptions,[],'no browser runtime exceptions');
   assert.deepEqual(await js('window.fixtureErrors'),[],'no layout observer errors');
   console.log(JSON.stringify({ok:true,entries:2000,toolCalls:1000,before,beforeWheel,after,transform}));

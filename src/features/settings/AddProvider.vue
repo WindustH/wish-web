@@ -14,7 +14,7 @@ const items = computed(() => [...(props.catalog?.presets || [])]
 const choose = (key: string) => emit('select', props.catalog?.presets.find(preset => preset.id === key));
 </script>
 <template>
-  <PickerDialog :title="tr('添加提供商', 'Add provider')" :items="items" :placeholder="tr('搜索提供商、地区或套餐…', 'Search providers, regions or plans…')" :page-chrome="200" @close="emit('close')" @choose="choose">
+  <PickerDialog :title="tr('添加提供商', 'Add provider')" :items="items" :placeholder="tr('搜索提供商、地区或套餐…', 'Search providers, regions or plans…')" @close="emit('close')" @choose="choose">
     <p v-if="!catalog" class="hint">{{ tr('预设尚未读取，可先配置自定义提供商。', 'Presets have not loaded; custom configuration is available.') }}</p>
     <template #footer-start><button type="button" class="btn ghost provider-custom" @click="emit('select')">{{ tr('自定义提供商', 'Custom provider') }}</button></template>
   </PickerDialog>

@@ -48,6 +48,11 @@
 .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; border-bottom: 1px solid var(--line); flex: none; }
 .modal-head h2, .modal-title { font: 600 16px/1.5 var(--font); margin: 0; }
 .modal-body { padding: 20px; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; flex: 1; line-height: 1.6; }
+/* Lists with their own viewport own scrolling; header/footer consume actual space.
+   Never estimate their combined height from the window size. */
+.modal-body.content-scroll { display: flex; flex-direction: column; overflow: hidden; }
+.modal-body.content-scroll > * { flex-shrink: 0; }
+.modal-body.content-scroll > .modal-scroll-region { flex: 1 1 auto; min-height: 0; }
 .modal-body > :first-child { margin-top: 0; }
 .modal-body > :last-child { margin-bottom: 0; }
 .modal-body .field:last-child { margin-bottom: 0; }

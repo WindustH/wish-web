@@ -22,8 +22,8 @@ watch(() => props.forceOpen, value => { if (value) open.value = true; }, { immed
         +{{ preview.hidden }}
       </button>
     </div>
-    <Modal :open="open" wide :title="tr(`图集 · ${count} 张图片`, `Album · ${count} images`)" content-class="image-album-window" @close="open = false">
-      <div class="album-thumbnails">
+    <Modal :open="open" wide :title="tr(`图集 · ${count} 张图片`, `Album · ${count} images`)" body-scroll="content" content-class="image-album-window" @close="open = false">
+      <div class="album-thumbnails modal-scroll-region">
         <VirtualImageGrid v-slot="range" :count="count" :locate-index="locateIndex">
           <slot v-bind="range" />
         </VirtualImageGrid>
@@ -33,6 +33,8 @@ watch(() => props.forceOpen, value => { if (value) open.value = true; }, { immed
 </template>
 
 <style scoped>
+.album-thumbnails { display:flex; flex-direction:column; overflow:hidden; }
+.album-thumbnails :deep(.virtual-rows) { min-height:0; flex-shrink:1; }
 .image-album { width:100%; min-width:0; }
 .image-grid { display:grid; width:100%; min-width:0; }
 .album-thumbnails :deep(.entry-anchor), .album-thumbnails :deep(.message-context) { min-width:0; }
@@ -54,5 +56,5 @@ watch(() => props.forceOpen, value => { if (value) open.value = true; }, { immed
   .album-thumbnails :deep(.entry-anchor.located), :global(.history-target) .image-grid { animation:none; box-shadow:0 0 0 2px var(--accent-soft); }
 }
 :global(.modal-card.image-album-window) { width:min(94vw, 620px); }
-:global(.image-album-window .modal-body) { max-height:min(68dvh, 640px); overflow:auto; overscroll-behavior:contain; }
+:global(.image-album-window .modal-body) { max-height:min(68dvh, 640px); }
 </style>

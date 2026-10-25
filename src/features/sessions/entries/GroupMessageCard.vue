@@ -121,7 +121,7 @@ onBeforeUnmount(() => observer?.disconnect());
 .group-card-images img { width: 56px; height: 56px; border: 1px solid var(--line); border-radius: 6px; object-fit: cover; }
 .group-card-more { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 6px; background: var(--bg-sunken); color: var(--fg-muted); font-size: 12px; }
 .group-card-actions { position: absolute; right: 12px; top: 8px; display: flex; align-items: center; gap: 2px; }
-.group-card-detail { display: grid; gap: 10px; max-height: calc(84dvh - 140px); overflow: auto; }
+.group-card-detail { display: grid; gap: 10px; }
 .group-card-detail-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 0; color: var(--fg-subtle); font-size: 12.5px; }
 .group-card-detail-meta a { display: inline-flex; align-items: center; gap: 4px; color: var(--fg-muted); text-decoration: none; }
 .group-card-detail-meta a .icon { width: 13px; height: 13px; }
