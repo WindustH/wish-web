@@ -41,7 +41,6 @@ function choose(key: string) {
     :align="placement === 'sidebar' ? 'start' : 'end'" @select="choose">
     <template #trigger>
       <button v-if="placement === 'sidebar'" type="button" class="app-menu-row" :aria-label="tr(`菜单 · ${server}`, `Menu · ${server}`)">
-        <img class="app-menu-mark" src="/app-icons/mark.svg" alt="" />
         <span class="app-menu-server">{{ server }}</span>
         <Icon name="chevrons-up-down" class="app-menu-chevron" />
       </button>
@@ -52,10 +51,9 @@ function choose(key: string) {
 </template>
 
 <style>
-.app-menu-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 5px 8px; border: 0; border-radius: var(--radius); background: transparent; color: var(--fg); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; transition: background var(--dur-fast); }
+.app-menu-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--bg-raised); box-shadow: var(--shadow-menu); color: var(--fg); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; transition: background var(--dur-fast); }
 @media (hover: hover) { .app-menu-row:hover { background: var(--bg-hover); } }
 .app-menu-row[data-state='open'] { background: var(--bg-hover); }
-.app-menu-mark { display: block; flex: none; width: 26px; height: 26px; padding: 4px; border-radius: 50%; background: var(--bg-raised); box-shadow: inset 0 0 0 1px var(--line); }
 .app-menu-server { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-menu-chevron { flex: none; width: 15px; height: 15px; color: var(--fg-subtle); }
 .app-menu.menu-pop { width: max-content; min-width: 200px; max-width: min(280px, calc(100vw - 24px)); padding: 4px; }

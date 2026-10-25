@@ -371,7 +371,7 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
 @media (hover: hover) { .sl-new:hover { background: var(--bg-hover); } }
 .sl-new-icon { display: grid; place-items: center; width: 24px; height: 24px; color: var(--fg-muted); }
 .sl-new-glyph { display: block; width: 22px; height: 22px; }
-.sl-foot { flex: none; padding: 6px 8px 8px; border-top: 1px solid var(--line); }
+.sl-foot { flex: none; padding: 10px 12px 12px; }
 /* Choosing several: in place of the app menu, what is chosen and what can be done with it. */
 /* Choosing several: a dock floating over the foot of the list, which scrolls its last rows clear
    of it. The phone's page gives the pane's parts its own color; the dock keeps the raised one. */
