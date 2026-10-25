@@ -90,7 +90,7 @@ export function createChatDeliveries({ sessionId, snapshot, stream, error, optio
     }
   }
 
-  async function refreshDeliveries(): Promise<void> {
+  async function refreshDeliveries({ reportError = true }: { reportError?: boolean } = {}): Promise<void> {
     const own = generation;
     const version = ++deliveriesVersion;
     const id = sessionId.value;
@@ -102,7 +102,10 @@ export function createChatDeliveries({ sessionId, snapshot, stream, error, optio
         deliveries.value = page.items.filter((item) => !directInputs.has(item.id));
       }
     } catch (cause) {
-      if (current(own)) error.value = cause;
+      if (current(own) && version === deliveriesVersion) {
+        if (!reportError) throw cause;
+        error.value = cause;
+      }
     }
   }
 

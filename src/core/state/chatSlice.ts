@@ -82,7 +82,18 @@ export function createDraftWriter(store: DraftStorage, delayMs = DRAFT_PERSIST_M
   };
 }
 
-export const chat = (() => {
+export interface ChatDependencies {
+  requests?: Partial<typeof api>;
+  connect?: typeof createSse;
+  url?: typeof absUrl;
+}
+
+// Composition root: each instance owns its requests, subscription and history window.
+// The application exports one instance below; tests and alternate hosts need no global mocks.
+export function createChat(deps: ChatDependencies = {}) {
+  const requests = { ...api, ...deps.requests };
+  const connect = deps.connect ?? createSse;
+  const url = deps.url ?? absUrl;
   const sessionId = shallowRef<string | null>(null);
   const snapshot = shallowRef<SessionView | null>(null);
   const missingSessionId = shallowRef<string | null>(null);
@@ -92,6 +103,10 @@ export const chat = (() => {
   const capabilities = shallowRef<ChatCapabilities | null>(null);
 
   let epoch = 0;
+  let initialized = false;
+  let initialTask: Promise<void> | null = null;
+  let initialError: unknown = null;
+  let liveVersion = 0;
   let controller: AbortController | null = null;
   let connection: SseConnection | null = null;
   let offSync: (() => void) | null = null;
@@ -114,19 +129,19 @@ export const chat = (() => {
   const options = () => ({ signal: controller?.signal });
 
   const deliveryState = createChatDeliveries({
-    sessionId, snapshot, stream, error, options,
+    sessionId, snapshot, stream, error, options, requests,
     scheduleRefresh,
   });
   const { sending, sentRun, deliveries, send, refreshDeliveries, moveQueued, cancelQueued } = deliveryState;
 
   const history = createChatHistory<EntryView>({
     sessionId, error, options, open,
-    readPage: api.historyPage,
+    readPage: requests.historyPage,
   });
   const {
     entries, hasMoreBefore, hasMoreAfter,
     pendingSeq, loadingOlder, loadingNewer, locating, bounds,
-    loadOlder, fetchNewer, locate, jumpToLatest, clearPendingSeq,
+    loadOlder, fetchNewer, locate: locateHistory, jumpToLatest, clearPendingSeq,
   } = history;
 
   const streamProcessor = createStreamProcessor({
@@ -146,7 +161,7 @@ export const chat = (() => {
       if (history.viewingPast()) return;
       if (loadingInitial.value) { scheduleRefresh(); return; }
       const own = epoch;
-      void fetchNewer().then((result) => {
+      void fetchNewer({ reportError: false }).then((result) => {
         if (
           current(own) &&
           turnVersion === streamProcessor.getTurnVersion() &&
@@ -161,7 +176,7 @@ export const chat = (() => {
             toolCalls: {},
           };
         }
-      });
+      }).catch(() => { if (current(own)) scheduleRefresh(); });
     },
     onError(cause) {
       error.value = cause;
@@ -170,6 +185,9 @@ export const chat = (() => {
 
   function close() {
     epoch++;
+    initialized = false;
+    initialTask = null;
+    loadingInitial.value = false;
     history.invalidate();
     deliveryState.reset();
     controller?.abort();
@@ -202,7 +220,7 @@ export const chat = (() => {
   // Only a session lookup can establish that the session itself is missing.
   async function getSession(id: string, own: number): Promise<SessionView> {
     try {
-      return await api.sessionGet(id, options());
+      return await requests.sessionGet(id, options());
     } catch (cause: any) {
       if (current(own) && [404, 410].includes(cause?.status)) markMissing();
       throw cause;
@@ -210,10 +228,12 @@ export const chat = (() => {
   }
 
   async function open(id: string): Promise<void> {
-    if (sessionId.value === id) return;
+    if (sessionId.value === id) { await initialTask?.catch(() => {}); return; }
     drafts.flush();          // leaving the last session: its draft lands before the switch
     pollFailures = 0;
     pollError = null;
+    initialError = null;
+    connectionError = null;
     close();
 
     sessionId.value = id;
@@ -237,10 +257,11 @@ export const chat = (() => {
     reconciliation.start();
 
     // Subscribe before the initial snapshot: reconciliation covers any racing commit.
-    connection = createSse({
-      url: absUrl(`/sessions/${encodeURIComponent(id)}/events`),
+    connection = connect({
+      url: url(`/sessions/${encodeURIComponent(id)}/events`),
       onFrame: (f) => {
         if (current(own)) {
+          liveVersion++;
           const next = streamProcessor.processFrame(f.data, stream.value);
           if (current(own)) stream.value = next;
         }
@@ -266,28 +287,48 @@ export const chat = (() => {
       if (current(own) && event.id === id) scheduleRefresh();
     });
 
+    try { initialTask = initialize(id, own); await initialTask; }
+    catch (cause) {
+      if (current(own)) { initialError = cause; error.value = cause; }
+    } finally {
+      if (current(own)) scheduleRefresh();
+    }
+  }
+
+  async function initialize(id: string, own: number) {
+    loadingInitial.value = true;
+    const version = liveVersion;
     try {
       const [snap, page] = await Promise.all([
         getSession(id, own),
-        api.historyPage(id, { limit: cfg.history.pageSize, order: 'desc' }, options()),
+        requests.historyPage(id, { limit: cfg.history.pageSize, order: 'desc' }, options()),
       ]);
       if (!current(own)) return;
-
-      snapshot.value = snap;
+      adoptSnapshot(id, snap);
       entries.value = page.items.slice().reverse();
       bounds();
       hasMoreBefore.value = page.has_more;
-      stream.value = {
-        ...stream.value,
-        active: snap.running,
-        phase: snap.running ? 'pending' : 'idle',
+      // Events arriving while the HTTP read was in flight already describe a newer run.
+      if (liveVersion === version) stream.value = {
+        ...stream.value, active: snap.running, phase: snap.running ? 'pending' : 'idle',
       };
-      await refreshDeliveries();
-    } catch (cause) {
-      if (current(own)) error.value = cause;
+      initialized = true;
+      if (error.value === initialError) error.value = null;
+      initialError = null;
+      // Queue reads are independent of showing history; a slow queue must not hold
+      // the initial-loading gate (and therefore pagination) closed.
+      void refreshDeliveries({ reportError: false }).catch(() => { if (current(own)) scheduleRefresh(); });
     } finally {
-      if (current(own)) { loadingInitial.value = false; scheduleRefresh(); }
+      if (current(own)) { loadingInitial.value = false; initialTask = null; }
     }
+  }
+
+  async function locate(id: string, seq: number): Promise<boolean> {
+    // Search may be invoked while this same session is still opening. Wait for
+    // its initial window before replacing it, otherwise the late tail overwrites search.
+    await open(id);
+    if (sessionId.value !== id || !initialized) return false;
+    return locateHistory(id, seq);
   }
 
   async function reload(): Promise<void> {
@@ -307,16 +348,29 @@ export const chat = (() => {
     const id = sessionId.value;
 
     try {
+      if (!initialized) {
+        initialTask = initialize(id, own);
+        await initialTask;
+        if (current(own)) {
+          pollFailures = 0;
+          if (error.value === pollError) error.value = null;
+          pollError = null;
+          scheduleRefresh();
+        }
+        return;
+      }
+      const version = liveVersion;
       const snap = await getSession(id, own);
       if (!current(own)) return;
-      snapshot.value = snap;
+      adoptSnapshot(id, snap);
 
-      const result = history.viewingPast() ? { ok: false, drained: false } : await fetchNewer();
+      const result = history.viewingPast() ? { ok: false, drained: false } : await fetchNewer({ reportError: false });
       if (!current(own)) return;
 
-      await refreshDeliveries();
+      await refreshDeliveries({ reportError: false });
       if (!current(own)) return;
 
+      if (liveVersion !== version || (snapshot.value?.revision ?? 0) > snap.revision) { scheduleRefresh(); return; }
       if (!snap.running && result.ok && result.drained) {
         stream.value = { ...createEmptyStream(), error: stream.value.error };
       } else {
@@ -345,7 +399,7 @@ export const chat = (() => {
   async function interrupt(): Promise<void> {
     if (sessionId.value) {
       const own = epoch;
-      try { await api.sessionInterrupt(sessionId.value); }
+      try { await requests.sessionInterrupt(sessionId.value); }
       catch (cause) { if (current(own)) error.value = cause; throw cause; }
       if (current(own)) scheduleRefresh();
     }
@@ -375,7 +429,7 @@ export const chat = (() => {
     const id = sessionId.value;
     if (!id) return;
     try {
-      const data = await api.sessionCapabilities(id, options());
+      const data = await requests.sessionCapabilities(id, options());
       if (current(own)) capabilities.value = { status: 'ok', data };
     } catch (cause) {
       if (current(own)) capabilities.value = { status: 'error', error: cause };
@@ -417,5 +471,6 @@ export const chat = (() => {
     reloadCapabilities,
     adoptSnapshot,
   };
-})();
+}
+export const chat = createChat();
 export type ChatApi = typeof chat;

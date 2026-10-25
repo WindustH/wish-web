@@ -7,7 +7,7 @@ import { cfg } from '../config.ts';
 export interface HistoryRequestOptions { signal?: AbortSignal }
 export interface HistoryPageParams { before?: number | null; after?: number; limit: number; order: 'asc' | 'desc' }
 export interface FetchNewerResult { ok: boolean; drained: boolean; added: number }
-export interface HistoryMergeOptions { beforeMerge?: () => void | Promise<void> }
+export interface HistoryMergeOptions { reportError?: boolean; beforeMerge?: () => void | Promise<void> }
 
 export interface ChatHistoryDeps<E> {
   sessionId: ShallowRef<string | null>;
@@ -104,7 +104,7 @@ export function createChatHistory<E extends { seq: number }>({ sessionId, error,
     }
   }
 
-  async function fetchNewer({ pages = cfg.history.maxDrainPages, beforeMerge }: HistoryMergeOptions & { pages?: number } = {}): Promise<FetchNewerResult> {
+  async function fetchNewer({ pages = cfg.history.maxDrainPages, beforeMerge, reportError = true }: HistoryMergeOptions & { pages?: number } = {}): Promise<FetchNewerResult> {
     if (!sessionId.value || loadingNewer.value || locating.value) {
       return { ok: false, drained: false, added: 0 };
     }
@@ -139,7 +139,10 @@ export function createChatHistory<E extends { seq: number }>({ sessionId, error,
       }
       return { ok: true, drained: false, added };
     } catch (cause) {
-      if (current(own)) error.value = cause;
+      if (current(own)) {
+        if (!reportError) throw cause;
+        error.value = cause;
+      }
       return { ok: false, drained: false, added };
     } finally {
       if (current(own)) loadingNewer.value = false;
