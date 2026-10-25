@@ -296,3 +296,9 @@ export const storagePrune = (body: { sessions?: string[]; before?: number | null
 /** Clears the usage records deleted sessions left, and shrinks the file they were in. */
 export const storagePruneUsage = (opts?: EndpointOptions): Promise<{ calls: number; stream_samples: number; database: { before: number; after: number } }> =>
   post('/storage/prune-usage', undefined, { timeoutMs: 120_000, ...opts });
+
+export interface ContextInspection { provider: string; captured_at: number; request: { model: string; conversation: Record<string, any>[]; tools: { name: string; description: string; input_schema: unknown }[]; [key: string]: unknown } }
+export interface InspectionHistoryPage { items: { record: { sequence: number; recorded_at: number }; message_type?: string; event_type?: string; tool_name?: string }[]; next: unknown | null }
+export const sessionInspectContext = (id: string, opts?: EndpointOptions): Promise<ContextInspection> => get(`${path(id)}/context/inspect`, opts);
+export const sessionInspectHistory = (id: string, cursor: unknown | null, opts?: EndpointOptions): Promise<InspectionHistoryPage> => post(`${path(id)}/history/query`, { page: { limit: 50, order: 'oldest_first', cursor } }, opts);
+export const sessionInspectRecord = (id: string, sequence: number, opts?: EndpointOptions): Promise<unknown> => get(`${path(id)}/history/${sequence}`, opts);

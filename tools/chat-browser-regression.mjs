@@ -11,6 +11,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import { createApp, h, ref, provide } from 'vue';
 import { TooltipProvider } from 'reka-ui';
+import ContextInspector from '/src/features/sessions/ContextInspector.vue';
 import ToolExecutionRow from '/src/features/settings/ToolExecutionRow.vue';
 import PickerDialog from '/src/ui/components/PickerDialog.vue';
 import Modal from '/src/ui/components/Modal.vue';
@@ -33,9 +34,21 @@ chat.entries.value=Array.from({length:2000},(_,i)=>({seq:i+1,id:i+1,created_at:0
 chat.entries.value=chat.entries.value.map((entry,i)=>i>=500&&i<1500?{...entry,kind:'assistant_message',payload:{content:[{type:'tool_call',id:'call-'+i,name:'shell_edit',arguments:{command:'echo '+i}}]}}:entry);
 const active=ref(true), mobile=ref(true), session=ref('fixture'), dialog=ref('');
 const groupMode=ref(false), groupMessages=ref(Array.from({length:5000},(_,i)=>({seq:i+101,at:0,author:{kind:'user'},text:'Group '+i+' '+ '群组长记录。'.repeat(i%20+1)})));
+const realFetch=window.fetch.bind(window);
+window.inspectionReads=0;
+window.fetch=async (input,options)=>{
+ const url=String(input);
+ let value;
+ if(url.endsWith('/context/inspect')) value={provider:'fixture',captured_at:0,request:{model:'fixture',conversation:Array.from({length:2000},(_,i)=>({System:{content:[{Text:{text:'Full system instructions '+i}}]}})),tools:[{name:'shell_start',description:'Run command',input_schema:{type:'object'}}]}};
+ else if(url.endsWith('/history/query')) value={items:Array.from({length:50},(_,i)=>({record:{sequence:i+1},message_type:'System'})),next:null};
+ else if(url.endsWith('/history/1')) {window.inspectionReads++;value=[{content:{value:{message:{System:{content:[{Text:{text:'Original system instructions'}}]}}}}}];}
+ else return realFetch(input,options);
+ return new Response(JSON.stringify(value),{status:200,headers:{'Content-Type':'application/json'}});
+};
 const executionMode=ref('Parallel');
 const choices=Array.from({length:500},(_,i)=>({key:String(i),title:'Provider '+i,description:'Search provider or subscription'}));
 createApp({setup(){provide(pageActivityKey,active);return()=>h(TooltipProvider, {}, {default:()=>h('main',{style:{height:'100vh',display:active.value?'flex':'none',flexDirection:'column'}},[groupMode.value?h(GroupLog,{groupId:'group-fixture',messages:groupMessages.value,loading:false,hasOlder:false}):h(ChatLog,{sessionId:session.value,mobile:mobile.value}),
+ dialog.value==='inspect'?h(ContextInspector,{sessionId:'fixture',onClose:()=>dialog.value=''}):null,
  dialog.value==='execution'?h(Modal,{open:true,title:'工具执行方式',onClose:()=>dialog.value=''}, {default:()=>h(ToolExecutionRow,{modelValue:executionMode.value,'onUpdate:modelValue':value=>executionMode.value=value})}):null,
  dialog.value==='picker'?h(PickerDialog,{title:'添加搜索提供商',items:choices,placeholder:'搜索服务或订阅…',onClose:()=>dialog.value=''}, {'footer-start':()=>h('button',{class:'btn'},'自定义提供商')}):null,
  dialog.value==='album'?h(Modal,{open:true,title:'500 张图片',bodyScroll:'content',contentClass:'image-album-window',onClose:()=>dialog.value=''}, {default:()=>h('div',{class:'album-thumbnails modal-scroll-region'},[h(VirtualImageGrid,{count:500},{default:({start,limit})=>Array.from({length:limit-start},(_,i)=>h('div',{style:{aspectRatio:'4/3',background:'#888'}},'Image '+(start+i)))})])}):null,
@@ -123,6 +136,23 @@ try {
   await until(`fixture.executionMode.value==='Serial'`,'serial mode selected');
   await js(`document.querySelector('.choice-capsule [value="Parallel"]').click()`);
   await until(`fixture.executionMode.value==='Parallel'`,'parallel mode selected');
+  await js(`fixture.dialog.value=''`);await sleep(350);
+  await js(`fixture.dialog.value='inspect'`);
+  await until(`document.querySelectorAll('.context-inspector .inspection-row').length>0`,'context loaded');
+  assert.ok(await js(`document.querySelectorAll('.context-inspector .inspection-row').length<30`),'context rows virtualized');
+  await js(`document.querySelector('.context-inspector .inspection-row').click()`);
+  await until(`document.querySelector('.inspection-json')?.textContent==='Full system instructions 0'`,'full readable system text');
+  await js('history.back()');
+  await until(`!document.querySelector('.inspection-json')`,'Back closes detail first');
+  assert.equal(await js('fixture.dialog.value'),'inspect');
+  await js(`document.querySelectorAll('.inspection-tabs button')[1].click()`);
+  await until(`document.querySelector('.inspection-row')?.textContent.includes('shell_start')`,'tool definitions');
+  await js(`document.querySelectorAll('.inspection-tabs button')[3].click()`);
+  await until(`document.querySelector('.inspection-row')?.textContent.includes('#1')`,'history page');
+  assert.equal(await js('window.inspectionReads'),0,'history details loaded on demand');
+  await js(`document.querySelector('.inspection-row').click()`);
+  await until(`document.querySelector('.inspection-json')?.textContent.includes('Original system instructions')`,'raw history record');
+  assert.equal(await js('window.inspectionReads'),1);
   await js(`fixture.dialog.value=''`);await sleep(350);
   await js('fixture.groupMode.value=true');
   await until('document.querySelectorAll(".group-virtual-row").length>0','group virtual rows');

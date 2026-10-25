@@ -21,6 +21,8 @@ import { RouterLink } from 'vue-router';
 import Icon from '../../ui/components/Icon.vue';
 import type { GroupView } from '../../core/api/types.ts';
 
+const ContextInspector = defineAsyncComponent(() => import('./ContextInspector.vue'));
+const inspectOpen = ref(false);
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 defineEmits<{ close: [] }>();
 const isMobile = useIsMobile();
@@ -100,6 +102,7 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
           <h4>{{ tr('上下文', 'Context') }}</h4>
           <span class="context-state"><i aria-hidden="true" />{{ levelLabel }}</span>
         </header>
+        <button class="btn ghost sm" @click="inspectOpen = true">{{ tr('检视模型上下文与历史', 'Inspect model context and history') }}</button>
         <div class="context-bar" role="meter" :aria-valuenow="gauge.tokens ?? 0" aria-valuemin="0" :aria-valuemax="gauge.trigger ?? gauge.window ?? 0" :aria-valuetext="gauge.ratio == null ? levelLabel : percent(gauge.ratio)">
           <span class="context-fill" :style="{ width: at(gauge.tokens) }" />
           <span v-if="gauge.trigger" class="context-trigger" :style="{ left: at(gauge.trigger) }" />
@@ -147,6 +150,7 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
     </section>
     <UsageCharts v-if="chat.sessionId.value" :session-id="chat.sessionId.value" />
   </Modal>
+<ContextInspector v-if="inspectOpen && snapshot" :session-id="snapshot.id" @close="inspectOpen = false" />
 </template>
 
 <style scoped>

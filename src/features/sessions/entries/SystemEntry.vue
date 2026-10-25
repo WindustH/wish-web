@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
+import { chat } from '../../../core/state/chatSlice.ts';
+import { tr } from '../../../core/i18n/tr.ts';
 import { i18n } from '../../../core/i18n/index.ts';
 import Modal from '../../../ui/components/Modal.vue';
 import CopyButton from '../../../ui/components/CopyButton.vue';
@@ -10,6 +12,9 @@ import { noticeFailed, noticeIconName, noticeLabel, noticeTone } from './railMet
 
 const props = defineProps<{ item: any; forced?: boolean; variant?: 'chip' | 'node' | 'ghost'; openTick?: number }>();
 const open = ref(false);
+const inspectOpen = ref(false);
+const ContextInspector = defineAsyncComponent(() => import('../ContextInspector.vue'));
+
 // A search that found something in the notice opens it; so does the rail's list picking it.
 watch(() => props.forced, forced => { if (forced) open.value = true; }, { immediate: true });
 watch(() => props.openTick, tick => { if (tick) open.value = true; }, { immediate: true });
@@ -50,9 +55,11 @@ const text = computed(() => (props.item.entry.payload?.content ?? [])
           <CopyButton :text="text" />
           <button type="button" class="btn ghost icon-only" :aria-label="i18n.t('common.close')" @click="detailModal?.close()"><Icon name="x" /></button>
         </div>
+        <button v-if="item.entry.kind === 'system_message'" class="btn ghost sm" @click="inspectOpen = true">{{ tr('检视当前完整上下文与原始历史', 'Inspect current context and original history') }}</button>
         <pre class="detail-pre">{{ text }}</pre>
       </Modal>
   </span>
+  <ContextInspector v-if="inspectOpen && chat.sessionId.value" :session-id="chat.sessionId.value" @close="inspectOpen = false" />
 </template>
 
 <style scoped>
