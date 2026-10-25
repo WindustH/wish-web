@@ -49,7 +49,7 @@ const options=(items:string[])=>items.map(value=>({value,...protocolPresentation
 const optional=(items:string[])=>[{value:'',label:tr('不使用','Disabled')},...options(items)];
 </script>
 <template>
-  <SettingsItemCard class="provider-item" :title="isMobile?(listTitle||displayName):displayName" :summary="`${Object.keys(value.models).length} ${tr('个模型','models')}${preset?' · '+presetDescription(preset):''}`" :state="state" :mobile-state="value.enabled?null:state" :label="id" :edit-hint="tr('编辑提供商','Edit provider')" :remove-hint="tr('删除提供商','Delete provider')" @open="mobilePanel='';editing=true" @remove="emit('remove')">
+  <SettingsItemCard class="provider-item" :title="isMobile?(listTitle||displayName):displayName" :summary="`${Object.keys(value.models).length} ${tr('个模型','models')}${preset?' · '+presetDescription(preset):''}`" :state="state" :label="id" :edit-hint="tr('编辑提供商','Edit provider')" :remove-hint="tr('删除提供商','Delete provider')" @open="mobilePanel='';editing=true" @remove="emit('remove')">
     <template #mark><ProviderIcon :brand="preset?.provider"/></template>
     <template #detail>{{id}}<template v-if="preset"> · {{presetDescription(preset)}}</template></template>
     <template v-if="!isMobile" #actions><Hint :text="tr('模型','Models')"><button type="button" class="btn ghost provider-models-button" :aria-label="`${tr('模型','Models')} ${displayName}`" @click="modelsOpen=true"><Icon name="model"/><span>{{Object.keys(value.models).length}}</span></button></Hint></template>
@@ -82,7 +82,7 @@ const optional=(items:string[])=>[{value:'',label:tr('不使用','Disabled')},..
     <section v-show="!isMobile||mobilePanel==='auth'" class="preset-section">
       <h3>{{tr('身份验证','Authentication')}}</h3>
       <label>{{tr('认证方式','Authentication method')}}<SelectField v-model="value.auth" :options="[{value:'none',label:tr('无需认证','None')},{value:'bearer',label:'Bearer'},{value:'anthropic_key',label:'Anthropic API Key'},{value:'google_key',label:'Google API Key'},{value:'sig_v4',label:'AWS SigV4'}]" /></label>
-      <AccountPicker v-if="value.auth!=='none'" v-model="value.credential_id" :preset="value.preset ?? undefined" :allowed="profile?.codex?['openai_codex']:copilot?['github_copilot']:undefined" />
+      <div v-if="value.auth!=='none'" class="provider-account"><span>{{tr('账户','Account')}}</span><AccountPicker v-model="value.credential_id" :preset="value.preset ?? undefined" :allowed="profile?.codex?['openai_codex']:copilot?['github_copilot']:undefined" /></div>
     </section>
     <AnimatedDetails v-show="!isMobile||mobilePanel==='advanced'" :open="isMobile" class="preset-section"><summary><span>{{tr('高级设置','Advanced settings')}}</span><Icon name="chevron-down"/></summary>
       <div class="advanced-fields">
@@ -105,6 +105,10 @@ const optional=(items:string[])=>[{value:'',label:tr('不使用','Disabled')},..
   </SettingsItemCard>
 </template>
 <style scoped>
+.provider-account { display: grid; grid-template-columns: 170px minmax(0, 1fr); align-items: center; gap: 8px 16px; min-width: 0; padding: 10px 16px; border-top: 1px solid var(--line); }
+.provider-account > span { font-weight: 500; }
+@media (max-width: 899px) { .provider-account { grid-template-columns: minmax(0, 1fr); padding: 12px 14px; border-top: 2px solid var(--bg-sunken); } .provider-account > span { font-size: 13.5px; } }
+
 /* The models button: the model mark and how many there are, beside "edit". */
 .provider-models-button{display:inline-flex;align-items:center;gap:6px;height:32px;min-height:32px;padding:0 9px;color:var(--fg-muted);font-size:12.5px;font-variant-numeric:tabular-nums}
 .provider-models-button .icon{width:16px;height:16px}

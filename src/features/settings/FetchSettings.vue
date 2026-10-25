@@ -11,6 +11,7 @@ import AccountPicker from './AccountPicker.vue';
 import SwitchRow from './SwitchRow.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { configDraftKey } from './useConfigDraft.ts';
+import { fetchAccountPresets } from './accountCompatibility.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { showError } from '../../ui/errorDialog.ts';
@@ -29,7 +30,7 @@ const current = computed(()=>config.value.providers[editing.value]);
 const brand = (id:string)=>({deepseek_fetch:'DeepSeek',zai_reader:'Z.AI',jina_reader:'Jina',codex_fetch:'OpenAI'} as Record<string,string>)[id];
 const name = (id:string)=>id==='codex_fetch'?'ChatGPT / Codex':catalog.value.find(p=>p.id===id)?.name||id;
 const spec = (id:string)=>catalog.value.find(p=>p.id===id);
-const allowedAccounts = (id:string) => { const preset=spec(id)?.account_preset; return preset ? [preset] : undefined; };
+const allowedAccounts = fetchAccountPresets;
 const choices = computed(()=>catalog.value.map(p=>({key:p.id,title:name(p.id),brand:brand(p.id),icon:'globe',description:p.id==='codex_fetch'?tr('使用 ChatGPT 账户读取网页','Read webpages with a ChatGPT account'):p.key==='optional'?tr('无需密钥，也可关联账户','Works without a key; an account is optional'):tr('关联已有账户，或添加新的 API Key','Link an existing account or add an API key')})));
 function add(preset:string){const id=uniqueId(preset,id=>id in config.value.providers);config.value.providers[id]={preset,enabled:true,credential_id:null,proxy_enabled:true};config.value.order.push(id);adding.value=false;editing.value=id;}
 function move(id:string,delta:number){const order=config.value.order;const i=order.indexOf(id),j=i+delta;if(i>=0&&j>=0&&j<order.length)[order[i],order[j]]=[order[j],order[i]];}
@@ -43,7 +44,7 @@ async function check(id:string){checking.value=id;try{if(!await props.save())ret
       <ReorderGroup v-if="order.length" v-model:values="order" as="div" axis="y" class="fetch-reorder">
         <ReorderItem v-for="(id,index) in order" :key="id" :value="id" as="div" :drag-listener="!mobile" :drag-controls="controlsOf(id)" @drag-start="suppressOpenUntil=Infinity" @drag-end="suppressOpenUntil=Date.now()+250">
       <SettingsItemCard draggable :title="name(config.providers[id].preset)" :summary="draft.accounts?.[config.providers[id].credential_id]?.name || tr('未关联账户','No linked account')" :position="Number(index)+1"
-        :state="{kind:config.providers[id].enabled?'ok':'disabled',text:config.providers[id].enabled?tr('已启用','Enabled'):tr('已停用','Disabled')}" :mobile-state="config.providers[id].enabled?null:{kind:'disabled',text:tr('已停用','Disabled')}"
+        :state="{kind:config.providers[id].enabled?'ok':'disabled',text:config.providers[id].enabled?tr('已启用','Enabled'):tr('已停用','Disabled')}"
         :edit-hint="tr('编辑','Edit')" :remove-hint="tr('删除','Delete')" :check-hint="tr('测试读取','Test fetch')" :checking="checking===id" :busy="!!checking" @open="open(id)" @remove="remove(id)" @check="check(id)" @grab="controlsOf(id).start($event)" @move="move(id,$event)">
         <template #mark><ProviderIcon :brand="brand(config.providers[id].preset)" fallback="globe" /></template>
       </SettingsItemCard>
@@ -57,7 +58,7 @@ async function check(id:string){checking.value=id;try{if(!await props.save())ret
       <div class="fetch-form">
         <div class="set-card"><SwitchRow v-model="current.enabled" :name="tr('启用','Enabled')" /></div>
         <div class="set-card">
-          <div class="set-row stacked"><span class="set-label">{{tr('账户','Account')}}</span><AccountPicker v-model="current.credential_id" :preset="({deepseek_fetch:'deepseek',zai_reader:'zai_global',codex_fetch:'openai_codex'} as Record<string,string>)[current.preset]" :allowed="allowedAccounts(current.preset)" /></div>
+          <div class="set-row stacked"><span class="set-label">{{tr('账户','Account')}}</span><AccountPicker v-model="current.credential_id" :preset="allowedAccounts(current.preset)[0]" :allowed="allowedAccounts(current.preset)" /></div>
           <label class="set-row"><span class="set-label"><span>{{tr('服务地址','Service URL')}}</span><small>{{tr('留空使用默认地址','Leave empty for the default address')}}</small></span><input class="input" :value="current.base_url??''" @input="current.base_url=($event.target as HTMLInputElement).value.trim()||null" :placeholder="spec(current.preset)?.base_url" /></label>
           <SwitchRow v-model="current.proxy_enabled" :name="tr('使用代理','Use proxy')" />
         </div>

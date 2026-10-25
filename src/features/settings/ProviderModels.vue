@@ -2,7 +2,7 @@
 import { modelLabel } from '../../ui/modelLabel.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 const isMobile=useIsMobile();
-import { computed, inject, nextTick, onScopeDispose, reactive, ref } from 'vue';
+import { computed, inject, provide, nextTick, onScopeDispose, reactive, ref } from 'vue';
 import type { ProviderConfig, ProviderPreset } from '../../core/provider-presets.ts';
 import { readDraftCatalogModels } from '../../core/provider-catalog.ts';
 import { showError } from '../../ui/errorDialog.ts';
@@ -15,6 +15,7 @@ import SelectField from '../../ui/components/SelectField.vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { configDraftKey } from './useConfigDraft.ts';
 const configDraft = inject(configDraftKey);
+import { draftActionsKey } from '../../ui/composables/draftActions.ts';
 import { useSettingsReturn } from './settingsReturn.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { useReasoningEfforts, withNewModelDefaults } from './useReasoningEfforts.ts';
@@ -29,8 +30,25 @@ onScopeDispose(() => { catalogRequest++; catalogController?.abort(); });
 let customAfterCatalog=false;
 const advanced=ref(''),advancedChanged=ref(false),editSource=ref('');
 const modelDirty=computed(()=>JSON.stringify([modelId.value,draft.value])!==editSource.value||(advancedChanged.value&&advanced.value!==JSON.stringify(draft.value,null,2)));
-const returns=useSettingsReturn(()=>isMobile.value&&editing.value,async()=>{if(await confirmModelReturn())editing.value=false;});
-async function confirmModelReturn(){return returns.confirm({dirty:()=>modelDirty.value,save:async()=>{const before=JSON.parse(JSON.stringify(props.value.models));if(!apply(false))return false;const saved=await returns.save();if(!saved)props.value.models=before;return saved;},discard:()=>{}});}
+useSettingsReturn(()=>isMobile.value&&editing.value,async()=>{if(await confirmModelReturn())editing.value=false;});
+function stageModel() {
+  if (!modelDirty.value) return true;
+  if (!apply(false)) return false;
+  originalId.value=modelId.value.trim();
+  draft.value=JSON.parse(JSON.stringify(props.value.models[originalId.value]));
+  advanced.value=JSON.stringify(draft.value,null,2);advancedChanged.value=false;
+  editSource.value=JSON.stringify([modelId.value,draft.value]);
+  return true;
+}
+async function confirmModelReturn(){return stageModel();}
+const parentActions=inject(draftActionsKey,null);
+if(parentActions) provide(draftActionsKey,{
+  dirty:computed(()=>parentActions.dirty.value||(editing.value&&modelDirty.value)),
+  busy:parentActions.busy,
+  save:async()=>{if(editing.value&&!stageModel())return false;return parentActions.save();},
+  discard:()=>{parentActions.discard();editing.value=false;},
+});
+
 const efforts=reactive(useReasoningEfforts(draft,()=>props.preset));
 function edit(id='',seed:Record<string,any>={}){originalId.value=id;modelId.value=id;allowUnknownId.value=false;draft.value=JSON.parse(JSON.stringify(id?props.value.models[id]:withNewModelDefaults(seed)));efforts.input=draft.value.reasoning_efforts?Object.keys(draft.value.reasoning_efforts).join(', '):'';advanced.value=JSON.stringify(draft.value,null,2);advancedChanged.value=false;editSource.value=JSON.stringify([modelId.value,draft.value]);editing.value=true;}
 function apply(close=true){try{

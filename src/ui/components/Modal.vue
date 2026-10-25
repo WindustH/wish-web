@@ -8,6 +8,7 @@ import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, Di
 
 import { sessionPanelCloseKey } from '../composables/sessionPanel.ts';
 import Icon from './Icon.vue';
+import DraftActions from './DraftActions.vue';
 import BubbleSurface from './BubbleSurface.vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { useDialogLayer } from '../composables/useDialogLayer.ts';
@@ -153,6 +154,7 @@ defineExpose({ close: requestClose });
           <DialogTitle class="modal-title">{{ title }}</DialogTitle>
           <div class="modal-head-actions">
             <slot name="actions" />
+            <DraftActions v-if="page" />
             <button v-if="!page" type="button" class="btn ghost icon-only" :disabled="dismissable === false" :aria-label="i18n.t('common.close')"
               @click="requestClose">
               <Icon name="x" />

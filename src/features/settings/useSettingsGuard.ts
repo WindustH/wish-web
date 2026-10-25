@@ -6,10 +6,12 @@ import { prefs } from '../../core/state/prefsSlice.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { showError } from '../../ui/errorDialog.ts';
+import { draftActionsKey } from '../../ui/composables/draftActions.ts';
 import { settingsReturnKey, type ReturnChange } from './settingsReturn.ts';
 
 export interface SettingsGuardOptions {
   isMobile: Ref<boolean>;
+  busy: Ref<boolean>;
   serverDirty: ComputedRef<boolean>;
   source: Ref<string>;
   revision: Ref<string>;
@@ -46,11 +48,23 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
     prefs.setKeepAwake(value.keepAwake);
   }
 
+  const saving = ref(false);
   async function save(): Promise<boolean> {
+    if (saving.value || options.busy.value) return false;
+    saving.value = true;
+    try {
     if (serverDirty.value && !(await saveConfig())) return false;
     preferenceSource.value = JSON.stringify(preferenceValue());
     return true;
+    } finally { saving.value = false; }
   }
+
+  function discardDraft() {
+    if (source.value) accept({config: JSON.parse(source.value), revision: revision.value});
+    if (isMobile.value) restorePreferences();
+  }
+
+  provide(draftActionsKey, { dirty, busy: computed(() => options.busy.value || saving.value), save, discard: discardDraft });
 
   const discard = ref(false);
   async function discardChanges() {
@@ -113,7 +127,8 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
   }
 
   provide(settingsReturnKey, {
-    confirm: confirmReturn,
+    // Nested pages keep the shared draft; only returning to the settings home prompts.
+    confirm: change => isMobile.value ? Promise.resolve(true) : confirmReturn(change),
     save,
     register: (key, back) => {
       if (back) nestedReturns.set(key, back);
@@ -131,7 +146,7 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
 
   onBeforeRouteLeave(guardReturn);
   onBeforeRouteUpdate((to, from) =>
-    isMobile.value && to.query.section !== from.query.section ? guardReturn() : true
+    isMobile.value && from.query.section && !to.query.section ? guardReturn() : true
   );
 
   return {

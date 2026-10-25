@@ -11,7 +11,7 @@ import { useCopilotLogin } from './useCopilotLogin.ts';
 import { secretText, readSecret, writeCredential } from '../../core/secretRef.ts';
 import { providerName, presetDescription } from '../../ui/providerPresentation.ts';
 import { tr } from '../../core/i18n/tr.ts';
-const props=defineProps<{id:string;allowRemove?:boolean}>();
+const props=defineProps<{id:string;allowRemove?:boolean;linked?:boolean}>();
 const emit=defineEmits<{close:[];remove:[]}>();
 const {draft,catalog,saveConfig,load}=inject(configDraftKey)!;
 const mobile=useIsMobile();
@@ -27,7 +27,7 @@ function field(name:string,text:string){writeCredential(account.value.credential
  <div class="account-form">
  <div class="set-card">
  <label class="set-row stacked"><span class="set-label">{{tr('名称','Name')}}</span><input class="input" v-model="account.name" /></label>
- <label class="set-row stacked"><span class="set-label">{{tr('平台 / 账户类型','Platform / account type')}}</span><SelectField :model-value="account.preset||'custom'" @update:model-value="account.preset=$event" :options="[{value:'custom',label:tr('自定义 API Key','Custom API key')},...catalog.presets.map(p=>({value:p.id,label:providerName(p.provider),brand:p.provider,annotation:presetDescription(p)}))]" /></label>
+ <label class="set-row stacked"><span class="set-label">{{tr('平台 / 账户类型','Platform / account type')}}</span><SelectField :model-value="account.preset||'custom'" @update:model-value="account.preset=$event" :options="[{value:'custom',label:tr('自定义 API Key','Custom API key')},...(account.preset==='jina_reader'?[{value:'jina_reader',label:'Jina Reader'}]:[]),...catalog.presets.map(p=>({value:p.id,label:providerName(p.provider),brand:p.provider,annotation:presetDescription(p)}))]" /></label>
  </div>
  <div class="set-card">
  <label class="set-row stacked"><span class="set-label">API Key / Access token</span><input class="input" :type="account.api_key_env?'text':'password'" :value="secretText(account.api_key,account.api_key_env)" :placeholder="tr('输入密钥或 ${ENV_NAME}；留空保留已保存值','Key or ${ENV_NAME}; leave unchanged to retain')" autocomplete="new-password" @input="key(($event.target as HTMLInputElement).value)" /></label>
@@ -43,7 +43,7 @@ function field(name:string,text:string){writeCredential(account.value.credential
  <div class="set-card"><SwitchRow v-model="account.proxy_enabled" :name="tr('登录与续期使用代理','Use proxy for sign-in and renewal')" /></div>
  <p class="hint">{{tr('此账户由关联服务共享。更换凭据会应用到所有关联服务。','Linked services share this account. Credential changes apply to all linked services.')}}</p>
  </div>
- <template #footer><button v-if="allowRemove!==undefined" class="btn ghost icon-only settings-delete" :disabled="!allowRemove" :aria-label="tr('删除账户','Delete account')" @click="emit('remove')"><Icon :name="allowRemove ? 'trash-2' : 'trash-off'" /></button><button class="btn primary" @click="emit('close')">{{tr('完成','Done')}}</button></template>
+ <template #footer><button v-if="allowRemove!==undefined" class="btn ghost icon-only settings-delete" :disabled="!allowRemove" :aria-label="tr('删除账户','Delete account')" @click="emit('remove')"><Icon :name="allowRemove && !linked ? 'trash-2' : 'trash-off'" /></button><button class="btn primary" @click="emit('close')">{{tr('完成','Done')}}</button></template>
 </Modal>
 </template>
 <style scoped>

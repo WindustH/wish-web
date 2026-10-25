@@ -55,14 +55,10 @@ const subtitle = computed(() => props.value.credential_id ? (configDraft?.draft.
   ? tr(`借用 ${lenderName.value} 的账户`, `Uses ${lenderName.value}'s account`)
   : [props.preset?.key === 'none' ? tr('无需密钥', 'No key') : tr('自带密钥', 'Own key'), address.value].filter(Boolean).join(' · '));
 const problem = computed(() => props.status?.problem ? describeError(props.status.problem).message : '');
-// Unknown until the statuses are read, so no state rather than a wrong one for a moment.
-const state = computed<ItemState | null>(() => {
-  if (!props.value.enabled) return { kind: 'disabled', text: tr('已停用', 'Disabled') };
-  if (!props.statusKnown) return null;
-  if (!props.status) return { kind: 'idle', text: tr('未保存', 'Not saved') };
-  if (!props.status.available) return { kind: 'error', text: tr('不可用', 'Unavailable') };
-  return { kind: 'ok', text: tr('可用', 'Ready') };
-});
+// The badge describes configuration, just like models and readers. Test failures stay separate.
+const state = computed<ItemState>(() => props.value.enabled
+  ? { kind: 'ok', text: tr('已启用', 'Enabled') }
+  : { kind: 'disabled', text: tr('已停用', 'Disabled') });
 
 // A key saved before shows as "<redacted>"; leaving the field empty keeps it.
 const baseUrl = computed({

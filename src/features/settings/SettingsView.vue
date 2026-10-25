@@ -3,6 +3,7 @@ import { ref, computed, inject, onMounted, provide, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
+import DraftActions from '../../ui/components/DraftActions.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useDialogFocus } from '../../ui/composables/useDialogFocus.ts';
@@ -121,6 +122,7 @@ const {
   saveAndReturn,
 } = useSettingsGuard({
   isMobile,
+  busy,
   serverDirty,
   source,
   revision,
@@ -141,6 +143,7 @@ onMounted(load);
       <header class="settings-heading settings-home-heading page-bar">
         <button v-if="isMobile" class="btn ghost icon-only" :aria-label="tr('返回','Back')" @click="closeSettings"><Icon name="arrow-left"/></button>
         <DialogTitle class="settings-title page-bar-title">{{tr('设置','Settings')}}</DialogTitle>
+        <DraftActions v-if="isMobile" />
       </header>
       <div class="settings-sidebar-body">
       <nav :aria-label="tr('设置分类','Settings categories')">
@@ -157,6 +160,7 @@ onMounted(load);
     <header class="settings-heading page-bar">
       <button v-if="isMobile" class="btn ghost icon-only" :aria-label="tr('返回设置','Back to settings')" @click="backToCategories"><Icon name="arrow-left"/></button>
       <div class="settings-heading-text"><h2 class="page-bar-title">{{current?.label}}</h2><p v-if="!isMobile">{{current?.description}}</p></div>
+      <DraftActions v-if="isMobile" />
       <button v-if="!isMobile" class="btn ghost icon-only" :aria-label="tr('关闭设置','Close settings')" @click="closeSettings"><Icon name="x"/></button>
     </header>
     <div ref="content" class="settings-content" data-scroll-preserve>

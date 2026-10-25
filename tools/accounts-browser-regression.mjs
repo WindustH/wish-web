@@ -122,8 +122,29 @@ try {
     assert.ok(await js('document.querySelector(".search-list").scrollWidth<=document.querySelector(".search-list").clientWidth+1'),'search contents fit their scroll area');
     assert.ok(await js('document.querySelector(".search-list .settings-item-grip").getBoundingClientRect().right<=innerWidth'),'drag grip stays visible');
   }
+  await send('Emulation.setDeviceMetricsOverride',{width:1100,height:844,deviceScaleFactor:1,mobile:false});
+  await js('fixture.draft.value.accounts={shared:{name:"Shared",preset:"deepseek"},keep:{name:"Keep",preset:"deepseek"}};fixture.draft.value.providers={model:{credential_id:"shared"},keep:{credential_id:"keep"}};fixture.draft.value.search={order:["search"],providers:{search:{credential_id:"shared"}}};fixture.draft.value.fetch={order:["reader"],providers:{reader:{credential_id:"shared"}}};fixture.draft.value.defaults={provider:"model",model:"model"};fixture.mode.value="accounts"');
+  await until('!!document.querySelector(".settings-item-remove")','account delete action');
+  await js('document.querySelector(".settings-item-remove").click()');
+  await until('!!document.querySelector(".modal-card .btn.danger")','first delete confirmation');
+  assert.ok(await js('!!fixture.draft.value.accounts.shared'),'opening confirmation does not delete');
+  await js('document.querySelector(".modal-card .btn.danger").click()');
+  await until('!!document.querySelector(".account-removal-list")','second delete confirmation');
+  assert.equal(await js('document.querySelectorAll(".account-removal-list li").length'),3,'all linked services listed');
+  assert.ok(await js('!!fixture.draft.value.accounts.shared'),'first confirmation does not delete');
+  await js('document.querySelector(".modal-card .btn.ghost").click()');
+  await until('!document.querySelector(".account-removal-list")','cancel cascade');
+  assert.ok(await js('!!fixture.draft.value.accounts.shared'),'cancel keeps account');
+  await js('document.querySelector(".settings-item-remove").click()');
+  await until('!!document.querySelector(".modal-card .btn.danger")','confirm again');
+  await js('document.querySelector(".modal-card .btn.danger").click()');
+  await until('!!document.querySelector(".account-removal-list")','second confirmation again');
+  await js('document.querySelector(".modal-card .btn.danger").click()');
+  await until('!fixture.draft.value.accounts.shared','confirmed cascade');
+  assert.ok(await js('!!fixture.draft.value.accounts.keep && !!fixture.draft.value.providers.keep'),'unrelated configuration retained');
+  assert.equal(await js('fixture.draft.value.defaults.provider'),'','deleted default cleared');
   assert.deepEqual(exceptions,[],'no runtime exceptions');
-  console.log(JSON.stringify({ok:true,widths:[390,1100],checks:['masked credentials','nested account creation','back dismisses top layer','no horizontal overflow','mouse and touch drag reorder','search overflow at 320/390/844px']}));
+  console.log(JSON.stringify({ok:true,widths:[390,1100],checks:['masked credentials','nested account creation','back dismisses top layer','no horizontal overflow','mouse and touch drag reorder','search overflow at 320/390/844px','two-stage account deletion and cancellation']}));
 } finally {
   ws?.close();
   if(chrome&&chrome.exitCode===null){chrome.kill('SIGTERM');await Promise.race([new Promise(r=>chrome.once('exit',r)),sleep(2000)]);if(chrome.exitCode===null)chrome.kill('SIGKILL');}
