@@ -17,7 +17,7 @@ onBeforeUnmount(() => clearInterval(timer));
 const name = (operation: string) => ({
   model: tr('模型请求', 'Model request'), compaction: tr('上下文压缩', 'Context compaction'),
   token_count: tr('Token 计数', 'Token count'), model_list: tr('模型列表', 'Model list'),
-  account_state: tr('账户查询', 'Account query'), web_search: tr('网页搜索', 'Web search'),
+  account_state: tr('账户查询', 'Account query'), web_search: tr('网页搜索', 'Web search'), web_fetch: tr('网页读取', 'Web fetch'),
 }[operation] ?? tr('上游请求', 'Upstream request'));
 </script>
 

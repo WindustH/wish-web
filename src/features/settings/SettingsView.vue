@@ -14,6 +14,8 @@ import Modal from '../../ui/components/Modal.vue';
 import ToolSettings from './ToolSettings.vue';
 import McpSettings from './McpSettings.vue';
 import SkillsSettings from './SkillsSettings.vue';
+import AccountSettings from './AccountSettings.vue';
+import FetchSettings from './FetchSettings.vue';
 import SearchSettings from './SearchSettings.vue';
 import { useStatuses } from './useStatuses.ts';
 import { searchProviders } from '../../core/api/endpoints.ts';
@@ -40,15 +42,17 @@ const sections = computed(() => [
   { id: 'service', icon: 'service', label: tr('会话', 'Sessions'),
     summary: tr('默认模型、提示词与上下文', 'Model, instructions and context'),
     description: tr('新会话的默认模型、工作目录、提示词和上下文压缩。', 'Defaults for new sessions: model, working directory, instructions and context compaction.') },
-  { id: 'providers', icon: 'providers', label: tr('提供商', 'Providers'),
+  { id: 'accounts', icon: 'users', label: tr('账户','Accounts'), summary: tr('共享凭据与订阅登录','Shared credentials and sign-in'), description: tr('模型、搜索与网页读取服务共同使用的账户。','Accounts shared by model, search and web fetch services.') },
+  { id: 'providers', icon: 'providers', label: tr('模型', 'Models'),
     summary: tr('连接、认证与模型管理', 'Connections, credentials and models'),
-    description: tr('管理模型提供商、凭据与网络代理，保存后对新的调用生效。', 'Model providers, credentials and the network proxy. Saved changes apply to new calls.') },
+    description: tr('配置模型服务、关联账户与网络代理，保存后对新的调用生效。', 'Model providers, credentials and the network proxy. Saved changes apply to new calls.') },
   { id: 'tools', icon: 'tool', label: tr('工具', 'Tools'),
     summary: tr('内置工具与 Shell', 'Built-in tools and the shell'),
     description: tr('新会话默认启用的内置工具，以及 Shell 执行命令的环境。', 'Built-in tools new sessions start with, and where the shell runs commands.') },
+  { id: 'fetch', icon: 'globe', label: tr('网页读取','Web fetch'), summary: tr('网页内容读取服务','Page reading services'), description: tr('独立选择网页读取提供商及其账户。','Configure webpage readers and their accounts.') },
   { id: 'search', icon: 'globe', label: tr('联网搜索', 'Web search'),
     summary: tr('Web Search 用哪些搜索服务', 'The services Web Search asks'),
-    description: tr('Web Search 工具按顺序询问这些搜索提供商。订阅附带的搜索直接借用模型提供商的账户。', 'The Web Search tool asks these providers in order. Search that comes with a subscription uses the model provider\'s account.') },
+    description: tr('Web Search 工具按顺序询问这些搜索提供商。各服务可以复用公共账户池中的凭据。', 'The Web Search tool asks these providers in order. Services can share credentials from the account pool.') },
   { id: 'mcp', icon: 'mcp', label: 'MCP',
     summary: tr('会话可以调用的 MCP 服务器', 'MCP servers sessions can call'),
     description: tr('智能体在会话的 Shell 里调用这些服务器。保存后从下一次调用开始生效。', 'Servers the agent calls from a session\'s shell. Saved changes apply from the next call.') },
@@ -165,6 +169,7 @@ onMounted(load);
       <SearchSettings v-else-if="tab==='search'" :config="draft" :presets="searchCatalog" :models="providerOptions" :save="save" :busy="busy" :dirty="serverDirty" :statuses="search.statuses.value" :statuses-known="search.known.value" @checked="search.refresh"/>
       <McpSettings v-else-if="tab==='mcp'" :config="draft" :providers="providerOptions" :save="save" :busy="busy" :dirty="serverDirty" :revision="revision"/>
       <SkillsSettings v-else-if="tab==='skills'" :config="draft" :busy="busy" :revision="revision"/>
+      <AccountSettings v-else-if="tab==='accounts'"/><FetchSettings v-else-if="tab==='fetch'" :save="save"/>
       <ProviderSettings v-else :save="save"/>
     </template>
     <div v-else-if="!busy" class="settings-empty"><p>{{tr('设置尚未载入。','Settings are not loaded.')}}</p><button class="btn" @click="load"><Icon name="refresh-cw"/>{{tr('重新载入','Reload')}}</button></div>

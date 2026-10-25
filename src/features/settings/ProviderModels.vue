@@ -2,7 +2,7 @@
 import { modelLabel } from '../../ui/modelLabel.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 const isMobile=useIsMobile();
-import { computed, nextTick, onScopeDispose, reactive, ref } from 'vue';
+import { computed, inject, nextTick, onScopeDispose, reactive, ref } from 'vue';
 import type { ProviderConfig, ProviderPreset } from '../../core/provider-presets.ts';
 import { readDraftCatalogModels } from '../../core/provider-catalog.ts';
 import { showError } from '../../ui/errorDialog.ts';
@@ -13,6 +13,8 @@ import Modal from '../../ui/components/Modal.vue';
 import PickerList from '../../ui/components/PickerList.vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
+import { configDraftKey } from './useConfigDraft.ts';
+const configDraft = inject(configDraftKey);
 import { useSettingsReturn } from './settingsReturn.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { useReasoningEfforts, withNewModelDefaults } from './useReasoningEfforts.ts';
@@ -60,7 +62,7 @@ async function readCatalog(){
   if(cached)catalog.value=cached;
   catalogBusy.value=!cached;
   try{
-    const models = await readDraftCatalogModels(props.id, JSON.parse(JSON.stringify(props.value)), catalogController.signal);
+    const models = await readDraftCatalogModels(props.id, JSON.parse(JSON.stringify(props.value)), catalogController.signal, configDraft?.draft.value.accounts);
     if(request===catalogRequest){catalog.value=models;writeCached(key,models);}
   }catch(e){if(request===catalogRequest){catalogFailed.value=true;if(!cached)showError({title:tr('无法读取模型目录','Could not read the model catalog'),error:e,action:{label:tr('重试','Retry'),run:readCatalog}});}
   }finally{if(request===catalogRequest)catalogBusy.value=false;}

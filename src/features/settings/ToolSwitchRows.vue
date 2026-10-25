@@ -15,6 +15,7 @@ const props = defineProps<{
 }>();
 const tools = defineModel<ToolSwitches>({ required: true });
 const rows = computed(() => [
+  { key: 'web_fetch' as const, name: 'Web Fetch', hint: tr('通过网页读取提供商获取链接正文','Read webpages through configured fetch providers') },
   { key: 'shell' as const, name: 'Shell', hint: tr('在工作目录中执行命令', 'Run commands in the working directory') },
   { key: 'ask_user' as const, name: 'Ask User', hint: tr('需要你决定时，给出选项或请你填写', 'Offer choices or ask you to fill in details when your call is needed') },
   { key: 'web_search' as const, name: 'Web Search', hint: props.searchAvailable === false
@@ -24,5 +25,5 @@ const rows = computed(() => [
 </script>
 
 <template>
-  <SwitchRow v-for="row in rows" :key="row.key" v-model="tools[row.key]" :name="row.name" :hint="note ?? row.hint" />
+  <SwitchRow v-for="row in rows" :key="row.key" :model-value="!!tools[row.key]" @update:model-value="tools[row.key]=$event" :name="row.name" :hint="note ?? row.hint" />
 </template>

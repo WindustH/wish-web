@@ -51,7 +51,7 @@ const opened = ref('');
 function add({ preset, lender }: SearchChoice) {
   const id = uniqueId(preset.id.replace(/_search$/, ''), taken => taken in search.value.providers);
   search.value.providers[id] = lender
-    ? { preset: preset.id, enabled: true, auth_provider: lender, proxy_enabled: true }
+    ? { preset: preset.id, enabled: true, credential_id: lender, proxy_enabled: true }
     : { preset: preset.id, enabled: true, proxy_enabled: true, api_key: null, base_url: null };
   if ((!lender && preset.key !== 'none') || preset.base_url_required) opened.value = id;
   adding.value = false;
@@ -67,7 +67,7 @@ const controlsOf = (id: string) => controls.get(id) ?? controls.set(id, useDragC
 
 <template>
   <section class="set-section">
-    <header class="set-section-head"><h3>{{ tr('搜索提供商', 'Search providers') }}</h3><p>{{ tr('Web Search 按这里的顺序询问，前一个用不了（额度用尽、密钥失效、服务故障）时自动换下一个。订阅附带的搜索直接借用模型提供商的账户。拖动可以调整顺序。', 'Web Search asks these in order and moves on when one cannot answer - its quota spent, its key refused, its service down. Search that comes with a subscription uses the model provider\'s account. Drag to reorder.') }}</p></header>
+    <header class="set-section-head"><h3>{{ tr('搜索提供商', 'Search providers') }}</h3><p>{{ tr('Web Search 按这里的顺序询问，前一个用不了（额度用尽、密钥失效、服务故障）时自动换下一个。各服务可以选择公共账户池中的账户。拖动可以调整顺序。', 'Web Search asks these in order and moves on when one cannot answer - its quota spent, its key refused, its service down. Search that comes with a subscription uses the model provider\'s account. Drag to reorder.') }}</p></header>
     <div class="search-list">
       <ReorderGroup v-if="order.length" v-model:values="order" as="div" axis="y" class="search-order">
         <ReorderItem v-for="(id, index) in order" :key="id" :value="id" as="div" :drag-listener="!isMobile" :drag-controls="controlsOf(id)">
@@ -79,7 +79,7 @@ const controlsOf = (id: string) => controls.get(id) ?? controls.set(id, useDragC
     </div>
   </section>
 
-  <AddSearchProvider v-if="adding" :presets="presets" :models="models" :taken="Object.values(search.providers)" @close="adding = false" @select="add" />
+  <AddSearchProvider v-if="adding" :presets="presets" :models="Object.entries<any>(config.accounts??{}).map(([id,a])=>({value:id,label:a.name||id,preset:a.preset}))" :taken="Object.values(search.providers)" @close="adding = false" @select="add" />
 </template>
 
 <style scoped>

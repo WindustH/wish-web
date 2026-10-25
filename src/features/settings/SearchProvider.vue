@@ -4,7 +4,7 @@ import { computed, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
-import SelectField from '../../ui/components/SelectField.vue';
+import AccountPicker from './AccountPicker.vue';
 import ProviderIcon from '../../ui/components/ProviderIcon.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { searchCheck, type SearchPreset, type SearchProviderStatus } from '../../core/api/endpoints.ts';
@@ -13,10 +13,10 @@ import { toast } from '../../ui/toast.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import SettingsItemCard, { type ItemState } from './SettingsItemCard.vue';
-import { REDACTED, secretText, readSecret } from '../../core/secretRef.ts';
 
 export interface SearchProviderConfig {
   preset: string;
+  credential_id?: string | null;
   enabled: boolean;
   base_url?: string | null;
   auth_provider?: string | null;
@@ -49,7 +49,7 @@ const name = computed(() => props.preset?.name ?? props.value.preset);
 const borrowed = computed(() => !!props.preset?.borrows_from?.length);
 const lenderName = computed(() => props.lenders.find(item => item.value === props.value.auth_provider)?.label ?? props.value.auth_provider ?? '');
 const address = computed(() => props.value.base_url || props.status?.base_url || '');
-const subtitle = computed(() => borrowed.value
+const subtitle = computed(() => props.value.credential_id ? tr('共享账户 · ','Shared account · ')+props.value.credential_id : borrowed.value
   ? tr(`借用 ${lenderName.value} 的账户`, `Uses ${lenderName.value}'s account`)
   : [props.preset?.key === 'none' ? tr('无需密钥', 'No key') : tr('自带密钥', 'Own key'), address.value].filter(Boolean).join(' · '));
 const problem = computed(() => props.status?.problem ? describeError(props.status.problem).message : '');
@@ -63,22 +63,10 @@ const state = computed<ItemState | null>(() => {
 });
 
 // A key saved before shows as "<redacted>"; leaving the field empty keeps it.
-const storedKey = props.value.api_key === REDACTED;
-const keyValue = computed(() => secretText(props.value.api_key, props.value.api_key_env));
-function setKey(text: string) {
-  const { value, env } = readSecret(text.trim(), storedKey ? REDACTED : null);
-  props.value.api_key_env = env;
-  props.value.api_key = value;
-}
 const baseUrl = computed({
   get: () => props.value.base_url ?? '',
   set: (text: string) => { props.value.base_url = text.trim() || null; },
 });
-const lender = computed({
-  get: () => props.value.auth_provider ?? '',
-  set: (id: string) => { props.value.auth_provider = id || null; },
-});
-
 // A search goes to what is saved, so unsaved edits are saved first.
 async function check() {
   if (checking.value) return;
@@ -107,13 +95,9 @@ async function check() {
         <div class="set-card">
           <div class="set-row inline toggle-row"><span class="set-label"><span>{{ tr('启用', 'Enabled') }}</span><small>{{ tr('停用后保留配置，但不会被用来搜索', 'Kept in the configuration, but never asked') }}</small></span><SwitchRoot v-model="value.enabled" class="cfg-switch" :aria-label="tr('启用', 'Enabled')"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
         </div>
-        <div v-if="borrowed" class="set-card">
-          <label class="set-row"><span class="set-label"><span>{{ tr('使用的账户', 'Account') }}</span><small>{{ tr('订阅附带的搜索，用这个模型提供商的凭据和代理设置', 'Search that comes with a subscription uses this model provider\'s credentials and proxy') }}</small></span><SelectField mobile-page :picker-title="tr('使用的账户', 'Account')" v-model="lender" :options="lenders" /></label>
-        </div>
-        <div v-else class="set-card">
-          <label v-if="preset?.key !== 'none'" class="set-row"><span class="set-label"><span>API Key</span><small><template v-if="preset?.key_url">{{ tr('在服务商的控制台获取，', 'Get one from the service\'s console, ') }}<a :href="preset.key_url" target="_blank" rel="noreferrer">{{ tr('打开', 'open') }}</a></template><template v-else>{{ tr('服务商给的密钥', 'The key the service issued') }}</template></small></span><input class="input" :type="value.api_key_env != null ? 'text' : 'password'" :value="keyValue" :placeholder="value.api_key === REDACTED ? tr('已配置，留空保留', 'Configured; leave empty to keep') : tr('直接填写，或使用 ${ENV_NAME}', 'Enter a key or use ${ENV_NAME}')" autocomplete="new-password" @input="setKey(($event.target as HTMLInputElement).value)" /></label>
+        <div class="set-card"><div v-if="preset?.key!=='none'" class="set-row"><span class="set-label">{{tr('账户','Account')}}</span><AccountPicker v-model="value.credential_id" :allowed="preset?.borrows_from" :preset="preset?.borrows_from?.[0]" /></div>
           <label class="set-row"><span class="set-label"><span>{{ tr('地址', 'Address') }}</span><small>{{ preset?.base_url_required ? tr('你部署的实例的地址', 'Where your instance is') : tr('留空使用服务商的默认地址', 'Empty uses the service\'s own address') }}</small></span><input class="input set-mono" v-model.lazy="baseUrl" :placeholder="preset?.base_url_placeholder || (preset?.base_url_required ? 'https://' : tr('默认地址', 'Default address'))" autocomplete="off" autocapitalize="off" spellcheck="false" /></label>
-          <div class="set-row inline toggle-row"><span class="set-label"><span>{{ tr('使用代理', 'Use proxy') }}</span><small>{{ tr('按「提供商」中的网络代理设置连接', 'Connect through the network proxy set under Providers') }}</small></span><SwitchRoot v-model="value.proxy_enabled" class="cfg-switch" :aria-label="tr('使用代理', 'Use proxy')"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
+          <div class="set-row inline toggle-row"><span class="set-label"><span>{{ tr('使用代理', 'Use proxy') }}</span><small>{{ tr('按「模型」中的网络代理设置连接', 'Connect through the network proxy set under Models') }}</small></span><SwitchRoot v-model="value.proxy_enabled" class="cfg-switch" :aria-label="tr('使用代理', 'Use proxy')"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
         </div>
         <p v-if="preset?.docs_url" class="search-docs"><a :href="preset.docs_url" target="_blank" rel="noreferrer">{{ tr('查看这个服务的文档', 'Read this service\'s documentation') }}</a></p>
         <div v-if="isMobile" class="set-card">

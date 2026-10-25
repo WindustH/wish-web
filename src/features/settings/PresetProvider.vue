@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 const isMobile=useIsMobile();
-import { computed, reactive, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import type { ProviderConfig, ProviderPreset } from '../../core/provider-presets.ts';
-import { presetProfile, credentialTitle } from './preset-profile.ts';
-import { useCopilotLogin } from './useCopilotLogin.ts';
+import { presetProfile } from './preset-profile.ts';
 import { presetDescription, providerName } from '../../ui/providerPresentation.ts';
 import { protocolPresentation } from '../../ui/protocolPresentation.ts';
 import ProviderIcon from '../../ui/components/ProviderIcon.vue';
+import AccountPicker from './AccountPicker.vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import AnimatedDetails from '../../ui/components/AnimatedDetails.vue';
 import Hint from '../../ui/components/Hint.vue';
@@ -20,8 +20,6 @@ import ProviderModels from './ProviderModels.vue';
 import { ACCOUNT_PROTOCOLS } from '../../core/provider-presets.ts';
 import SettingsItemCard, { type ItemState } from './SettingsItemCard.vue';
 import KeyValueEditor from './KeyValueEditor.vue';
-import { secretText, readSecret, writeCredential, REDACTED } from '../../core/secretRef.ts';
-import { useChatgptLogin } from './useChatgptLogin.ts';
 // `listTitle` names the provider in the phone list, where no ID is shown beside it.
 const props=defineProps<{ id:string; value:ProviderConfig; preset?:ProviderPreset; protocols:string[]; initiallyOpen?:boolean; save?:()=>Promise<boolean>; saving?:boolean; listTitle?:string }>();
 const emit=defineEmits<{remove:[];protocol:[value:string];loginComplete:[]}>();
@@ -31,8 +29,6 @@ const modelsOpen=ref(false);
 const mobilePanel=ref('');
 const mobileReturning=ref(false);
 const modelEditor=ref<InstanceType<typeof ProviderModels>>();
-const login=reactive(useChatgptLogin(()=>props.id,props.save,()=>emit('loginComplete')));
-const copilotLogin=reactive(useCopilotLogin(()=>props.id,props.save,()=>emit('loginComplete')));
 function openModelAdd(){modelEditor.value?.openAdd();}
 async function backToProvider(){if(await returns.confirm()){mobileReturning.value=true;mobilePanel.value='';}}
 const returns=useSettingsReturn(()=>isMobile.value&&editing.value,async()=>{if(mobilePanel.value)await backToProvider();else if(await returns.confirm())closeEditor();});
@@ -49,24 +45,8 @@ const panels=computed(()=>[
 const state=computed<ItemState>(()=>props.value.enabled?{kind:'ok',text:tr('已启用','Enabled')}:{kind:'disabled',text:tr('已停用','Disabled')});
 const profile=computed(()=>props.preset?presetProfile(props.preset):undefined);
 const copilot=computed(()=>props.preset?.id==='github_copilot');
-const connectionCredentials=computed(()=>props.preset?.required_credentials.filter(field=>field==='workspace_id')??[]);
-const credentials=computed(()=>{
-  if(props.value.auth==='sig_v4')return ['region','access_key_id','secret_access_key','session_token'];
-  if(props.value.auth==='none')return [];
-  if(props.value.auth==='bearer' && (props.value.protocol==='codex_responses'||props.preset?.id==='openai_codex'))return ['account_id'];
-  return [];
-});
 const options=(items:string[])=>items.map(value=>({value,...protocolPresentation(value)}));
 const optional=(items:string[])=>[{value:'',label:tr('不使用','Disabled')},...options(items)];
-const keyValue=computed(()=>secretText(props.value.api_key,props.value.api_key_env));
-function setKey(text:string){
-  const {value,env}=readSecret(text);
-  props.value.api_key_env=env;
-  props.value.api_key=value;
-}
-const credentialValue=(field:string)=>secretText(props.value.credentials[field],props.value.credentials_env[field]);
-const setCredential=(field:string,text:string)=>writeCredential(props.value.credentials,props.value.credentials_env,field,text);
-
 </script>
 <template>
   <SettingsItemCard class="provider-item" :title="isMobile?(listTitle||displayName):displayName" :summary="`${Object.keys(value.models).length} ${tr('个模型','models')}${preset?' · '+presetDescription(preset):''}`" :state="state" :mobile-state="value.enabled?null:state" :label="id" :edit-hint="tr('编辑提供商','Edit provider')" :remove-hint="tr('删除提供商','Delete provider')" @open="mobilePanel='';editing=true" @remove="emit('remove')">
@@ -96,37 +76,13 @@ const setCredential=(field:string,text:string)=>writeCredential(props.value.cred
       <div v-else class="mobile-settings-row"><span>{{tr('使用代理','Use proxy')}}</span><SwitchRoot v-model="value.proxy_enabled" class="cfg-switch" :aria-label="tr('使用代理','Use proxy')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
       <label>{{tr('服务地址','Base URL')}}<input class="input" v-model="value.base_url"/></label>
       <label>{{tr('请求路径','Request path')}}<input class="input" v-model="value.path"/></label>
-      <label v-for="field in connectionCredentials" :key="field">{{credentialTitle(field)||field}}<input class="input" :value="credentialValue(field)" :placeholder="value.credentials[field]===REDACTED?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" autocomplete="off" @input="setCredential(field,($event.target as HTMLInputElement).value)"/></label>
       <div class="provider-headers"><span>{{tr('请求头','Headers')}}</span><KeyValueEditor :model-value="value.headers" :name-placeholder="tr('名称','Name')" :value-placeholder="tr('值','Value')" :add-label="tr('添加请求头','Add header')" @update:model-value="value.headers=$event??{}"/></div>
       <p v-if="profile?.note"  class="hint">{{profile.note}}</p>
     </section>
     <section v-show="!isMobile||mobilePanel==='auth'" class="preset-section">
       <h3>{{tr('身份验证','Authentication')}}</h3>
-      <p v-if="value.auth!=='none'" class="hint">{{tr('直接填写凭据，或填写 ${ENV_NAME} 引用服务器环境变量。','Enter credentials directly, or use ${ENV_NAME} to reference a server environment variable.')}}</p>
-      <label>{{tr('认证方式','Authentication method')}}<SelectField mobile-page v-model="value.auth" :aria-label="id+' '+tr('认证方式','Authentication method')" :options="[{value:'none',label:tr('无需认证','None')},{value:'bearer',label:'Bearer token'},{value:'anthropic_key',label:'Anthropic API Key'},{value:'google_key',label:'Google API Key'},{value:'sig_v4',label:'AWS SigV4'}]"/></label>
-      <template v-if="!['none','sig_v4'].includes(value.auth)">
-        <label>{{profile?.keyLabel||'API Key'}}<input class="input" :type="value.api_key_env!=null?'text':'password'" :value="keyValue" :placeholder="value.api_key===REDACTED?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" autocomplete="new-password" @input="setKey(($event.target as HTMLInputElement).value)"/><small v-if="profile?.keyHint" class="hint">{{profile.keyHint}}</small></label>
-      </template>
-      <template v-for="field in credentials" :key="field">
-        <label>{{credentialTitle(field)||field}}
-          <input class="input" :type="field in value.credentials_env?'text':'password'" :value="credentialValue(field)" :placeholder="value.credentials[field]===REDACTED?tr('已配置，留空保留','Configured; leave unchanged to retain'):tr('直接填写，或使用 ${ENV_NAME}','Enter a value or use ${ENV_NAME}')" :aria-label="credentialTitle(field)||field" autocomplete="new-password" @input="setCredential(field,($event.target as HTMLInputElement).value)"/>
-        </label>
-      </template>
-      <div v-if="profile?.codex" class="chatgpt-login">
-        <button type="button" class="btn primary" :disabled="login.submitting||saving" @click="login.start"><Icon name="external-link"/>{{login.busy?tr('重新开始 ChatGPT 登录','Restart ChatGPT sign-in'):tr('通过 ChatGPT 登录','Sign in with ChatGPT')}}</button>
-        <a v-if="login.url" :href="login.url" target="_blank" rel="noopener noreferrer">{{tr('重新打开登录页面','Open sign-in page again')}}</a>
-        <small v-if="login.message" class="hint" role="status">{{login.message}}</small>
-        <div v-if="login.busy" class="chatgpt-manual">
-          <small class="hint">{{tr('远程访问时，授权后若出现 localhost 无法连接，请复制浏览器地址栏中的完整链接并粘贴到这里。','If localhost cannot connect after authorization, copy the full URL from your browser address bar and paste it here.')}}</small>
-          <div class="chatgpt-manual-input"><input v-model.trim="login.callbackUrl" class="input" type="url" :placeholder="tr('粘贴 localhost 授权链接','Paste the localhost redirect URL')" autocomplete="off" spellcheck="false" @keydown.enter.prevent="login.complete"/><button type="button" class="btn" :disabled="!login.callbackUrl||login.submitting" @click="login.complete">{{login.submitting?tr('验证中…','Verifying…'):tr('完成登录','Complete sign-in')}}</button></div>
-        </div>
-      </div>
-      <div v-if="copilot" class="chatgpt-login">
-        <button type="button" class="btn primary" :disabled="saving" @click="copilotLogin.start"><Icon name="external-link"/>{{copilotLogin.busy?tr('重新开始 GitHub 登录','Restart GitHub sign-in'):tr('通过 GitHub 登录','Sign in with GitHub')}}</button>
-        <a v-if="copilotLogin.url" :href="copilotLogin.url" target="_blank" rel="noopener noreferrer">{{tr('重新打开登录页面','Open sign-in page again')}}</a>
-        <small v-if="copilotLogin.message" class="hint" role="status">{{copilotLogin.message}}</small>
-        <code v-if="copilotLogin.code" class="copilot-code" :aria-label="tr('验证码','Code')">{{copilotLogin.code}}</code>
-      </div>
+      <label>{{tr('认证方式','Authentication method')}}<SelectField v-model="value.auth" :options="[{value:'none',label:tr('无需认证','None')},{value:'bearer',label:'Bearer'},{value:'anthropic_key',label:'Anthropic API Key'},{value:'google_key',label:'Google API Key'},{value:'sig_v4',label:'AWS SigV4'}]" /></label>
+      <AccountPicker v-if="value.auth!=='none'" v-model="value.credential_id" :preset="value.preset ?? undefined" :allowed="profile?.codex?['openai_codex']:copilot?['github_copilot']:undefined" />
     </section>
     <AnimatedDetails v-show="!isMobile||mobilePanel==='advanced'" :open="isMobile" class="preset-section"><summary><span>{{tr('高级设置','Advanced settings')}}</span><Icon name="chevron-down"/></summary>
       <div class="advanced-fields">

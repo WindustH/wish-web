@@ -1,4 +1,5 @@
 export interface ProviderConfig {
+  credential_id?: string | null;
   display_name?: string | null;
   preset?: string | null;
   enabled: boolean;

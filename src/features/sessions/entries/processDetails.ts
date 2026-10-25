@@ -20,7 +20,7 @@ export const searchResults=(step:any)=>step.kind==='entry'&&step.entry.payload?.
 // Built-in tools by the names people read, in English whatever the language; any other tool keeps its own.
 const TOOL_TITLES:Record<string,string>={
   shell_start:'Run Command',shell_poll:'Check Command',shell_write:'Send Input',shell_kill:'Stop Command',shell_edit:'Edit Files',shell:'Shell',
-  history_search:'Search History',history_read:'Read History',history_query:'Query History',view_image:'View Image',ask_user:'Ask User',web_search:'Web Search',
+  history_search:'Search History',history_read:'Read History',history_query:'Query History',view_image:'View Image',ask_user:'Ask User',web_search:'Web Search',web_fetch:'Web Fetch',
 };
 export const toolTitle=(name?:string)=>name?TOOL_TITLES[name]??name:'';
 export function toolIcon(name?:string):string {
@@ -31,7 +31,7 @@ export function toolIcon(name?:string):string {
   if(name==='view_image')return 'image';
   if(name?.startsWith('history_'))return 'search';
   if(name==='ask_user')return 'question';
-  if(name==='web_search')return 'globe';
+  if(name==='web_search'||name==='web_fetch')return 'globe';
   return 'tool';
 }
 // The tools a run used, once per use: its calls, and the results it holds whose call came in an

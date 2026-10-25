@@ -194,8 +194,8 @@ export const providerModels = async (id: string, opts?: EndpointOptions) =>
   catalogPage(await get(`/providers/${encodeURIComponent(id)}/models`, opts));
 /** A catalog page of a provider as a form holds it, saved or not; secrets it shows redacted are the
  *  saved provider's of that id. */
-export const providerDraftModels = async (id: string, provider: ProviderConfig, cursor?: string, opts?: EndpointOptions) =>
-  catalogPage(await post('/provider-draft/models', { id, provider, cursor }, opts));
+export const providerDraftModels = async (id: string, provider: ProviderConfig, cursor?: string, opts?: EndpointOptions, accounts?: Record<string, unknown>) =>
+  catalogPage(await post('/provider-draft/models', { id, provider, cursor, accounts }, opts));
 /** Every page of a model catalog, in order. A cursor the catalog repeats is an error, so a malformed
  *  one cannot keep a caller in an endless loop. */
 async function* catalogPages(id: string, read: (cursor?: string) => Promise<any>, signal?: AbortSignal) {
@@ -214,16 +214,16 @@ async function* catalogPages(id: string, read: (cursor?: string) => Promise<any>
 }
 export const providerCatalogPages = (id: string, opts?: EndpointOptions) =>
   catalogPages(id, cursor => providerModels(id, { ...opts, query: { cursor } }), opts?.signal);
-export const providerDraftCatalogPages = (id: string, provider: ProviderConfig, opts?: EndpointOptions) =>
-  catalogPages(id, cursor => providerDraftModels(id, provider, cursor, opts), opts?.signal);
+export const providerDraftCatalogPages = (id: string, provider: ProviderConfig, opts?: EndpointOptions, accounts?: Record<string, unknown>) =>
+  catalogPages(id, cursor => providerDraftModels(id, provider, cursor, opts, accounts), opts?.signal);
 /** Refuses a model the provider does not offer: not configured, and not in its catalog when it has one. */
-export async function requireAvailableModel(provider: ModelCatalogSource | null | undefined, id: string): Promise<void> {
+export async function requireAvailableModel(provider: ModelCatalogSource | null | undefined, id: string, draft?: { provider: ProviderConfig; accounts?: Record<string, unknown> }): Promise<void> {
   if (!provider) throw new Error('Choose an existing provider before selecting a model.');
   const configured = provider.models?.[id];
   if (configured?.custom_model_id) return;
   if (provider.model_list) {
     try {
-      for await (const page of providerCatalogPages(provider.id)) {
+      for await (const page of draft ? providerDraftCatalogPages(provider.id, draft.provider, undefined, draft.accounts) : providerCatalogPages(provider.id)) {
         if (page.items?.some((model: { id: string }) => model.id === id)) return;
       }
     } catch (error) {

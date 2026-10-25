@@ -63,6 +63,11 @@ onMounted(() => {
     <button v-if="setup.catalogState === 'failed'" type="button" class="setup-switch" :disabled="setup.verifying" @click="setup.verify">
       <Icon v-if="setup.verifying" name="loader-circle" class="spin" />{{ tr('重新读取模型列表', 'Read the model list again') }}
     </button>
+    <div v-if="setup.networkServices" class="setup-field">
+      <span class="setup-field-label">{{tr('可选联网服务（使用同一账户，权限由服务商决定）','Optional web services (shared account, subject to service access)')}}</span>
+      <label><input type="checkbox" v-model="setup.enableSearch"/> {{tr('启用联网搜索','Enable web search')}}</label>
+      <label><input type="checkbox" v-model="setup.enableFetch"/> {{tr('启用网页读取','Enable web fetch')}}</label>
+    </div>
     <footer class="setup-footer">
       <button type="button" class="btn ghost setup-back" :disabled="setup.saving" @click="setup.step = 'auth'"><Icon name="arrow-left" />{{ tr('上一步', 'Back') }}</button>
       <span class="setup-footer-gap" />

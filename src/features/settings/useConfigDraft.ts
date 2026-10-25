@@ -126,7 +126,8 @@ export function useConfigDraft() {
           (defaults.provider !== savedDefaults?.provider || defaults.model !== savedDefaults?.model)) {
         await requireAvailableModel(
           { id: defaults.provider, ...draft.value.providers[defaults.provider] },
-          defaults.model
+          defaults.model,
+          { provider: draft.value.providers[defaults.provider], accounts: draft.value.accounts }
         );
       }
       let saved;

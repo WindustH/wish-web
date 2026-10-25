@@ -43,6 +43,8 @@ export function useProviderSetup({ preview = false } = {}) {
   const catalog = shallowRef<ConfigCatalog>({ presets: [] });
   const loading = ref(true), saving = ref(false), error = ref('');
   const step = ref<SetupStep>('provider');
+  const enableSearch=ref(false),enableFetch=ref(false);
+  const networkServices=computed(()=>({deepseek:{search:'deepseek_search',fetch:'deepseek_fetch'},zai_global:{search:'zai_search',fetch:'zai_reader'},zai_coding_global:{search:'zai_search',fetch:'zai_reader'},openai_codex:{search:'openai_codex_search',fetch:'codex_fetch'}} as Record<string,{search:string;fetch:string}>)[provider.value.preset??'']);
   const choice = ref(''), id = ref(''), model = ref('');
   const provider = ref<ProviderConfig>(customProvider());
   // The models the chosen preset or configured provider names, offered first.
@@ -66,9 +68,11 @@ export function useProviderSetup({ preview = false } = {}) {
   function choose(value: string) {
     choice.value = value;
     const configured = value.startsWith('existing:') ? value.slice(9) : undefined;
-    const selected = catalog.value.presets.find(item => `preset:${item.id}` === value);
+    const shared=value.startsWith('account:')?snapshot.value.config.accounts?.[value.slice(8)]:undefined;
+    const selected = catalog.value.presets.find(item => `preset:${item.id}` === value || (shared && item.id===shared.preset));
     provider.value = structuredClone(configured ? snapshot.value.config.providers[configured]
       : selected ? selected.variants[selected.protocols[0]!] : customProvider());
+    if(shared) provider.value.credential_id=value.slice(8);
     provider.value.enabled = true;
     provider.value.models ??= {};
     provider.value.credentials ??= {};
@@ -119,8 +123,8 @@ export function useProviderSetup({ preview = false } = {}) {
     const current = provider.value;
     if (!validUrl(current.base_url)) return tr('填写以 http:// 或 https:// 开头的服务地址。', 'Enter a service address starting with http:// or https://.');
     if (!filled(id.value)) return tr('填写提供商 ID。', 'Enter a provider ID.');
-    if (usesKey.value && !signedIn.value && !filled(current.api_key) && !filled(current.api_key_env)) return tr('填写密钥后继续。', 'Enter the key to continue.');
-    const missing = credentialFields.value.find(field => !optionalCredential(field) && !filled(current.credentials[field]) && !filled(current.credentials_env[field]));
+    if (usesKey.value && !current.credential_id && !signedIn.value && !filled(current.api_key) && !filled(current.api_key_env)) return tr('填写密钥后继续。', 'Enter the key to continue.');
+    const missing = !current.credential_id && credentialFields.value.find(field => !optionalCredential(field) && !filled(current.credentials[field]) && !filled(current.credentials_env[field]));
     return missing ? tr(`填写 ${missing} 后继续。`, `Enter ${missing} to continue.`) : '';
   });
 
@@ -173,6 +177,25 @@ export function useProviderSetup({ preview = false } = {}) {
       current.models[selectedModel] ??= {};
       config.defaults.provider = name; config.defaults.model = selectedModel;
       config.defaults.reasoning = { ...config.defaults.reasoning, effort: null };
+    }
+    if (selectedModel && networkServices.value) {
+      // Save both services against the same account reference as the new model service.
+      config.accounts??={};
+      let accountId=current.credential_id;
+      if (!accountId) {
+        accountId=uniqueId(`model-${name}`,id=>id in config.accounts);
+        config.accounts[accountId]={name:current.display_name||name,preset:current.preset,api_key:current.api_key,api_key_env:current.api_key_env,refresh_token:current.refresh_token,expires_at:current.expires_at,credentials:current.credentials,credentials_env:current.credentials_env,proxy_enabled:current.proxy_enabled};
+        current.credential_id=accountId;
+        current.api_key=null;current.api_key_env=null;current.refresh_token=null;current.credentials={};current.credentials_env={};
+      }
+      for(const [kind,enabled] of [['search',enableSearch.value],['fetch',enableFetch.value]] as const) {
+        if(!enabled)continue;
+        config[kind]??={order:[],providers:{}};
+        const service=networkServices.value[kind];
+        const sid=uniqueId(service,id=>id in config[kind].providers);
+        config[kind].providers[sid]={preset:service,enabled:true,credential_id:accountId,proxy_enabled:current.proxy_enabled??true};
+        config[kind].order.push(sid);
+      }
     }
     config.providers[name] = current;
     return config;
@@ -227,7 +250,7 @@ export function useProviderSetup({ preview = false } = {}) {
   void load();
   onScopeDispose(() => { generation++; controller?.abort(); });
   return {
-    preview, snapshot, catalog, loading, saving, error, step, choice, id, model, provider, preset, profile,
+    enableSearch,enableFetch,networkServices,preview, snapshot, catalog, loading, saving, error, step, choice, id, model, provider, preset, profile,
     existing, custom, usesKey, credentialFields, optionalCredential, authMissing, models, named, catalogState,
     verifying, verifyFailed, signedIn, choose, load, save, setSecret, secretValue, stored, verify, skipVerify,
     saveForSignIn, signedInWithAccount,

@@ -59,8 +59,8 @@ export async function readCatalogModels(id: string, signal?: AbortSignal) {
 }
 
 /** The catalog of a provider as a form holds it, before or without saving it. */
-export async function readDraftCatalogModels(id: string, provider: ProviderConfig, signal?: AbortSignal) {
+export async function readDraftCatalogModels(id: string, provider: ProviderConfig, signal?: AbortSignal, accounts?: Record<string, unknown>) {
   const models: any[] = [];
-  for await (const page of providerDraftCatalogPages(id, provider, { signal })) models.push(...page.models);
+  for await (const page of providerDraftCatalogPages(id, provider, { signal }, accounts)) models.push(...page.models);
   return models;
 }

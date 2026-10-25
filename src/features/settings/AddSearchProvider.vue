@@ -13,7 +13,7 @@ const props = defineProps<{
   presets: SearchPreset[];
   models: { value: string; label: string; preset?: string }[];
   // What is configured already: a borrowed search once per account.
-  taken: { preset: string; auth_provider?: string | null }[];
+  taken: { preset: string; credential_id?: string | null }[];
 }>();
 const emit = defineEmits<{ close: []; select: [choice: SearchChoice] }>();
 
@@ -22,13 +22,13 @@ const choices = computed(() => {
   const list: (SearchChoice & { key: string; description: string; disabled?: boolean })[] = [];
   for (const preset of props.presets.filter(preset => preset.borrows_from?.length)) {
     const lenders = props.models.filter(model => model.preset && preset.borrows_from!.includes(model.preset));
-    const free = lenders.filter(model => !props.taken.some(item => item.preset === preset.id && item.auth_provider === model.value));
+    const free = lenders.filter(model => !props.taken.some(item => item.preset === preset.id && item.credential_id === model.value));
     for (const model of free) {
       list.push({ key: `${preset.id}:${model.value}`, preset, lender: model.value, description: tr(`订阅附带 · 借用 ${model.label}，无需密钥`, `With your subscription · uses ${model.label}, no key`) });
     }
     if (!lenders.length) {
       const needed = [...new Set(preset.borrows_from!.map(id => providerName(presetBrand(id) ?? id)))].join(tr('或', ' or '));
-      list.push({ key: preset.id, preset, disabled: true, description: tr(`订阅附带 · 需要先添加 ${needed} 模型提供商`, `With a subscription · add a ${needed} model provider first`) });
+      list.push({ key: preset.id, preset, description: tr(`关联或新建 ${needed} 账户`, `Link or create a ${needed} account`) });
     }
   }
   for (const preset of props.presets.filter(preset => !preset.borrows_from?.length)) {

@@ -28,7 +28,7 @@ const running = computed(() => snapshot.value?.phase !== 'idle');
 type Compaction = { trigger_tokens: number; target_tokens: number; segment_tokens: number; [key: string]: unknown };
 type Shell = { program: string; args: string[] | null };
 const compaction = ref<Compaction | null>(null);
-const tools = ref<ToolSwitches>({ shell: false, ask_user: false, mcp: false, web_search: false, skills: false, sessions: false });
+const tools = ref<ToolSwitches>({ shell: false, ask_user: false, mcp: false, web_search: false, web_fetch: false, skills: false, sessions: false });
 const execution = ref<'Serial' | 'Parallel'>('Parallel');
 const ownShell = ref(false);
 const shell = ref<Shell>({ program: '', args: null });
@@ -44,7 +44,7 @@ function reset() {
   execution.value = current.config?.run?.tools ?? 'Parallel';
   compaction.value = current.config?.compaction ? structuredClone(current.config.compaction) : null;
   const switches = current.descriptor?.tools;
-  tools.value = { shell: !!switches?.shell, ask_user: !!switches?.ask_user, mcp: !!switches?.mcp, web_search: !!switches?.web_search, skills: !!switches?.skills, sessions: !!switches?.sessions };
+  tools.value = { shell: !!switches?.shell, ask_user: !!switches?.ask_user, mcp: !!switches?.mcp, web_search: !!switches?.web_search, web_fetch: !!switches?.web_fetch, skills: !!switches?.skills, sessions: !!switches?.sessions };
   const own = current.descriptor?.shell_command;
   ownShell.value = !!own;
   shell.value = own ? { program: own.program ?? '', args: own.args ?? null } : { program: '', args: null };

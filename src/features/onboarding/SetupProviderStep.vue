@@ -35,6 +35,7 @@ const matches = (item: Choice) => {
 const shownConfigured = computed(() => configured.value.filter(matches));
 const shownPresets = computed(() => presets.value.filter(matches));
 const groups = computed(() => [
+  { label: tr('已有账户','Existing accounts'),items:Object.entries<any>(props.setup.snapshot?.config.accounts??{}).filter(([,a])=>props.setup.catalog.presets.some(p=>p.id===a.preset)).map(([id,a])=>({key:`account:${id}`,title:a.name||id,description:a.preset,brand:undefined,icon:'users',search:id})).filter(matches) },
   { label: tr('已配置', 'Configured'), items: shownConfigured.value },
   { label: tr('全部提供商', 'All providers'), items: [...shownPresets.value, custom.value] },
 ].filter(group => group.items.length));
@@ -44,8 +45,8 @@ const groups = computed(() => [
   <section class="setup-step">
     <header class="setup-title">
       <p class="setup-eyebrow">{{ tr('欢迎使用 Wish', 'Welcome to Wish') }}</p>
-      <h1 tabindex="-1">{{ tr('选择模型提供商', 'Choose a model provider') }}</h1>
-      <p>{{ tr('Wish 通过它调用模型。之后可以在设置里添加更多提供商。', 'Wish reaches models through it. You can add more providers in settings later.') }}</p>
+      <h1 tabindex="-1">{{ tr('选择账户或平台', 'Choose an account or platform') }}</h1>
+      <p>{{ tr('添加的账户将进入公共账户池，可用于模型、搜索和网页读取服务。', 'Wish reaches models through it. You can add more providers in settings later.') }}</p>
     </header>
     <label class="setup-search">
       <Icon name="search" />

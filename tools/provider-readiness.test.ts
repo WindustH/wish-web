@@ -23,3 +23,11 @@ test('SigV4 requires all signing credentials', () => {
   assert.equal(providerReady(aws), true);
   assert.equal(providerReady({ ...aws, credentials_env: {} }), false);
 });
+
+test('shared accounts supply readiness and missing or empty accounts do not bypass setup', () => {
+  const service = { ...provider, api_key: null, credential_id: 'shared' };
+  assert.equal(hasReadyProvider({ providers: { a: service } }), false);
+  assert.equal(hasReadyProvider({ providers: { a: service }, accounts: { shared: {} } }), false);
+  assert.equal(hasReadyProvider({ providers: { a: service }, accounts: { shared: { api_key: '<redacted>' } } }), true);
+  assert.equal(hasReadyProvider({ providers: { a: service }, accounts: { shared: { api_key_env: 'MODEL_KEY' } } }), true);
+});

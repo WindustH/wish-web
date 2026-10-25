@@ -34,14 +34,15 @@ const title = computed(() => codex.value ? tr('登录 ChatGPT', 'Sign in to Chat
   : copilot.value ? tr('登录 GitHub Copilot', 'Sign in to GitHub Copilot')
   : setup.custom ? tr('连接你的服务', 'Connect your service') : tr(`连接 ${name.value}`, `Connect ${name.value}`));
 const intro = computed(() => {
+  if (setup.provider.credential_id) return tr('使用已保存的共享账户。下一步会验证连接并读取模型列表。', 'Use the saved shared account. Next, verify the connection and read available models.');
   if (codex.value) return tr('用 ChatGPT 账户登录，Wish 会按你的订阅调用模型，并自动刷新登录。', 'Sign in with your ChatGPT account. Wish calls models under your subscription and keeps the sign-in fresh.');
   if (copilot.value) return tr('用 GitHub 账户登录，Wish 会按你的 Copilot 订阅调用模型，并自动续期。', 'Sign in with your GitHub account. Wish calls models under your Copilot subscription and keeps the session fresh.');
   if (setup.custom) return tr('填写服务地址和认证方式。下一步会用它们读取模型列表，确认能连上。', 'Enter the service address and how it signs requests. The next step reads its model list to make sure they work.');
   if (local.value) return tr('确认服务地址即可，本地服务不需要密钥。', 'Check the service address. A local service needs no key.');
   return setup.profile?.keyHint || tr(`填写 ${keyLabel.value}。它只保存在运行 Wish 的机器上。`, `Enter your ${keyLabel.value}. It stays on the machine Wish runs on.`);
 });
-const showKey = computed(() => setup.usesKey && !copilot.value && (!codex.value || manualToken.value));
-const credentials = computed(() => setup.credentialFields.filter(() => !codex.value || manualToken.value));
+const showKey = computed(() => !setup.provider.credential_id && setup.usesKey && !copilot.value && (!codex.value || manualToken.value));
+const credentials = computed(() => setup.credentialFields.filter(() => !setup.provider.credential_id && (!codex.value || manualToken.value)));
 // The service address is part of a preset; only a custom or local one asks for it up front.
 const addressFirst = computed(() => setup.custom || local.value);
 const secret = (field: string) => ['secret_access_key', 'session_token'].includes(field);
