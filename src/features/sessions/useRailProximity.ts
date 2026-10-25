@@ -4,7 +4,7 @@ import { watch, type Ref } from 'vue';
 import { useMedia } from '../../ui/composables/useMedia.ts';
 
 export function useRailProximity(rail: Ref<HTMLElement | undefined>) {
-  const desktopMouse = useMedia('(min-width: 900px) and (hover: hover) and (pointer: fine)');
+  const desktopMouse = useMedia('(min-width: 900px)');
   watch([rail, desktopMouse], ([element, enabled], _, cleanup) => {
     if (!element || !enabled) return;
     const frame = element.closest<HTMLElement>('.chatlog-wrap');
@@ -19,7 +19,11 @@ export function useRailProximity(rail: Ref<HTMLElement | undefined>) {
     };
     const schedule = () => { if (!pending) pending = requestAnimationFrame(paint); };
     const move = (event: PointerEvent) => {
-      if (event.pointerType === 'touch') return;
+      if (event.pointerType === 'touch') {
+        element.classList.remove('rail-proximity');
+        return;
+      }
+      element.classList.add('rail-proximity');
       pointerX = event.clientX;
       schedule();
     };
@@ -29,6 +33,7 @@ export function useRailProximity(rail: Ref<HTMLElement | undefined>) {
     window.addEventListener('blur', leave);
     const resize = new ResizeObserver(schedule);
     resize.observe(frame);
+    element.classList.toggle('rail-proximity', matchMedia('(hover: hover) and (pointer: fine)').matches);
     paint();
     cleanup(() => {
       cancelAnimationFrame(pending);
@@ -37,6 +42,7 @@ export function useRailProximity(rail: Ref<HTMLElement | undefined>) {
       frame.removeEventListener('pointerleave', leave);
       window.removeEventListener('blur', leave);
       element.style.removeProperty('--rail-proximity');
+      element.classList.remove('rail-proximity');
     });
   }, { flush: 'post', immediate: true });
 }

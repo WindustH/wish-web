@@ -130,7 +130,6 @@ try {
   }
   assert.ok(railGaps[2]>railGaps[0]+20,'wide desktop gives the rail more breathing room');
   await send('Emulation.setTouchEmulationEnabled',{enabled:false});
-  await until(`matchMedia('(hover: hover) and (pointer: fine)').matches`,'desktop mouse media');
   const railX=await js(`document.querySelector('.rail-clip').getBoundingClientRect().left+12`);
   await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:railX,y:300});
   await until(`document.querySelector('.rail-clip').style.getPropertyValue('--rail-proximity')==='1'`,'near rail fully visible');

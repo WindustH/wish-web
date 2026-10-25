@@ -177,8 +177,8 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .rail-clip { position: absolute; top: 0; left: calc((100% - var(--max-content)) / 2 - clamp(40px, calc((100% - var(--max-content)) / 4 + 20px), 120px)); z-index: 1; pointer-events: none; overflow-y: clip; }
 .rail-clip .history-rail-node { position: absolute; left: 0; pointer-events: auto; }
 .rail-clip.hidden { opacity: 0; visibility: hidden; }
-@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
-  .rail-clip { opacity: var(--rail-proximity, 0); transition: opacity 100ms linear; }
+@media (min-width: 900px) {
+  .rail-clip.rail-proximity { opacity: var(--rail-proximity, 0); transition: opacity 100ms linear; }
   .rail-clip:focus-within { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .rail-clip { transition: none; } }
