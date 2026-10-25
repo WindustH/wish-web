@@ -114,13 +114,13 @@ async function toggle(database: Database) {
 <style scoped>
 .storage-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .storage-head h2 { margin: 0; font: 600 14px/1.5 var(--font); }
-.storage-total { font-size: 24px; font-weight: 600; line-height: 1.2; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.storage-bar { display: flex; gap: 2px; height: 8px; margin: 14px 0 6px; overflow: hidden; border-radius: 999px; background: var(--bg-sunken); }
+.storage-total { font-size: 20px; font-weight: 600; line-height: 1.2; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.storage-bar { display: flex; gap: 2px; height: 6px; margin: 10px 0 4px; overflow: hidden; border-radius: 999px; background: var(--bg-sunken); }
 .storage-bar span { flex: 0 1 0; min-width: 4px; }
 .storage-parts { margin: 0; padding: 0; list-style: none; }
 .storage-parts > li + li { border-top: 1px solid var(--line); }
 /* A part's row: what it is, then its share and size; a database's opens to what it holds. */
-.storage-part { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; padding: 10px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; }
+.storage-part { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; padding: 6px 0; line-height: 1.35; border: 0; background: none; color: inherit; font: inherit; text-align: left; }
 button.storage-part { cursor: pointer; border-radius: 6px; }
 @media (hover: hover) { button.storage-part:hover .storage-part-text > span { color: var(--fg); } button.storage-part:hover .storage-chevron { color: var(--fg-muted); } }
 button.storage-part:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -145,6 +145,10 @@ button.storage-part:focus-visible { outline: 2px solid var(--focus-ring); outlin
 .storage-more { padding: 2px 0; border: 0; background: none; color: var(--fg-subtle); font: inherit; font-size: 12.5px; cursor: pointer; }
 @media (hover: hover) { .storage-more:hover { color: var(--fg); } }
 .storage-kinds-state { display: flex; margin: 0; padding: 6px 0; color: var(--fg-subtle); font-size: 12.5px; }
+@media (min-width: 600px) {
+  .storage-figure { flex-direction: row; align-items: baseline; gap: 12px; }
+  .storage-figure small { width: 42px; text-align: right; }
+}
 @media (max-width: 599px) {
   .storage-part { gap: 10px; }
   .storage-part-text small { white-space: normal; }
