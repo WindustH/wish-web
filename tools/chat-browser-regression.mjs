@@ -120,6 +120,15 @@ try {
     await js(`fixture.mobile.value=${width<700}`);await sleep(150);
     const g=await geometry();assert.ok(g.rows>0&&g.rows<80,'resizing retains a bounded visible range');
   }
+  const railGaps=[];
+  for(const width of [1000,1200,1600]){
+    await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:false});
+    await js('fixture.mobile.value=false');await sleep(200);
+    const g=await js(`(()=>{const words=document.querySelector('.chatlog-inner').getBoundingClientRect();const node=document.querySelector('.history-rail-node').getBoundingClientRect();return {gap:words.left-node.right,left:node.left,words:words.width};})()`);
+    assert.ok(g.left>=0&&g.gap>=15,'desktop rail stays visible and clear of messages');
+    railGaps.push(g.gap);
+  }
+  assert.ok(railGaps[2]>railGaps[0]+20,'wide desktop gives the rail more breathing room');
   const dialogs=[];
   for(const kind of ['picker','activity','album']){
     await js(`fixture.dialog.value='${kind}'`);
