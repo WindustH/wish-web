@@ -15,6 +15,8 @@ import PickerDialog from '/src/ui/components/PickerDialog.vue';
 import Modal from '/src/ui/components/Modal.vue';
 import VirtualImageGrid from '/src/features/sessions/entries/VirtualImageGrid.vue';
 import VirtualRows from '/src/ui/components/VirtualRows.vue';
+import GroupLog from '/src/features/groups/GroupLog.vue';
+import { createRouter, createMemoryHistory } from 'vue-router';
 import ChatLog from '/src/features/sessions/ChatLog.vue';
 import { chat } from '/src/core/state/chatSlice.ts';
 import { registerBrowserPlatform } from '/src/platform/browser/index.ts';
@@ -29,13 +31,14 @@ chat.sessionId.value='fixture'; chat.loadingInitial.value=false;
 chat.entries.value=Array.from({length:2000},(_,i)=>({seq:i+1,id:i+1,created_at:0,kind:i%2?'assistant_message':'user_message',payload:{content:[{type:'text',text:'Message '+(i+1)+' — '+ '长会话滚动与手势验证。'.repeat(30)}]}}));
 chat.entries.value=chat.entries.value.map((entry,i)=>i>=500&&i<1500?{...entry,kind:'assistant_message',payload:{content:[{type:'tool_call',id:'call-'+i,name:'shell_edit',arguments:{command:'echo '+i}}]}}:entry);
 const active=ref(true), mobile=ref(true), session=ref('fixture'), dialog=ref('');
+const groupMode=ref(false), groupMessages=ref(Array.from({length:5000},(_,i)=>({seq:i+101,at:0,author:{kind:'user'},text:'Group '+i+' '+ '群组长记录。'.repeat(i%20+1)})));
 const choices=Array.from({length:500},(_,i)=>({key:String(i),title:'Provider '+i,description:'Search provider or subscription'}));
-createApp({setup(){provide(pageActivityKey,active);return()=>h(TooltipProvider, {}, {default:()=>h('main',{style:{height:'100vh',display:active.value?'flex':'none',flexDirection:'column'}},[h(ChatLog,{sessionId:session.value,mobile:mobile.value}),
+createApp({setup(){provide(pageActivityKey,active);return()=>h(TooltipProvider, {}, {default:()=>h('main',{style:{height:'100vh',display:active.value?'flex':'none',flexDirection:'column'}},[groupMode.value?h(GroupLog,{groupId:'group-fixture',messages:groupMessages.value,loading:false,hasOlder:false}):h(ChatLog,{sessionId:session.value,mobile:mobile.value}),
  dialog.value==='picker'?h(PickerDialog,{title:'添加搜索提供商',items:choices,placeholder:'搜索服务或订阅…',onClose:()=>dialog.value=''}, {'footer-start':()=>h('button',{class:'btn'},'自定义提供商')}):null,
  dialog.value==='album'?h(Modal,{open:true,title:'500 张图片',bodyScroll:'content',contentClass:'image-album-window',onClose:()=>dialog.value=''}, {default:()=>h('div',{class:'album-thumbnails modal-scroll-region'},[h(VirtualImageGrid,{count:500},{default:({start,limit})=>Array.from({length:limit-start},(_,i)=>h('div',{style:{aspectRatio:'4/3',background:'#888'}},'Image '+(start+i)))})])}):null,
  dialog.value==='activity'?h(Modal,{open:true,title:'1000 项活动',bodyScroll:'content',sheet:mobile.value,onClose:()=>dialog.value=''}, {default:()=>h(VirtualRows,{count:1000,class:'modal-scroll-region'}, {default:({index})=>h('div',{},'Activity '+index)})}):null
-])});}}).mount('#app');
-window.fixture={chat,active,mobile,session,dialog};
+])});}}).use(createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]})).mount('#app');
+window.fixture={chat,active,mobile,session,dialog,groupMode,groupMessages};
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__chat_regression', async (_, res) => {
@@ -111,7 +114,27 @@ try {
   await js('history.back()');
   await until(`fixture.dialog.value===''`,'Back closes the full-screen local picker');
   assert.equal(await js('location.href'),url,'Back leaves the underlying page unchanged');
-  console.log(JSON.stringify({dialogs}));
+  await js('fixture.groupMode.value=true');
+  await until('document.querySelectorAll(".group-virtual-row").length>0','group virtual rows');
+  await sleep(700);
+  assert.ok(await js('document.querySelectorAll(".group-virtual-row").length<60'),'5000 group messages have bounded DOM');
+  await send('Input.dispatchMouseEvent',{type:'mouseWheel',x:200,y:300,deltaX:0,deltaY:-600});await sleep(400);
+  const anchor=()=>js(`(()=>{const e=document.querySelector('.chatlog');const row=[...document.querySelectorAll('.group-virtual-row')].find(r=>r.getBoundingClientRect().bottom>e.getBoundingClientRect().top);return {text:row.textContent,y:row.getBoundingClientRect().top,top:e.scrollTop,height:e.scrollHeight,viewport:e.clientHeight}})()`);
+  const groupBefore=await anchor();
+  await js(`fixture.groupMessages.value=[...Array.from({length:100},(_,i)=>({seq:i+1,at:0,author:{kind:'user'},text:'Older '+i})),...fixture.groupMessages.value]`);
+  await sleep(500);const groupAfter=await anchor();
+  assert.equal(groupAfter.text,groupBefore.text,'prepend preserves visible group message');
+  assert.ok(Math.abs(groupAfter.y-groupBefore.y)<5,'prepend preserves group pixel offset '+JSON.stringify({groupBefore,groupAfter}));
+  await js(`fixture.groupMessages.value=[...fixture.groupMessages.value,{seq:5200,at:0,author:{kind:'user'},text:'New group message'}]`);
+  await sleep(300);const groupAppended=await anchor();
+  assert.equal(groupAppended.text,groupAfter.text,'new group messages preserve history browsing');
+  await js('fixture.active.value=false');await sleep(100);await js('fixture.active.value=true');await sleep(400);
+  assert.ok(await js('document.querySelectorAll(".group-virtual-row").length>0'),'group reactivation restores virtual rows');
+  for (const width of [1000,600,390]) {
+    await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<700});await sleep(250);
+    assert.ok(await js('document.querySelectorAll(".group-virtual-row").length>0 && document.querySelectorAll(".group-virtual-row").length<80'),'resized group stays virtualized');
+  }
+  console.log(JSON.stringify({groupRows:5000,groupBefore,groupAfter,dialogs}));
   assert.deepEqual(exceptions,[],'no browser runtime exceptions');
   assert.deepEqual(await js('window.fixtureErrors'),[],'no layout observer errors');
   console.log(JSON.stringify({ok:true,entries:2000,toolCalls:1000,before,beforeWheel,after,transform}));
