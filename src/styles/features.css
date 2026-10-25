@@ -177,6 +177,11 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .rail-clip { position: absolute; top: 0; left: calc((100% - var(--max-content)) / 2 - clamp(40px, calc((100% - var(--max-content)) / 4 + 20px), 120px)); z-index: 1; pointer-events: none; overflow-y: clip; }
 .rail-clip .history-rail-node { position: absolute; left: 0; pointer-events: auto; }
 .rail-clip.hidden { opacity: 0; visibility: hidden; }
+@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
+  .rail-clip { opacity: var(--rail-proximity, 0); transition: opacity 100ms linear; }
+  .rail-clip:focus-within { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .rail-clip { transition: none; } }
 .rail-line { position: absolute; left: 12px; width: 1px; background: var(--line); pointer-events: none; }
 /* The lane a narrow writing desk buys: the words yield 40px of padding and the rail stands in it,
    left of the content box - padding scrolls with the log, so nothing is clipped away. */

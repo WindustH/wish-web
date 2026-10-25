@@ -129,6 +129,19 @@ try {
     railGaps.push(g.gap);
   }
   assert.ok(railGaps[2]>railGaps[0]+20,'wide desktop gives the rail more breathing room');
+  await send('Emulation.setTouchEmulationEnabled',{enabled:false});
+  await until(`matchMedia('(hover: hover) and (pointer: fine)').matches`,'desktop mouse media');
+  const railX=await js(`document.querySelector('.rail-clip').getBoundingClientRect().left+12`);
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:railX,y:300});
+  await until(`document.querySelector('.rail-clip').style.getPropertyValue('--rail-proximity')==='1'`,'near rail fully visible');
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:railX,y:650});await sleep(120);
+  assert.equal(await js(`document.querySelector('.rail-clip').style.getPropertyValue('--rail-proximity')`),'1','vertical movement keeps the rail equally visible');
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:railX+125,y:300});await sleep(120);
+  const partial=await js(`Number(document.querySelector('.rail-clip').style.getPropertyValue('--rail-proximity'))`);
+  assert.ok(partial>0&&partial<1,'horizontal distance fades gradually');
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:railX+300,y:300});
+  await until(`document.querySelector('.rail-clip').style.getPropertyValue('--rail-proximity')==='0'`,'far from rail hidden');
+  await send('Emulation.setTouchEmulationEnabled',{enabled:true});
   const dialogs=[];
   for(const kind of ['picker','activity','album']){
     await js(`fixture.dialog.value='${kind}'`);

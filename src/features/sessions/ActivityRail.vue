@@ -15,10 +15,13 @@ import { layoutRail, type RailEvent, type RailNode, type RailRow } from './railL
 import ProcessDetail from './entries/ProcessDetail.vue';
 import { summarizeSteps, toolResultsKey } from './entries/processDetails.ts';
 import VirtualRows from '../../ui/components/VirtualRows.vue';
+import { useRailProximity } from './useRailProximity.ts';
 
 const props = defineProps<{ rows: RailRow[]; total: number; visible: boolean; session?: string }>();
 const emit = defineEmits<{ open: [request: { chipKey: string; stepKey: string | null; solo?: boolean }] }>();
 const isMobile = useIsMobile();
+const railElement = ref<HTMLElement>();
+useRailProximity(railElement);
 const rail = computed(() => layoutRail(props.rows, props.total));
 // Keep one decorative element; gradients fade empty spans without introducing scroll work.
 const railLineStyle = computed(() => {
@@ -71,7 +74,7 @@ const label = (node: RailNode) => node.events.length === 1 ? node.tip
 </script>
 
 <template>
-  <div class="rail-clip" :class="{ hidden: !visible }" :style="{ height: `${total}px` }" :aria-hidden="visible ? undefined : 'true'">
+  <div ref="railElement" class="rail-clip" :class="{ hidden: !visible }" :style="{ height: `${total}px` }" :aria-hidden="visible ? undefined : 'true'">
     <div v-if="rail.line" class="rail-line" :style="railLineStyle" />
     <button v-for="(node, index) in rail.nodes" :key="index" type="button" class="history-rail-node"
       :class="{ failed: node.failed, warn: !node.failed && node.warn }" :style="{ top: `${node.y - 12}px` }"
