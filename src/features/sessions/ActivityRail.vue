@@ -20,6 +20,23 @@ const props = defineProps<{ rows: RailRow[]; total: number; visible: boolean; se
 const emit = defineEmits<{ open: [request: { chipKey: string; stepKey: string | null; solo?: boolean }] }>();
 const isMobile = useIsMobile();
 const rail = computed(() => layoutRail(props.rows, props.total));
+// Keep one decorative element; gradients fade empty spans without introducing scroll work.
+const railLineStyle = computed(() => {
+  const { nodes, line } = rail.value;
+  if (!line) return {};
+  const stops = [`var(--line) 0px`];
+  for (let i = 1; i < nodes.length; i++) {
+    const start = nodes[i - 1]!.y - line.top;
+    const end = nodes[i]!.y - line.top;
+    if (end - start > 160) {
+      stops.push(`var(--line) ${start + 16}px`, `transparent ${start + 64}px`,
+        `transparent ${end - 64}px`, `var(--line) ${end - 16}px`);
+    }
+    stops.push(`var(--line) ${end}px`);
+  }
+  return { top: `${line.top}px`, height: `${line.bottom - line.top}px`,
+    background: `linear-gradient(to bottom, ${stops.join(', ')})` };
+});
 
 // The gathered window: what the node holds, as the run windows show a run. Its title says all of
 // it in a line; its rows are the acts, each opening a window of its own once the list has closed.
@@ -55,7 +72,7 @@ const label = (node: RailNode) => node.events.length === 1 ? node.tip
 
 <template>
   <div class="rail-clip" :class="{ hidden: !visible }" :style="{ height: `${total}px` }" :aria-hidden="visible ? undefined : 'true'">
-    <div v-if="rail.line" class="rail-line" :style="{ top: `${rail.line.top}px`, height: `${rail.line.bottom - rail.line.top}px` }" />
+    <div v-if="rail.line" class="rail-line" :style="railLineStyle" />
     <button v-for="(node, index) in rail.nodes" :key="index" type="button" class="history-rail-node"
       :class="{ failed: node.failed, warn: !node.failed && node.warn }" :style="{ top: `${node.y - 12}px` }"
       :aria-label="label(node)" aria-haspopup="dialog" :data-seq="node.seq" @click="click(node)">
