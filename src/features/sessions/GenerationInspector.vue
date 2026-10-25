@@ -4,11 +4,13 @@ import { useVirtualizer } from '@tanstack/vue-virtual';
 import * as api from '../../core/api/endpoints.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import Modal from '../../ui/components/Modal.vue';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import SelectField from '../../ui/components/SelectField.vue';
 import CopyButton from '../../ui/components/CopyButton.vue';
 import { generationText } from './generationText.ts';
 import { measureChatElement, observeChatRect } from './virtualMeasurements.ts';
 const props = defineProps<{ sessionId: string }>();
+const isMobile = useIsMobile();
 defineEmits<{ close: [] }>();
 const generations = shallowRef<api.StoredGeneration[]>([]), page = shallowRef<api.GenerationStructure>();
 const selected = ref<number>(), kind = ref(''), origin = ref('');
@@ -98,7 +100,7 @@ onBeforeUnmount(()=>{version++;controller.abort();});
 </script>
 
 <template>
-  <Modal :open="true" wide :title="tr('上下文结构', 'Context structure')" body-scroll="content" content-class="generation-inspector" @close="$emit('close')">
+  <Modal :open="true" :page="isMobile" wide :title="tr('上下文结构', 'Context structure')" body-scroll="content" content-class="generation-inspector" @close="$emit('close')">
     <div class="generation-filters">
       <label>Generation<SelectField :model-value="String(selected ?? '')" :options="generationOptions" :disabled="busy" aria-label="Generation" @update:model-value="selectGeneration" /></label>
       <label>{{ tr('消息类型', 'Message type') }}<SelectField :model-value="kind || 'all'" :options="kindOptions" :disabled="busy" :aria-label="tr('消息类型','Message type')" @update:model-value="selectKind" /></label>
@@ -126,7 +128,7 @@ onBeforeUnmount(()=>{version++;controller.abort();});
     </div>
     <div class="generation-load-status" role="status"><span v-if="busy">{{ tr('加载中…', 'Loading…') }}</span><span v-else-if="page">{{ tr('已加载', 'Loaded') }} {{ cards.length }} {{ tr('项', 'items') }}<template v-if="page.next == null || kind === 'Tools'"> · {{ tr('已全部加载', 'All loaded') }}</template></span></div>
   </Modal>
-  <Modal v-if="detail" :open="true" wide :title="detail.title" @close="detail = null"><template #actions><CopyButton :text="detail.text" /></template><pre class="generation-full-text">{{ detail.text }}</pre></Modal>
+  <Modal v-if="detail" :open="true" :page="isMobile" wide :title="detail.title" @close="detail = null"><template #actions><CopyButton :text="detail.text" /></template><pre class="generation-full-text">{{ detail.text }}</pre></Modal>
 </template>
 
 <style scoped>
@@ -151,4 +153,12 @@ onBeforeUnmount(()=>{version++;controller.abort();});
 .generation-entry pre { max-height:220px; overflow:hidden; }
 .generation-entry footer { display:flex; justify-content:flex-end; gap:4px; padding-top:8px; }
 .generation-load-status { min-height:24px; padding-top:8px; font-size:12px; color:var(--fg-subtle); }
+@media (max-width: 899px) {
+  .generation-cards { height: auto; }
+  .generation-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .generation-filters label { min-width: 0; }
+  .generation-filters label:first-child { grid-column: 1 / -1; }
+  .generation-refresh { grid-column: 1 / -1; justify-self: end; }
+  .generation-meta { gap: 4px 10px; padding-bottom: 8px; }
+}
 </style>
