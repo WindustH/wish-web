@@ -68,7 +68,7 @@ onDeactivated(stats.stopAuto);
 </script>
 
 <template>
-  <OverlayWindow :title="i18n.t('nav.stats')" :close-label="tr('关闭统计', 'Close statistics')" mobile-padding="0 20px 32px">
+  <OverlayWindow :title="i18n.t('nav.stats')" :close-label="tr('关闭统计', 'Close statistics')" max-width="680px" gutter="24px" mobile-padding="0 20px 32px">
     <template #tools><RefreshStamp :at="updatedAt" :loading="loading" @refresh="refresh" /></template>
     <div class="statistics-body">
       <p v-if="error" class="load-error" role="alert">{{ errorMessage }}<span v-if="updatedAt">{{ tr('下方保留上次成功读取的数据。', 'The last successful snapshot remains below.') }}</span></p>
@@ -118,14 +118,14 @@ onDeactivated(stats.stopAuto);
   /* The phone's grouped look: cards one step above a sunken page. */
   .statistics-usage, .statistics-panel, .statistics-body :deep(.usage-chart-card) { border: 0; border-radius: 18px; background: var(--bg-group); }
 }
-.statistics-body { width: 100%; max-width: 1100px; min-width: 0; margin-inline: auto; padding: 0; }
+.statistics-body { width: 100%; max-width: 640px; min-width: 0; margin-inline: auto; padding: 0; }
 .statistics-usage { min-width: 0; transition: opacity var(--dur-fast); }
 .statistics-usage.switching { opacity: .6; }
 .statistics-usage-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .statistics-usage-head h3 { margin: 0; font: 600 14px/1.4 var(--font); }
 .statistics-usage-empty { margin: 8px 0 16px; font-size: 13px; color: var(--fg-subtle); }
 /* Equal cells keep names, providers and shares aligned however many models there are. */
-.statistics-models { display:grid; grid-template-columns:repeat(auto-fill, minmax(168px, 1fr)); gap:2px 12px; margin-bottom:16px; min-width:0; }
+.statistics-models { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:2px 12px; margin-bottom:16px; min-width:0; }
 .statistics-model { display:flex; align-items:center; gap:8px; width:100%; min-width:0; padding:7px 8px; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--fg-subtle); font:inherit; font-size:12px; text-align:left; cursor:pointer; }
 @media (hover: hover) { .statistics-model:hover { background:var(--bg-hover); } }
 .statistics-model[aria-pressed='true'] { color:var(--fg); }
@@ -165,16 +165,6 @@ dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em;
 /* Storage: a card matching the chart cards above. */
 .statistics-panel { min-width: 0; padding: 18px 20px 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); }
 @media (max-width: 899px) { .statistics-footer { gap: 16px; } .statistics-grid { margin-top: 16px; } .statistics-panel { padding: 16px; } }
-/* Two columns only once each card has room for its legends; narrower windows stack them. */
-@media (min-width: 1100px) {
-  .statistics-body :deep(.usage-charts) { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
-  .statistics-body :deep(.usage-chart-card:first-child) { grid-column: 1; grid-row: 1; }
-  .statistics-body :deep(.usage-chart-card:last-child) { grid-column: 1; grid-row: 2; }
-  .statistics-usage { grid-column: 2; grid-row: 1 / span 2; }
-  .statistics-usage > .statistics-values { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .model-share { grid-template-columns: minmax(100px, 140px) minmax(0, 1fr); gap: 12px; }
-  .model-share :deep(.usage-canvas) { height: 140px; }
-}
 @media (max-width: 450px) { .model-share { grid-template-columns: minmax(100px, 130px) minmax(0, 1fr); gap: 10px; } .model-share :deep(.usage-canvas) { height: 140px; } }
 @media (max-width: 599px) {
   .statistics-usage { padding: 16px 12px; }

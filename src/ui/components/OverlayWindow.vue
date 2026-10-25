@@ -14,7 +14,7 @@ import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
 defineOptions({ inheritAttrs: false });
-defineProps<{ title: string; closeLabel?: string; gutter?: string; mobilePadding?: string }>();
+defineProps<{ title: string; closeLabel?: string; gutter?: string; maxWidth?: string; mobilePadding?: string }>();
 const isMobile = useIsMobile();
 const pageActive = usePageActivity();
 const focus = useDialogFocus();
@@ -26,7 +26,7 @@ const close = inject(closeOverlayKey)!;
     <DialogPortal :disabled="isMobile">
       <DialogOverlay v-if="!isMobile" class="overlay-window-scrim" />
       <DialogContent as-child :aria-describedby="undefined" @open-auto-focus="focus.opened" @close-auto-focus="focus.closed">
-        <div class="overlay-window" v-bind="$attrs" :style="{ '--overlay-gutter': gutter, '--overlay-mobile-padding': mobilePadding }">
+        <div class="overlay-window" v-bind="$attrs" :style="{ '--overlay-gutter': gutter, '--overlay-width': maxWidth, '--overlay-mobile-padding': mobilePadding }">
           <header class="overlay-window-heading page-bar">
             <button v-if="isMobile" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')" @click="close"><Icon name="arrow-left" /></button>
             <DialogTitle class="overlay-window-title page-bar-title">{{ title }}</DialogTitle>
@@ -47,7 +47,7 @@ const close = inject(closeOverlayKey)!;
 .overlay-window-scrim { position: fixed; inset: 0; z-index: 50; background: var(--scrim); backdrop-filter: blur(4px); animation: overlay-window-fade 180ms var(--ease-out); }
 .overlay-window-scrim[data-state='closed'] { animation: overlay-window-fade 160ms ease-in reverse forwards; pointer-events: none; }
 @media (min-width: 900px) {
-  .overlay-window { position: fixed; z-index: 51; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(1120px, 94vw); height: min(820px, 90dvh); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: var(--shadow-pop); overflow: hidden; animation: overlay-window-enter 180ms var(--ease-out); }
+  .overlay-window { position: fixed; z-index: 51; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(var(--overlay-width, 1120px), 94vw); height: min(820px, 90dvh); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: var(--shadow-pop); overflow: hidden; animation: overlay-window-enter 180ms var(--ease-out); }
   .overlay-window[data-state='closed'] { animation: overlay-window-exit 160ms ease-in forwards; }
   /* The compact windows' heading: the title in the flow and its tools beside it, no band. */
   .overlay-window-heading { display: flex; flex: none; align-items: center; gap: 2px; min-height: 0; padding: 12px 12px 6px var(--overlay-gutter, clamp(24px, 4vw, 48px)); border-bottom: 0; background: transparent; }
