@@ -79,7 +79,7 @@ function ownFieldDrag(event: Event) {
 function looking() { return !!imageLightbox.value; }
 function outside(event: Event) {
   const target = (event as CustomEvent).detail?.originalEvent?.target as Node | undefined;
-  if (looking() || (target instanceof Element && target.closest('.pwa-update')) || !props.dismissable || (bubble.value && (event.target as Element)?.closest?.('[data-session-panel]'))) event.preventDefault();
+  if (looking() || (target instanceof Element && target.closest('.pwa-update')) || !props.dismissable || (bubble.value && target instanceof Element && target.closest('[data-session-panel]'))) event.preventDefault();
 }
 watch(() => props.open, open => { if (open) { clearCloseTimer(); closing.value = false; closeCompleted = false; } });
 // Left while closing, it is closed: the page must not bring it back.

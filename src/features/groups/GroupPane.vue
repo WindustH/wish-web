@@ -89,7 +89,7 @@ const infoLabel = tr('群组信息', 'Group info');
           <span class="group-count">{{ tr(`${memberCount} 个成员`, `${memberCount} member${memberCount === 1 ? '' : 's'}`) }}</span>
         </template>
       </div>
-      <Hint :text="infoLabel"><button class="btn ghost icon-only" :aria-label="infoLabel" :disabled="!group" :aria-pressed="infoOpen"
+      <Hint :text="infoLabel"><button class="btn ghost icon-only" :aria-label="infoLabel" :disabled="!group" data-session-panel="info" :aria-pressed="infoOpen"
         :class="{ selected: infoOpen }" @click="infoOpen = !infoOpen"><Icon name="info" /></button></Hint>
     </div>
     <div v-if="failed" class="load-error" role="alert">
