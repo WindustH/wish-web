@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { tr } from '../../core/i18n/tr.ts';
+import { sessionNaming } from '../../core/state/sessionNaming.ts';
+import SessionListAction, { type ActionTarget } from './SessionListAction.vue';
 import FadeText from '../../ui/components/FadeText.vue';
 import { modelLabel } from '../../ui/modelLabel.ts';
 import { sessionParent } from '../shell/sessionNavigation.ts';
@@ -60,6 +63,18 @@ watch(chat.missingSessionId, (missingId) => {
 });
 
 const snapshot = computed(() => chat.snapshot.value);
+const renameTarget = ref<ActionTarget | null>(null);
+const titleActions = computed(() => [
+  { key: 'rename', icon: 'pencil', label: i18n.t('manage.rename') },
+  { key: 'generate-name', icon: 'sparkles', label: tr('自动重命名', 'Auto rename') },
+]);
+function titleAction(key: string) {
+  const session = snapshot.value;
+  if (!session || session.id !== id.value) return;
+  if (key === 'generate-name') void sessionNaming.generate(session.id);
+  else if (key === 'rename') renameTarget.value = { id: session.id, name: session.name, kind: 'session' };
+}
+watch(id, () => { renameTarget.value = null; });
 const tabs = computed(() => [
   { key: 'info', icon: 'info', label: i18n.t('chatbar.info') },
   { key: 'search', icon: 'search', label: i18n.t('chatbar.search') },
@@ -118,7 +133,9 @@ const goTab = (t: SessionTab) => {
       <button v-if="isMobile" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')"
         @click="router.push(sessionParent)"><Icon name="arrow-left" /></button>
       <div class="chat-title">
-        <span v-if="!snapshot" class="chat-skeleton title-skeleton" :aria-label="i18n.t('sessions.loading')" role="status" /><FadeText v-else class="name" :text="sessionTitle(snapshot)" />
+        <span v-if="!snapshot" class="chat-skeleton title-skeleton" :aria-label="i18n.t('sessions.loading')" role="status" /><Menu v-else :key="snapshot.id" context :items="titleActions" @select="titleAction">
+          <FadeText class="name" :text="sessionTitle(snapshot)" tabindex="0" aria-haspopup="menu" :aria-label="tr('会话名称菜单', 'Session title menu')" />
+        </Menu>
         <span v-if="!snapshot" class="chat-skeleton model-skeleton" aria-hidden="true" /><span v-else class="model-selection">
         <Hint :text="i18n.t('model.chipTitle')"><button class="model-chip" :aria-expanded="modelOpen" @click="modelOpen = true">
           <span>{{ modelLabel(snapshot?.model || '') || '—' }}</span>
@@ -149,6 +166,7 @@ const goTab = (t: SessionTab) => {
     <InfoPane v-if="!isMobile && desktopTab === 'info'" @close="desktopTab = null" />
     <SearchPane v-if="!isMobile && desktopTab === 'search'" @close="desktopTab = null" />
     <SessionSettingsPane v-if="!isMobile && desktopTab === 'settings'" @close="desktopTab = null" />
+    <SessionListAction v-if="renameTarget" :target="renameTarget" kind="rename" @close="renameTarget = null" />
     <ModelSettings v-if="modelOpen" :session-id="id" @close="modelOpen = false" />
     <ReasoningSettings v-if="reasoningOpen" :session-id="id" @close="reasoningOpen = false" />
   </div>
