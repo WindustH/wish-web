@@ -173,9 +173,13 @@ export function entryView(item: any, sessionId: string): EntryView {
   if (type === 'System' && message.metadata?.source === 'wish_agent_instructions') {
     result.payload.instruction_sections = instructionSections((message.content ?? []).map((block: any) => block.Text?.text ?? '').join('\n\n'), item.instruction_preview);
   }
-  if (entry.origin === 'Summary' || entry.origin === 'Context' || type === 'UpstreamCompaction') {
+  if (entry.origin === 'Summary' || type === 'UpstreamCompaction') {
     result.kind = 'system_message';
     result.payload.instruction_title = type === 'UpstreamCompaction' ? '上游上下文压缩' : '上下文摘要';
+  }
+  if (Array.isArray(item.initial_tools)) {
+    const sections = result.payload.instruction_sections ?? [{ title: '系统指令', content: result.payload.content.map(block => block.type === 'text' ? block.text : '').join('\n'), supplemental: false }];
+    result.payload.instruction_sections = [{ title: '工具定义 · Generation #0', content: JSON.stringify(item.initial_tools, null, 2), supplemental: false }, ...sections];
   }
   if (type === 'User' && Array.isArray(message.metadata?.input_parts)) {
     result.payload.content = orderedUserContent(message, sessionId, result.payload.content);
