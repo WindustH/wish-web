@@ -42,19 +42,24 @@ function rowNodes(row: RailRow, nextIdealY: number, bottom: number): RailNode[] 
   const lastY = Math.max(TOP_PAD + RAIL_PITCH / 2, bottom - NODE_BOTTOM);
   const firstY = Math.min(row.top + TOP_PAD + RAIL_PITCH / 2, lastY);
   const slots = Math.min(rowSlots(row.top, nextIdealY), Math.floor((lastY - firstY) / RAIL_PITCH) + 1);
-  if (events.length <= slots) return events.map((event, i) => node(event, firstY + i * RAIL_PITCH));
+  // Spread this run across its available interval, stopping one pitch before the next
+  // run. A lone mark keeps its message anchor; short intervals still fold as before.
+  const count = Math.min(events.length, slots);
+  const endY = Math.max(firstY, Math.min(lastY, nextIdealY - RAIL_PITCH));
+  const pitch = count > 1 ? (endY - firstY) / (count - 1) : 0;
+  if (events.length <= slots) return events.map((event, i) => node(event, firstY + i * pitch));
   // With one slot all events belong in the gathered node; showing one separately would
   // create a second node outside the available space.
   const shown = events.slice(0, slots - 1);
   const rest = events.slice(shown.length);
-  const placed = shown.map((event, i) => node(event, firstY + i * RAIL_PITCH));
+  const placed = shown.map((event, i) => node(event, firstY + i * pitch));
   const gathered = rest.slice(1).reduce<RailNode>((into, event) => {
     into.count += 1;
     into.failed = into.failed || event.failed;
     into.warn = into.warn || event.warn;
     into.events.push(event);
     return into;
-  }, node(rest[0]!, firstY + shown.length * RAIL_PITCH));
+  }, node(rest[0]!, firstY + shown.length * pitch));
   return [...placed, gathered];
 }
 

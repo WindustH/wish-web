@@ -104,12 +104,14 @@ test('a row spreads its events into the open rail below, folding only when the n
     ({ chipKey: 'p', stepKey: `s${i}`, icon: 'terminal', failed: false, warn: false, tip: `#${i}`, seq: i + 1 }));
   // Slots are the room before the next event's first place: a next event at y 167.5 leaves five.
   assert.equal(rowSlots(0, 4 + 150 + RAIL_PITCH / 2), 5);
-  // With nothing coming after, even a one-line row's events spread down the open rail, one pitch
-  // apart from half a pitch in - past the row's own height, into the empty conversation below.
+  // With nothing coming after, events use the whole open rail, evenly spaced within its bounds.
   const open = layoutRail([{ top: 0, height: 30, events: events(5) }, { top: 30, height: 300, events: [] }]);
   assert.equal(open.nodes.length, 5);
   assert.ok(open.nodes.every(node => node.count === 1));
-  assert.ok(Math.abs(open.nodes[1]!.y - open.nodes[0]!.y - RAIL_PITCH) < 0.01);
+  const spacing = open.nodes[1]!.y - open.nodes[0]!.y;
+  assert.ok(spacing > RAIL_PITCH);
+  for (let i = 2; i < open.nodes.length; i++) assert.ok(Math.abs(open.nodes[i]!.y - open.nodes[i - 1]!.y - spacing) < 0.01);
+  assert.equal(open.nodes.at(-1)!.y, 330 - 16, 'the run uses the available height');
   assert.ok(Math.abs(open.nodes[0]!.y - (4 + RAIL_PITCH / 2)) < 0.01);
   assert.ok(open.nodes.at(-1)!.y > 30, 'the last node stands below the short row that owns it');
   // A next event standing close leaves two slots: the first shows, the rest gather into a count.
