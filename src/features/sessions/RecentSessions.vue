@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { sessionNaming } from '../../core/state/sessionNaming.ts';
 import { computed, onScopeDispose, ref, watch } from 'vue';
 import { conversationsList } from '../../core/api/endpoints.ts';
 import { bus } from '../../core/bus.ts';
@@ -20,7 +21,8 @@ const rows = computed(() => recent.data.value ?? []);
 const action = ref<{ target: ActionTarget; kind: 'rename' | 'tags' | 'delete' }>();
 const clearing = ref<{ id: string; name: string }>();
 function onRowAction(row: ListRow, kind: RowAction) {
-  if (kind === 'prune') clearing.value = { id: row.id, name: sessionTitle(row) };
+  if (kind === 'generate-name') { void sessionNaming.generate(row.id); }
+  else if (kind === 'prune') clearing.value = { id: row.id, name: sessionTitle(row) };
   else if (kind === 'rename' || kind === 'tags' || kind === 'delete') action.value = { target: { id: row.id, name: row.name, kind: row.kind }, kind };
 }
 let timer: ReturnType<typeof setTimeout> | undefined;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { sessionNaming } from '../../core/state/sessionNaming.ts';
 import Hint from '../../ui/components/Hint.vue';
 // Session list with client query (server filter), tag chip, virtualized
 // rows (TanStack) and endless next-page loading — data unbounded, DOM bounded.
@@ -89,7 +90,8 @@ function batchDone() {
   if (ended) stopSelecting();
 }
 function onRowAction(row: SessionRow | GroupRow, kind: RowAction) {
-  if (kind === 'select') { selecting.value = true; chosen.value = new Set([row.id]); }
+  if (kind === 'generate-name') { void sessionNaming.generate(row.id); }
+  else if (kind === 'select') { selecting.value = true; chosen.value = new Set([row.id]); }
   else if (kind === 'prune') batch.value = { kind, targets: [{ id: row.id, name: sessionTitle(row) }] };
   else if (kind === 'pin' || kind === 'unpin') pin([row.id], kind === 'pin');
   else if (kind === 'move') moving.value = { ids: [row.id], title: tr(`移动「${sessionTitle(row)}」`, `Move “${sessionTitle(row)}”`), from: row.parent };

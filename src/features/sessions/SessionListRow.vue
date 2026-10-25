@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { sessionNaming } from '../../core/state/sessionNaming.ts';
+import Spinner from '../../ui/components/Spinner.vue';
 import FadeText from '../../ui/components/FadeText.vue';
 import Hint from '../../ui/components/Hint.vue';
 import { computed } from 'vue';
@@ -10,7 +12,7 @@ import { tr } from '../../core/i18n/tr.ts';
 import { relTime } from '../../core/util/fmt.ts';
 import { useMedia } from '../../ui/composables/useMedia.ts';
 import { sessionTitle, type GroupRow, type SessionRow } from '../../core/state/sessionsSlice.ts';
-export type RowAction = 'rename' | 'tags' | 'prune' | 'select' | 'pin' | 'unpin' | 'move' | 'delete';
+export type RowAction = 'generate-name' | 'rename' | 'tags' | 'prune' | 'select' | 'pin' | 'unpin' | 'move' | 'delete';
 // A list that can choose several (`selectable`) offers it in a row's menu; while it is choosing,
 // every row is a box to tick instead of a link, and has no menu. A list arranged in folders
 // (`arranged`) lets a row be pinned and moved; where no heading says a row is pinned, as among
@@ -30,6 +32,7 @@ const actions = computed<MenuItem[]>(() => [
   ] : []),
   { key: 'rename', icon: 'pencil', label: i18n.t('manage.rename'), separator: props.arranged },
   ...(group.value ? [] : [
+    { key: 'generate-name', icon: 'sparkles', label: tr('自动生成名称', 'Generate title') },
     { key: 'tags', icon: 'tag', label: i18n.t('sessions.editTags') },
     { key: 'prune', icon: 'eraser', label: tr('清理历史', 'Clear history') },
   ]),
@@ -51,6 +54,7 @@ const linkAttrs = computed(() => props.selecting
     <Hint :text="`${name} · ${relTime(row.updated_at, i18n.t)}`"><component :is="link" v-bind="linkAttrs" class="sl-row" :data-testid="`sl-row-${index}`" @click="selecting && emit('toggle')">
       <span v-if="selecting" class="sl-check" aria-hidden="true"><Icon v-if="chosen" name="check" /></span>
       <Hint v-else-if="row.kind === 'group'" :text="tr(`群组 · ${row.members.length} 个成员`, `Group · ${row.members.length} member${row.members.length === 1 ? '' : 's'}`)"><span class="sl-status sl-group" :aria-label="tr('群组', 'Group')"><Icon name="users" /></span></Hint>
+      <Spinner v-else-if="sessionNaming.pending.value.has(row.id)" />
       <Hint v-else :text="i18n.t(`phase.${row.phase}`)"><span class="sl-status phase-dot" :class="row.phase" :aria-label="i18n.t(`phase.${row.phase}`)" /></Hint>
       <span class="sl-main">
         <FadeText class="sl-name" :text="name" />

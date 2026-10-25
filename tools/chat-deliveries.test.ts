@@ -33,3 +33,20 @@ test('idle sends stay out of the optimistic queue; active sends appear immediate
   await state.send('queued');
   assert.equal(state.deliveries.value[0].text, 'queued');
 });
+
+test('only accepted first messages trigger naming without blocking message send', async () => {
+  const names: unknown[] = []; let first = true;
+  const state = createChatDeliveries({
+    sessionId: shallowRef('a'), snapshot: shallowRef({ phase: 'idle' }), stream: shallowRef({active:false}),
+    error: shallowRef(null), options: () => ({}), scheduleRefresh: () => {},
+    upload: async () => ({blocks:[]}),
+    nameFirstMessage: (id, entry) => { names.push([id,entry]); return new Promise(() => {}); },
+    requests: {
+      messageSend: async () => { const result={id:'5',entry:5,first_user_message:first}; first=false; return result; },
+      deliveriesList: async () => ({items:[],has_more:false}),
+    } as any,
+  });
+  assert.equal(await state.send('first'), '5');
+  await state.send('second');
+  assert.deepEqual(names, [['a',5]]);
+});

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { sessionNaming } from '../../core/state/sessionNaming.ts';
 import { modelLabel as formatModelLabel } from '../../ui/modelLabel.ts';
 import { resolvedEffort, effortLabel } from './reasoningLabels.ts';
 import { uploadAttachments, type AttachmentInput } from '../../core/attachments.ts';
@@ -124,6 +125,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
     const capabilities = attachments.length ? await api.sessionCapabilities(id) : undefined;
     const { blocks } = await uploadAttachments(id, attachments, { capabilities });
     const delivery = await api.messageSend(id, { content: text, ...(blocks.length ? { blocks } : {}) });
+    if (delivery.first_user_message) void sessionNaming.generate(id, delivery.entry);
     created.value = undefined;
     manuallySelected.value = false;
     manuallySetCwd.value = false;

@@ -3,6 +3,7 @@ import { shallowRef, type ShallowRef } from 'vue';
 import * as api from '../api/endpoints.ts';
 import type { EndpointOptions, MessageBlock, QueuedDelivery } from '../api/endpoints.ts';
 import { uploadAttachments } from '../attachments.ts';
+import { sessionNaming } from './sessionNaming.ts';
 
 // The run a send() started: the session it went to and its delivery id.
 export interface SentRun { sessionId: string; deliveryId: string }
@@ -17,10 +18,11 @@ export interface ChatDeliveriesDeps {
   options: () => EndpointOptions;
   scheduleRefresh: () => void;
   requests?: DeliveryRequests;
+  nameFirstMessage?: (id: string, entry: number) => Promise<void>;
   upload?: (sessionId: string, attachments: DeliveryAttachment[], opts: EndpointOptions) => Promise<{ blocks: MessageBlock[] }>;
 }
 
-export function createChatDeliveries({ sessionId, snapshot, stream, error, options, scheduleRefresh, requests = api, upload = uploadAttachments }: ChatDeliveriesDeps) {
+export function createChatDeliveries({ sessionId, snapshot, stream, error, options, scheduleRefresh, requests = api, upload = uploadAttachments, nameFirstMessage = sessionNaming.generate }: ChatDeliveriesDeps) {
   const sending = shallowRef(false);
   const sentRun = shallowRef<SentRun | null>(null);
   const deliveries = shallowRef<QueuedDelivery[]>([]);
@@ -54,6 +56,8 @@ export function createChatDeliveries({ sessionId, snapshot, stream, error, optio
       const { blocks } = await upload(id, attachments, requestOptions);
       if (!current(own)) return null;
       const result = await requests.messageSend(id, { content: text, blocks }, requestOptions);
+
+      if (result.first_user_message) void nameFirstMessage(id, result.entry);
 
       if (current(own)) {
         deliveriesVersion++;
