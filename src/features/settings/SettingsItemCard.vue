@@ -73,7 +73,7 @@ function moveBy(delta: number, event: KeyboardEvent) {
         <slot name="actions" />
         <Hint v-if="checkHint" :text="checkHint"><button type="button" class="btn ghost icon-only" :disabled="checking || busy" :aria-label="`${checkHint} ${name}`" @click="emit('check')"><Icon :name="checking ? 'loader-circle' : 'refresh-cw'" :class="{ spin: checking }" /></button></Hint>
         <Hint :text="editHint"><button type="button" class="btn ghost icon-only" :aria-label="`${editHint} ${name}`" @click="emit('open')"><Icon name="pencil" /></button></Hint>
-        <Hint :text="removeHint"><button type="button" class="btn ghost icon-only settings-item-remove" :disabled="removeDisabled" :aria-label="`${removeHint} ${name}`" @click="emit('remove')"><Icon name="trash-2" /></button></Hint>
+        <Hint :text="removeHint"><button type="button" class="btn ghost icon-only settings-item-remove" :disabled="removeDisabled" :aria-label="`${removeHint} ${name}`" @click="emit('remove')"><Icon :name="removeDisabled ? 'trash-off' : 'trash-2'" /></button></Hint>
       </div>
     </header>
     <slot />
@@ -81,7 +81,7 @@ function moveBy(delta: number, event: KeyboardEvent) {
 </template>
 
 <style scoped>
-.settings-item-phone { display: flex; align-items: stretch; background: var(--bg-group); }
+.settings-item-phone { min-width: 0; display: flex; align-items: stretch; background: var(--bg-group); }
 .settings-item-phone > .mobile-settings-row { flex: 1; min-width: 0; }
 .settings-item-grip { display: grid; place-items: center; flex: none; width: 44px; padding: 0; border: 0; background: none; color: var(--fg-faint); touch-action: none; cursor: grab; }
 .settings-item-grip .icon { width: 18px; height: 18px; }
@@ -101,13 +101,14 @@ button.settings-item-position { cursor: inherit; }
 .settings-item-state.ok { background: color-mix(in srgb, var(--ok) 13%, transparent); color: var(--ok); }
 .settings-item-state.error { background: var(--err-bg); color: var(--err); }
 .settings-item-actions { display: flex; align-items: center; gap: 4px; flex: none; }
-.settings-item-remove { color: var(--fg-subtle); }
-@media (hover: hover) { .settings-item-remove:hover { color: var(--err); background: var(--err-bg); } }
+.settings-item-remove { color: var(--err); }
+.settings-item-remove:disabled { color: var(--fg-subtle); }
+@media (hover: hover) { .settings-item-remove:hover:not(:disabled) { color: var(--err); background: var(--err-bg); } }
 @media (max-width: 899px) {
   /* A list of items is a column of cards of their own, as on a desktop: grouped rows parted by
      lines are for settings that are always there. */
   .settings-item { border: 0; border-radius: 16px; background: var(--bg-group); }
-  .settings-item-row { width: 100%; min-height: 64px; gap: 14px; }
+  .settings-item-row { overflow-wrap: anywhere; width: 100%; min-height: 64px; gap: 14px; }
   .settings-item-row .settings-item-mark { width: 34px; height: 34px; }
   .settings-item-row .settings-item-state { flex: none; }
 }

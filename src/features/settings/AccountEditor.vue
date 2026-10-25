@@ -38,7 +38,7 @@ function field(name:string,text:string){writeCredential(account.value.credential
  <SwitchRow v-model="account.proxy_enabled" :name="tr('登录与续期使用代理','Use proxy for sign-in and renewal')" />
  <p class="hint">{{tr('此账户由关联服务共享。更换凭据会应用到所有关联服务。','Linked services share this account. Credential changes apply to all linked services.')}}</p>
  </div>
- <template #footer><button v-if="allowRemove!==undefined" class="btn ghost icon-only" :disabled="!allowRemove" :aria-label="tr('删除账户','Delete account')" @click="emit('remove')"><Icon name="trash-2" /></button><button class="btn primary" @click="emit('close')">{{tr('完成','Done')}}</button></template>
+ <template #footer><button v-if="allowRemove!==undefined" class="btn ghost icon-only settings-delete" :disabled="!allowRemove" :aria-label="tr('删除账户','Delete account')" @click="emit('remove')"><Icon :name="allowRemove ? 'trash-2' : 'trash-off'" /></button><button class="btn primary" @click="emit('close')">{{tr('完成','Done')}}</button></template>
 </Modal>
 </template>
 <style scoped>.account-form {display:grid;gap:12px}.account-form label{display:grid;gap:6px;font-size:13px}.hint{color:var(--fg-subtle);font-size:12px}</style>

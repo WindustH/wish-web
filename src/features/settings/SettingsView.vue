@@ -209,7 +209,7 @@ onMounted(load);
 .settings-heading { display: flex; align-items: center; flex: none; }
 .settings-heading-text { flex: 1; min-width: 0; }
 .settings-heading-text p { margin: 2px 0 0; font-size: 12px; line-height: 1.5; color: var(--fg-subtle); }
-.settings-content { flex: 1; min-height: 0; overflow: auto; }
+.settings-content { flex: 1; min-width: 0; min-height: 0; overflow: auto; }
 .settings-empty { display: grid; justify-items: center; gap: 14px; padding: 56px 0; color: var(--fg-subtle); }
 .settings-empty p { margin: 0; }
 .settings-empty .btn { display: inline-flex; align-items: center; gap: 7px; }

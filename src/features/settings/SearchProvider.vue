@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // One search provider: a card with whether it can search now, and its editor.
-import { computed, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
@@ -12,6 +12,7 @@ import { showError } from '../../ui/errorDialog.ts';
 import { toast } from '../../ui/toast.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import { tr } from '../../core/i18n/tr.ts';
+import { configDraftKey } from './useConfigDraft.ts';
 import SettingsItemCard, { type ItemState } from './SettingsItemCard.vue';
 
 export interface SearchProviderConfig {
@@ -42,6 +43,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ remove: []; checked: []; grab: [event: PointerEvent]; move: [delta: number] }>();
 const isMobile = useIsMobile();
+const configDraft = inject(configDraftKey);
 const editing = ref(props.initiallyOpen ?? false);
 const checking = ref(false);
 
@@ -49,7 +51,7 @@ const name = computed(() => props.preset?.name ?? props.value.preset);
 const borrowed = computed(() => !!props.preset?.borrows_from?.length);
 const lenderName = computed(() => props.lenders.find(item => item.value === props.value.auth_provider)?.label ?? props.value.auth_provider ?? '');
 const address = computed(() => props.value.base_url || props.status?.base_url || '');
-const subtitle = computed(() => props.value.credential_id ? tr('共享账户 · ','Shared account · ')+props.value.credential_id : borrowed.value
+const subtitle = computed(() => props.value.credential_id ? (configDraft?.draft.value.accounts?.[props.value.credential_id]?.name || props.value.credential_id).replace(/^model-/, '') : borrowed.value
   ? tr(`借用 ${lenderName.value} 的账户`, `Uses ${lenderName.value}'s account`)
   : [props.preset?.key === 'none' ? tr('无需密钥', 'No key') : tr('自带密钥', 'Own key'), address.value].filter(Boolean).join(' · '));
 const problem = computed(() => props.status?.problem ? describeError(props.status.problem).message : '');

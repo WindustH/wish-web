@@ -1,7 +1,7 @@
 // Server configuration draft and provider management.
 import { bus } from '../../core/bus.ts';
 import { ref, computed, type InjectionKey } from 'vue';
-import { requireAvailableModel, configSnapshot, configSave, providerPresets, searchPresets, proxyEnvironment as readProxyEnvironment, shellCatalog, type SearchPreset } from '../../core/api/endpoints.ts';
+import { requireAvailableModel, configSnapshot, configSave, providerPresets, searchPresets, fetchPresets, type FetchPreset, proxyEnvironment as readProxyEnvironment, shellCatalog, type SearchPreset } from '../../core/api/endpoints.ts';
 import { replayConfigChanges } from '../../core/configMerge.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { providerTitles } from '../../ui/providerPresentation.ts';
@@ -22,6 +22,7 @@ export function useConfigDraft() {
   const catalog = ref<ConfigCatalog>({ presets: [] });
   // Read with the configuration, so a search provider shows its name from the start.
   const searchCatalog = ref<SearchPreset[]>([]);
+  const fetchCatalog = ref<FetchPreset[]>([]);
   const proxyEnvironment = ref<{ name: string; value: string; redacted: boolean }[]>([]);
   const shells = ref<ShellCatalog | null>(null);
   const adding = ref(false);
@@ -78,17 +79,19 @@ export function useConfigDraft() {
   async function load() {
     busy.value = true;
     try {
-      const [configuration, presets, searches, environment, installed] = await Promise.all([
+      const [configuration, presets, searches, readers, environment, installed] = await Promise.all([
         configSnapshot(),
         providerPresets(),
         // Without them, search providers show by their ids; the rest of settings still loads.
         searchPresets().catch(() => ({ presets: [] })),
+        fetchPresets().catch(() => ({ presets: [] })),
         readProxyEnvironment(),
         // Only the picker needs it; the shell stays editable as a path without it.
         shellCatalog().catch(() => null),
       ]);
       catalog.value = presets;
       searchCatalog.value = searches.presets;
+      fetchCatalog.value = readers.presets;
       proxyEnvironment.value = environment.variables;
       shells.value = installed;
       accept(configuration);
@@ -230,6 +233,7 @@ export function useConfigDraft() {
     busy,
     catalog,
     searchCatalog,
+    fetchCatalog,
     proxyEnvironment,
     shells,
     adding,

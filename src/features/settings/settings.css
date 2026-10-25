@@ -129,6 +129,7 @@
 }
 
 /* Grouped settings: a titled section over a card of rows, on desktop and mobile. */
+.set-section { min-width: 0; }
 .set-section + .set-section { margin-top: 28px; }
 .set-section-head { margin: 0 4px 10px; }
 .set-section-head h3 { margin: 0; font: 600 13px/1.4 var(--font); color: var(--fg); }
@@ -213,3 +214,9 @@
   .skill-check { width: 24px; height: 24px; border-radius: 7px; }
   .skill-check-mark .icon { width: 16px; height: 16px; }
 }
+
+.provider-list-empty { margin: 0; padding: 18px 16px; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--fg-subtle); font-size: 13px; text-align: center; }
+@media (max-width: 899px) { .provider-list-empty { border-radius: 16px; } }
+
+.settings-delete { color: var(--err); }
+.settings-delete:disabled { color: var(--fg-subtle); }

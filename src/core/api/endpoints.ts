@@ -275,6 +275,8 @@ export const mcpCheck = (id: string): Promise<{ server: McpServerStatus['server'
 
 // Web search.
 export const searchPresets = (): Promise<{ presets: SearchPreset[] }> => get('/search-presets');
+export interface FetchPreset { id: string; name: string; key: 'required' | 'optional' | 'none'; base_url?: string; path?: string; account_preset?: string }
+export const fetchPresets = (): Promise<{ presets: FetchPreset[] }> => get('/fetch-presets');
 export const searchProviders = (): Promise<{ providers: SearchProviderStatus[]; available: boolean }> => get('/search/providers');
 // One test search on the saved provider.
 export const searchCheck = (id: string): Promise<{ results: SearchHit[]; warnings: string[]; duration_ms: number }> =>

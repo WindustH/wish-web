@@ -61,6 +61,10 @@ function remove(id: string) {
 }
 // A desktop drags a provider by its header; a phone by the grip at the end of its row, so the
 // rest of the row still scrolls the page and opens the provider.
+let suppressClickUntil = 0;
+function preventDragClick(event: MouseEvent) {
+  if (Date.now() <= suppressClickUntil) { event.preventDefault(); event.stopPropagation(); }
+}
 const controls = new Map<string, ReturnType<typeof useDragControls>>();
 const controlsOf = (id: string) => controls.get(id) ?? controls.set(id, useDragControls()).get(id)!;
 </script>
@@ -70,11 +74,11 @@ const controlsOf = (id: string) => controls.get(id) ?? controls.set(id, useDragC
     <header class="set-section-head"><h3>{{ tr('搜索提供商', 'Search providers') }}</h3><p>{{ tr('Web Search 按这里的顺序询问，前一个用不了（额度用尽、密钥失效、服务故障）时自动换下一个。各服务可以选择公共账户池中的账户。拖动可以调整顺序。', 'Web Search asks these in order and moves on when one cannot answer - its quota spent, its key refused, its service down. Search that comes with a subscription uses the model provider\'s account. Drag to reorder.') }}</p></header>
     <div class="search-list">
       <ReorderGroup v-if="order.length" v-model:values="order" as="div" axis="y" class="search-order">
-        <ReorderItem v-for="(id, index) in order" :key="id" :value="id" as="div" :drag-listener="!isMobile" :drag-controls="controlsOf(id)">
+        <ReorderItem v-for="(id, index) in order" :key="id" :value="id" as="div" :drag-listener="!isMobile" :drag-controls="controlsOf(id)" @drag-start="suppressClickUntil=Infinity" @drag-end="suppressClickUntil=Date.now()+250" @click.capture="preventDragClick">
           <SearchProvider :id="id" :position="index + 1" :value="search.providers[id]!" :preset="presetOf(search.providers[id]!.preset)" :status="statuses[id]" :status-known="statusesKnown" :lenders="lendersFor(presetOf(search.providers[id]!.preset))" :initially-open="id === opened" :save="save" :dirty="dirty" :busy="busy" @remove="remove(id)" @checked="emit('checked')" @grab="controlsOf(id).start($event)" @move="move(id, $event)" />
         </ReorderItem>
       </ReorderGroup>
-      <p v-if="!order.length" class="search-empty">{{ tr('还没有搜索提供商。', 'No search providers yet.') }}</p>
+      <p v-if="!order.length" class="provider-list-empty">{{ tr('还没有搜索提供商。', 'No search providers yet.') }}</p>
       <button type="button" class="provider-add" :disabled="busy" @click="adding = true"><span class="provider-add-icon"><Icon name="plus" /></span><span>{{ tr('添加搜索提供商', 'Add search provider') }}</span></button>
     </div>
   </section>
@@ -83,11 +87,9 @@ const controlsOf = (id: string) => controls.get(id) ?? controls.set(id, useDragC
 </template>
 
 <style scoped>
-.search-list { display: grid; gap: 12px; }
-.search-order { display: grid; gap: 12px; }
-.search-empty { margin: 0; padding: 18px 16px; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--fg-subtle); font-size: 13px; text-align: center; }
+.search-list { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 12px; }
+.search-order { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 12px; }
 @media (max-width: 899px) {
   .search-list, .search-order { gap: 10px; }
-  .search-empty { border-radius: 16px; }
 }
 </style>

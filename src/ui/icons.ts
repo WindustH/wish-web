@@ -54,6 +54,7 @@ export const ICONS: Record<string, string> = {
   // Things
   pencil: `<path d="M15.8 4.2a2.4 2.4 0 0 1 3.4 3.4L8.5 18.3l-4.7 1.9 1.9-4.7Z" ${SOFT}/><path d="m13.5 6.5 4 4"/>`,
   'trash-2': `<path d="m6 7 .9 11.6a2 2 0 0 0 2 1.9h6.2a2 2 0 0 0 2-1.9L18 7Z" ${SOFT}/><path d="M4 7h16M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7m-5 4v5.5m4-5.5v5.5"/>`,
+  'trash-off': `<path d="m6 7 .9 11.6a2 2 0 0 0 2 1.9h6.2a2 2 0 0 0 2-1.9L18 7Z" ${SOFT}/><path d="M4 7h16M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7m-5 4v5.5m4-5.5v5.5"/><path d="M3 3l18 18"/>`,
   copy: `<path d="M15.5 8.5v-2A2.5 2.5 0 0 0 13 4H6.5A2.5 2.5 0 0 0 4 6.5V13a2.5 2.5 0 0 0 2.5 2.5h2"/><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5" ${SOFT}/>`,
   // Pasted text.
   clipboard: `<rect x="4.5" y="4.5" width="15" height="16" rx="3" ${SOFT}/><rect x="9" y="3" width="6" height="3.5" rx="1.2"/><path d="M8.5 11h7m-7 4h4.5"/>`,
