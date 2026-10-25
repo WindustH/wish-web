@@ -154,12 +154,19 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
 </template>
 
 <style scoped>
-.context-structure-link { display:flex; align-items:center; gap:12px; width:100%; padding:16px 0 0; margin-top:16px; border:0; border-top:1px solid var(--border); background:transparent; color:inherit; text-align:left; cursor:pointer; }
-.context-structure-link > span { display:flex; flex:1; flex-direction:column; gap:4px; }
-.context-structure-link strong { font-size:14px; font-weight:500; }
+.info-card { padding: 12px; margin-bottom: 10px; }
+.info-card-head { margin-bottom: 8px; }
+.info-facts { gap: 8px 12px; }
+.info-facts > .wide { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 12px; }
+.info-facts > .wide dt { flex: none; margin: 0; }
+.info-facts > .wide dd { margin-left: auto; font-size: 12px; text-align: right; }
+
+.context-structure-link { display:flex; align-items:center; gap:8px; width:100%; padding:8px 0 0; margin-top:10px; border:0; border-top:1px solid var(--line); background:transparent; color:inherit; text-align:left; cursor:pointer; }
+.context-structure-link > span { display:flex; flex:1; flex-wrap:wrap; align-items:baseline; gap:2px 10px; }
+.context-structure-link strong { font-size:13px; font-weight:500; }
 .context-structure-link small { font-size:12px; color:var(--fg-subtle); }
 .context-structure-link:hover { color:var(--accent); }
-.context-structure-link > .icon { width:20px; height:20px; flex-shrink:0; }
+.context-structure-link > .icon { width:16px; height:16px; flex-shrink:0; }
 
 .info-phase { display: inline-flex; flex: none; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 99px; background: var(--bg-sunken); color: var(--fg-muted); font-size: 12px; font-weight: 500; }
 .info-phase i { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-faint); }
@@ -175,7 +182,7 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
 .context-card.high { --level: var(--err); --level-soft: color-mix(in srgb, var(--err) 16%, transparent); }
 .context-state { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px 2px 7px; border-radius: 99px; background: var(--level-soft); color: var(--level); font-size: 12px; font-weight: 500; }
 .context-state i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.context-bar { position: relative; height: 10px; margin: 20px 0 16px; border-radius: 99px; background: var(--bg-sunken); }
+.context-bar { position: relative; height: 6px; margin: 14px 0 12px; border-radius: 99px; background: var(--bg-sunken); }
 .context-fill { position: absolute; inset: 0 auto 0 0; min-width: 0; border-radius: 99px; background: var(--level); transition: width var(--dur) var(--ease-out); }
 .context-trigger { position: absolute; top: -5px; bottom: -5px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--fg-muted); }
 .context-trigger::after { content: ''; position: absolute; top: -4px; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--fg-muted); }
@@ -183,20 +190,24 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
 .context-figures > div + div { padding-left: 12px; border-left: 1px solid var(--line); }
 .context-figures dt { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-subtle); }
 .context-figures dt i { width: 2px; height: 11px; border-radius: 1px; background: var(--fg-muted); }
-.context-figures dd { margin-top: 4px; font-size: 20px; font-weight: 600; line-height: 1.3; }
+.context-figures dd { margin-top: 4px; font-size: 17px; font-weight: 600; line-height: 1.3; }
 .context-figures .current dd { color: var(--level); }
-.context-figures small { display: block; margin-top: 2px; font-size: 11px; line-height: 1.5; color: var(--fg-subtle); }
+.context-figures small { display: block; margin-top: 2px; font-size: 10px; line-height: 1.35; color: var(--fg-subtle); }
 
 .info-build { font-family: var(--mono); font-size: calc(12px * var(--mono-scale)); color: var(--fg-muted) !important; }
 .info-instructions h4 { margin-bottom: 8px; }
 .info-instructions p { margin: 0; font-size: 13px; line-height: 1.7; color: var(--fg-muted); white-space: pre-wrap; }
-.info-usage { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
-.info-usage dt { font-size: 12px; color: var(--fg-subtle); }
-.info-usage dd { margin-top: 4px; font-size: 20px; font-weight: 600; line-height: 1.3; }
-.info-usage div:nth-child(even) { padding-left: 12px; border-left: 1px solid var(--line); }
+.info-usage { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.info-usage dt { font-size: 11px; color: var(--fg-subtle); }
+.info-usage dd { margin-top: 4px; font-size: 17px; font-weight: 600; line-height: 1.3; }
+.info-usage div + div { padding-left: 8px; border-left: 1px solid var(--line); }
 @media (max-width: 599px) {
   .context-figures dd, .info-usage dd { font-size: 17px; }
   .context-figures { gap: 8px; }
   .context-figures > div + div { padding-left: 8px; }
+}
+@media (max-width: 380px) {
+  .info-usage { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .info-usage div:nth-child(3) { padding-left: 0; border-left: 0; }
 }
 </style>
