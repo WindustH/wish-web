@@ -217,13 +217,13 @@ onMounted(load);
 .settings-search .btn { flex: none; width: 28px; min-height: 28px; padding: 4px; }
 .settings-search-empty { color: var(--fg-subtle); font-size: 13px; padding: 8px; }
 .category-description { display: block; margin-top: 3px; color: var(--fg-subtle); font-size: 11px; font-weight: 400; line-height: 1.5; overflow-wrap: anywhere; }
-.settings-sidebar nav { display: flex; flex-direction: column; gap: 2px; }
+.settings-sidebar nav { flex: none; display: flex; flex-direction: column; gap: 2px; }
 .settings-section { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 10px 6px 6px; border: 0; border-radius: 9px; background: transparent; color: var(--fg-muted); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; transition: background var(--dur-fast), color var(--dur-fast); }
 .settings-section-icon { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 8px; color: var(--fg-subtle); transition: background var(--dur-fast), color var(--dur-fast); }
 .settings-section-icon .icon { width: 18px; height: 18px; }
 .settings-section-text { flex: 1; min-width: 0; }
 @media (hover: hover) { .settings-section:hover { background: var(--bg-hover); color: var(--fg); } }
-.settings-section.selected { background: var(--bg-raised); color: var(--fg); font-weight: 500; box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgb(0 0 0 / 5%); }
+.settings-section.selected { background: var(--bg-raised); color: var(--fg); font-weight: 500; box-shadow: inset 0 0 0 1px var(--line); }
 .settings-section.selected .settings-section-icon { background: var(--accent-soft); color: var(--accent); }
 .settings-brand { display: flex; align-items: center; gap: 8px; margin-top: auto; color: var(--fg); }
 .settings-brand img { display: block; width: 26px; height: auto; }
