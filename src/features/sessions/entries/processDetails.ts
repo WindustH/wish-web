@@ -10,7 +10,14 @@ export function toolResult(step:any):any {
   if(value!==undefined&&typeof value!=='string')return value;
   try{return JSON.parse(value??stepText(step));}catch{return null;}
 }
-export function toolOutput(step:any):any {const result=toolResult(step);return result?.output??result;}
+export function toolOutput(step:any):any {
+  const result=toolResult(step);
+  if(result?.output!==undefined)return result.output;
+  if(['shell','shell_edit'].includes(step.entry?.payload?.tool_name)&&typeof result?.message==='string') {
+    try {const output=JSON.parse(result.message);if(output?.process)return output;} catch {}
+  }
+  return result;
+}
 /** Where a step stands in the history: its result entry's sequence, or the sequence its block came from. */
 export const stepSeq=(step:any):number|undefined=>step.kind==='entry'?step.entry.seq:step.fromSeq;
 /** The tool a step is about: the one a result answers, or the one a call names. */
@@ -19,7 +26,7 @@ export const stepToolName=(step:any):string|undefined=>step.kind==='entry'?step.
 export const searchResults=(step:any)=>step.kind==='entry'&&step.entry.payload?.tool_name==='web_search'&&Array.isArray(step.entry.payload?.metadata?.results)?step.entry.payload.metadata:null;
 // Built-in tools by the names people read, in English whatever the language; any other tool keeps its own.
 const TOOL_TITLES:Record<string,string>={
-  shell_start:'Run Command',shell_poll:'Check Command',shell_write:'Send Input',shell_kill:'Stop Command',shell_edit:'Edit Files',shell:'Shell',
+  shell_start:'Run Command',shell_poll:'Check Command',shell_write:'Send Input',shell_kill:'Stop Command',shell_edit:'Edit Files',shell:'Shell',task:'Task',
   history_search:'Search History',history_read:'Read History',history_query:'Query History',view_image:'View Image',ask_user:'Ask User',web_search:'Web Search',web_fetch:'Web Fetch',
 };
 export const toolTitle=(name?:string)=>name?TOOL_TITLES[name]??name:'';
@@ -27,6 +34,7 @@ export function toolIcon(name?:string):string {
   // An edit reads as the change it makes: the diff mark, wherever the tool is shown - the rail,
   // a window's rows, a step's heading.
   if(name==='shell_edit')return 'file-diff';
+  if(name==='task')return 'terminal';
   if(name?.startsWith('shell'))return 'terminal';
   if(name==='view_image')return 'image';
   if(name?.startsWith('history_'))return 'search';
@@ -94,7 +102,7 @@ export function stepFailed(step:any):boolean {
 export const toolResultsKey:InjectionKey<Ref<Map<string,any>>>=Symbol('tool results');
 // Full diffs live in the result's metadata when the model did not ask to see them.
 export function fileEdits(step:any):any[] {
-  if(step.entry?.payload?.tool_name!=='shell_edit') return [];
+  if(!['shell','shell_edit'].includes(step.entry?.payload?.tool_name)) return [];
   const edits=step.entry.payload?.metadata?.edits??toolOutput(step)?.edits;
   return Array.isArray(edits)?edits:[];
 }

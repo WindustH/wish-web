@@ -31,9 +31,10 @@ const compaction = ref<Compaction | null>(null);
 const tools = ref<ToolSwitches>({ shell: false, ask_user: false, mcp: false, web_search: false, web_fetch: false, skills: false, sessions: false });
 const execution = ref<'Serial' | 'Parallel'>('Parallel');
 const ownShell = ref(false);
+const cwd = ref('');
 const shell = ref<Shell>({ program: '', args: null });
 const source = ref('');
-const draftValue = () => JSON.stringify({ compaction: compaction.value, execution: execution.value, tools: tools.value, shell: ownShell.value ? shell.value : null });
+const draftValue = () => JSON.stringify({ cwd: cwd.value, compaction: compaction.value, execution: execution.value, tools: tools.value, shell: ownShell.value ? shell.value : null });
 const dirty = computed(() => !!source.value && draftValue() !== source.value);
 
 let loadedFor: string | null = null;
@@ -44,7 +45,8 @@ function reset() {
   execution.value = current.config?.run?.tools ?? 'Parallel';
   compaction.value = current.config?.compaction ? structuredClone(current.config.compaction) : null;
   const switches = current.descriptor?.tools;
-  tools.value = { shell: !!switches?.shell, ask_user: !!switches?.ask_user, mcp: !!switches?.mcp, web_search: !!switches?.web_search, web_fetch: !!switches?.web_fetch, skills: !!switches?.skills, sessions: !!switches?.sessions };
+  tools.value = { ...switches, shell: !!switches?.shell, ask_user: !!switches?.ask_user, mcp: !!switches?.mcp, web_search: !!switches?.web_search, web_fetch: !!switches?.web_fetch, skills: !!switches?.skills, sessions: !!switches?.sessions };
+  cwd.value = current.descriptor?.cwd ?? '';
   const own = current.descriptor?.shell_command;
   ownShell.value = !!own;
   shell.value = own ? { program: own.program ?? '', args: own.args ?? null } : { program: '', args: null };
@@ -109,8 +111,12 @@ async function save() {
       const next = await api.sessionSetTools(id, tools.value);
       chat.adoptSnapshot(id, next);
     }
+    if (cwd.value !== saved.cwd) {
+      const next = await api.sessionSetWorkingDirectory(id, cwd.value);
+      chat.adoptSnapshot(id, next);
+    }
     const wanted = ownShell.value ? shell.value : null;
-    if (tools.value.shell && JSON.stringify(wanted) !== JSON.stringify(saved.shell)) {
+    if (JSON.stringify(wanted) !== JSON.stringify(saved.shell)) {
       const next = await api.sessionSetShell(id, wanted);
       chat.adoptSnapshot(id, next);
     }
@@ -182,7 +188,11 @@ async function act(kind: 'compact' | 'clear') {
       </div>
     </section>
 
-    <section v-if="tools.shell" class="set-section">
+    <section class="set-section">
+      <header class="set-section-head"><h3>{{ tr('工作目录', 'Working directory') }}</h3><p>{{ tr('影响后续命令；当前运行的进程保持原目录。', 'Applies to subsequent commands; running processes keep their original directory.') }}</p></header>
+      <div class="set-card"><div class="set-row stacked"><label class="set-label" for="session-working-directory">{{ tr('服务器上的目录', 'Directory on the server') }}</label><input id="session-working-directory" v-model="cwd" class="input set-mono" :disabled="busy" /></div></div>
+    </section>
+    <section class="set-section">
       <header class="set-section-head"><h3>Shell</h3><p>{{ tr('修改后从这个会话的下一条命令开始生效。', 'Applies from this session\'s next command.') }}</p></header>
       <div class="set-card">
         <ServerShellSettings v-model:following="followGlobal" :follow="tr('跟随全局设置', 'Follow the global setting')" :follow-note="shellName(globalShell)" :value="shell" :catalog="catalog" />

@@ -31,7 +31,8 @@ export interface SessionDescriptor {
   pending_selection?: unknown;
 }
 /** `mcp` adds no tool of its own: the model reaches MCP servers with `wish mcp` in the shell. */
-export interface ToolSwitches { shell: boolean; ask_user: boolean; mcp: boolean; web_search: boolean; web_fetch?: boolean; skills: boolean; sessions: boolean }
+export type ToolDelivery = 'tool' | 'command';
+export interface ToolSwitches { task_delivery?: ToolDelivery; web_fetch_delivery?: ToolDelivery; web_search_delivery?: ToolDelivery; ask_user_delivery?: ToolDelivery; shell: boolean; ask_user: boolean; mcp: boolean; web_search: boolean; web_fetch?: boolean; skills: boolean; sessions: boolean }
 /** One question of an `ask_user` form, with its optional fields settled by the server. */
 export interface AskQuestion {
   type: 'choice' | 'text';
@@ -66,6 +67,7 @@ export interface SessionView {
 }
 export type EntryKind = 'run_error' | 'history_event' | 'system_message' | 'developer_message' | 'user_message' | 'assistant_message' | 'tool_result' | 'group_message' | 'group_sent';
 export interface EntryPayload {
+  via?: 'command';
   instruction_title?: string;
   instruction_sections?: { title: string; content: string; supplemental?: boolean }[];
   instruction_supplemental?: boolean;
@@ -122,6 +124,14 @@ export function entryView(item: any, sessionId: string): EntryView {
     const failure = operationFailure({outcome: item.content.value.Finished});
     // A note of Wish's that the session sent a message to a group.
     const sent = item.content.value.Application;
+    if (sent?.type === 'command_tool_use') {
+      return { seq: item.record.sequence, id: `event-${item.record.sequence}`, created_at: item.record.recorded_at,
+        kind: 'assistant_message', payload: { via: 'command', content: [{ type: 'tool_call', id: sent.call_id, name: sent.name, arguments: sent.arguments }] } };
+    }
+    if (sent?.type === 'command_tool_result') {
+      return { seq: item.record.sequence, id: `event-${item.record.sequence}`, created_at: item.record.recorded_at,
+        kind: 'tool_result', payload: { via: 'command', tool_name: sent.name, tool_call_id: sent.call_id, result: sent.content, metadata: sent.metadata, content: [] } };
+    }
     if (sent?.type === 'model_instruction') {
       const note = sent.instruction;
       const text = (note.content ?? []).map((block: any) => block.Text?.text ?? '').join('\n\n');
@@ -154,7 +164,7 @@ export function entryView(item: any, sessionId: string): EntryView {
         let completion = message.metadata?.completion;
         if (!completion) { try { completion = JSON.parse(raw.slice(raw.indexOf('\n') + 1)); } catch {} }
         result.kind = 'developer_message';
-        result.payload = {tool_name:'shell',background:true,command:completion?.command,
+        result.payload = {tool_name:'shell',background:true,command:completion?.command,metadata:message.metadata,
           result:completion?.result ? {status:'success',output:completion.result} : undefined,
           content:[{type:'text',text:raw}]};
       } else if (message.metadata?.source === 'group') {

@@ -14,7 +14,7 @@ defineProps<{ config: any; shells: ShellCatalog | null; busy: boolean; searchAva
 <template>
   <fieldset :disabled="busy" class="settings-form">
     <section v-if="config.defaults.tools" class="set-section">
-      <header class="set-section-head"><h3>{{ tr('默认启用', 'On by default') }}</h3><p>{{ tr('新会话默认启用的内置工具。每个会话也可以在会话设置里单独开关。', 'Built-in tools new sessions start with. Each session can switch them in its own settings.') }}</p></header>
+      <header class="set-section-head"><h3>{{ tr('默认启用', 'On by default') }}</h3><p>{{ tr('工具开关和提供方式仅作为新会话的默认值，不会改变已有会话；已有会话可单独配置。', 'Tool switches and delivery modes are defaults for new sessions only. Existing sessions keep their own settings.') }}</p></header>
       <div class="set-card">
         <ToolExecutionRow :model-value="config.defaults.run?.tools ?? 'Parallel'" :disabled="busy" @update:model-value="config.defaults.run = { ...config.defaults.run, tools: $event }" />
         <ToolSwitchRows v-model="config.defaults.tools" :search-available="searchAvailable" in-settings />

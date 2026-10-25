@@ -107,6 +107,7 @@ export const sessionUpdateConfig = async (id: string, config: unknown, revision?
 // Turns the session's optional tools on or off; the server refuses while it runs.
 export const sessionSetTools = async (id: string, changes: Partial<ToolSwitches>) => sessionView(await put(`${path(id)}/tools`, changes));
 // `{program, args}` for the session's own shell, or null to follow the configured one.
+export const sessionSetWorkingDirectory = async (id: string, cwd: string) => sessionView(await put(`${path(id)}/cwd`, { cwd }));
 export const sessionSetShell = async (id: string, settings: ShellSettings | null) => sessionView(await put(`${path(id)}/shell`, settings));
 export const sessionInterrupt = (id: string) => post(`${path(id)}/interrupt`);
 export const sessionCompact = (id: string) => post(`${path(id)}/compact`);
@@ -136,13 +137,15 @@ export async function historySearch(id: string, params: HistorySearchParams, opt
   return { items: result.items.map((hit: any) => ({ seq: hit.record.sequence, kind: hit.message_type, created_at: hit.record.recorded_at, snippet: hit.snippet })), has_more: result.has_more, next_cursor: null };
 }
 
+// Release foreground shell waits when the user sends input; the server queues the message first.
+export const sessionBackgroundShell = (id: string) => post(`${path(id)}/tasks/background-shell`, {});
 // Input and the queue.
 // Queues the input; `entry` is its position in the session's message list.
 /** An input's attachments as the server takes them. */
 const inputAttachments = (blocks: readonly MessageBlock[] = []) => blocks.map(b => ({ id: b.blob_id, kind: b.type, name: b.filename ?? null,
   ...(b.byte_count != null ? { byte_count: b.byte_count } : {}), ...(b.placeholder ? { placeholder: b.placeholder } : {}) }));
 export const messageSend = async (id: string, body: { content?: string; blocks?: readonly MessageBlock[] }, opts?: EndpointOptions): Promise<{ id: string; entry: number; first_user_message?: boolean }> => {
-  const result = await post(`${path(id)}/input`, { text: body.content ?? '', attachments: inputAttachments(body.blocks) }, opts);
+  const result = await post(`${path(id)}/input`, { background_shell: true, text: body.content ?? '', attachments: inputAttachments(body.blocks) }, opts);
   return { id: String(result.entry), entry: result.entry, first_user_message: result.first_user_message === true };
 };
 // Combines requests: the queue holds entry positions, and each input is read from its entry.
