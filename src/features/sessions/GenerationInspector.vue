@@ -102,9 +102,9 @@ onBeforeUnmount(()=>{version++;controller.abort();});
 <template>
   <Modal :open="true" :page="isMobile" wide :title="tr('上下文结构', 'Context structure')" body-scroll="content" content-class="generation-inspector" @close="$emit('close')">
     <div class="generation-filters">
-      <label>Generation<SelectField :model-value="String(selected ?? '')" :options="generationOptions" :disabled="busy" aria-label="Generation" @update:model-value="selectGeneration" /></label>
-      <label>{{ tr('消息类型', 'Message type') }}<SelectField :model-value="kind || 'all'" :options="kindOptions" :disabled="busy" :aria-label="tr('消息类型','Message type')" @update:model-value="selectKind" /></label>
-      <label>{{ tr('来源', 'Origin') }}<SelectField :model-value="origin || 'all'" :options="originOptions" :disabled="busy" :aria-label="tr('来源','Origin')" @update:model-value="selectOrigin" /></label>
+      <label><span class="generation-filter-label">Generation</span><SelectField :model-value="String(selected ?? '')" :options="generationOptions" :disabled="busy" aria-label="Generation" @update:model-value="selectGeneration" /></label>
+      <label><span class="generation-filter-label">{{ tr('消息类型', 'Message type') }}</span><SelectField :model-value="kind || 'all'" :options="kindOptions" :disabled="busy" :aria-label="tr('消息类型','Message type')" @update:model-value="selectKind" /></label>
+      <label><span class="generation-filter-label">{{ tr('来源', 'Origin') }}</span><SelectField :model-value="origin || 'all'" :options="originOptions" :disabled="busy" :aria-label="tr('来源','Origin')" @update:model-value="selectOrigin" /></label>
       <button class="btn ghost sm generation-refresh" :disabled="busy" @click="refresh">{{ tr('刷新', 'Refresh') }}</button>
     </div>
     <div v-if="page" class="generation-meta">
@@ -155,10 +155,12 @@ onBeforeUnmount(()=>{version++;controller.abort();});
 .generation-load-status { min-height:24px; padding-top:8px; font-size:12px; color:var(--fg-subtle); }
 @media (max-width: 899px) {
   .generation-cards { height: auto; }
-  .generation-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .generation-filters label { min-width: 0; }
-  .generation-filters label:first-child { grid-column: 1 / -1; }
-  .generation-refresh { grid-column: 1 / -1; justify-self: end; }
+  .generation-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding-bottom: 8px; }
+  .generation-filters label { min-width: 0; grid-column: span 2; }
+  .generation-filter-label { display: none; }
+  .generation-filters :deep(.control-select) { min-height: 40px; padding: 6px 10px; font-size: 14px; }
+  .generation-filters label:first-child { grid-column: 1 / 4; grid-row: 1; }
+  .generation-refresh { grid-column: 4; grid-row: 1; min-height: 40px; padding-inline: 6px; }
   .generation-meta { gap: 4px 10px; padding-bottom: 8px; }
 }
 </style>
