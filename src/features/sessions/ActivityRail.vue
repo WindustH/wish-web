@@ -6,6 +6,7 @@
 // a gathered one opens a window shaped like a run's own - a timeline of one-line steps, each
 // opening its detail in a window of its own over the list.
 import { computed, inject, ref } from 'vue';
+import { touchButton } from '../../ui/touchButton.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import Icon from '../../ui/components/Icon.vue';
@@ -20,6 +21,7 @@ import { useRailProximity } from './useRailProximity.ts';
 const props = defineProps<{ rows: RailRow[]; total: number; visible: boolean; session?: string }>();
 const emit = defineEmits<{ open: [request: { chipKey: string; stepKey: string | null; solo?: boolean }] }>();
 const isMobile = useIsMobile();
+const touch = touchButton();
 const railElement = ref<HTMLElement>();
 useRailProximity(railElement);
 const rail = computed(() => layoutRail(props.rows, props.total));
@@ -78,7 +80,8 @@ const label = (node: RailNode) => node.events.length === 1 ? node.tip
     <div v-if="rail.line" class="rail-line" :style="railLineStyle" />
     <button v-for="(node, index) in rail.nodes" :key="index" type="button" class="history-rail-node"
       :class="{ failed: node.failed, warn: !node.failed && node.warn }" :style="{ top: `${node.y - 12}px` }"
-      :aria-label="label(node)" aria-haspopup="dialog" :data-seq="node.seq" @click="click(node)">
+      :aria-label="label(node)" aria-haspopup="dialog" :data-seq="node.seq" @click="click(node)"
+      @touchstart.passive="touch.start" @touchmove.passive="touch.move" @touchend="touch.end" @touchcancel="touch.cancel">
       <span v-if="node.count > 1" class="history-rail-count" aria-hidden="true">+{{ node.count }}</span>
       <Icon v-else :name="node.icon" />
       <span class="history-rail-tip" aria-hidden="true">{{ label(node) }}</span>

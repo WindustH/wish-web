@@ -53,13 +53,23 @@ try {
     assert.ok(await js('Array.from(document.querySelectorAll(".tool-delivery")).every(el=>{const r=el.getBoundingClientRect();return r.width>=100&&r.right<=innerWidth})'),'controls fit at '+width);
     await writeFile('/tmp/wish-tool-delivery-'+width+'.png',Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
   }
-  await js('document.querySelectorAll(".tool-delivery")[0].dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowDown",bubbles:true}))');
-  await until('!!document.querySelector(".control-select-option[data-value=command]")','delivery options');
-  const point=await js('(()=>{const r=document.querySelector(".control-select-option[data-value=command]").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()');
-  await send('Input.dispatchMouseEvent',{type:'mouseMoved',...point});
-  await send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...point});
-  await send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...point});
-  await until('fixture.tools.value.web_fetch_delivery==="command"','command delivery selection');
+  for (const mode of ['command','off','tool']) {
+    const point=await js(`(()=>{const r=document.querySelector('.tool-delivery input[value="${mode}"]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',...point});
+    await send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...point});
+    await send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...point});
+    await until(mode==='off'?'fixture.tools.value.web_fetch===false':`fixture.tools.value.web_fetch && fixture.tools.value.web_fetch_delivery==="${mode}"`,'segment '+mode);
+  }
+  await js(`document.querySelector('.tool-delivery input[value="tool"]').focus()`);
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowLeft',code:'ArrowLeft',windowsVirtualKeyCode:37});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowLeft',code:'ArrowLeft',windowsVirtualKeyCode:37});
+  await until('fixture.tools.value.web_fetch_delivery==="command"','keyboard segment navigation');
+  const hintPoint=await js(`(()=>{const r=document.querySelector('.tool-delivery input[value="command"]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1,y:1});
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',...hintPoint});
+  await until('!!document.querySelector(".control-tooltip")','icon hover explanation');
+  await js('fixture.tools.value.shell=false');
+  await until(`document.querySelector('.tool-delivery input[value="command"]').disabled`,'shell mode unavailable without shell');
   assert.deepEqual(exceptions,[]);
   console.log(JSON.stringify({ok:true,widths:[320,390,844,1100],checks:['delivery selectors','no horizontal overflow','shared settings styling']}));
 } finally {
