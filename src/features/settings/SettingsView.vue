@@ -25,6 +25,7 @@ import { configDraftKey, useConfigDraft } from './useConfigDraft.ts';
 import SessionDefaults from './SessionDefaults.vue';
 import ProviderSettings from './ProviderSettings.vue';
 import NetworkSettings from './NetworkSettings.vue';
+import { searchSettings } from './settingsSearch.ts';
 import Wordmark from '../../ui/components/Wordmark.vue';
 import { cfg } from '../../core/config.ts';
 import { useSettingsGuard } from './useSettingsGuard.ts';
@@ -69,6 +70,9 @@ const sections = computed(() => [
     summary: tr('连接诊断与引导预览', 'Diagnostics and setup preview'),
     description: tr('检查与服务器的连接，预览首次使用引导。这里不会修改任何配置。', 'Check the connection to the server and preview the first-run setup. Nothing here changes your configuration.') },
 ]);
+const searchQuery = ref('');
+const visibleSections = computed(() => searchSettings(sections.value, searchQuery.value));
+function openFirstResult() { const first = visibleSections.value[0]; if (first) selectSection(first.id); }
 const current = computed(() => sections.value.find(item => item.id === tab.value));
 // Whether some search provider could answer now, for the Web Search switch's hint.
 
@@ -148,10 +152,16 @@ onMounted(load);
         <DraftActions v-if="isMobile" />
       </header>
       <div class="settings-sidebar-body">
+      <div class="settings-search" role="search">
+        <Icon name="search" />
+        <input v-model="searchQuery" type="search" :aria-label="tr('搜索配置','Search settings')" :placeholder="tr('搜索配置…','Search settings…')" autocomplete="off" @keydown.enter.prevent="openFirstResult" @keydown.esc.stop.prevent="searchQuery=''" />
+        <button v-if="searchQuery" class="btn ghost icon-only" :aria-label="tr('清除搜索','Clear search')" @click="searchQuery=''"><Icon name="x" /></button>
+      </div>
+      <p v-if="searchQuery.trim() && !visibleSections.length" class="settings-search-empty" role="status">{{tr('没有匹配的配置','No matching settings')}}</p>
       <nav :aria-label="tr('设置分类','Settings categories')">
-        <button v-for="item in sections" :key="item.id" class="settings-section" :class="{selected:!isMobile&&tab===item.id}" :aria-current="tab===item.id?'page':undefined" @click="selectSection(item.id)">
+        <button v-for="item in visibleSections" :key="item.id" class="settings-section" :class="{selected:!isMobile&&tab===item.id}" :aria-current="tab===item.id?'page':undefined" @click="selectSection(item.id)">
           <span class="settings-section-icon"><Icon :name="item.icon"/></span>
-          <span class="settings-section-text">{{item.label}}<small v-if="isMobile" class="category-description">{{item.summary}}</small></span>
+          <span class="settings-section-text">{{item.label}}<small v-if="isMobile || searchQuery.trim()" class="category-description">{{searchQuery.trim() ? item.searchHint : item.summary}}</small></span>
           <Icon v-if="isMobile" name="chevron-right" class="section-chevron"/>
         </button>
       </nav>
@@ -197,7 +207,16 @@ onMounted(load);
 <style scoped>
 .native-settings { width: 100%; height: 100%; min-height: 0; margin: 0 auto; overflow: hidden; }
 .settings-sidebar { flex: none; display: flex; flex-direction: column; min-height: 0; }
-.settings-sidebar-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.settings-sidebar-body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; }
+.settings-search { display: flex; flex: none; align-items: center; gap: 8px; min-width: 0; margin-bottom: 14px; padding: 0 10px; min-height: 38px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-group); color: var(--fg-subtle); }
+.settings-search:focus-within { border-color: var(--accent); }
+.settings-search > .icon { width: 17px; height: 17px; flex: none; }
+.settings-search input { width: 100%; min-width: 0; padding: 8px 0; border: 0; outline: 0; background: transparent; color: var(--fg); font: inherit; font-size: 13px; }
+.settings-search input::placeholder { color: var(--fg-subtle); }
+.settings-search input::-webkit-search-cancel-button { display: none; }
+.settings-search .btn { flex: none; width: 28px; min-height: 28px; padding: 4px; }
+.settings-search-empty { color: var(--fg-subtle); font-size: 13px; padding: 8px; }
+.category-description { display: block; margin-top: 3px; color: var(--fg-subtle); font-size: 11px; font-weight: 400; line-height: 1.5; overflow-wrap: anywhere; }
 .settings-sidebar nav { display: flex; flex-direction: column; gap: 2px; }
 .settings-section { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 10px 6px 6px; border: 0; border-radius: 9px; background: transparent; color: var(--fg-muted); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; transition: background var(--dur-fast), color var(--dur-fast); }
 .settings-section-icon { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 8px; color: var(--fg-subtle); transition: background var(--dur-fast), color var(--dur-fast); }
@@ -251,6 +270,8 @@ onMounted(load);
   .native-settings { background: var(--bg-sunken); }
   /* Tablets keep the phone layout, centered at a readable width. */
   .settings-sidebar { width: 100%; height: 100%; }
+  .settings-search { min-height: 44px; }
+  .settings-search input { font-size: 16px; }
   .settings-sidebar-body { overflow: auto; padding: 20px max(16px, calc((100% - 640px) / 2)) max(20px, env(safe-area-inset-bottom)); }
   /* A grouped list: rows one step above the page, parted by a sliver of it. It keeps its own height,
      since clipped for its corners it would otherwise shrink to the screen. */
