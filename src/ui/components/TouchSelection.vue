@@ -12,7 +12,7 @@ import { useRouter } from 'vue-router';
 import Icon from './Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { copyText } from '../clipboard.ts';
-import { caretAt, covers, glyphAt, SELECTABLE_TEXT as ROOTS } from '../textAtPoint.ts';
+import { caretAt, glyphAt, selectionCovers, SELECTABLE_TEXT as ROOTS } from '../textAtPoint.ts';
 import { noteSwallowedClick } from '../scrollStalls.ts';
 
 // As long as a held finger takes to open a message's menu, so the two gestures read alike.
@@ -175,7 +175,7 @@ function onPointerUp(event: PointerEvent) {
   else clear();
 }
 function onSelection(x: number, y: number) {
-  return !!range.value && textBoxes(range.value).some(box => covers(box, x, y));
+  return !!range.value && selectionCovers(range.value, x, y);
 }
 // The platform's own selection and its long-press menu stay out of the words a touch selects.
 function onSelectStart(event: Event) {

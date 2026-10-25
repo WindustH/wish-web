@@ -6,6 +6,31 @@ export const SELECTABLE_TEXT = '.entry.user .bubble, .entry.assistant .body > .m
 /** Whether a box covers the point. */
 export const covers = (box: DOMRect, x: number, y: number) => x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
 
+// A glyph box omits the leading above/below the font. Treat that space as part
+// of its line, without extending horizontally into message padding or blank columns.
+function coversTextLine(box: DOMRect, x: number, y: number, parent: Element): boolean {
+  const style = getComputedStyle(parent);
+  const lineHeight = parseFloat(style.lineHeight);
+  const leading = Number.isFinite(lineHeight) ? Math.max(0, (lineHeight - box.height) / 2) : 0;
+  return box.width > 0 && x >= box.left && x <= box.right
+    && y >= box.top - leading - 1 && y <= box.bottom + leading + 1;
+}
+
+/** Hit only selected text lines, including their leading; never whole element rectangles. */
+export function selectionCovers(range: Range, x: number, y: number): boolean {
+  const common = range.commonAncestorContainer;
+  const walker = document.createTreeWalker(common instanceof Text ? common.parentNode! : common, NodeFilter.SHOW_TEXT);
+  const piece = document.createRange();
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!range.intersectsNode(node) || !node.parentElement) continue;
+    piece.selectNodeContents(node);
+    if (node === range.startContainer) piece.setStart(node, range.startOffset);
+    if (node === range.endContainer) piece.setEnd(node, range.endOffset);
+    if ([...piece.getClientRects()].some(box => coversTextLine(box, x, y, node.parentElement!))) return true;
+  }
+  return false;
+}
+
 /**
  * The caret position nearest the point, in whichever spelling the browser has. Text that cannot be
  * selected has no caret positions, so text under `within` is made selectable for the moment of the
@@ -26,7 +51,7 @@ export function caretAt(x: number, y: number, within?: Element): { node: Node; o
 /**
  * The character of `root`'s text under the point, or null over the blank. The nearest caret is not
  * enough on its own: it snaps to the closest character from anywhere in the blank, so a character
- * beside it has to cover the point itself.
+ * beside it has to cover the point horizontally and within its full line height.
  */
 export function glyphAt(x: number, y: number, root: Element): { node: Text; index: number } | null {
   const caret = caretAt(x, y, root);
@@ -36,7 +61,7 @@ export function glyphAt(x: number, y: number, root: Element): { node: Text; inde
     if (index < 0 || index >= caret.node.length) continue;
     glyph.setStart(caret.node, index);
     glyph.setEnd(caret.node, index + 1);
-    if ([...glyph.getClientRects()].some(box => covers(box, x, y))) return { node: caret.node, index };
+    if ([...glyph.getClientRects()].some(box => coversTextLine(box, x, y, caret.node.parentElement!))) return { node: caret.node, index };
   }
   return null;
 }

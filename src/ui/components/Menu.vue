@@ -30,7 +30,7 @@ import {
 import Icon from './Icon.vue';
 import MenuBackdrop from './MenuBackdrop.vue';
 import { usePageActivity } from '../composables/usePageActivity.ts';
-import { covers, glyphAt, SELECTABLE_TEXT } from '../textAtPoint.ts';
+import { covers, glyphAt, selectionCovers, SELECTABLE_TEXT } from '../textAtPoint.ts';
 import { noteSwallowedClick } from '../scrollStalls.ts';
 
 // `checked` marks the current choice of a menu that picks one of several.
@@ -159,7 +159,7 @@ function selectionAt(root: Element, x?: number, y?: number): string | null {
   if (!props.selectionItems || !selection || selection.isCollapsed || !selection.rangeCount) return null;
   const range = selection.getRangeAt(0);
   if (!range.intersectsNode(root)) return null;
-  if (x !== undefined && y !== undefined && ![...range.getClientRects()].some(box => covers(box, x, y))) return null;
+  if (x !== undefined && y !== undefined && !selectionCovers(range, x, y)) return null;
   return selection.toString() || null;
 }
 function onPointerMove(event: PointerEvent) {

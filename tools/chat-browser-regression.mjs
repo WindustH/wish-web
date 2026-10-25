@@ -141,6 +141,40 @@ try {
   await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:railX+300,y:300});
   await until(`document.querySelector('.rail-clip').style.getPropertyValue('--rail-proximity')==='0'`,'far from rail hidden');
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
+  const textHits=await js(`(async()=>{
+    const {glyphAt,selectionCovers}=await import('/src/ui/textAtPoint.ts');
+    const el=document.createElement('div');
+    el.style.cssText='position:fixed;left:100px;top:100px;width:240px;font:16px/48px monospace;white-space:pre;z-index:9999';
+    el.textContent='first selected line\\nsecond selected line';
+    document.body.append(el);
+    const range=document.createRange();range.selectNodeContents(el.firstChild);
+    const rects=[...range.getClientRects()].filter(r=>r.width>1);
+    const x=rects[0].left+20,y=(rects[0].bottom+rects[1].top)/2;
+    const result={gap:y>rects[0].bottom&&y<rects[1].top,selected:selectionCovers(range,x,y),glyph:!!glyphAt(x,y,el),blank:selectionCovers(range,rects[0].right+40,y)};
+    el.remove();return result;
+  })()`);
+  assert.deepEqual(textHits,{gap:true,selected:true,glyph:true,blank:false},'line leading belongs to text, outer whitespace does not');
+  const selectedGap=await js(`(()=>{
+    for(const p of document.querySelectorAll('.message-context .markdown p')){
+      const range=document.createRange();range.selectNodeContents(p);
+      const rects=[...range.getClientRects()].filter(r=>r.width>1);
+      for(let i=1;i<rects.length;i++){
+        const a=rects[i-1],b=rects[i],y=(a.bottom+b.top)/2,x=Math.max(a.left,b.left)+10;
+        if(b.top>a.bottom&&y>100&&y<700&&x<Math.min(a.right,b.right)){
+          const selection=getSelection();selection.removeAllRanges();selection.addRange(range);
+          p.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'mouse',isPrimary:true,button:2,clientX:x,clientY:y}));
+          p.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2,clientX:x,clientY:y}));
+          return true;
+        }
+      }
+    }return false;
+  })()`);
+  assert.ok(selectedGap,'selected wrapped paragraph has a visible interline gap');
+  await until(`!!document.querySelector('.menu-pop .menu-item-label')`,'selection context menu');
+  assert.equal(await js(`document.querySelector('.menu-pop .menu-item-label').textContent`),'复制','interline right click acts on selection, not whole message');
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await js('getSelection().removeAllRanges()');await sleep(200);
   const dialogs=[];
   for(const kind of ['picker','activity','album']){
     await js(`fixture.dialog.value='${kind}'`);
