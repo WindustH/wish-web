@@ -32,7 +32,7 @@ const actions = computed<MenuItem[]>(() => [
   ] : []),
   { key: 'rename', icon: 'pencil', label: i18n.t('manage.rename'), separator: props.arranged },
   ...(group.value ? [] : [
-    { key: 'generate-name', icon: 'sparkles', label: tr('自动生成名称', 'Generate title') },
+    { key: 'generate-name', icon: 'sparkles', label: tr('自动重命名', 'Auto rename') },
     { key: 'tags', icon: 'tag', label: i18n.t('sessions.editTags') },
     { key: 'prune', icon: 'eraser', label: tr('清理历史', 'Clear history') },
   ]),
