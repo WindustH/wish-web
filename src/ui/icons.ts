@@ -41,8 +41,11 @@ export const ICONS: Record<string, string> = {
   // An eye: what a password field shows, or (struck through) hides.
   eye: `<path d="M2.5 12C4.7 7.7 8 5.5 12 5.5s7.3 2.2 9.5 6.5c-2.2 4.3-5.5 6.5-9.5 6.5S4.7 16.3 2.5 12Z" ${SOFT}/><circle cx="12" cy="12" r="2.8"/>`,
   'eye-off': `<path d="M2.5 12C4.7 7.7 8 5.5 12 5.5s7.3 2.2 9.5 6.5c-2.2 4.3-5.5 6.5-9.5 6.5S4.7 16.3 2.5 12Z" ${SOFT}/><path d="M4.5 4.5l15 15"/>`,
-  // A skill: a book of instructions, with the spark of the know-how in it.
-  skill: `<path d="M5.5 3.5h12a1 1 0 0 1 1 1V20.5h-13a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z" ${SOFT}/><path d="M3.5 18.5a2 2 0 0 1 2-2h13"/><path d="M11.5 6.5c.3 1.7 1 2.4 2.7 2.7-1.7.3-2.4 1-2.7 2.7-.3-1.7-1-2.4-2.7-2.7 1.7-.3 2.4-1 2.7-2.7Z" ${SOLID}/>`,
+  // Service icons share the same 24px stroke grid.
+  skill: `<path d="m4 20 11-11 3 3L7 23Z" transform="translate(0 -2)"/><path d="m12 10 3 3M6 3v4M4 5h4M19 3v4M17 5h4M20 16v4M18 18h4"/>`,
+  'web-reader': `<path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10l-7-7Z"/><path d="M13 3v7h7M8 13h3M8 17h3M16 13v5m-2-2 2 2 2-2"/>`,
+  'web-search': `<path d="M12 16.7A7 7 0 1 1 16.7 12M3 10h14M10 3c2 2 3 4.3 3 7M10 3c-2 2-3 4.3-3 7s1 5 3 7"/><circle cx="16" cy="16" r="4"/><path d="m19 19 3 3"/>`,
+  network: `<rect x="8" y="3" width="8" height="6" rx="1.5"/><path d="M12 9v5M5 17v-3h14v3"/><rect x="2" y="17" width="6" height="4" rx="1"/><rect x="16" y="17" width="6" height="4" rx="1"/>`,
   key: '<path d="M14.3 13.7a6 6 0 1 0-4-4L3 17v4h4v-3h3v-3Z"/><path d="m15 5 4 4"/>',
   bot: `<rect x="4" y="7" width="16" height="13" rx="3" ${SOFT}/><path d="M12 3v4M1.5 12v4m21-4v4M9 16h6"/><circle cx="8.5" cy="12" r=".8" ${SOLID}/><circle cx="15.5" cy="12" r=".8" ${SOLID}/>`,
   // Send: a folded paper plane - the crane's cousin - its upper wing solid, the lower in shade,

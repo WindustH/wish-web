@@ -1,10 +1,9 @@
 <script setup lang="ts">
-// The model providers and the network proxy they use, edited in the settings draft.
+// Model providers edited in the settings draft.
 import { inject, onUnmounted } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
 import AddProvider from './AddProvider.vue';
 import PresetProvider from './PresetProvider.vue';
-import ServerProxySettings from './ServerProxySettings.vue';
 import { configDraftKey } from './useConfigDraft.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { tr } from '../../core/i18n/tr.ts';
@@ -12,7 +11,7 @@ import { tr } from '../../core/i18n/tr.ts';
 defineProps<{ save: () => Promise<boolean> }>();
 const isMobile = useIsMobile();
 const {
-  draft, busy, catalog, proxyEnvironment, adding, newProviderId, advanced, advancedPending,
+  draft, busy, catalog, adding, newProviderId, advanced, advancedPending,
   providerTitle, protocolOptions, findPreset, load, applyAdvanced, addProvider, changeProtocol, removeProvider,
 } = inject(configDraftKey)!;
 // A provider is new only until this page is left; coming back must not reopen its editor.
@@ -30,10 +29,7 @@ onUnmounted(() => { newProviderId.value = ''; });
         <button type="button" class="provider-add" :disabled="busy" @click="adding=true"><span class="provider-add-icon"><Icon name="plus"/></span><span>{{tr('添加提供商','Add provider')}}</span></button>
       </div>
     </section>
-    <section v-if="draft.proxy" class="set-section">
-      <header class="set-section-head"><h3>{{tr('网络代理','Network proxy')}}</h3><p>{{tr('提供商请求使用的代理，每个提供商可以在连接设置中单独关闭。','Used for provider requests. Each provider can opt out in its connection settings.')}}</p></header>
-      <ServerProxySettings :value="draft.proxy" :environment="proxyEnvironment"/>
-    </section>
+
   </div>
   <AddProvider v-if="adding" :catalog="catalog" @close="adding=false" @select="addProvider"/>
 </template>

@@ -24,6 +24,7 @@ import './settings.css';
 import { configDraftKey, useConfigDraft } from './useConfigDraft.ts';
 import SessionDefaults from './SessionDefaults.vue';
 import ProviderSettings from './ProviderSettings.vue';
+import NetworkSettings from './NetworkSettings.vue';
 import Wordmark from '../../ui/components/Wordmark.vue';
 import { cfg } from '../../core/config.ts';
 import { useSettingsGuard } from './useSettingsGuard.ts';
@@ -46,12 +47,12 @@ const sections = computed(() => [
   { id: 'accounts', icon: 'key', label: tr('账户','Accounts'), summary: tr('共享凭据与订阅登录','Shared credentials and sign-in'), description: tr('模型、搜索与网页读取服务共同使用的账户。','Accounts shared by model, search and web fetch services.') },
   { id: 'providers', icon: 'bot', label: tr('模型', 'Models'),
     summary: tr('连接、认证与模型管理', 'Connections, credentials and models'),
-    description: tr('配置模型服务、关联账户与网络代理，保存后对新的调用生效。', 'Model providers, credentials and the network proxy. Saved changes apply to new calls.') },
+    description: tr('配置模型服务与关联账户，保存后对新的调用生效。', 'Model providers and linked accounts. Saved changes apply to new calls.') },
   { id: 'tools', icon: 'tool', label: tr('工具', 'Tools'),
     summary: tr('内置工具与 Shell', 'Built-in tools and the shell'),
     description: tr('新会话默认启用的内置工具，以及 Shell 执行命令的环境。', 'Built-in tools new sessions start with, and where the shell runs commands.') },
-  { id: 'fetch', icon: 'globe', label: tr('网页读取','Web fetch'), summary: tr('网页内容读取服务','Page reading services'), description: tr('独立选择网页读取提供商及其账户。','Configure webpage readers and their accounts.') },
-  { id: 'search', icon: 'globe', label: tr('联网搜索', 'Web search'),
+  { id: 'fetch', icon: 'web-reader', label: tr('网页读取','Web fetch'), summary: tr('网页内容读取服务','Page reading services'), description: tr('独立选择网页读取提供商及其账户。','Configure webpage readers and their accounts.') },
+  { id: 'search', icon: 'web-search', label: tr('联网搜索', 'Web search'),
     summary: tr('Web Search 用哪些搜索服务', 'The services Web Search asks'),
     description: tr('Web Search 工具按顺序询问这些搜索提供商。各服务可以复用公共账户池中的凭据。', 'The Web Search tool asks these providers in order. Services can share credentials from the account pool.') },
   { id: 'mcp', icon: 'mcp', label: 'MCP',
@@ -60,6 +61,7 @@ const sections = computed(() => [
   { id: 'skills', icon: 'skill', label: tr('Skill', 'Skills'),
     summary: tr('智能体按需查找和读取的 Skill', 'Skills the agent finds and reads as needed'),
     description: tr('智能体在会话的 Shell 里查找和读取这些 Skill。保存后从下一条命令开始生效。', 'Skills the agent finds and reads from a session\'s shell. Saved changes apply from the next command.') },
+  { id: 'network', icon: 'network', label: tr('网络', 'Network'), summary: tr('各服务共用的网络代理', 'Shared network proxy'), description: tr('账户登录、模型、搜索、网页读取和 MCP 共用的代理设置。', 'Proxy settings shared by account sign-in, models, search, webpage readers and MCP.') },
   { id: 'ui', icon: 'appearance', label: tr('界面', 'Interface'),
     summary: tr('外观、通知与本地偏好', 'Appearance, notifications and preferences'),
     description: tr('外观、输入与本地数据，只保存在这个浏览器中。', 'Appearance, input and local data, stored in this browser only.') },
@@ -174,7 +176,7 @@ onMounted(load);
       <McpSettings v-else-if="tab==='mcp'" :config="draft" :providers="providerOptions" :save="save" :busy="busy" :dirty="serverDirty" :revision="revision"/>
       <SkillsSettings v-else-if="tab==='skills'" :config="draft" :busy="busy" :revision="revision"/>
       <AccountSettings v-else-if="tab==='accounts'"/><FetchSettings v-else-if="tab==='fetch'" :save="save"/>
-      <ProviderSettings v-else :save="save"/>
+      <NetworkSettings v-else-if="tab==='network'"/><ProviderSettings v-else :save="save"/>
     </template>
     <div v-else-if="!busy" class="settings-empty"><p>{{tr('设置尚未载入。','Settings are not loaded.')}}</p><button class="btn" @click="load"><Icon name="refresh-cw"/>{{tr('重新载入','Reload')}}</button></div>
     </div>
