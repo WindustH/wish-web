@@ -2,7 +2,7 @@
 // Run: node tools/accounts-browser-regression.mjs (CHROME may override the executable).
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'vite';
@@ -22,8 +22,8 @@ registerBrowserPlatform();setBackLayers(createBackLayers(window));
 const draft=ref({accounts:{shared:{name:'Shared account',preset:'deepseek',api_key:'<redacted>',credentials:{},credentials_env:{},proxy_enabled:true}},providers:{model:{credential_id:'shared'}},search:{providers:{}},fetch:{order:[],providers:{}}});
 const catalog=ref({presets:[{id:'deepseek',provider:'DeepSeek',required_credentials:[],optional_credentials:[]}]});
 const mode=ref('accounts');const saveConfig=async()=>true;
-const realFetch=window.fetch.bind(window);window.fetch=async(input,options)=>String(input).includes('/fetch-presets')?new Response(JSON.stringify({presets:[{id:'deepseek_fetch',name:'DeepSeek',key:'required',base_url:'https://api.deepseek.com'}]}),{headers:{'Content-Type':'application/json'}}):realFetch(input,options);
-createApp({setup(){provide(configDraftKey,{draft,catalog,saveConfig,load:async()=>{}});return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;max-width:800px;margin:auto'},[h('h1','Settings fixture'),mode.value==='accounts'?h(AccountSettings):h(FetchSettings,{save:saveConfig})]));}}).use(createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]})).mount('#app');
+const realFetch=window.fetch.bind(window);window.fetch=async(input,options)=>String(input).includes('/fetch-presets')?new Response(JSON.stringify({presets:[{id:'deepseek_fetch',name:'DeepSeek',key:'required',base_url:'https://api.deepseek.com'},{id:'zai_reader',name:'Z.AI',key:'required'},{id:'jina_reader',name:'Jina Reader',key:'optional'},{id:'codex_fetch',name:'ChatGPT / Codex',key:'required'}]}),{headers:{'Content-Type':'application/json'}}):realFetch(input,options);
+createApp({setup(){provide(configDraftKey,{draft,catalog,saveConfig,load:async()=>{}});return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;width:min(800px,100vw);margin:auto'},[h('h1','Settings fixture'),mode.value==='accounts'?h(AccountSettings):h(FetchSettings,{save:saveConfig})]));}}).use(createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]})).mount('#app');
 window.fixture={draft,mode};
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {
@@ -57,15 +57,25 @@ try {
     await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<700});
     await js('fixture.mode.value="accounts"');
     await until('!!document.querySelector(".provider-add")','accounts page');
-    await js('document.querySelector(".set-row .btn").click()');
+    assert.ok(await js('!!document.querySelector(".settings-item-mark .provider-icon")'),'account has a brand icon');
+    if(width>=900) assert.equal(await js('document.querySelector(".settings-item-actions button[aria-label^=编辑], .settings-item-actions button[aria-label^=Edit]").textContent.trim()'),'','edit action is an icon');
+    await sleep(400);
+    await writeFile('/tmp/wish-accounts-list-'+width+'.png', Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
+    await js('document.querySelector(".settings-item-row, .settings-item-actions button[aria-label^=编辑], .settings-item-actions button[aria-label^=Edit]").click()');
     await until('!!document.querySelector(".account-form")','account editor');
     assert.equal(await js('document.querySelector(".account-form input[type=password]").value'),'', 'stored secrets stay hidden');
     assert.ok(await js('document.documentElement.scrollWidth<=innerWidth+1'),'account editor fits width');
     await js('history.back()');
     await until('!document.querySelector(".account-form")','back closes account editor');
     await js('fixture.mode.value="fetch"');
-    await until('!!document.querySelector(".fetch-add .btn")','fetch page');
-    await js('document.querySelector(".fetch-add .btn").click()');
+    await until('!!document.querySelector(".fetch-list .provider-add")','fetch page');
+    await js('document.querySelector(".fetch-list .provider-add").click()');
+    await until('!!document.querySelector("[data-choice-key=deepseek_fetch]")','branded fetch picker');
+    assert.ok(await js('!!document.querySelector("[data-choice-key=deepseek_fetch] .provider-icon")'),'preset has a brand icon');
+    await sleep(400);
+    await writeFile('/tmp/wish-fetch-picker-'+width+'.png', Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
+    await js('document.querySelector("[data-choice-key=deepseek_fetch]").click()');
+    if(width>=900) await js('document.querySelector(".picker-dialog-actions .primary").click()');
     await until('!!document.querySelector(".fetch-form")','fetch editor');
     assert.ok(await js('document.documentElement.scrollWidth<=innerWidth+1'),'fetch editor fits width');
     await js('document.querySelector(".account-picker .btn").click()');

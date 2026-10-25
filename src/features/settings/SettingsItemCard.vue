@@ -26,6 +26,7 @@ const props = defineProps<{
   label?: string;
   editHint: string;
   removeHint: string;
+  removeDisabled?: boolean;
   // An action that tries the item, when it has one, and whether that is under way.
   checkHint?: string;
   checking?: boolean;
@@ -72,7 +73,7 @@ function moveBy(delta: number, event: KeyboardEvent) {
         <slot name="actions" />
         <Hint v-if="checkHint" :text="checkHint"><button type="button" class="btn ghost icon-only" :disabled="checking || busy" :aria-label="`${checkHint} ${name}`" @click="emit('check')"><Icon :name="checking ? 'loader-circle' : 'refresh-cw'" :class="{ spin: checking }" /></button></Hint>
         <Hint :text="editHint"><button type="button" class="btn ghost icon-only" :aria-label="`${editHint} ${name}`" @click="emit('open')"><Icon name="pencil" /></button></Hint>
-        <Hint :text="removeHint"><button type="button" class="btn ghost icon-only settings-item-remove" :aria-label="`${removeHint} ${name}`" @click="emit('remove')"><Icon name="trash-2" /></button></Hint>
+        <Hint :text="removeHint"><button type="button" class="btn ghost icon-only settings-item-remove" :disabled="removeDisabled" :aria-label="`${removeHint} ${name}`" @click="emit('remove')"><Icon name="trash-2" /></button></Hint>
       </div>
     </header>
     <slot />

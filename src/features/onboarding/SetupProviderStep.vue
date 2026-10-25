@@ -3,7 +3,7 @@
 // lists them, and a custom one last, which stays when a search matches nothing. Choosing moves on.
 import { computed, ref } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
-import { presetDescription, providerName } from '../../ui/providerPresentation.ts';
+import { presetBrand, presetDescription, providerName } from '../../ui/providerPresentation.ts';
 import { providerPriority } from '../../ui/catalogOrder.ts';
 import Icon from '../../ui/components/Icon.vue';
 import ProviderIcon from '../../ui/components/ProviderIcon.vue';
@@ -35,7 +35,7 @@ const matches = (item: Choice) => {
 const shownConfigured = computed(() => configured.value.filter(matches));
 const shownPresets = computed(() => presets.value.filter(matches));
 const groups = computed(() => [
-  { label: tr('已有账户','Existing accounts'),items:Object.entries<any>(props.setup.snapshot?.config.accounts??{}).filter(([,a])=>props.setup.catalog.presets.some(p=>p.id===a.preset)).map(([id,a])=>({key:`account:${id}`,title:a.name||id,description:a.preset,brand:undefined,icon:'users',search:id})).filter(matches) },
+  { label: tr('已有账户','Existing accounts'),items:Object.entries<any>(props.setup.snapshot?.config.accounts??{}).filter(([,a])=>props.setup.catalog.presets.some(p=>p.id===a.preset)).map(([id,a])=>({key:`account:${id}`,title:a.name||id,description:a.preset,brand:presetBrand(a.preset||''),icon:'key',search:id})).filter(matches) },
   { label: tr('已配置', 'Configured'), items: shownConfigured.value },
   { label: tr('全部提供商', 'All providers'), items: [...shownPresets.value, custom.value] },
 ].filter(group => group.items.length));
@@ -45,15 +45,15 @@ const groups = computed(() => [
   <section class="setup-step">
     <header class="setup-title">
       <p class="setup-eyebrow">{{ tr('欢迎使用 Wish', 'Welcome to Wish') }}</p>
-      <h1 tabindex="-1">{{ tr('选择账户或平台', 'Choose an account or platform') }}</h1>
-      <p>{{ tr('添加的账户将进入公共账户池，可用于模型、搜索和网页读取服务。', 'Wish reaches models through it. You can add more providers in settings later.') }}</p>
+      <h1 tabindex="-1">{{ tr('选择模型服务平台', 'Choose a model platform') }}</h1>
+      <p>{{ tr('先选择你使用的平台，下一步登录或填写 API Key。已有账户也可以直接复用。', 'Choose your platform, then sign in or enter an API key. You can also reuse a saved account.') }}</p>
     </header>
     <label class="setup-search">
       <Icon name="search" />
       <input v-model="query" type="search" data-autofocus :placeholder="tr('搜索提供商、地区或套餐', 'Search providers, regions or plans')" :aria-label="tr('搜索提供商', 'Search providers')" autocomplete="off" spellcheck="false" />
     </label>
     <div v-for="group in groups" :key="group.label" class="setup-group">
-      <h2 v-if="configured.length" class="setup-group-label">{{ group.label }}</h2>
+      <h2 v-if="groups.length > 1" class="setup-group-label">{{ group.label }}</h2>
       <ul class="setup-list">
         <li v-for="item in group.items" :key="item.key">
           <button type="button" class="setup-row" :class="{ chosen: item.key === setup.choice }" @click="setup.choose(item.key)">

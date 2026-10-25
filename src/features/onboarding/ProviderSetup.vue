@@ -16,7 +16,7 @@ const emit = defineEmits<{ complete: []; exit: [] }>();
 const setup = reactive(useProviderSetup({ preview: props.preview }));
 const isMobile = useIsMobile();
 const LABELS: Record<SetupStep, () => string> = {
-  provider: () => tr('账户平台', 'Platform'), auth: () => tr('账户', 'Account'), model: () => tr('模型', 'Model'),
+  provider: () => tr('选择平台', 'Choose platform'), auth: () => tr('连接账户', 'Connect account'), model: () => tr('选择模型', 'Choose model'),
 };
 const current = computed(() => SETUP_STEPS.indexOf(setup.step));
 // A step slides in from the way the setup moves: forward from the right, back from the left.

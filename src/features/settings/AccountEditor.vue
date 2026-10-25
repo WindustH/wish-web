@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, reactive } from 'vue';
+import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
 import SwitchRow from './SwitchRow.vue';
 import SelectField from '../../ui/components/SelectField.vue';
@@ -9,8 +10,8 @@ import { useChatgptLogin } from './useChatgptLogin.ts';
 import { useCopilotLogin } from './useCopilotLogin.ts';
 import { secretText, readSecret, writeCredential } from '../../core/secretRef.ts';
 import { tr } from '../../core/i18n/tr.ts';
-const props=defineProps<{id:string}>();
-const emit=defineEmits<{close:[]}>();
+const props=defineProps<{id:string;allowRemove?:boolean}>();
+const emit=defineEmits<{close:[];remove:[]}>();
 const {draft,catalog,saveConfig,load}=inject(configDraftKey)!;
 const mobile=useIsMobile();
 const account=computed(()=>draft.value.accounts[props.id]);
@@ -37,7 +38,7 @@ function field(name:string,text:string){writeCredential(account.value.credential
  <SwitchRow v-model="account.proxy_enabled" :name="tr('登录与续期使用代理','Use proxy for sign-in and renewal')" />
  <p class="hint">{{tr('此账户由关联服务共享。更换凭据会应用到所有关联服务。','Linked services share this account. Credential changes apply to all linked services.')}}</p>
  </div>
- <template #footer><button class="btn primary" @click="emit('close')">{{tr('完成','Done')}}</button></template>
+ <template #footer><button v-if="allowRemove!==undefined" class="btn ghost icon-only" :disabled="!allowRemove" :aria-label="tr('删除账户','Delete account')" @click="emit('remove')"><Icon name="trash-2" /></button><button class="btn primary" @click="emit('close')">{{tr('完成','Done')}}</button></template>
 </Modal>
 </template>
 <style scoped>.account-form {display:grid;gap:12px}.account-form label{display:grid;gap:6px;font-size:13px}.hint{color:var(--fg-subtle);font-size:12px}</style>

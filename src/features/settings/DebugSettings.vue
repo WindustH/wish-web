@@ -49,13 +49,15 @@ async function previewOnboarding() {
       <template #default="{ section }">
         <ConnectionDiagnostics v-if="section === 'diagnostics'" />
         <template v-else-if="section === 'scroll'">
-          <div class="setting-row">
-            <div><span>{{ tr('页面卡住时的状态', 'What the page was like when stuck') }}</span></div>
+          <div class="set-card">
+          <div class="set-row stall-summary">
+            <div class="set-label"><span>{{ tr('页面卡住时的状态', 'What the page was like when stuck') }}</span></div>
             <SettingHint :text="tr('一次明显的滑动或滚轮没能滚动下面的列表，或者点了按钮、链接却没有反应时，这里会记下当时的页面状态，只存在这台设备上。卡住之后来这里复制给开发者。', 'When a clear swipe or wheel turn fails to scroll the list under it, or a tap on a button or link does nothing, the page as it was is noted here, on this device only. Copy it for the developer after the page gets stuck.')" />
             <div class="stall-actions">
               <button class="btn" :disabled="!stalls.length" @click="copyStalls"><Icon name="copy" :size="16" />{{ tr('复制', 'Copy') }}</button>
               <button class="btn ghost" :disabled="!stalls.length" @click="clearStalls">{{ tr('清空', 'Clear') }}</button>
             </div>
+          </div>
           </div>
           <p v-if="!stalls.length" class="hint">{{ tr('还没有记录。', 'Nothing noted yet.') }}</p>
           <ol v-else class="stall-list">
@@ -76,7 +78,13 @@ async function previewOnboarding() {
 </template>
 
 <style scoped>
-.stall-actions { display: flex; gap: 8px; }
+.stall-summary { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; }
+.stall-summary > :deep(.cfg-hint) { grid-column: 1 / -1; grid-row: 2; margin: 0; font-size: 12px; line-height: 1.6; }
+.stall-actions { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 8px; }
+@media (max-width: 599px) {
+  .stall-summary { display: flex; flex-wrap: wrap; gap: 8px; }
+  .stall-actions { margin-left: auto; }
+}
 .stall-list { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
 .stall-list li { display: grid; gap: 4px; padding: 10px 12px; border-radius: var(--radius); background: var(--bg-inset); font-size: 12.5px; }
 .stall-list code { color: var(--fg-muted); font-size: 12px; overflow-wrap: anywhere; }
