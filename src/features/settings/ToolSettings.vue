@@ -4,6 +4,7 @@
 import ServerShellSettings from './ServerShellSettings.vue';
 import SwitchRow from './SwitchRow.vue';
 import ToolSwitchRows from './ToolSwitchRows.vue';
+import ToolExecutionRow from './ToolExecutionRow.vue';
 import type { ShellCatalog } from '../../core/api/endpoints.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
@@ -15,6 +16,7 @@ defineProps<{ config: any; shells: ShellCatalog | null; busy: boolean; searchAva
     <section v-if="config.defaults.tools" class="set-section">
       <header class="set-section-head"><h3>{{ tr('默认启用', 'On by default') }}</h3><p>{{ tr('新会话默认启用的内置工具。每个会话也可以在会话设置里单独开关。', 'Built-in tools new sessions start with. Each session can switch them in its own settings.') }}</p></header>
       <div class="set-card">
+        <ToolExecutionRow :model-value="config.defaults.run?.tools ?? 'Parallel'" :disabled="busy" @update:model-value="config.defaults.run = { ...config.defaults.run, tools: $event }" />
         <ToolSwitchRows v-model="config.defaults.tools" :search-available="searchAvailable" in-settings />
       </div>
     </section>
