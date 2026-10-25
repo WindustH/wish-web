@@ -2,7 +2,7 @@ import { onBeforeUnmount, watch, type Ref } from 'vue';
 import { useRoute, useRouter, type Router } from 'vue-router';
 import { animate, motionValue, type AnimationPlaybackControls, type MotionValue } from 'motion-v';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
-import { noteSwallowedClick } from '../../ui/scrollStalls.ts';
+import { noteSwallowedClick, noteTouchAction } from '../../ui/scrollStalls.ts';
 import { clearRecentsTransition, paintRecentsTransition } from './recentsTransition.ts';
 
 // On a phone the full session list is a sheet over the home page. Its two resting places are the
@@ -181,6 +181,7 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
     if (!ended) return;
     if (ended.mode) quietUntil = performance.now() + 400;
     if (ended.mode === 'stretch') {
+      noteTouchAction('recents stretch', () => stretch.get() === 0);
       stretching = settleAt(stretch, 0, () => { stretching = undefined; });
       return;
     }
@@ -194,6 +195,7 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
     else if (ended.kind === 'open') to = value > 1 / 3 ? 1 : 0;
     else if (ended.kind === 'close') to = value < 2 / 3 ? 0 : 1;
     else to = value >= .5 ? 1 : 0;
+    noteTouchAction('recents sheet', () => !moving() && progress.get() === to && restOf(route.name) === to);
     settle(to);
   }
 

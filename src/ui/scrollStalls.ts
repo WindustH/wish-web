@@ -6,6 +6,8 @@ import { ref } from 'vue';
 
 export interface ScrollStall {
   at: string;
+  /** The frontend bundle running when this record was captured; absent on older records. */
+  build?: string;
   kind: 'touch' | 'wheel' | 'tap';
   route: string;
   /** What the gesture landed on, and the list under it that could have scrolled. */
@@ -14,6 +16,9 @@ export interface ScrollStall {
   /** The topmost element at the point, when it is not part of the list: what covered it. */
   coveredBy?: string;
   touchAction?: string;
+  inertAncestor?: string;
+  gestureAction?: string;
+  movement?: { x: number; y: number };
   /** Moves cancelled by the page's listeners, moves stopped before reaching the window, and all moves. */
   moves?: string;
   /** For a tap: whether a click came at all, whether a listener on the way stopped it, and which. */
@@ -68,7 +73,7 @@ function layers(): string[] {
     ['.menu-backdrop', 'menu backdrop'], ['.modal-overlay, .settings-overlay, .overlay-window-scrim', 'overlay'],
     ['[data-reka-popper-content-wrapper]', 'popper'], ['[role="dialog"]', 'dialog'], ['[inert]', 'inert'], ['.ts-handle', 'selection handle'],
   ]) {
-    const count = [...document.querySelectorAll(selector)].filter(element => element.getClientRects().length).length;
+    const count = [...document.querySelectorAll(selector)].filter(element => element.getClientRects().length && getComputedStyle(element).visibility === 'visible').length;
     if (count) found.push(`${name} ×${count}`);
   }
   return found;
@@ -77,12 +82,14 @@ function record(kind: ScrollStall['kind'], x: number, y: number, target: Element
   const top = document.elementFromPoint(x, y);
   keep({
     at: new Date().toISOString(),
+    build: typeof __WEB_BUILD_ID__ === 'string' ? __WEB_BUILD_ID__ : 'development',
     kind,
     route: location.hash || location.pathname,
     target: describe(target),
     scroller: list ? describe(list) : '',
     coveredBy: top && !(list ?? target)?.contains(top) ? describe(top) : undefined,
     touchAction: target instanceof Element ? getComputedStyle(target).touchAction : undefined,
+    inertAncestor: target?.closest('[inert]') ? describe(target.closest('[inert]')) : undefined,
     ...extra,
     scroll: list ? `${Math.round(list.scrollTop)} / ${list.scrollHeight} / ${list.clientHeight}` : '',
     page: `body{${document.body.getAttribute('style') ?? ''}} html.${[...document.documentElement.classList].join('.')}`,
@@ -91,7 +98,8 @@ function record(kind: ScrollStall['kind'], x: number, y: number, target: Element
 }
 
 let scrolledAt = 0;
-type Touch = { x: number; y: number; dy: number; far: number; at: number; moves: number; seen: number; cancelled: number; target: Element | null; menu: boolean };
+type TouchAction = { name: string; completed: () => boolean };
+type Touch = { action?: TouchAction; dx: number; x: number; y: number; dy: number; far: number; at: number; moves: number; seen: number; cancelled: number; target: Element | null; menu: boolean };
 let touch: Touch | undefined;
 let wheelPending = false;
 let lastRecord = 0;
@@ -108,6 +116,10 @@ let clickDown = 0, clickUp = 0;
 let swallowed: { by: string; at: number } | undefined;
 /** Called by the page's own listeners that keep a click from what it landed on, saying why. */
 export function noteSwallowedClick(by: string) { swallowed = { by, at: performance.now() }; }
+/** A gesture may navigate instead of scroll. Suppress its stall only after that action succeeds. */
+export function noteTouchAction(name: string, completed: () => boolean) {
+  if (touch) touch.action = { name, completed };
+}
 const ANSWERS = 'a, button, [role="button"], [role="option"], [role="menuitem"], input, label, summary, .sl-item';
 function watchTap(gesture: Touch) {
   const target = gesture.target instanceof Element ? gesture.target.closest(ANSWERS) : null;
@@ -117,13 +129,14 @@ function watchTap(gesture: Touch) {
   if (!target && !strayBackdrop) return;
   const tappedAt = performance.now();
   setTimeout(() => {
+    if (gesture.action?.completed()) return;
     if ((!strayBackdrop && clickUp > tappedAt) || performance.now() - lastRecord < 2000) return;
     lastRecord = performance.now();
     record('tap', gesture.x, gesture.y, gesture.target, null, {
       click: strayBackdrop ? 'stray menu backdrop caught the tap' : clickDown > tappedAt ? 'stopped on the way' : 'none came',
       swallowedBy: swallowed && swallowed.at > tappedAt - 50 ? swallowed.by : undefined,
     });
-  }, 350);
+  }, gesture.action ? 600 : 350);
 }
 
 /** Starts keeping stalls; every listener is passive and only reads. */
@@ -134,21 +147,25 @@ export function installScrollStallLog() {
   window.addEventListener('touchstart', event => {
     const point = event.touches[0];
     touch = event.touches.length === 1 && point
-      ? { x: point.clientX, y: point.clientY, dy: 0, far: 0, at: performance.now(), moves: 0, seen: 0, cancelled: 0, target: event.target as Element, menu: menuInSight() }
+      ? { x: point.clientX, y: point.clientY, dx: 0, dy: 0, far: 0, at: performance.now(), moves: 0, seen: 0, cancelled: 0, target: event.target as Element, menu: menuInSight() }
       : undefined;
   }, { capture: true, passive: true });
-  // First of all, every move; last of all, whether the page's listeners cancelled it.
+  // Capture every move before page listeners; observe cancellation after dispatch.
   window.addEventListener('touchmove', event => {
     const point = event.touches[0];
     if (!touch || !point) return;
     touch.moves++;
+    // A stopped event never reaches the window's bubble listener. Count cancellation after
+    // dispatch so preventDefault and stopPropagation are measured independently.
+    const gesture = touch;
+    setTimeout(() => { if (event.defaultPrevented) gesture.cancelled++; }, 0);
+    touch.dx = point.clientX - touch.x;
     touch.dy = point.clientY - touch.y;
     touch.far = Math.max(touch.far, Math.hypot(point.clientX - touch.x, touch.dy));
   }, { capture: true, passive: true });
-  window.addEventListener('touchmove', event => {
+  window.addEventListener('touchmove', () => {
     if (!touch) return;
     touch.seen++;
-    if (event.defaultPrevented) touch.cancelled++;
   }, { passive: true });
   window.addEventListener('touchend', () => {
     const gesture = touch;
@@ -158,12 +175,17 @@ export function installScrollStallLog() {
     if (!gesture || gesture.menu || Math.abs(gesture.dy) < 48) return;
     // A scroll that did happen has fired by the next frames.
     setTimeout(() => {
+      if (gesture.action?.completed()) return;
       if (scrolledAt > gesture.at || performance.now() - lastRecord < 2000) return;
       const list = scrollerAt(gesture.x, gesture.y);
       if (!list || !canScroll(list, -gesture.dy)) return;
       lastRecord = performance.now();
-      record('touch', gesture.x, gesture.y, gesture.target, list, { moves: `${gesture.cancelled} cancelled, ${gesture.moves - gesture.seen} stopped, of ${gesture.moves}` });
-    }, 150);
+      record('touch', gesture.x, gesture.y, gesture.target, list, {
+        moves: `${gesture.cancelled} cancelled, ${gesture.moves - gesture.seen} stopped, of ${gesture.moves}`,
+        gestureAction: gesture.action?.name,
+        movement: { x: Math.round(gesture.dx), y: Math.round(gesture.dy) },
+      });
+    }, gesture.action ? 600 : 150);
   }, { passive: true });
   window.addEventListener('wheel', event => {
     if (wheelPending || !event.deltaY || menuInSight()) return;

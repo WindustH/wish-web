@@ -61,7 +61,7 @@ async function previewOnboarding() {
           </div>
           <p v-if="!stalls.length" class="hint">{{ tr('还没有记录。', 'Nothing noted yet.') }}</p>
           <ol v-else class="stall-list">
-            <li v-for="stall in stalls" :key="stall.at"><strong>{{ new Date(stall.at).toLocaleString() }} · {{ stall.kind }} · {{ stall.route }}</strong><code>{{ summary(stall) }}</code></li>
+            <li v-for="stall in stalls" :key="stall.at"><strong>{{ new Date(stall.at).toLocaleString() }} · {{ stall.kind }} · {{ stall.route }}<span v-if="stall.build"> · {{ tr('构建', 'Build') }} {{ stall.build }}</span></strong><code>{{ summary(stall) }}</code></li>
           </ol>
         </template>
         <div v-else-if="section === 'onboarding'" class="setting-row">
@@ -86,7 +86,7 @@ async function previewOnboarding() {
   .stall-actions { margin-left: auto; }
 }
 .stall-list { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
-.stall-list li { display: grid; gap: 4px; padding: 10px 12px; border-radius: var(--radius); background: var(--bg-inset); font-size: 12.5px; }
+.stall-list li { min-width: 0; overflow-wrap: anywhere; display: grid; gap: 4px; padding: 10px 12px; border-radius: var(--radius); background: var(--bg-inset); font-size: 12.5px; }
 .stall-list code { color: var(--fg-muted); font-size: 12px; overflow-wrap: anywhere; }
 .icon-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 4px; padding: 8px 0; }
 .icon-gallery figure { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; padding: 14px 4px 10px; border-radius: var(--radius); color: var(--fg); }
