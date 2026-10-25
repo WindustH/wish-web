@@ -1,11 +1,18 @@
 import { ref, computed, watch, nextTick, type Ref } from 'vue';
 import { cfg } from '../../core/config.ts';
-import { chat } from '../../core/state/chatSlice.ts';
+import type { ChatApi } from '../../core/state/chatSlice.ts';
 import { glideToEnd } from './glide.ts';
 
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
 
+// The viewport consumes a narrow history port. It does not own the session singleton,
+// transport, or delivery lifecycle; callers can supply an isolated conversation.
+export type ScrollHistory = Pick<ChatApi,
+  'entries' | 'hasMoreBefore' | 'hasMoreAfter' | 'loadingInitial' | 'loadingOlder' |
+  'loadingNewer' | 'loadOlder' | 'fetchNewer' | 'jumpToLatest' | 'sentRun'>;
+
 export interface UseChatScrollOptions {
+  history: ScrollHistory;
   scrollEl: Ref<HTMLElement | null>;
   groups: Ref<any[]>;
   sessionId: Ref<string>;
@@ -18,6 +25,7 @@ export interface UseChatScrollOptions {
 
 export function useChatScroll(options: UseChatScrollOptions) {
   const {
+    history: chat,
     scrollEl,
     groups,
     sessionId,

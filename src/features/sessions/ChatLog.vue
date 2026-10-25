@@ -98,7 +98,7 @@ const railRows = computed<RailRow[]>(() => {
   let top = 0;
   return groups.value.map((row, index) => {
     const height = cache?.[index]?.size ?? estimateRow(row, width);
-    const placed = { top: cache[index]?.start ?? top, height, events: rowEvents(row) };
+    const placed = { top: cache[index]?.start ?? top, height, events: railEvents.value[index] ?? [] };
     top = placed.top + height;
     return placed;
   });
@@ -112,6 +112,10 @@ const rowEvents = (row: ChatRow): RailEvent[] => {
       warn: noticeTone(chip.entry) === 'warn', tip: noticeLabel(chip.entry), seq: chip.entry?.seq,
       step: { kind: 'entry', entry: chip.entry, key: chip.key }, preview: noticeText(chip.entry) }]);
 };
+// Activity metadata changes with history/results/locale, not with geometry. A resize or
+// virtual range change must not parse thousands of tool calls and previews again.
+const railEvents = computed(() => groups.value.map(rowEvents));
+
 // Where the rail stands. It lives inside the scrolling content, so its own y needs no thought -
 // rows and nodes share one origin. On a phone, a drawer a rightward drag reveals (useRailSwipe):
 // the panel translates aside and the rail rides with it, hidden wholly from hits until opened.
@@ -125,7 +129,7 @@ const railVersion = ref(0);
 const railTotal = computed(() => Math.max(36, virtualizer.value.getTotalSize()));
 // The phone's lane gesture lives on the frame, never on the scroll container; its state outlives
 // a session switch - it is the pane's preference, not the conversation's.
-const railSwipe = useRailSwipe({ wrap: wrapEl, scroll: scrollEl, enabled: computed(() => props.mobile) });
+const railSwipe = useRailSwipe({ wrap: wrapEl, scroll: scrollEl, content: scrollContentEl, enabled: computed(() => props.mobile) });
 const railPlace = computed(() => {
   if (props.mobile) return { visible: railSwipe.open.value, lane: false };
   void railVersion.value;
@@ -176,6 +180,9 @@ const virtualizer = useVirtualizer(
       getScrollElement: () => scrollEl.value,
       observeElementRect: observeChatRect,
       measureElement: measureChatElement,
+      // Row measurements can change the sizer and mounted range. Apply observer
+      // results on the next frame rather than re-entering layout delivery itself.
+      useAnimationFrameWithResizeObserver: true,
       estimateSize: (i: number) => estimateRow(items[i]!, width),
       overscan: 6,
       getItemKey: (i: number) => `${session}:${items[i]!.key}`,
@@ -209,6 +216,7 @@ const {
   onScroll,
   jumpLatest,
 } = useChatScroll({
+  history: chat,
   scrollEl,
   groups,
   sessionId: computed(() => props.sessionId),
@@ -221,6 +229,7 @@ const {
 
 // Search locate & virtual item expansion
 const { targetSeq, forcedOpen } = useSearchLocate(
+  chat,
   groups,
   virtualizer,
   owns,

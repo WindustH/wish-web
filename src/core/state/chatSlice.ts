@@ -7,6 +7,7 @@ import { createSse, type SseConnection, type SseError, type SseState } from '../
 import { absUrl } from '../api/client.ts';
 import { createChatDeliveries } from './chatDeliveries.ts';
 import * as api from '../api/endpoints.ts';
+import { createReconciliation } from './reconciliation.ts';
 import { createChatHistory } from './chatHistory.ts';
 import { createEmptyStream, createStreamProcessor } from './chatStream.ts';
 import type { EntryView, SessionView } from '../api/projections.ts';
@@ -93,10 +94,13 @@ export const chat = (() => {
   let epoch = 0;
   let controller: AbortController | null = null;
   let connection: SseConnection | null = null;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let poll: ReturnType<typeof setInterval> | undefined;
   let offSync: (() => void) | null = null;
-  let refreshing = false;
+  const reconciliation = createReconciliation({
+    run: refresh,
+    ready: () => !!sessionId.value && !loadingInitial.value,
+    delayMs: cfg.history.reconcileDelayMs,
+    pollMs: cfg.sync.pollFallbackMs,
+  });
   let connectionError: unknown = null;
   let pollError: unknown = null;
   let pollFailures = 0;
@@ -171,11 +175,9 @@ export const chat = (() => {
     controller?.abort();
     connection?.close();
     offSync?.();
-    clearTimeout(timer);
-    clearInterval(poll);
+    reconciliation.stop();
     connection = null;
     sessionId.value = null;
-    refreshing = false;
     streamProcessor.reset();
   }
 
@@ -232,6 +234,8 @@ export const chat = (() => {
     pendingSeq.value = null;
     capabilities.value = { status: 'ok', data: { input_modalities: null } };
 
+    reconciliation.start();
+
     // Subscribe before the initial snapshot: reconciliation covers any racing commit.
     connection = createSse({
       url: absUrl(`/sessions/${encodeURIComponent(id)}/events`),
@@ -284,11 +288,6 @@ export const chat = (() => {
     } finally {
       if (current(own)) { loadingInitial.value = false; scheduleRefresh(); }
     }
-
-    if (!current(own)) return;
-    poll = setInterval(() => {
-      if (current(own)) void refresh();
-    }, cfg.sync.pollFallbackMs);
   }
 
   async function reload(): Promise<void> {
@@ -300,11 +299,10 @@ export const chat = (() => {
   }
 
   async function refresh() {
-    if (refreshing || !sessionId.value) return;
+    if (!sessionId.value) return;
     // Initial history may be completing a large album. Reconciliation must not publish a
     // separate partial window (from sequence zero) while that atomic read is still pending.
     if (loadingInitial.value) { scheduleRefresh(); return; }
-    refreshing = true;
     const own = epoch;
     const id = sessionId.value;
 
@@ -337,14 +335,11 @@ export const chat = (() => {
         pollError = cause;
         error.value = cause;
       }
-    } finally {
-      if (current(own)) refreshing = false;
     }
   }
 
   function scheduleRefresh() {
-    clearTimeout(timer);
-    timer = setTimeout(refresh, cfg.history.reconcileDelayMs);
+    reconciliation.request();
   }
 
   async function interrupt(): Promise<void> {

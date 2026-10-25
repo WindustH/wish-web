@@ -350,12 +350,13 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
   .reasoning-chip { max-width: 72px; }
   .model-chip, .reasoning-chip { min-height: 32px; padding: 3px; font-size: 10px; }
   /* The phone's rail drawer, all translation and never a reflow: the conversation is a panel with
-     the rail hidden under its left edge; a rightward drag slides the panel aside (--rail-x), the
+     the rail hidden under its left edge; a rightward drag slides the panel aside (transform), the
      words' far right clipped away by the log's own overflow, no line ever re-wrapped and no
      padding ever changed. The rail fades in under the reveal; closed, it is wholly gone. Vertical
      drags stay the browser's: touch-action keeps pan-y for it. */
   .chatlog { padding: 20px 24px; touch-action: pan-y; overflow-x: hidden; overscroll-behavior-x: contain; }
-  .chatlog-content { transform: translate3d(var(--rail-x, 0px), 0, 0); }
+  .chatlog-content { transform: translate3d(0, 0, 0); }
+  .chatlog.rail-gesture .chatlog-content, .chatlog.rail-settling .chatlog-content { will-change: transform; }
   .chatlog.rail-gesture .chatlog-content { user-select: none; -webkit-user-select: none; }
   .chatlog.rail-settling .chatlog-content { transition: transform 180ms cubic-bezier(.2, .7, .2, 1); }
   /* The drawer's rail rides the content's own translate: with the panel slid 44 aside it stands

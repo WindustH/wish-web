@@ -7,8 +7,8 @@
 //
 // What it touches: pointer listeners on .chatlog-wrap (never the scroll container itself), the
 // classes rail-gesture / rail-settling on .chatlog, rail-out / rail-settling on .chatlog-wrap,
-// and one element-scoped custom property - --rail-x on .chatlog-wrap, the drawer's current
-// offset. The log's own geometry (padding, widths) is never written, open or closed.
+// and the content panel transform. No inherited custom property is changed during a drag,
+// so the browser need not invalidate styles for every message descendant.
 import { onScopeDispose, ref, watch, type Ref } from 'vue';
 
 const LANE = 44;      // px the panel slides aside when the drawer stands open
@@ -17,14 +17,16 @@ const BIAS = 1.5;     // horizontal must beat vertical by this much to lock
 const FLICK = 0.3;    // px/ms that settles the drawer on its own
 const SETTLE = 200;   // ms the settle animation runs
 
-export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: Ref<HTMLElement | null>; enabled: Ref<boolean> }) {
+export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: Ref<HTMLElement | null>; content: Ref<HTMLElement | null>; enabled: Ref<boolean> }) {
   /** Whether the drawer stands open. Kept across session switches, a pane-level preference. */
   const open = ref(false);
 
   type Phase = 'idle' | 'pending' | 'locked';
   let phase: Phase = 'idle';
   let pointerId = -1;
-  let pointers = 0;
+  const pointers = new Set<number>();
+  let frame = 0;
+  let pendingX = 0;
   let startX = 0;
   let startY = 0;
   let fromOpen = false;
@@ -37,8 +39,18 @@ export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: R
   // The drawer's whole state is one number on one element: the offset the content translates by
   // and the rail slides in to. Nothing here can reflow a line.
   function setX(x: number) {
-    wrap()?.style.setProperty('--rail-x', `${x}px`);
+    const content = options.content.value;
+    if (content) content.style.transform = `translate3d(${x}px, 0, 0)`;
     wrap()?.classList.toggle('rail-out', x > 0);
+  }
+  function cancelFrame() {
+    if (frame) cancelAnimationFrame(frame);
+    frame = 0;
+  }
+  function scheduleX(x: number) {
+    pendingX = x;
+    if (frame) return;
+    frame = requestAnimationFrame(() => { frame = 0; setX(pendingX); });
   }
   function classes(gesture: boolean, settle: boolean) {
     scroll()?.classList.toggle('rail-gesture', gesture);
@@ -48,6 +60,7 @@ export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: R
   // Letting go: the slide settles at closed or open, one 180ms ease - the only change is the
   // transform's value.
   function settle(toOpen: boolean) {
+    cancelFrame();
     open.value = toOpen;
     classes(false, true);
     setX(toOpen ? LANE : 0);
@@ -67,9 +80,10 @@ export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: R
   }
 
   function onDown(event: PointerEvent) {
-    pointers += 1;
-    if (!options.enabled.value || !event.isPrimary) return;
-    if (pointers > 1) { bail(); return; }             // a second finger is not this gesture's business
+    if (!options.enabled.value || event.button !== 0) return;
+    pointers.add(event.pointerId);
+    if (pointers.size > 1) { bail(); return; }
+    if (!event.isPrimary) return;
     // A block that scrolls sideways scrolls itself; the gesture stays out of its way.
     const hscroll = (event.target as HTMLElement | null)?.closest('pre, table, [data-hscroll]');
     if (hscroll && hscroll.scrollWidth > hscroll.clientWidth) return;
@@ -89,17 +103,18 @@ export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: R
       if (Math.abs(dx) <= LOCK || Math.abs(dx) < Math.abs(dy) * BIAS) return;
       phase = 'locked';
       try { wrap()?.setPointerCapture(pointerId); } catch { /* gone: the handlers below reset */ }
+      clearTimeout(settling);
       classes(true, false);
     }
     event.preventDefault();
-    const now = performance.now();
+    const now = event.timeStamp;
     samples.push({ x: event.clientX, t: now });
     while (samples.length > 2 && now - samples[0]!.t > 100) samples.shift();
-    setX(Math.max(0, Math.min(LANE, (fromOpen ? LANE : 0) + dx)));
+    scheduleX(Math.max(0, Math.min(LANE, (fromOpen ? LANE : 0) + dx)));
   }
 
   function onUp(event: PointerEvent) {
-    pointers = Math.max(0, pointers - 1);
+    pointers.delete(event.pointerId);
     if (event.pointerId !== pointerId) return;
     if (phase === 'pending') { phase = 'idle'; return; }   // a tap or an abandoned touch: nothing to settle
     if (phase !== 'locked') return;
@@ -111,7 +126,7 @@ export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: R
   }
 
   function onCancel(event: PointerEvent) {
-    pointers = Math.max(0, pointers - 1);
+    pointers.delete(event.pointerId);
     if (event.pointerId === pointerId) bail();
   }
 
@@ -121,23 +136,33 @@ export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: R
     if (bound) {
       bound.removeEventListener('pointerdown', onDown);
       bound.removeEventListener('pointermove', onMove);
-      bound.removeEventListener('pointerup', onUp);
-      bound.removeEventListener('pointercancel', onCancel);
+      end();
+      pointers.clear();
+      cancelFrame();
+      clearTimeout(settling);
+      classes(false, false);
+      setX(0);
+      open.value = false;
     }
     bound = el;
     if (el) {
       el.addEventListener('pointerdown', onDown);
       el.addEventListener('pointermove', onMove, { passive: false });
-      el.addEventListener('pointerup', onUp);
-      el.addEventListener('pointercancel', onCancel);
     }
   }
   watch([options.wrap, options.enabled], ([el, on]) => attach(on ? (el as HTMLElement | null) : null), { immediate: true });
-  const onBlur = () => bail();
+  const onBlur = () => { pointers.clear(); bail(); };
+  // A pending gesture has not captured the pointer yet. Its release can be outside
+  // the panel; listening only on the panel leaves a phantom finger forever.
+  window.addEventListener('pointerup', onUp, true);
+  window.addEventListener('pointercancel', onCancel, true);
   window.addEventListener('blur', onBlur);
   onScopeDispose(() => {
     attach(null);
     window.removeEventListener('blur', onBlur);
+    window.removeEventListener('pointerup', onUp, true);
+    window.removeEventListener('pointercancel', onCancel, true);
+    cancelFrame();
     clearTimeout(settling);
   });
 

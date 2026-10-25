@@ -1,11 +1,12 @@
-import { ref, watch, onUnmounted, nextTick, type Ref } from 'vue';
-import { chat } from '../../core/state/chatSlice.ts';
+import { ref, watch, onScopeDispose, nextTick, type Ref } from 'vue';
+import type { ChatApi } from '../../core/state/chatSlice.ts';
 import type { Virtualizer } from '@tanstack/vue-virtual';
 import { stepSeq } from './entries/processDetails.ts';
 
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
 
 export function useSearchLocate(
+  chat: Pick<ChatApi, 'sessionId' | 'pendingSeq' | 'clearPendingSeq'>,
   groups: Ref<any[]>,
   virtualizer: Ref<Virtualizer<HTMLElement, Element>>,
   owns: (gen: number) => boolean,
@@ -19,7 +20,8 @@ export function useSearchLocate(
   // The buttons a row carries: those beside a reply's words, or a row of them.
   const chipsOf = (g: any): any[] => g.type === 'chips' ? g.chips : g.type === 'image_album' ? g.items.flatMap((item: any) => item.before ?? []) : g.before ?? [];
   const holds = (g: any, seq: number): boolean =>
-    (g.type === 'entry' && g.entry?.seq === seq)
+    ((g.type === 'entry' || g.type === 'question') && g.entry?.seq === seq)
+    || (g.type === 'question' && g.result?.seq === seq)
     || (g.type === 'image_album' && g.items.some((item: any) => holds(item, seq)))
     || (g.type === 'process' && (g.steps ?? []).some((st: any) => stepSeq(st) === seq))
     || chipsOf(g).some(chip => holds(chip, seq));
@@ -27,14 +29,21 @@ export function useSearchLocate(
 
   watch(() => chat.sessionId.value, () => {
     forcedOpen.value = new Set();
+    targetSeq.value = null;
+    if (targetTimer) clearTimeout(targetTimer);
   });
 
-  watch(() => chat.pendingSeq.value, async (seq) => {
+  watch(() => chat.pendingSeq.value, async (seq, _, cleanup) => {
+    let cancelled = false;
+    cleanup(() => { cancelled = true; });
     if (seq == null) return;
     const gen = getEpoch();
     const sessionAtStart = chat.sessionId.value;
+    const current = () => !cancelled && owns(gen) && chat.sessionId.value === sessionAtStart && chat.pendingSeq.value === seq;
+    // Release tail-follow before any asynchronous expansion or scroll write.
+    onLocated('history');
     for (let attempt = 0; attempt < 10; attempt++) {
-      if (!owns(gen) || chat.sessionId.value !== sessionAtStart) return;
+      if (!current()) return;
       // The run or notice that holds it opens its window: a step shows there, outside the log, and a
       // result with its call.
       const idx = groupIndexOf(seq);
@@ -44,6 +53,7 @@ export function useSearchLocate(
         await nextTick();
         await nextFrame();
       }
+      if (!current()) return;
       // A step's seq is the seq of the entry its block came from, so the reply's own anchor
       // carries it too - and as an ancestor it answers a plain query first. Ask for the step
       // itself: in an open process window first, then on the rail, then a notice's host; the
@@ -80,10 +90,10 @@ export function useSearchLocate(
       return;
     }
     // Not found: nothing stays held open to pop up again as its row comes back.
-    if (owns(gen)) { chat.clearPendingSeq(); forcedOpen.value = new Set(); }
+    if (current()) { chat.clearPendingSeq(); forcedOpen.value = new Set(); }
   });
 
-  onUnmounted(() => {
+  onScopeDispose(() => {
     if (targetTimer) clearTimeout(targetTimer);
   });
 

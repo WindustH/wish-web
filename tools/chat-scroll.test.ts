@@ -34,6 +34,7 @@ function setup({ height = 2000, active = shallowRef(true), initialRows = [] }:
   const scroll = scope.run(() => {
     onScopeDispose(() => { alive = false; });
     return useChatScroll({
+      history: chat,
       scrollEl: shallowRef(el as unknown as HTMLElement), groups,
       sessionId: shallowRef('scroll-regression'), pageActive: active,
       running: computed(() => stream.value.active), streamState: stream,

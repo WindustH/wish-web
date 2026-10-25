@@ -30,13 +30,34 @@ export function createChatHistory<E extends { seq: number }>({ sessionId, error,
   const locating = shallowRef(false);
 
   let generation = 0;
+  let windowController = new AbortController();
   let viewingPast = false;
   const current = (own: number) => own === generation;
   function invalidate() {
     generation++;
+    windowController.abort();
+    windowController = new AbortController();
     loadingOlder.value = false;
     loadingNewer.value = false;
     locating.value = false;
+  }
+  // Every operation belongs to this history window, not merely to the session.
+  // Searching or jumping cancels old context-draining requests immediately.
+  function requestOptions(): { signal: AbortSignal } {
+    const parent = options().signal;
+    return { signal: parent ? AbortSignal.any([parent, windowController.signal]) : windowController.signal };
+  }
+  async function prepareMerge(signal: AbortSignal, beforeMerge?: () => void | Promise<void>) {
+    signal.throwIfAborted();
+    if (!beforeMerge) return;
+    let abort!: () => void;
+    const cancelled = new Promise<never>((_, reject) => {
+      abort = () => reject(signal.reason);
+      signal.addEventListener('abort', abort, { once: true });
+    });
+    try { await Promise.race([Promise.resolve().then(beforeMerge), cancelled]); }
+    finally { signal.removeEventListener('abort', abort); }
+    signal.throwIfAborted();
   }
   function merge(items: E[]) {
     if (!items.length) return;
@@ -54,6 +75,7 @@ export function createChatHistory<E extends { seq: number }>({ sessionId, error,
     if (locating.value || loadingOlder.value || !hasMoreBefore.value || !sessionId.value) return false;
 
     const own = generation;
+    const opts = requestOptions();
     const id = sessionId.value;
     loadingOlder.value = true;
 
@@ -61,13 +83,16 @@ export function createChatHistory<E extends { seq: number }>({ sessionId, error,
       const page = await readPage(
         id,
         { before: oldestSeq.value, limit: cfg.history.pageSize, order: 'desc' },
-        options()
+        opts
       );
       if (!current(own)) return false;
 
-      await beforeMerge?.();
+      await prepareMerge(opts.signal, beforeMerge);
       if (!current(own)) return false;
 
+      if (page.has_more && !page.items.some(item => oldestSeq.value == null || item.seq < oldestSeq.value)) {
+        throw new Error('History pagination did not advance');
+      }
       merge(page.items);
       hasMoreBefore.value = page.has_more;
       return true;
@@ -85,22 +110,27 @@ export function createChatHistory<E extends { seq: number }>({ sessionId, error,
     }
 
     const own = generation;
+    const opts = requestOptions();
     const id = sessionId.value;
     loadingNewer.value = true;
     let added = 0;
 
     try {
       for (let n = 0; n < pages; n++) {
+        const edge = newestSeq.value ?? 0;
         const page = await readPage(
           id,
-          { after: newestSeq.value ?? 0, limit: cfg.history.pageSize, order: 'asc' },
-          options()
+          { after: edge, limit: cfg.history.pageSize, order: 'asc' },
+          opts
         );
         if (!current(own)) return { ok: false, drained: false, added };
 
-        await beforeMerge?.();
+        await prepareMerge(opts.signal, beforeMerge);
         if (!current(own)) return { ok: false, drained: false, added };
 
+        if (page.has_more && !page.items.some(item => item.seq > edge)) {
+          throw new Error('History pagination did not advance');
+        }
         const before = entries.value.length;
         merge(page.items);
         added += entries.value.length - before;
@@ -122,17 +152,22 @@ export function createChatHistory<E extends { seq: number }>({ sessionId, error,
 
     invalidate();
     const own = generation;
-    viewingPast = true;
+    const opts = requestOptions();
     locating.value = true;
 
     try {
       const [before, after] = await Promise.all([
-        readPage(id, { before: seq, order: 'desc', limit: cfg.history.pageSize }, options()),
-        readPage(id, { after: seq - 1, order: 'asc', limit: cfg.history.pageSize }, options()),
+        readPage(id, { before: seq, order: 'desc', limit: cfg.history.pageSize }, opts),
+        readPage(id, { after: seq - 1, order: 'asc', limit: cfg.history.pageSize }, opts),
       ]);
       if (!current(own)) return false;
 
-      entries.value = [...before.items.reverse(), ...after.items];
+      const window = mergeHistory([], [...before.items, ...after.items]);
+      if (!window.some(entry => entry.seq === seq)) return false;
+      // Commit browse mode with the replacement, not before the request. A failed
+      // search must not silently disable reconciliation of the visible latest window.
+      viewingPast = true;
+      entries.value = window;
       bounds();
       hasMoreBefore.value = before.has_more;
       hasMoreAfter.value = after.has_more;
@@ -149,12 +184,13 @@ export function createChatHistory<E extends { seq: number }>({ sessionId, error,
   async function jumpToLatest(): Promise<boolean> {
     invalidate();
     const own = generation;
+    const opts = requestOptions();
     const id = sessionId.value;
     if (!id) return false;
     locating.value = true;
 
     try {
-      const page = await readPage(id, { order: 'desc', limit: cfg.history.pageSize }, options());
+      const page = await readPage(id, { order: 'desc', limit: cfg.history.pageSize }, opts);
       if (!current(own)) return false;
 
       entries.value = page.items.reverse();
