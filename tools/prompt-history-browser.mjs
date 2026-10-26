@@ -65,12 +65,42 @@ try {
   await until('!!window.fixture && !!document.querySelector("[contenteditable=true]")','composer mounted');
   const editor='document.querySelector(".composer [contenteditable=true]")';
   const key=async key=>{const windowsVirtualKeyCode={ArrowUp:38,ArrowDown:40,Enter:13,Escape:27}[key];await send('Input.dispatchKeyEvent',{type:'keyDown',key,windowsVirtualKeyCode});await send('Input.dispatchKeyEvent',{type:'keyUp',key,windowsVirtualKeyCode});};
+  const ctrl = async key => {
+    await send('Input.dispatchKeyEvent',{type:'keyDown',key,code:'Key'+key.toUpperCase(),windowsVirtualKeyCode:key.toUpperCase().charCodeAt(0),modifiers:2});
+    await send('Input.dispatchKeyEvent',{type:'keyUp',key,modifiers:2});
+  };
   await js(editor+'.focus()');
   await send('Input.insertText',{text:'unsent draft'});
+  await ctrl('w');
+  await until('fixture.chat.getDraft("A")==="unsent "','Ctrl+W removes preceding word');
+  await ctrl('u');
+  await until('fixture.chat.getDraft("A")===""','Ctrl+U clears before caret');
+  await ctrl('z');await ctrl('z');
+  await until('fixture.chat.getDraft("A")==="unsent draft"','shortcut deletions are undoable');
+  await ctrl('a');await ctrl('c');
+  assert.equal(await js('fixture.chat.getDraft("A")'),'unsent draft','Ctrl+C with selection does not clear');
+  await js('(()=>{const e='+editor+';const r=document.createRange();r.selectNodeContents(e);r.collapse(false);getSelection().removeAllRanges();getSelection().addRange(r)})()');
+  await ctrl('c');
+  await until('fixture.chat.getDraft("A")===""','Ctrl+C without selection clears');
+  await ctrl('z');
+  await until('fixture.chat.getDraft("A")==="unsent draft"','Ctrl+C can be undone');
+
   await key('ArrowUp');
   await until('document.querySelectorAll(".attach-thumb").length===2','history attachments');
   await until('document.querySelector(".attach-thumb img")?.naturalWidth>0','image thumbnail loads');
   assert.equal(await js('document.querySelectorAll(".inline-attachment-token").length'),2);
+  await ctrl('c');
+  await until('fixture.chat.getDraft("A")==="" && document.querySelectorAll(".attach-thumb").length===0','clear attachment prompt');
+  await ctrl('z');
+  await until('document.querySelectorAll(".attach-thumb").length===2 && document.querySelectorAll(".inline-attachment-token").length===2','undo restores attachments and tokens');
+
+  await js(`(()=>{const style=document.createElement('style');style.id='tall-token-test';style.textContent='.inline-attachment-token{padding-block:8px!important}';document.head.append(style)})()`);
+  await js('(()=>{const e='+editor+';const r=document.createRange();r.selectNodeContents(e);r.collapse(false);getSelection().removeAllRanges();getSelection().addRange(r)})()');
+  await key('ArrowDown');
+  await until('fixture.chat.getDraft("A")==="unsent draft"','Down leaves a line with taller attachment tokens');
+  await key('ArrowUp');
+  await until('document.querySelectorAll(".attach-thumb").length===2','return to token prompt');
+  await js('document.getElementById("tall-token-test").remove()');
   await js('document.querySelector(".attachment-file").click()');
   await until('document.body.innerText.includes("file preview text")','file preview matches original');
   await key('Escape');
@@ -120,7 +150,7 @@ try {
   await key('ArrowUp');
   assert.equal(await js('fixture.chat.getDraft("A")'),'line one\nline two','Up within a multiline draft moves the caret, not history');
   await key('ArrowUp');
-  await until('document.querySelectorAll(".attach-thumb").length===2','Up at first line recalls history');
+  await until('document.querySelectorAll(".attach-thumb").length===2','Up on first logical line recalls history');
   await js(`fixture.switchSession('unsupported-image');`);
   await sleep(100);
   await js(`(()=>{

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
+import { shortcutDeletion } from './editorShortcuts.ts';
 import { useAttachmentTokenDrag } from './useAttachmentTokenDrag.ts';
 import { splitAttachmentText } from '../../core/attachmentPlaceholders.ts';
 import type { AttachmentInput } from '../../core/attachments.ts';
@@ -153,7 +154,23 @@ function beforeInput(event: InputEvent) {
 function keydown(event: KeyboardEvent) {
   if (tokenDrag.isActive()) { event.preventDefault(); return; }
   emit('keydown', event);
-  if (event.defaultPrevented || event.isComposing) return;
+  if (event.defaultPrevented || event.isComposing || composing.value || event.keyCode === 229) return;
+  if (event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+    const selected = selection();
+    const deletion = shortcutDeletion(event.key.toLowerCase(), value, selected.start, selected.end);
+    if (deletion) {
+      event.preventDefault();
+      // Attachment placeholders are atomic even when word deletion stops inside their text.
+      for (const token of splitAttachmentText(value, props.attachments)) {
+        if (token.type === 'attachment' && deletion.start < token.start + token.text.length && deletion.end > token.start) {
+          deletion.start = Math.min(deletion.start, token.start);
+          deletion.end = Math.max(deletion.end, token.start + token.text.length);
+        }
+      }
+      replace('', deletion);
+      return;
+    }
+  }
   if ((event.ctrlKey || event.metaKey) && ['z', 'y'].includes(event.key.toLowerCase())) {
     event.preventDefault(); undo(event.shiftKey || event.key.toLowerCase() === 'y');
   }
@@ -198,25 +215,8 @@ onMounted(() => render(value));
 function atHistoryBoundary(direction: -1 | 1) {
   const selected = selection();
   if (selected.start !== selected.end || composing.value) return false;
-  const logicalBoundary = direction === -1 ? !value.slice(0, selected.start).includes('\n')
+  return direction === -1 ? !value.slice(0, selected.start).includes('\n')
     : !value.slice(selected.end).includes('\n');
-  if (!logicalBoundary || !value.length || !el.value) return logicalBoundary;
-  // Wrapped lines still belong to normal caret navigation, even without a newline.
-  const content = document.createRange();
-  content.selectNodeContents(el.value);
-  const lines = [...content.getClientRects()].filter(rect => rect.height > 0);
-  const caret = document.createRange();
-  caret.setStart(...point(selected.start));
-  caret.collapse(true);
-  let box = caret.getClientRects()[0];
-  if (!box) {
-    caret.setStart(...point(Math.max(0, selected.start - 1)));
-    caret.setEnd(...point(Math.min(value.length, selected.start + 1)));
-    box = caret.getClientRects()[0];
-  }
-  if (!box || !lines.length) return logicalBoundary;
-  return direction === -1 ? box.top <= Math.min(...lines.map(line => line.top)) + 2
-    : box.bottom >= Math.max(...lines.map(line => line.bottom)) - 2;
 }
 defineExpose({ atHistoryBoundary, moveCaretToEnd: () => setSelection(value.length), focus: () => el.value?.focus(), blur: () => el.value?.blur(), el, createInsertion });
 </script>

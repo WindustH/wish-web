@@ -210,11 +210,20 @@ export function useComposerAttachments(
         removeAttachment(i);
       }
     }
+    let restored = false;
     for (const [token, attachment] of deletedAttachments) {
       if (!previous.includes(token) && next.includes(token)) {
         attachments.value.push({ ...attachment, localUrl: URL.createObjectURL(new Blob([attachment.bytes], { type: attachment.mime })) });
         deletedAttachments.delete(token);
+        restored = true;
       }
+    }
+    if (restored) {
+      const position = (attachment: Attachment) => attachment.placeholder ? next.indexOf(attachment.placeholder) : -1;
+      attachments.value.sort((a, b) => {
+        const left = position(a), right = position(b);
+        return (left < 0 ? Number.MAX_SAFE_INTEGER : left) - (right < 0 ? Number.MAX_SAFE_INTEGER : right);
+      });
     }
     while (deletedAttachments.size > 100) deletedAttachments.delete(deletedAttachments.keys().next().value!);
     saveAttachmentDrafts(currentSid.value, attachments.value);
