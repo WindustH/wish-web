@@ -26,5 +26,11 @@ export function touchButton() {
     event.preventDefault();
     held.button.click();
   }
-  return { start, move, end, cancel };
+  // touchend already activates a verified tap. A later browser-synthesized click can target
+  // a replacement node after streaming changed the rail, so it must not activate anything.
+  function acceptsClick(event: MouseEvent): boolean {
+    const source = event as MouseEvent & { sourceCapabilities?: { firesTouchEvents?: boolean }; pointerType?: string };
+    return !source.sourceCapabilities?.firesTouchEvents && source.pointerType !== 'touch';
+  }
+  return { start, move, end, cancel, acceptsClick };
 }

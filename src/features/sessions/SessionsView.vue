@@ -10,7 +10,6 @@ import { computed, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 
 import { useRoute, useRouter } from 'vue-router';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import SessionList from './SessionList.vue';
-import SessionListToggle from './SessionListToggle.vue';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import { applySavedListWidth, cancelListResize, onListResizePointerDown } from './listWidth.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -39,8 +38,6 @@ onBeforeUnmount(cancelListResize);
     <div v-if="!isMobile" class="session-list-edge">
       <Hint text="↔"><div v-show="showList" class="list-resize" role="separator" aria-orientation="vertical"
         :aria-label="i18n.t('app.name')" @pointerdown="onListResizePointerDown" /></Hint>
-      <!-- The sidebar's own button collapses it; once collapsed, this tab on the edge brings it back. -->
-      <SessionListToggle v-if="!showList" />
     </div>
     <div class="content-pane" :class="{ 'sheet-covered': isMobile && showList }">
       <RouterView v-slot="{ Component }">

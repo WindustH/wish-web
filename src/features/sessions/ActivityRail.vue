@@ -78,9 +78,9 @@ const label = (node: RailNode) => node.events.length === 1 ? node.tip
 <template>
   <div ref="railElement" class="rail-clip" :class="{ hidden: !visible }" :style="{ height: `${total}px` }" :aria-hidden="visible ? undefined : 'true'">
     <div v-if="rail.line" class="rail-line" :style="railLineStyle" />
-    <button v-for="(node, index) in rail.nodes" :key="index" type="button" class="history-rail-node"
+    <button v-for="node in rail.nodes" :key="JSON.stringify(node.events.map(event => [event.chipKey, event.stepKey]))" type="button" class="history-rail-node"
       :class="{ failed: node.failed, warn: !node.failed && node.warn }" :style="{ top: `${node.y - 12}px` }"
-      :aria-label="label(node)" aria-haspopup="dialog" :data-seq="node.seq" @click="click(node)"
+      :aria-label="label(node)" aria-haspopup="dialog" :data-seq="node.seq" @click="touch.acceptsClick($event) && click(node)"
       @touchstart.passive="touch.start" @touchmove.passive="touch.move" @touchend="touch.end" @touchcancel="touch.cancel">
       <span v-if="node.count > 1" class="history-rail-count" aria-hidden="true">+{{ node.count }}</span>
       <Icon v-else :name="node.icon" />

@@ -278,6 +278,19 @@ try {
     assert.notEqual(await js('document.body.style.pointerEvents'),'none','no page pointer lock after close');
     assert.equal(await js('document.querySelectorAll(".activity-dialog-host .history-chip-host").length'),0,'closed activity host is released');
   }
+  // Output updates are data, never an instruction to reopen a closed activity.
+  await js(`window.savedActivityEntries=fixture.chat.entries.value;fixture.chat.entries.value=[]`);
+  await sleep(80);
+  await js(`fixture.chat.entries.value=window.savedActivityEntries`);
+  await sleep(150);
+  assert.equal(await js('document.querySelectorAll(".process-detail,.modal-overlay").length'),0,'stream replacement cannot reopen a closed detail');
+  await js(`document.querySelector('.history-rail-node').click()`);
+  await until('!!document.querySelector(".process-detail")','detail before transient removal');
+  await js(`fixture.chat.entries.value=[]`);
+  await sleep(80);
+  await js(`fixture.chat.entries.value=window.savedActivityEntries`);
+  await sleep(150);
+  assert.equal(await js('document.querySelectorAll(".process-detail,.modal-overlay").length'),0,'an old open intent cannot replay when streaming restores a chip');
   await js('fixture.chat.pendingSeq.value=1');
   await until('!!document.querySelector(".process-detail")','search opens an offscreen activity');
   await sleep(300);

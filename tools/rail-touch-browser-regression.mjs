@@ -18,10 +18,10 @@ import {useRailSwipe} from '/src/features/sessions/useRailSwipe.ts';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/features.css';
 window.opened=0;
 createApp({setup(){const wrap=ref(null),scroll=ref(null),content=ref(null);useRailSwipe({wrap,scroll,content,enabled:ref(true)});
- const rows=[{top:100,height:400,events:[{chipKey:'one',stepKey:'one',icon:'terminal',failed:false,warn:false,tip:'Shell'}]}];
+ const rows=ref([{top:100,height:400,events:[{chipKey:'one',stepKey:'one',icon:'terminal',failed:false,warn:false,tip:'Shell'}]}]);window.railRows=rows;
  return()=>h(TooltipProvider,{},()=>h('div',{ref:wrap,class:'chatlog-wrap',style:'height:600px;width:390px'},[
  h('div',{ref:scroll,class:'chatlog',style:'height:600px;overflow:auto'},[
- h('div',{ref:content,class:'chatlog-content',style:'height:1800px'},[h(ActivityRail,{rows,total:1800,visible:true,onOpen:()=>window.opened++})])])]))}}).mount('#app');
+ h('div',{ref:content,class:'chatlog-content',style:'height:1800px'},[h(ActivityRail,{rows:rows.value,total:1800,visible:true,onOpen:()=>window.opened++})])])]))}}).mount('#app');
 const mount=document.createElement('div');document.body.append(mount);
 const dialogOpen=ref(false);window.dialogOpen=dialogOpen;
 createApp({setup(){return()=>h(Modal,{open:dialogOpen.value,title:'Close lifecycle',onClose:()=>dialogOpen.value=false},()=>h('p','Dialog content'))}}).mount(mount);
@@ -68,6 +68,12 @@ try {
   assert.deepEqual(await js('stalls.value.length'),0,'successful synchronous click must not be logged as missing');
   await touch([point,{x:point.x,y:point.y+4}]);
   assert.equal(await js('window.opened'),2,'minor finger movement still taps once');
+  await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[point]});
+  await js(`railRows.value=[{...railRows.value[0],events:[{...railRows.value[0].events[0],chipKey:'replacement',stepKey:'replacement'}]}]`);
+  await sleep(50);
+  await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await sleep(350);
+  assert.equal(await js('window.opened'),2,'a node replaced during a press must not open the replacement');
   await touch([point,{x:point.x,y:point.y+40}]);
   assert.equal(await js('window.opened'),2,'vertical drag must not activate');
   // Simulate a suspended exit animation, as can happen when a mobile browser loses foreground.

@@ -1,3 +1,5 @@
+import { imageFormat, supportedImageMime } from '../../core/imageFormat.ts';
+import { tr } from '../../core/i18n/tr.ts';
 import { shouldAttachPastedText, pastedTextFile } from '../../core/pastedText.ts';
 import { attachmentDigest } from '../../core/attachmentDigest.ts';
 import { ref, watch, onBeforeUnmount, type Ref } from 'vue';
@@ -129,7 +131,7 @@ export function useComposerAttachments(
     const text = event.clipboardData?.getData('text/plain') ?? '';
     const files: PickedAttachment[] = Array.from(event.clipboardData?.files ?? []).map(file => ({
       kind: hasImagePreview(file.type) ? 'image' : 'file',
-      name: file.type.startsWith('image/') ? undefined : file.name || undefined,
+      name: file.name || undefined,
       mime: file.type || 'application/octet-stream',
       size: file.size,
       read: () => file.arrayBuffer(),
@@ -157,11 +159,20 @@ export function useComposerAttachments(
     try {
       for (const file of files) {
         if (epoch !== attachmentEpoch) return;
-        if (!attachmentAccepted(file)) continue;
+        if (file.size > Math.max(limits.value.imageBytes, limits.value.fileBytes)) {
+          toast(`Attachment exceeds size limit (${fmtBytes(Math.max(limits.value.imageBytes, limits.value.fileBytes))})`);
+          continue;
+        }
         const bytes = await file.read();
         if (epoch !== attachmentEpoch) return;
-        if (!hasAttachmentSpace(file.kind)) continue;
-        const placeholder = `<${file.pastedText ? 'paste' : file.kind}-${await attachmentDigest(bytes)}>`;
+        const imageMime = supportedImageMime(bytes);
+        const kind = file.kind === 'image' && !imageMime ? 'file' : file.kind;
+        const mime = imageMime || imageFormat(bytes) || file.mime;
+        if (!attachmentAccepted({ ...file, kind, size: bytes.byteLength })) continue;
+        if (kind !== file.kind) {
+          toast(tr('此图片格式不受支持，已转为文件附件。', 'This image format is unsupported; added as a file attachment.'));
+        }
+        const placeholder = `<${file.pastedText ? 'paste' : kind}-${await attachmentDigest(bytes)}>`;
         if (epoch !== attachmentEpoch) return;
         if (placeholder && attachments.value.some(item => item.placeholder === placeholder)) {
           inserted?.(placeholder);
@@ -172,12 +183,12 @@ export function useComposerAttachments(
           ...attachments.value,
           {
             placeholder,
-            kind: file.kind,
+            kind,
             pastedText: file.pastedText,
             name: file.name,
-            mime: file.mime,
+            mime,
             bytes,
-            localUrl: URL.createObjectURL(new Blob([bytes], { type: file.mime })),
+            localUrl: URL.createObjectURL(new Blob([bytes], { type: mime })),
           },
         ];
         saveAttachmentDrafts(currentSid.value, attachments.value);

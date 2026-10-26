@@ -35,7 +35,7 @@ export const en = {
   'phase.running': 'running',
   'phase.queued': 'queued',
   'phase.compacting': 'compacting',
-  'new.retryMessage': 'Message not sent. Retry will use the session already created.',
+  'new.retryMessage': 'Message not sent. Your input and attachments are preserved.',
   'new.loadingModels': 'Loading model catalog…',
   'new.noModels': 'No models configured for this provider',
   'chat.placeholder': 'Type a message…',

@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import SessionListToggle from './SessionListToggle.vue';
+import { attachmentDigest } from '../../core/attachmentDigest.ts';
 import { sessionNaming } from '../../core/state/sessionNaming.ts';
 import { modelLabel as formatModelLabel } from '../../ui/modelLabel.ts';
 import { resolvedEffort, effortLabel } from './reasoningLabels.ts';
-import { uploadAttachments, type AttachmentInput } from '../../core/attachments.ts';
+import { initialInput, initialSessionName, uploadAttachments, type AttachmentInput } from '../../core/attachments.ts';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, nextTick, onActivated, onDeactivated, onScopeDispose, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -41,7 +43,7 @@ const catalog = useModelCatalog();
 const selection = ref<ModelSelection>({ provider: '', model: '' });
 const composer = ref<InstanceType<typeof Composer>>();
 const modelOpen = ref(false), reasoningOpen = ref(false), busy = ref(false);
-const created = ref<string>();
+
 const failed = ref(false);
 const defaultModel = ref<ModelSelection>();
 const defaultReady = ref(false);
@@ -81,7 +83,7 @@ function selectModel(value: ModelSelection) {
 }
 // Groups too: a cached catalog is replaced quietly when the fresh one arrives.
 watch([defaultReady, defaultModel, catalog.pending, catalog.groups], () => {
-  if (!defaultReady.value || manuallySelected.value || created.value) return;
+  if (!defaultReady.value || manuallySelected.value) return;
   if (defaultModel.value) {
     selection.value = { ...defaultModel.value };
     return;
@@ -100,39 +102,43 @@ const effectiveEffort = computed(() => {
   return resolvedEffort(selection.value.reasoning_effort, group.models.find(item => item.id === selection.value.model), group.provider.reasoning_efforts);
 });
 const modelLabel = computed(() => formatModelLabel(selection.value.model));
+let pendingSubmission: { digest: string; requestId: string } | undefined;
 async function send(text: string, attachments: AttachmentInput[]) {
   busy.value = true;
   failed.value = false;
   try {
-    // Retain the ID after a failed upload/send. Retrying the draft must never
-    // create a second session, and its images always belong to this exact ID.
-    if (!created.value) {
-      const { provider, model, reasoning_effort } = selection.value;
-      const remembered = { provider, model, reasoning_effort: reasoning_effort ?? effectiveEffort.value };
-      const name = [...(text.trim().split('\n')[0] || attachments.find(file => file.name)?.name || '')].slice(0, 60).join('');
-      created.value = (await sessions.create({ provider, model, reasoningEffort: reasoning_effort ?? effectiveEffort.value, name, cwd: cwd.value.trim(), folder: folder.value })).id;
-      try {
-        await api.rememberDefaultModel(remembered);
-        ++defaultGeneration;
-        defaultModel.value = remembered;
-        defaultReady.value = true;
-      } catch (error) {
-        // The session is already created. A settings conflict must not block its first message.
-        defaultError.value = error;
-      }
+    const { provider, model, reasoning_effort } = selection.value;
+    const remembered = { provider, model, reasoning_effort: reasoning_effort ?? effectiveEffort.value };
+    const firstInput = await initialInput(text, attachments, '');
+    const digest = await attachmentDigest(new TextEncoder().encode(JSON.stringify([remembered, cwd.value, folder.value, firstInput])).buffer);
+    if (pendingSubmission?.digest !== digest) {
+      const bytes = crypto.getRandomValues(new Uint8Array(16));
+      bytes[6] = (bytes[6]! & 15) | 64; bytes[8] = (bytes[8]! & 63) | 128;
+      pendingSubmission = { digest, requestId: Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('') };
     }
-    const id = created.value!;
-    const capabilities = attachments.length ? await api.sessionCapabilities(id) : undefined;
-    const { blocks } = await uploadAttachments(id, attachments, { capabilities });
-    const delivery = await api.messageSend(id, { content: text, ...(blocks.length ? { blocks } : {}) });
-    if (delivery.first_user_message) void sessionNaming.generate(id, delivery.entry);
-    created.value = undefined;
+    firstInput.request_id = pendingSubmission.requestId;
+    await uploadAttachments(firstInput.request_id, attachments, { upload: api.uploadDraftBlob });
+    const session = await api.sessionCreate({ ...remembered,
+      name: initialSessionName(text, attachments), cwd: cwd.value.trim(), folder: folder.value,
+      first_input: firstInput,
+    });
+    const id = session.id;
+    pendingSubmission = undefined;
+    bus.emit('list.changed');
+    if (session.first_input_entry != null) void sessionNaming.generate(id, session.first_input_entry);
+    // Preference persistence cannot turn an accepted message into a failed submission.
+    void api.rememberDefaultModel(remembered).then(() => {
+      ++defaultGeneration;
+      defaultModel.value = remembered;
+    }).catch(error => { defaultError.value = error; });
     manuallySelected.value = false;
     manuallySetCwd.value = false;
     cwd.value = defaultCwd.value;
     // Completion can arrive after navigation; do not take over another page.
-    if (visible.value && ['sessions', 'new-chat'].includes(String(route.name))) await router.push('/s/' + id);
-    return delivery.id;
+    if (visible.value && ['sessions', 'new-chat'].includes(String(route.name))) {
+      try { await router.push('/s/' + id); } catch (error) { defaultError.value = error; }
+    }
+    return id;
   } catch (error) { failed.value = true; throw error; }
   finally { busy.value = false; }
 }
@@ -140,6 +146,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
 
 <template>
   <div class="start-chat" :class="{ 'mobile-home': mobile && home }">
+    <SessionListToggle class="start-sidebar-toggle" />
     <button v-if="mobile && !home" class="btn ghost icon-only start-back" :aria-label="i18n.t('chatbar.back')" @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
     <div v-if="mobile && home" class="home-actions"><AppMenu placement="header" /></div>
     <div class="start-surface">
@@ -147,16 +154,16 @@ async function send(text: string, attachments: AttachmentInput[]) {
       <Composer ref="composer" owner="new-session" :mobile="mobile" start :send-message="send" :disabled="!selection.model || !cwd.trim() || busy || (!manuallySelected && !defaultReady)">
         <template #selection>
           <div class="start-model-controls model-selection" :class="{ unread: !manuallySelected && (!defaultsKnown || (!selection.model && catalog.pending.value)) }">
-            <Hint :text="i18n.t('model.title')"><button class="model-chip" :aria-expanded="modelOpen" :disabled="busy || !!created" @click="modelOpen = true">{{ modelLabel || i18n.t('model.title') }}</button></Hint>
+            <Hint :text="i18n.t('model.title')"><button class="model-chip" :aria-expanded="modelOpen" :disabled="busy" @click="modelOpen = true">{{ modelLabel || i18n.t('model.title') }}</button></Hint>
             <span class="selection-dot" aria-hidden="true">·</span>
-            <Hint :text="i18n.t('reasoning.title')"><button class="reasoning-chip" :aria-expanded="reasoningOpen" :disabled="!selection.model || busy || !!created" @click="reasoningOpen = true">{{ effortLabel(effectiveEffort).toUpperCase() }}</button></Hint>
+            <Hint :text="i18n.t('reasoning.title')"><button class="reasoning-chip" :aria-expanded="reasoningOpen" :disabled="!selection.model || busy" @click="reasoningOpen = true">{{ effortLabel(effectiveEffort).toUpperCase() }}</button></Hint>
           </div>
         </template>
         <!-- The picker renders no element of its own to take a class; this one holds its place. -->
-        <template #footer-start><span class="cwd-hold" :class="{ unread: !defaultsKnown && !manuallySetCwd }"><DirectoryPicker :model-value="cwd" :disabled="busy || !!created" @update:model-value="cwd=$event; manuallySetCwd=true" /></span></template>
+        <template #footer-start><span class="cwd-hold" :class="{ unread: !defaultsKnown && !manuallySetCwd }"><DirectoryPicker :model-value="cwd" :disabled="busy" @update:model-value="cwd=$event; manuallySetCwd=true" /></span></template>
       </Composer>
       <p v-if="folder && folderName" class="start-folder"><Icon name="folder" /><span>{{ tr(`新会话会放在「${folderName}」`, `The new session goes in “${folderName}”`) }}</span>
-        <Hint :text="tr('放在根目录', 'Put it at the top level')"><button type="button" class="btn ghost icon-only" :aria-label="tr('放在根目录', 'Put it at the top level')" :disabled="busy || !!created" @click="router.replace('/new')"><Icon name="x" /></button></Hint></p>
+        <Hint :text="tr('放在根目录', 'Put it at the top level')"><button type="button" class="btn ghost icon-only" :aria-label="tr('放在根目录', 'Put it at the top level')" :disabled="busy" @click="router.replace('/new')"><Icon name="x" /></button></Hint></p>
       <p v-if="defaultReady && !cwd.trim()" class="hint" role="status">{{ tr('请填写工作目录后发送。','Enter a working directory before sending.') }}</p>
       <div v-if="defaultError" class="load-error" role="alert">{{ errorText(defaultError) }} <button class="btn ghost sm" @click="readDefaultModel">{{ i18n.t('common.retry') }}</button></div>
       <div v-if="catalog.error.value" class="load-error" role="alert">{{ errorText(catalog.error.value) }} <button class="btn ghost sm" @click="catalog.reload">{{ i18n.t('common.retry') }}</button></div>
@@ -164,7 +171,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
         <p v-if="catalog.pending.value" class="hint" role="status">{{ i18n.t('new.loadingModels') }}</p>
         <div v-else class="start-empty hint">{{ i18n.t('new.noModels') }} <RouterLink class="btn ghost sm" to="/settings">{{ i18n.t('nav.settings') }}</RouterLink></div>
       </template>
-      <p v-if="failed && created" class="hint" role="status">{{ i18n.t('new.retryMessage') }}</p>
+      <p v-if="failed" class="hint" role="status">{{ i18n.t('new.retryMessage') }}</p>
       <RecentSessions v-if="mobile && home" />
     </div>
     <ModelSettings v-if="modelOpen" :selection="selection" @select="selectModel" @close="modelOpen = false" />
@@ -184,6 +191,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
 .start-model-controls .model-chip { flex: 0 1 auto; max-width: min(38vw, 320px); }
 .home-actions { position: absolute; top: 8px; right: 12px; z-index: 1; display: flex; align-items: center; gap: 2px; }
 .home-actions .btn { width: 44px; height: 44px; }
+.start-sidebar-toggle { position: absolute; top: 16px; left: 20px; }
 .start-back { position: absolute; top: 8px; left: 8px; }
 .start-empty { display: flex; align-items: center; gap: 8px; }
 .start-folder { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; padding-left: 4px; color: var(--fg-subtle); font-size: 12.5px; }

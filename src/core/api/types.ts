@@ -39,7 +39,8 @@ export interface GroupMessagesPage { items: GroupMessage[]; next: number | null 
 export interface Placement { parent: string | null; pinned: boolean }
 export type Conversation = ({ kind: 'session' } & SessionView & Placement) | ({ kind: 'group' } & GroupView & Placement) | ({ kind: 'folder' } & FolderView);
 export interface ConversationsPage { items: Conversation[]; next_cursor: any; has_more: boolean }
-export interface CreateSessionBody { provider: string; model: string; name?: string; cwd?: string; reasoning_effort?: string; agent_custom?: string; folder?: string | null }
+export interface InitialInput { request_id: string; text: string; attachments: { kind: 'image' | 'file'; name?: string; placeholder?: string; id: string }[] }
+export interface CreateSessionBody { first_input?: InitialInput; provider: string; model: string; name?: string; cwd?: string; reasoning_effort?: string; agent_custom?: string; folder?: string | null }
 export interface ModelChange { provider?: string; model?: string; reasoning_effort?: string }
 export interface ShellSettings { program: string; args: string[] | null }
 

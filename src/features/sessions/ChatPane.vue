@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SessionListToggle from './SessionListToggle.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { sessionNaming } from '../../core/state/sessionNaming.ts';
 import SessionListAction, { type ActionTarget } from './SessionListAction.vue';
@@ -130,6 +131,7 @@ const goTab = (t: SessionTab) => {
 <template>
   <div class="chat-pane" ref="paneEl">
     <div class="chatbar">
+      <SessionListToggle />
       <button v-if="isMobile" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')"
         @click="router.push(sessionParent)"><Icon name="arrow-left" /></button>
       <div class="chat-title">

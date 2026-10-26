@@ -10,6 +10,7 @@ import SystemEntry from './entries/SystemEntry.vue';
 
 const props = defineProps<{ chips: ChipItem<EntryView>[]; request: ActivityRequest | null;
   session: string; forcedKeys?: ReadonlySet<string>; locateSeq?: number }>();
+const emit = defineEmits<{ dismiss: [requestId: number] }>();
 const selected = ref<ActivityRequest | null>(null);
 const searchSelections = ref(new Set<string>());
 watch(() => props.request, request => { selected.value = request; searchSelections.value = new Set(); }, { immediate: true });
@@ -19,9 +20,17 @@ watch(() => [...(props.forcedKeys ?? [])], keys => {
 const activeChips = computed(() => props.chips.filter(chip => chip.key === selected.value?.chipKey
   || searchSelections.value.has(chip.key)));
 function closeActivity(key: string) {
-  if (selected.value?.chipKey === key) selected.value = null;
+  if (selected.value?.chipKey === key) {
+    emit('dismiss', selected.value.requestId);
+    selected.value = null;
+  }
   searchSelections.value = new Set([...searchSelections.value].filter(value => value !== key));
 }
+// A disappearing activity cancels the open intent. Streaming reconciliation may restore it,
+// but that is data arriving, not a new request to open a window.
+watch(() => props.chips, chips => {
+  if (selected.value && !chips.some(chip => chip.key === selected.value!.chipKey)) closeActivity(selected.value.chipKey);
+});
 const requestedStep = computed(() => {
   const request = selected.value;
   return request?.stepKey

@@ -1,3 +1,4 @@
+import { attachmentDigest } from './attachmentDigest.ts';
 import * as api from './api/endpoints.ts';
 import { cfg } from './config.ts';
 
@@ -58,4 +59,18 @@ export async function uploadAttachments(owner: string, attachments: readonly Att
     uploaded.push({ ...block, mime_type: blob.mime_type, byte_count: blob.byte_count });
   }
   return { blocks, uploaded };
+}
+
+/** Build references before staging bytes; the same digest names the file after acceptance. */
+export async function initialInput(text: string, attachments: readonly AttachmentInput[], requestId: string): Promise<api.InitialInput> {
+  return { request_id: requestId, text, attachments: await Promise.all(attachments.map(async item => ({
+    kind: item.kind, name: item.name, placeholder: item.placeholder, id: await attachmentDigest(item.bytes),
+  }))) };
+}
+
+export function initialSessionName(text: string, attachments: readonly AttachmentInput[]): string {
+  for (const item of attachments) {
+    if (item.placeholder) text = text.replaceAll(item.placeholder, item.name || (item.kind === 'image' ? 'Image' : 'File'));
+  }
+  return [...(text.trim().split('\n')[0] || attachments.find(item => item.name)?.name || '')].slice(0, 60).join('');
 }

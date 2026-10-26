@@ -402,6 +402,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
       </div>
     </div>
     <ActivityDialogs :key="sessionId" :chips="activityChips" :request="activityRequest" :session="sessionId"
+      @dismiss="requestId => { if (activityRequest?.requestId === requestId) activityRequest = null; }"
       :forced-keys="forcedOpen" :locate-seq="chat.pendingSeq.value ?? undefined" />
     <Hint :text="i18n.t('chat.jumpLatest')" v-if="showJump"><button type="button" class="jump-latest"
        :aria-label="i18n.t('chat.jumpLatest')" @click="jumpLatest">

@@ -35,7 +35,7 @@ export const zh = {
   'phase.running': '运行中',
   'phase.queued': '排队',
   'phase.compacting': '压缩中',
-  'new.retryMessage': '消息尚未发送。重试会使用已创建的会话。',
+  'new.retryMessage': '消息尚未发送，输入和附件已保留。',
   'new.loadingModels': '读取模型目录…',
   'new.noModels': '该提供商未配置模型',
   'chat.placeholder': '输入消息…',

@@ -14,7 +14,7 @@ import {TooltipProvider} from 'reka-ui';
 import Composer from '/src/features/sessions/Composer.vue';
 import AttachmentPreview from '/src/ui/components/AttachmentPreview.vue';
 import {chat} from '/src/core/state/chatSlice.ts';
-import {uploadAttachments} from '/src/core/attachments.ts';
+import {uploadAttachments,attachmentDraftsFor} from '/src/core/attachments.ts';
 import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';
 registerBrowserPlatform();
@@ -33,7 +33,7 @@ window.fetch=async(input,opts)=>{
  return nativeFetch(input,opts);
 };
 chat.send=async(text,attachments)=>{sent={text,...await uploadAttachments(owner.value,attachments)};return 'receipt';};
-window.fixture={owner,chat,get uploads(){return uploads},get sent(){return sent},switchSession(id){owner.value=id;chat.sessionId.value=id;}};
+window.fixture={owner,chat,attachmentDraftsFor,get uploads(){return uploads},get sent(){return sent},switchSession(id){owner.value=id;chat.sessionId.value=id;}};
 createApp({render:()=>h(TooltipProvider,{},()=>[h(Composer,{owner:owner.value,mobile:false}),h(AttachmentPreview)])}).mount('#app');
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {
@@ -111,6 +111,18 @@ try {
   assert.equal(await js('fixture.chat.getDraft("A")'),'line one\nline two','Up within a multiline draft moves the caret, not history');
   await key('ArrowUp');
   await until('document.querySelectorAll(".attach-thumb").length===2','Up at first line recalls history');
+  await js(`fixture.switchSession('unsupported-image');`);
+  await sleep(100);
+  await js(`(()=>{
+    const bytes=new Uint8Array([0,0,0,24,...new TextEncoder().encode('ftypheic'),0,0,0,0,...new TextEncoder().encode('heicmif1')]);
+    const data=new DataTransfer();data.items.add(new File([bytes],'misnamed.png',{type:'image/png'}));
+    document.querySelector('[contenteditable]').dispatchEvent(new ClipboardEvent('paste',{clipboardData:data,bubbles:true,cancelable:true}));
+  })()`);
+  await until(`fixture.attachmentDraftsFor('unsupported-image').length===1`,'unsupported image becomes an attachment');
+  assert.equal(await js(`fixture.attachmentDraftsFor('unsupported-image')[0].kind`),'file');
+  assert.equal(await js(`fixture.attachmentDraftsFor('unsupported-image')[0].bytes.byteLength`),24);
+  assert.equal(await js(`fixture.attachmentDraftsFor('unsupported-image')[0].mime`),'image/heif');
+  assert.ok(await js(`fixture.chat.getDraft('unsupported-image').includes('<file-')`),'editor uses a file token');
   assert.deepEqual(exceptions,[],'no runtime exceptions');
   console.log(JSON.stringify({ok:true,checks:['session isolation','draft restoration','history attachment tokens and image preview','file preview','resend without uploads','multiline caret navigation']}));
 

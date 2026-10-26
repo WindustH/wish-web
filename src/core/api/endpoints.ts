@@ -38,9 +38,9 @@ export async function sessionCreate(body: CreateSessionBody) {
   const instructions = body.agent_custom ?? defaults.instructions;
   const config = { ...session_config, model: body.model, max_output_tokens: model.max_output_tokens ?? provider?.max_output_tokens ?? session_config.max_output_tokens, reasoning: effort ? { ...session_config.reasoning, effort } : session_config.reasoning };
   const value = await post('/sessions', { provider: body.provider, name: body.name ?? '', cwd: body.cwd ?? defaults.cwd,
-    tools: defaults.tools, config, metadata: { agent_custom: instructions }, folder: body.folder ?? null,
+    first_input: body.first_input, tools: defaults.tools, config, metadata: { agent_custom: instructions }, folder: body.folder ?? null,
     initial_messages: instructions ? [{ System: { content: [{ Text: { text: instructions } }] } }] : [] });
-  return sessionView(value);
+  return { ...sessionView(value), first_input_entry: value.first_input_entry as number | undefined };
 }
 export const sessionRename = async (id: string, name: string, revision?: number) => sessionView(await patch(path(id), { name }, revisionOptions(revision)));
 export const sessionGenerateName = (id: string, input: { mode: 'context' } | { mode: 'first_message'; entry: number }): Promise<{ name: string; revision: number }> => post(`${path(id)}/generate-name`, input);
@@ -179,6 +179,12 @@ const blobPath = (reference: string) => {
 export const groupBlob = (gid: string, hash: string) => `group:${gid}/${hash}`;
 export const uploadSessionBlob = async (sid: string, bytes: ArrayBuffer | Uint8Array, opts?: EndpointOptions): Promise<UploadedBlob> => {
   const blob = await api('POST', `${path(sid)}/blobs`, { body: bytes, raw: true, headers: { 'content-type': 'application/octet-stream' }, ...opts });
+  return { ...blob, sha256: blob.id };
+};
+export const uploadDraftBlob = async (requestId: string, bytes: ArrayBuffer | Uint8Array, opts?: EndpointOptions): Promise<UploadedBlob> => {
+  const blob = await api('POST', `/session-drafts/${encodeURIComponent(requestId)}/blobs`, {
+    body: bytes, raw: true, headers: { 'content-type': 'application/octet-stream' }, ...opts,
+  });
   return { ...blob, sha256: blob.id };
 };
 export const blobMetadata = (reference: string): Promise<BlobInfo> => get(`${blobPath(reference)}/meta`);
