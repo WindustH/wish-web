@@ -197,3 +197,9 @@ Wish checks the connection before saving it, and says what went wrong if it can'
 | ↑ / ↓ / Home / End on the message box's resize handle | Resize the message box |
 
 The first four don't work while a dialog is open.
+
+### Prompt history
+
+In an existing session, use **↑ / ↓** in the composer to browse that session's sent prompts. Multiline input switches history only on the first/last visual line; selections, composition, and modified arrow keys retain their editing behavior.
+
+Moving past the newest prompt restores the unsent draft. Each session keeps independent history and browsing position. Recalled images and files use the same composer previews; resending within the same session reuses stored resources without uploading them again.

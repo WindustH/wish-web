@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { historyPage } from '../../core/api/endpoints.ts';
+import { cfg } from '../../core/config.ts';
+import { createPromptHistory, sessionPrompts, type HistoricalPrompt } from './promptHistory.ts';
 import { errorDetail } from '../../core/errors.ts';
 import { attachmentPreview, previewAttachment } from '../../ui/attachmentPreview.ts';
 import { attachmentDigestFallback } from '../../core/attachmentDigest.ts';
@@ -65,6 +68,7 @@ function focusComposerBlank(event: MouseEvent) {
 }
 
 function fill(v: string, attachmentsToFill?: any[]) {
+  resetPromptHistory();
   setTextOwned(v);
   void nextTick(() => ta.value?.focus());
   void refillAttachments(attachmentsToFill ?? []);
@@ -86,12 +90,45 @@ const {
   onPaste,
   removeAttachment: discardAttachment,
   refillAttachments,
+  replaceAttachments,
   syncAttachmentTags,
   clearAttachmentUndo,
   revokeAll,
 } = useComposerAttachments(computed(() => props.owner), limits);
 
 const text = ref(chat.getDraft(props.owner));
+type PromptDraft = { text: string; attachments: AttachmentInput[] } | HistoricalPrompt;
+type PromptHistoryState = { navigation: ReturnType<typeof createPromptHistory<PromptDraft>>; before?: number; hasMore: boolean };
+const promptHistories = new Map<string, PromptHistoryState>();
+function historyFor(owner: string) {
+  let state = promptHistories.get(owner);
+  if (!state) {
+    state = { navigation: createPromptHistory<PromptDraft>(), hasMore: true };
+    promptHistories.set(owner, state);
+  }
+  return state;
+}
+let historyState = historyFor(props.owner);
+let promptHistory = historyState.navigation;
+const historyLoading = ref(false);
+let historyRequest = new AbortController();
+function cancelHistoryRequest() {
+  historyRequest.abort();
+  historyRequest = new AbortController();
+  historyLoading.value = false;
+}
+function resetPromptHistory() {
+  cancelHistoryRequest();
+  historyState.before = undefined;
+  historyState.hasMore = true;
+  promptHistory.reset();
+}
+function switchPromptHistory(owner: string) {
+  cancelHistoryRequest();
+  historyState = historyFor(owner);
+  promptHistory = historyState.navigation;
+}
+onBeforeUnmount(() => historyRequest.abort());
 const editorText = computed(() => btwMode.value ? btwDraft.value : text.value);
 
 function setTextOwned(v: string) {
@@ -99,6 +136,7 @@ function setTextOwned(v: string) {
   chat.setDraft(v, currentSid.value);
 }
 function onEditorInput(value: string) {
+  if (historyLoading.value) resetPromptHistory();
   if (btwMode.value) btwDraft.value = value;
   else { syncAttachmentTags(text.value, value); setTextOwned(value); }
 }
@@ -116,6 +154,7 @@ function openAttachmentPreview(item: Attachment, event: Event) {
     const bytes = new TextEncoder().encode(value).buffer;
     const token = `<paste-${attachmentDigestFallback(bytes)}>`;
     item.bytes = bytes;
+    delete item.stored;
     item.placeholder = token;
     // The text block uses bytes; retain its URL as the attachment row's stable key.
     setTextOwned(text.value.split(previous).join(token));
@@ -139,6 +178,7 @@ watch(
     // The drafts previously typed belong to the owner being left: land them before reading the next.
     if (previous && previous !== id) chat.flushDrafts(previous);
     text.value = chat.getDraft(id);
+    switchPromptHistory(id);
     btwDraft.value = '';
     btwOpen.value = false;
   },
@@ -150,7 +190,7 @@ const canSend = computed(
   () =>
     (text.value.trim().length > 0 || attachments.value.length > 0) &&
     !sending.value &&
-    !readingAttachments.value &&
+    !readingAttachments.value && !historyLoading.value &&
     !props.disabled,
 );
 const queueable = computed(
@@ -186,6 +226,7 @@ async function submit() {
       text.value = '';
       chat.setDraft('', owner);
     }
+    resetPromptHistory();
     clearAttachmentUndo();
     attachments.value = attachments.value.filter((i) => !submittedAttachments.includes(i));
     saveAttachmentDrafts(owner, attachments.value);
@@ -253,7 +294,47 @@ onBeforeUnmount(() => {
   flushDrafts();
 });
 
+async function browsePromptHistory(direction: -1 | 1) {
+  const owner = props.owner;
+  const signal = historyRequest.signal;
+  const current = { text: text.value, attachments: attachments.value.map(item => ({ ...item })) };
+  historyLoading.value = true;
+  try {
+    let older: HistoricalPrompt[] = [];
+    if (!promptHistory.active) { historyState.before = undefined; historyState.hasMore = true; }
+    if (direction === -1 && (!promptHistory.active || promptHistory.atOldest)) {
+      while (historyState.hasMore && !older.length) {
+        const page = await historyPage(owner, { before: historyState.before, limit: cfg.history.pageSize, order: 'desc' }, { signal });
+        if (signal.aborted) return;
+        const nextBefore = Math.min(...page.items.map(entry => entry.seq));
+        if (page.has_more && (!page.items.length || (historyState.before != null && nextBefore >= historyState.before))) throw new Error('History pagination did not advance');
+        historyState.before = nextBefore;
+        historyState.hasMore = page.has_more;
+        older = sessionPrompts([...page.items].sort((a, b) => a.seq - b.seq), owner);
+      }
+      if (promptHistory.active) promptHistory.prepend(older);
+    }
+    const prompt = promptHistory.move(direction, current, () => older);
+    if (!prompt) return;
+    if (attachmentPreview.value?.anchor && composerEl.value?.contains(attachmentPreview.value.anchor)) attachmentPreview.value = null;
+    setTextOwned(prompt.text);
+    if (prompt.attachments.some(item => 'blob_id' in item)) await refillAttachments(prompt.attachments);
+    else replaceAttachments(prompt.attachments as AttachmentInput[]);
+    await nextTick();
+    if (!signal.aborted && owner === props.owner) ta.value?.moveCaretToEnd();
+  } catch (error) {
+    if (!signal.aborted) toast(errorDetail(error));
+  } finally {
+    if (!signal.aborted) historyLoading.value = false;
+  }
+}
 function onKeydown(e: KeyboardEvent) {
+  if (!e.defaultPrevented && !e.isComposing && e.keyCode !== 229 && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey &&
+      !btwMode.value && live.value && !props.start && !props.disabled && !sending.value && !historyLoading.value && !readingAttachments.value &&
+      chat.sessionId.value === props.owner && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+    const direction = e.key === 'ArrowUp' ? -1 : 1;
+    if (ta.value?.atHistoryBoundary(direction)) { e.preventDefault(); void browsePromptHistory(direction); return; }
+  }
   if (props.mobile || !isSendKey(e, sendOnEnter.value) || sending.value) return;
   e.preventDefault();
   submit();

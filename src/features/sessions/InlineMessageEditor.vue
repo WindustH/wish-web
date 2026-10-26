@@ -195,7 +195,30 @@ watch(() => props.text, text => {
 watch(() => props.attachments.map(a => a.placeholder).join('|'), () => { tokenDrag.cancel(); if (!composing.value) render(value, document.activeElement === el.value ? selection() : undefined); });
 watch(() => props.scope, () => { tokenDrag.cancel(); bookmarks.clear(); history = [props.text]; historyIndex = 0; value = props.text; render(value); lastSelection = { start: value.length, end: value.length }; });
 onMounted(() => render(value));
-defineExpose({ focus: () => el.value?.focus(), blur: () => el.value?.blur(), el, createInsertion });
+function atHistoryBoundary(direction: -1 | 1) {
+  const selected = selection();
+  if (selected.start !== selected.end || composing.value) return false;
+  const logicalBoundary = direction === -1 ? !value.slice(0, selected.start).includes('\n')
+    : !value.slice(selected.end).includes('\n');
+  if (!logicalBoundary || !value.length || !el.value) return logicalBoundary;
+  // Wrapped lines still belong to normal caret navigation, even without a newline.
+  const content = document.createRange();
+  content.selectNodeContents(el.value);
+  const lines = [...content.getClientRects()].filter(rect => rect.height > 0);
+  const caret = document.createRange();
+  caret.setStart(...point(selected.start));
+  caret.collapse(true);
+  let box = caret.getClientRects()[0];
+  if (!box) {
+    caret.setStart(...point(Math.max(0, selected.start - 1)));
+    caret.setEnd(...point(Math.min(value.length, selected.start + 1)));
+    box = caret.getClientRects()[0];
+  }
+  if (!box || !lines.length) return logicalBoundary;
+  return direction === -1 ? box.top <= Math.min(...lines.map(line => line.top)) + 2
+    : box.bottom >= Math.max(...lines.map(line => line.bottom)) - 2;
+}
+defineExpose({ atHistoryBoundary, moveCaretToEnd: () => setSelection(value.length), focus: () => el.value?.focus(), blur: () => el.value?.blur(), el, createInsertion });
 </script>
 <template>
   <div ref="el" class="composer-input" contenteditable="true" role="textbox" aria-multiline="true" :aria-label="label" :data-placeholder="placeholder"

@@ -77,15 +77,17 @@ export function useComposerAttachments(
         if (!response.ok) throw new Error(`blob ${item.blob_id}: ${response.status}`);
         const bytes = await response.arrayBuffer();
         if (epoch !== attachmentEpoch || !hasAttachmentSpace(item.kind)) continue;
+        const mime = item.mime_type || response.headers.get('content-type') || 'application/octet-stream';
         attachments.value = [
           ...attachments.value,
           {
             kind: item.kind,
             name: item.filename,
-            mime: item.mime_type,
+            mime,
+            stored: { owner: item.blob_id.split('/')[0], id: item.blob_id.split('/').at(-1) },
             placeholder: item.placeholder,
             bytes,
-            localUrl: URL.createObjectURL(new Blob([bytes], { type: item.mime_type })),
+            localUrl: URL.createObjectURL(new Blob([bytes], { type: mime })),
           },
         ];
         saveAttachmentDrafts(currentSid.value, attachments.value);
@@ -94,6 +96,17 @@ export function useComposerAttachments(
       }
     }
     } finally { if (epoch === attachmentEpoch) readingAttachments.value = 0; }
+  }
+
+  function replaceAttachments(items: AttachmentInput[]) {
+    attachmentEpoch++;
+    readingAttachments.value = 0;
+    deletedAttachments.clear();
+    revokeAll(attachments.value);
+    attachments.value = items.map(item => ({ ...item,
+      localUrl: URL.createObjectURL(new Blob([item.bytes], { type: item.mime })),
+    }));
+    saveAttachmentDrafts(currentSid.value, attachments.value);
   }
 
   async function attach(kind: 'image' | 'file', inserted?: (placeholder: string) => void) {
@@ -229,6 +242,7 @@ export function useComposerAttachments(
     onPaste,
     removeAttachment,
     refillAttachments,
+    replaceAttachments,
     syncAttachmentTags,
     clearAttachmentUndo: () => deletedAttachments.clear(),
     revokeAll,

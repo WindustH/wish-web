@@ -1,7 +1,7 @@
 import * as api from './api/endpoints.ts';
 import { cfg } from './config.ts';
 
-export interface AttachmentInput { kind: 'image' | 'file'; pastedText?: boolean; name?: string; placeholder?: string; mime: string; bytes: ArrayBuffer; localUrl?: string }
+export interface AttachmentInput { stored?: { owner: string; id: string }; kind: 'image' | 'file'; pastedText?: boolean; name?: string; placeholder?: string; mime: string; bytes: ArrayBuffer; localUrl?: string }
 export interface PickedAttachment { kind: 'image' | 'file'; pastedText?: boolean; name?: string; mime: string; size: number; read(): Promise<ArrayBuffer> }
 export interface AttachmentLimits { imageBytes: number; imageCount: number; fileBytes: number; fileCount: number }
 export interface UploadedAttachmentBlock { type: 'image' | 'file'; blob_id: string; byte_count: number; placeholder?: string; filename?: string }
@@ -48,7 +48,9 @@ export async function uploadAttachments(owner: string, attachments: readonly Att
       throw new Error('Attachment exceeds size limit');
     }
     if (attachment.kind !== 'image' && attachment.kind !== 'file') throw new Error('Invalid attachment kind');
-    const blob = await upload(owner, attachment.bytes, { signal });
+    const blob = attachment.stored?.owner === owner
+      ? { sha256: attachment.stored.id, byte_count: attachment.bytes.byteLength, mime_type: attachment.mime }
+      : await upload(owner, attachment.bytes, { signal });
     if (attachment.kind === 'image') images++; else files++;
     if (images > limits.imageCount || files > limits.fileCount) throw new Error('Too many attachments');
     const block = { type: attachment.kind, blob_id: blob.sha256, byte_count: blob.byte_count, ...(attachment.placeholder ? { placeholder: attachment.placeholder } : {}), ...(attachment.name ? { filename: attachment.name } : {}) };
