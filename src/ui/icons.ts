@@ -109,6 +109,7 @@ export const ICONS: Record<string, string> = {
   mcp: `<rect x="3" y="3" width="8" height="8" rx="2.5" ${SOFT}/><rect x="13" y="13" width="8" height="8" rx="2.5"/><path d="M11 7h2.5A3.5 3.5 0 0 1 17 10.5V13M7 11v2.5a3.5 3.5 0 0 0 3.5 3.5H13"/>`,
   // Interface: a window, and light and dark in it.
   appearance: `<rect x="3" y="4" width="18" height="16" rx="3.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 7.5a4.5 4.5 0 0 0 0 9Z" ${SOLID}/>`,
+  shapes: `<circle cx="7" cy="7" r="3.5" ${SOFT}/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><path d="m7 13 4.5 7.5h-9ZM14 15h6M14 19h6"/>`,
   // Debug: a connection's pulse.
   diagnostics: `<rect x="3" y="4.5" width="18" height="15" rx="3.5" ${SOFT}/><path d="M6.5 12.5H9l1.5-3.5 3 7 1.5-3.5h2.5"/>`,
   // Statistics: rounded columns on a floor.

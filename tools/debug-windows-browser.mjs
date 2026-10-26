@@ -1,5 +1,5 @@
-// File cards, stacking and session-owned detail windows.
-// Run: node tools/file-changes-browser.mjs (CHROME may override the executable).
+// Debug settings layout and dedicated detail windows.
+// Run: node tools/debug-windows-browser.mjs (CHROME may override the executable).
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
@@ -16,9 +16,9 @@ import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
 import {stalls} from '/src/ui/scrollStalls.ts';
 registerBrowserPlatform();
 stalls.value=[{at:'2026-10-26T00:00:00Z',kind:'wheel',route:'#/s/test',target:'button',layers:[],build:'fixture'}];
-import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/features.css';
+import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/features.css';import '/src/features/settings/settings.css';
 const router=createRouter({history:createMemoryHistory(),routes:[{path:'/',component:{render:()=>null}}]});
-createApp({render:()=>h(TooltipProvider,{},()=>h('main',{style:'max-width:736px;margin:24px auto;padding:16px'},h(DebugSettings)))}).use(router).mount('#app');
+createApp({render:()=>h(TooltipProvider,{},()=>h('main',{style:'width:100%;max-width:736px;margin:24px auto;padding:16px'},h(DebugSettings)))}).use(router).mount('#app');
 </script></body></html>`;
 const server = await createServer({ configFile: false, define:{__BUILD_ID__:JSON.stringify('fixture')}, root: process.cwd(), plugins: [vue(), {name:'pwa-fixture',resolveId(id){if(id==='virtual:pwa-register')return id;},load(id){if(id==='virtual:pwa-register')return 'export const registerSW=()=>()=>{}';}}, {
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__debug_windows', async (_, res) => {
@@ -48,6 +48,27 @@ try {
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/__debug_windows`});
   await until('!!document.querySelector("#settings-debug-styles")','debug settings mounted');
   assert.equal(await js('!!document.querySelector(".style-preview, .stall-list, [role=dialog]")'),false,'details are initially closed');
+  await mkdir('.cache/debug-settings', {recursive:true});
+  for (const width of [390, 1200]) {
+    await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width===390});
+    for (const theme of ['dark','light']) {
+      await js(`document.documentElement.dataset.theme='${theme}'`);
+      await sleep(100);
+      assert.equal(await js('document.documentElement.scrollWidth <= innerWidth'),true,'page fits viewport');
+      assert.equal(await js('document.querySelectorAll(".debug-card").length'),2,'entries share two complete cards');
+      const shot=await send('Page.captureScreenshot',{format:'png'});
+      await writeFile(`.cache/debug-settings/${width}-${theme}.png`,Buffer.from(shot.data,'base64'));
+    }
+  }
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  for (const entry of ['icons','diagnostics']) {
+    await js(`document.querySelector('#settings-debug-${entry} button').click()`);
+    await until('!!document.querySelector("[role=dialog]")','detail opens');
+    if (entry==='icons') await until('!!document.querySelector("[role=dialog] .icon-gallery")','icon library loaded');
+    await js('document.querySelector(".debug-detail-window .dialog-toolbar button").click()');
+    await until('!document.querySelector("[role=dialog]")','detail closes');
+  }
+
   assert.equal(await js('document.querySelector("#activity-debug-enabled").getAttribute("aria-checked")'), 'false', 'debug mode defaults off');
   await js('document.querySelector("#activity-debug-enabled").click()');
   await until('document.querySelector("#activity-debug-enabled").getAttribute("aria-checked")==="true"','enable debug mode');
