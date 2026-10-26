@@ -31,7 +31,7 @@ const brand = (id:string)=>({deepseek_fetch:'DeepSeek',zai_reader:'Z.AI',jina_re
 const name = (id:string)=>id==='codex_fetch'?'ChatGPT / Codex':catalog.value.find(p=>p.id===id)?.name||id;
 const spec = (id:string)=>catalog.value.find(p=>p.id===id);
 const allowedAccounts = fetchAccountPresets;
-const choices = computed(()=>catalog.value.map(p=>({key:p.id,title:name(p.id),brand:brand(p.id),icon:'globe',description:p.id==='codex_fetch'?tr('使用 ChatGPT 账户读取网页','Read webpages with a ChatGPT account'):p.key==='optional'?tr('无需密钥，也可关联账户','Works without a key; an account is optional'):tr('关联已有账户，或添加新的 API Key','Link an existing account or add an API key')})));
+const choices = computed(()=>catalog.value.map(p=>({key:p.id,title:name(p.id),brand:brand(p.id),icon:'web-reader',description:p.id==='codex_fetch'?tr('使用 ChatGPT 账户读取网页','Read webpages with a ChatGPT account'):p.key==='optional'?tr('无需密钥，也可关联账户','Works without a key; an account is optional'):tr('关联已有账户，或添加新的 API Key','Link an existing account or add an API key')})));
 function add(preset:string){const id=uniqueId(preset,id=>id in config.value.providers);config.value.providers[id]={preset,enabled:true,credential_id:null,proxy_enabled:true};config.value.order.push(id);adding.value=false;editing.value=id;}
 function move(id:string,delta:number){const order=config.value.order;const i=order.indexOf(id),j=i+delta;if(i>=0&&j>=0&&j<order.length)[order[i],order[j]]=[order[j],order[i]];}
 function remove(id:string){controls.delete(id);delete config.value.providers[id];config.value.order=config.value.order.filter((v:string)=>v!==id);if(editing.value===id)editing.value='';}

@@ -45,6 +45,12 @@ export const ICONS: Record<string, string> = {
   skill: `<path d="m4 20 11-11 3 3L7 23Z" transform="translate(0 -2)"/><path d="m12 10 3 3M6 3v4M4 5h4M19 3v4M17 5h4M20 16v4M18 18h4"/>`,
   'web-reader': `<path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10l-7-7Z"/><path d="M13 3v7h7M8 13h3M8 17h3M16 13v5m-2-2 2 2 2-2"/>`,
   'web-search': `<path d="M12 16.7A7 7 0 1 1 16.7 12M3 10h14M10 3c2 2 3 4.3 3 7M10 3c-2 2-3 4.3-3 7s1 5 3 7"/><circle cx="16" cy="16" r="4"/><path d="m19 19 3 3"/>`,
+  // A task list with an active job; distinct from the shell prompt.
+  tasks: `<rect x="3" y="4" width="18" height="16" rx="3.5" ${SOFT}/><path d="m6.5 8.5 1.5 1.5 2.5-3M13 9h4M6.5 15h3M13 15h4"/>`,
+  // History is a clock turning back; reading a record is a document.
+  'history-search': `<path d="M3 9a8 8 0 0 1 14-5M3 4v5h5M3 13a8 8 0 0 0 7 7M11 6v5l2 1"/><circle cx="17" cy="17" r="3.5" ${SOFT}/><path d="m19.5 19.5 2 2"/>`,
+  'history-read': `<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" ${SOFT}/><path d="M14 3v6h6M8 13h8M8 17h5"/>`,
+  'history-query': `<path d="M9 6h12M9 12h8M9 18h5"/><circle cx="4" cy="6" r="1" ${SOFT}/><circle cx="4" cy="12" r="1" ${SOFT}/><circle cx="4" cy="18" r="1" ${SOFT}/>`,
   network: `<rect x="8" y="3" width="8" height="6" rx="1.5"/><path d="M12 9v5M5 17v-3h14v3"/><rect x="2" y="17" width="6" height="4" rx="1"/><rect x="16" y="17" width="6" height="4" rx="1"/>`,
   key: '<path d="M14.3 13.7a6 6 0 1 0-4-4L3 17v4h4v-3h3v-3Z"/><path d="m15 5 4 4"/>',
   bot: `<rect x="4" y="7" width="16" height="13" rx="3" ${SOFT}/><path d="M12 3v4M1.5 12v4m21-4v4M9 16h6"/><circle cx="8.5" cy="12" r=".8" ${SOLID}/><circle cx="15.5" cy="12" r=".8" ${SOLID}/>`,

@@ -5,7 +5,7 @@ import { approach } from '../src/features/sessions/glide.ts';
 import { estimateRow } from '../src/features/sessions/rowEstimate.ts';
 import { groupEntries, inlineChips } from '../src/features/sessions/grouping.ts';
 import { layoutRail, RAIL_PITCH, rowSlots, type RailEvent, type RailRow } from '../src/features/sessions/railLayout.ts';
-import { stepIcons, summarizeSteps } from '../src/features/sessions/entries/processDetails.ts';
+import { stepIcons, summarizeSteps, toolIcon } from '../src/features/sessions/entries/processDetails.ts';
 import { useFreshRows } from '../src/features/sessions/useFreshRows.ts';
 
 test('the glide closes on its target, slowing down, and lands exactly', () => {
@@ -83,9 +83,9 @@ test('a run of steps is said in a line of what it did', () => {
   assert.equal(summarizeSteps([call('shell_poll', 'a'), call('shell_poll', 'b')], true), '查看了命令输出');
   const result = { kind: 'entry', key: 'e', entry: { kind: 'tool_result', seq: 9, payload: { tool_call_id: 'x', tool_name: 'web_search' } } };
   assert.equal(summarizeSteps([result], false), 'Searched the web');
-  assert.deepEqual(stepIcons([result]), ['globe']);
+  assert.deepEqual(stepIcons([result]), ['web-search']);
   // On its button, an icon for each kind of thing, in the order they first came.
-  assert.deepEqual(stepIcons([call('web_search', 'a'), call('shell_start', 'b'), call('shell_poll', 'c'), call('web_search', 'd')]), ['globe', 'terminal']);
+  assert.deepEqual(stepIcons([call('web_search', 'a'), call('shell_start', 'b'), call('shell_poll', 'c'), call('web_search', 'd')]), ['web-search', 'terminal']);
   assert.deepEqual(stepIcons([{ kind: 'block', key: 'r', block: { type: 'reasoning', text: 'hmm' } }]), ['thinking']);
 });
 
@@ -189,4 +189,11 @@ test('rail folding follows the current total as measurements shrink and grow', (
     assert.equal(nodes.flatMap(node => node.events).length, events.length);
     for (let i = 1; i < nodes.length; i++) assert.ok(nodes[i]!.y - nodes[i - 1]!.y >= 26);
   }
+});
+
+test('tool icons distinguish reading, searching, task management and shell execution', () => {
+  const names = ['shell', 'task', 'web_search', 'web_fetch', 'history_search', 'history_read', 'history_query'];
+  assert.equal(new Set(names.map(toolIcon)).size, names.length);
+  const steps = ['web_fetch', 'task'].map((name, index) => ({block: {type: 'tool_call', id: String(index), name}}));
+  assert.equal(summarizeSteps(steps, true), '读取了 1 次网页、管理了命令任务');
 });

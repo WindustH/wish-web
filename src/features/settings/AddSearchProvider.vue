@@ -45,7 +45,7 @@ const items = computed(() => choices.value.map(choice => ({
   description: choice.description,
   search: `${choice.preset.id} ${choice.preset.name} ${choice.preset.brand ?? ''} ${choice.lender ?? ''}`,
   brand: choice.preset.brand,
-  icon: 'globe',
+  icon: 'web-search',
   disabled: choice.disabled,
 })));
 function choose(key: string) {

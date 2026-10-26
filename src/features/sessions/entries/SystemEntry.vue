@@ -42,7 +42,7 @@ const text = computed(() => (props.item.entry.payload?.content ?? [])
       </template>
       <!-- A ghost hosts the window with no node: the rail's gathered node opens it instead. -->
       <template v-else-if="variant !== 'ghost'">
-        <button v-if="background" type="button" class="history-chip" :class="{ error: failed }" :aria-label="label" aria-haspopup="dialog" @click="open=true"><Icon name="terminal"/><span class="history-chip-text">{{label}}</span></button>
+        <button v-if="background" type="button" class="history-chip" :class="{ error: failed }" :aria-label="label" aria-haspopup="dialog" @click="open=true"><Icon name="tasks"/><span class="history-chip-text">{{label}}</span></button>
         <button v-else type="button" class="history-chip" :class="tone" :aria-label="label" aria-haspopup="dialog" @click="open = true"><Icon :name="iconName" /><span class="history-chip-text">{{ label }}</span></button>
       </template>
       <ProcessDetail v-if="open && item.entry.payload?.background" :step="{kind:'entry',entry:item.entry}" @close="open=false"/>
