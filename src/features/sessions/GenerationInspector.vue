@@ -139,11 +139,10 @@ onBeforeUnmount(()=>{version++;controller.abort();});
 .generation-cards { height:min(60dvh,600px); min-height:160px; overflow:auto; overscroll-behavior:contain; overflow-anchor:none; }
 .generation-space { position:relative; width:100%; }
 .generation-virtual-row { position:absolute; top:0; left:0; width:100%; padding-bottom:12px; box-sizing:border-box; }
-.generation-entry { --entry-accent:var(--fg-subtle); border:1px solid var(--border); border-left:3px solid var(--entry-accent); border-radius:12px; margin-bottom:0; padding:12px 14px; background:var(--bg-sunken); }
+.generation-entry { --entry-accent:var(--fg-subtle); border:1px solid var(--border); border-radius:12px; margin-bottom:0; padding:12px 14px; background:var(--bg-sunken); }
 .generation-entry[data-role=System], .generation-entry[data-role=Developer] { --entry-accent:var(--accent); }
 .generation-entry[data-role=User] { --entry-accent:var(--ok); }
 .generation-entry[data-role=Reasoning] { --entry-accent:var(--warn); }
-.generation-entry[data-role=ToolUse], .generation-entry[data-role=ToolResult] { border-left-style:dashed; }
 .generation-entry.summary { border-color:var(--warn); }
 .generation-entry header { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; font-size:11px; margin-bottom:10px; }
 .generation-entry header strong { font-size:13px; color:var(--entry-accent); }

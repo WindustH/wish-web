@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Modal from '../../ui/components/Modal.vue';
 import { ICONS } from '../../ui/icons.ts';
 import Icon from '../../ui/components/Icon.vue';
 // Tools for checking the app rather than configuring it; nothing here is saved.
@@ -12,11 +13,12 @@ import SettingHint from './SettingHint.vue';
 import SettingsSections from './SettingsSections.vue';
 import ConnectionDiagnostics from '../selftest/ConnectionDiagnostics.vue';
 import { closeOverlayKey } from '../../ui/composables/overlay.ts';
-import { stalls, clearStalls } from '../../ui/scrollStalls.ts';
-import { copyText } from '../../ui/clipboard.ts';
+import { stalls } from '../../ui/scrollStalls.ts';
 
 const StylePreview = defineAsyncComponent(() => import('./StylePreview.vue'));
-const previewStyles = ref(false);
+const ScrollStallsPanel = defineAsyncComponent(() => import('./ScrollStallsPanel.vue'));
+const preview = ref<'styles' | 'scroll' | null>(null);
+const previewTitle = computed(() => preview.value === 'styles' ? tr('样式预览', 'Style preview') : tr('滚动卡住记录', 'Scroll stalls'));
 const sections = computed(() => [
   { id: 'styles', label: tr('样式预览', 'Style preview') },
   { id: 'diagnostics', label: tr('连接诊断', 'Connection diagnostics') },
@@ -30,11 +32,6 @@ const desktop = useMedia(`(min-width: ${cfg.breakpoints.desktop}px)`);
 // This page renders with the settings route; the router knows where navigation ended.
 const router = useRouter();
 const closeSettings = inject(closeOverlayKey);
-const copyStalls = () => copyText(JSON.stringify(stalls.value, null, 2));
-const summary = (stall: typeof stalls.value[number]) => [
-  stall.coveredBy ? tr(`被 ${stall.coveredBy} 盖住`, `covered by ${stall.coveredBy}`) : stall.target,
-  stall.moves, stall.click && tr(`点击：${stall.click}`, `click: ${stall.click}`), stall.swallowedBy, stall.layers.join(', '),
-].filter(Boolean).join(' · ');
 async function previewOnboarding() {
   // The desktop settings dialog is modal and would take every click meant for
   // the preview, so leave it first (unless the user keeps editing).
@@ -51,25 +48,11 @@ async function previewOnboarding() {
     <SettingsSections prefix="debug" :sections="sections">
       <template #default="{ section }">
         <template v-if="section === 'styles'">
-          <button class="btn" :aria-expanded="previewStyles" aria-controls="debug-style-preview" @click="previewStyles = !previewStyles">{{ previewStyles ? tr('收起样式预览', 'Hide style preview') : tr('打开样式预览', 'Open style preview') }}</button>
-          <div v-if="previewStyles" id="debug-style-preview"><StylePreview /></div>
+          <button class="btn" aria-haspopup="dialog" @click="preview = 'styles'">{{ tr('打开样式预览', 'Open style preview') }}</button>
         </template>
         <ConnectionDiagnostics v-else-if="section === 'diagnostics'" />
         <template v-else-if="section === 'scroll'">
-          <div class="set-card">
-          <div class="set-row stall-summary">
-            <div class="set-label"><span>{{ tr('页面卡住时的状态', 'What the page was like when stuck') }}</span></div>
-            <SettingHint :text="tr('一次明显的滑动或滚轮没能滚动下面的列表，或者点了按钮、链接却没有反应时，这里会记下当时的页面状态，只存在这台设备上。卡住之后来这里复制给开发者。', 'When a clear swipe or wheel turn fails to scroll the list under it, or a tap on a button or link does nothing, the page as it was is noted here, on this device only. Copy it for the developer after the page gets stuck.')" />
-            <div class="stall-actions">
-              <button class="btn" :disabled="!stalls.length" @click="copyStalls"><Icon name="copy" :size="16" />{{ tr('复制', 'Copy') }}</button>
-              <button class="btn ghost" :disabled="!stalls.length" @click="clearStalls">{{ tr('清空', 'Clear') }}</button>
-            </div>
-          </div>
-          </div>
-          <p v-if="!stalls.length" class="hint">{{ tr('还没有记录。', 'Nothing noted yet.') }}</p>
-          <ol v-else class="stall-list">
-            <li v-for="stall in stalls" :key="stall.at"><strong>{{ new Date(stall.at).toLocaleString() }} · {{ stall.kind }} · {{ stall.route }}<span v-if="stall.build"> · {{ tr('构建', 'Build') }} {{ stall.build }}</span></strong><code>{{ summary(stall) }}</code></li>
-          </ol>
+          <button class="btn" aria-haspopup="dialog" @click="preview = 'scroll'"><Icon name="history-read" />{{ tr('查看卡住记录', 'View stall records') }}<span v-if="stalls.length">{{ stalls.length }}</span></button>
         </template>
         <div v-else-if="section === 'onboarding'" class="setting-row">
           <div><span>{{ tr('预览引导流程', 'Preview the setup') }}</span></div>
@@ -81,20 +64,16 @@ async function previewOnboarding() {
         </div>
       </template>
     </SettingsSections>
+    <Modal v-if="preview" :open="true" compact wide content-class="debug-detail-window" :title="previewTitle" @close="preview = null">
+      <template #compact-heading><div class="dialog-topline"><h2>{{ previewTitle }}</h2><div class="dialog-toolbar"><button class="btn ghost icon-only" :aria-label="tr('关闭', 'Close')" @click="preview = null"><Icon name="x" /></button></div></div></template>
+      <StylePreview v-if="preview === 'styles'" />
+      <ScrollStallsPanel v-else />
+    </Modal>
   </div>
 </template>
 
 <style scoped>
-.stall-summary { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; }
-.stall-summary > :deep(.cfg-hint) { grid-column: 1 / -1; grid-row: 2; margin: 0; font-size: 12px; line-height: 1.6; }
-.stall-actions { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 8px; }
-@media (max-width: 599px) {
-  .stall-summary { display: flex; flex-wrap: wrap; gap: 8px; }
-  .stall-actions { margin-left: auto; }
-}
-.stall-list { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
-.stall-list li { min-width: 0; overflow-wrap: anywhere; display: grid; gap: 4px; padding: 10px 12px; border-radius: var(--radius); background: var(--bg-inset); font-size: 12.5px; }
-.stall-list code { color: var(--fg-muted); font-size: 12px; overflow-wrap: anywhere; }
+:global(.debug-detail-window.compact .modal-body) { padding: 14px 16px 16px; }
 .icon-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 4px; padding: 8px 0; }
 .icon-gallery figure { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; padding: 14px 4px 10px; border-radius: var(--radius); color: var(--fg); }
 .icon-gallery .icon { width: 22px; height: 22px; }

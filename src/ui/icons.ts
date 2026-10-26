@@ -104,7 +104,7 @@ export const ICONS: Record<string, string> = {
   // Model providers: a cloud with a spark in it.
   providers: `<path d="M6.5 18.5a4 4 0 0 1-.3-8 5.8 5.8 0 0 1 11.1-1.4 4.6 4.6 0 0 1 .7 9.4Z" ${SOFT}/><path d="M12 10.8c.35 1.9 1.1 2.65 3 3-1.9.35-2.65 1.1-3 3-.35-1.9-1.1-2.65-3-3 1.9-.35 2.65-1.1 3-3Z" ${SOLID}/>`,
   // Groups: two people.
-  users: `<circle cx="9" cy="8" r="3.5" ${SOFT}/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><path d="M15.5 4.8a3.5 3.5 0 0 1 0 6.4"/><path d="M16.5 14.3a5.5 5.5 0 0 1 4 5.2"/>`,
+  users: `<circle cx="8" cy="7.5" r="3.2" ${SOFT}/><circle cx="17" cy="9" r="2.5" ${SOFT}/><path d="M2.5 20v-1.5a5.5 5.5 0 0 1 11 0V20M16 14.5h.5A4.5 4.5 0 0 1 21 19v1"/>`,
   // MCP: two servers linked through the bridge.
   mcp: `<rect x="3" y="3" width="8" height="8" rx="2.5" ${SOFT}/><rect x="13" y="13" width="8" height="8" rx="2.5"/><path d="M11 7h2.5A3.5 3.5 0 0 1 17 10.5V13M7 11v2.5a3.5 3.5 0 0 0 3.5 3.5H13"/>`,
   // Interface: a window, and light and dark in it.
@@ -119,8 +119,8 @@ export const ICONS: Record<string, string> = {
   'check-square': `<rect x="4" y="4" width="16" height="16" rx="4" ${SOFT}/><path d="m8.5 12 2.5 2.5 4.5-5"/>`,
   // Clearing old history: an eraser leaning on the line it clears.
   eraser: `<path d="M7.8 19.5 3.9 15.6a2 2 0 0 1 0-2.8l8.9-8.9a2 2 0 0 1 2.8 0l4.5 4.5a2 2 0 0 1 0 2.8l-8.3 8.3" ${SOFT}/><path d="m8 10 6.5 6.5M7.8 19.5h12.7"/>`,
-  // Account status: balances and quotas, read off a gauge.
-  account: `<path d="M3.5 17a8.5 8.5 0 0 1 17 0Z" ${SOFT}/><path d="m12 17 3.8-5.5"/><path d="${dot(12, 17)}" stroke-width="3.4"/>`,
+  // Account status: a dial with radial ticks, a clear needle and its pivot.
+  account: `<path d="M5.5 18.2a9 9 0 1 1 13 0Z" ${SOFT}/><path d="M12 5v2M5.6 8.1l1.5 1.3M18.4 8.1l-1.5 1.3M4 14h2M20 14h-2M12 14l3.2-4"/><circle cx="12" cy="14" r="1.4" fill="currentColor" stroke="none"/>`,
   // Reasoning: the model's side of the conversation, still thinking.
   // Reasoning: the brain, as this app has always drawn it. Two hemispheres with their folds, split
   // down the middle; a soft wash under the outline so it holds up at the rail's 16px.

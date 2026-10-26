@@ -98,9 +98,8 @@ onBeforeUnmount(() => observer?.disconnect());
 :global(.modal-card.group-message-window:not(.modal-page)) { width: min(94vw, 42.5rem); }
 :global(.group-message-window.compact .modal-body) { position: relative; padding: 14px 16px 16px; }
 :global(.group-message-window .modal-flow-title) { padding-right: 76px; margin-bottom: 6px; }
-/* One surface, a short bar in the author's colour at its side; the whole card opens the window. */
-.group-card { position: relative; min-width: 0; padding: 10px 14px 12px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); transition: background var(--dur-fast); }
-.group-card::before { content: ''; position: absolute; left: -1px; top: 12px; bottom: 12px; width: 3px; border-radius: 0 3px 3px 0; background: var(--card-color); }
+/* A neutral surface; author colour belongs to the avatar and label. */
+.group-card { position: relative; min-width: 0; padding: 10px 14px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); transition: background var(--dur-fast); }
 @media (hover: hover) { .group-card:has(.group-card-open:hover) { background: var(--bg-hover); } }
 .group-card:has(.group-card-open:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .group-card-open { position: absolute; inset: 0; z-index: 1; width: 100%; padding: 0; border: 0; border-radius: inherit; background: none; cursor: pointer; }
@@ -132,5 +131,5 @@ onBeforeUnmount(() => observer?.disconnect());
 .group-card-detail-meta a .icon { width: 13px; height: 13px; }
 @media (hover: hover) { .group-card-detail-meta a:hover { color: var(--accent); } }
 .group-card-image { max-width: 100%; border-radius: 8px; }
-@media (max-width: 599px) { .group-card { padding: 10px 12px 12px 14px; } }
+@media (max-width: 599px) { .group-card { padding: 10px 12px 12px; } }
 </style>

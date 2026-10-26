@@ -68,6 +68,7 @@ try {
   }
   await js('document.querySelector(".file-change-card").click()');
   await until('document.querySelectorAll(".file-diff").length===4','stack shows every file');
+  assert.equal(await js('!!document.querySelector(".file-changes-dialog .modal-head")'),false,'file detail uses compact heading');
   await js('fixture.visible.value=false');
   assert.equal(await js('document.querySelectorAll(".file-diff").length'),4,'virtual row unmount keeps dialog');
   await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
@@ -78,6 +79,8 @@ try {
   await js('document.querySelectorAll(".file-change-card")[1].click()');
   await until('document.querySelectorAll(".file-diff").length===1','individual file opens alone');
   assert.ok(await js('document.querySelector(".diff-path").textContent.includes("file-1.ts")'));
+  assert.equal(await js('getComputedStyle(document.querySelector(".file-diff")).backgroundColor'),'rgba(0, 0, 0, 0)','single file has no extra background');
+  assert.equal(await js('getComputedStyle(document.querySelector(".file-diff")).borderTopWidth'),'0px','single file has no nested border');
   assert.deepEqual(exceptions,[]);
   console.log(JSON.stringify({ok:true,checks:['1/3 individual cards','4-file stack','desktop/mobile','dark/light','single-file detail','stable modal host','Escape closes']}));
 
