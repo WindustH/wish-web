@@ -122,6 +122,16 @@ try {
   assert.equal(await js('document.querySelectorAll(".sl-item.chosen").length'),2,'release must not toggle anchor');
   await touch('touchStart',await point('s0'));await touch('touchEnd');
   await until('document.querySelectorAll(".sl-item.chosen").length===3','ordinary tap still toggles');
+  await touch('touchStart',await point('s2'));await sleep(520);
+  await until('document.querySelectorAll(".sl-item.chosen").length===2','holding selected anchor deselects it');
+  await touch('touchMove',await point('s4'));
+  assert.deepEqual(await js('Array.from(document.querySelectorAll(".sl-item.chosen")).map(e=>e.dataset.sessionId)'),['s0','s1'],'deselect gesture does not select previously unselected rows');
+  await touch('touchMove',await point('s1'));
+  await until('document.querySelectorAll(".sl-item.chosen").length===1','dragging over selected rows deselects the range');
+  await touch('touchMove',await point('s2'));
+  await until('document.querySelectorAll(".sl-item.chosen").length===2','reversing deselection restores baseline outside range');
+  await touch('touchEnd');await sleep(100);
+  assert.deepEqual(await js('Array.from(document.querySelectorAll(".sl-item.chosen")).map(e=>e.dataset.sessionId)'),['s0','s1'],'release preserves deselection and unrelated selection');
   await js(`fixture.loadMany()`);
   await sleep(150);
   await touch('touchStart',await point('s2'));await sleep(520);
@@ -140,7 +150,7 @@ try {
   await until('document.querySelector(".sl-scroll").scrollTop>'+scrollBeforeSwipe,'quick swipe retains native scrolling');
   assert.equal(await js('document.querySelector(".sl-chosen-full").textContent'),beforeSwipe,'quick swipe does not select');
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['touch hold range and reversal','virtual list edge scrolling','touch cancellation','tap and native swipe preserved','focused regions stay independent','child control consumption','IME isolation','Escape exits selection','native suspended outcome resolves retry','Shift range selection','no Shift navigation','retry visibility','automatic retry warning']}));
+  console.log(JSON.stringify({ok:true,checks:['selected anchor deselects range','deselection reversal restores baseline','touch hold range and reversal','virtual list edge scrolling','touch cancellation','tap and native swipe preserved','focused regions stay independent','child control consumption','IME isolation','Escape exits selection','native suspended outcome resolves retry','Shift range selection','no Shift navigation','retry visibility','automatic retry warning']}));
 
 } finally {
   ws?.close();

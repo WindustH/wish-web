@@ -7,7 +7,8 @@ const MAX_SCROLL_SPEED = 480; // Pixels per second.
 
 /** Owns only touches that begin in this list while selection mode is active.
  * Before the hold completes, movement remains native scrolling. Afterwards the
- * gesture extends a range against its initial selection, including virtual rows.
+ * gesture selects or deselects a range according to the anchor’s initial state,
+ * including virtual rows. Reversing restores the baseline outside the range.
  */
 export function useTouchRangeSelection(
   root: Ref<HTMLElement | null>, enabled: Ref<boolean>,
@@ -35,7 +36,12 @@ export function useTouchRangeSelection(
       const start = order.indexOf(gesture.anchor), end = order.indexOf(target);
       if (start < 0 || end < 0) { stop(); return; }
       gesture.target = target;
-      chosen.value = new Set([...gesture.baseline, ...order.slice(Math.min(start, end), Math.max(start, end) + 1)]);
+      const next = new Set(gesture.baseline);
+      const deselect = gesture.baseline.has(gesture.anchor);
+      for (const id of order.slice(Math.min(start, end), Math.max(start, end) + 1)) {
+        if (deselect) next.delete(id); else next.add(id);
+      }
+      chosen.value = next;
     }
     function targetAtFinger() {
       if (!gesture) return;
