@@ -8,10 +8,13 @@ const props = defineProps<{ session: string; sequence?: number }>();
 const available = computed(() => {
   const snapshot = chat.snapshot.value;
   if (snapshot?.id !== props.session || snapshot.running || chat.stream.value.active) return false;
-  const failure = snapshot.last_error;
+  // Suspended.outcome references an event ID, not its history sequence.
+  const outcomeId = snapshot.status?.state?.Suspended?.outcome;
+  if (outcomeId == null) return false;
+  const outcome = chat.entries.value.find(entry => entry.event_id === outcomeId);
+  const failure = outcome?.payload.failure;
   if (!failure || !/transport|streamfailed/i.test(failure.family)) return false;
-  const latest = chat.entries.value.findLast(entry => entry.kind === 'run_error');
-  return props.sequence == null || latest?.seq === props.sequence;
+  return props.sequence == null || outcome?.seq === props.sequence;
 });
 async function retry() {
   try { await chat.retryRun(props.session); }

@@ -81,7 +81,7 @@ export interface EntryPayload {
   metadata?: any;
 }
 export interface EntryView {
-  seq: number; id: number | string; run_id?: number | null;
+  seq: number; id: number | string; event_id?: number; run_id?: number | null;
   created_at: number; kind: EntryKind; payload: EntryPayload;
 }
 // A configured provider as the pickers read it; the remaining settings pass through.
@@ -144,7 +144,7 @@ export function entryView(item: any, sessionId: string): EntryView {
         kind: 'group_sent', payload: {metadata: sent, content: [{ type: 'text', text: sent.text ?? '' }]}};
     }
     return {seq: item.record.sequence, id: `event-${item.record.sequence}`,
-      created_at: item.record.recorded_at, kind: failure ? 'run_error' : 'history_event',
+      event_id: item.record.item?.Event, created_at: item.record.recorded_at, kind: failure ? 'run_error' : 'history_event',
       payload: {failure, content: []}};
   }
   const entry = item.content.value;

@@ -93,6 +93,14 @@ function stopSelecting() {
   selectionAnchor = null;
   chosen.value = new Set();
 }
+function exitSelectionOnEscape(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || event.isComposing || event.defaultPrevented || !selecting.value) return;
+  if (document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
+  event.preventDefault();
+  stopSelecting();
+}
+onMounted(() => window.addEventListener('keydown', exitSelectionOnEscape));
+onBeforeUnmount(() => window.removeEventListener('keydown', exitSelectionOnEscape));
 // Clearing history or deleting: one row from its menu, or the chosen ones from the bar.
 const batch = ref<{ kind: 'prune' | 'delete'; targets: { id: string; name: string; group?: boolean }[] } | null>(null);
 function actOnChosen(kind: 'prune' | 'delete') {

@@ -15,6 +15,7 @@ import SessionList from '/src/features/sessions/SessionList.vue';
 import ErrorEntry from '/src/features/sessions/entries/ErrorEntry.vue';
 import RetryStatus from '/src/features/sessions/RetryStatus.vue';
 import {sessions} from '/src/core/state/sessionsSlice.ts';import {chat} from '/src/core/state/chatSlice.ts';
+import {sessionView,entryView} from '/src/core/api/projections.ts';
 import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/layout.css';import '/src/styles/features.css';
 registerBrowserPlatform();
@@ -28,8 +29,8 @@ window.fetch=async(input,opts)=>{
 };
 await sessions.loadFirst();
 const failure={family:'Transport',message:'Connection lost'};
-chat.sessionId.value='s1';chat.snapshot.value={id:'s1',running:false,last_error:failure};
-chat.entries.value=[{seq:9,kind:'run_error',payload:{failure}}];
+chat.sessionId.value='s1';chat.snapshot.value=sessionView({session:{id:'s1'},status:{config:{},phase:'Suspended',running:false,state:{Suspended:{outcome:24}}}});
+chat.entries.value=[entryView({record:{sequence:29,item:{Event:24},recorded_at:0},content:{kind:'event',value:{Finished:{Failed:{Transport:{retryable:true,message:'Connection lost'}}}}}},'s1')];
 let runs=0;chat.retryRun=async()=>{runs++;chat.snapshot.value={...chat.snapshot.value,running:true};};
 window.fixture={router,chat,get runs(){return runs;}};
 createApp({render:()=>h(TooltipProvider,null,{default:()=>[
@@ -72,15 +73,18 @@ try {
   assert.deepEqual(await js('Array.from(document.querySelectorAll(".sl-item.chosen")).map(e=>e.dataset.sessionId)'),['s1','s2','s3']);
   await js(`document.querySelector('[data-session-id="s0"] .sl-row').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}))`);
   await until('document.querySelectorAll(".sl-item.chosen").length===4','reverse Shift range');
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await until('!document.querySelector(".sl-select-bar") && document.querySelectorAll(".sl-item.chosen").length===0','Escape exits selection and clears chosen rows');
   await until('!!document.querySelector(".retry-run")','current transport failure offers retry');
   assert.equal(await js('getComputedStyle(document.querySelector(".upstream-retry")).backgroundColor'),'rgb(54, 48, 32)','automatic retry uses warning background');
   await js('document.querySelector(".retry-run").click()');
   await until('!document.querySelector(".retry-run")','running session hides retry');
   assert.equal(await js('fixture.runs'),1);
-  await js('fixture.chat.snapshot.value={...fixture.chat.snapshot.value,running:false,last_error:null}');
+  await js('fixture.chat.snapshot.value={...fixture.chat.snapshot.value,running:false,last_error:null,status:{state:{Suspended:{outcome:30}}}}');
   await sleep(50);assert.equal(await js('!!document.querySelector(".retry-run")'),false,'old failure cannot retry after success');
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['Shift range selection','no Shift navigation','retry visibility','automatic retry warning']}));
+  console.log(JSON.stringify({ok:true,checks:['Escape exits selection','native suspended outcome resolves retry','Shift range selection','no Shift navigation','retry visibility','automatic retry warning']}));
 
 } finally {
   ws?.close();
