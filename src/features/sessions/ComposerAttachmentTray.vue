@@ -42,7 +42,8 @@ function outside(event: Event) {
 <style scoped>
 .composer-attachment-tray { position: absolute; bottom: calc(100% + 8px); left: 12px; right: 12px; pointer-events: none; }
 .attach-strip { min-width: 0; max-width: 100%; pointer-events: auto; }
-.composer-attachments-window { z-index: 75; width: min(380px, calc(100vw - 24px)); max-height: min(360px, var(--reka-popover-content-available-height)); display: flex; flex-direction: column; padding: 12px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--bg-raised); color: var(--fg); box-shadow: 0 8px 28px rgb(0 0 0 / 16%); }
+/* Reka portals do not forward the parent scope attribute to the content root. */
+:global(.composer-attachments-window) { z-index: 75; box-sizing: border-box; pointer-events: auto; width: min(380px, calc(100vw - 48px)); max-height: min(360px, var(--reka-popover-content-available-height)); display: flex; flex-direction: column; padding: 12px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--bg-raised); color: var(--fg); box-shadow: 0 8px 28px rgb(0 0 0 / 16%); }
 .dialog-topline { flex: none; margin-bottom: 8px; }
 .dialog-topline small { margin-left: 6px; color: var(--fg-subtle); font-size: 12px; font-weight: 400; }
 .attachment-window-items { min-height: 0; overflow: auto; display: flex; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; gap: 12px; padding: 8px; }

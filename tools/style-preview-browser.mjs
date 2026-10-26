@@ -59,6 +59,16 @@ try {
     await js('document.querySelector("[data-preview=composer-stack] .attachment-stack").scrollIntoView({block:"center"});document.querySelector("[data-preview=composer-stack] .attachment-stack").click()');
     await until('document.querySelectorAll(".composer-attachments-window .attach-thumb").length===7', 'window shows every attachment');
     assert.equal(await js('document.querySelectorAll("[data-preview=composer-stack] .attach-thumb").length'), 0, 'stack stays compact outside window');
+    await sleep(200); // Popper measures and positions after the portal mounts.
+    const popup = await js(`(() => { const el = document.querySelector('.composer-attachments-window'); const style = getComputedStyle(el); const rect = el.getBoundingClientRect(); return { width: rect.width, left: rect.left, right: rect.right, display: style.display, background: style.backgroundColor, border: style.borderTopWidth, overflow: el.scrollWidth > el.clientWidth }; })()`);
+    assert.equal(popup.display, 'flex', 'portal receives its component styles');
+    assert.notEqual(popup.background, 'rgba(0, 0, 0, 0)', 'popup has an opaque surface');
+    assert.ok(popup.width <= 400 && popup.width > 200, 'popup width stays compact');
+    assert.ok(popup.left >= 0 && popup.right <= width, 'popup fits viewport: ' + JSON.stringify(popup));
+    assert.equal(popup.overflow, false, 'attachments stay inside popup');
+    const popupImage = await send('Page.captureScreenshot', {format:'png'});
+    await writeFile(`.cache/style-preview/attachments-${width}.png`, Buffer.from(popupImage.data, 'base64'));
+
     assert.ok(await js('document.documentElement.scrollWidth<=innerWidth'), 'attachment window does not widen page');
     await js('document.querySelector(".composer-attachments-window .dialog-toolbar button").click()');
     await until('!document.querySelector(".composer-attachments-window")', 'close attachment window');
