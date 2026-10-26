@@ -41,7 +41,7 @@ function outside(event: Event) {
 </template>
 <style scoped>
 .composer-attachment-tray { position: absolute; bottom: calc(100% + 8px); left: 12px; right: 12px; pointer-events: none; }
-.attach-strip { min-width: 0; max-width: 100%; pointer-events: auto; }
+.attach-strip { width: fit-content; min-width: 0; max-width: 100%; padding: 10px; border: 1px solid color-mix(in srgb, var(--line-strong) 65%, transparent); border-radius: 14px; background: color-mix(in srgb, var(--bg-raised) 78%, transparent); backdrop-filter: blur(8px); box-shadow: 0 2px 8px rgb(0 0 0 / 5%); pointer-events: auto; }
 /* Reka portals do not forward the parent scope attribute to the content root. */
 :global(.composer-attachments-window) { z-index: 75; box-sizing: border-box; pointer-events: auto; width: min(380px, calc(100vw - 48px)); max-height: min(360px, var(--reka-popover-content-available-height)); display: flex; flex-direction: column; padding: 12px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--bg-raised); color: var(--fg); box-shadow: 0 8px 28px rgb(0 0 0 / 16%); }
 .dialog-topline { flex: none; margin-bottom: 8px; }
