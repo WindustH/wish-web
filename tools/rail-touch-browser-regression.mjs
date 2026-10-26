@@ -66,6 +66,18 @@ try {
   await touch([point]);
   assert.equal(await js('window.opened'),1,'native touch activates exactly once');
   assert.deepEqual(await js('stalls.value.length'),0,'successful synchronous click must not be logged as missing');
+  await js(`(() => {
+    const button = document.createElement('button');
+    button.id = 'changing-icon';
+    button.style.cssText = 'position:fixed;left:100px;top:40px;width:100px;height:40px;z-index:999';
+    button.innerHTML = '<svg width="32" height="32"><circle cx="16" cy="16" r="14"/></svg>';
+    button.addEventListener('click', () => { button.innerHTML = '<span>Sending</span>'; });
+    document.body.append(button);
+  })()`);
+  await touch([{x:150,y:60}]);
+  assert.equal(await js('document.querySelector("#changing-icon").textContent'), 'Sending');
+  assert.equal(await js('stalls.value.length'), 0, 'successful click with replaced SVG must not be reported');
+  await js('document.querySelector("#changing-icon").remove()');
   await touch([point,{x:point.x,y:point.y+4}]);
   assert.equal(await js('window.opened'),2,'minor finger movement still taps once');
   await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[point]});

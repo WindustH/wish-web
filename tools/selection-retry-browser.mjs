@@ -12,6 +12,8 @@ const html = `<!doctype html><html data-theme="dark"><head><meta name="viewport"
 import {createApp,h,ref} from 'vue';import {TooltipProvider} from 'reka-ui';
 import {createRouter,createMemoryHistory} from 'vue-router';
 import {useKeyboardScope} from '/src/ui/composables/useKeyboardScope.ts';
+import {installScrollStallLog,stalls} from '/src/ui/scrollStalls.ts';
+installScrollStallLog();window.stalls=stalls;
 import {useRecentsSheet} from '/src/features/sessions/useRecentsSheet.ts';
 import SessionList from '/src/features/sessions/SessionList.vue';
 import ErrorEntry from '/src/features/sessions/entries/ErrorEntry.vue';
@@ -129,6 +131,17 @@ try {
   assert.equal(await js('document.querySelectorAll(".sl-item.chosen").length'),2,'release must not toggle anchor');
   await touch('touchStart',await point('s0'));await touch('touchEnd');
   await until('document.querySelectorAll(".sl-item.chosen").length===3','ordinary tap still toggles');
+  await js('window.stalls.value=[]');
+  const heldPoint = await point('s0');
+  await js(`(() => {
+    const row = document.querySelector('[data-session-id="s0"] .sl-row');
+    const point = new Touch({identifier:42,target:row,clientX:${heldPoint.x},clientY:${heldPoint.y}});
+    row.dispatchEvent(new TouchEvent('touchstart',{bubbles:true,cancelable:true,touches:[point],changedTouches:[point]}));
+    setTimeout(() => row.dispatchEvent(new TouchEvent('touchend',{bubbles:true,cancelable:true,touches:[],changedTouches:[point]})),470);
+  })()`);
+  await sleep(1150);
+  assert.equal(await js('window.stalls.value.length'),0,'completed 450–500ms hold is not a missing click');
+  await touch('touchStart',heldPoint);await touch('touchEnd'); // Restore baseline selection.
   await touch('touchStart',await point('s2'));await sleep(520);
   await until('document.querySelectorAll(".sl-item.chosen").length===2','holding selected anchor deselects it');
   await touch('touchMove',await point('s4'));

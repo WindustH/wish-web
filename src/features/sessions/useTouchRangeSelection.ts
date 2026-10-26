@@ -1,4 +1,5 @@
 import { ref, watch, type Ref } from 'vue';
+import { noteTouchAction } from '../../ui/scrollStalls.ts';
 
 const HOLD_MS = 450;
 const MOVE_TOLERANCE = 10;
@@ -42,6 +43,7 @@ export function useTouchRangeSelection(
         if (deselect) next.delete(id); else next.add(id);
       }
       chosen.value = next;
+      noteTouchAction('session range selection', () => chosen.value.size === next.size && [...next].every(id => chosen.value.has(id)));
     }
     function targetAtFinger() {
       if (!gesture) return;

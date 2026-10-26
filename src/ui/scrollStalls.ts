@@ -24,6 +24,11 @@ export interface ScrollStall {
   /** For a tap: whether a click came at all, whether a listener on the way stopped it, and which. */
   click?: string;
   swallowedBy?: string;
+  touchDurationMs?: number;
+  touchEndCancelled?: boolean;
+  targetConnected?: boolean;
+  control?: string;
+  controlDisabled?: boolean;
   /** The list's scrollTop / scrollHeight / clientHeight. */
   scroll: string;
   page: string;
@@ -99,7 +104,7 @@ function record(kind: ScrollStall['kind'], x: number, y: number, target: Element
 
 let scrolledAt = 0;
 type TouchAction = { name: string; completed: () => boolean };
-type Touch = { action?: TouchAction; dx: number; x: number; y: number; dy: number; far: number; at: number; moves: number; seen: number; cancelled: number; target: Element | null; menu: boolean };
+type Touch = { action?: TouchAction; dx: number; x: number; y: number; dy: number; far: number; at: number; moves: number; seen: number; cancelled: number; target: Element | null; control: Element | null; menu: boolean };
 let touch: Touch | undefined;
 let wheelPending = false;
 let lastRecord = 0;
@@ -112,10 +117,10 @@ const menuInSight = () => [...document.querySelectorAll('.menu-pop, [role="dialo
 // A tap on something that answers taps should make a click: one seen first of all, by the window as
 // it comes down, and again last of all, as it goes back up. Seen only coming down, a listener on the
 // way stopped it; not seen at all, nothing took the tap as one.
-type ObservedClick = { at: number; target: EventTarget | null };
+type ObservedClick = { at: number; path: EventTarget[] };
 let clickDown: ObservedClick | undefined, clickUp: ObservedClick | undefined;
 function matchesTap(click: ObservedClick | undefined, gesture: Touch, target: Element | null) {
-  return !!click && click.at >= gesture.at && click.target instanceof Node && !!target?.contains(click.target);
+  return !!click && click.at >= gesture.at && !!target && click.path.includes(target);
 }
 let swallowed: { by: string; at: number } | undefined;
 /** Called by the page's own listeners that keep a click from what it landed on, saying why. */
@@ -125,8 +130,9 @@ export function noteTouchAction(name: string, completed: () => boolean) {
   if (touch) touch.action = { name, completed };
 }
 const ANSWERS = 'a, button, [role="button"], [role="option"], [role="menuitem"], input, label, summary, .sl-item';
-function watchTap(gesture: Touch) {
-  const target = gesture.target instanceof Element ? gesture.target.closest(ANSWERS) : null;
+function watchTap(gesture: Touch, ended: TouchEvent) {
+  const duration = Math.round(performance.now() - gesture.at);
+  const target = gesture.control;
   // A stranded clear menu backdrop catches taps before they can reach any button.
   // Those taps have no clickable target, so the ordinary missing-click check misses them.
   const strayBackdrop = gesture.target instanceof Element && !!gesture.target.closest('.menu-backdrop') && !menuInSight();
@@ -135,7 +141,8 @@ function watchTap(gesture: Touch) {
   const blockedPage = getComputedStyle(document.body).pointerEvents === 'none' && !menuInSight();
   if (!target && !strayBackdrop && !blockedPage) return;
   // A touchend handler can activate synchronously before this window listener runs.
-  // Match clicks from the whole gesture, and only on the button that was touched.
+  // Match the original control against the click’s dispatch path: sending can replace
+  // its icon before this delayed diagnostic runs.
   setTimeout(() => {
     if (gesture.action?.completed()) return;
     if ((!strayBackdrop && matchesTap(clickUp, gesture, target)) || performance.now() - lastRecord < 2000) return;
@@ -143,19 +150,24 @@ function watchTap(gesture: Touch) {
     record('tap', gesture.x, gesture.y, gesture.target, null, {
       click: blockedPage ? 'page pointer lock without a visible dialog' : strayBackdrop ? 'stray menu backdrop caught the tap' : matchesTap(clickDown, gesture, target) ? 'stopped on the way' : 'none came',
       swallowedBy: swallowed && swallowed.at >= gesture.at ? swallowed.by : undefined,
+      touchDurationMs: duration,
+      touchEndCancelled: ended.defaultPrevented,
+      targetConnected: gesture.target?.isConnected,
+      control: describe(target),
+      controlDisabled: target?.matches(':disabled, [aria-disabled="true"]'),
     });
   }, gesture.action ? 600 : 350);
 }
 
 /** Starts keeping stalls; every listener is passive and only reads. */
 export function installScrollStallLog() {
-  window.addEventListener('click', event => { clickDown = { at: performance.now(), target: event.target }; }, { capture: true, passive: true });
-  window.addEventListener('click', event => { clickUp = { at: performance.now(), target: event.target }; }, { passive: true });
+  window.addEventListener('click', event => { clickDown = { at: performance.now(), path: event.composedPath() }; }, { capture: true, passive: true });
+  window.addEventListener('click', event => { clickUp = { at: performance.now(), path: event.composedPath() }; }, { passive: true });
   document.addEventListener('scroll', () => { scrolledAt = performance.now(); }, { capture: true, passive: true });
   window.addEventListener('touchstart', event => {
     const point = event.touches[0];
     touch = event.touches.length === 1 && point
-      ? { x: point.clientX, y: point.clientY, dx: 0, dy: 0, far: 0, at: performance.now(), moves: 0, seen: 0, cancelled: 0, target: event.target as Element, menu: menuInSight() }
+      ? { x: point.clientX, y: point.clientY, dx: 0, dy: 0, far: 0, at: performance.now(), moves: 0, seen: 0, cancelled: 0, target: event.target as Element, control: event.target instanceof Element ? event.target.closest(ANSWERS) : null, menu: menuInSight() }
       : undefined;
   }, { capture: true, passive: true });
   // Capture every move before page listeners; observe cancellation after dispatch.
@@ -175,11 +187,11 @@ export function installScrollStallLog() {
     if (!touch) return;
     touch.seen++;
   }, { passive: true });
-  window.addEventListener('touchend', () => {
+  window.addEventListener('touchend', event => {
     const gesture = touch;
     touch = undefined;
     // A tap may tremble a few pixels; it is still a tap that should make a click.
-    if (gesture && !gesture.menu && gesture.far < 10 && performance.now() - gesture.at < 500) watchTap(gesture);
+    if (gesture && !gesture.menu && gesture.far < 10 && performance.now() - gesture.at < 500) watchTap(gesture, event);
     if (!gesture || gesture.menu || Math.abs(gesture.dy) < 48) return;
     // A scroll that did happen has fired by the next frames.
     setTimeout(() => {
