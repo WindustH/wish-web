@@ -141,6 +141,8 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   }
 
   function onTouchMove(event: TouchEvent) {
+    // Inner regions get the movement first and may consume their own gesture.
+    if (event.defaultPrevented) { drag = undefined; return; }
     const touch = event.touches[0];
     if (!drag || !touch) return;
     if (!drag.mode) {
@@ -210,13 +212,13 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   watch(split, (element, _, cleanup) => {
     if (!element) return;
     element.addEventListener('touchstart', onTouchStart, { passive: true });
-    element.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+    element.addEventListener('touchmove', onTouchMove, { passive: false });
     element.addEventListener('touchend', onTouchEnd);
     element.addEventListener('touchcancel', onTouchEnd);
     element.addEventListener('click', onClick, true);
     cleanup(() => {
       element.removeEventListener('touchstart', onTouchStart);
-      element.removeEventListener('touchmove', onTouchMove, { capture: true });
+      element.removeEventListener('touchmove', onTouchMove);
       element.removeEventListener('touchend', onTouchEnd);
       element.removeEventListener('touchcancel', onTouchEnd);
       element.removeEventListener('click', onClick, true);

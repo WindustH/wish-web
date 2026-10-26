@@ -74,6 +74,9 @@ export function useTouchRangeSelection(
       frame = requestAnimationFrame(scroll);
     }
     function start(event: TouchEvent) {
+      // Selection mode owns gestures beginning in this region, including native
+      // scrolls. An ancestor sheet must not start a dismissal for the same touch.
+      event.stopPropagation();
       stop();
       suppressClickUntil = 0;
       if (event.touches.length !== 1) return;

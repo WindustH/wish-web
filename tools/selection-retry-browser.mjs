@@ -8,10 +8,11 @@ import { join } from 'node:path';
 import { createServer } from 'vite';
 import vue from '@vitejs/plugin-vue';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const html = `<!doctype html><html data-theme="dark"><body><div id="app"></div><script type="module">
+const html = `<!doctype html><html data-theme="dark"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="app"></div><script type="module">
 import {createApp,h,ref} from 'vue';import {TooltipProvider} from 'reka-ui';
 import {createRouter,createMemoryHistory} from 'vue-router';
 import {useKeyboardScope} from '/src/ui/composables/useKeyboardScope.ts';
+import {useRecentsSheet} from '/src/features/sessions/useRecentsSheet.ts';
 import SessionList from '/src/features/sessions/SessionList.vue';
 import ErrorEntry from '/src/features/sessions/entries/ErrorEntry.vue';
 import RetryStatus from '/src/features/sessions/RetryStatus.vue';
@@ -20,7 +21,7 @@ import {sessionView,entryView} from '/src/core/api/projections.ts';
 import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/layout.css';import '/src/styles/features.css';
 registerBrowserPlatform();
-const router=createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]});await router.push('/s/s1');
+const router=createRouter({history:createMemoryHistory(),routes:[{path:'/sessions',name:'sessions',component:{render:()=>null}},{path:'/sessions/all',name:'all-sessions',component:{render:()=>null}},{path:'/:pathMatch(.*)*',component:{render:()=>null}}]});await router.push('/s/s1');
 let sessionCount=5;
 const rawFetch=window.fetch;
 window.fetch=async(input,opts)=>{
@@ -34,13 +35,14 @@ const failure={family:'Transport',message:'Connection lost'};
 chat.sessionId.value='s1';chat.snapshot.value=sessionView({session:{id:'s1'},status:{config:{},phase:'Suspended',running:false,state:{Suspended:{outcome:24}}}});
 chat.entries.value=[entryView({record:{sequence:29,item:{Event:24},recorded_at:0},content:{kind:'event',value:{Finished:{Failed:{Transport:{retryable:true,message:'Connection lost'}}}}}},'s1')];
 let runs=0;chat.retryRun=async()=>{runs++;chat.snapshot.value={...chat.snapshot.value,running:true};};
+const Sheet={setup(){const root=ref(null);useRecentsSheet(root);return()=>h('div',{ref:root,style:'width:350px;height:700px;display:flex;position:fixed;top:24px;left:0;'},[h(SessionList,{id:'session-list'}),h('div',{class:'content-pane',style:'position:absolute;inset:0;'},[h('div',{class:'recent-sessions'},'Recent sessions')])]);}};
 const handled={region:0,parent:0};
 const Region={setup(){const root=ref(null);useKeyboardScope(root,event=>{if(event.key!=='Escape')return false;handled.region++;return true;});return()=>h('div',{ref:root,id:'other-region',tabindex:-1},[h('input',{id:'consuming-control',onKeydown:event=>event.preventDefault()})]);}};
 const Parent={setup(){const root=ref(null);useKeyboardScope(root,()=>{handled.parent++;return true;});return()=>h('div',{ref:root},[h(Region)]);}};
 window.fixture={router,chat,sessions,handled,async loadMany(){sessionCount=45;await sessions.refresh();},get runs(){return runs;}};
 createApp({render:()=>h(TooltipProvider,null,{default:()=>[
  h(Parent),
- h('div',{style:'width:350px;height:700px;display:flex;'},[h(SessionList)]),
+ h(Sheet),
  h(ErrorEntry,{item:{entry:chat.entries.value[0]},session:'s1'}),
  h(RetryStatus,{retries:[{requestId:'r',operation:'model',retry:1,maxRetries:5,phase:'waiting',retryAt:Date.now()+5000,failure}]})
 ]})}).use(router).mount('#app');
@@ -107,7 +109,10 @@ try {
   assert.equal(await js('fixture.runs'),1);
   await js('fixture.chat.snapshot.value={...fixture.chat.snapshot.value,running:false,last_error:null,status:{state:{Suspended:{outcome:30}}}}');
   await sleep(50);assert.equal(await js('!!document.querySelector(".retry-run")'),false,'old failure cannot retry after success');
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:2});
+  await js(`fixture.router.push('/sessions/all')`);
+  await sleep(100);
   const point=async id=>js(`(()=>{const r=document.querySelector('[data-session-id="${id}"] .sl-row').getBoundingClientRect();return {x:r.left+60,y:r.top+r.height/2}})()`);
   const touch=async(type,position)=>send('Input.dispatchTouchEvent',{type,touchPoints:position?[{...position,id:1,radiusX:2,radiusY:2}]:[]});
   await js(`document.querySelector('[data-session-id="s1"] .sl-row').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}))`);
@@ -116,6 +121,8 @@ try {
   await until('!!document.querySelector(".sl-range-selecting")','hold activates range selection');
   await touch('touchMove',finish);
   await until('document.querySelectorAll(".sl-item.chosen").length===4','held touch selects continuous range');
+  assert.equal(await js('fixture.router.currentRoute.value.path'),'/sessions/all','range gesture must not close all sessions');
+  assert.equal(await js('document.querySelector("#session-list").style.transform'),'','sheet must remain stationary during selection');
   await touch('touchMove',start);
   await until('document.querySelectorAll(".sl-item.chosen").length===2','reversing contracts range and retains baseline');
   await touch('touchEnd');await sleep(100);
@@ -149,8 +156,22 @@ try {
   await touch('touchStart',swipe);await touch('touchMove',{x:swipe.x,y:swipe.y-60});await touch('touchEnd');
   await until('document.querySelector(".sl-scroll").scrollTop>'+scrollBeforeSwipe,'quick swipe retains native scrolling');
   assert.equal(await js('document.querySelector(".sl-chosen-full").textContent'),beforeSwipe,'quick swipe does not select');
+  await js(`document.querySelector('.sl-scroll').scrollTop=0`);await sleep(100);
+  await js('window.scrollTo(0,0)');
+  const down=await js(`(()=>{const r=document.querySelector('.sl-scroll').getBoundingClientRect();return {x:r.left+80,y:r.top+30}})()`);
+  const pullDown=async()=>{
+    await touch('touchStart',down);
+    for(const offset of [20,90,160,240]){await touch('touchMove',{x:down.x,y:down.y+offset});await sleep(35);}
+    await touch('touchEnd');await sleep(350);
+  };
+  await pullDown();
+  assert.equal(await js('fixture.router.currentRoute.value.path'),'/sessions/all','quick downward swipe in selection mode must not dismiss sheet');
+  await js(`document.querySelector('.sl-select-head button').click();document.querySelector('.sl-scroll').scrollTop=0`);
+  await sleep(250);
+  await pullDown();
+  await until('fixture.router.currentRoute.value.path==="/sessions"','downward dismissal works again after leaving selection');
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['selected anchor deselects range','deselection reversal restores baseline','touch hold range and reversal','virtual list edge scrolling','touch cancellation','tap and native swipe preserved','focused regions stay independent','child control consumption','IME isolation','Escape exits selection','native suspended outcome resolves retry','Shift range selection','no Shift navigation','retry visibility','automatic retry warning']}));
+  console.log(JSON.stringify({ok:true,checks:['selection does not dismiss mobile sheet','dismissal restored after selection','selected anchor deselects range','deselection reversal restores baseline','touch hold range and reversal','virtual list edge scrolling','touch cancellation','tap and native swipe preserved','focused regions stay independent','child control consumption','IME isolation','Escape exits selection','native suspended outcome resolves retry','Shift range selection','no Shift navigation','retry visibility','automatic retry warning']}));
 
 } finally {
   ws?.close();
