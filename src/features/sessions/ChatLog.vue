@@ -9,10 +9,11 @@ import { chatWorkIndicator } from './phaseIndicator.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { announce } from '../../ui/live.ts';
-import { groupEntries, inlineChips, type ChipsItem, type GroupItem, type TextItem } from './grouping.ts';
+import { groupEntries, inlineChips, type ChipItem, type ChipsItem, type GroupItem, type TextItem } from './grouping.ts';
 import { imageAlbums, type ImageAlbumItem } from './imageAlbums.ts';
 import ActivityRail from './ActivityRail.vue';
-import { railOpenKey, type RailOpen } from './railState.ts';
+import ActivityDialogs from './ActivityDialogs.vue';
+import type { ActivityRequest } from './activityDialogs.ts';
 import type { RailEvent, RailRow } from './railLayout.ts';
 import { chipEvents, noticeFailed, noticeIconName, noticeLabel, noticeText, noticeTone, resultLookup } from './entries/railMeta.ts';
 import type { EntryView } from '../../core/api/projections.ts';
@@ -30,7 +31,6 @@ import { measureChatElement, observeChatRect, refreshChatViewport } from './virt
 import { useFreshRows } from './useFreshRows.ts';
 import { awaitsAnswer } from '../../core/questionWatch.ts';
 import { toolResultsKey } from './entries/processDetails.ts';
-import { forgetSession } from './expandState.ts';
 
 const props = defineProps<{ sessionId: string; mobile: boolean }>();
 
@@ -64,23 +64,19 @@ const groups = computed(() => {
   return items;
 });
 
-// Open run windows outlast their rows while the log is shown, not a trip away from it.
-watch(() => props.sessionId, (_, previous) => { if (previous) forgetSession(previous); });
-onUnmounted(() => forgetSession(props.sessionId));
-
 // A call's result may come in a later run than the call, past a question or a notice.
 const toolResults = computed(() => new Map(chat.entries.value
   .filter(entry => entry.kind === 'tool_result' && entry.payload?.tool_call_id)
   .map(entry => [String(entry.payload!.tool_call_id), { kind: 'entry', entry, key: `r${entry.seq}` }])));
 provide(toolResultsKey, toolResults);
 
-// The rail's open requests, carried to whichever row hosts the chip asked for.
-const railOpen = ref<RailOpen | null>(null);
-provide(railOpenKey, railOpen);
-let railTick = 0;
-function openFromRail(request: { chipKey: string; stepKey: string | null }) {
-  railOpen.value = { ...request, tick: ++railTick };
+// A session owns its activity windows; virtual rows never own modal lifetimes.
+const activityRequest = ref<ActivityRequest | null>(null);
+let activityRequestId = 0;
+function openActivity(request: Omit<ActivityRequest, 'requestId'>) {
+  activityRequest.value = { ...request, requestId: ++activityRequestId };
 }
+watch(() => props.sessionId, () => { activityRequest.value = null; }, { flush: 'sync' });
 
 // The rail's rows: where each row starts and how tall it is - measured where the log has
 // measured it, estimated where it has not - with the events that came in it.
@@ -103,8 +99,16 @@ const railRows = computed<RailRow[]>(() => {
     return placed;
   });
 });
+function rowActivities(row: ChatRow): ChipItem<EntryView>[] {
+  if (row.type === 'chips') return row.chips;
+  if (row.type === 'process') return [row];
+  if (row.type === 'image_album') return row.items.flatMap(item => item.before ?? []);
+  if (row.type === 'entry') return (row as TextItem<EntryView>).before ?? [];
+  return [];
+}
+const activityChips = computed(() => groups.value.flatMap(rowActivities));
 const rowEvents = (row: ChatRow): RailEvent[] => {
-  const chips: any[] = row.type === 'chips' ? row.chips : row.type === 'image_album' ? row.items.flatMap(item => item.before ?? []) : row.type === 'entry' && row.entry?.kind === 'assistant_message' ? (row as TextItem<EntryView>).before ?? [] : [];
+  const chips = rowActivities(row);
   return chips.flatMap((chip: any): RailEvent[] => chip.type === 'process'
     ? chipEvents(chip, resultLookup(chip, toolResults.value)).map(event => ({ chipKey: chip.key, stepKey: event.key, icon: event.icon,
       failed: event.failed, warn: false, tip: event.title, seq: event.seq, step: event.step, preview: event.preview }))
@@ -394,9 +398,11 @@ watch(scrollContentEl, (content, _, onCleanup) => {
       <div class="font-warmup" aria-hidden="true"><b>永</b><i>永</i><b><i>永</i></b><span class="warm-display">标题</span><code>code</code></div>
       <!-- The rail lives in the scrolling content itself: it rides the log's native scroll with no
            JS on the path, so it can never run a frame behind the messages it annotations. -->
-      <ActivityRail :rows="railRows" :total="railTotal" :visible="railPlace.visible" :session="sessionId" @open="openFromRail" />
+      <ActivityRail :key="sessionId" :rows="railRows" :total="railTotal" :visible="railPlace.visible" :session="sessionId" @open="openActivity" />
       </div>
     </div>
+    <ActivityDialogs :key="sessionId" :chips="activityChips" :request="activityRequest" :session="sessionId"
+      :forced-keys="forcedOpen" :locate-seq="chat.pendingSeq.value ?? undefined" />
     <Hint :text="i18n.t('chat.jumpLatest')" v-if="showJump"><button type="button" class="jump-latest"
        :aria-label="i18n.t('chat.jumpLatest')" @click="jumpLatest">
       <Icon name="arrow-down" :size="20" aria-hidden="true" />

@@ -260,6 +260,35 @@ try {
   await until(`document.querySelector('.inspection-json')?.textContent.includes('Original system instructions')`,'raw history record');
   assert.equal(await js('window.inspectionReads'),1);
   await js(`fixture.dialog.value=''`);await sleep(350);
+  // Activity windows belong to the session, not to whichever virtual row currently hosts a chip.
+  await js(`fixture.chat.entries.value=[{seq:1,id:1,kind:'assistant_message',payload:{content:[{type:'tool_call',id:'activity-call',name:'shell',arguments:{command:'printf test'}}]}}]`);
+  await until('document.querySelectorAll(".history-rail-node").length===1','single activity');
+  await js(`document.querySelector('.history-rail-node').click()`);
+  await until('!!document.querySelector(".process-detail")','activity detail opens');
+  await js(`window.activityDialogElement=document.querySelector('.process-detail');fixture.chat.entries.value=[...fixture.chat.entries.value,{seq:2,id:2,kind:'assistant_message',payload:{content:[{type:'text',text:'Reply moves the tool into a different row'}]}}]`);
+  await sleep(150);
+  assert.ok(await js(`window.activityDialogElement===document.querySelector('.process-detail')`),'regrouping preserves the actual dialog instance');
+  await js(`fixture.chat.entries.value=[...fixture.chat.entries.value,...Array.from({length:200},(_,i)=>({seq:i+3,id:i+3,kind:'user_message',payload:{content:[{type:'text',text:'Virtual row '+i+' long content '.repeat(100)}]}}))];document.querySelector('.chatlog').scrollTop=9999999`);
+  await sleep(300);
+  assert.ok(await js(`window.activityDialogElement===document.querySelector('.process-detail')`),'virtual row recycling cannot replace the dialog');
+  for(let cycle=0;cycle<8;cycle++) {
+    if(cycle) {await js(`document.querySelector('.history-rail-node').click()`);await until('!!document.querySelector(".process-detail")','reopen activity');}
+    await js(`document.querySelector('.process-detail-heading button:last-child').click()`);
+    await until('!document.querySelector(".modal-card,.modal-overlay")','activity layers removed');
+    assert.notEqual(await js('document.body.style.pointerEvents'),'none','no page pointer lock after close');
+    assert.equal(await js('document.querySelectorAll(".activity-dialog-host .history-chip-host").length'),0,'closed activity host is released');
+  }
+  await js('fixture.chat.pendingSeq.value=1');
+  await until('!!document.querySelector(".process-detail")','search opens an offscreen activity');
+  await sleep(300);
+  assert.ok(await js('!!document.querySelector(".process-detail")'),'search clearing its temporary locate state does not dismiss the activity');
+  await js(`document.querySelector('.process-detail-heading button:last-child').click()`);
+  await until('!document.querySelector(".modal-card,.modal-overlay")','search activity closes');
+  await js(`document.querySelector('.history-rail-node').click()`);
+  await until('!!document.querySelector(".process-detail")','activity before session switch');
+  await js(`fixture.session.value='another-session'`);
+  await until('!document.querySelector(".modal-card,.modal-overlay")','session switch disposes its activity windows');
+  assert.notEqual(await js('document.body.style.pointerEvents'),'none');
   await js('fixture.groupMode.value=true');
   await until('document.querySelectorAll(".group-virtual-row").length>0','group virtual rows');
   await sleep(700);

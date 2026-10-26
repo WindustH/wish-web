@@ -13,6 +13,7 @@ import BubbleSurface from './BubbleSurface.vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { useDialogLayer } from '../composables/useDialogLayer.ts';
 import { imageLightbox } from '../imageLightbox.ts';
+import { useDialogLifecycle } from '../composables/useDialogLifecycle.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
 import { prefersReducedMotion } from '../motion/reducedMotion.ts';
 import { useSheetDrag } from '../composables/useSheetDrag.ts';
@@ -23,23 +24,18 @@ const pageActive = usePageActivity();
 // `sheet`: a card that slides up from the bottom of a phone's screen rather than one in its middle.
 const props = withDefaults(defineProps<{ open: boolean; title: string; beforeClose?: () => boolean | Promise<boolean>; layer?: number; wide?: boolean; page?: boolean; sheet?: boolean; back?: () => void; contentClass?: string; bodyScroll?: 'auto' | 'content'; dismissable?: boolean; compact?: boolean; backLayer?: boolean }>(), { dismissable: true, backLayer: true });
 const emit = defineEmits<{ close: [] }>();
-const closing = ref(false);
-const closeCompleted = ref(false);
-let closeTimer: ReturnType<typeof setTimeout> | undefined;
-function clearCloseTimer() {
-  if (closeTimer !== undefined) clearTimeout(closeTimer);
-  closeTimer = undefined;
-}
-function finishClose() {
-  if (!closing.value || closeCompleted.value || !pageActive.value) return;
-  closeCompleted.value = true;
-  clearCloseTimer();
-  emit('close');
-}
+const { mounted, contentOpen, requestClose, finishClose } = useDialogLifecycle({
+  open: () => props.open,
+  active: () => pageActive.value,
+  dismissable: () => props.dismissable,
+  beforeClose: () => props.beforeClose?.(),
+  reducedMotion: prefersReducedMotion,
+  closed: () => emit('close'),
+});
 const layer = useDialogLayer(() => props.layer ?? 60);
 // Presentation does not determine navigation ownership: local pickers/editors can also
 // fill the screen. Routed panels opt out explicitly with backLayer=false.
-useBackLayer(() => props.backLayer && props.open && pageActive.value,
+useBackLayer(() => props.backLayer && mounted.value,
   () => { if (props.dismissable) return props.page && props.back ? props.back() : requestClose(); }, () => layer.value);
 // A session window opens as a bubble under its chat-bar button instead of a centered card.
 const bubble = computed(() => !props.page && !!props.contentClass?.split(' ').includes('session-window'));
@@ -82,16 +78,6 @@ function outside(event: Event) {
   const target = (event as CustomEvent).detail?.originalEvent?.target as Node | undefined;
   if (looking() || (target instanceof Element && target.closest('.pwa-update')) || !props.dismissable || (bubble.value && target instanceof Element && target.closest('[data-session-panel]'))) event.preventDefault();
 }
-watch(() => props.open, open => { if (open) { clearCloseTimer(); closing.value = false; closeCompleted.value = false; } });
-// Left while closing, it is closed: the page must not bring it back.
-watch(pageActive, active => {
-  if (active) return;
-  const wasClosing = closing.value && !closeCompleted.value;
-  clearCloseTimer();
-  closing.value = false;
-  closeCompleted.value = false;
-  if (wasClosing) emit('close');
-}, { flush: 'sync' });
 watch([pageActive, bubble], async ([active]) => { if (active) { await nextTick(); positionBubble(); } });
 const anchorStyle = ref<Record<string, string>>({});
 // A sheet is pulled down to put it away, as a phone's own are. The card is found by a mark of its
@@ -114,24 +100,7 @@ const untrackBubblePosition = () => { window.removeEventListener('resize', posit
 // listeners (capture phase) turned each scroll into a rows-sized fan-out.
 watch(bubble, value => { value ? trackBubblePosition() : untrackBubblePosition(); });
 onMounted(() => { positionBubble(); if (bubble.value) trackBubblePosition(); });
-onBeforeUnmount(() => { untrackBubblePosition(); clearCloseTimer(); });
-let checkingClose = false;
-async function requestClose() {
-  if (!pageActive.value || !props.dismissable || closing.value) return;
-  if (checkingClose) return;
-  if (props.beforeClose) {
-    checkingClose = true;
-    try { if (!await props.beforeClose()) return; } finally { checkingClose = false; }
-    if (!pageActive.value) return;
-  }
-  if (prefersReducedMotion()) { closeCompleted.value = true; emit('close'); }
-  else {
-    closeCompleted.value = false;
-    closing.value = true;
-    // Keep the exit animation, but finish even if the browser cancels it.
-    closeTimer = setTimeout(finishClose, 300);
-  }
-}
+onBeforeUnmount(untrackBubblePosition);
 function onCloseAnimationEnd(event: AnimationEvent) {
   if (event.target === event.currentTarget && ['popup-fade-out', 'page-out', 'sheet-out', 'session-panel-out', 'session-bubble-out'].includes(event.animationName)) finishClose();
 }
@@ -139,9 +108,9 @@ defineExpose({ close: requestClose });
 </script>
 
 <template>
-  <DialogRoot :modal="!bubble" :open="pageActive && open && !closing" @update:open="(v: boolean) => { if (!v) requestClose(); }">
+  <DialogRoot :modal="!bubble" :open="contentOpen" @update:open="(v: boolean) => { if (!v) requestClose(); }">
     <!-- Once our close finishes, unmount the owned layer even if a browser stalls its CSS exit. -->
-    <DialogPortal v-if="pageActive && !closeCompleted">
+    <DialogPortal v-if="mounted">
       <DialogOverlay v-if="!bubble" class="modal-overlay" :style="{ zIndex: layer }" />
       <DialogContent :data-modal="mark" @pointerdown.capture="ownFieldDrag" @animationend="onCloseAnimationEnd" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'modal-sheet': sheet, 'session-bubble': bubble, compact: compactCard }, contentClass]" :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }" :aria-describedby="undefined"
         @escape-key-down="(e: KeyboardEvent) => { if (looking()) e.preventDefault(); else if (dismissable === false) e.preventDefault(); else if (page && back) { e.preventDefault(); back(); } }"

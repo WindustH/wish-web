@@ -14,7 +14,6 @@ const standIns: Record<string, unknown> = {
   'Modal.vue': defineComponent({ props: ['open'], setup: (props, { slots }) => () => props.open ? h('section', { 'data-popup': '' }, slots.default?.()) : null }),
   'UserBubble.vue': defineComponent({ props: ['block'], setup: () => () => h('img', { alt: '' }) }),
   'ApiImage.vue': defineComponent({ props: ['src'], setup: () => () => h('img', { alt: '' }) }),
-  'HistoryChips.vue': defineComponent({ setup: () => () => null }),
   'MessageContext.vue': defineComponent({ inheritAttrs: false, setup: (_, { slots }) => () => h('div', slots.default?.()) }),
   'Markdown.vue': defineComponent({ setup: () => () => null }),
   'Icon.vue': defineComponent({ setup: () => () => h('span') }),
@@ -109,6 +108,6 @@ test('a five-thousand-step tool window only mounts visible event controls and ca
 
 test('a closed rail with a thousand groups creates no window hosts', async () => {
   const chips = Array.from({ length: 1000 }, (_, i) => ({ type: 'process', key: `p${i}`, steps: [] }));
-  const html = await renderToString(createSSRApp(component('HistoryChips.vue'), { chips }));
+  const html = await renderToString(createSSRApp(component('../ActivityDialogs.vue'), { chips, request: null, session: 'fixture' }));
   assert.ok(!html.includes('history-chip-host'));
 });

@@ -89,3 +89,12 @@ Service Worker 由 `vite-plugin-pwa` 借助 Workbox 生成：
 - 自检页面的详细信息目前只有中文。
 
 主题的处理方式类似：“跟随系统”“浅色”或“深色”，保存在本地，以 `data-theme` 属性应用到 `<html>` 上，同时设置浏览器的主题色。
+
+### 弹窗与移动端返回的所有权
+
+- `ActivityDialogs` 是会话级活动窗口宿主，位于虚拟消息行之外。行只渲染内容，时间轴和搜索提交打开请求。消息重排或回收不能卸载活动窗口；关闭和切换会话会释放宿主。不要恢复以消息行为单位的全局展开缓存。
+- `useDialogLifecycle` 负责打开、关闭中、已关闭三个状态及异步关闭确认。CSS 动画只是视觉效果，关闭超时仍会卸载 Portal；过期确认不能关闭重新打开的窗口。Reka 负责焦点、指针锁和无障碍语义，不直接修改全局锁来补偿组件泄漏。
+- `backLayers` 统一持有本地窗口和移动端页面的历史边界。返回先关闭最高层窗口，再由 `pageBackTarget` 决定页面父级；页面返回不能混入弹窗的批量关闭回调。
+- `useMobileBackNavigation` 负责首页退出确认。浏览器没有通用的 PWA 关闭接口：有前序浏览器页面时返回该页面；独立启动时确认后回到历史边界，由下一次系统返回退出。
+
+验证入口：`tools/dialog-lifecycle.test.ts`、`tools/back-layers.test.ts`、`tools/chat-browser-regression.mjs` 和 `tools/settings-navigation-browser.mjs`。后者使用真实 Hash History，覆盖账户详情返回、分类返回、首页退出确认与取消。

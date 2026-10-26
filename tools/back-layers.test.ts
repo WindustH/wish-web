@@ -195,3 +195,27 @@ test('a window opened by a pending route guard cannot push history over the pend
   h.back();
   assert.equal(h.routed.length, 0);
 });
+
+test('mobile page boundary survives closing a detail and handles only the next Back', async () => {
+  const h = harness();
+  let pageReturns = 0;
+  h.stack.setPageBack(() => { pageReturns++; });
+  let release = () => {};
+  release = h.stack.add(() => release());
+  h.back();
+  assert.equal(pageReturns, 0);
+  await h.tick();
+  h.back();
+  assert.equal(pageReturns, 1);
+  assert.equal(h.routed.length, 0);
+  const ticket = await h.stack.beforeNavigation();
+  h.stack.afterNavigation(true, ticket);
+  assert.equal(pageReturns, 1, 'route completion never invokes the page Back handler');
+  h.back();
+  assert.equal(pageReturns, 2);
+  const releasing = h.stack.releasePageBoundary();
+  await h.tick();
+  await releasing;
+  h.back();
+  assert.equal(h.routed.length, 1, 'explicit exit releases the browser boundary');
+});

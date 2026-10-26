@@ -10,6 +10,7 @@ type Layer = { close: () => unknown; priority: () => number };
 
 export function createBackLayers(browser: BackLayerBrowser, canArm = () => true) {
   const layers: Layer[] = [];
+  let pageBack: (() => unknown) | undefined;
   let sentinel: { token: string; url: string } | undefined;
   let cleanup: { promise: Promise<void>; resolve: () => void } | undefined;
   let queuedPop: ReturnType<typeof setTimeout> | undefined;
@@ -20,7 +21,7 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
   const owner = Math.random().toString(36).slice(2);
 
   function arm() {
-    if (!layers.length || sentinel || cleanup || navigating || handling || !canArm()) return;
+    if ((!layers.length && !pageBack) || sentinel || cleanup || navigating || handling || !canArm()) return;
     const token = `${owner}:${++serial}`;
     const url = browser.location.href;
     // Preserve every router field, including its position and scroll restoration state. The
@@ -69,7 +70,8 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
     try {
       if (!pending) {
         const top = layers.reduce<Layer | undefined>((top, layer) => !top || layer.priority() >= top.priority() ? layer : top, undefined);
-        top?.close();
+        if (top) top.close();
+        else pageBack?.();
       }
     } finally {
       handling = false;
@@ -79,6 +81,19 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
   }, true);
 
   return {
+    // The page boundary uses the same history entry as local dialogs. It is not a dialog:
+    // route changes must not invoke it as part of dismissing the previous page's windows.
+    setPageBack(handler: (() => unknown) | undefined) {
+      pageBack = handler;
+      if (handler) arm();
+      else if (!layers.length) void removeSentinel();
+    },
+    async releasePageBoundary() {
+      pageBack = undefined;
+      const hadBoundary = !!sentinel;
+      await removeSentinel();
+      return hadBoundary;
+    },
     add(close: () => unknown, priority: () => number = () => 60) {
       // A window opening before a dismissal's pop has gone out keeps the entry the stack is on:
       // the sentinel is still wanted, so the queued removal is called off.
@@ -96,7 +111,7 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
         const index = layers.indexOf(layer);
         if (index < 0) return;
         layers.splice(index, 1);
-        if (!layers.length) void removeSentinel();
+        if (!layers.length && !pageBack) void removeSentinel();
       };
     },
     async beforeNavigation() {

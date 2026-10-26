@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useMobileNavigationMotion } from './features/shell/useMobileNavigationMotion.ts';
 useMobileNavigationMotion();
+import Modal from './ui/components/Modal.vue';
+import { useMobileBackNavigation } from './features/shell/useMobileBackNavigation.ts';
 import HoverHintHost from './ui/components/HoverHintHost.vue';
 import { defineAsyncComponent, computed, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue';
 import { TooltipProvider, DialogRoot, DialogPortal, DialogContent, DialogTitle } from 'reka-ui';
@@ -62,6 +64,7 @@ watch(() => router.currentRoute.value, current => {
 }, { flush: 'sync' });
 onBeforeUnmount(() => clearTimeout(overlayExitTimer));
 provide(closeOverlayKey, () => router.push(backgroundRoute.value.fullPath));
+const { exitRequested, confirmExit } = useMobileBackNavigation(router, isMobile, () => backgroundRoute.value.fullPath);
 const overlayOpen = computed(() => isOverlay(route));
 const online = computed(() => sync.online.value);
 </script>
@@ -111,6 +114,13 @@ const online = computed(() => sync.online.value);
   </div>
   <!-- Above the settings dialog (51), below pickers (80) and error dialogs (200). -->
   <ProviderSetup v-if="onboardingPreview" preview class="onboarding-preview" @complete="closeOnboardingPreview" @exit="closeOnboardingPreview" />
+  <Modal v-if="exitRequested" :open="true" :back-layer="false" :title="tr('退出 Wish？', 'Leave Wish?')" @close="exitRequested = false">
+    <p>{{ tr('确定要离开 Wish 吗？', 'Are you sure you want to leave Wish?') }}</p>
+    <template #footer>
+      <button class="btn" @click="exitRequested = false">{{ tr('取消', 'Cancel') }}</button>
+      <button class="btn primary" @click="confirmExit">{{ tr('退出', 'Leave') }}</button>
+    </template>
+  </Modal>
   <HoverHintHost />
   <!-- Outside the shell so onboarding errors are reported too. -->
   <ErrorDialogHost />

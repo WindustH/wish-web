@@ -9,7 +9,9 @@ import { useIsMobile } from '../../../ui/composables/useMedia.ts';
 import { noticeFailed, noticeIconName, noticeLabel, noticeTone } from './railMeta.ts';
 
 const props = defineProps<{ item: any; forced?: boolean; variant?: 'chip' | 'node' | 'ghost'; openTick?: number }>();
+const emit = defineEmits<{ close: [] }>();
 const open = ref(false);
+watch(open, value => { if (!value) emit('close'); });
 
 // A search that found something in the notice opens it; so does the rail's list picking it.
 watch(() => props.forced, forced => { if (forced) open.value = true; }, { immediate: true });

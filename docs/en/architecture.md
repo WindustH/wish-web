@@ -89,3 +89,13 @@ The manifest (`public/manifest.webmanifest`) sets standalone display, the start 
 - Detail messages on the self-test page are in Chinese only.
 
 The theme works the same way: **Follow system**, **Light** or **Dark**, stored locally, applied as `data-theme` on `<html>` together with the browser's theme color.
+
+### Dialog and mobile navigation ownership
+
+`ActivityDialogs` owns activity windows for a session, outside recycled message rows. Rail and search actions submit requests to this host. Closing a window or changing sessions releases it; regrouping messages cannot replace an open dialog. Do not reintroduce global expansion caches to compensate for row unmounting.
+
+`useDialogLifecycle` owns open/closing/closed state and asynchronous close approval. Animation completion is optional: a bounded close timer releases the Portal, and stale approvals cannot close a reopened window. Reka owns focus, pointer locking, and accessibility. Avoid global style resets that interfere with other open dialogs.
+
+`backLayers` owns a shared history boundary for local dialogs and mobile pages. Back dismisses the top dialog before `pageBackTarget` selects the logical parent page. `useMobileBackNavigation` asks before leaving home. Browsers have no portable PWA-close API; standalone launches require one further system Back after confirmation.
+
+Regression coverage includes `dialog-lifecycle.test.ts`, `back-layers.test.ts`, `chat-browser-regression.mjs`, and `settings-navigation-browser.mjs`. The settings browser test uses real Hash History, including detail/category/home navigation, exit cancellation, and confirmed return to the preceding browser page.

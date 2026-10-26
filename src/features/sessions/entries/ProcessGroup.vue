@@ -13,7 +13,6 @@ import Modal from '../../../ui/components/Modal.vue';
 import { useIsMobile } from '../../../ui/composables/useMedia.ts';
 import ProcessDetail from './ProcessDetail.vue';
 import { fileEdits, parseDiff, toolIcon, toolOutput, toolTitle, stepSeq, stepToolName, diffCounts, searchResults, stepIcons, summarizeSteps, stepFailed, toolResultsKey } from './processDetails.ts';
-import { expandedBefore, setExpanded, setStep, stepBefore } from '../expandState.ts';
 import { chipFace } from './railMeta.ts';
 import VirtualRows from '../../../ui/components/VirtualRows.vue';
 
@@ -21,17 +20,14 @@ const props = defineProps<{ item: any; forced?: boolean; session?: string; varia
   openTick?: number; openStep?: { key: string; tick: number; solo?: boolean }; targetSeq?: number }>();
 const isMobile = useIsMobile();
 const steps = computed(() => props.item.steps ?? []);
-// The window and the step open in it outlast this button: the button moves into the reply that
-// comes after the run, and rows come and go as the log scrolls.
-const open = ref(!!props.session && expandedBefore(props.session, props.item.key));
-const kept = props.session ? stepBefore(props.session, props.item.key) : undefined;
-const detail = ref<any>(kept ? steps.value.find((step: any) => step.key === kept.key) ?? null : null);
-const diffOnly = ref(kept?.diffOnly ?? false);
-// One step, on its own: a window of its own, over the list when the list is up - the list stays,
-// as it always did, and closing the step returns to it.
+const emit = defineEmits<{ close: [] }>();
+const open = ref(false);
+const detail = ref<any>(null);
+const diffOnly = ref(false);
 const solo = ref<any>(null);
-watch(open, value => { if (props.session) setExpanded(props.session, props.item.key, value); });
-watch([detail, diffOnly], ([step, only]) => { if (props.session) setStep(props.session, props.item.key, step ? { key: step.key, diffOnly: only } : undefined); });
+watch([open, solo], ([listOpen, selectedStep]) => {
+  if (!listOpen && !selectedStep) emit('close');
+});
 watch(() => props.openTick, tick => { if (tick) open.value = true; }, { immediate: true });
 // A pick in the rail's gathered window: the step opens in a window of its own, the list gone first.
 function receivePick(pick: typeof props.openStep) {
