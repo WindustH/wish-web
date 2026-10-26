@@ -37,14 +37,14 @@ function harness(canArm = () => true) {
         activated = false;
         let stopped = false;
         const event = { state: pages[index]!.state, stopImmediatePropagation() { stopped = true; } } as PopStateEvent;
-        for (const listener of [...listeners].sort((a, b) => Number(b.capture) - Number(a.capture))) {
+        for (const listener of listeners) {
           listener.fn(event);
           if (stopped) break;
         }
       }); }
-  // The router is already listening when a local window registers its history handler.
-  browser.addEventListener('popstate', () => { routed.push(browser.location.href); }, false);
+  // popstate targets Window: capture does not make a later listener precede an earlier one.
   const stack = createBackLayers(browser, canArm);
+  browser.addEventListener('popstate', () => { routed.push(browser.location.href); }, false);
   const flush = () => { while (pending.length) pending.shift()!(); };
   const back = () => { browser.history.back(); flush(); };
   // The sentinel a dismissed window pushed is popped one task later, so a navigation starting in

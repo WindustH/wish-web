@@ -11,6 +11,12 @@ declare module 'vue-router' {
   }
 }
 
+// Window-targeted popstate listeners run in registration order on Android Chrome.
+// Install local navigation ownership BEFORE createWebHashHistory registers the router listener.
+// canArm is evaluated only after router initialization, when a page or dialog adds a boundary.
+const windows = createBackLayers(window, () => new URL(router.options.history.createHref(router.currentRoute.value.fullPath), window.location.href).href === window.location.href);
+setBackLayers(windows);
+
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
@@ -53,8 +59,6 @@ export const router = createRouter({
   ],
 });
 
-const windows = createBackLayers(window, () => new URL(router.options.history.createHref(router.currentRoute.value.fullPath), window.location.href).href === window.location.href);
-setBackLayers(windows);
 const windowNavigations = new WeakMap<object, number>();
 router.beforeEach(async (to, from) => {
   if (to.fullPath !== from.fullPath) windowNavigations.set(to, await windows.beforeNavigation());
