@@ -51,9 +51,9 @@ export function createPromptHistory<T>() {
       if (next < 0 || next >= prompts.length) return;
       prompts[position] = current;
       position = next;
-      const prompt = prompts[position];
-      if (position === prompts.length - 1) { prompts = null; position = 0; }
-      return prompt;
+      // The current draft, even when empty, remains the newest browsable item.
+      // Returning to it must not discard edits made to the other snapshots.
+      return prompts[position];
     },
     reset() { prompts = null; position = 0; },
   };

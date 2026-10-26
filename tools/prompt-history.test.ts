@@ -61,3 +61,15 @@ test('original input metadata preserves legacy images without inserting new toke
   assert.equal(prompts[0]!.attachments[0]!.blob_id, 'session-A/image-id');
   assert.equal(prompts[0]!.attachments[0]!.placeholder, undefined);
 });
+
+test('the empty current input remains browsable without losing edited history', () => {
+  const history = createPromptHistory<string>();
+  const messages = () => ['sent prompt'];
+  assert.equal(history.move(-1, '', messages), 'sent prompt');
+  assert.equal(history.move(1, 'edited prompt', messages), '');
+  assert.equal(history.move(1, '', messages), undefined);
+  assert.equal(history.move(-1, '', messages), 'edited prompt');
+  assert.equal(history.move(1, 'edited prompt', messages), '');
+  assert.equal(history.move(-1, 'new draft', messages), 'edited prompt');
+  assert.equal(history.move(1, 'edited prompt', messages), 'new draft');
+});

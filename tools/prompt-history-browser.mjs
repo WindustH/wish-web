@@ -104,6 +104,16 @@ try {
   assert.equal(await js('fixture.sent.blocks[0].blob_id'),'a'.repeat(64));
   await until('fixture.chat.getDraft("A")===""','successful send clears composer');
   await js(editor+'.focus()');
+  await key('ArrowUp');
+  await until('document.querySelectorAll(".attach-thumb").length===2','recall from empty input');
+  await key('ArrowDown');
+  await until('fixture.chat.getDraft("A")==="" && document.querySelectorAll(".attach-thumb").length===0','empty current input is restored');
+  await key('ArrowDown');
+  assert.equal(await js('fixture.chat.getDraft("A")'),'','Down stops at the empty current input');
+  await key('ArrowUp');
+  await until('document.querySelectorAll(".attach-thumb").length===2','browse again from empty current input');
+  await key('ArrowDown');
+  await until('fixture.chat.getDraft("A")===""','return to empty input again');
   await send('Input.insertText',{text:'line one'});
   await js(editor+'.dispatchEvent(new InputEvent("beforeinput",{inputType:"insertLineBreak",bubbles:true,cancelable:true}))');
   await send('Input.insertText',{text:'line two'});

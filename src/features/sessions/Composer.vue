@@ -315,7 +315,7 @@ async function browsePromptHistory(direction: -1 | 1) {
       if (promptHistory.active) promptHistory.prepend(older);
     }
     const prompt = promptHistory.move(direction, current, () => older);
-    if (!prompt) return;
+    if (prompt === undefined) return;
     if (attachmentPreview.value?.anchor && composerEl.value?.contains(attachmentPreview.value.anchor)) attachmentPreview.value = null;
     setTextOwned(prompt.text);
     if (prompt.attachments.some(item => 'blob_id' in item)) await refillAttachments(prompt.attachments);
