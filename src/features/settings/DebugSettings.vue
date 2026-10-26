@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { SwitchRoot, SwitchThumb } from 'reka-ui';
+import { activityEnabled, activityCount, setActivityEnabled } from '../../ui/diagnostics/activityStore.ts';
 import Modal from '../../ui/components/Modal.vue';
 import { ICONS } from '../../ui/icons.ts';
 import Icon from '../../ui/components/Icon.vue';
-// Tools for checking the app rather than configuring it; nothing here is saved.
+// Local diagnostic tools and previews.
 import { computed, inject, defineAsyncComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { openOnboardingPreview } from '../onboarding/preview.ts';
@@ -15,11 +17,13 @@ import ConnectionDiagnostics from '../selftest/ConnectionDiagnostics.vue';
 import { closeOverlayKey } from '../../ui/composables/overlay.ts';
 import { stalls } from '../../ui/scrollStalls.ts';
 
+const ActivityLogPanel = defineAsyncComponent(() => import('./ActivityLogPanel.vue'));
 const StylePreview = defineAsyncComponent(() => import('./StylePreview.vue'));
 const ScrollStallsPanel = defineAsyncComponent(() => import('./ScrollStallsPanel.vue'));
-const preview = ref<'styles' | 'scroll' | null>(null);
-const previewTitle = computed(() => preview.value === 'styles' ? tr('样式预览', 'Style preview') : tr('滚动卡死记录', 'Scroll stalls'));
+const preview = ref<'styles' | 'scroll' | 'activity' | null>(null);
+const previewTitle = computed(() => preview.value === 'activity' ? tr('用户行为日志', 'User activity log') : preview.value === 'styles' ? tr('样式预览', 'Style preview') : tr('滚动卡死记录', 'Scroll stalls'));
 const sections = computed(() => [
+  { id: 'activity', label: tr('调试模式', 'Debug mode') },
   { id: 'styles', label: tr('样式预览', 'Style preview') },
   { id: 'diagnostics', label: tr('连接诊断', 'Connection diagnostics') },
   { id: 'scroll', label: tr('滚动卡死记录', 'Scroll stalls') },
@@ -47,7 +51,11 @@ async function previewOnboarding() {
   <div class="ui-settings debug-settings">
     <SettingsSections prefix="debug" :sections="sections">
       <template #default="{ section }">
-        <template v-if="section === 'styles'">
+        <template v-if="section === 'activity'">
+          <div class="setting-row"><div><label for="activity-debug-enabled">{{ tr('记录用户行为日志', 'Record user activity') }}</label></div><SettingHint :text="tr('默认关闭，仅在本设备保存。记录操作、导航、请求状态、异常和弹层状态，便于排查卡死；不包含消息和附件内容。', 'Off by default. Stored on this device only. Records interactions, navigation, request status, errors and overlay state, excluding message and attachment contents.')" /><SwitchRoot id="activity-debug-enabled" class="cfg-switch" :model-value="activityEnabled" @update:model-value="setActivityEnabled"><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot></div>
+          <button class="btn" aria-haspopup="dialog" @click="preview = 'activity'"><Icon name="history-read" />{{ tr('查看与导出日志', 'View and export log') }}<span v-if="activityCount">{{ activityCount }}</span></button>
+        </template>
+        <template v-else-if="section === 'styles'">
           <button class="btn" aria-haspopup="dialog" @click="preview = 'styles'">{{ tr('打开样式预览', 'Open style preview') }}</button>
         </template>
         <ConnectionDiagnostics v-else-if="section === 'diagnostics'" />
@@ -67,6 +75,7 @@ async function previewOnboarding() {
     <Modal v-if="preview" :open="true" compact wide content-class="debug-detail-window" :title="previewTitle" @close="preview = null">
       <template #compact-heading><div class="dialog-topline"><h2>{{ previewTitle }}</h2><div class="dialog-toolbar"><button class="btn ghost icon-only" :aria-label="tr('关闭', 'Close')" @click="preview = null"><Icon name="x" /></button></div></div></template>
       <StylePreview v-if="preview === 'styles'" />
+      <ActivityLogPanel v-else-if="preview === 'activity'" />
       <ScrollStallsPanel v-else />
     </Modal>
   </div>

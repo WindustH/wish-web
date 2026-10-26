@@ -26,6 +26,7 @@ import './styles/base.css';
 import './styles/layout.css';
 import './styles/components.css';
 import './styles/features.css';
+import { installActivityRecorder } from './ui/diagnostics/activityRecorder.ts';
 import { installScrollStallLog } from './ui/scrollStalls.ts';
 
 applyTokens();
@@ -38,6 +39,7 @@ prefs.load();
 // with a context menu of their own (marked data-context-menu) take the event
 // themselves, and suppress the browser's too, even where theirs does not open.
 installScrollStallLog();
+installActivityRecorder(router);
 
 document.addEventListener('contextmenu', event => {
   if (!(event.target instanceof Element && event.target.closest('[data-context-menu]'))) event.preventDefault();
