@@ -9,7 +9,7 @@
 .sl-head input { background: transparent; border: 0; outline: none; width: 100%; min-width: 0; padding: 0; color: var(--fg); font-size: 13px; }
 .sl-head input::placeholder { color: var(--fg-subtle); }
 .sl-head:focus-within { border-color: var(--accent); }
-.sl-scroll { flex: 1; overflow-y: auto; overscroll-behavior-y: contain; min-height: 0; padding: 0 8px; scrollbar-width: thin; scrollbar-color: transparent transparent; transition: scrollbar-color var(--dur-slow) var(--ease-out); }
+.sl-scroll { flex: 1; overflow-y: auto; scrollbar-gutter: stable; overscroll-behavior-y: contain; min-height: 0; padding: 0 8px; scrollbar-width: thin; scrollbar-color: transparent transparent; transition: scrollbar-color var(--dur-slow) var(--ease-out); }
 /* The list scrollbar stays out of sight at rest: it appears while scrolling, stays while the
    pointer hovers the list (so it can still be grabbed), and fades back otherwise. The gutter
    keeps its width throughout, so rows do not shift when the thumb hides. */

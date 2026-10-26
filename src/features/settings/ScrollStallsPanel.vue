@@ -13,8 +13,8 @@ const summary = (stall: typeof stalls.value[number]) => [
 <template>
   <div class="scroll-stalls-panel">
     <div class="set-row stall-summary">
-      <div class="set-label"><span>{{ tr('页面卡住时的状态', 'What the page was like when stuck') }}</span></div>
-      <SettingHint :text="tr('一次明显的滑动或滚轮没能滚动下面的列表，或者点了按钮、链接却没有反应时，这里会记下当时的页面状态，只存在这台设备上。卡住之后来这里复制给开发者。', 'When a clear swipe or wheel turn fails to scroll the list under it, or a tap on a button or link does nothing, the page as it was is noted here, on this device only. Copy it for the developer after the page gets stuck.')" />
+      <div class="set-label"><span>{{ tr('页面卡死时的状态', 'What the page was like when stuck') }}</span></div>
+      <SettingHint :text="tr('一次明显的滑动或滚轮没能滚动下面的列表，或者点了按钮、链接却没有反应时，这里会记下当时的页面状态，只存在这台设备上。卡死之后来这里复制给开发者。', 'When a clear swipe or wheel turn fails to scroll the list under it, or a tap on a button or link does nothing, the page as it was is noted here, on this device only. Copy it for the developer after the page gets stuck.')" />
       <div class="stall-actions">
         <button class="btn" :disabled="!stalls.length" @click="copyStalls"><Icon name="copy" :size="16" />{{ tr('复制', 'Copy') }}</button>
         <button class="btn ghost" :disabled="!stalls.length" @click="clearStalls">{{ tr('清空', 'Clear') }}</button>

@@ -10,7 +10,7 @@ export const settingTerms: Record<string, string[]> = {
   skills: ['Skill 技能', '目录 路径 Directory path'],
   network: ['网络代理 Network proxy', '代理模式 Proxy mode', '系统环境变量 Environment variables', '代理地址 Proxy URL', '用户名 密码 Username password', '直连 Direct connection'],
   ui: ['主题 外观 深色 浅色 Theme appearance dark light', '语言 Language', '字体 Font', '通知 Notifications', '发送快捷键 Send Enter', '保持唤醒 Keep awake', '本地数据 Local data'],
-  debug: ['样式预览 卡片 群组 Style preview cards session groups', '诊断 Diagnostics', '滚动卡住记录 Scroll freeze', '初始引导 Setup onboarding', '连接 Connection'],
+  debug: ['样式预览 卡片 群组 Style preview cards session groups', '诊断 Diagnostics', '滚动卡死记录 Scroll freeze', '初始引导 Setup onboarding', '连接 Connection'],
 };
 type Section = {id:string;label:string;summary:string;description:string};
 const normalize = (text:string) => text.normalize('NFKC').toLocaleLowerCase().replace(/[\s_-]+/g,' ').trim();

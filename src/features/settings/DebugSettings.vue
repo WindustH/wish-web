@@ -18,11 +18,11 @@ import { stalls } from '../../ui/scrollStalls.ts';
 const StylePreview = defineAsyncComponent(() => import('./StylePreview.vue'));
 const ScrollStallsPanel = defineAsyncComponent(() => import('./ScrollStallsPanel.vue'));
 const preview = ref<'styles' | 'scroll' | null>(null);
-const previewTitle = computed(() => preview.value === 'styles' ? tr('样式预览', 'Style preview') : tr('滚动卡住记录', 'Scroll stalls'));
+const previewTitle = computed(() => preview.value === 'styles' ? tr('样式预览', 'Style preview') : tr('滚动卡死记录', 'Scroll stalls'));
 const sections = computed(() => [
   { id: 'styles', label: tr('样式预览', 'Style preview') },
   { id: 'diagnostics', label: tr('连接诊断', 'Connection diagnostics') },
-  { id: 'scroll', label: tr('滚动卡住记录', 'Scroll stalls') },
+  { id: 'scroll', label: tr('滚动卡死记录', 'Scroll stalls') },
   { id: 'onboarding', label: tr('首次使用引导', 'First-run setup') },
   { id: 'icons', label: tr('图标', 'Icons') },
 ]);
@@ -52,7 +52,7 @@ async function previewOnboarding() {
         </template>
         <ConnectionDiagnostics v-else-if="section === 'diagnostics'" />
         <template v-else-if="section === 'scroll'">
-          <button class="btn" aria-haspopup="dialog" @click="preview = 'scroll'"><Icon name="history-read" />{{ tr('查看卡住记录', 'View stall records') }}<span v-if="stalls.length">{{ stalls.length }}</span></button>
+          <button class="btn" aria-haspopup="dialog" @click="preview = 'scroll'"><Icon name="history-read" />{{ tr('查看卡死记录', 'View stall records') }}<span v-if="stalls.length">{{ stalls.length }}</span></button>
         </template>
         <div v-else-if="section === 'onboarding'" class="setting-row">
           <div><span>{{ tr('预览引导流程', 'Preview the setup') }}</span></div>
