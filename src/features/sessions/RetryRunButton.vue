@@ -22,11 +22,21 @@ async function retry() {
 }
 </script>
 <template>
-  <button v-if="available" class="btn ghost sm retry-run" :disabled="chat.retryingRun.value" @click="retry">
+  <button v-if="available" class="btn sm retry-run" :disabled="chat.retryingRun.value" @click="retry">
     <Icon :name="chat.retryingRun.value ? 'loader-circle' : 'refresh-cw'" />
     {{ tr('从断点重试', 'Retry from checkpoint') }}
   </button>
 </template>
 <style scoped>
-.retry-run { display:flex; margin-top:10px; }
+.retry-run {
+  display: flex;
+  margin: 12px 0 0 auto;
+  color: var(--err);
+  background: transparent;
+  border-color: var(--err-border);
+}
+@media (hover: hover) {
+  .retry-run:hover:not(:disabled) { background: color-mix(in srgb, var(--err) 10%, transparent); }
+}
+.retry-run:focus-visible { outline: 2px solid var(--err); outline-offset: 2px; }
 </style>
