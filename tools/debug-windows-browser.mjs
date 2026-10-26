@@ -64,8 +64,10 @@ try {
   for (const entry of ['icons','diagnostics']) {
     await js(`document.querySelector('#settings-debug-${entry} button').click()`);
     await until('!!document.querySelector("[role=dialog]")','detail opens');
+    assert.equal(await js('!!document.querySelector(".debug-detail-window.modal-page .modal-head > button")'),true,'mobile details have a page header with back button');
+    assert.equal(await js('Math.round(document.querySelector(".debug-detail-window").getBoundingClientRect().width)===innerWidth'),true,'mobile detail fills viewport');
     if (entry==='icons') await until('!!document.querySelector("[role=dialog] .icon-gallery")','icon library loaded');
-    await js('document.querySelector(".debug-detail-window .dialog-toolbar button").click()');
+    await js('document.querySelector(".debug-detail-window .modal-head > button, .debug-detail-window .dialog-toolbar button").click()');
     await until('!document.querySelector("[role=dialog]")','detail closes');
   }
 
@@ -74,13 +76,13 @@ try {
   await until('document.querySelector("#activity-debug-enabled").getAttribute("aria-checked")==="true"','enable debug mode');
   await js('document.querySelector("#settings-debug-activity button[aria-haspopup=dialog]").click()');
   await until('!!document.querySelector(".activity-preview")','activity export panel');
-  await js('document.querySelector(".debug-detail-window .dialog-toolbar button").click()');
+  await js('document.querySelector(".debug-detail-window .modal-head > button, .debug-detail-window .dialog-toolbar button").click()');
   await until('!document.querySelector("[role=dialog]")','close log panel');
   await js('document.querySelector("#activity-debug-enabled").click()');
   await js(`document.querySelector('#settings-debug-scroll button').click()`);
   await until('!!document.querySelector("[role=dialog] .stall-list")','stalls open in dedicated dialog');
   assert.equal(await js('document.querySelectorAll(".stall-list li").length'),1);
-  await js(`document.querySelector('.debug-detail-window .dialog-toolbar button').click()`);
+  await js(`document.querySelector('.debug-detail-window .modal-head > button, .debug-detail-window .dialog-toolbar button').click()`);
   await until('!document.querySelector("[role=dialog]")','close stalls');
   await js(`document.querySelector('#settings-debug-styles button').click()`);
   await until('document.querySelectorAll("[role=dialog] .preview-sample").length===19','style preview opens in dedicated dialog');
@@ -88,11 +90,12 @@ try {
   await until('document.querySelectorAll("[role=dialog]").length===2','file detail opens over style preview');
   await js(`document.querySelector('.file-changes-heading button').click()`);
   await until('document.querySelectorAll("[role=dialog]").length===1','closing detail preserves preview');
-  await js(`document.querySelector('.debug-detail-window .dialog-toolbar button').click()`);
+  await js(`document.querySelector('.debug-detail-window .modal-head > button, .debug-detail-window .dialog-toolbar button').click()`);
   await until('!document.querySelector("[role=dialog]")','closing preview returns to settings');
   await send('Emulation.setDeviceMetricsOverride',{width:1200,height:844,deviceScaleFactor:1,mobile:false});
   await js(`document.querySelector('#settings-debug-scroll button').click()`);
   await until('!!document.querySelector("[role=dialog] .stall-list")','desktop stalls dialog');
+  assert.equal(await js('!!document.querySelector(".debug-detail-window.modal-page")'),false,'desktop retains compact dialog');
   assert.deepEqual(exceptions,[]);
   console.log(JSON.stringify({ok:true,checks:['default collapsed','dedicated stalls window','dedicated preview window','nested file detail closes independently','mobile and desktop']}));
 

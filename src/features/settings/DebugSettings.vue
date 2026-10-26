@@ -66,7 +66,7 @@ async function previewOnboarding() {
         <div id="settings-debug-icons" class="debug-divided"><DebugToolRow icon="shapes" :title="tr('图标库', 'Icon library')" :description="tr('浏览界面使用的全部图标', 'Browse all interface icons')" :count="iconNames.length" @open="preview = 'icons'" /></div>
       </div>
     </section>
-    <Modal v-if="preview" :open="true" compact wide content-class="debug-detail-window" :title="previewTitle" @close="preview = null">
+    <Modal v-if="preview" :open="true" :page="!desktop" compact wide content-class="debug-detail-window" :title="previewTitle" @close="preview = null">
       <template #compact-heading><div class="dialog-topline"><h2>{{ previewTitle }}</h2><div class="dialog-toolbar"><button class="btn ghost icon-only" :aria-label="tr('关闭', 'Close')" @click="preview = null"><Icon name="x" /></button></div></div></template>
       <StylePreview v-if="preview === 'styles'" />
       <ActivityLogPanel v-else-if="preview === 'activity'" />
