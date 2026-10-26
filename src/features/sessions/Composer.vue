@@ -26,6 +26,7 @@ import { useBtwPopup } from './useBtwPopup.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { isSendKey } from '../../ui/sendKey.ts';
 import ComposerSendButtons from './ComposerSendButtons.vue';
+import ComposerAttachmentTray from './ComposerAttachmentTray.vue';
 import { useAutoGrow } from './useAutoGrow.ts';
 import './composerIsland.css';
 
@@ -347,8 +348,7 @@ function onKeydown(e: KeyboardEvent) {
       <slot name="selection" />
       <div class="grow" />
     </div>
-    <div v-if="attachments.length > 0 && !btwMode" class="attachment-preview">
-      <div class="attach-strip">
+    <ComposerAttachmentTray v-if="attachments.length > 0 && !btwMode" :items="attachments">
       <div v-for="(img, i) in attachments" :key="img.localUrl || img.placeholder || img.stored?.id" class="attach-thumb">
         <div v-if="img.unavailable" class="attachment-file" role="status"><Icon name="triangle-alert" /><span>{{ img.name }} · {{ tr('附件不可用，请移除或重新添加', 'Unavailable; remove or attach again') }}</span></div>
         <Hint v-else-if="img.kind === 'image'" :text="img.name"><img role="button" tabindex="0" aria-haspopup="dialog" :aria-expanded="attachmentPreview?.localUrl === img.localUrl" aria-controls="attachment-preview" @click="openAttachmentPreview(img, $event)" @keydown.enter.prevent="openAttachmentPreview(img, $event)" @keydown.space.prevent="openAttachmentPreview(img, $event)" :src="img.localUrl" :alt="img.name || i18n.t('chat.image')" /></Hint>
@@ -357,8 +357,7 @@ function onKeydown(e: KeyboardEvent) {
           <Icon name="x" class="sm" />
         </button>
       </div>
-    </div>
-    </div>
+    </ComposerAttachmentTray>
     <div v-if="capsFailed && !btwMode" class="caps-error">
       <span>{{ i18n.t('chat.capError') }}</span>
       <button class="btn ghost sm" @click="() => chat.reloadCapabilities()">{{ i18n.t('common.retry') }}</button>

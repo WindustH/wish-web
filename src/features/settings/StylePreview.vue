@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, provide, ref } from 'vue';
+import ComposerAttachmentPreview from './ComposerAttachmentPreview.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { stylePreviewFixtures, type PreviewCategory } from './stylePreviewFixtures.ts';
 import HistoryItem from '../sessions/HistoryItem.vue';
@@ -10,10 +11,10 @@ import GroupMessageCard from '../sessions/entries/GroupMessageCard.vue';
 import ActivityDialogs from '../sessions/ActivityDialogs.vue';
 import { openActivityKey, type ActivityRequest } from '../sessions/activityDialogs.ts';
 const samples = stylePreviewFixtures();
-const category = ref<PreviewCategory | 'all'>('all');
+const category = ref<PreviewCategory | 'all' | 'composer'>('all');
 const narrow = ref(false);
 const categories = computed(() => [
-  { id: 'all', label: tr('全部', 'All') }, { id: 'files', label: tr('文件卡片', 'Files') },
+  { id: 'composer', label: tr('输入框附件', 'Composer attachments') }, { id: 'all', label: tr('全部', 'All') }, { id: 'files', label: tr('文件卡片', 'Files') },
   { id: 'messages', label: tr('消息与错误', 'Messages & errors') }, { id: 'tools', label: tr('工具执行', 'Tools') },
   { id: 'sessions', label: tr('Session / 群组', 'Session / groups') },
 ]);
@@ -31,6 +32,11 @@ provide(openActivityKey, value => { request.value = { ...value, requestId: ++req
       <label><input v-model="narrow" type="checkbox" /> {{ tr('窄栏预览（390px）', 'Narrow column (390px)') }}</label>
     </div>
     <div class="preview-canvas" :class="{ narrow }">
+      <template v-if="category === 'all' || category === 'composer'">
+        <section class="preview-sample" data-preview="composer-single"><h3>{{ tr('浮动附件 · 单张图片', 'Floating attachment · Single image') }}</h3><ComposerAttachmentPreview :count="1" /></section>
+        <section class="preview-sample" data-preview="composer-mixed"><h3>{{ tr('浮动附件 · 图片与文件', 'Floating attachments · Images and files') }}</h3><ComposerAttachmentPreview :count="3" mixed /></section>
+        <section class="preview-sample" data-preview="composer-stack"><h3>{{ tr('浮动附件 · 超过五个，点击展开', 'Floating attachments · More than five, click to expand') }}</h3><ComposerAttachmentPreview :count="7" mixed /></section>
+      </template>
       <section v-for="sample in visible" :key="sample.id" class="preview-sample" :data-preview="sample.id">
         <h3>{{ tr(sample.zh, sample.en) }}</h3>
         <FileChangeCards v-if="sample.kind === 'files'" :item="sample.item" />

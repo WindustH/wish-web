@@ -309,7 +309,7 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .composer-mobile-actions > .btn.icon-only { width: 32px; height: 32px; flex: none; }
 .composer-mobile-actions .icon { width: 18px; height: 18px; }
 .composer.mobile .send-btn { flex: none; min-width: 0; width: 34px; height: 34px; padding: 0; }
-.composer .attachment-preview, .composer .caps-error { flex: none; }
+.composer .caps-error { flex: none; }
 .caps-error { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--warn); padding: 4px 0; }
 .attach-strip { display: flex; gap: 8px; padding: 8px; overflow-x: auto; }
 .attach-thumb { position: relative; flex: none; }
@@ -473,3 +473,8 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
 /* Selection owns held touches; quick swipes retain native list scrolling. */
 .sl-scroll.docked .sl-item { user-select: none; -webkit-touch-callout: none; }
 .sl-scroll.sl-range-selecting .sl-row { cursor: crosshair; }
+
+/* Keep the last message and start-page heading clear of floating draft attachments. */
+.chat-pane:has(.composer-attachment-tray) .chatlog { padding-bottom: calc(var(--composer-height, 96px) + 92px); }
+.chat-pane:has(.composer-attachment-tray) .jump-latest { bottom: calc(var(--composer-height, 96px) + 94px); }
+.composer-start:has(.composer-attachment-tray) { margin-top: 80px; }

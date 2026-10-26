@@ -42,7 +42,7 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/__style_preview`});
-  await until('document.querySelectorAll(".preview-sample").length===16','all gallery samples');
+  await until('document.querySelectorAll(".preview-sample").length===19','all gallery samples');
   for(const width of [390,1200]) {
     await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width===390});
     for(const theme of ['dark','light']) {
@@ -53,6 +53,23 @@ try {
       await writeFile(`.cache/style-preview/${width}-${theme}.png`,Buffer.from(image.data,'base64'));
     }
   }
+  for (const width of [390, 1200]) {
+    await send('Emulation.setDeviceMetricsOverride', {width,height:844,deviceScaleFactor:1,mobile:width===390});
+    assert.ok(await js(`Array.from(document.querySelectorAll('.attachment-composer-sample')).every(el => el.querySelector('.composer-attachment-tray').getBoundingClientRect().bottom < el.getBoundingClientRect().top)`), 'attachments float above the input border');
+    await js('document.querySelector("[data-preview=composer-stack] .attachment-stack").click()');
+    await until('document.querySelectorAll("[data-preview=composer-stack] .attach-thumb").length===7', 'expand every attachment');
+    assert.ok(await js('document.documentElement.scrollWidth<=innerWidth'), 'expanded attachment strip does not widen page');
+    await js('document.querySelector("[data-preview=composer-stack] [aria-expanded=true]").click()');
+    await until('!!document.querySelector("[data-preview=composer-stack] .attachment-stack")', 'collapse attachments');
+  }
+  await js('document.querySelector("[data-preview=composer-stack] .attachment-stack").click()');
+  await until('document.querySelectorAll("[data-preview=composer-stack] .rm").length===7', 'expanded remove buttons');
+  await js('document.querySelector("[data-preview=composer-stack] .rm").click()');
+  await until('!!document.querySelector("[data-preview=composer-stack] .attachment-stack")', 'six attachments stack');
+  await js('document.querySelector("[data-preview=composer-stack] .attachment-stack").click()');
+  await until('document.querySelectorAll("[data-preview=composer-stack] .rm").length===6', 'six expanded');
+  await js('document.querySelector("[data-preview=composer-stack] .rm").click()');
+  await until('document.querySelectorAll("[data-preview=composer-stack] .attach-thumb").length===5 && !document.querySelector("[data-preview=composer-stack] .attachment-stack")', 'five attachments stay expanded');
   async function close() {
     await sleep(500); // Wait for the opening transition and focus trap before Escape.
     await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
@@ -74,7 +91,7 @@ try {
   await until('!!document.querySelector(".proc-event")','session operation timeline');
   await close();
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['16 real-component samples','desktop/mobile dark/light','six-file dialog','category filter','group details without navigation','session operation timeline']}));
+  console.log(JSON.stringify({ok:true,checks:['19 real-component samples','desktop/mobile dark/light','six-file dialog','category filter','group details without navigation','session operation timeline']}));
 
 } finally {
   ws?.close();
