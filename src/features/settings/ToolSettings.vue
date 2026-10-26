@@ -2,8 +2,8 @@
 // The built-in tools new sessions start with, whether they may manage other sessions, and the shell
 // they run commands in.
 import ServerShellSettings from './ServerShellSettings.vue';
-import SwitchRow from './SwitchRow.vue';
 import ToolSwitchRows from './ToolSwitchRows.vue';
+import ToolBackgroundRow from './ToolBackgroundRow.vue';
 import ToolExecutionRow from './ToolExecutionRow.vue';
 import type { ShellCatalog } from '../../core/api/endpoints.ts';
 import { tr } from '../../core/i18n/tr.ts';
@@ -17,13 +17,8 @@ defineProps<{ config: any; shells: ShellCatalog | null; busy: boolean; searchAva
       <header class="set-section-head"><h3>{{ tr('默认启用', 'On by default') }}</h3><p>{{ tr('工具开关和提供方式仅作为新会话的默认值，不会改变已有会话；已有会话可单独配置。', 'Tool switches and delivery modes are defaults for new sessions only. Existing sessions keep their own settings.') }}</p></header>
       <div class="set-card">
         <ToolExecutionRow :model-value="config.defaults.run?.tools ?? 'Parallel'" :disabled="busy" @update:model-value="config.defaults.run = { ...config.defaults.run, tools: $event }" />
+        <ToolBackgroundRow :model-value="config.defaults.run?.background_tools_on_input ?? true" :disabled="busy" @update:model-value="config.defaults.run = { ...config.defaults.run, background_tools_on_input: $event }" />
         <ToolSwitchRows v-model="config.defaults.tools" :search-available="searchAvailable" in-settings />
-      </div>
-    </section>
-    <section v-if="config.defaults.tools" class="set-section">
-      <header class="set-section-head"><h3>{{ tr('会话与群组', 'Sessions and groups') }}</h3></header>
-      <div class="set-card">
-        <SwitchRow v-model="config.defaults.tools.sessions" :name="tr('新会话默认启用', 'On for new sessions')" :hint="config.defaults.tools.shell ? tr('模型可以用 wish session 查看、创建和联系其他会话；每个会话也可以单独开关', 'The model sees, makes and messages other sessions with wish session; each session can switch it') : tr('目前需要 Shell，而新会话默认不开启 Shell', 'Needs the shell for now, which new sessions start without')" />
       </div>
     </section>
     <section v-if="config.shell" class="set-section">

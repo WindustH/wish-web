@@ -2,6 +2,7 @@
 // Virtual rows render message content and question cards. Activity windows live in ActivityDialogs.
 import type { Component } from 'vue';
 import { computed } from 'vue';
+import FileChangeCards from './entries/FileChangeCards.vue';
 import ErrorEntry from './entries/ErrorEntry.vue';
 import UserEntry from './entries/UserEntry.vue';
 import AssistantEntry from './entries/AssistantEntry.vue';
@@ -31,6 +32,7 @@ const entryProps = computed(() => props.item.type === 'question' ? { item: props
 </script>
 
 <template>
+  <FileChangeCards :item="item" />
   <div v-if="item.type === 'entry' && item.entry?.seq != null" class="entry-anchor" :data-seq="item.entry.seq">
     <component :is="entryComponent" v-bind="entryProps" />
   </div>

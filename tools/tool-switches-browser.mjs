@@ -43,7 +43,14 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/__tool_switches`});
-  await until('!!window.fixture && document.querySelectorAll(".tool-delivery").length===5','controls mounted');
+  await until('!!window.fixture && document.querySelectorAll(".tool-delivery").length===6','controls mounted');
+  const session=`document.querySelector('[aria-label="Session 提供方式"], [aria-label="Session delivery"]')`;
+  await js(session+`.querySelector('input[value="tool"]').click()`);
+  await until('fixture.tools.value.sessions_delivery==="tool" && fixture.tools.value.sessions','session direct tool');
+  await js(session+`.querySelector('input[value="off"]').click()`);
+  await until('!fixture.tools.value.sessions','session disabled');
+  await js(session+`.querySelector('input[value="command"]').click()`);
+  await until('fixture.tools.value.sessions_delivery==="command" && fixture.tools.value.sessions','session command');
   const task=`document.querySelector('[aria-label="Task 提供方式"], [aria-label="Task delivery"]')`;
   assert.equal(await js(task+'.querySelectorAll("input").length'),3);
   assert.equal(await js(task+`.querySelector('input[value="off"]').disabled`),true);

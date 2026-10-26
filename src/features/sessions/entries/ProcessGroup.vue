@@ -60,7 +60,7 @@ const preview = (s: any): string => {
   }
   if (s.block?.type === 'tool_call') {
     const args = s.block.arguments ?? {};
-    return firstLine(args.command || args.query || args.text || args.execution_id || args.path || args.operation || '', 120);
+    return firstLine((args.action ? [args.action, args.target || args.input?.name].filter(Boolean).join(' · ') : '') || args.command || args.query || args.text || args.execution_id || args.path || args.operation || '', 120);
   }
   return firstLine(s.block?.text || '', 160);
 };

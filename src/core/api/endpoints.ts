@@ -146,7 +146,7 @@ export const sessionBackgroundShell = (id: string) => post(`${path(id)}/tasks/ba
 const inputAttachments = (blocks: readonly MessageBlock[] = []) => blocks.map(b => ({ id: b.blob_id, kind: b.type, name: b.filename ?? null,
   ...(b.byte_count != null ? { byte_count: b.byte_count } : {}), ...(b.placeholder ? { placeholder: b.placeholder } : {}) }));
 export const messageSend = async (id: string, body: { content?: string; blocks?: readonly MessageBlock[] }, opts?: EndpointOptions): Promise<{ id: string; entry: number; first_user_message?: boolean }> => {
-  const result = await post(`${path(id)}/input`, { background_shell: true, text: body.content ?? '', attachments: inputAttachments(body.blocks) }, opts);
+  const result = await post(`${path(id)}/input`, { text: body.content ?? '', attachments: inputAttachments(body.blocks) }, opts);
   return { id: String(result.entry), entry: result.entry, first_user_message: result.first_user_message === true };
 };
 // Combines requests: the queue holds entry positions, and each input is read from its entry.

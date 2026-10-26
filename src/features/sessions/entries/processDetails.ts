@@ -26,7 +26,7 @@ export const stepToolName=(step:any):string|undefined=>step.kind==='entry'?step.
 export const searchResults=(step:any)=>step.kind==='entry'&&step.entry.payload?.tool_name==='web_search'&&Array.isArray(step.entry.payload?.metadata?.results)?step.entry.payload.metadata:null;
 // Built-in tools by the names people read, in English whatever the language; any other tool keeps its own.
 const TOOL_TITLES:Record<string,string>={
-  shell_start:'Run Command',shell_poll:'Check Command',shell_write:'Send Input',shell_kill:'Stop Command',shell_edit:'Edit Files',shell:'Shell',task:'Task',
+  shell_start:'Run Command',shell_poll:'Check Command',shell_write:'Send Input',shell_kill:'Stop Command',shell_edit:'Edit Files',shell:'Shell',task:'Task',session:'Session',
   history_search:'Search History',history_read:'Read History',history_query:'Query History',view_image:'View Image',ask_user:'Ask User',web_search:'Web Search',web_fetch:'Web Fetch',
 };
 export const toolTitle=(name?:string)=>name?TOOL_TITLES[name]??name:'';
@@ -35,6 +35,7 @@ export function toolIcon(name?:string):string {
   // a window's rows, a step's heading.
   if(name==='shell_edit')return 'file-diff';
   if(name==='task')return 'tasks';
+  if(name==='session')return 'users';
   if(name?.startsWith('shell'))return 'terminal';
   if(name==='view_image')return 'image';
   if(name==='history_search')return 'history-search';
@@ -76,13 +77,14 @@ export function summarizeSteps(steps:any[], zh:boolean):string {
   if(searches)parts.push(zh?(searches===1?'搜索了网页':`搜索了 ${searches} 次网页`):(searches===1?'searched the web':`searched the web ${searches} times`));
   const pages=count('web_fetch');
   if(pages)parts.push(zh?`读取了 ${pages} 次网页`:`read webpages ${pages} ${pages===1?'time':'times'}`);
+  if(count('session'))parts.push(zh?'管理了会话与群组':'managed sessions and groups');
   if(count('task'))parts.push(zh?'管理了命令任务':'managed command tasks');
   if(count('history_search','history_read','history_query'))parts.push(zh?'查阅了会话历史':'looked through the history');
   const images=count('view_image');
   if(images)parts.push(zh?`查看了 ${images} 张图片`:`viewed ${plural(images,'image')}`);
   if(count('ask_user'))parts.push(zh?'向你提问':'asked you');
   for(const name of calls.keys()){
-    if(name.startsWith('shell')||name.startsWith('history_')||['web_search','web_fetch','task','view_image','ask_user'].includes(name))continue;
+    if(name.startsWith('shell')||name.startsWith('history_')||['web_search','web_fetch','task','session','view_image','ask_user'].includes(name))continue;
     parts.push(zh?`调用了 ${toolTitle(name)}`:`used ${toolTitle(name)}`);
   }
   if(!parts.length)return zh?'思考了一会儿':'Thought it over';

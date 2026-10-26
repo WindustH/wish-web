@@ -11,7 +11,7 @@ export interface SessionConfig {
   max_output_tokens: number | null;
   reasoning: { enabled?: boolean | null; effort?: string | null; summary?: string | null } | null;
   cache: any;
-  run: { tools: 'Serial' | 'Parallel' };
+  run: { tools: 'Serial' | 'Parallel'; background_tools_on_input?: boolean };
   compaction?: any;
 }
 export interface SessionDescriptor {
@@ -32,7 +32,7 @@ export interface SessionDescriptor {
 }
 /** `mcp` adds no tool of its own: the model reaches MCP servers with `wish mcp` in the shell. */
 export type ToolDelivery = 'tool' | 'command';
-export interface ToolSwitches { history_search?: boolean; history_search_delivery?: ToolDelivery; task_delivery?: ToolDelivery; web_fetch_delivery?: ToolDelivery; web_search_delivery?: ToolDelivery; ask_user_delivery?: ToolDelivery; shell: boolean; ask_user: boolean; mcp: boolean; web_search: boolean; web_fetch?: boolean; skills: boolean; sessions: boolean }
+export interface ToolSwitches { history_search?: boolean; history_search_delivery?: ToolDelivery; task_delivery?: ToolDelivery; web_fetch_delivery?: ToolDelivery; web_search_delivery?: ToolDelivery; ask_user_delivery?: ToolDelivery; shell: boolean; ask_user: boolean; mcp: boolean; web_search: boolean; web_fetch?: boolean; skills: boolean; sessions: boolean; sessions_delivery?: ToolDelivery }
 /** One question of an `ask_user` form, with its optional fields settled by the server. */
 export interface AskQuestion {
   type: 'choice' | 'text';
@@ -62,6 +62,7 @@ export interface SessionView {
   standby_preparing: boolean;
   context_tokens: number | null;
   pending_questions: PendingQuestion[];
+  background_tools?: { id: string; call_id: string; name: string; status: string }[];
   last_error: DisplayFailure | null;
   agent_custom: any; config: SessionConfig; descriptor: SessionDescriptor; status: any;
 }
@@ -115,6 +116,7 @@ export function sessionView(value: any): SessionView {
     context_tokens: status.context_tokens ?? null,
     // The forms the ask_user tool still holds open, for their cards.
     pending_questions: status.pending_questions ?? [],
+    background_tools: status.background_tools ?? [],
     last_error: operationFailure(status.last_operation),
     agent_custom: status.metadata?.agent_custom, config, descriptor: session, status,
   };
@@ -159,6 +161,11 @@ export function entryView(item: any, sessionId: string): EntryView {
         // Answers given after the question timed out; they show on the question's card.
         result.kind = 'developer_message';
         result.payload = { metadata: message.metadata, content: blocks(message.content) };
+      } else if (message.metadata?.source === 'background_tool_finished') {
+        result.kind = 'developer_message';
+        result.payload = { tool_name: message.metadata.tool_name, background: true,
+          metadata: { ...message.metadata, ...message.metadata.tool_metadata }, result: message.metadata.result,
+          content: blocks(message.content) };
       } else if (message.metadata?.source === 'background_execution_finished') {
         const raw = (message.content ?? []).filter((b: any) => b.Text).map((b: any) => b.Text.text).join('\n');
         let completion = message.metadata?.completion;

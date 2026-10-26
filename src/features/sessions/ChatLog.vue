@@ -13,7 +13,7 @@ import { groupEntries, inlineChips, type ChipItem, type ChipsItem, type GroupIte
 import { imageAlbums, type ImageAlbumItem } from './imageAlbums.ts';
 import ActivityRail from './ActivityRail.vue';
 import ActivityDialogs from './ActivityDialogs.vue';
-import type { ActivityRequest } from './activityDialogs.ts';
+import { openActivityKey, type ActivityRequest } from './activityDialogs.ts';
 import type { RailEvent, RailRow } from './railLayout.ts';
 import { chipEvents, noticeFailed, noticeIconName, noticeLabel, noticeText, noticeTone, resultLookup } from './entries/railMeta.ts';
 import type { EntryView } from '../../core/api/projections.ts';
@@ -77,6 +77,7 @@ let activityRequestId = 0;
 function openActivity(request: Omit<ActivityRequest, 'requestId'>) {
   activityRequest.value = { ...request, requestId: ++activityRequestId };
 }
+provide(openActivityKey, openActivity);
 watch(() => props.sessionId, () => { activityRequest.value = null; }, { flush: 'sync' });
 
 // The rail's rows: where each row starts and how tall it is - measured where the log has

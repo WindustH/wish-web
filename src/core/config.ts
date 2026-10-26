@@ -35,6 +35,7 @@ export const cfg = Object.freeze({
   },
 
   history: {
+    fileCardLimit: 3,                // larger file batches become one stacked card
     pageSize: 40,                     // /history page (also the DOM chunk size)
     contextPageSize: 256,             // finish a picture/activity group cut by a page
     reconcileDelayMs: 250,            // wait after response_complete before fetch

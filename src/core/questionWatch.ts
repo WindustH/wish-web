@@ -3,14 +3,14 @@
 import type { PendingQuestion } from './api/projections.ts';
 
 // The parts of a session projection the watch reads.
-interface QuestionState { id?: string; pending_questions?: readonly PendingQuestion[] }
+interface QuestionState { id?: string; pending_questions?: readonly PendingQuestion[]; background_tools?: readonly { call_id: string }[] }
 
 /** The forms of a session still waiting for an answer. */
 export const waitingForms = (session: QuestionState | null | undefined) =>
   (session?.pending_questions ?? []).filter(form => !form.timed_out);
 
 /** Whether a session's run is waiting on the user's answers. */
-export const awaitsAnswer = (session: QuestionState | null | undefined) => waitingForms(session).length > 0;
+export const awaitsAnswer = (session: QuestionState | null | undefined) => waitingForms(session).some(form => !session?.background_tools?.some(job => job.call_id === form.call_id));
 
 /**
  * Follows each session's open forms and reports those that newly wait for an answer. The first

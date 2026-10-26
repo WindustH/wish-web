@@ -15,6 +15,8 @@ import { fmtDateTime } from '../../../core/util/fmt.ts';
 
 const props = defineProps<{
   /** Who wrote it: a name, its colour and its session's page. Absent for this session's own. */
+  /** Local gallery: retain real card rendering without links to fabricated sessions/groups. */
+  preview?: boolean;
   author?: { name: string; color: string; to?: string };
   /** Said before the group: "in", or how this session sent it. */
   verb: string;
@@ -27,6 +29,7 @@ const props = defineProps<{
   at?: number;
 }>();
 const open = ref(false);
+const dialog = ref<InstanceType<typeof Modal> | null>(null);
 const color = computed(() => props.author?.color ?? 'var(--accent)');
 const initial = computed(() => [...(props.author?.name ?? '')][0]?.toUpperCase() ?? '');
 const time = computed(() => {
@@ -55,10 +58,11 @@ onBeforeUnmount(() => observer?.disconnect());
     <button type="button" class="group-card-open" :aria-label="`${title} · ${tr('查看完整消息', 'Show the whole message')}`" :aria-expanded="open" @click="open = true" />
     <header class="group-card-head">
       <span class="group-card-mark" aria-hidden="true"><template v-if="author">{{ initial }}</template><Icon v-else name="send" /></span>
-      <RouterLink v-if="author?.to" :to="author.to" class="group-card-author">{{ author.name }}</RouterLink>
+      <RouterLink v-if="author?.to && !preview" :to="author.to" class="group-card-author">{{ author.name }}</RouterLink>
       <span v-else-if="author" class="group-card-author">{{ author.name }}</span>
       <span class="group-card-verb">{{ verb }}</span>
-      <RouterLink :to="`/g/${group.id}`" class="group-card-group"><Icon name="users" />{{ group.name }}</RouterLink>
+      <RouterLink v-if="!preview" :to="`/g/${group.id}`" class="group-card-group"><Icon name="users" />{{ group.name }}</RouterLink>
+      <span v-if="preview" class="group-card-group"><Icon name="users" />{{ group.name }}</span>
       <span class="group-card-meta">
         <span v-if="note">{{ note }}</span>
         <time v-if="time" :datetime="new Date(at!).toISOString()">{{ time }}</time>
@@ -71,14 +75,15 @@ onBeforeUnmount(() => observer?.disconnect());
         <span v-if="images.length > 4" class="group-card-more">+{{ images.length - 4 }}</span>
       </div>
     </div>
-    <Modal :open="open" :title="title" compact content-class="group-message-window" @close="open = false">
-      <div class="group-card-actions"><CopyButton :text="text" /></div>
+    <Modal ref="dialog" :open="open" :title="title" compact content-class="group-message-window" @close="open = false">
+      <div class="group-card-actions"><CopyButton :text="text" /><button type="button" class="btn ghost icon-only" :aria-label="i18n.t('common.close')" @click="dialog?.close()"><Icon name="x" /></button></div>
       <div class="group-card-detail">
         <p class="group-card-detail-meta">
-          <RouterLink v-if="author?.to" :to="author.to">{{ author.name }}</RouterLink>
+          <RouterLink v-if="author?.to && !preview" :to="author.to">{{ author.name }}</RouterLink>
           <span v-else-if="author">{{ author.name }}</span>
           <span>{{ verb }}</span>
-          <RouterLink :to="`/g/${group.id}`"><Icon name="users" />{{ group.name }}</RouterLink>
+          <RouterLink v-if="!preview" :to="`/g/${group.id}`"><Icon name="users" />{{ group.name }}</RouterLink>
+          <span v-else><Icon name="users" />{{ group.name }}</span>
           <span v-if="at">· {{ fmtDateTime(at) }}</span>
           <span v-if="note">· {{ note }}</span>
         </p>
@@ -92,7 +97,7 @@ onBeforeUnmount(() => observer?.disconnect());
 <style scoped>
 :global(.modal-card.group-message-window:not(.modal-page)) { width: min(94vw, 42.5rem); }
 :global(.group-message-window.compact .modal-body) { position: relative; padding: 14px 16px 16px; }
-:global(.group-message-window .modal-flow-title) { padding-right: 48px; margin-bottom: 6px; }
+:global(.group-message-window .modal-flow-title) { padding-right: 76px; margin-bottom: 6px; }
 /* One surface, a short bar in the author's colour at its side; the whole card opens the window. */
 .group-card { position: relative; min-width: 0; padding: 10px 14px 12px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); transition: background var(--dur-fast); }
 .group-card::before { content: ''; position: absolute; left: -1px; top: 12px; bottom: 12px; width: 3px; border-radius: 0 3px 3px 0; background: var(--card-color); }

@@ -2,7 +2,7 @@
 import { ICONS } from '../../ui/icons.ts';
 import Icon from '../../ui/components/Icon.vue';
 // Tools for checking the app rather than configuring it; nothing here is saved.
-import { computed, inject } from 'vue';
+import { computed, inject, defineAsyncComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { openOnboardingPreview } from '../onboarding/preview.ts';
 import { cfg } from '../../core/config.ts';
@@ -15,7 +15,10 @@ import { closeOverlayKey } from '../../ui/composables/overlay.ts';
 import { stalls, clearStalls } from '../../ui/scrollStalls.ts';
 import { copyText } from '../../ui/clipboard.ts';
 
+const StylePreview = defineAsyncComponent(() => import('./StylePreview.vue'));
+const previewStyles = ref(false);
 const sections = computed(() => [
+  { id: 'styles', label: tr('样式预览', 'Style preview') },
   { id: 'diagnostics', label: tr('连接诊断', 'Connection diagnostics') },
   { id: 'scroll', label: tr('滚动卡住记录', 'Scroll stalls') },
   { id: 'onboarding', label: tr('首次使用引导', 'First-run setup') },
@@ -47,7 +50,11 @@ async function previewOnboarding() {
   <div class="ui-settings debug-settings">
     <SettingsSections prefix="debug" :sections="sections">
       <template #default="{ section }">
-        <ConnectionDiagnostics v-if="section === 'diagnostics'" />
+        <template v-if="section === 'styles'">
+          <button class="btn" :aria-expanded="previewStyles" aria-controls="debug-style-preview" @click="previewStyles = !previewStyles">{{ previewStyles ? tr('收起样式预览', 'Hide style preview') : tr('打开样式预览', 'Open style preview') }}</button>
+          <div v-if="previewStyles" id="debug-style-preview"><StylePreview /></div>
+        </template>
+        <ConnectionDiagnostics v-else-if="section === 'diagnostics'" />
         <template v-else-if="section === 'scroll'">
           <div class="set-card">
           <div class="set-row stall-summary">

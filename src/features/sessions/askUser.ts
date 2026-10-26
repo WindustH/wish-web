@@ -55,7 +55,7 @@ export function readForm(args: unknown): AskQuestion[] {
   });
 }
 
-interface Payload { result?: { status?: string; output?: { status?: string; answers?: AnswerRecord[] } }; metadata?: { answers?: AnswerRecord[] } }
+interface Payload { result?: { status?: string; output?: { status?: string; background?: boolean; answers?: AnswerRecord[] } }; metadata?: { answers?: AnswerRecord[] } }
 export interface QuestionSource { callId: string; result: { payload?: unknown } | null; late: { payload?: unknown } | null }
 
 export function formState(item: QuestionSource, pending: readonly PendingQuestion[], running: boolean): FormState {
@@ -66,6 +66,7 @@ export function formState(item: QuestionSource, pending: readonly PendingQuestio
   // No result yet: the call is still waiting, unless the run ended without closing it.
   if (!result) return (open && !open.timed_out) || running ? { kind: 'open' } : { kind: 'cancelled' };
   const output = result.status === 'success' ? result.output : undefined;
+  if (output?.background && open && !open.timed_out) return { kind: 'open' };
   switch (output?.status) {
     case 'answered': return { kind: 'answered', answers: output.answers ?? [] };
     case 'skipped': return { kind: 'skipped' };

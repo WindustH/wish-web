@@ -47,7 +47,9 @@ const PROCESS_BLOCK = (b: GroupBlock) => b.type === 'reasoning' || (b.type === '
 const payloadOf = (entry: GroupEntry) => (entry.payload ?? {}) as Record<string, any>;
 // The result an `ask_user` call got; a failed one (a malformed form) stays in the process.
 const questionResult = (entry: GroupEntry) =>
-  entry.kind === 'tool_result' && payloadOf(entry).tool_name === 'ask_user' ? payloadOf(entry).tool_call_id as string : null;
+  entry.kind === 'tool_result' && payloadOf(entry).tool_name === 'ask_user' ? payloadOf(entry).tool_call_id as string
+    : payloadOf(entry).metadata?.source === 'background_tool_finished' && payloadOf(entry).tool_name === 'ask_user'
+      ? payloadOf(entry).metadata.call_id as string : null;
 const lateAnswer = (entry: GroupEntry) =>
   entry.kind === 'developer_message' && payloadOf(entry).metadata?.source === 'ask_user_answer' ? payloadOf(entry).metadata.call_id as string : null;
 const failed = (entry: GroupEntry | undefined) => payloadOf(entry ?? {} as GroupEntry).result?.status === 'failed';
@@ -94,7 +96,7 @@ export function groupEntries<E extends GroupEntry>(entries: readonly E[]): Group
     }
     // A question's result shows on its card; a late answer stays where it arrived, as a notice.
     const result = questionResult(entry);
-    if (result && !failed(entry)) continue;
+    if (result && entry.kind === 'tool_result' && !failed(entry)) continue;
     if (entry.kind === 'tool_result') {
       pushGroupStep({ kind: 'entry', entry, key: entryId(entry) }, entry.run_id);
       continue;

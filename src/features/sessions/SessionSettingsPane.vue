@@ -18,6 +18,7 @@ import type { ShellCatalog } from '../../core/api/endpoints.ts';
 import '../settings/settings.css';
 import ToolSwitchRows from '../settings/ToolSwitchRows.vue';
 import SwitchRow from '../settings/SwitchRow.vue';
+import ToolBackgroundRow from '../settings/ToolBackgroundRow.vue';
 import ToolExecutionRow from '../settings/ToolExecutionRow.vue';
 
 defineEmits<{ close: [] }>();
@@ -30,11 +31,12 @@ type Shell = { program: string; args: string[] | null };
 const compaction = ref<Compaction | null>(null);
 const tools = ref<ToolSwitches>({ shell: false, ask_user: false, mcp: false, web_search: false, web_fetch: false, skills: false, sessions: false });
 const execution = ref<'Serial' | 'Parallel'>('Parallel');
+const backgroundTools = ref(false);
 const ownShell = ref(false);
 const cwd = ref('');
 const shell = ref<Shell>({ program: '', args: null });
 const source = ref('');
-const draftValue = () => JSON.stringify({ cwd: cwd.value, compaction: compaction.value, execution: execution.value, tools: tools.value, shell: ownShell.value ? shell.value : null });
+const draftValue = () => JSON.stringify({ cwd: cwd.value, compaction: compaction.value, execution: execution.value, backgroundTools: backgroundTools.value, tools: tools.value, shell: ownShell.value ? shell.value : null });
 const dirty = computed(() => !!source.value && draftValue() !== source.value);
 
 let loadedFor: string | null = null;
@@ -43,6 +45,7 @@ function reset() {
   if (!current) return;
   loadedFor = current.id;
   execution.value = current.config?.run?.tools ?? 'Parallel';
+  backgroundTools.value = current.config?.run?.background_tools_on_input ?? false;
   compaction.value = current.config?.compaction ? structuredClone(current.config.compaction) : null;
   const switches = current.descriptor?.tools;
   tools.value = { ...switches, shell: !!switches?.shell, ask_user: !!switches?.ask_user, mcp: !!switches?.mcp, web_search: !!switches?.web_search, web_fetch: !!switches?.web_fetch, skills: !!switches?.skills, sessions: !!switches?.sessions };
@@ -102,8 +105,8 @@ async function save() {
   const saved = JSON.parse(source.value);
   busy.value = true;
   try {
-    if (execution.value !== saved.execution || JSON.stringify(compaction.value) !== JSON.stringify(saved.compaction)) {
-      const next = await api.sessionUpdateConfig(id, { ...current.config, compaction: compaction.value, run: { ...current.config.run, tools: execution.value } }, current.revision);
+    if (execution.value !== saved.execution || backgroundTools.value !== saved.backgroundTools || JSON.stringify(compaction.value) !== JSON.stringify(saved.compaction)) {
+      const next = await api.sessionUpdateConfig(id, { ...current.config, compaction: compaction.value, run: { ...current.config.run, tools: execution.value, background_tools_on_input: backgroundTools.value } }, current.revision);
       chat.adoptSnapshot(id, next);
     }
     // After the config: switching tools rebuilds the session's tool list on the server.
@@ -175,6 +178,7 @@ async function act(kind: 'compact' | 'clear') {
       <header class="set-section-head"><h3>{{ tr('工具', 'Tools') }}</h3><p>{{ tr('模型在这个会话里可以使用的内置工具。', 'Built-in tools the model can use in this session.') }}</p></header>
       <div class="set-card">
         <ToolExecutionRow v-model="execution" :disabled="running || busy" :note="running ? savedLater() : undefined" />
+        <ToolBackgroundRow v-model="backgroundTools" :disabled="running || busy" />
         <ToolSwitchRows v-model="tools" :search-available="searchAvailable" :note="running ? savedLater() : undefined" />
       </div>
     </section>
@@ -184,7 +188,6 @@ async function act(kind: 'compact' | 'clear') {
       <div class="set-card">
         <SwitchRow v-model="tools.mcp" :name="tr('MCP 服务器', 'MCP servers')" :hint="switchHint(tr('调用已配置的 MCP 服务器', 'Call the configured MCP servers'))" />
         <SwitchRow v-model="tools.skills" name="Skill" :hint="switchHint(tr('查找和读取 Skill', 'Find and read skills'))" />
-        <SwitchRow v-model="tools.sessions" :name="tr('会话与群组', 'Sessions and groups')" :hint="switchHint(tr('查看、创建和联系其他会话', 'See, make and message other sessions'))" />
       </div>
     </section>
 

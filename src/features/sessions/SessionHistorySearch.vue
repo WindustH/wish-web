@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { unfold, fold, cancelFold } from "../../ui/motion/fold.ts";
-import Modal from '../../ui/components/Modal.vue';
 // Server-side history search with generational guards; jumping locates the
 // seq through the bounded window (never a full scan); errors surface.
-import { onUnmounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import * as api from '../../core/api/endpoints.ts';
 import { chat } from '../../core/state/chatSlice.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -14,9 +12,11 @@ import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { useSessionRequests } from './useSessionRequests.ts';
 
-const emit = defineEmits<{ close: [] }>();
-const router = useRouter();
+const input = ref<HTMLInputElement | null>(null);
 const isMobile = useIsMobile();
+onMounted(() => { if (!isMobile.value) input.value?.focus({ preventScroll: true }); });
+
+const emit = defineEmits<{ close: [] }>();
 
 interface SearchState { status: string; query?: string; items?: any[]; more?: boolean; error?: any }
 const state = ref<SearchState>({ status: 'idle' });
@@ -77,8 +77,7 @@ async function jump(hit: any) {
     const ok = await chat.locate(sid!, hit.seq);
     if (!current()) return;
     if (ok) {
-      if (isMobile.value) await router.push({ name: 'chat', params: { id: sid! } });
-      else emit('close');
+      emit('close');
     }
     else state.value = { status: 'error', items: state.value.items ?? [], error: { localized: 'search.locateFailed' } };
   } catch (error) {
@@ -99,9 +98,9 @@ onUnmounted(() => { if (searchDebounce) clearTimeout(searchDebounce); });
 </script>
 
 <template>
-  <Modal :open="true" :back-layer="!isMobile" content-class="session-window history-search-window" :title="i18n.t('search.title')" :page="isMobile" @close="$emit('close')">
+  <div class="session-history-search">
     <div class="search-row">
-      <input v-model="q" class="input" data-initial-focus type="search" :disabled="locating !== null"
+      <input ref="input" v-model="q" class="input" data-initial-focus type="search" :disabled="locating !== null"
         @compositionstart="composing = true" @compositionend="composing = false; scheduleSearch()" :placeholder="i18n.t('search.placeholder')"
         :aria-label="i18n.t('search.placeholder')" @keydown.enter.prevent="run" />
       <button class="btn primary" :disabled="state.status === 'busy' || locating !== null || !q.trim()" @click="run">
@@ -126,5 +125,9 @@ onUnmounted(() => { if (searchDebounce) clearTimeout(searchDebounce); });
       <button v-if="state.more" class="btn ghost" :disabled="state.status === 'busy' || locating !== null" @click="more">{{ i18n.t('search.more') }}</button>
     </div>
     </div>
-  </Modal>
+  </div>
 </template>
+
+<style scoped>
+.session-history-search { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+</style>

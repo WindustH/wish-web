@@ -3,6 +3,7 @@
 // each correction shifts the scroll position; close guesses keep those shifts
 // small, so scrolling up through history stays steady. The numbers come from
 // measuring real conversations at desktop and phone widths.
+import { fileCardsHeight } from './fileChanges.ts';
 import type { GroupBlock, GroupItem } from './grouping.ts';
 import { albumHeight, imageParts, type ImageAlbumItem } from './imageAlbums.ts';
 
@@ -35,6 +36,9 @@ const mediaHeight = (blocks: readonly GroupBlock[], width: number) => imageParts
 
 /** `width` is the conversation column's; below 600px the phone layout's sizes apply. */
 export function estimateRow(row: GroupItem | ImageAlbumItem | { type: string }, width: number): number {
+  return fileCardsHeight(row) + estimateContent(row, width);
+}
+function estimateContent(row: GroupItem | ImageAlbumItem | { type: string }, width: number): number {
   const compact = width < 600;
   if (row.type === 'process') return compact ? 62 : 53;
   // A process-only row is an unseen host: its events ride the rail that floats beside the log,

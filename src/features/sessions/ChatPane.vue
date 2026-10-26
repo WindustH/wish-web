@@ -8,7 +8,7 @@ import { modelLabel } from '../../ui/modelLabel.ts';
 import { sessionParent } from '../shell/sessionNavigation.ts';
 import { sessionPanelCloseKey } from '../../ui/composables/sessionPanel.ts';
 import Hint from '../../ui/components/Hint.vue';
-// Chat surface: top bar (desktop three actions / mobile back+menu), log,
+// Chat surface: top bar (desktop information/settings / mobile back+menu), log,
 // composer, and child-route dialogs (mobile subpages). Opening session
 // actions never rebuilds the conversation.
 import { computed, onBeforeUnmount, onMounted, provide, shallowRef, ref, watch } from 'vue';
@@ -22,7 +22,6 @@ import ChatLog from './ChatLog.vue';
 import Composer from './Composer.vue';
 import QueueDock from './QueueDock.vue';
 import InfoPane from './InfoPane.vue';
-import SearchPane from './SearchPane.vue';
 import SessionSettingsPane from './SessionSettingsPane.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
@@ -37,18 +36,20 @@ const router = useRouter();
 const isMobile = useIsMobile();
 
 const id = computed(() => route.params.id as string);
-type SessionTab = 'info' | 'search' | 'settings';
+type SessionTab = 'info' | 'settings';
 const routeTab = computed<SessionTab | null>(() => {
   const n = route.name as string;
-  return n === 'chat-info' ? 'info' : n === 'chat-search' ? 'search' : n === 'chat-settings' ? 'settings' : null;
+  return n === 'chat-info' || n === 'chat-search' ? 'info' : n === 'chat-settings' ? 'settings' : null;
 });
 const desktopTab = ref<SessionTab | null>(null);
+const infoInitialSection = ref<'overview' | 'search'>('overview');
 const tab = computed(() => isMobile.value ? routeTab.value : desktopTab.value);
 
 // Existing mobile/deep links still open the right panel. On desktop the
 // panel is local UI state, so normalize a child URL to the session URL once.
-watch([isMobile, routeTab, id], ([mobile, child, sessionId]) => {
+watch([isMobile, routeTab, id, () => route.name], ([mobile, child, sessionId, routeName]) => {
   if (!mobile && child && sessionId) {
+    infoInitialSection.value = routeName === 'chat-search' ? 'search' : 'overview';
     desktopTab.value = child;
     void router.replace({ name: 'chat', params: { id: sessionId } });
   }
@@ -78,7 +79,6 @@ function titleAction(key: string) {
 watch(id, () => { renameTarget.value = null; });
 const tabs = computed(() => [
   { key: 'info', icon: 'info', label: i18n.t('chatbar.info') },
-  { key: 'search', icon: 'search', label: i18n.t('chatbar.search') },
   { key: 'settings', icon: 'tune', label: i18n.t('chatbar.settings') },
 ]);
 const queued = computed(() => chat.deliveries.value);
@@ -122,7 +122,7 @@ const goTab = (t: SessionTab) => {
       if (panelClose.value) panelClose.value();
       else desktopTab.value = null;
     }
-    else desktopTab.value = t;
+    else { infoInitialSection.value = 'overview'; desktopTab.value = t; }
   } else if (routeTab.value === t) closeTab();
   else void router.push({ name: `chat-${t}`, params: { id: id.value } });
 };
@@ -165,8 +165,7 @@ const goTab = (t: SessionTab) => {
     <RouterView v-slot="{ Component, route: panelRoute }">
       <component :is="Component" v-if="isMobile" :key="panelRoute.fullPath" @close="closeTab(panelRoute.fullPath)" />
     </RouterView>
-    <InfoPane v-if="!isMobile && desktopTab === 'info'" @close="desktopTab = null" />
-    <SearchPane v-if="!isMobile && desktopTab === 'search'" @close="desktopTab = null" />
+    <InfoPane v-if="!isMobile && desktopTab === 'info'" :initial-section="infoInitialSection" @close="desktopTab = null" />
     <SessionSettingsPane v-if="!isMobile && desktopTab === 'settings'" @close="desktopTab = null" />
     <SessionListAction v-if="renameTarget" :target="renameTarget" kind="rename" @close="renameTarget = null" />
     <ModelSettings v-if="modelOpen" :session-id="id" @close="modelOpen = false" />

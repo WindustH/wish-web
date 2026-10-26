@@ -4,7 +4,7 @@ import { entryView } from '../src/core/api/projections.ts';
 import { groupEntries } from '../src/features/sessions/grouping.ts';
 import { fileEdits, searchResults, stepFailed } from '../src/features/sessions/entries/processDetails.ts';
 const event = (seq:number, value:any) => entryView({record:{sequence:seq,recorded_at:'2026-10-26T00:00:00Z'}, content:{kind:'event',value:{Application:value}}},'session');
-for(const name of ['web_fetch','web_search','task','ask_user']) {
+for(const name of ['web_fetch','web_search','task','ask_user','session']) {
   test(`${name} command events project as normal tool calls/results`,()=>{
     const call=event(1,{type:'command_tool_use',name,call_id:'call',arguments:{questions:[{type:'text',question:'Name?'}]}});
     const result=event(2,{type:'command_tool_result',name,call_id:'call',content:{status:'success',output:{status:'answered',answers:[]}},metadata:{results:[{url:'https://example.com'}]}});

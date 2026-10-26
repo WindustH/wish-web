@@ -6,6 +6,10 @@ import type { EntryView } from '../../core/api/projections.ts';
 import type { ChipItem } from './grouping.ts';
 import type { ActivityRequest } from './activityDialogs.ts';
 import ProcessGroup from './entries/ProcessGroup.vue';
+import Modal from '../../ui/components/Modal.vue';
+import FileDiff from './entries/FileDiff.vue';
+import { changedFiles } from './fileChanges.ts';
+import { tr } from '../../core/i18n/tr.ts';
 import SystemEntry from './entries/SystemEntry.vue';
 
 const props = defineProps<{ chips: ChipItem<EntryView>[]; request: ActivityRequest | null;
@@ -31,6 +35,8 @@ function closeActivity(key: string) {
 watch(() => props.chips, chips => {
   if (selected.value && !chips.some(chip => chip.key === selected.value!.chipKey)) closeActivity(selected.value.chipKey);
 });
+const selectedFiles = computed(() => selected.value?.files
+  ? activeChips.value.flatMap(chip => changedFiles(chip)).filter(file => !selected.value?.filePath || file.path === selected.value.filePath) : []);
 const requestedStep = computed(() => {
   const request = selected.value;
   return request?.stepKey
@@ -40,16 +46,22 @@ const requestedStep = computed(() => {
 
 <template>
   <div class="activity-dialog-host">
+    <Modal v-if="selected?.files" :open="true" wide :title="tr('文件修改', 'File changes')" @close="selected && closeActivity(selected.chipKey)">
+      <div class="file-change-details"><template v-for="file in selectedFiles" :key="file.path">
+        <FileDiff v-for="(edit, index) in file.edits" :key="`${file.path}:${index}`" :edit="edit" />
+      </template></div>
+    </Modal>
     <template v-for="chip in activeChips" :key="chip.key">
-      <ProcessGroup v-if="chip.type === 'process'" variant="ghost" :item="chip" :session="session"
+      <ProcessGroup v-if="chip.type === 'process' && !selected?.files" variant="ghost" :item="chip" :session="session"
         :forced="searchSelections.has(chip.key)" :open-step="selected?.chipKey === chip.key ? requestedStep : undefined"
         :open-tick="selected?.chipKey === chip.key && !selected.stepKey ? selected.requestId : undefined"
         :target-seq="locateSeq" @close="closeActivity(chip.key)" />
-      <SystemEntry v-else variant="ghost" :item="chip" :forced="searchSelections.has(chip.key)"
+      <SystemEntry v-else-if="chip.type !== 'process'" variant="ghost" :item="chip" :forced="searchSelections.has(chip.key)"
         :open-tick="selected?.chipKey === chip.key ? selected.requestId : undefined" @close="closeActivity(chip.key)" />
     </template>
   </div>
 </template>
 <style scoped>
+.file-change-details { display: grid; gap: 12px; min-width: 0; }
 .activity-dialog-host { display: contents; }
 </style>

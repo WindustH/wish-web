@@ -31,6 +31,7 @@ watch(drafts, value => stored.set(key, value), { deep: true });
 const sent = ref<AnswerRecord[] | 'skipped' | null>(null);
 const sending = ref(false);
 const answerable = computed(() => !sent.value && (state.value.kind === 'open' || (state.value.kind === 'timed_out' && state.value.open)));
+const background = computed(() => snapshot.value?.background_tools?.some(job => job.call_id === props.item.callId));
 const late = computed(() => state.value.kind === 'timed_out');
 const answeredCount = computed(() => questions.value.filter((question, index) => draftAnswered(question, drafts.value[index] ?? emptyDraft())).length);
 
@@ -59,7 +60,7 @@ const clock = setInterval(() => { now.value = Date.now(); }, 15_000);
 onUnmounted(() => clearInterval(clock));
 const deadline = computed(() => {
   const form = pending.value.find(item => item.call_id === props.item.callId);
-  if (state.value.kind !== 'open' || !form?.timeout_seconds) return null;
+  if (background.value || state.value.kind !== 'open' || !form?.timeout_seconds) return null;
   const left = Math.max(0, form.asked_at + form.timeout_seconds * 1000 - now.value) / 1000;
   const format = new Intl.RelativeTimeFormat(intlLocale(), { numeric: 'always' });
   const when = left < 90 ? format.format(Math.max(1, Math.round(left)), 'second')
@@ -138,6 +139,7 @@ const stored = new Map<string, Draft[]>();
     </header>
 
     <p v-if="late && answerable" class="question-note"><Icon name="clock" />{{ tr('模型没等到回答，已经按自己的判断继续了。现在回答，会作为一条新消息发给它。', 'The model stopped waiting and carried on with its own judgement. Answers you give now reach it as a new message.') }}</p>
+    <p v-else-if="background && answerable" class="question-note"><Icon name="tasks" />{{ tr('提问已转入后台，你仍可回答；模型正在处理后续消息。', 'This question is in the background and still accepts an answer while the model handles new messages.') }}</p>
     <p v-else-if="deadline && answerable" class="question-note"><Icon name="clock" />{{ deadline }}</p>
 
     <template v-if="answerable">

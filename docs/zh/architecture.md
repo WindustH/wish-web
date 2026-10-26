@@ -104,3 +104,13 @@ Service Worker 由 `vite-plugin-pwa` 借助 Workbox 生成：
 Android 真机回归还发现 `popstate` 的 Window 监听顺序不能靠 `capture: true` 修正：生产路由必须先创建 `backLayers`，再调用 `createWebHashHistory`。否则路由器先消费返回事件，后续控制器再恢复历史，会产生重复导航；模拟测试也必须保持注册顺序，不能自行把 capture 监听排到前面。
 
 已连接 ADB 时可运行 `node tools/android-back-regression.mjs http://host:8790 TAB_ID`。先把指定 Wish 标签页置于前台并返回首页；脚本只打开配置，不修改或保存配置，通过 Android 屏幕左右边缘滑动验证详情、分类、首页、退出确认及取消后的交互。
+
+### 文件修改卡片
+
+Shell 结果中的文件修改从 `metadata.edits`（旧结果回退到工具输出）读取，不通过命令文本猜测。
+同一段活动内每个文件一张正文卡片；1～3 个文件逐张展示，超过 3 个文件显示带数量的层叠卡片。
+同一路径的多次修改保留各次 diff，合并到一张文件卡片。未变化的文件不生成卡片。
+单张卡片打开该文件，层叠卡片打开整组文件；弹窗由会话级 `ActivityDialogs` 持有，虚拟行回收不关闭弹窗。
+Shell 和 Session 操作仍保留时间轴记录，文件卡片不会替代工具执行历史。
+
+验证：`tools/file-changes.test.ts`、`tools/file-changes-browser.mjs`。

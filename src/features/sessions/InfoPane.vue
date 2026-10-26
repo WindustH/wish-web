@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SessionHistorySearch from './SessionHistorySearch.vue';
+import SelectField from '../../ui/components/SelectField.vue';
 import { errorDetail } from '../../core/errors.ts';
 import Modal from '../../ui/components/Modal.vue';
 // Session details and usage; requests belong to this mounted session.
@@ -20,6 +22,10 @@ import { useSessionRequests } from './useSessionRequests.ts';
 import { RouterLink } from 'vue-router';
 import Icon from '../../ui/components/Icon.vue';
 import type { GroupView } from '../../core/api/types.ts';
+
+const props = withDefaults(defineProps<{ initialSection?: 'overview' | 'search' }>(), { initialSection: 'overview' });
+const section = ref(props.initialSection);
+watch(() => props.initialSection, value => { section.value = value; });
 
 const GenerationInspector = defineAsyncComponent(() => import('./GenerationInspector.vue'));
 const inspectOpen = ref(false);
@@ -82,7 +88,13 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
 </script>
 
 <template>
-  <Modal :open="true" :back-layer="!isMobile" content-class="session-window usage-info-window" :title="i18n.t('info.title')" :page="isMobile" @close="$emit('close')">
+  <Modal :open="true" :back-layer="!isMobile" :content-class="`session-window usage-info-window${section === 'search' ? ' history-search-window' : ''}`" :title="i18n.t('info.title')" :page="isMobile" @close="$emit('close')">
+    <div class="info-sections">
+      <SelectField segmented v-model="section" :aria-label="tr('会话信息内容', 'Session information section')"
+        :options="[{ value: 'overview', label: tr('概览', 'Overview') }, { value: 'search', label: i18n.t('chatbar.search') }]" />
+    </div>
+    <SessionHistorySearch v-if="section === 'search'" @close="$emit('close')" />
+    <template v-else>
     <div v-if="err" class="load-error" role="alert">
       <span>{{ errorDetail(err) }}</span>
       <button class="btn ghost sm" @click="refresh">{{ i18n.t('common.retry') }}</button>
@@ -149,11 +161,13 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
       <p v-else-if="!err" class="hint">{{ i18n.t('sessions.loading') }}</p>
     </section>
     <UsageCharts v-if="chat.sessionId.value" :session-id="chat.sessionId.value" />
+    </template>
   </Modal>
 <GenerationInspector v-if="inspectOpen && snapshot" :session-id="snapshot.id" @close="inspectOpen = false" />
 </template>
 
 <style scoped>
+.info-sections { display: flex; flex: none; margin-bottom: 16px; }
 .info-card { padding: 12px; margin-bottom: 10px; }
 .info-card-head { margin-bottom: 8px; }
 .info-facts { gap: 8px 12px; }

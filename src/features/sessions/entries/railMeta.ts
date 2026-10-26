@@ -32,7 +32,7 @@ export const noticeTone = (entry: any): 'error' | 'warn' | 'system' =>
 /** Whether a background command's notice tells of its death: killed, errored, or exited otherwise than 0. */
 export function noticeFailed(entry: any): boolean {
   const output = entry.payload?.result?.output;
-  return output?.process?.status === 'killed' || !!output?.error || !!output?.process?.error
+  return entry.payload?.result?.status === 'failed' || entry.payload?.result?.status === 'unknown' || entry.payload?.result?.status === 'cancelled' || output?.process?.status === 'killed' || !!output?.error || !!output?.process?.error
     || (output?.process?.exit_code != null && output.process.exit_code !== 0);
 }
 
@@ -40,6 +40,7 @@ export function noticeFailed(entry: any): boolean {
 export function noticeLabel(entry: any): string {
   if (entry.payload?.instruction_title) return entry.payload.instruction_title;
   if (entry.payload?.background) {
+    if (entry.payload.tool_name && entry.payload.tool_name !== 'shell') return `${toolTitle(entry.payload.tool_name)} · ${i18n.locale.value === 'zh' ? '后台结果' : 'Background result'}`;
     const output = entry.payload.result?.output;
     const zh = i18n.locale.value === 'zh';
     if (output?.process?.status === 'killed') return zh ? '后台 Shell 已终止' : 'Background shell terminated';
@@ -52,7 +53,7 @@ export function noticeLabel(entry: any): string {
 
 export const noticeIconName = (entry: any): string => {
   if (entry.payload?.instruction_title || entry.kind === 'developer_message' && !entry.payload?.background) return 'instruction';
-  if (entry.payload?.background) return 'terminal';
+  if (entry.payload?.background) return toolIcon(entry.payload.tool_name ?? 'shell');
   const tone = noticeTone(entry);
   return tone === 'system' ? 'circle-dot' : tone === 'error' ? 'x' : 'triangle-alert';
 };
@@ -102,7 +103,7 @@ function stepPreview(step: any, zh: boolean): string {
   }
   if (step.block?.type === 'tool_call') {
     const args = step.block.arguments ?? {};
-    return firstLine(args.command || args.query || args.text || args.execution_id || args.path || args.operation || '', 120);
+    return firstLine((args.action ? [args.action, args.target || args.input?.name].filter(Boolean).join(' · ') : '') || args.command || args.query || args.text || args.execution_id || args.path || args.operation || '', 120);
   }
   return firstLine(step.block?.text || '', 160);
 }

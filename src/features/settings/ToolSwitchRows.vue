@@ -18,6 +18,7 @@ const props = defineProps<{
 const tools = defineModel<ToolSwitches>({ required: true });
 const rows = computed(() => [
   { key: 'shell' as const, name: 'Shell', hint: tr('在工作目录中执行命令', 'Run commands in the working directory') },
+  { key: 'sessions' as const, name: 'Session', hint: tr('查看、创建和联系其他会话与群组', 'View, create and message other sessions and groups') },
   { key: 'history_search' as const, name: 'History Search', hint: tr('搜索和读取当前会话的历史记录', 'Search and read this session’s history') },
   { key: 'web_fetch' as const, name: 'Web Fetch', hint: tr('通过网页读取提供商获取链接正文','Read webpages through configured fetch providers') },
   { key: 'ask_user' as const, name: 'Ask User', hint: tr('需要你决定时，给出选项或请你填写', 'Offer choices or ask you to fill in details when your call is needed') },
@@ -34,15 +35,15 @@ const taskOptions = computed(() => [
   ...deliveryOptions.value.map(option => ({ ...option, disabled: !tools.value.shell })),
 ]);
 const capabilityOptions = computed(() => [{ value: 'off', icon: 'x', tone: 'danger' as const, label: tr('关闭', 'Off') }, ...deliveryOptions.value]);
-function setCapability(key: 'ask_user' | 'web_fetch' | 'web_search' | 'history_search', value: string) {
+function setCapability(key: 'ask_user' | 'web_fetch' | 'web_search' | 'history_search' | 'sessions', value: string) {
   tools.value[key] = value !== 'off';
   if (value !== 'off') tools.value[deliveryKey(key)] = value as ToolDelivery;
 }
-function deliveryKey(key: 'shell' | 'ask_user' | 'web_fetch' | 'web_search' | 'history_search') {
-  return key === 'shell' ? 'task_delivery' as const : `${key}_delivery` as 'ask_user_delivery' | 'web_fetch_delivery' | 'web_search_delivery' | 'history_search_delivery';
+function deliveryKey(key: 'shell' | 'ask_user' | 'web_fetch' | 'web_search' | 'history_search' | 'sessions') {
+  return key === 'shell' ? 'task_delivery' as const : `${key}_delivery` as 'ask_user_delivery' | 'web_fetch_delivery' | 'web_search_delivery' | 'history_search_delivery' | 'sessions_delivery';
 }
-function delivery(key: 'shell' | 'ask_user' | 'web_fetch' | 'web_search' | 'history_search'): ToolDelivery {
-  return tools.value[deliveryKey(key)] ?? (key === 'shell' ? 'command' : 'tool');
+function delivery(key: 'shell' | 'ask_user' | 'web_fetch' | 'web_search' | 'history_search' | 'sessions'): ToolDelivery {
+  return tools.value[deliveryKey(key)] ?? (key === 'shell' || key === 'sessions' ? 'command' : 'tool');
 }
 </script>
 
