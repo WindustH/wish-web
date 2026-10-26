@@ -100,3 +100,7 @@ Service Worker 由 `vite-plugin-pwa` 借助 Workbox 生成：
 验证入口：`tools/dialog-lifecycle.test.ts`、`tools/back-layers.test.ts`、`tools/chat-browser-regression.mjs` 和 `tools/settings-navigation-browser.mjs`。后者使用真实 Hash History，覆盖账户详情返回、分类返回、首页退出确认与取消。
 
 移动端历史边界在 Back 后通过 forward 恢复原记录，再执行关闭或父页替换；禁止在连续返回后用 pushState 重建边界。Chromium 在返回后会停止认可之前的用户激活，此时 pushState 可能使同文档记录全部被系统返回跳过。`history.back()` 不应用这套跳过规则，因此单独通过它的测试不足以证明 Android 手势返回正常。单元测试模拟该规则，浏览器回归额外断言连续返回不增加历史记录。参见 [Chromium history manipulation intervention](https://chromium.googlesource.com/chromium/src/+/main/docs/history_manipulation_intervention.md)。
+
+Android 真机回归还发现 `popstate` 的 Window 监听顺序不能靠 `capture: true` 修正：生产路由必须先创建 `backLayers`，再调用 `createWebHashHistory`。否则路由器先消费返回事件，后续控制器再恢复历史，会产生重复导航；模拟测试也必须保持注册顺序，不能自行把 capture 监听排到前面。
+
+已连接 ADB 时可运行 `node tools/android-back-regression.mjs http://host:8790 TAB_ID`。先把指定 Wish 标签页置于前台并返回首页；脚本只打开配置，不修改或保存配置，通过 Android 屏幕左右边缘滑动验证详情、分类、首页、退出确认及取消后的交互。
