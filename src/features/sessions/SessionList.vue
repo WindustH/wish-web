@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useTouchRangeSelection } from './useTouchRangeSelection.ts';
 import { useKeyboardScope } from '../../ui/composables/useKeyboardScope.ts';
 import { sessionNaming } from '../../core/state/sessionNaming.ts';
 import Hint from '../../ui/components/Hint.vue';
@@ -71,6 +72,7 @@ function activateRow(id: string, event: MouseEvent) {
 }
 // Sessions and groups are chosen, as far as they show; folders are opened.
 const entries = computed(() => lines.value.flatMap(line => line.kind === 'row' && line.row.kind !== 'folder' ? [line.row] : []));
+const touchSelection = useTouchRangeSelection(listEl, selecting, () => entries.value.map(row => row.id), chosen);
 const sessionRows = computed(() => entries.value.filter(row => row.kind === 'session'));
 const chosenRows = computed(() => entries.value.filter(row => chosen.value.has(row.id)));
 const chosenSessions = computed(() => chosenRows.value.filter(row => row.kind === 'session'));
@@ -178,6 +180,7 @@ function startDrag(row: SessionRow | GroupRow | FolderRow, event: DragEvent) {
   drag.start(event, ids, from, link);
 }
 function pressRow(row: SessionRow | GroupRow | FolderRow, event: TouchEvent) {
+  if (selecting.value) return;
   const { ids, from, label } = dragged(row);
   drag.press(event, ids, from, label);
 }
@@ -319,7 +322,7 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
         <button :aria-label="i18n.t('common.remove')" @click="sessions.setTagFilter('')"><Icon name="x" class="sm" /></button>
       </span>
     </div>
-    <div ref="listEl" class="sl-scroll" :class="{ scrolling, scrolled, docked: selecting, 'sl-drop-here': drag.dragging.value && drag.over.value === here }" data-scroll-preserve :aria-busy="sessions.loading.value" @scroll.passive="onListScroll"
+    <div ref="listEl" class="sl-scroll" :class="{ scrolling, scrolled, docked: selecting, 'sl-range-selecting': touchSelection.dragging.value, 'sl-drop-here': drag.dragging.value && drag.over.value === here }" data-scroll-preserve :aria-busy="sessions.loading.value" @scroll.passive="onListScroll"
       :data-drop-place="sessions.filtered.value ? undefined : here ?? '/'"
       @dragenter="hoverHere" @dragover="hoverHere" @dragleave="drag.leave($event, here)" @drop="dropHere">
       <div v-if="sessions.loading.value && !rows.length" class="sl-state"><Spinner /></div>

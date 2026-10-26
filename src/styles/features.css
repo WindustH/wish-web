@@ -469,3 +469,7 @@ button.sl-row { width: 100%; border: 0; background: transparent; font: inherit; 
   .info-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .info-facts > div, .info-facts > .wide { grid-column: auto; }
 }
+
+/* Selection owns held touches; quick swipes retain native list scrolling. */
+.sl-scroll.docked .sl-item { user-select: none; -webkit-touch-callout: none; }
+.sl-scroll.sl-range-selecting .sl-row { cursor: crosshair; }
