@@ -73,6 +73,12 @@ try {
   assert.deepEqual(await js('Array.from(document.querySelectorAll(".sl-item.chosen")).map(e=>e.dataset.sessionId)'),['s1','s2','s3']);
   await js(`document.querySelector('[data-session-id="s0"] .sl-row').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}))`);
   await until('document.querySelectorAll(".sl-item.chosen").length===4','reverse Shift range');
+  await js(`const hiddenDialog=document.createElement('div');hiddenDialog.setAttribute('role','dialog');hiddenDialog.style.display='none';document.body.append(hiddenDialog);`);
+  await js(`const visibleDialog=document.createElement('div');visibleDialog.id='active-dialog';visibleDialog.setAttribute('role','dialog');visibleDialog.textContent='Open dialog';document.body.append(visibleDialog);`);
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  assert.equal(await js('!!document.querySelector(".sl-select-bar")'),true,'visible dialog takes priority over selection');
+  await js(`document.querySelector('#active-dialog').remove()`);
   await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
   await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
   await until('!document.querySelector(".sl-select-bar") && document.querySelectorAll(".sl-item.chosen").length===0','Escape exits selection and clears chosen rows');

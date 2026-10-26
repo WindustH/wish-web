@@ -270,6 +270,8 @@ function interruptWithEscape(event: KeyboardEvent) {
       event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
   if (!live.value || !running.value || sending.value || interrupting.value ||
       chat.sessionId.value !== props.owner || !composerEl.value?.getClientRects().length) return;
+  // Session selection owns Escape until it is dismissed.
+  if ([...document.querySelectorAll('.sl-select-bar')].some(element => element.getClientRects().length > 0)) return;
   // Capture before a popup closes: the same Escape must not also interrupt the session.
   const popup = [...document.querySelectorAll<HTMLElement>(
     '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]',

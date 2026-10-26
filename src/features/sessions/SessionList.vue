@@ -95,7 +95,10 @@ function stopSelecting() {
 }
 function exitSelectionOnEscape(event: KeyboardEvent) {
   if (event.key !== 'Escape' || event.isComposing || event.defaultPrevented || !selecting.value) return;
-  if (document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
+  const popupVisible = [...document.querySelectorAll<HTMLElement>(
+    '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]',
+  )].some(element => element.getClientRects().length > 0);
+  if (popupVisible) return;
   event.preventDefault();
   stopSelecting();
 }
