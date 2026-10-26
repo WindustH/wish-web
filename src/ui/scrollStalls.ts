@@ -112,7 +112,11 @@ const menuInSight = () => [...document.querySelectorAll('.menu-pop, [role="dialo
 // A tap on something that answers taps should make a click: one seen first of all, by the window as
 // it comes down, and again last of all, as it goes back up. Seen only coming down, a listener on the
 // way stopped it; not seen at all, nothing took the tap as one.
-let clickDown = 0, clickUp = 0;
+type ObservedClick = { at: number; target: EventTarget | null };
+let clickDown: ObservedClick | undefined, clickUp: ObservedClick | undefined;
+function matchesTap(click: ObservedClick | undefined, gesture: Touch, target: Element | null) {
+  return !!click && click.at >= gesture.at && click.target instanceof Node && !!target?.contains(click.target);
+}
 let swallowed: { by: string; at: number } | undefined;
 /** Called by the page's own listeners that keep a click from what it landed on, saying why. */
 export function noteSwallowedClick(by: string) { swallowed = { by, at: performance.now() }; }
@@ -126,23 +130,27 @@ function watchTap(gesture: Touch) {
   // A stranded clear menu backdrop catches taps before they can reach any button.
   // Those taps have no clickable target, so the ordinary missing-click check misses them.
   const strayBackdrop = gesture.target instanceof Element && !!gesture.target.closest('.menu-backdrop') && !menuInSight();
-  if (!target && !strayBackdrop) return;
-  const tappedAt = performance.now();
+  // A stale page lock makes hit-testing land on html/body instead of the button under it.
+  // Keep that failed tap too; otherwise closing a dialog can strand the page without any record.
+  const blockedPage = getComputedStyle(document.body).pointerEvents === 'none' && !menuInSight();
+  if (!target && !strayBackdrop && !blockedPage) return;
+  // A touchend handler can activate synchronously before this window listener runs.
+  // Match clicks from the whole gesture, and only on the button that was touched.
   setTimeout(() => {
     if (gesture.action?.completed()) return;
-    if ((!strayBackdrop && clickUp > tappedAt) || performance.now() - lastRecord < 2000) return;
+    if ((!strayBackdrop && matchesTap(clickUp, gesture, target)) || performance.now() - lastRecord < 2000) return;
     lastRecord = performance.now();
     record('tap', gesture.x, gesture.y, gesture.target, null, {
-      click: strayBackdrop ? 'stray menu backdrop caught the tap' : clickDown > tappedAt ? 'stopped on the way' : 'none came',
-      swallowedBy: swallowed && swallowed.at > tappedAt - 50 ? swallowed.by : undefined,
+      click: blockedPage ? 'page pointer lock without a visible dialog' : strayBackdrop ? 'stray menu backdrop caught the tap' : matchesTap(clickDown, gesture, target) ? 'stopped on the way' : 'none came',
+      swallowedBy: swallowed && swallowed.at >= gesture.at ? swallowed.by : undefined,
     });
   }, gesture.action ? 600 : 350);
 }
 
 /** Starts keeping stalls; every listener is passive and only reads. */
 export function installScrollStallLog() {
-  window.addEventListener('click', () => { clickDown = performance.now(); }, { capture: true, passive: true });
-  window.addEventListener('click', () => { clickUp = performance.now(); }, { passive: true });
+  window.addEventListener('click', event => { clickDown = { at: performance.now(), target: event.target }; }, { capture: true, passive: true });
+  window.addEventListener('click', event => { clickUp = { at: performance.now(), target: event.target }; }, { passive: true });
   document.addEventListener('scroll', () => { scrolledAt = performance.now(); }, { capture: true, passive: true });
   window.addEventListener('touchstart', event => {
     const point = event.touches[0];

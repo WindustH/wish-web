@@ -24,15 +24,15 @@ const pageActive = usePageActivity();
 const props = withDefaults(defineProps<{ open: boolean; title: string; beforeClose?: () => boolean | Promise<boolean>; layer?: number; wide?: boolean; page?: boolean; sheet?: boolean; back?: () => void; contentClass?: string; bodyScroll?: 'auto' | 'content'; dismissable?: boolean; compact?: boolean; backLayer?: boolean }>(), { dismissable: true, backLayer: true });
 const emit = defineEmits<{ close: [] }>();
 const closing = ref(false);
-let closeCompleted = false;
+const closeCompleted = ref(false);
 let closeTimer: ReturnType<typeof setTimeout> | undefined;
 function clearCloseTimer() {
   if (closeTimer !== undefined) clearTimeout(closeTimer);
   closeTimer = undefined;
 }
 function finishClose() {
-  if (!closing.value || closeCompleted || !pageActive.value) return;
-  closeCompleted = true;
+  if (!closing.value || closeCompleted.value || !pageActive.value) return;
+  closeCompleted.value = true;
   clearCloseTimer();
   emit('close');
 }
@@ -82,14 +82,14 @@ function outside(event: Event) {
   const target = (event as CustomEvent).detail?.originalEvent?.target as Node | undefined;
   if (looking() || (target instanceof Element && target.closest('.pwa-update')) || !props.dismissable || (bubble.value && target instanceof Element && target.closest('[data-session-panel]'))) event.preventDefault();
 }
-watch(() => props.open, open => { if (open) { clearCloseTimer(); closing.value = false; closeCompleted = false; } });
+watch(() => props.open, open => { if (open) { clearCloseTimer(); closing.value = false; closeCompleted.value = false; } });
 // Left while closing, it is closed: the page must not bring it back.
 watch(pageActive, active => {
   if (active) return;
-  const wasClosing = closing.value && !closeCompleted;
+  const wasClosing = closing.value && !closeCompleted.value;
   clearCloseTimer();
   closing.value = false;
-  closeCompleted = false;
+  closeCompleted.value = false;
   if (wasClosing) emit('close');
 }, { flush: 'sync' });
 watch([pageActive, bubble], async ([active]) => { if (active) { await nextTick(); positionBubble(); } });
@@ -124,9 +124,9 @@ async function requestClose() {
     try { if (!await props.beforeClose()) return; } finally { checkingClose = false; }
     if (!pageActive.value) return;
   }
-  if (prefersReducedMotion()) emit('close');
+  if (prefersReducedMotion()) { closeCompleted.value = true; emit('close'); }
   else {
-    closeCompleted = false;
+    closeCompleted.value = false;
     closing.value = true;
     // Keep the exit animation, but finish even if the browser cancels it.
     closeTimer = setTimeout(finishClose, 300);
@@ -140,7 +140,8 @@ defineExpose({ close: requestClose });
 
 <template>
   <DialogRoot :modal="!bubble" :open="pageActive && open && !closing" @update:open="(v: boolean) => { if (!v) requestClose(); }">
-    <DialogPortal v-if="pageActive">
+    <!-- Once our close finishes, unmount the owned layer even if a browser stalls its CSS exit. -->
+    <DialogPortal v-if="pageActive && !closeCompleted">
       <DialogOverlay v-if="!bubble" class="modal-overlay" :style="{ zIndex: layer }" />
       <DialogContent :data-modal="mark" @pointerdown.capture="ownFieldDrag" @animationend="onCloseAnimationEnd" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'modal-sheet': sheet, 'session-bubble': bubble, compact: compactCard }, contentClass]" :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }" :aria-describedby="undefined"
         @escape-key-down="(e: KeyboardEvent) => { if (looking()) e.preventDefault(); else if (dismissable === false) e.preventDefault(); else if (page && back) { e.preventDefault(); back(); } }"

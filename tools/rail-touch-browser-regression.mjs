@@ -1,8 +1,8 @@
-// Isolated account and fetch settings regression; uses synthetic credentials, never a live backend.
-// Run: node tools/accounts-browser-regression.mjs (CHROME may override the executable).
+// Rail touch activation and stall diagnostics, without a live backend.
+// Run: node tools/rail-touch-browser-regression.mjs (CHROME may override the executable).
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'vite';
@@ -10,6 +10,9 @@ import vue from '@vitejs/plugin-vue';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import {createApp,h,ref} from 'vue';import {TooltipProvider} from 'reka-ui';
+import {installScrollStallLog,stalls} from '/src/ui/scrollStalls.ts';
+installScrollStallLog();window.stalls=stalls;
+import Modal from '/src/ui/components/Modal.vue';
 import ActivityRail from '/src/features/sessions/ActivityRail.vue';
 import {useRailSwipe} from '/src/features/sessions/useRailSwipe.ts';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/features.css';
@@ -19,13 +22,16 @@ createApp({setup(){const wrap=ref(null),scroll=ref(null),content=ref(null);useRa
  return()=>h(TooltipProvider,{},()=>h('div',{ref:wrap,class:'chatlog-wrap',style:'height:600px;width:390px'},[
  h('div',{ref:scroll,class:'chatlog',style:'height:600px;overflow:auto'},[
  h('div',{ref:content,class:'chatlog-content',style:'height:1800px'},[h(ActivityRail,{rows,total:1800,visible:true,onOpen:()=>window.opened++})])])]))}}).mount('#app');
+const mount=document.createElement('div');document.body.append(mount);
+const dialogOpen=ref(false);window.dialogOpen=dialogOpen;
+createApp({setup(){return()=>h(Modal,{open:dialogOpen.value,title:'Close lifecycle',onClose:()=>dialogOpen.value=false},()=>h('p','Dialog content'))}}).mount(mount);
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {
-  name: 'chat-regression', configureServer(server) { server.middlewares.use('/__delivery_regression', async (_, res) => {
-    res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__delivery_regression', html));
+  name: 'chat-regression', configureServer(server) { server.middlewares.use('/__rail_touch_regression', async (_, res) => {
+    res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__rail_touch_regression', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/settings/ToolSwitchRows.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
-const profile = await mkdtemp(join(tmpdir(), 'wish-delivery-browser-'));
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/sessions/ActivityRail.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+const profile = await mkdtemp(join(tmpdir(), 'wish-rail-touch-browser-'));
 let chrome, ws;
 try {
   await server.listen();
@@ -45,7 +51,7 @@ try {
   await send('Runtime.enable');await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
-  await send('Page.navigate',{url:`http://127.0.0.1:${port}/__delivery_regression`});
+  await send('Page.navigate',{url:`http://127.0.0.1:${port}/__rail_touch_regression`});
   await until('!!document.querySelector(".history-rail-node")','rail mount');
   async function touch(points) {
     await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[points[0]]});
@@ -56,12 +62,28 @@ try {
   await touch([{x:150,y:300},{x:175,y:300},{x:200,y:300}]);
   await until('document.querySelector(".chatlog-wrap").classList.contains("rail-out")','open rail');
   const point=await js('(()=>{const r=document.querySelector(".history-rail-node").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()');
+  await sleep(2100);
   await touch([point]);
   assert.equal(await js('window.opened'),1,'native touch activates exactly once');
+  assert.deepEqual(await js('stalls.value.length'),0,'successful synchronous click must not be logged as missing');
   await touch([point,{x:point.x,y:point.y+4}]);
   assert.equal(await js('window.opened'),2,'minor finger movement still taps once');
   await touch([point,{x:point.x,y:point.y+40}]);
   assert.equal(await js('window.opened'),2,'vertical drag must not activate');
+  // Simulate a suspended exit animation, as can happen when a mobile browser loses foreground.
+  await js(`(()=>{const style=document.createElement('style');style.textContent='.modal-card[data-state="closed"],.modal-overlay[data-state="closed"]{animation-duration:10s!important;animation-play-state:paused!important}';document.head.append(style);dialogOpen.value=true})()`);
+  await until('!!document.querySelector(".modal-card")','real modal opens');
+  assert.equal(await js('document.body.style.pointerEvents'),'none');
+  await js(`document.querySelector('.modal-head button').click()`);
+  await sleep(400);
+  assert.equal(await js('document.querySelectorAll(".modal-card,.modal-overlay").length'),0,'completed close unmounts its owned layer');
+  assert.notEqual(await js('document.body.style.pointerEvents'),'none','completed close releases page pointer lock');
+  await touch([point]);
+  assert.equal(await js('window.opened'),3,'page remains interactive after close');
+  await js(`(()=>{const button=document.createElement('button');button.textContent='broken';button.style.cssText='position:fixed;left:100px;top:40px;width:100px;height:40px;z-index:999';button.addEventListener('touchend',event=>event.preventDefault());document.body.append(button)})()`);
+  await touch([{x:140,y:60}]);
+  await until('stalls.value.length===1','genuinely missing click is still recorded');
+  assert.equal(await js('stalls.value[0].click'),'none came');
   assert.deepEqual(exceptions,[]);
   console.log(JSON.stringify({ok:true,checks:['native rail tap','no duplicate click','finger tremor','scroll does not activate']}));
 } finally {
