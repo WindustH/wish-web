@@ -94,7 +94,13 @@ export function useComposerAttachments(
         ];
         saveAttachmentDrafts(currentSid.value, attachments.value);
       } catch (error) {
-        if (epoch === attachmentEpoch) toast('Could not restore attachment: ' + String((error as Error)?.message ?? error));
+        if (epoch === attachmentEpoch) {
+          attachments.value.push({kind: item.kind, name: item.filename, placeholder: item.placeholder,
+            stored: {owner: item.blob_id.split('/')[0], id: item.blob_id.split('/').at(-1)},
+            mime: item.mime_type || 'application/octet-stream', bytes: new ArrayBuffer(0), localUrl: '', unavailable: true});
+          saveAttachmentDrafts(currentSid.value, attachments.value);
+          toast(tr('附件无法恢复，可能已被清理。请移除或重新添加原文件。', 'Attachment unavailable; it may have been cleaned up. Remove it or attach the original file again.'));
+        }
       }
     }
     } finally { if (epoch === attachmentEpoch) readingAttachments.value = 0; }
@@ -106,7 +112,7 @@ export function useComposerAttachments(
     deletedAttachments.clear();
     revokeAll(attachments.value);
     attachments.value = items.map(item => ({ ...item,
-      localUrl: URL.createObjectURL(new Blob([item.bytes], { type: item.mime })),
+      localUrl: item.unavailable ? '' : URL.createObjectURL(new Blob([item.bytes], { type: item.mime })),
     }));
     saveAttachmentDrafts(currentSid.value, attachments.value);
   }
@@ -213,7 +219,7 @@ export function useComposerAttachments(
     let restored = false;
     for (const [token, attachment] of deletedAttachments) {
       if (!previous.includes(token) && next.includes(token)) {
-        attachments.value.push({ ...attachment, localUrl: URL.createObjectURL(new Blob([attachment.bytes], { type: attachment.mime })) });
+        attachments.value.push({ ...attachment, localUrl: attachment.unavailable ? '' : URL.createObjectURL(new Blob([attachment.bytes], { type: attachment.mime })) });
         deletedAttachments.delete(token);
         restored = true;
       }

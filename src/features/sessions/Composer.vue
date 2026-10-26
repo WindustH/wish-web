@@ -189,6 +189,7 @@ const running = computed(() => Boolean(stream.value?.active));
 const canSend = computed(
   () =>
     (text.value.trim().length > 0 || attachments.value.length > 0) &&
+    !attachments.value.some(item => item.unavailable) &&
     !sending.value &&
     !readingAttachments.value && !historyLoading.value &&
     !props.disabled,
@@ -356,8 +357,9 @@ function onKeydown(e: KeyboardEvent) {
     </div>
     <div v-if="attachments.length > 0 && !btwMode" class="attachment-preview">
       <div class="attach-strip">
-      <div v-for="(img, i) in attachments" :key="img.localUrl" class="attach-thumb">
-        <Hint v-if="img.kind === 'image'" :text="img.name"><img role="button" tabindex="0" aria-haspopup="dialog" :aria-expanded="attachmentPreview?.localUrl === img.localUrl" aria-controls="attachment-preview" @click="openAttachmentPreview(img, $event)" @keydown.enter.prevent="openAttachmentPreview(img, $event)" @keydown.space.prevent="openAttachmentPreview(img, $event)" :src="img.localUrl" :alt="img.name || i18n.t('chat.image')" /></Hint>
+      <div v-for="(img, i) in attachments" :key="img.localUrl || img.placeholder || img.stored?.id" class="attach-thumb">
+        <div v-if="img.unavailable" class="attachment-file" role="status"><Icon name="triangle-alert" /><span>{{ img.name }} · {{ tr('附件不可用，请移除或重新添加', 'Unavailable; remove or attach again') }}</span></div>
+        <Hint v-else-if="img.kind === 'image'" :text="img.name"><img role="button" tabindex="0" aria-haspopup="dialog" :aria-expanded="attachmentPreview?.localUrl === img.localUrl" aria-controls="attachment-preview" @click="openAttachmentPreview(img, $event)" @keydown.enter.prevent="openAttachmentPreview(img, $event)" @keydown.space.prevent="openAttachmentPreview(img, $event)" :src="img.localUrl" :alt="img.name || i18n.t('chat.image')" /></Hint>
         <div v-else class="attachment-file" role="button" tabindex="0" aria-haspopup="dialog" :aria-expanded="attachmentPreview?.localUrl === img.localUrl" aria-controls="attachment-preview" @click="openAttachmentPreview(img, $event)" @keydown.enter.prevent="openAttachmentPreview(img, $event)" @keydown.space.prevent="openAttachmentPreview(img, $event)"><Icon :name="img.pastedText ? 'clipboard' : 'paperclip'" /><div class="attachment-file-label"><span>{{ img.name || i18n.t('chat.attachment') }}</span><small>{{ fmtBytes(img.bytes.byteLength) }}</small></div></div>
         <button class="rm" :aria-label="i18n.t('common.remove')" @click="removeAttachment(i)">
           <Icon name="x" class="sm" />

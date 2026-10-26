@@ -215,8 +215,20 @@ onMounted(() => render(value));
 function atHistoryBoundary(direction: -1 | 1) {
   const selected = selection();
   if (selected.start !== selected.end || composing.value) return false;
-  return direction === -1 ? !value.slice(0, selected.start).includes('\n')
-    : !value.slice(selected.end).includes('\n');
+  const nativeSelection = window.getSelection();
+  if (!nativeSelection?.rangeCount || !el.value?.contains(nativeSelection.anchorNode)) return false;
+  // Let the browser resolve visual lines (including wrapping and inline tokens).
+  // Probe the line boundary and restore the caret synchronously; no element geometry.
+  const saved = nativeSelection.getRangeAt(0).cloneRange();
+  try {
+    nativeSelection.modify('move', direction === -1 ? 'backward' : 'forward', 'lineboundary');
+    const boundary = selection();
+    return direction === -1 ? boundary.start === 0 : boundary.end === value.length;
+  } finally {
+    nativeSelection.removeAllRanges();
+    nativeSelection.addRange(saved);
+    lastSelection = selected;
+  }
 }
 defineExpose({ atHistoryBoundary, moveCaretToEnd: () => setSelection(value.length), focus: () => el.value?.focus(), blur: () => el.value?.blur(), el, createInsertion });
 </script>

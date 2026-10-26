@@ -27,7 +27,9 @@ let uploads=0,sent=null;
 const nativeFetch=window.fetch;
 window.fetch=async(input,opts)=>{
  const url=String(input);
- if(url.includes('/history'))return new Response(JSON.stringify({items:url.includes('/A/')?[entry(2,'image',metadata),entry(1,'first A')]:[entry(1,'only B')],next:null}),{headers:{'content-type':'application/json'}});
+ if(url.includes('/history'))return new Response(JSON.stringify({items:(url.includes('/A/')||url.includes('/cleaned/'))?[entry(2,'image',metadata),entry(1,'first A')]:[entry(1,'only B')],next:null}),{headers:{'content-type':'application/json'}});
+ if(url.includes('/cleaned/blobs/'))return new Response('missing',{status:404});
+ if(url.endsWith('/meta'))return new Response(JSON.stringify({id:hash,byte_count:1,mime_type:'image/png'}),{headers:{'content-type':'application/json'}});
  if(url.includes('/blobs/'))return new Response(url.endsWith(hash)?pixel:'file preview text',{headers:{'content-type':url.endsWith(hash)?'image/png':'text/plain'}});
  if(url.endsWith('/blobs')){uploads++;throw new Error('Unexpected upload');}
  return nativeFetch(input,opts);
@@ -105,6 +107,7 @@ try {
   await until('document.body.innerText.includes("file preview text")','file preview matches original');
   await key('Escape');
   await js(editor+'.focus()');
+  await js('(()=>{const r=document.createRange();r.selectNodeContents('+editor+');r.collapse(true);getSelection().removeAllRanges();getSelection().addRange(r)})()');
   await key('ArrowUp');
   await until('fixture.chat.getDraft("A")==="first A"','older prompt');
   await key('ArrowDown');
@@ -151,6 +154,23 @@ try {
   assert.equal(await js('fixture.chat.getDraft("A")'),'line one\nline two','Up within a multiline draft moves the caret, not history');
   await key('ArrowUp');
   await until('document.querySelectorAll(".attach-thumb").length===2','Up on first logical line recalls history');
+  await js(`fixture.switchSession('wrapped');`);
+  await sleep(100);await js(editor+'.focus()');await key('ArrowUp');
+  await until('fixture.chat.getDraft("wrapped")==="only B"','load prompt for wrapping test');
+  await js(editor+'.style.width="180px"');
+  await send('Input.insertText',{text:' word'.repeat(40)});
+  const wrappedDraft = await js('fixture.chat.getDraft("wrapped")');
+  await key('ArrowUp');
+  assert.equal(await js('fixture.chat.getDraft("wrapped")'),wrappedDraft,'Up inside soft-wrapped text moves caret, not history');
+  await key('ArrowDown');
+  assert.equal(await js('fixture.chat.getDraft("wrapped")'),wrappedDraft,'Down inside soft-wrapped text moves caret, not history');
+  await key('ArrowDown');
+  await until('fixture.chat.getDraft("wrapped")===""','Down from the last visual line restores empty draft');
+  await js(editor+'.style.removeProperty("width")');
+  await js(`fixture.switchSession('cleaned');`);
+  await sleep(100);await js(editor+'.focus()');await key('ArrowUp');
+  await until('document.querySelectorAll(".attach-thumb [role=status]").length===2','missing historical attachments remain visible');
+  assert.ok(await js('document.querySelector(".send-btn")?.disabled'),'missing attachments prevent sending');
   await js(`fixture.switchSession('unsupported-image');`);
   await sleep(100);
   await js(`(()=>{
@@ -164,7 +184,7 @@ try {
   assert.equal(await js(`fixture.attachmentDraftsFor('unsupported-image')[0].mime`),'image/heif');
   assert.ok(await js(`fixture.chat.getDraft('unsupported-image').includes('<file-')`),'editor uses a file token');
   assert.deepEqual(exceptions,[],'no runtime exceptions');
-  console.log(JSON.stringify({ok:true,checks:['session isolation','draft restoration','history attachment tokens and image preview','file preview','resend without uploads','multiline caret navigation']}));
+  console.log(JSON.stringify({ok:true,checks:['session isolation','draft restoration','history attachment tokens and image preview','file preview','resend without uploads','multiline caret navigation','soft-wrapped caret navigation','missing attachments block sending']}));
 
 } finally {
   ws?.close();

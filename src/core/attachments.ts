@@ -2,7 +2,7 @@ import { attachmentDigest } from './attachmentDigest.ts';
 import * as api from './api/endpoints.ts';
 import { cfg } from './config.ts';
 
-export interface AttachmentInput { stored?: { owner: string; id: string }; kind: 'image' | 'file'; pastedText?: boolean; name?: string; placeholder?: string; mime: string; bytes: ArrayBuffer; localUrl?: string }
+export interface AttachmentInput { unavailable?: boolean; stored?: { owner: string; id: string }; kind: 'image' | 'file'; pastedText?: boolean; name?: string; placeholder?: string; mime: string; bytes: ArrayBuffer; localUrl?: string }
 export interface PickedAttachment { kind: 'image' | 'file'; pastedText?: boolean; name?: string; mime: string; size: number; read(): Promise<ArrayBuffer> }
 export interface AttachmentLimits { imageBytes: number; imageCount: number; fileBytes: number; fileCount: number }
 export interface UploadedAttachmentBlock { type: 'image' | 'file'; blob_id: string; byte_count: number; placeholder?: string; filename?: string }
@@ -40,17 +40,26 @@ export function saveAttachmentDrafts<T extends AttachmentInput>(sessionId: strin
 
 // Uploads the attachments to their owner's files: a session's by default, or a group's with `upload`.
 export async function uploadAttachments(owner: string, attachments: readonly AttachmentInput[],
-  { signal, capabilities, upload = api.uploadSessionBlob }: { signal?: AbortSignal; capabilities?: any; upload?: typeof api.uploadSessionBlob } = {}) {
+  { signal, capabilities, upload = api.uploadSessionBlob, verifyStored = api.blobMetadata }: { signal?: AbortSignal; capabilities?: any; upload?: typeof api.uploadSessionBlob; verifyStored?: (reference: string) => Promise<unknown> } = {}) {
   const limits = attachmentLimits(capabilities);
   const blocks: UploadedAttachmentBlock[] = [], uploaded: (UploadedAttachmentBlock & { mime_type: string })[] = [];
   let images = 0, files = 0;
   for (const attachment of attachments) {
+    if (attachment.unavailable) throw new Error('Attachment is unavailable; remove it or attach the original file again.');
     if (attachment.bytes.byteLength > (attachment.kind === 'image' ? limits.imageBytes : limits.fileBytes)) {
       throw new Error('Attachment exceeds size limit');
     }
     if (attachment.kind !== 'image' && attachment.kind !== 'file') throw new Error('Invalid attachment kind');
-    const blob = attachment.stored?.owner === owner
-      ? { sha256: attachment.stored.id, byte_count: attachment.bytes.byteLength, mime_type: attachment.mime }
+    let stored = attachment.stored?.owner === owner ? attachment.stored : undefined;
+    if (stored) {
+      try { await verifyStored(`${owner}/${stored.id}`); }
+      catch (error) {
+        if ((error as { status?: number }).status !== 404) throw error;
+        stored = undefined; // Cleanup removed it; the restored draft still owns the original bytes.
+      }
+    }
+    const blob = stored
+      ? { sha256: stored.id, byte_count: attachment.bytes.byteLength, mime_type: attachment.mime }
       : await upload(owner, attachment.bytes, { signal });
     if (attachment.kind === 'image') images++; else files++;
     if (images > limits.imageCount || files > limits.fileCount) throw new Error('Too many attachments');

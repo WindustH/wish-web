@@ -34,7 +34,7 @@ test('same-session history references bypass upload; new bytes and another owner
   let uploads = 0;
   const upload = async () => { uploads++; return { id: 'new', sha256: 'new', byte_count: 3, mime_type: 'text/plain' }; };
   const file: AttachmentInput = { kind: 'file', name: 'notes.txt', mime: 'text/plain', bytes: new ArrayBuffer(3), stored: { owner: 'A', id: 'existing' } };
-  const result = await uploadAttachments('A', [file], { upload });
+  const result = await uploadAttachments('A', [file], { upload, verifyStored: async () => ({}) });
   assert.equal(uploads, 0);
   assert.equal(result.blocks[0]!.blob_id, 'existing');
   assert.equal(result.blocks[0]!.filename, 'notes.txt');
@@ -72,4 +72,15 @@ test('the empty current input remains browsable without losing edited history', 
   assert.equal(history.move(1, 'edited prompt', messages), '');
   assert.equal(history.move(-1, 'new draft', messages), 'edited prompt');
   assert.equal(history.move(1, 'edited prompt', messages), 'new draft');
+});
+
+test('a cleaned-up stored reference is reuploaded from draft bytes, but other errors do not upload', async () => {
+  const file: AttachmentInput = {kind:'file', mime:'text/plain', bytes:new ArrayBuffer(3), stored:{owner:'A',id:'old'}};
+  let uploads = 0;
+  const upload = async () => {uploads++;return {id:'new',sha256:'new',byte_count:3,mime_type:'text/plain'};};
+  const result = await uploadAttachments('A',[file],{upload,verifyStored:async()=>{throw {status:404};}});
+  assert.equal(result.blocks[0]!.blob_id,'new');assert.equal(uploads,1);
+  await assert.rejects(uploadAttachments('A',[file],{upload,verifyStored:async()=>{throw {status:503};}}));
+  await assert.rejects(uploadAttachments('A',[{...file,unavailable:true}],{upload}),/unavailable/);
+  assert.equal(uploads,1);
 });
