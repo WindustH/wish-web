@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // An `ask_user` call: the form while the call waits (or, after a timeout, while it still takes
 // a late answer), and what became of it afterwards.
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, inject, onUnmounted, ref, watch } from 'vue';
 import * as api from '../../../core/api/endpoints.ts';
 import { chat } from '../../../core/state/chatSlice.ts';
 import { tr, intlLocale } from '../../../core/i18n/tr.ts';
@@ -12,6 +12,7 @@ import { toast } from '../../../ui/toast.ts';
 import { type AnswerRecord, type Draft, draftAnswered, draftAnswers, emptyDraft, formState, pick, readForm } from '../askUser.ts';
 import type { QuestionItem } from '../grouping.ts';
 import type { EntryView } from '../../../core/api/projections.ts';
+import { openActivityKey } from '../activityDialogs.ts';
 import AnswerSummary from './AnswerSummary.vue';
 
 const props = defineProps<{ item: QuestionItem<EntryView>; session?: string }>();
@@ -53,6 +54,19 @@ const status = computed(() => {
     default: return { tone: 'muted', text: tr('已中断', 'Stopped') };
   }
 });
+
+const openActivity = inject(openActivityKey, null);
+function openDetails() {
+  if (answerable.value || !openActivity) return;
+  openActivity({ chipKey: props.item.key, stepKey: null, question: {
+    questions: questions.value, answers: shownAnswers.value, status: status.value.text,
+  } });
+}
+function openCard(event: MouseEvent) {
+  if (event.target instanceof Element && event.target.closest('a, button, input, textarea')) return;
+  if (window.getSelection()?.toString()) return;
+  openDetails();
+}
 
 // How long the call keeps waiting, when the model set a timeout.
 const now = ref(Date.now());
@@ -131,11 +145,12 @@ const stored = new Map<string, Draft[]>();
 </script>
 
 <template>
-  <div ref="card" class="question-card" :class="[`is-${state.kind}`, { answerable }]">
+  <div ref="card" class="question-card" :class="[`is-${state.kind}`, { answerable, inspectable: !answerable && !!openActivity }]" @click="openCard">
     <header class="question-head">
       <Icon name="question" />
       <span class="question-title">{{ questions.length > 1 ? tr(`向你提了 ${questions.length} 个问题`, `${questions.length} questions for you`) : tr('向你提问', 'A question for you') }}</span>
       <span class="question-status" :class="status.tone">{{ status.text }}</span>
+      <button v-if="!answerable && openActivity" class="btn ghost icon-only question-detail-open" aria-haspopup="dialog" :aria-label="tr('查看问题、选项与回答', 'View questions, options and answers')" @click="openDetails"><Icon name="chevron-right" /></button>
     </header>
 
     <p v-if="late && answerable" class="question-note"><Icon name="clock" />{{ tr('模型没等到回答，已经按自己的判断继续了。现在回答，会作为一条新消息发给它。', 'The model stopped waiting and carried on with its own judgement. Answers you give now reach it as a new message.') }}</p>
@@ -182,6 +197,9 @@ const stored = new Map<string, Draft[]>();
 
 <style>
 .question-card { margin: 0 0 20px; padding: 14px 16px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-raised); font-size: 14px; }
+.question-card.inspectable { cursor: pointer; }
+@media (hover: hover) { .question-card.inspectable:hover { border-color: var(--line-strong); } }
+.question-detail-open { flex: none; }
 .question-card.answerable { border-color: var(--line-strong); }
 .question-head { display: flex; align-items: center; gap: 8px; color: var(--fg-muted); font-size: 13px; }
 .question-head > .icon { flex: none; width: 16px; height: 16px; color: var(--accent); }

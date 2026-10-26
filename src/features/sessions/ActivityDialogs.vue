@@ -5,6 +5,7 @@ import { computed, ref, watch } from 'vue';
 import type { EntryView } from '../../core/api/projections.ts';
 import type { ChipItem } from './grouping.ts';
 import type { ActivityRequest } from './activityDialogs.ts';
+import QuestionDetailDialog from './entries/QuestionDetailDialog.vue';
 import ProcessGroup from './entries/ProcessGroup.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
@@ -34,7 +35,7 @@ function closeActivity(key: string) {
 // A disappearing activity cancels the open intent. Streaming reconciliation may restore it,
 // but that is data arriving, not a new request to open a window.
 watch(() => props.chips, chips => {
-  if (selected.value && !chips.some(chip => chip.key === selected.value!.chipKey)) closeActivity(selected.value.chipKey);
+  if (selected.value && !selected.value.question && !chips.some(chip => chip.key === selected.value!.chipKey)) closeActivity(selected.value.chipKey);
 });
 const selectedFiles = computed(() => selected.value?.files
   ? activeChips.value.flatMap(chip => changedFiles(chip)).filter(file => !selected.value?.filePath || file.path === selected.value.filePath) : []);
@@ -47,6 +48,7 @@ const requestedStep = computed(() => {
 
 <template>
   <div class="activity-dialog-host">
+    <QuestionDetailDialog v-if="selected?.question" :detail="selected.question" @close="selected && closeActivity(selected.chipKey)" />
     <Modal v-if="selected?.files" :open="true" compact wide content-class="file-changes-dialog" :title="tr('文件修改', 'File changes')" @close="selected && closeActivity(selected.chipKey)">
       <template #compact-heading><div class="dialog-topline file-changes-heading"><Icon name="file-diff" /><h2>{{ tr('文件修改', 'File changes') }}</h2><div class="dialog-toolbar"><button class="btn ghost icon-only" :aria-label="tr('关闭', 'Close')" @click="selected && closeActivity(selected.chipKey)"><Icon name="x" /></button></div></div></template>
       <div class="file-change-details"><template v-for="file in selectedFiles" :key="file.path">
