@@ -219,7 +219,7 @@ onBeforeUnmount(() => { cancelPress(); cancelAnimationFrame(watching); closers.d
       <slot name="trigger"><button type="button" class="btn ghost icon-only" :aria-label="label || 'menu'"><slot /></button></slot>
     </DropdownMenuTrigger>
     <DropdownMenuPortal v-if="pageActive">
-      <DropdownMenuContent class="menu-pop" :class="contentClass" :reference="context ? reference : undefined"
+      <DropdownMenuContent data-keyboard-boundary class="menu-pop" :class="contentClass" :reference="context ? reference : undefined"
         :side="context ? 'bottom' : side" :align="context ? 'start' : align" :side-offset="context ? 2 : 6" :collision-padding="8"
         @close-auto-focus="context && $event.preventDefault()">
         <DropdownMenuLabel v-if="heading" class="menu-heading">{{ heading }}</DropdownMenuLabel>

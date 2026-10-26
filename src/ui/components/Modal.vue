@@ -112,7 +112,7 @@ defineExpose({ close: requestClose });
     <!-- Once our close finishes, unmount the owned layer even if a browser stalls its CSS exit. -->
     <DialogPortal v-if="mounted">
       <DialogOverlay v-if="!bubble" class="modal-overlay" :style="{ zIndex: layer }" />
-      <DialogContent :data-modal="mark" @pointerdown.capture="ownFieldDrag" @animationend="onCloseAnimationEnd" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'modal-sheet': sheet, 'session-bubble': bubble, compact: compactCard }, contentClass]" :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }" :aria-describedby="undefined"
+      <DialogContent data-keyboard-boundary :data-modal="mark" @pointerdown.capture="ownFieldDrag" @animationend="onCloseAnimationEnd" @open-auto-focus="opened" @close-auto-focus="focus.closed" class="modal-card" :class="[{ wide, 'modal-page': page, 'modal-sheet': sheet, 'session-bubble': bubble, compact: compactCard }, contentClass]" :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }" :aria-describedby="undefined"
         @escape-key-down="(e: KeyboardEvent) => { if (looking()) e.preventDefault(); else if (dismissable === false) e.preventDefault(); else if (page && back) { e.preventDefault(); back(); } }"
         @interact-outside="outside"
         @pointer-down-outside="outside">

@@ -1,3 +1,4 @@
+import { useKeyboardScope } from '../../ui/composables/useKeyboardScope.ts';
 import { nextTick, ref, watch, type Ref } from 'vue';
 
 export function useBtwPopup(
@@ -36,13 +37,12 @@ export function useBtwPopup(
     if (mobile.value && composerEl.value?.contains(target)) return;
     if (!btwBubble.value?.contains(target) && !btwButton.value?.contains(target)) btwOpen.value = false;
   }
-  function onBtwEscape(event: KeyboardEvent) {
-    if (event.key !== 'Escape' || !btwOpen.value) return;
-    event.preventDefault();
-    event.stopPropagation();
+  useKeyboardScope(btwBubble, event => {
+    if (event.key !== 'Escape' || !btwOpen.value) return false;
     btwOpen.value = false;
     if (!mobile.value) btwButton.value?.focus();
-  }
+    return true;
+  });
   function onBtwScroll(event: Event) {
     if (!btwBubble.value?.contains(event.target as Node)) schedulePosition();
   }
@@ -59,14 +59,12 @@ export function useBtwPopup(
       if (!mobile.value) btwBubble.value?.querySelector('textarea')?.focus();
     });
     document.addEventListener('pointerdown', onBtwOutside);
-    window.addEventListener('keydown', onBtwEscape, true);
     window.addEventListener('resize', schedulePosition);
     window.addEventListener('scroll', onBtwScroll, true);
     window.visualViewport?.addEventListener('resize', schedulePosition);
     onCleanup(() => {
       cancelAnimationFrame(frame);
       document.removeEventListener('pointerdown', onBtwOutside);
-      window.removeEventListener('keydown', onBtwEscape, true);
       window.removeEventListener('resize', schedulePosition);
       window.removeEventListener('scroll', onBtwScroll, true);
       window.visualViewport?.removeEventListener('resize', schedulePosition);

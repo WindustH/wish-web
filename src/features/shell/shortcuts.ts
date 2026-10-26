@@ -4,7 +4,9 @@ import { prefs } from '../../core/state/prefsSlice.ts';
 
 export function installShortcuts({ openNewSession }: { openNewSession: () => void }) {
   const onKey = async (e: KeyboardEvent) => {
-    if (e.isComposing || !(e.ctrlKey || e.metaKey) || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+    if (e.defaultPrevented || e.isComposing || !(e.ctrlKey || e.metaKey)) return;
+    // Only the event's own ancestry matters; unrelated open/hidden surfaces do not.
+    if (e.composedPath().some(node => node instanceof HTMLElement && node.hasAttribute('data-keyboard-boundary'))) return;
     const key = e.key.toLowerCase();
     if (key === 'k') {
       e.preventDefault();

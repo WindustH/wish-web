@@ -9,8 +9,9 @@ import { createServer } from 'vite';
 import vue from '@vitejs/plugin-vue';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><body><div id="app"></div><script type="module">
-import {createApp,h} from 'vue';import {TooltipProvider} from 'reka-ui';
+import {createApp,h,ref} from 'vue';import {TooltipProvider} from 'reka-ui';
 import {createRouter,createMemoryHistory} from 'vue-router';
+import {useKeyboardScope} from '/src/ui/composables/useKeyboardScope.ts';
 import SessionList from '/src/features/sessions/SessionList.vue';
 import ErrorEntry from '/src/features/sessions/entries/ErrorEntry.vue';
 import RetryStatus from '/src/features/sessions/RetryStatus.vue';
@@ -32,8 +33,12 @@ const failure={family:'Transport',message:'Connection lost'};
 chat.sessionId.value='s1';chat.snapshot.value=sessionView({session:{id:'s1'},status:{config:{},phase:'Suspended',running:false,state:{Suspended:{outcome:24}}}});
 chat.entries.value=[entryView({record:{sequence:29,item:{Event:24},recorded_at:0},content:{kind:'event',value:{Finished:{Failed:{Transport:{retryable:true,message:'Connection lost'}}}}}},'s1')];
 let runs=0;chat.retryRun=async()=>{runs++;chat.snapshot.value={...chat.snapshot.value,running:true};};
-window.fixture={router,chat,get runs(){return runs;}};
+const handled={region:0,parent:0};
+const Region={setup(){const root=ref(null);useKeyboardScope(root,event=>{if(event.key!=='Escape')return false;handled.region++;return true;});return()=>h('div',{ref:root,id:'other-region',tabindex:-1},[h('input',{id:'consuming-control',onKeydown:event=>event.preventDefault()})]);}};
+const Parent={setup(){const root=ref(null);useKeyboardScope(root,()=>{handled.parent++;return true;});return()=>h('div',{ref:root},[h(Region)]);}};
+window.fixture={router,chat,handled,get runs(){return runs;}};
 createApp({render:()=>h(TooltipProvider,null,{default:()=>[
+ h(Parent),
  h('div',{style:'width:350px;height:700px;display:flex;'},[h(SessionList)]),
  h(ErrorEntry,{item:{entry:chat.entries.value[0]},session:'s1'}),
  h(RetryStatus,{retries:[{requestId:'r',operation:'model',retry:1,maxRetries:5,phase:'waiting',retryAt:Date.now()+5000,failure}]})
@@ -73,12 +78,24 @@ try {
   assert.deepEqual(await js('Array.from(document.querySelectorAll(".sl-item.chosen")).map(e=>e.dataset.sessionId)'),['s1','s2','s3']);
   await js(`document.querySelector('[data-session-id="s0"] .sl-row').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}))`);
   await until('document.querySelectorAll(".sl-item.chosen").length===4','reverse Shift range');
+  await js(`document.querySelector('#other-region').focus()`);
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  assert.equal(await js('fixture.handled.region'),1,'focused region owns Escape');
+  assert.equal(await js('fixture.handled.parent'),0,'handled child command does not reach parent');
+  assert.equal(await js('!!document.querySelector(".sl-select-bar")'),true,'another region does not cancel list selection');
+  await js(`document.querySelector('#consuming-control').focus()`);
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  assert.equal(await js('fixture.handled.region'),1,'control consumed event does not run region command');
+  await js(`document.querySelector('#other-region').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',isComposing:true,bubbles:true,cancelable:true}))`);
+  assert.equal(await js('fixture.handled.region'),1,'IME is not a region command');
   await js(`const hiddenDialog=document.createElement('div');hiddenDialog.setAttribute('role','dialog');hiddenDialog.style.display='none';document.body.append(hiddenDialog);`);
-  await js(`const visibleDialog=document.createElement('div');visibleDialog.id='active-dialog';visibleDialog.setAttribute('role','dialog');visibleDialog.textContent='Open dialog';document.body.append(visibleDialog);`);
+  await js(`const visibleDialog=document.createElement('div');visibleDialog.id='active-dialog';visibleDialog.setAttribute('role','dialog');visibleDialog.textContent='Open dialog';visibleDialog.tabIndex=-1;document.body.append(visibleDialog);visibleDialog.focus();`);
   await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
   await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
   assert.equal(await js('!!document.querySelector(".sl-select-bar")'),true,'visible dialog takes priority over selection');
-  await js(`document.querySelector('#active-dialog').remove()`);
+  await js(`document.querySelector('#active-dialog').remove();document.querySelector('.sessions-pane').focus()`);
   await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
   await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
   await until('!document.querySelector(".sl-select-bar") && document.querySelectorAll(".sl-item.chosen").length===0','Escape exits selection and clears chosen rows');
@@ -90,7 +107,7 @@ try {
   await js('fixture.chat.snapshot.value={...fixture.chat.snapshot.value,running:false,last_error:null,status:{state:{Suspended:{outcome:30}}}}');
   await sleep(50);assert.equal(await js('!!document.querySelector(".retry-run")'),false,'old failure cannot retry after success');
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['Escape exits selection','native suspended outcome resolves retry','Shift range selection','no Shift navigation','retry visibility','automatic retry warning']}));
+  console.log(JSON.stringify({ok:true,checks:['focused regions stay independent','child control consumption','IME isolation','Escape exits selection','native suspended outcome resolves retry','Shift range selection','no Shift navigation','retry visibility','automatic retry warning']}));
 
 } finally {
   ws?.close();

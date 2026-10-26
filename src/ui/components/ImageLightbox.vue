@@ -2,6 +2,7 @@
 // The image, whole: as large as the window allows, on a dimmed page. The wheel zooms in on the
 // point the pointer is over, a drag moves the magnified picture, a double click or the zoom-out
 // button puts it back; a click on the dimmed page or Escape closes it at any size.
+import { useKeyboardScope } from '../composables/useKeyboardScope.ts';
 import { computed, nextTick, ref, watch } from 'vue';
 import Icon from './Icon.vue';
 import { closeImageLightbox, imageLightbox } from '../imageLightbox.ts';
@@ -110,23 +111,23 @@ function onTouchEnd(event: PointerEvent) {
   if (touches.size < 2) pinch = 0;
 }
 
-function onKey(event: KeyboardEvent) {
-  if (event.key === 'Escape') { event.stopPropagation(); closeImageLightbox(); return; }
-  if (event.key === '+' || event.key === '=') { event.preventDefault(); zoomTo(scale.value * step); }
-  if (event.key === '-') { event.preventDefault(); zoomTo(scale.value / step); }
-  if (event.key === '0') { event.preventDefault(); reset(); }
-}
+useKeyboardScope(frame, event => {
+  if (event.key === 'Escape') closeImageLightbox();
+  else if (event.key === '+' || event.key === '=') zoomTo(scale.value * step);
+  else if (event.key === '-') zoomTo(scale.value / step);
+  else if (event.key === '0') reset();
+  else return false;
+  return true;
+});
 
 watch(imageLightbox, async (image, previous) => {
   reset();
   if (image) {
     returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    window.addEventListener('keydown', onKey, true);
     await nextTick();
     closeButton.value?.focus();
     return;
   }
-  window.removeEventListener('keydown', onKey, true);
   touches.clear();
   pinch = 0;
   // Back to the picture, without the browser scrolling the log to bring it into view.
@@ -137,7 +138,7 @@ watch(imageLightbox, async (image, previous) => {
 
 <template>
   <Teleport to="body">
-    <div v-if="imageLightbox" ref="frame" class="image-lightbox" :class="{ zoomed }" role="dialog" aria-modal="true"
+    <div v-if="imageLightbox" ref="frame" data-keyboard-boundary class="image-lightbox" :class="{ zoomed }" role="dialog" aria-modal="true"
       :aria-label="imageLightbox.alt || tr('图片', 'Image')" @click="onBackdrop" @wheel="onWheel" @dblclick="reset"
       @pointerdown="onTouchStart" @pointermove="onTouchMove" @pointerup="onTouchEnd" @pointercancel="onTouchEnd">
       <img class="image-lightbox-img" :class="{ dragging }" :src="imageLightbox.src" :alt="imageLightbox.alt || ''"

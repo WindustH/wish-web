@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useKeyboardScope } from '../../ui/composables/useKeyboardScope.ts';
 import { sessionNaming } from '../../core/state/sessionNaming.ts';
 import Hint from '../../ui/components/Hint.vue';
 // Session list with client query (server filter), tag chip, virtualized
@@ -50,6 +51,7 @@ const rows = computed(() => sessions.items.value);
 // Choosing several, from a row's menu: rows become boxes to tick, and a bar at the bottom acts on
 // the ticked ones - deleting sessions and groups alike, clearing the history of the sessions among
 // them. Only rows the list shows count, so a search never hides one that would go.
+const keyboardRoot = ref<HTMLElement | null>(null);
 const selecting = ref(false);
 const chosen = ref(new Set<string>());
 let selectionAnchor: string | null = null;
@@ -62,6 +64,7 @@ function activateRow(id: string, event: MouseEvent) {
   const start = ids.indexOf(anchor), end = ids.indexOf(id);
   if (end < 0) return;
   selecting.value = true;
+  keyboardRoot.value?.focus({ preventScroll: true });
   const range = ids.slice(Math.min(start < 0 ? end : start, end), Math.max(start < 0 ? end : start, end) + 1);
   chosen.value = new Set([...chosen.value, ...range]);
   selectionAnchor = start < 0 ? id : anchor;
@@ -93,17 +96,11 @@ function stopSelecting() {
   selectionAnchor = null;
   chosen.value = new Set();
 }
-function exitSelectionOnEscape(event: KeyboardEvent) {
-  if (event.key !== 'Escape' || event.isComposing || event.defaultPrevented || !selecting.value) return;
-  const popupVisible = [...document.querySelectorAll<HTMLElement>(
-    '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]',
-  )].some(element => element.getClientRects().length > 0);
-  if (popupVisible) return;
-  event.preventDefault();
+useKeyboardScope(keyboardRoot, event => {
+  if (event.key !== 'Escape' || !selecting.value) return false;
   stopSelecting();
-}
-onMounted(() => window.addEventListener('keydown', exitSelectionOnEscape));
-onBeforeUnmount(() => window.removeEventListener('keydown', exitSelectionOnEscape));
+  return true;
+});
 // Clearing history or deleting: one row from its menu, or the chosen ones from the bar.
 const batch = ref<{ kind: 'prune' | 'delete'; targets: { id: string; name: string; group?: boolean }[] } | null>(null);
 function actOnChosen(kind: 'prune' | 'delete') {
@@ -284,7 +281,7 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
 </script>
 
 <template>
-  <div class="sessions-pane">
+  <div ref="keyboardRoot" class="sessions-pane" tabindex="-1">
     <header v-if="!isMobile" class="sl-brand">
       <Hint :text="i18n.t('sessions.collapseList')"><button type="button" class="btn ghost icon-only sl-collapse" :aria-label="i18n.t('sessions.collapseList')"
         aria-controls="session-list" aria-expanded="true" @click="prefs.setSessionListCollapsed(true)"><Icon name="panel-left" /></button></Hint>

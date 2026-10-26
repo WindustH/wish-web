@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useKeyboardScope } from '../../ui/composables/useKeyboardScope.ts';
 import { historyPage } from '../../core/api/endpoints.ts';
 import { cfg } from '../../core/config.ts';
 import { createPromptHistory, sessionPrompts, type HistoricalPrompt } from './promptHistory.ts';
@@ -265,24 +266,13 @@ async function onStop() {
   }
 }
 
-function interruptWithEscape(event: KeyboardEvent) {
-  if (event.key !== 'Escape' || event.repeat || event.isComposing || event.keyCode === 229 ||
-      event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+useKeyboardScope(composerEl, event => {
+  if (event.key !== 'Escape' || event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
   if (!live.value || !running.value || sending.value || interrupting.value ||
-      chat.sessionId.value !== props.owner || !composerEl.value?.getClientRects().length) return;
-  // Session selection owns Escape until it is dismissed.
-  if ([...document.querySelectorAll('.sl-select-bar')].some(element => element.getClientRects().length > 0)) return;
-  // Capture before a popup closes: the same Escape must not also interrupt the session.
-  const popup = [...document.querySelectorAll<HTMLElement>(
-    '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]',
-  )].some(element => element.getClientRects().length > 0);
-  if (popup) return;
-  event.preventDefault();
-  event.stopPropagation();
+      chat.sessionId.value !== props.owner) return false;
   void onStop();
-}
-onMounted(() => window.addEventListener('keydown', interruptWithEscape, true));
-onBeforeUnmount(() => window.removeEventListener('keydown', interruptWithEscape, true));
+  return true;
+});
 
 // Drafts are written a moment after typing stops; landing them on the way out keeps the last
 // keystrokes, and an emptied field (a sent message) is already written at once by the writer.
@@ -401,7 +391,7 @@ function onKeydown(e: KeyboardEvent) {
     </div>
     <Teleport v-if="live" to="body">
       <Transition name="btw-popup" @after-leave="btwHidden = true">
-        <div v-show="btwOpen" id="btw-bubble" ref="btwBubble" class="btw-bubble" :class="{ mobile }" role="dialog" :aria-label="tr('BTW 临时对话', 'BTW temporary chat')" :style="btwPosition">
+        <div v-show="btwOpen" id="btw-bubble" data-keyboard-boundary ref="btwBubble" class="btw-bubble" :class="{ mobile }" role="dialog" :aria-label="tr('BTW 临时对话', 'BTW temporary chat')" :style="btwPosition">
           <BubbleSurface side="bottom" :tail-x="parseFloat(btwPosition['--bubble-tail-x'] || '24')" />
           <AskContext ref="btwChat" :key="owner" :session-id="owner" :hidden="btwHidden" :external-input="mobile" @cleared="btwDraft=''" />
         </div>

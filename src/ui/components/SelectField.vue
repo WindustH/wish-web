@@ -53,7 +53,7 @@ watch(pageActive, active => { if (!active) open.value = false; });
       <SelectIcon as-child><Icon name="chevron-down" :size="16" aria-hidden="true" /></SelectIcon>
     </SelectTrigger>
     <SelectPortal v-if="pageActive">
-      <SelectContent class="control-select-popover" position="popper" :side-offset="5" :collision-padding="12">
+      <SelectContent data-keyboard-boundary class="control-select-popover" position="popper" :side-offset="5" :collision-padding="12">
         <div v-if="searchable" class="select-search">
           <input ref="searchInput" v-model="query" class="input" type="search" :aria-label="tr('搜索选项', 'Search options')" @keydown="event => { if (event.key !== 'Escape') event.stopPropagation(); }" />
         </div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useKeyboardScope } from '../composables/useKeyboardScope.ts';
 import { ref, watch, onBeforeUnmount, nextTick } from 'vue';
 import { attachmentPreview } from '../attachmentPreview.ts';
 import { apiFetch } from '../../core/api/client.ts';
@@ -47,17 +48,16 @@ function outside(event: PointerEvent) {
   const target = event.target as Node;
   if (!panel.value?.contains(target) && !attachmentPreview.value?.anchor?.contains(target)) attachmentPreview.value = null;
 }
-function escape(event: KeyboardEvent) {
-  if (event.isComposing || event.key !== 'Escape' || !attachmentPreview.value) return;
-  event.preventDefault(); event.stopPropagation();
+useKeyboardScope(panel, event => {
+  if (event.key !== 'Escape' || !attachmentPreview.value) return false;
   const anchor = attachmentPreview.value.anchor;
   attachmentPreview.value = null;
   anchor?.focus({ preventScroll: true });
-}
+  return true;
+});
 function untrack() {
   cancelAnimationFrame(frame); frame = 0; observer?.disconnect();
   document.removeEventListener('pointerdown', outside, true);
-  document.removeEventListener('keydown', escape, true);
   window.removeEventListener('resize', schedule);
   window.removeEventListener('scroll', schedule, true);
   window.visualViewport?.removeEventListener('resize', schedule);
@@ -73,7 +73,7 @@ watch(attachmentPreview, async item => {
   if (panel.value) observer.observe(panel.value);
   if (item.anchor) observer.observe(item.anchor);
   document.addEventListener('pointerdown', outside, true);
-  document.addEventListener('keydown', escape, true);
+  panel.value?.focus({ preventScroll: true });
   window.addEventListener('resize', schedule);
   window.addEventListener('scroll', schedule, true);
   window.visualViewport?.addEventListener('resize', schedule);
@@ -126,7 +126,7 @@ onBeforeUnmount(() => { untrack(); dispose(); });
 <template>
   <Teleport to="body">
     <Transition name="attachment-pop" @after-leave="dispose">
-      <section v-if="attachmentPreview" ref="panel" id="attachment-preview" class="attachment-preview-pop" :class="side" :style="position" role="dialog" :aria-labelledby="attachmentPreview.kind === 'image' ? undefined : 'attachment-preview-title'" :aria-label="attachmentPreview.kind === 'image' ? title : undefined">
+      <section v-if="attachmentPreview" ref="panel" tabindex="-1" data-keyboard-boundary id="attachment-preview" class="attachment-preview-pop" :class="side" :style="position" role="dialog" :aria-labelledby="attachmentPreview.kind === 'image' ? undefined : 'attachment-preview-title'" :aria-label="attachmentPreview.kind === 'image' ? title : undefined">
         <BubbleSurface :side="side === 'above' ? 'bottom' : 'top'" :tail-x="parseFloat(position['--arrow-x'] || '24')" />
         <header v-if="attachmentPreview.kind !== 'image'" id="attachment-preview-title">{{ title }}</header>
         <div class="attachment-preview-content">
