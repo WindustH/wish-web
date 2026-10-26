@@ -109,6 +109,7 @@ export const sessionSetTools = async (id: string, changes: Partial<ToolSwitches>
 // `{program, args}` for the session's own shell, or null to follow the configured one.
 export const sessionSetWorkingDirectory = async (id: string, cwd: string) => sessionView(await put(`${path(id)}/cwd`, { cwd }));
 export const sessionSetShell = async (id: string, settings: ShellSettings | null) => sessionView(await put(`${path(id)}/shell`, settings));
+export const sessionRun = (id: string) => post(`${path(id)}/run`);
 export const sessionInterrupt = (id: string) => post(`${path(id)}/interrupt`);
 export const sessionCompact = (id: string) => post(`${path(id)}/compact`);
 export const sessionClearContext = (id: string) => post(`${path(id)}/context/clear`);

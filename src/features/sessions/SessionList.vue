@@ -52,6 +52,20 @@ const rows = computed(() => sessions.items.value);
 // them. Only rows the list shows count, so a search never hides one that would go.
 const selecting = ref(false);
 const chosen = ref(new Set<string>());
+let selectionAnchor: string | null = null;
+function activateRow(id: string, event: MouseEvent) {
+  if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey) return;
+  if (!event.shiftKey) { selectionAnchor = id; return; }
+  event.preventDefault();
+  const ids = entries.value.map(row => row.id);
+  const anchor = selectionAnchor ?? (typeof activeId.value === 'string' ? activeId.value : id);
+  const start = ids.indexOf(anchor), end = ids.indexOf(id);
+  if (end < 0) return;
+  selecting.value = true;
+  const range = ids.slice(Math.min(start < 0 ? end : start, end), Math.max(start < 0 ? end : start, end) + 1);
+  chosen.value = new Set([...chosen.value, ...range]);
+  selectionAnchor = start < 0 ? id : anchor;
+}
 // Sessions and groups are chosen, as far as they show; folders are opened.
 const entries = computed(() => lines.value.flatMap(line => line.kind === 'row' && line.row.kind !== 'folder' ? [line.row] : []));
 const sessionRows = computed(() => entries.value.filter(row => row.kind === 'session'));
@@ -76,6 +90,7 @@ function chooseAll() {
 }
 function stopSelecting() {
   selecting.value = false;
+  selectionAnchor = null;
   chosen.value = new Set();
 }
 // Clearing history or deleting: one row from its menu, or the chosen ones from the bar.
@@ -91,7 +106,7 @@ function batchDone() {
 }
 function onRowAction(row: SessionRow | GroupRow, kind: RowAction) {
   if (kind === 'generate-name') { void sessionNaming.generate(row.id); }
-  else if (kind === 'select') { selecting.value = true; chosen.value = new Set([row.id]); }
+  else if (kind === 'select') { selectionAnchor = row.id; selecting.value = true; chosen.value = new Set([row.id]); }
   else if (kind === 'prune') batch.value = { kind, targets: [{ id: row.id, name: sessionTitle(row) }] };
   else if (kind === 'pin' || kind === 'unpin') pin([row.id], kind === 'pin');
   else if (kind === 'move') moving.value = { ids: [row.id], title: tr(`移动「${sessionTitle(row)}」`, `Move “${sessionTitle(row)}”`), from: row.parent };
@@ -325,7 +340,7 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
             @open="sessions.open(line.row.id)" @action="kind => onFolderAction(line.row as FolderRow, kind)" />
           <SessionListRow v-else :row="line.row" :index="v.index" :active="line.row.id === activeId"
             arranged :pin-mark="sessions.filtered.value" selectable :selecting="selecting" :chosen="chosen.has(line.row.id)"
-            @action="kind => onRowAction(line.row as SessionRow | GroupRow, kind)" @toggle="toggle(line.row.id)" />
+            @activate="event => activateRow(line.row.id, event)" @action="kind => onRowAction(line.row as SessionRow | GroupRow, kind)" @toggle="toggle(line.row.id)" />
         </div>
         </template>
       </div>

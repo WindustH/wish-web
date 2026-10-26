@@ -20,6 +20,7 @@ import type { EntryView } from '../../core/api/projections.ts';
 import HistoryItem from './HistoryItem.vue';
 import Markdown from '../../ui/components/Markdown.vue';
 import ThinkingViewport from './ThinkingViewport.vue';
+import RetryRunButton from './RetryRunButton.vue';
 import RetryStatus from './RetryStatus.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useLiveBlocks } from './useLiveBlocks.ts';
@@ -367,6 +368,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
             <strong>{{ i18n.t('chat.runFailed') }}</strong>
             <p>{{ runFailure.message }}</p>
             <small v-if="runFailure.family">{{ runFailure.family }}</small>
+            <RetryRunButton :session="sessionId" />
           </div>
         </div>
       </div>

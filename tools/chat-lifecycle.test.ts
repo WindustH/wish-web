@@ -79,3 +79,16 @@ test('search cannot be overwritten by a late initial history window',async()=>{
     assert.deepEqual(chat.entries.value.map(e=>e.seq),[10]);assert.equal(chat.pendingSeq.value,10);
   }finally{chat.close();}
 });
+
+test('retry resumes the session once without sending another user message', async () => {
+  const response=deferred<any>();let runs=0,inputs=0;
+  const {chat}=setup({sessionRun:async()=>{runs++;return response.promise;},messageSend:async()=>{inputs++;throw Error('unexpected input');}});
+  try {
+    await chat.open('a');
+    const first=chat.retryRun('a');await chat.retryRun('a');
+    assert.equal(runs,1);assert.equal(chat.retryingRun.value,true);
+    response.resolve({accepted:true});await first;
+    assert.equal(inputs,0);assert.equal(chat.retryingRun.value,false);
+    await chat.retryRun('other');assert.equal(runs,1);
+  } finally {chat.close();}
+});

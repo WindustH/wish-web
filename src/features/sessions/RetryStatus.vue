@@ -37,8 +37,8 @@ const name = (operation: string) => ({
 
 <style scoped>
 .retry-status-list { display:grid; gap:10px; white-space:normal; }
-.upstream-retry { padding:12px 16px; border:1px solid var(--line); border-radius:var(--radius); background:var(--bg-raised); color:var(--fg-muted); overflow-wrap:anywhere; }
-.retry-title { display:flex; align-items:center; gap:8px; color:var(--fg); font-size:13px; }
+.upstream-retry { padding:12px 16px; border:1px solid var(--warn-border); border-radius:var(--radius); background:var(--warn-bg); color:var(--warn); overflow-wrap:anywhere; }
+.retry-title { display:flex; align-items:center; gap:8px; color:inherit; font-size:13px; }
 .retry-wait { margin:6px 0 0 24px; font-size:13px; font-variant-numeric:tabular-nums; }
 .retry-reason { margin:8px 0 0 24px; font-size:12px; }
 .retry-reason summary { cursor:pointer; }

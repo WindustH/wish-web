@@ -396,6 +396,16 @@ export function createChat(deps: ChatDependencies = {}) {
     reconciliation.request();
   }
 
+  const retryingRun = shallowRef(false);
+  async function retryRun(id: string): Promise<void> {
+    if (retryingRun.value || id !== sessionId.value || snapshot.value?.running) return;
+    retryingRun.value = true;
+    try {
+      await requests.sessionRun(id);
+      if (sessionId.value === id) await refresh();
+    } finally { retryingRun.value = false; }
+  }
+
   async function interrupt(): Promise<void> {
     if (sessionId.value) {
       const own = epoch;
@@ -464,6 +474,8 @@ export function createChat(deps: ChatDependencies = {}) {
     cancelQueued,
     moveQueued,
     interrupt,
+    retryRun,
+    retryingRun,
     getDraft,
     setDraft,
     flushDrafts,

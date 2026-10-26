@@ -27,7 +27,7 @@ const entryComponent = computed<Component>(() =>
 // the session they belong to.
 const entryProps = computed(() => props.item.type === 'question' ? { item: props.item, session: props.session }
   : props.item.type === 'image_album' ? { item: props.item, forcedKeys: props.forcedKeys, session: props.session, locateSeq: props.locateSeq }
-  : props.item.entry?.kind === 'assistant_message' ? { item: props.item, forcedKeys: props.forcedKeys, session: props.session, locateSeq: props.locateSeq } : { item: props.item });
+  : props.item.entry?.kind === 'assistant_message' ? { item: props.item, forcedKeys: props.forcedKeys, session: props.session, locateSeq: props.locateSeq } : { item: props.item, ...(props.item.entry?.kind === 'run_error' ? {session: props.session} : {}) });
 </script>
 
 <template>

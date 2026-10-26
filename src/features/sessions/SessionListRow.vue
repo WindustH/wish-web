@@ -18,7 +18,7 @@ export type RowAction = 'generate-name' | 'rename' | 'tags' | 'prune' | 'select'
 // (`arranged`) lets a row be pinned and moved; where no heading says a row is pinned, as among
 // search results, a pin marks it (`pinMark`). A group can only be renamed, pinned, moved or deleted.
 const props = defineProps<{ row: SessionRow | GroupRow; active: boolean; index: number; arranged?: boolean; pinMark?: boolean; selectable?: boolean; selecting?: boolean; chosen?: boolean }>();
-const emit = defineEmits<{ action: [kind: RowAction]; toggle: [] }>();
+const emit = defineEmits<{ action: [kind: RowAction]; toggle: []; activate: [event: MouseEvent] }>();
 const name = computed(() => sessionTitle(props.row));
 const group = computed(() => props.row.kind === 'group');
 const tags = computed<string[]>(() => props.row.kind === 'session' && Array.isArray(props.row.metadata?.tags) ? props.row.metadata.tags : []);
@@ -41,6 +41,9 @@ const actions = computed<MenuItem[]>(() => [
     ? { key: 'delete', icon: 'trash-2', label: tr('删除群组', 'Delete group'), danger: true, separator: true }
     : { key: 'delete', icon: 'trash-2', label: i18n.t('sessions.delete'), danger: true, separator: true },
 ]);
+function activate(event: MouseEvent) {
+  if (props.selectable && event.target instanceof Element && event.target.closest('.sl-row')) emit('activate', event);
+}
 const act = (key: string) => emit('action', key as RowAction);
 const link = computed(() => props.selecting ? 'button' : RouterLink);
 const linkAttrs = computed(() => props.selecting
@@ -50,8 +53,8 @@ const linkAttrs = computed(() => props.selecting
 </script>
 <template>
   <Menu context :disabled="selecting" :items="actions" @select="act">
-  <div class="sl-item" :class="{ active: active && !selecting, chosen }" :data-session-id="row.id">
-    <Hint :text="`${name} · ${relTime(row.updated_at, i18n.t)}`"><component :is="link" v-bind="linkAttrs" class="sl-row" :data-testid="`sl-row-${index}`" @click="selecting && emit('toggle')">
+  <div class="sl-item" :class="{ active: active && !selecting, chosen }" :data-session-id="row.id" @click.capture="activate">
+    <Hint :text="`${name} · ${relTime(row.updated_at, i18n.t)}`"><component :is="link" v-bind="linkAttrs" class="sl-row" :data-testid="`sl-row-${index}`" @click="selecting && !$event.defaultPrevented && emit('toggle')">
       <span v-if="selecting" class="sl-check" aria-hidden="true"><Icon v-if="chosen" name="check" /></span>
       <Hint v-else-if="row.kind === 'group'" :text="tr(`群组 · ${row.members.length} 个成员`, `Group · ${row.members.length} member${row.members.length === 1 ? '' : 's'}`)"><span class="sl-status sl-group" :aria-label="tr('群组', 'Group')"><Icon name="users" /></span></Hint>
       <Spinner v-else-if="sessionNaming.pending.value.has(row.id)" />
