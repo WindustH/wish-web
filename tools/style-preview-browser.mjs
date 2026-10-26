@@ -56,20 +56,22 @@ try {
   for (const width of [390, 1200]) {
     await send('Emulation.setDeviceMetricsOverride', {width,height:844,deviceScaleFactor:1,mobile:width===390});
     assert.ok(await js(`Array.from(document.querySelectorAll('.attachment-composer-sample')).every(el => el.querySelector('.composer-attachment-tray').getBoundingClientRect().bottom < el.getBoundingClientRect().top)`), 'attachments float above the input border');
-    await js('document.querySelector("[data-preview=composer-stack] .attachment-stack").click()');
-    await until('document.querySelectorAll("[data-preview=composer-stack] .attach-thumb").length===7', 'expand every attachment');
-    assert.ok(await js('document.documentElement.scrollWidth<=innerWidth'), 'expanded attachment strip does not widen page');
-    await js('document.querySelector("[data-preview=composer-stack] [aria-expanded=true]").click()');
-    await until('!!document.querySelector("[data-preview=composer-stack] .attachment-stack")', 'collapse attachments');
+    await js('document.querySelector("[data-preview=composer-stack] .attachment-stack").scrollIntoView({block:"center"});document.querySelector("[data-preview=composer-stack] .attachment-stack").click()');
+    await until('document.querySelectorAll(".composer-attachments-window .attach-thumb").length===7', 'window shows every attachment');
+    assert.equal(await js('document.querySelectorAll("[data-preview=composer-stack] .attach-thumb").length'), 0, 'stack stays compact outside window');
+    assert.ok(await js('document.documentElement.scrollWidth<=innerWidth'), 'attachment window does not widen page');
+    await js('document.querySelector(".composer-attachments-window .dialog-toolbar button").click()');
+    await until('!document.querySelector(".composer-attachments-window")', 'close attachment window');
   }
   await js('document.querySelector("[data-preview=composer-stack] .attachment-stack").click()');
-  await until('document.querySelectorAll("[data-preview=composer-stack] .rm").length===7', 'expanded remove buttons');
-  await js('document.querySelector("[data-preview=composer-stack] .rm").click()');
-  await until('!!document.querySelector("[data-preview=composer-stack] .attachment-stack")', 'six attachments stack');
-  await js('document.querySelector("[data-preview=composer-stack] .attachment-stack").click()');
-  await until('document.querySelectorAll("[data-preview=composer-stack] .rm").length===6', 'six expanded');
-  await js('document.querySelector("[data-preview=composer-stack] .rm").click()');
-  await until('document.querySelectorAll("[data-preview=composer-stack] .attach-thumb").length===5 && !document.querySelector("[data-preview=composer-stack] .attachment-stack")', 'five attachments stay expanded');
+  await until('document.querySelectorAll(".composer-attachments-window .rm").length===7', 'window remove buttons');
+  await js('document.querySelector(".composer-attachments-window .rm").click()');
+  await until('document.querySelectorAll(".composer-attachments-window .rm").length===6', 'deletion keeps window open');
+  await js('document.querySelector(".composer-attachments-window .rm").click()');
+  await until('document.querySelectorAll(".composer-attachments-window .rm").length===5', 'crossing stack threshold keeps window open');
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await until('!document.querySelector(".composer-attachments-window") && document.querySelectorAll("[data-preview=composer-stack] .attach-thumb").length===5', 'Escape closes window and restores five inline thumbnails');
   async function close() {
     await sleep(500); // Wait for the opening transition and focus trap before Escape.
     await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});

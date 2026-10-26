@@ -35,7 +35,7 @@ provide(openActivityKey, value => { request.value = { ...value, requestId: ++req
       <template v-if="category === 'all' || category === 'composer'">
         <section class="preview-sample" data-preview="composer-single"><h3>{{ tr('浮动附件 · 单张图片', 'Floating attachment · Single image') }}</h3><ComposerAttachmentPreview :count="1" /></section>
         <section class="preview-sample" data-preview="composer-mixed"><h3>{{ tr('浮动附件 · 图片与文件', 'Floating attachments · Images and files') }}</h3><ComposerAttachmentPreview :count="3" mixed /></section>
-        <section class="preview-sample" data-preview="composer-stack"><h3>{{ tr('浮动附件 · 超过五个，点击展开', 'Floating attachments · More than five, click to expand') }}</h3><ComposerAttachmentPreview :count="7" mixed /></section>
+        <section class="preview-sample" data-preview="composer-stack"><h3>{{ tr('浮动附件 · 超过五个，点击打开附件窗口', 'Floating attachments · More than five, click to open attachments') }}</h3><ComposerAttachmentPreview :count="7" mixed /></section>
       </template>
       <section v-for="sample in visible" :key="sample.id" class="preview-sample" :data-preview="sample.id">
         <h3>{{ tr(sample.zh, sample.en) }}</h3>
