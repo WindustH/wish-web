@@ -2,7 +2,7 @@
 import { computed, useId } from 'vue';
 import Icon from './Icon.vue';
 import Hint from './Hint.vue';
-const props = defineProps<{ label: string; options: { value: string; label: string; icon: string; disabled?: boolean }[] }>();
+const props = defineProps<{ label: string; options: { value: string; label: string; icon: string; disabled?: boolean; tone?: 'danger' }[] }>();
 const model = defineModel<string>({ required: true });
 const name = useId();
 const selected = computed(() => Math.max(0, props.options.findIndex(option => option.value === model.value)));
@@ -13,7 +13,7 @@ const selected = computed(() => Math.max(0, props.options.findIndex(option => op
     :style="{ '--segments': options.length, '--selected': selected }">
     <span class="segment-thumb" aria-hidden="true" />
     <Hint v-for="option in options" :key="option.value" :text="option.label">
-    <label class="segment" :class="{ disabled: option.disabled }">
+    <label class="segment" :class="{ disabled: option.disabled, danger: option.tone === 'danger' }">
       <input v-model="model" type="radio" :name="name" :value="option.value" :disabled="option.disabled" :aria-label="option.label">
       <Icon :name="option.icon" :size="18" />
     </label>
@@ -28,6 +28,7 @@ const selected = computed(() => Math.max(0, props.options.findIndex(option => op
 .segment input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: inherit; }
 .segment:has(input:checked) { color: var(--accent); }
 .segment:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
+.segment.danger { color: var(--danger); }
 .segment.disabled { opacity: .4; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) { .segment-thumb { transition: none; } }
 </style>

@@ -17,6 +17,7 @@ const props = defineProps<{
 }>();
 const tools = defineModel<ToolSwitches>({ required: true });
 const rows = computed(() => [
+  { key: 'history_search' as const, name: 'History Search', hint: tr('搜索和读取当前会话的历史记录', 'Search and read this session’s history') },
   { key: 'web_fetch' as const, name: 'Web Fetch', hint: tr('通过网页读取提供商获取链接正文','Read webpages through configured fetch providers') },
   { key: 'shell' as const, name: 'Shell', hint: tr('在工作目录中执行命令', 'Run commands in the working directory') },
   { key: 'ask_user' as const, name: 'Ask User', hint: tr('需要你决定时，给出选项或请你填写', 'Offer choices or ask you to fill in details when your call is needed') },
@@ -28,15 +29,19 @@ const deliveryOptions = computed(() => [
   { value: 'command', icon: 'terminal', label: tr('Wish 命令', 'Wish command'), disabled: !tools.value.shell },
   { value: 'tool', icon: 'tool', label: tr('直接工具', 'Direct tool') },
 ]);
-const capabilityOptions = computed(() => [{ value: 'off', icon: 'x', label: tr('关闭', 'Off') }, ...deliveryOptions.value]);
-function setCapability(key: 'ask_user' | 'web_fetch' | 'web_search', value: string) {
+const taskOptions = computed(() => [
+  { value: 'off', icon: 'x', tone: 'danger' as const, label: tr('随 Shell 关闭', 'Off when Shell is off'), disabled: true },
+  ...deliveryOptions.value.map(option => ({ ...option, disabled: !tools.value.shell })),
+]);
+const capabilityOptions = computed(() => [{ value: 'off', icon: 'x', tone: 'danger' as const, label: tr('关闭', 'Off') }, ...deliveryOptions.value]);
+function setCapability(key: 'ask_user' | 'web_fetch' | 'web_search' | 'history_search', value: string) {
   tools.value[key] = value !== 'off';
   if (value !== 'off') tools.value[deliveryKey(key)] = value as ToolDelivery;
 }
-function deliveryKey(key: 'shell' | 'ask_user' | 'web_fetch' | 'web_search') {
-  return key === 'shell' ? 'task_delivery' as const : `${key}_delivery` as 'ask_user_delivery' | 'web_fetch_delivery' | 'web_search_delivery';
+function deliveryKey(key: 'shell' | 'ask_user' | 'web_fetch' | 'web_search' | 'history_search') {
+  return key === 'shell' ? 'task_delivery' as const : `${key}_delivery` as 'ask_user_delivery' | 'web_fetch_delivery' | 'web_search_delivery' | 'history_search_delivery';
 }
-function delivery(key: 'shell' | 'ask_user' | 'web_fetch' | 'web_search'): ToolDelivery {
+function delivery(key: 'shell' | 'ask_user' | 'web_fetch' | 'web_search' | 'history_search'): ToolDelivery {
   return tools.value[deliveryKey(key)] ?? (key === 'shell' ? 'command' : 'tool');
 }
 </script>
@@ -47,23 +52,23 @@ function delivery(key: 'shell' | 'ask_user' | 'web_fetch' | 'web_search'): ToolD
     <div v-else class="set-row inline capability-row">
       <span class="set-label"><span>{{ row.name }}</span><small>{{ note ?? row.hint }}</small></span>
       <SegmentedControl class="tool-delivery" :label="`${row.name} ${tr('提供方式', 'delivery')}`"
-        :model-value="!tools[row.key] ? 'off' : tools.shell ? delivery(row.key) : 'tool'"
+        :model-value="(row.key === 'history_search' ? tools.history_search === false : !tools[row.key]) ? 'off' : tools.shell ? delivery(row.key) : 'tool'"
         :options="capabilityOptions" @update:model-value="setCapability(row.key, $event)" />
     </div>
-    <div v-if="row.key === 'shell' && tools.shell" class="set-row inline capability-row">
+    <div v-if="row.key === 'shell'" class="set-row inline capability-row">
       <span class="set-label"><span>Task</span><small>{{ note ?? tr('管理命令、输入输出及后台任务', 'Manage commands, input/output and background tasks') }}</small></span>
-      <SegmentedControl class="tool-delivery" :label="tr('Task 提供方式', 'Task delivery')" :model-value="delivery('shell')"
-        :options="deliveryOptions" @update:model-value="tools.task_delivery=$event as ToolDelivery" />
+      <SegmentedControl class="tool-delivery" :label="tr('Task 提供方式', 'Task delivery')" :model-value="tools.shell ? delivery('shell') : 'off'"
+        :options="taskOptions" @update:model-value="tools.shell && $event !== 'off' && (tools.task_delivery=$event as ToolDelivery)" />
     </div>
   </template>
 </template>
 
 <style scoped>
-.tool-delivery { width: 144px; max-width: 100%; flex-shrink: 0; }
-.capability-row { gap: 16px; }
+.tool-delivery { width: 144px; max-width: 100%; flex-shrink: 0; justify-self: end; margin-inline-start: auto; }
+.capability-row { grid-template-columns: minmax(0, 1fr) auto; gap: 16px; }
 .capability-row .set-label { min-width: 0; }
 @media (max-width: 640px) {
-  .capability-row { flex-direction: column; align-items: stretch; gap: 12px; }
+  .capability-row { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
   .tool-delivery { align-self: flex-end; }
 }
 </style>

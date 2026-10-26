@@ -32,7 +32,7 @@ export interface SessionDescriptor {
 }
 /** `mcp` adds no tool of its own: the model reaches MCP servers with `wish mcp` in the shell. */
 export type ToolDelivery = 'tool' | 'command';
-export interface ToolSwitches { task_delivery?: ToolDelivery; web_fetch_delivery?: ToolDelivery; web_search_delivery?: ToolDelivery; ask_user_delivery?: ToolDelivery; shell: boolean; ask_user: boolean; mcp: boolean; web_search: boolean; web_fetch?: boolean; skills: boolean; sessions: boolean }
+export interface ToolSwitches { history_search?: boolean; history_search_delivery?: ToolDelivery; task_delivery?: ToolDelivery; web_fetch_delivery?: ToolDelivery; web_search_delivery?: ToolDelivery; ask_user_delivery?: ToolDelivery; shell: boolean; ask_user: boolean; mcp: boolean; web_search: boolean; web_fetch?: boolean; skills: boolean; sessions: boolean }
 /** One question of an `ask_user` form, with its optional fields settled by the server. */
 export interface AskQuestion {
   type: 'choice' | 'text';
