@@ -1,7 +1,7 @@
-// Local windows share one temporary history entry. Back consumes that entry and closes only
-// the top window, so the router and the page underneath never receive that navigation.
+// Local windows and mobile pages share a reusable history boundary. A Back traversal
+// restores that boundary before dismissing its top layer, without pushing another entry.
 export interface BackLayerBrowser {
-  history: Pick<History, 'state' | 'pushState' | 'back'>;
+  history: Pick<History, 'state' | 'pushState' | 'replaceState' | 'back' | 'forward'>;
   location: { href: string };
   addEventListener(type: 'popstate', listener: (event: PopStateEvent) => void, capture: boolean): void;
 }
@@ -12,10 +12,14 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
   const layers: Layer[] = [];
   let pageBack: (() => unknown) | undefined;
   let sentinel: { token: string; url: string } | undefined;
-  let cleanup: { promise: Promise<void>; resolve: () => void } | undefined;
+  let cleanup: { promise: Promise<void>; resolve: () => void; url: string; state: Record<string, unknown> } | undefined;
   let queuedPop: ReturnType<typeof setTimeout> | undefined;
   let navigating: Layer[] | undefined;
   let handling = false;
+  let restoring: (() => void) | undefined;
+  let restorationFinished: Promise<void> | undefined;
+  let finishRestoration: (() => void) | undefined;
+  let navigationSentinel: typeof sentinel;
   let serial = 0;
   let navigation = 0;
   const owner = Math.random().toString(36).slice(2);
@@ -38,46 +42,61 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
     }
     let resolve!: () => void;
     const promise = new Promise<void>(done => { resolve = done; });
-    cleanup = { promise, resolve };
+    const state = { ...browser.history.state };
+    delete state[MARK];
+    cleanup = { promise, resolve, url: browser.location.href, state };
     // One task's grace: a window dismissed by choosing something in it (the phone's menu, a link
     // inside a card) starts a navigation in the same click. A pop delivered while the router is
     // on its way reads as a rival navigation and the router drops the push - every chat-bar tab
     // went dead behind a menu that had been opened once. A navigation that starts first takes the
     // entry over (beforeNavigation abandons it) and this pop is cancelled.
-    queuedPop = setTimeout(() => { queuedPop = undefined; if (cleanup) browser.history.back(); }, 0);
+    if (handling) browser.history.back();
+    else queuedPop = setTimeout(() => { queuedPop = undefined; if (cleanup) browser.history.back(); }, 0);
     return promise;
   }
   browser.addEventListener('popstate', event => {
-    if (!sentinel || browser.location.href !== sentinel.url || event.state?.[MARK] === sentinel.token) {
-      // A settings guard can open a confirmation while a route pop is pending: wait for the
-      // router's restoration instead of pushing history over that pending pop. A pop that is not
-      // our own entry being consumed - a link, a route change, or the removal below landing on
-      // another URL - must also release whoever is waiting on it: a router stopped in
-      // beforeNavigation would otherwise stay stopped for good, and every later page dead with it.
-      // A sentinel the page has left behind is dropped, so the stack arms again on the new page.
-      if (browser.location.href !== sentinel?.url) sentinel = undefined;
+    if (restoring && event.state?.[MARK] === sentinel?.token) {
+      event.stopImmediatePropagation();
+      const action = restoring;
+      restoring = undefined;
+      handling = true;
+      try { action(); }
+      finally {
+        handling = false;
+        finishRestoration?.();
+        finishRestoration = undefined;
+        restorationFinished = undefined;
+      }
+      return;
+    }
+    if (!sentinel || event.state?.[MARK] === sentinel.token) {
       const waiting = cleanup;
       cleanup = undefined;
       waiting?.resolve();
-      queueMicrotask(arm);
       return;
     }
     event.stopImmediatePropagation();
-    sentinel = undefined;
-    handling = true;
     const pending = cleanup;
     cleanup = undefined;
-    try {
-      if (!pending) {
-        const top = layers.reduce<Layer | undefined>((top, layer) => !top || layer.priority() >= top.priority() ? layer : top, undefined);
-        if (top) top.close();
-        else pageBack?.();
-      }
-    } finally {
-      handling = false;
-      pending?.resolve();
+    if (pending) {
+      // A parent-route replacement can leave the boundary over an older URL. Removing
+      // it must keep the visible route (including when resizing back to desktop).
+      if (browser.location.href !== pending.url) browser.history.replaceState(pending.state, '', pending.url);
+      sentinel = undefined;
+      pending.resolve();
       arm();
+      return;
     }
+    // Reuse the boundary already in forward history. Pushing a replacement after a Back
+    // makes Chromium mark all this document's entries skippable by its native Back UI.
+    // Restore before invoking the handler, so route replacements cannot race the traversal.
+    const top = layers.reduce<Layer | undefined>((top, layer) => !top || layer.priority() >= top.priority() ? layer : top, undefined);
+    restoring = () => {
+      if (top) { if (layers.includes(top)) top.close(); }
+      else if (!layers.length) pageBack?.();
+    };
+    restorationFinished = new Promise<void>(resolve => { finishRestoration = resolve; });
+    browser.history.forward();
   }, true);
 
   return {
@@ -115,21 +134,26 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
       };
     },
     async beforeNavigation() {
+      if (restorationFinished) await restorationFinished;
       const ticket = ++navigation;
       navigating ??= [...layers];
-      // Never pop history while the router is on its way: a popstate arriving mid-navigation reads
-      // as a rival navigation and the router drops the push, which left every tab of the phone's
-      // chat bar dead once a menu had been opened and closed. The sentinel entry is abandoned
-      // instead - one identical stop in history - and the stack re-arms on arrival.
+      // Do not traverse while the router is navigating. A replacement retains the current
+      // boundary token; a push creates a new route entry. afterNavigation distinguishes them
+      // so replacements after native Back never push an extra entry without activation.
       if (queuedPop !== undefined) { clearTimeout(queuedPop); queuedPop = undefined; }
       const waiting = cleanup;
       cleanup = undefined;
       waiting?.resolve();
+      navigationSentinel ??= sentinel;
       sentinel = undefined;
       return ticket;
     },
     afterNavigation(succeeded: boolean, ticket = navigation, preserve = false) {
       if (!navigating || ticket !== navigation) return;
+      if (navigationSentinel && browser.history.state?.[MARK] === navigationSentinel.token) {
+        sentinel = { ...navigationSentinel, url: browser.location.href };
+      }
+      navigationSentinel = undefined;
       const previous = navigating;
       if (succeeded && !preserve) {
         // A link deliberately chosen inside a window can still navigate. Do not leave its
@@ -142,6 +166,7 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
         }
       }
       navigating = undefined;
+      if (!layers.length && !pageBack) sentinel = undefined;
       arm();
     },
   };

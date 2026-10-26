@@ -98,3 +98,5 @@ Service Worker 由 `vite-plugin-pwa` 借助 Workbox 生成：
 - `useMobileBackNavigation` 负责首页退出确认。浏览器没有通用的 PWA 关闭接口：有前序浏览器页面时返回该页面；独立启动时确认后回到历史边界，由下一次系统返回退出。
 
 验证入口：`tools/dialog-lifecycle.test.ts`、`tools/back-layers.test.ts`、`tools/chat-browser-regression.mjs` 和 `tools/settings-navigation-browser.mjs`。后者使用真实 Hash History，覆盖账户详情返回、分类返回、首页退出确认与取消。
+
+移动端历史边界在 Back 后通过 forward 恢复原记录，再执行关闭或父页替换；禁止在连续返回后用 pushState 重建边界。Chromium 在返回后会停止认可之前的用户激活，此时 pushState 可能使同文档记录全部被系统返回跳过。`history.back()` 不应用这套跳过规则，因此单独通过它的测试不足以证明 Android 手势返回正常。单元测试模拟该规则，浏览器回归额外断言连续返回不增加历史记录。参见 [Chromium history manipulation intervention](https://chromium.googlesource.com/chromium/src/+/main/docs/history_manipulation_intervention.md)。

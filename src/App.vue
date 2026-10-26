@@ -114,8 +114,7 @@ const online = computed(() => sync.online.value);
   </div>
   <!-- Above the settings dialog (51), below pickers (80) and error dialogs (200). -->
   <ProviderSetup v-if="onboardingPreview" preview class="onboarding-preview" @complete="closeOnboardingPreview" @exit="closeOnboardingPreview" />
-  <Modal v-if="exitRequested" :open="true" :back-layer="false" :title="tr('退出 Wish？', 'Leave Wish?')" @close="exitRequested = false">
-    <p>{{ tr('确定要离开 Wish 吗？', 'Are you sure you want to leave Wish?') }}</p>
+  <Modal v-if="exitRequested" compact content-class="exit-confirmation" :open="true" :back-layer="false" :title="tr('退出 Wish？', 'Leave Wish?')" @close="exitRequested = false">
     <template #footer>
       <button class="btn" @click="exitRequested = false">{{ tr('取消', 'Cancel') }}</button>
       <button class="btn primary" @click="confirmExit">{{ tr('退出', 'Leave') }}</button>
@@ -135,4 +134,5 @@ const online = computed(() => sync.online.value);
 @media (min-width: 900px) { .overlay-route-host { display: contents !important; } }
 @media (max-width: 899px) { .overlay-route-host { position: absolute; inset: 0; z-index: 30; background: transparent; } }
 .overlay-route-host.is-closing { pointer-events: none; }
+.modal-card.exit-confirmation { width: min(320px, calc(100vw - 40px)); }
 </style>

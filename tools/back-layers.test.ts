@@ -8,6 +8,9 @@ function harness(canArm = () => true) {
     { url: 'https://wish.test/#/s/1', state: { position: 1, current: '/s/1', back: '/sessions', scroll: { top: 431 } } },
   ];
   let index = 1;
+  let pushes = 0;
+  let activated = true;
+  let skippable = false;
   const listeners: { fn: (event: PopStateEvent) => void; capture: boolean }[] = [];
   const pending: (() => void)[] = [];
   const routed: string[] = [];
@@ -16,23 +19,29 @@ function harness(canArm = () => true) {
     history: {
       get state() { return pages[index]!.state; },
       pushState(state, _title, url) {
+        pushes++;
+        if (!activated) skippable = true;
         pages.splice(index + 1);
         pages.push({ state, url: String(url) });
         index++;
       },
-      back() { pending.push(() => {
-        if (!index) return;
-        index--;
+      replaceState(state, _title, url) { pages[index] = { state, url: String(url) }; },
+      back() { traverse(-1); },
+      forward() { traverse(1); },
+    },
+    addEventListener(_type, fn, capture) { listeners.push({ fn, capture }); },
+  };
+  function traverse(delta: number) { pending.push(() => {
+        if (index + delta < 0 || index + delta >= pages.length) return;
+        index += delta;
+        activated = false;
         let stopped = false;
         const event = { state: pages[index]!.state, stopImmediatePropagation() { stopped = true; } } as PopStateEvent;
         for (const listener of [...listeners].sort((a, b) => Number(b.capture) - Number(a.capture))) {
           listener.fn(event);
           if (stopped) break;
         }
-      }); },
-    },
-    addEventListener(_type, fn, capture) { listeners.push({ fn, capture }); },
-  };
+      }); }
   // The router is already listening when a local window registers its history handler.
   browser.addEventListener('popstate', () => { routed.push(browser.location.href); }, false);
   const stack = createBackLayers(browser, canArm);
@@ -41,7 +50,10 @@ function harness(canArm = () => true) {
   // The sentinel a dismissed window pushed is popped one task later, so a navigation starting in
   // the same click can take that entry over instead of being cancelled by a rival popstate.
   const tick = async () => { await new Promise(done => setTimeout(done, 0)); flush(); };
-  return { stack, browser, pages, routed, flush, back, tick, get index() { return index; } };
+  return { stack, browser, pages, routed, flush, back, tick,
+    get pushes() { return pushes; },
+    nativeBack() { if (skippable) routed.push('outside Wish'); else back(); },
+    get index() { return index; } };
 }
 
 test('Back closes the viewer, preserves the page and router state; the next Back navigates', () => {
@@ -218,4 +230,40 @@ test('mobile page boundary survives closing a detail and handles only the next B
   await releasing;
   h.back();
   assert.equal(h.routed.length, 1, 'explicit exit releases the browser boundary');
+});
+
+
+test('consecutive native Back traversals reuse a boundary instead of marking history skippable', async () => {
+  const h = harness();
+  let pagesClosed = 0;
+  h.stack.setPageBack(() => { pagesClosed++; });
+  const pushes = h.pushes;
+  let release = () => {};
+  release = h.stack.add(() => release());
+  h.nativeBack();
+  assert.equal(pagesClosed, 0);
+  h.nativeBack();
+  assert.equal(pagesClosed, 1);
+  // A logical parent replaces the current boundary entry rather than pushing one after Back.
+  const ticket = await h.stack.beforeNavigation();
+  h.pages[h.index]!.url = 'https://wish.test/#/settings';
+  h.stack.afterNavigation(true, ticket);
+  h.nativeBack();
+  assert.equal(pagesClosed, 2);
+  assert.equal(h.pushes, pushes, 'no pushState after a traversal without fresh activation');
+  assert.deepEqual(h.routed, [], 'Chrome must not skip to a page outside Wish');
+});
+
+
+test('removing a replaced page boundary preserves the route visible to the router', async () => {
+  const h = harness();
+  h.stack.setPageBack(() => {});
+  const ticket = await h.stack.beforeNavigation();
+  h.pages[h.index]!.url = 'https://wish.test/#/settings';
+  h.stack.afterNavigation(true, ticket);
+  const released = h.stack.releasePageBoundary();
+  await h.tick();
+  await released;
+  assert.equal(h.browser.location.href, 'https://wish.test/#/settings');
+  assert.deepEqual(h.routed, []);
 });

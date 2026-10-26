@@ -20,7 +20,7 @@ import Modal from '/src/ui/components/Modal.vue';
 import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
 import {createBackLayers,setBackLayers} from '/src/ui/backLayers.ts';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/features/settings/settings.css';
-registerBrowserPlatform();const layers=createBackLayers(window);setBackLayers(layers);
+registerBrowserPlatform();window.historyPushes=0;const nativePush=history.pushState;history.pushState=function(...args){window.historyPushes++;return nativePush.apply(this,args);};const layers=createBackLayers(window);setBackLayers(layers);
 const draft=ref({name:'Original'}),source=ref(JSON.stringify(draft.value)),busy=ref(false),revision=ref('1'),opened=ref(false);let saves=0,failNext=false;
 const Nested={setup(){const returns=inject(settingsReturnKey);return()=>h(Modal,{page:true,open:opened.value,title:'Nested',beforeClose:returns.confirm,onClose:()=>opened.value=false},{default:()=>h('input',{class:'input',value:draft.value.name,onInput:e=>draft.value.name=e.target.value})});}};
 const Settings={setup(){
@@ -107,6 +107,7 @@ try {
   await until('navigationFixture.router.currentRoute.value.query.section === "accounts"','account category');
   await js('document.querySelector("#open").click()');
   await until('!!document.querySelector(".modal-page input")','account detail before native Back');
+  const armedPushes=await js('window.historyPushes');
   await js('history.back()');
   await until('!fixture.opened.value && !document.querySelector(".modal-page")','native Back closes detail');
   assert.equal(await js('navigationFixture.router.currentRoute.value.query.section'),'accounts');
@@ -124,6 +125,7 @@ try {
   await js('history.back()');
   await until('!document.querySelector(".modal-overlay")','native Back cancels exit prompt');
 
+  assert.equal(await js('window.historyPushes'),armedPushes,'consecutive Back and parent replacements never push fresh history entries');
   assert.deepEqual(exceptions,[],'no runtime exceptions');
   await js('history.back()');
   await until('navigationFixture.exitRequested.value','confirm exit is available');
