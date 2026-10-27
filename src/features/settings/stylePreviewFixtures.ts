@@ -2,7 +2,7 @@
 import { groupEntries } from '../sessions/grouping.ts';
 import { entryView } from '../../core/api/projections.ts';
 export type PreviewCategory = 'files' | 'messages' | 'tools' | 'sessions';
-export interface StyleSample { id: string; category: PreviewCategory; zh: string; en: string; kind: 'files' | 'history' | 'process' | 'group'; item: any }
+export interface StyleSample { id: string; category: PreviewCategory; zh: string; en: string; kind: 'files' | 'history' | 'process' | 'group' | 'retry'; item: any }
 const diff = '@@ -1,2 +1,3 @@\n-export const enabled = false;\n+export const enabled = true;\n+// Continue unfinished work.\n export const name = "Wish";';
 const edit = (path: string) => ({ path, changed: true, status: 'complete', diff });
 function files(id: string, paths: string[]) {
@@ -19,6 +19,8 @@ const success = (output: any) => ({ status: 'success', output });
 export function stylePreviewFixtures(): StyleSample[] {
   const group = { id: 'preview-only', name: 'Wish 开发协作 · Development' };
   const samples: StyleSample[] = [
+    { id: 'retry-waiting', category: 'messages', zh: '连接重试 · 等待重试', en: 'Connection retry · Waiting', kind: 'retry', item: [{ requestId: 'preview-retry-waiting', operation: 'model', phase: 'waiting', retry: 2, maxRetries: 5, retryAt: Date.now() + 10_000, failure: { family: 'Transport', message: '连接暂时中断，等待重新请求。\nConnection reset while waiting for response headers.' } }] },
+    { id: 'retry-attempting', category: 'messages', zh: '连接重试 · 已重新请求', en: 'Connection retry · Request sent', kind: 'retry', item: [{ requestId: 'preview-retry-attempting', operation: 'web_fetch', phase: 'attempting', retry: 1, maxRetries: 3, retryAt: 0, failure: { family: 'Transport', message: '上次请求等待响应超时。\nThe previous request timed out before response headers arrived.' } }] },
     { id: 'one-file', category: 'files', zh: '单文件修改', en: 'Single file', kind: 'files', item: files('one-file', ['src/config.ts']) },
     { id: 'three-files', category: 'files', zh: '三个独立卡片 / 长路径', en: 'Three cards / long path', kind: 'files', item: files('three-files', ['src/features/settings/preview/a-very-long-component-name-for-layout-testing.vue', 'src/config.ts', 'README.md']) },
     { id: 'stacked-files', category: 'files', zh: '六个文件堆叠', en: 'Six stacked files', kind: 'files', item: files('stacked-files', ['test_wish_server.py', 'compaction.md', 'input-preemption-audit.md', 'provider.rs', 'ToolSettings.vue', 'config.ts']) },

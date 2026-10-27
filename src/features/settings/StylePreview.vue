@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, provide, ref } from 'vue';
+import RetryStatus from '../sessions/RetryStatus.vue';
 import CodeHighlightPreview from './CodeHighlightPreview.vue';
 import ComposerAttachmentPreview from './ComposerAttachmentPreview.vue';
 import { tr } from '../../core/i18n/tr.ts';
@@ -51,6 +52,7 @@ provide(openActivityKey, value => { request.value = { ...value, requestId: ++req
           </details>
         </div>
         <GroupMessageCard v-else-if="sample.kind === 'group'" v-bind="sample.item" preview />
+        <RetryStatus v-else-if="sample.kind === 'retry'" :retries="sample.item" />
         <HistoryItem v-else :item="sample.item" />
       </section>
     </div>

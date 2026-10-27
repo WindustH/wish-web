@@ -47,7 +47,12 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/__style_preview`});
-  await until('document.querySelectorAll(".preview-sample").length===20','all gallery samples');
+  await until('document.querySelectorAll(".preview-sample").length===22','all gallery samples');
+  for (const id of ['retry-waiting','retry-attempting']) {
+    await js(`document.querySelector('[data-preview=${id}] .retry-reason-toggle').click()`);
+    assert.equal(await js(`document.querySelector('[data-preview=${id}] .retry-reason-toggle').getAttribute('aria-expanded')`),'true');
+    assert.ok(await js(`document.querySelector('[data-preview=${id}] .retry-reason-content').innerText.includes('Transport')`),'retry failure details visible');
+  }
   const highlightResult=await js(`(() => {
     const code='const label = "<img src=x onerror=alert(1)>";\\n';
     const parse=(text)=>{const host=document.createElement('div');host.innerHTML=renderMarkdown(text,'Copy');return host;};
@@ -125,7 +130,7 @@ try {
   await until('!!document.querySelector(".proc-event")','session operation timeline');
   await close();
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['20 real-component samples','desktop/mobile dark/light','six-file dialog','category filter','syntax colours and exact copy','safe fallback and streaming','group details without navigation','session operation timeline']}));
+  console.log(JSON.stringify({ok:true,checks:['22 real-component samples','desktop/mobile dark/light','six-file dialog','category filter','syntax colours and exact copy','safe fallback and streaming','group details without navigation','session operation timeline']}));
 
 } finally {
   ws?.close();
