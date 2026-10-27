@@ -1,7 +1,7 @@
 .shell { display: flex; height: 100dvh; overflow: hidden; }
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 .main-col { position: relative; flex: 1; display: flex; min-width: 0; min-height: 0; overflow: hidden; }
-.sessions-split { flex: 1; display: flex; min-width: 0; min-height: 0; }
+.sessions-split { position: relative; flex: 1; display: flex; min-width: 0; min-height: 0; }
 .sessions-pane {
   position: relative; width: var(--w-list); flex: none; border-right: 1px solid var(--line); display: flex;
   flex-direction: column; background: var(--bg-sunken); min-height: 0;
@@ -49,3 +49,6 @@ html.resizing, html.resizing * { cursor: col-resize !important; user-select: non
 .shell.desktop .sessions-pane { transition: width var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out); overflow: hidden; }
 .shell.desktop .sessions-pane.is-collapsed { width: 0; opacity: 0; border-right: 0; pointer-events: none; visibility: hidden; transition: width var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out), visibility 0s var(--dur); }
 html.resizing .shell .sessions-pane { transition: none; }
+
+/* The shared toggle stays outside both the sliding sidebar and route fades. */
+.shell.desktop .sessions-split.sidebar-collapsed .chatbar { padding-left: 56px; }

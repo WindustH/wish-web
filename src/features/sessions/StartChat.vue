@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import SessionListToggle from './SessionListToggle.vue';
 import { attachmentDigest } from '../../core/attachmentDigest.ts';
 import { sessionNaming } from '../../core/state/sessionNaming.ts';
 import { modelLabel as formatModelLabel } from '../../ui/modelLabel.ts';
@@ -146,7 +145,6 @@ async function send(text: string, attachments: AttachmentInput[]) {
 
 <template>
   <div class="start-chat" :class="{ 'mobile-home': mobile && home }">
-    <SessionListToggle class="start-sidebar-toggle" />
     <button v-if="mobile && !home" class="btn ghost icon-only start-back" :aria-label="i18n.t('chatbar.back')" @click="router.push('/sessions')"><Icon name="arrow-left" /></button>
     <div v-if="mobile && home" class="home-actions"><AppMenu placement="header" /></div>
     <div class="start-surface">
@@ -191,7 +189,6 @@ async function send(text: string, attachments: AttachmentInput[]) {
 .start-model-controls .model-chip { flex: 0 1 auto; max-width: min(38vw, 320px); }
 .home-actions { position: absolute; top: 8px; right: 12px; z-index: 1; display: flex; align-items: center; gap: 2px; }
 .home-actions .btn { width: 44px; height: 44px; }
-.start-sidebar-toggle { position: absolute; top: 16px; left: 20px; }
 .start-back { position: absolute; top: 8px; left: 8px; }
 .start-empty { display: flex; align-items: center; gap: 8px; }
 .start-folder { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; padding-left: 4px; color: var(--fg-subtle); font-size: 12.5px; }

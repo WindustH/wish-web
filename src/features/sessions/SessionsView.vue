@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SessionListToggle from './SessionListToggle.vue';
 import { useSessionMotion } from "./useSessionMotion.ts";
 useSessionMotion();
 import Hint from '../../ui/components/Hint.vue';
@@ -33,7 +34,8 @@ onBeforeUnmount(cancelListResize);
 </script>
 
 <template>
-  <div ref="split" class="sessions-split">
+  <div ref="split" class="sessions-split" :class="{ 'sidebar-collapsed': !isMobile && !showList }">
+    <SessionListToggle />
     <SessionList v-if="!isMobile || home" :class="{ 'is-collapsed': !isMobile && !showList, 'sheet-closed': isMobile && !showList }" id="session-list" />
     <div v-if="!isMobile" class="session-list-edge">
       <Hint text="↔"><div v-show="showList" class="list-resize" role="separator" aria-orientation="vertical"

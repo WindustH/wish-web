@@ -13,9 +13,14 @@ const label = computed(() => i18n.t(sessionListCollapsed.value ? 'sessions.expan
 </script>
 
 <template>
-  <Hint v-if="!isMobile && sessionListCollapsed" :text="label"><button v-bind="$attrs" type="button" class="btn ghost icon-only session-list-toggle" :aria-label="label"
+  <Hint v-if="!isMobile" :text="label"><button v-bind="$attrs" type="button" class="btn ghost icon-only session-list-toggle" :aria-label="label"
     :aria-expanded="!sessionListCollapsed" aria-controls="session-list"
     @click="prefs.setSessionListCollapsed(!sessionListCollapsed)">
     <Icon name="panel-left" aria-hidden="true" />
   </button></Hint>
 </template>
+
+<style scoped>
+.session-list-toggle { position: absolute; top: 10px; left: 8px; z-index: 26; color: var(--fg-subtle); }
+.session-list-toggle .icon { width: 18px; height: 18px; }
+</style>

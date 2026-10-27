@@ -31,7 +31,6 @@ import Spinner from '../../ui/components/Spinner.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import Wordmark from '../../ui/components/Wordmark.vue';
 import AppMenu from '../shell/AppMenu.vue';
-import { prefs } from '../../core/state/prefsSlice.ts';
 import { goHome } from './useRecentsSheet.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { platform } from '../../platform/index.ts';
@@ -286,8 +285,7 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
 <template>
   <div ref="keyboardRoot" class="sessions-pane" tabindex="-1">
     <header v-if="!isMobile" class="sl-brand">
-      <Hint :text="i18n.t('sessions.collapseList')"><button type="button" class="btn ghost icon-only sl-collapse" :aria-label="i18n.t('sessions.collapseList')"
-        aria-controls="session-list" aria-expanded="true" @click="prefs.setSessionListCollapsed(true)"><Icon name="panel-left" /></button></Hint>
+      <span class="sl-toggle-space" aria-hidden="true" />
       <img class="sl-brand-mark" src="/app-icons/mark.svg" alt="" /><Wordmark class="sl-brand-word" />
     </header>
     <header v-if="isMobile" class="page-bar"><button type="button" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')" @click="goHome(router)"><Icon name="arrow-left" /></button><h1 class="page-bar-title">{{ tr('全部会话', 'All sessions') }}</h1></header>
@@ -391,8 +389,7 @@ onMounted(() => { if (!rows.value.length && !sessions.loading.value) sessions.lo
   .rearranging, .rearranging > div { transition: none !important; }
 }
 .sl-brand { display: flex; flex: none; align-items: center; gap: 8px; padding: 10px 12px 2px 8px; }
-.sl-brand .sl-collapse { color: var(--fg-subtle); }
-.sl-brand .sl-collapse .icon { width: 18px; height: 18px; }
+.sl-toggle-space { flex: none; width: 36px; height: 36px; }
 .sl-brand-mark { display: block; width: 22px; height: auto; }
 .sl-brand-word { height: 14px; color: var(--fg); }
 .sl-new { display: flex; flex: none; align-items: center; gap: 10px; margin: 2px 8px 8px; padding: 6px 8px; border: 0; border-radius: var(--radius); background: transparent; color: var(--fg); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; transition: background var(--dur-fast); }

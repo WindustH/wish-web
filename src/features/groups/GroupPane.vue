@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import SessionListToggle from '../sessions/SessionListToggle.vue';
 // A group's chat: its bar, its transcript, and a composer that posts to it. The group's window
 // opens from the bar; the transcript catches up whenever the group announces a change.
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
@@ -81,7 +80,6 @@ const infoLabel = tr('群组信息', 'Group info');
 <template>
   <div class="chat-pane group-pane">
     <div class="chatbar">
-      <SessionListToggle />
       <button v-if="isMobile" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')"
         @click="router.push(sessionParent)"><Icon name="arrow-left" /></button>
       <div class="chat-title">
