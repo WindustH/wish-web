@@ -13,7 +13,7 @@ const FLICK = 600;
  */
 export function useSheetDrag(element: () => HTMLElement | null | undefined, enabled: () => boolean, close: () => void) {
   const offset = motionValue(0);
-  offset.on('change', value => {
+  offset.on('change', (value) => {
     const el = element();
     if (el) el.style.translate = value > 0 ? `0 ${value}px` : '';
   });
@@ -24,7 +24,11 @@ export function useSheetDrag(element: () => HTMLElement | null | undefined, enab
     start = undefined;
     if (!enabled() || event.touches.length !== 1 || !touch) return;
     // On something scrolled down - the body, or a long block within it - a pull down scrolls it back.
-    for (let node = event.target instanceof Element ? event.target : null; node && node !== event.currentTarget; node = node.parentElement) {
+    for (
+      let node = event.target instanceof Element ? event.target : null;
+      node && node !== event.currentTarget;
+      node = node.parentElement
+    ) {
       if (node.scrollTop > 0) return;
     }
     offset.stop();
@@ -37,7 +41,10 @@ export function useSheetDrag(element: () => HTMLElement | null | undefined, enab
     const moved = touch.clientY - start;
     if (!pulling) {
       // Pushed up, the body scrolls; the pull starts only downwards.
-      if (moved < -4) { start = undefined; return; }
+      if (moved < -4) {
+        start = undefined;
+        return;
+      }
       if (moved < 4) return;
       pulling = true;
     }
@@ -59,18 +66,22 @@ export function useSheetDrag(element: () => HTMLElement | null | undefined, enab
       animate(offset, 0, SPRING);
     }
   }
-  watch(element, (el, _, cleanup) => {
-    if (!el) return;
-    el.addEventListener('touchstart', onStart, { passive: true });
-    el.addEventListener('touchmove', onMove, { passive: false });
-    el.addEventListener('touchend', onEnd);
-    el.addEventListener('touchcancel', onEnd);
-    cleanup(() => {
-      el.removeEventListener('touchstart', onStart);
-      el.removeEventListener('touchmove', onMove);
-      el.removeEventListener('touchend', onEnd);
-      el.removeEventListener('touchcancel', onEnd);
-    });
-  }, { flush: 'post' });
+  watch(
+    element,
+    (el, _, cleanup) => {
+      if (!el) return;
+      el.addEventListener('touchstart', onStart, { passive: true });
+      el.addEventListener('touchmove', onMove, { passive: false });
+      el.addEventListener('touchend', onEnd);
+      el.addEventListener('touchcancel', onEnd);
+      cleanup(() => {
+        el.removeEventListener('touchstart', onStart);
+        el.removeEventListener('touchmove', onMove);
+        el.removeEventListener('touchend', onEnd);
+        el.removeEventListener('touchcancel', onEnd);
+      });
+    },
+    { flush: 'post' },
+  );
   onBeforeUnmount(() => offset.destroy());
 }

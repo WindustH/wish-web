@@ -9,14 +9,22 @@ const props = defineProps<{ item: any }>();
 const note = computed(() => props.item.entry.payload.metadata);
 const outcome = computed(() => {
   const woken = note.value.woken?.length ?? 0;
-  return woken ? tr(`唤醒了 ${woken} 个成员`, `Woke ${woken} member${woken === 1 ? '' : 's'}`) : tr('群里没有其他会话', 'No other session there');
+  return woken
+    ? tr(`唤醒了 ${woken} 个成员`, `Woke ${woken} member${woken === 1 ? '' : 's'}`)
+    : tr('群里没有其他会话', 'No other session there');
 });
 </script>
 
 <template>
   <div class="entry assistant group-sent">
     <div class="body">
-      <GroupMessageCard :verb="tr('发到', 'Sent to')" :group="note.group" :text="note.text ?? ''" :note="outcome" :at="item.entry.created_at" />
+      <GroupMessageCard
+        :verb="tr('发到', 'Sent to')"
+        :group="note.group"
+        :text="note.text ?? ''"
+        :note="outcome"
+        :at="item.entry.created_at"
+      />
     </div>
   </div>
 </template>

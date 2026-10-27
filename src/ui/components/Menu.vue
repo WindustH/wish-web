@@ -24,8 +24,14 @@ export function closeMenus() {
 // long press on text already selected opens those items instead, for what was selected.
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import {
-  DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuPortal, DropdownMenuRoot,
-  DropdownMenuSeparator, DropdownMenuTrigger, Primitive,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuRoot,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Primitive,
 } from 'reka-ui';
 import Icon from './Icon.vue';
 import MenuBackdrop from './MenuBackdrop.vue';
@@ -34,21 +40,32 @@ import { covers, glyphAt, selectionCovers, SELECTABLE_TEXT } from '../textAtPoin
 import { noteSwallowedClick } from '../scrollStalls.ts';
 
 // `checked` marks the current choice of a menu that picks one of several.
-export type MenuItem = { key: string; label: string; icon?: string; danger?: boolean; shortcut?: string; separator?: boolean; checked?: boolean };
+export type MenuItem = {
+  key: string;
+  label: string;
+  icon?: string;
+  danger?: boolean;
+  shortcut?: string;
+  separator?: boolean;
+  checked?: boolean;
+};
 
-const props = withDefaults(defineProps<{
-  items: MenuItem[];
-  label?: string;
-  heading?: string;
-  context?: boolean;
-  disabled?: boolean;
-  side?: 'top' | 'bottom' | 'left' | 'right';
-  align?: 'start' | 'center' | 'end';
-  contentClass?: string;
-  within?: string;
-  selectsText?: boolean;
-  selectionItems?: MenuItem[];
-}>(), { side: 'bottom', align: 'end' });
+const props = withDefaults(
+  defineProps<{
+    items: MenuItem[];
+    label?: string;
+    heading?: string;
+    context?: boolean;
+    disabled?: boolean;
+    side?: 'top' | 'bottom' | 'left' | 'right';
+    align?: 'start' | 'center' | 'end';
+    contentClass?: string;
+    within?: string;
+    selectsText?: boolean;
+    selectionItems?: MenuItem[];
+  }>(),
+  { side: 'bottom', align: 'end' },
+);
 // How long a finger rests on the element before its context menu opens.
 const LONG_PRESS_MS = 500;
 // `selection` is the selected text a menu of `selectionItems` was opened for.
@@ -58,7 +75,10 @@ const open = ref(false);
 function setOpen(value: boolean) {
   open.value = value;
 }
-const close = () => { cancelPress(); setOpen(false); };
+const close = () => {
+  cancelPress();
+  setOpen(false);
+};
 // No Back stop of its own. A menu is almost always dismissed *by* choosing something in it, and
 // that choice is a navigation: the local entry the menu had pushed would be left behind - one
 // Back press that closes nothing on the way out of the page it chose. Tapping outside, Esc and
@@ -70,7 +90,9 @@ closers.add(close);
 // only if it is set on the first render, so it cannot arrive later.
 const anchor = shallowRef<{ element: HTMLElement; x: number; y: number }>();
 const reference = {
-  get contextElement() { return anchor.value?.element; },
+  get contextElement() {
+    return anchor.value?.element;
+  },
   getBoundingClientRect() {
     const at = anchor.value;
     if (!at) return new DOMRect();
@@ -83,7 +105,7 @@ const reference = {
 let openedAt = 0;
 // The selected text the open menu acts on, or null for the element's own items.
 const selected = ref<string | null>(null);
-const shown = computed(() => selected.value !== null && props.selectionItems ? props.selectionItems : props.items);
+const shown = computed(() => (selected.value !== null && props.selectionItems ? props.selectionItems : props.items));
 function openAt(element: HTMLElement, x: number, y: number, selection: string | null) {
   if (props.disabled && selection === null) return;
   const box = element.getBoundingClientRect();
@@ -107,9 +129,15 @@ function onContextMenu(event: MouseEvent) {
   const element = event.currentTarget as HTMLElement;
   // From the keyboard there is no pointer; the menu opens near the corner of what is seen of it.
   if (!event.clientX && !event.clientY) {
-    const part = props.within ? element.querySelector<HTMLElement>(props.within) ?? element : element;
+    const part = props.within ? (element.querySelector<HTMLElement>(props.within) ?? element) : element;
     const seen = sightOf(part, clipsOf(part));
-    if (seen) openAt(part, seen.left + Math.min(24, seen.width / 2), seen.top + Math.min(24, seen.height / 2), selectionAt(element));
+    if (seen)
+      openAt(
+        part,
+        seen.left + Math.min(24, seen.width / 2),
+        seen.top + Math.min(24, seen.height / 2),
+        selectionAt(element),
+      );
     return;
   }
   // The selection as the press found it: a right click may select the word under it first.
@@ -133,19 +161,28 @@ let pressSelection: string | null = null;
 function onPointerDown(event: PointerEvent) {
   if (!event.isPrimary) return;
   const element = event.currentTarget as Element;
-  const x = event.clientX, y = event.clientY;
+  const x = event.clientX,
+    y = event.clientY;
   pressedAt = performance.now();
   pressSelection = selectionAt(element, x, y);
   touchPress = event.pointerType === 'touch';
-  if (!touchPress || props.disabled && pressSelection === null) return;
+  if (!touchPress || (props.disabled && pressSelection === null)) return;
   cancelPress();
   // Only words that a held finger selects count as text; elsewhere a hold opens the menu.
   const words = (event.target as Element | null)?.closest?.(SELECTABLE_TEXT);
-  blankPress = pressSelection !== null || !props.selectsText || !words || !element.contains(words) || !glyphAt(x, y, words);
+  blankPress =
+    pressSelection !== null || !props.selectsText || !words || !element.contains(words) || !glyphAt(x, y, words);
   const part = pressed(event);
   if (!part || !blankPress) return;
   const selection = pressSelection;
-  press = { x, y, timer: setTimeout(() => { press = undefined; openAt(part, x, y, selection); }, LONG_PRESS_MS) };
+  press = {
+    x,
+    y,
+    timer: setTimeout(() => {
+      press = undefined;
+      openAt(part, x, y, selection);
+    }, LONG_PRESS_MS),
+  };
 }
 // A hold that opens the menu keeps the selection as it is; the platform would otherwise select the
 // word under the finger.
@@ -171,7 +208,9 @@ function dropClickAfterPress(event: MouseEvent) {
   event.stopPropagation();
   noteSwallowedClick('menu: lifting the finger that opened it');
 }
-watch(pageActive, active => { if (!active) close(); });
+watch(pageActive, (active) => {
+  if (!active) close();
+});
 // The ancestors that clip an element, and the part of it they and the window leave in sight.
 function clipsOf(element: Element): Element[] {
   const clips: Element[] = [];
@@ -182,17 +221,23 @@ function clipsOf(element: Element): Element[] {
 }
 function sightOf(element: Element, clips: Element[]): DOMRect | null {
   let { left, top, right, bottom } = element.getBoundingClientRect();
-  left = Math.max(left, 0); top = Math.max(top, 0); right = Math.min(right, innerWidth); bottom = Math.min(bottom, innerHeight);
+  left = Math.max(left, 0);
+  top = Math.max(top, 0);
+  right = Math.min(right, innerWidth);
+  bottom = Math.min(bottom, innerHeight);
   for (const node of clips) {
     const box = node.getBoundingClientRect();
-    left = Math.max(left, box.left); top = Math.max(top, box.top); right = Math.min(right, box.right); bottom = Math.min(bottom, box.bottom);
+    left = Math.max(left, box.left);
+    top = Math.max(top, box.top);
+    right = Math.min(right, box.right);
+    bottom = Math.min(bottom, box.bottom);
   }
   return right > left && bottom > top ? new DOMRect(left, top, right - left, bottom - top) : null;
 }
 // Checked every frame while the menu is open: a list moves its rows without scrolling as often as
 // it scrolls them.
 let watching = 0;
-watch(open, isOpen => {
+watch(open, (isOpen) => {
   cancelAnimationFrame(watching);
   const at = anchor.value;
   if (!isOpen || !props.context || !at) return;
@@ -205,28 +250,58 @@ watch(open, isOpen => {
   };
   watching = requestAnimationFrame(check);
 });
-onBeforeUnmount(() => { cancelPress(); cancelAnimationFrame(watching); closers.delete(close); });
+onBeforeUnmount(() => {
+  cancelPress();
+  cancelAnimationFrame(watching);
+  closers.delete(close);
+});
 </script>
 
 <template>
-  <Primitive v-if="context" as-child data-context-menu :data-state="open && selected === null ? 'open' : 'closed'" @contextmenu="onContextMenu"
-    @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="cancelPress" @pointercancel="cancelPress"
-    @selectstart="onSelectStart" @click.capture="dropClickAfterPress">
+  <Primitive
+    v-if="context"
+    as-child
+    data-context-menu
+    :data-state="open && selected === null ? 'open' : 'closed'"
+    @contextmenu="onContextMenu"
+    @pointerdown="onPointerDown"
+    @pointermove="onPointerMove"
+    @pointerup="cancelPress"
+    @pointercancel="cancelPress"
+    @selectstart="onSelectStart"
+    @click.capture="dropClickAfterPress"
+  >
     <slot />
   </Primitive>
   <DropdownMenuRoot :open="open" :modal="false" @update:open="setOpen">
     <DropdownMenuTrigger v-if="!context" as-child :disabled="disabled">
-      <slot name="trigger"><button type="button" class="btn ghost icon-only" :aria-label="label || 'menu'"><slot /></button></slot>
+      <slot name="trigger"
+        ><button type="button" class="btn ghost icon-only" :aria-label="label || 'menu'"><slot /></button
+      ></slot>
     </DropdownMenuTrigger>
     <DropdownMenuPortal v-if="pageActive">
-      <DropdownMenuContent data-keyboard-boundary class="menu-pop" :class="contentClass" :reference="context ? reference : undefined"
-        :side="context ? 'bottom' : side" :align="context ? 'start' : align" :side-offset="context ? 2 : 6" :collision-padding="8"
-        @close-auto-focus="context && $event.preventDefault()">
+      <DropdownMenuContent
+        data-keyboard-boundary
+        class="menu-pop"
+        :class="contentClass"
+        :reference="context ? reference : undefined"
+        :side="context ? 'bottom' : side"
+        :align="context ? 'start' : align"
+        :side-offset="context ? 2 : 6"
+        :collision-padding="8"
+        @close-auto-focus="context && $event.preventDefault()"
+      >
         <DropdownMenuLabel v-if="heading" class="menu-heading">{{ heading }}</DropdownMenuLabel>
         <template v-for="item in shown" :key="item.key">
           <DropdownMenuSeparator v-if="item.separator" class="menu-separator" />
-          <DropdownMenuItem class="menu-item" :class="{ 'menu-danger': item.danger }" @select="emit('select', item.key, selected ?? undefined)">
-            <Icon v-if="item.icon" :name="item.icon" /><span class="menu-item-label">{{ item.label }}</span><kbd v-if="item.shortcut" class="menu-shortcut">{{ item.shortcut }}</kbd><Icon v-if="item.checked" name="check" class="menu-check" />
+          <DropdownMenuItem
+            class="menu-item"
+            :class="{ 'menu-danger': item.danger }"
+            @select="emit('select', item.key, selected ?? undefined)"
+          >
+            <Icon v-if="item.icon" :name="item.icon" /><span class="menu-item-label">{{ item.label }}</span
+            ><kbd v-if="item.shortcut" class="menu-shortcut">{{ item.shortcut }}</kbd
+            ><Icon v-if="item.checked" name="check" class="menu-check" />
           </DropdownMenuItem>
         </template>
       </DropdownMenuContent>

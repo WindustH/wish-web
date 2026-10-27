@@ -2,10 +2,13 @@
 // directories being one, as `wish skill list` shows it to the model.
 import type { SkillEntry } from '../../core/api/types.ts';
 
-export interface SkillFolder { path: string; name: string; folders: SkillFolder[]; skills: SkillEntry[] }
-export type SkillRow =
-  | { kind: 'folder'; folder: SkillFolder }
-  | { kind: 'skill'; skill: SkillEntry };
+export interface SkillFolder {
+  path: string;
+  name: string;
+  folders: SkillFolder[];
+  skills: SkillEntry[];
+}
+export type SkillRow = { kind: 'folder'; folder: SkillFolder } | { kind: 'skill'; skill: SkillEntry };
 
 /** The tree of the skills, each folder's folders first, then its skills, in name order. */
 export function skillTree(skills: SkillEntry[]): SkillFolder {
@@ -13,8 +16,11 @@ export function skillTree(skills: SkillEntry[]): SkillFolder {
   for (const skill of skills) {
     let folder = root;
     for (const name of skill.category?.split('/') ?? []) {
-      let next = folder.folders.find(child => child.name === name);
-      if (!next) folder.folders.push(next = { path: folder.path ? `${folder.path}/${name}` : name, name, folders: [], skills: [] });
+      let next = folder.folders.find((child) => child.name === name);
+      if (!next)
+        folder.folders.push(
+          (next = { path: folder.path ? `${folder.path}/${name}` : name, name, folders: [], skills: [] }),
+        );
       folder = next;
     }
     folder.skills.push(skill);
@@ -31,7 +37,10 @@ export function skillTree(skills: SkillEntry[]): SkillFolder {
 /** Every folder of the tree, by path. */
 export function foldersOf(root: SkillFolder): Map<string, SkillFolder> {
   const folders = new Map<string, SkillFolder>();
-  const visit = (folder: SkillFolder) => { folders.set(folder.path, folder); folder.folders.forEach(visit); };
+  const visit = (folder: SkillFolder) => {
+    folders.set(folder.path, folder);
+    folder.folders.forEach(visit);
+  };
   visit(root);
   return folders;
 }
@@ -44,7 +53,7 @@ export function skillsIn(folder: SkillFolder): SkillEntry[] {
 /** The rows shown, a closed folder's without what is in it. */
 export function skillRows(folder: SkillFolder): SkillRow[] {
   return [
-    ...folder.folders.map(child => ({ kind: 'folder' as const, folder: child })),
-    ...folder.skills.map(skill => ({ kind: 'skill' as const, skill })),
+    ...folder.folders.map((child) => ({ kind: 'folder' as const, folder: child })),
+    ...folder.skills.map((skill) => ({ kind: 'skill' as const, skill })),
   ];
 }

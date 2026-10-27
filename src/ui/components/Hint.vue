@@ -4,7 +4,9 @@ import { TooltipRoot, TooltipTrigger, TooltipPortal, TooltipContent } from 'reka
 import { usePageActivity } from '../composables/usePageActivity.ts';
 const pageActive = usePageActivity();
 const open = ref(false);
-watch(pageActive, active => { if (!active) open.value = false; });
+watch(pageActive, (active) => {
+  if (!active) open.value = false;
+});
 defineProps<{ text?: string }>();
 </script>
 

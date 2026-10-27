@@ -14,8 +14,7 @@ export const browserApp = {
   // Background notifications must only fire while the page is hidden —
   // the visible UI is the primary channel (round-4 #2).
   isHidden(): boolean {
-    return typeof document !== 'undefined' &&
-      (document.visibilityState === 'hidden' || document.hidden === true);
+    return typeof document !== 'undefined' && (document.visibilityState === 'hidden' || document.hidden === true);
   },
   captureInstallPrompt(event: Event): void {
     event.preventDefault();
@@ -38,13 +37,22 @@ export const browserApp = {
         await lock?.release();
       } else if ('wakeLock' in navigator && !wakeLock) {
         const lock = await navigator.wakeLock.request('screen');
-        if (request !== wakeRequest) { await lock.release(); return false; }
+        if (request !== wakeRequest) {
+          await lock.release();
+          return false;
+        }
         wakeLock = lock;
-        lock.addEventListener('release', () => {
-          if (wakeLock === lock) wakeLock = null;
-        }, { once: true });
+        lock.addEventListener(
+          'release',
+          () => {
+            if (wakeLock === lock) wakeLock = null;
+          },
+          { once: true },
+        );
       }
-    } catch (err) { console.warn('[app] wakeLock:', err); }
+    } catch (err) {
+      console.warn('[app] wakeLock:', err);
+    }
     return Boolean(wakeLock);
   },
 };

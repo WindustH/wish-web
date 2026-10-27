@@ -11,13 +11,18 @@
 // so the browser need not invalidate styles for every message descendant.
 import { onScopeDispose, ref, watch, type Ref } from 'vue';
 
-const LANE = 44;      // px the panel slides aside when the drawer stands open
-const LOCK = 10;      // px of travel before the gesture owns the drag
-const BIAS = 1.5;     // horizontal must beat vertical by this much to lock
-const FLICK = 0.3;    // px/ms that settles the drawer on its own
-const SETTLE = 200;   // ms the settle animation runs
+const LANE = 44; // px the panel slides aside when the drawer stands open
+const LOCK = 10; // px of travel before the gesture owns the drag
+const BIAS = 1.5; // horizontal must beat vertical by this much to lock
+const FLICK = 0.3; // px/ms that settles the drawer on its own
+const SETTLE = 200; // ms the settle animation runs
 
-export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: Ref<HTMLElement | null>; content: Ref<HTMLElement | null>; enabled: Ref<boolean> }) {
+export function useRailSwipe(options: {
+  wrap: Ref<HTMLElement | null>;
+  scroll: Ref<HTMLElement | null>;
+  content: Ref<HTMLElement | null>;
+  enabled: Ref<boolean>;
+}) {
   /** Whether the drawer stands open. Kept across session switches, a pane-level preference. */
   const open = ref(false);
 
@@ -50,7 +55,10 @@ export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: R
   function scheduleX(x: number) {
     pendingX = x;
     if (frame) return;
-    frame = requestAnimationFrame(() => { frame = 0; setX(pendingX); });
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      setX(pendingX);
+    });
   }
   function classes(gesture: boolean, settle: boolean) {
     scroll()?.classList.toggle('rail-gesture', gesture);
@@ -69,7 +77,11 @@ export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: R
   }
   function end() {
     if (phase === 'idle') return;
-    try { wrap()?.releasePointerCapture(pointerId); } catch { /* already gone */ }
+    try {
+      wrap()?.releasePointerCapture(pointerId);
+    } catch {
+      /* already gone */
+    }
     phase = 'idle';
   }
   // The way out of every surprise: settle back to the state that was, no opinion changed.
@@ -82,7 +94,10 @@ export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: R
   function onDown(event: PointerEvent) {
     if (!options.enabled.value || event.button !== 0) return;
     pointers.add(event.pointerId);
-    if (pointers.size > 1) { bail(); return; }
+    if (pointers.size > 1) {
+      bail();
+      return;
+    }
     if (!event.isPrimary) return;
     // A block that scrolls sideways scrolls itself; the gesture stays out of its way.
     const hscroll = (event.target as HTMLElement | null)?.closest('pre, table, [data-hscroll]');
@@ -97,12 +112,20 @@ export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: R
 
   function onMove(event: PointerEvent) {
     if (phase === 'idle' || event.pointerId !== pointerId) return;
-    const dx = event.clientX - startX, dy = event.clientY - startY;
+    const dx = event.clientX - startX,
+      dy = event.clientY - startY;
     if (phase === 'pending') {
-      if (Math.abs(dy) > LOCK && Math.abs(dy) > Math.abs(dx)) { phase = 'idle'; return; }  // the browser is scrolling: let it
+      if (Math.abs(dy) > LOCK && Math.abs(dy) > Math.abs(dx)) {
+        phase = 'idle';
+        return;
+      } // the browser is scrolling: let it
       if (Math.abs(dx) <= LOCK || Math.abs(dx) < Math.abs(dy) * BIAS) return;
       phase = 'locked';
-      try { wrap()?.setPointerCapture(pointerId); } catch { /* gone: the handlers below reset */ }
+      try {
+        wrap()?.setPointerCapture(pointerId);
+      } catch {
+        /* gone: the handlers below reset */
+      }
       clearTimeout(settling);
       classes(true, false);
     }
@@ -116,11 +139,15 @@ export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: R
   function onUp(event: PointerEvent) {
     pointers.delete(event.pointerId);
     if (event.pointerId !== pointerId) return;
-    if (phase === 'pending') { phase = 'idle'; return; }   // a tap or an abandoned touch: nothing to settle
+    if (phase === 'pending') {
+      phase = 'idle';
+      return;
+    } // a tap or an abandoned touch: nothing to settle
     if (phase !== 'locked') return;
     end();
     const reveal = Math.max(0, Math.min(LANE, (fromOpen ? LANE : 0) + (event.clientX - startX)));
-    const first = samples[0]!, last = samples.at(-1)!;
+    const first = samples[0]!,
+      last = samples.at(-1)!;
     const speed = last.t > first.t ? (last.x - first.x) / (last.t - first.t) : 0;
     settle(speed > FLICK ? true : speed < -FLICK ? false : reveal > LANE / 2);
   }
@@ -150,8 +177,13 @@ export function useRailSwipe(options: { wrap: Ref<HTMLElement | null>; scroll: R
       el.addEventListener('pointermove', onMove, { passive: false });
     }
   }
-  watch([options.wrap, options.enabled], ([el, on]) => attach(on ? (el as HTMLElement | null) : null), { immediate: true });
-  const onBlur = () => { pointers.clear(); bail(); };
+  watch([options.wrap, options.enabled], ([el, on]) => attach(on ? (el as HTMLElement | null) : null), {
+    immediate: true,
+  });
+  const onBlur = () => {
+    pointers.clear();
+    bail();
+  };
   // A pending gesture has not captured the pointer yet. Its release can be outside
   // the panel; listening only on the panel leaves a phantom finger forever.
   window.addEventListener('pointerup', onUp, true);

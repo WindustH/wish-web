@@ -4,7 +4,11 @@
 import type { DisplayFailure } from './api/failures.ts';
 
 // The parts of a session projection the watch reads.
-export interface RunState { id?: string; running?: boolean; last_error?: DisplayFailure | null }
+export interface RunState {
+  id?: string;
+  running?: boolean;
+  last_error?: DisplayFailure | null;
+}
 
 export function createRunFailureWatch() {
   const running = new Map<string, boolean>();
@@ -15,8 +19,10 @@ export function createRunFailureWatch() {
       const was = running.get(session.id);
       const now = Boolean(session.running);
       running.set(session.id, now);
-      return was && !now ? session.last_error ?? null : null;
+      return was && !now ? (session.last_error ?? null) : null;
     },
-    forget(id: string) { running.delete(id); },
+    forget(id: string) {
+      running.delete(id);
+    },
   };
 }

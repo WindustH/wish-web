@@ -10,7 +10,8 @@ const SOFT = 'fill="currentColor" fill-opacity=".18"';
 const SOLID = 'fill="currentColor" stroke="none"';
 const dot = (x: number, y: number) => `M${x} ${y}h.01`;
 // The shared conversation bubble, 17 wide, its tail under the left third.
-const BUBBLE = 'M3 7.5A3.5 3.5 0 0 1 6.5 4h11A3.5 3.5 0 0 1 21 7.5v6a3.5 3.5 0 0 1-3.5 3.5H10.5L6 20.5V17h-.5A2.5 2.5 0 0 1 3 14.5Z';
+const BUBBLE =
+  'M3 7.5A3.5 3.5 0 0 1 6.5 4h11A3.5 3.5 0 0 1 21 7.5v6a3.5 3.5 0 0 1-3.5 3.5H10.5L6 20.5V17h-.5A2.5 2.5 0 0 1 3 14.5Z';
 
 export const ICONS: Record<string, string> = {
   instruction: `<path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8Z" ${SOFT}/><path d="M14 3v5h5M9 12h6M9 16h6"/>`,
@@ -70,7 +71,8 @@ export const ICONS: Record<string, string> = {
   undo: '<path d="M3 9h11a6 6 0 0 1 0 12M3 9l5-5M3 9l5 5"/>',
   save: `<path d="M4.5 7A2.5 2.5 0 0 1 7 4.5h9L19.5 8v9a2.5 2.5 0 0 1-2.5 2.5H7A2.5 2.5 0 0 1 4.5 17Z" ${SOFT}/><path d="M8.5 4.5V8h6.5V4.5M8 19.5V14h8v5.5"/>`,
   image: `<rect x="3.5" y="4" width="17" height="16" rx="3.5" ${SOFT}/><circle cx="9" cy="9.5" r="1.8"/><path d="m4 17.5 5-5 3.5 3.5 2.5-2.5 5 5"/>`,
-  paperclip: '<path d="m15.5 8-6.3 6.3a1.9 1.9 0 0 0 2.7 2.7l6.6-6.6a3.8 3.8 0 0 0-5.4-5.4l-6.6 6.6a5.7 5.7 0 0 0 8 8l5-5"/>',
+  paperclip:
+    '<path d="m15.5 8-6.3 6.3a1.9 1.9 0 0 0 2.7 2.7l6.6-6.6a3.8 3.8 0 0 0-5.4-5.4l-6.6 6.6a5.7 5.7 0 0 0 8 8l5-5"/>',
   tag: `<path d="M4 12.4V5.5A1.5 1.5 0 0 1 5.5 4h6.9l7.6 7.6a1.8 1.8 0 0 1 0 2.5l-5.9 5.9a1.8 1.8 0 0 1-2.5 0Z" ${SOFT}/><path d="${dot(8.5, 8.5)}" stroke-width="3"/>`,
   // A folder: back leaf and the front panel over it, the front in shade.
   folder: `<path d="M3.5 8V6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V9"/><path d="M3.5 9.5h17v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z" ${SOFT}/>`,

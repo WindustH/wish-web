@@ -36,38 +36,42 @@ const protocols: Record<string, { label: string; brand: string; annotation?: str
   minimax_messages: { label: 'MiniMax Messages', brand: 'MiniMax', annotation: 'Anthropic Messages' },
   hunyuan_chat: { label: 'Tencent Hunyuan Chat', brand: 'Tencent Hunyuan (TokenHub)', annotation: 'OpenAI Chat' },
 };
-const extra: Record<string, {label:string;brand:string;annotation?:string}> = {
-  openai_codex_models: {label:'OpenAI Codex Models',brand:'OpenAI'},
-  anthropic_models: {label:'Anthropic Models',brand:'Anthropic'},
-  google_models: {label:'Google Gemini Models',brand:'Google Gemini'},
-  qwen_models: {label:'Qwen Models',brand:'Qwen'},
-  bedrock_models: {label:'AWS Bedrock Models',brand:'AWS Bedrock'},
-  github_copilot_models: {label:'GitHub Copilot Models',brand:'GitHub Copilot'},
-  openai_responses_streamed: {label:'OpenAI Responses · Streaming compaction',brand:'OpenAI'},
-  qwen_messages: {label:'Qwen Messages',brand:'Qwen'},
-  kimi_messages: {label:'Kimi Messages',brand:'Kimi'},
-  tokenhub_messages: {label:'Tencent TokenHub Messages',brand:'Tencent Hunyuan (TokenHub)'},
-  mistral_chat: {label:'Mistral Chat',brand:'Mistral'},
+const extra: Record<string, { label: string; brand: string; annotation?: string }> = {
+  openai_codex_models: { label: 'OpenAI Codex Models', brand: 'OpenAI' },
+  anthropic_models: { label: 'Anthropic Models', brand: 'Anthropic' },
+  google_models: { label: 'Google Gemini Models', brand: 'Google Gemini' },
+  qwen_models: { label: 'Qwen Models', brand: 'Qwen' },
+  bedrock_models: { label: 'AWS Bedrock Models', brand: 'AWS Bedrock' },
+  github_copilot_models: { label: 'GitHub Copilot Models', brand: 'GitHub Copilot' },
+  openai_responses_streamed: { label: 'OpenAI Responses · Streaming compaction', brand: 'OpenAI' },
+  qwen_messages: { label: 'Qwen Messages', brand: 'Qwen' },
+  kimi_messages: { label: 'Kimi Messages', brand: 'Kimi' },
+  tokenhub_messages: { label: 'Tencent TokenHub Messages', brand: 'Tencent Hunyuan (TokenHub)' },
+  mistral_chat: { label: 'Mistral Chat', brand: 'Mistral' },
   // Account readings.
-  deepseek_user_balance: {label:'DeepSeek Balance',brand:'DeepSeek'},
-  kimi_open_balance: {label:'Kimi Balance',brand:'Kimi'},
-  kimi_code_companion_usage: {label:'Kimi Code Usage',brand:'Kimi'},
-  zai_coding_plan_monitor: {label:'Z.AI / Zhipu Coding Plan',brand:'Z.AI'},
-  minimax_token_plan_remains: {label:'MiniMax Token Plan',brand:'MiniMax'},
-  minimax_account_balance: {label:'MiniMax Balance',brand:'MiniMax'},
-  siliconflow_balance: {label:'SiliconFlow Balance',brand:'SiliconFlow'},
-  openrouter_key_quota: {label:'OpenRouter Key Quota',brand:'OpenRouter'},
-  openrouter_credits: {label:'OpenRouter Credits',brand:'OpenRouter'},
-  hf_whoami_billing: {label:'Hugging Face Billing',brand:'Hugging Face Router'},
-  qwen_workspace_quota: {label:'Qwen Workspace Quota',brand:'Qwen'},
-  openai_codex_usage: {label:'ChatGPT Plan Usage',brand:'OpenAI'},
-  github_copilot_usage: {label:'GitHub Copilot Usage',brand:'GitHub Copilot'},
-  magpie_quotas: {label:'Magpie Quotas',brand:'Magpie'},
+  deepseek_user_balance: { label: 'DeepSeek Balance', brand: 'DeepSeek' },
+  kimi_open_balance: { label: 'Kimi Balance', brand: 'Kimi' },
+  kimi_code_companion_usage: { label: 'Kimi Code Usage', brand: 'Kimi' },
+  zai_coding_plan_monitor: { label: 'Z.AI / Zhipu Coding Plan', brand: 'Z.AI' },
+  minimax_token_plan_remains: { label: 'MiniMax Token Plan', brand: 'MiniMax' },
+  minimax_account_balance: { label: 'MiniMax Balance', brand: 'MiniMax' },
+  siliconflow_balance: { label: 'SiliconFlow Balance', brand: 'SiliconFlow' },
+  openrouter_key_quota: { label: 'OpenRouter Key Quota', brand: 'OpenRouter' },
+  openrouter_credits: { label: 'OpenRouter Credits', brand: 'OpenRouter' },
+  hf_whoami_billing: { label: 'Hugging Face Billing', brand: 'Hugging Face Router' },
+  qwen_workspace_quota: { label: 'Qwen Workspace Quota', brand: 'Qwen' },
+  openai_codex_usage: { label: 'ChatGPT Plan Usage', brand: 'OpenAI' },
+  github_copilot_usage: { label: 'GitHub Copilot Usage', brand: 'GitHub Copilot' },
+  magpie_quotas: { label: 'Magpie Quotas', brand: 'Magpie' },
 };
 export function protocolPresentation(id: string) {
-  const item = protocols[id] ?? extra[id] ?? {label:id,brand:''};
-  const description = i18n.locale.value === 'zh'
-    ? {plaintext_responses:'OpenAI Responses · 明文思考', openai_responses_streamed:'OpenAI Responses · 流式压缩'}[id as 'plaintext_responses' | 'openai_responses_streamed']
-    : undefined;
-  return {...item,label:description ?? item.label};
+  const item = protocols[id] ?? extra[id] ?? { label: id, brand: '' };
+  const description =
+    i18n.locale.value === 'zh'
+      ? {
+          plaintext_responses: 'OpenAI Responses · 明文思考',
+          openai_responses_streamed: 'OpenAI Responses · 流式压缩',
+        }[id as 'plaintext_responses' | 'openai_responses_streamed']
+      : undefined;
+  return { ...item, label: description ?? item.label };
 }

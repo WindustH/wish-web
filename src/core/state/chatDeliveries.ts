@@ -6,9 +6,15 @@ import { uploadAttachments } from '../attachments.ts';
 import { sessionNaming } from './sessionNaming.ts';
 
 // The run a send() started: the session it went to and its delivery id.
-export interface SentRun { sessionId: string; deliveryId: string }
+export interface SentRun {
+  sessionId: string;
+  deliveryId: string;
+}
 export type DeliveryAttachment = Parameters<typeof uploadAttachments>[1][number];
-export type DeliveryRequests = Pick<typeof api, 'messageSend' | 'deliveriesList' | 'moveQueuedInput' | 'cancelQueuedInput'>;
+export type DeliveryRequests = Pick<
+  typeof api,
+  'messageSend' | 'deliveriesList' | 'moveQueuedInput' | 'cancelQueuedInput'
+>;
 
 export interface ChatDeliveriesDeps {
   sessionId: ShallowRef<string | null>;
@@ -19,10 +25,24 @@ export interface ChatDeliveriesDeps {
   scheduleRefresh: () => void;
   requests?: DeliveryRequests;
   nameFirstMessage?: (id: string, entry: number) => Promise<void>;
-  upload?: (sessionId: string, attachments: DeliveryAttachment[], opts: EndpointOptions) => Promise<{ blocks: MessageBlock[] }>;
+  upload?: (
+    sessionId: string,
+    attachments: DeliveryAttachment[],
+    opts: EndpointOptions,
+  ) => Promise<{ blocks: MessageBlock[] }>;
 }
 
-export function createChatDeliveries({ sessionId, snapshot, stream, error, options, scheduleRefresh, requests = api, upload = uploadAttachments, nameFirstMessage = sessionNaming.generate }: ChatDeliveriesDeps) {
+export function createChatDeliveries({
+  sessionId,
+  snapshot,
+  stream,
+  error,
+  options,
+  scheduleRefresh,
+  requests = api,
+  upload = uploadAttachments,
+  nameFirstMessage = sessionNaming.generate,
+}: ChatDeliveriesDeps) {
   const sending = shallowRef(false);
   const sentRun = shallowRef<SentRun | null>(null);
   const deliveries = shallowRef<QueuedDelivery[]>([]);
@@ -131,12 +151,15 @@ export function createChatDeliveries({ sessionId, snapshot, stream, error, optio
     const own = generation;
     const session = sessionId.value;
     if (!session) return false;
-    try { await requests.cancelQueuedInput(session, id); }
-    catch (cause) { if (current(own)) error.value = cause; throw cause; }
+    try {
+      await requests.cancelQueuedInput(session, id);
+    } catch (cause) {
+      if (current(own)) error.value = cause;
+      throw cause;
+    }
     if (current(own)) await refreshDeliveries();
     return true;
   }
-
 
   return { sending, sentRun, deliveries, send, refreshDeliveries, moveQueued, cancelQueued, reset };
 }

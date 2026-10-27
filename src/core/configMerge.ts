@@ -1,6 +1,7 @@
 // Reapply the fields changed in a local draft onto a newer server snapshot.
 // An explicit local edit wins if both sides changed that field.
-const isRecord = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
 
 export function replayConfigChanges(base: unknown, edited: unknown, latest: unknown): unknown {
   if (JSON.stringify(base) === JSON.stringify(edited)) return latest;

@@ -17,13 +17,45 @@ function toggle(event: MouseEvent) {
   expanded.value = true;
   const style = getComputedStyle(el);
   const summary = el.querySelector('summary')!;
-  const to = target ? el.getBoundingClientRect().height : summary.getBoundingClientRect().height + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
-  if (prefersReducedMotion()) { expanded.value = target; el.open = target; el.style.overflow = ''; return; }
+  const to = target
+    ? el.getBoundingClientRect().height
+    : summary.getBoundingClientRect().height +
+      parseFloat(style.paddingTop) +
+      parseFloat(style.paddingBottom) +
+      parseFloat(style.borderTopWidth) +
+      parseFloat(style.borderBottomWidth);
+  if (prefersReducedMotion()) {
+    expanded.value = target;
+    el.open = target;
+    el.style.overflow = '';
+    return;
+  }
   el.style.overflow = 'hidden';
-  animation = el.animate([{ height: `${from}px`, opacity: .85 }, { height: `${to}px`, opacity: 1 }], { duration: 220, easing: 'ease-in-out' });
-  animation.onfinish = () => { expanded.value = target; el.open = target; el.style.overflow = ''; animation = undefined; };
+  animation = el.animate(
+    [
+      { height: `${from}px`, opacity: 0.85 },
+      { height: `${to}px`, opacity: 1 },
+    ],
+    { duration: 220, easing: 'ease-in-out' },
+  );
+  animation.onfinish = () => {
+    expanded.value = target;
+    el.open = target;
+    el.style.overflow = '';
+    animation = undefined;
+  };
 }
-watch(() => props.open, value => { animation?.cancel(); target = value; expanded.value = value; if (element.value) element.value.style.overflow = ''; });
+watch(
+  () => props.open,
+  (value) => {
+    animation?.cancel();
+    target = value;
+    expanded.value = value;
+    if (element.value) element.value.style.overflow = '';
+  },
+);
 onBeforeUnmount(() => animation?.cancel());
 </script>
-<template><details ref="element" :open="expanded" @click="toggle"><slot /></details></template>
+<template>
+  <details ref="element" :open="expanded" @click="toggle"><slot /></details>
+</template>

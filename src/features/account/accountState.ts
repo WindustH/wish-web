@@ -22,7 +22,10 @@ export interface QuotaWindow {
   /** How the amount spent divides among what shares the allowance, e.g. tools. */
   parts?: QuotaPart[];
 }
-export interface QuotaPart { id: string; used: string | null }
+export interface QuotaPart {
+  id: string;
+  used: string | null;
+}
 export interface Balance {
   currency: string;
   available: string | null;
@@ -36,7 +39,11 @@ export interface Balance {
   minor_unit: number | null;
 }
 export type FailureKind = 'Unauthorized' | 'Unpaid' | 'Throttled' | 'Unknown';
-export interface AccountFailure { kind: FailureKind; code: string | null; message: string }
+export interface AccountFailure {
+  kind: FailureKind;
+  code: string | null;
+  message: string;
+}
 export interface AccountState {
   protocol: string;
   quotas: QuotaWindow[];
@@ -46,7 +53,6 @@ export interface AccountState {
   availability: string | null;
   plan_type: string | null;
 }
-
 
 const number = (value: string | null | undefined) => {
   if (value == null || value.trim() === '') return null;
@@ -58,7 +64,8 @@ const number = (value: string | null | undefined) => {
 export function quotaPercent(quota: QuotaWindow): number | null {
   if (quota.unlimited) return null;
   const reported = number(quota.used_percent);
-  const used = number(quota.used), limit = number(quota.limit);
+  const used = number(quota.used),
+    limit = number(quota.limit);
   const percent = reported ?? (used != null && limit ? (used / limit) * 100 : null);
   // A window the service marks reached but gives no share of its own reads as full: the
   // percentage is the only thing the card shows, so "reached" has to become one. A window
@@ -77,7 +84,18 @@ export function quotaLevel(quota: QuotaWindow): 'low' | 'mid' | 'high' {
   return (percent ?? 0) >= 60 ? 'mid' : 'low';
 }
 
-const MINUTES: Record<string, number> = { second: 1 / 60, seconds: 1 / 60, minute: 1, minutes: 1, hour: 60, hours: 60, day: 1440, days: 1440, week: 10080, weeks: 10080 };
+const MINUTES: Record<string, number> = {
+  second: 1 / 60,
+  seconds: 1 / 60,
+  minute: 1,
+  minutes: 1,
+  hour: 60,
+  hours: 60,
+  day: 1440,
+  days: 1440,
+  week: 10080,
+  weeks: 10080,
+};
 
 /** The window's length in minutes, when it is described as `{ duration, unit }`. */
 function windowMinutes(window: unknown): number | null {
@@ -110,8 +128,11 @@ function windowText(window: unknown): string | null {
 }
 
 const UNIT_NOUNS: Record<string, [string, string]> = {
-  tokens: ['Token', 'Tokens'], requests: ['调用次数', 'Calls'], credits: ['额度', 'Credits'],
-  time: ['时长', 'Time'], currency_minor: ['金额', 'Amount'],
+  tokens: ['Token', 'Tokens'],
+  requests: ['调用次数', 'Calls'],
+  credits: ['额度', 'Credits'],
+  time: ['时长', 'Time'],
+  currency_minor: ['金额', 'Amount'],
 };
 
 // What a service's own window names mean, keyed by the protocol that read them.
@@ -130,7 +151,7 @@ export function quotaTitle(quota: QuotaWindow, protocol?: string): string {
   const noun = WINDOW_NOUNS[`${protocol}:${quota.name}`] ?? UNIT_NOUNS[quota.unit];
   const what = noun ? tr(noun[0], noun[1]) : quota.unit !== 'unknown' ? quota.unit : tr('用量', 'Usage');
   if (window) return `${what} · ${window}`;
-  return noun || quota.unit !== 'unknown' ? what : quota.name ?? quota.id;
+  return noun || quota.unit !== 'unknown' ? what : (quota.name ?? quota.id);
 }
 
 /** Reset times arrive as Unix seconds, Unix milliseconds or a date string. */
@@ -149,18 +170,28 @@ export function resetLabel(value: string | null | undefined, now = Date.now()): 
   if (seconds <= 0) return tr('即将重置', 'Resets soon');
   if (seconds < 36 * 3600) {
     const format = new Intl.RelativeTimeFormat(intlLocale(), { numeric: 'always' });
-    const text = seconds < 3600 ? format.format(Math.ceil(seconds / 60), 'minute') : format.format(Math.round(seconds / 3600), 'hour');
+    const text =
+      seconds < 3600
+        ? format.format(Math.ceil(seconds / 60), 'minute')
+        : format.format(Math.round(seconds / 3600), 'hour');
     return tr(`${text}重置`, `Resets ${text}`);
   }
-  const when = date.toLocaleString(intlLocale(), { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const when = date.toLocaleString(intlLocale(), {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
   return tr(`${when} 重置`, `Resets ${when}`);
 }
-
 
 /** "12.4K / 100K" in the window's own unit, or what is left when that is all it says. */
 export function quotaAmounts(quota: QuotaWindow): string | null {
   if (quota.unlimited) return tr('不限量', 'Unlimited');
-  const show = (value: string | null) => { const n = number(value); return n == null ? value : compactNumber(n); };
+  const show = (value: string | null) => {
+    const n = number(value);
+    return n == null ? value : compactNumber(n);
+  };
   if (quota.used != null && quota.limit != null) return `${show(quota.used)} / ${show(quota.limit)}`;
   if (quota.remaining != null) return tr(`剩余 ${show(quota.remaining)}`, `${show(quota.remaining)} left`);
   if (quota.used != null) return tr(`已用 ${show(quota.used)}`, `${show(quota.used)} used`);
@@ -178,11 +209,13 @@ const PART_NAMES: Record<string, [string, string]> = {
 export function quotaParts(quota: QuotaWindow): string | null {
   const parts = quota.parts ?? [];
   if (!parts.length) return null;
-  return parts.map(part => {
-    const name = PART_NAMES[part.id];
-    const used = number(part.used);
-    return `${name ? tr(name[0], name[1]) : part.id} ${used == null ? part.used ?? '—' : compactNumber(used)}`;
-  }).join(' · ');
+  return parts
+    .map((part) => {
+      const name = PART_NAMES[part.id];
+      const used = number(part.used);
+      return `${name ? tr(name[0], name[1]) : part.id} ${used == null ? (part.used ?? '—') : compactNumber(used)}`;
+    })
+    .join(' · ');
 }
 
 /** An amount in its currency; minor units are scaled, unknown units are named after the number. */
@@ -191,8 +224,13 @@ export function formatAmount(value: string | null, currency: string, minorUnit: 
   if (parsed == null) return value;
   const amount = minorUnit ? parsed / 10 ** minorUnit : parsed;
   if (/^[A-Z]{3}$/.test(currency)) {
-    try { return new Intl.NumberFormat(intlLocale(), { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount); }
-    catch { /* not an ISO currency after all */ }
+    try {
+      return new Intl.NumberFormat(intlLocale(), { style: 'currency', currency, maximumFractionDigits: 2 }).format(
+        amount,
+      );
+    } catch {
+      /* not an ISO currency after all */
+    }
   }
   return `${new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: 4 }).format(amount)} ${currency}`;
 }
@@ -200,20 +238,32 @@ export function formatAmount(value: string | null, currency: string, minorUnit: 
 /** The labelled parts of a balance that the service reported, beside the headline amount. */
 export function balanceParts(balance: Balance): { label: string; value: string }[] {
   const parts: [keyof Balance, string, string][] = [
-    ['total', '总额', 'Total'], ['topped_up', '充值', 'Topped up'], ['granted', '赠送', 'Granted'],
-    ['cash', '现金', 'Cash'], ['voucher', '代金券', 'Vouchers'], ['credit', '信用额度', 'Credit'], ['owed', '欠款', 'Owed'],
+    ['total', '总额', 'Total'],
+    ['topped_up', '充值', 'Topped up'],
+    ['granted', '赠送', 'Granted'],
+    ['cash', '现金', 'Cash'],
+    ['voucher', '代金券', 'Vouchers'],
+    ['credit', '信用额度', 'Credit'],
+    ['owed', '欠款', 'Owed'],
   ];
   const headline = balance.available != null ? 'available' : 'total';
   return parts
     .filter(([key]) => key !== headline && balance[key] != null)
-    .map(([key, zh, en]) => ({ label: tr(zh, en), value: formatAmount(balance[key] as string, balance.currency, balance.minor_unit) ?? '' }));
+    .map(([key, zh, en]) => ({
+      label: tr(zh, en),
+      value: formatAmount(balance[key] as string, balance.currency, balance.minor_unit) ?? '',
+    }));
 }
 
 export function failureLabel(kind: FailureKind): string {
   switch (kind) {
-    case 'Unauthorized': return tr('凭据无效或无权查询账户', 'The credentials were refused');
-    case 'Unpaid': return tr('账户余额不足', 'The account has nothing left to spend');
-    case 'Throttled': return tr('服务暂时限制了请求', 'The service is limiting requests for now');
-    default: return tr('服务报告了一个问题', 'The service reported a problem');
+    case 'Unauthorized':
+      return tr('凭据无效或无权查询账户', 'The credentials were refused');
+    case 'Unpaid':
+      return tr('账户余额不足', 'The account has nothing left to spend');
+    case 'Throttled':
+      return tr('服务暂时限制了请求', 'The service is limiting requests for now');
+    default:
+      return tr('服务报告了一个问题', 'The service reported a problem');
   }
 }

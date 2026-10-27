@@ -13,7 +13,7 @@ export type ContextGauge = {
   scale: number;
 };
 
-const positive = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+const positive = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null);
 
 export function contextGauge(tokens: unknown, trigger: unknown, window: unknown): ContextGauge {
   const used = typeof tokens === 'number' && Number.isFinite(tokens) && tokens >= 0 ? tokens : null;

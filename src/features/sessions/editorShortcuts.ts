@@ -1,5 +1,10 @@
 /** Terminal-style deletions, expressed as ranges so the editor's undo and attachment logic apply. */
-export function shortcutDeletion(key: string, text: string, start: number, end: number): { start: number; end: number } | undefined {
+export function shortcutDeletion(
+  key: string,
+  text: string,
+  start: number,
+  end: number,
+): { start: number; end: number } | undefined {
   if (!['c', 'u', 'k', 'w'].includes(key)) return;
   // Copy remains native when there is a selection.
   if (key === 'c') return start === end ? { start: 0, end: text.length } : undefined;

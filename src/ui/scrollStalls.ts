@@ -43,22 +43,37 @@ const KEEP = 20;
 export const stalls = ref<ScrollStall[]>(read());
 
 function read(): ScrollStall[] {
-  try { return JSON.parse(localStorage.getItem(KEY) ?? '[]'); } catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem(KEY) ?? '[]');
+  } catch {
+    return [];
+  }
 }
 function keep(stall: ScrollStall) {
   stalls.value = [stall, ...stalls.value].slice(0, KEEP);
-  try { localStorage.setItem(KEY, JSON.stringify(stalls.value)); } catch { /* kept for this visit only */ }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(stalls.value));
+  } catch {
+    /* kept for this visit only */
+  }
 }
 export function clearStalls() {
   stalls.value = [];
-  try { localStorage.removeItem(KEY); } catch { /* nothing kept */ }
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* nothing kept */
+  }
 }
 
 // An element as a short selector, with two of its ancestors.
 function describe(element: Element | null | undefined): string {
   const parts: string[] = [];
   for (let node = element; node && parts.length < 3 && node !== document.body; node = node.parentElement) {
-    const classes = [...node.classList].slice(0, 3).map(name => `.${name}`).join('');
+    const classes = [...node.classList]
+      .slice(0, 3)
+      .map((name) => `.${name}`)
+      .join('');
     parts.push(`${node.tagName.toLowerCase()}${node.id ? `#${node.id}` : ''}${classes}`);
   }
   return parts.join(' < ') || String(element?.nodeName ?? 'nothing');
@@ -66,19 +81,33 @@ function describe(element: Element | null | undefined): string {
 // The list under a point that has something to scroll, looking through whatever lies over it.
 const scrollerAt = scrollRegionAt;
 // Whether the list has room to move its content up (toward > 0) or down.
-const canScroll = (list: HTMLElement, toward: number) => toward > 0 ? list.scrollTop + list.clientHeight < list.scrollHeight - 1 : list.scrollTop > 0;
+const canScroll = (list: HTMLElement, toward: number) =>
+  toward > 0 ? list.scrollTop + list.clientHeight < list.scrollHeight - 1 : list.scrollTop > 0;
 function layers(): string[] {
   const found: string[] = [];
   for (const [selector, name] of [
-    ['.menu-backdrop', 'menu backdrop'], ['.modal-overlay, .settings-overlay, .overlay-window-scrim', 'overlay'],
-    ['[data-reka-popper-content-wrapper]', 'popper'], ['[role="dialog"]', 'dialog'], ['[inert]', 'inert'], ['.ts-handle', 'selection handle'],
+    ['.menu-backdrop', 'menu backdrop'],
+    ['.modal-overlay, .settings-overlay, .overlay-window-scrim', 'overlay'],
+    ['[data-reka-popper-content-wrapper]', 'popper'],
+    ['[role="dialog"]', 'dialog'],
+    ['[inert]', 'inert'],
+    ['.ts-handle', 'selection handle'],
   ]) {
-    const count = [...document.querySelectorAll(selector)].filter(element => element.getClientRects().length && getComputedStyle(element).visibility === 'visible').length;
+    const count = [...document.querySelectorAll(selector)].filter(
+      (element) => element.getClientRects().length && getComputedStyle(element).visibility === 'visible',
+    ).length;
     if (count) found.push(`${name} ×${count}`);
   }
   return found;
 }
-function record(kind: ScrollStall['kind'], x: number, y: number, target: Element | null, list: HTMLElement | null, extra: Partial<ScrollStall> = {}) {
+function record(
+  kind: ScrollStall['kind'],
+  x: number,
+  y: number,
+  target: Element | null,
+  list: HTMLElement | null,
+  extra: Partial<ScrollStall> = {},
+) {
   const top = document.elementFromPoint(x, y);
   const stall: ScrollStall = {
     at: new Date().toISOString(),
@@ -101,15 +130,36 @@ function record(kind: ScrollStall['kind'], x: number, y: number, target: Element
 
 let scrolledAt = 0;
 type TouchAction = { name: string; completed: () => boolean };
-type Touch = { action?: TouchAction; dx: number; x: number; y: number; dy: number; far: number; at: number; moves: number; seen: number; cancelled: number; target: Element | null; control: Element | null; menu: boolean };
+type Touch = {
+  action?: TouchAction;
+  dx: number;
+  x: number;
+  y: number;
+  dy: number;
+  far: number;
+  at: number;
+  moves: number;
+  seen: number;
+  cancelled: number;
+  target: Element | null;
+  control: Element | null;
+  menu: boolean;
+};
 let touch: Touch | undefined;
 let wheelPending = false;
 let lastRecord = -Infinity;
 // A menu in sight takes the next press only to close; that press scrolling nothing is no stall.
-const menuInSight = () => [...document.querySelectorAll('.menu-pop, [role="dialog"]:not(.pwa-update)')].some(element => {
-  const box = element.getBoundingClientRect();
-  return box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth && getComputedStyle(element).visibility === 'visible';
-});
+const menuInSight = () =>
+  [...document.querySelectorAll('.menu-pop, [role="dialog"]:not(.pwa-update)')].some((element) => {
+    const box = element.getBoundingClientRect();
+    return (
+      box.bottom > 0 &&
+      box.top < innerHeight &&
+      box.right > 0 &&
+      box.left < innerWidth &&
+      getComputedStyle(element).visibility === 'visible'
+    );
+  });
 
 // A tap on something that answers taps should make a click: one seen first of all, by the window as
 // it comes down, and again last of all, as it goes back up. Seen only coming down, a listener on the
@@ -121,7 +171,9 @@ function matchesTap(click: ObservedClick | undefined, gesture: Touch, target: El
 }
 let swallowed: { by: string; at: number } | undefined;
 /** Called by the page's own listeners that keep a click from what it landed on, saying why. */
-export function noteSwallowedClick(by: string) { swallowed = { by, at: performance.now() }; }
+export function noteSwallowedClick(by: string) {
+  swallowed = { by, at: performance.now() };
+}
 /** A gesture may navigate instead of scroll. Suppress its stall only after that action succeeds. */
 export function noteTouchAction(name: string, completed: () => boolean) {
   if (touch) touch.action = { name, completed };
@@ -132,7 +184,8 @@ function watchTap(gesture: Touch, ended: TouchEvent) {
   const target = gesture.control;
   // A stranded clear menu backdrop catches taps before they can reach any button.
   // Those taps have no clickable target, so the ordinary missing-click check misses them.
-  const strayBackdrop = gesture.target instanceof Element && !!gesture.target.closest('.menu-backdrop') && !menuInSight();
+  const strayBackdrop =
+    gesture.target instanceof Element && !!gesture.target.closest('.menu-backdrop') && !menuInSight();
   // A stale page lock makes hit-testing land on html/body instead of the button under it.
   // Keep that failed tap too; otherwise closing a dialog can strand the page without any record.
   const blockedPage = getComputedStyle(document.body).pointerEvents === 'none' && !menuInSight();
@@ -140,83 +193,154 @@ function watchTap(gesture: Touch, ended: TouchEvent) {
   // A touchend handler can activate synchronously before this window listener runs.
   // Match the original control against the click’s dispatch path: sending can replace
   // its icon before this delayed diagnostic runs.
-  setTimeout(() => {
-    if (gesture.action?.completed()) return;
-    if ((!strayBackdrop && matchesTap(clickUp, gesture, target)) || performance.now() - lastRecord < 2000) return;
-    lastRecord = performance.now();
-    record('tap', gesture.x, gesture.y, gesture.target, null, {
-      click: blockedPage ? 'page pointer lock without a visible dialog' : strayBackdrop ? 'stray menu backdrop caught the tap' : matchesTap(clickDown, gesture, target) ? 'stopped on the way' : 'none came',
-      swallowedBy: swallowed && swallowed.at >= gesture.at ? swallowed.by : undefined,
-      touchDurationMs: duration,
-      touchEndCancelled: ended.defaultPrevented,
-      targetConnected: gesture.target?.isConnected,
-      control: describe(target),
-      controlDisabled: target?.matches(':disabled, [aria-disabled="true"]'),
-    });
-  }, gesture.action ? 600 : 350);
+  setTimeout(
+    () => {
+      if (gesture.action?.completed()) return;
+      if ((!strayBackdrop && matchesTap(clickUp, gesture, target)) || performance.now() - lastRecord < 2000) return;
+      lastRecord = performance.now();
+      record('tap', gesture.x, gesture.y, gesture.target, null, {
+        click: blockedPage
+          ? 'page pointer lock without a visible dialog'
+          : strayBackdrop
+            ? 'stray menu backdrop caught the tap'
+            : matchesTap(clickDown, gesture, target)
+              ? 'stopped on the way'
+              : 'none came',
+        swallowedBy: swallowed && swallowed.at >= gesture.at ? swallowed.by : undefined,
+        touchDurationMs: duration,
+        touchEndCancelled: ended.defaultPrevented,
+        targetConnected: gesture.target?.isConnected,
+        control: describe(target),
+        controlDisabled: target?.matches(':disabled, [aria-disabled="true"]'),
+      });
+    },
+    gesture.action ? 600 : 350,
+  );
 }
 
 /** Starts keeping stalls; every listener is passive and only reads. */
 export function installScrollStallLog() {
-  window.addEventListener('click', event => { clickDown = { at: performance.now(), path: event.composedPath() }; }, { capture: true, passive: true });
-  window.addEventListener('click', event => { clickUp = { at: performance.now(), path: event.composedPath() }; }, { passive: true });
-  document.addEventListener('scroll', () => { scrolledAt = performance.now(); }, { capture: true, passive: true });
-  window.addEventListener('touchstart', event => {
-    const point = event.touches[0];
-    touch = event.touches.length === 1 && point
-      ? { x: point.clientX, y: point.clientY, dx: 0, dy: 0, far: 0, at: performance.now(), moves: 0, seen: 0, cancelled: 0, target: event.target as Element, control: event.target instanceof Element ? event.target.closest(ANSWERS) : null, menu: menuInSight() }
-      : undefined;
-  }, { capture: true, passive: true });
+  window.addEventListener(
+    'click',
+    (event) => {
+      clickDown = { at: performance.now(), path: event.composedPath() };
+    },
+    { capture: true, passive: true },
+  );
+  window.addEventListener(
+    'click',
+    (event) => {
+      clickUp = { at: performance.now(), path: event.composedPath() };
+    },
+    { passive: true },
+  );
+  document.addEventListener(
+    'scroll',
+    () => {
+      scrolledAt = performance.now();
+    },
+    { capture: true, passive: true },
+  );
+  window.addEventListener(
+    'touchstart',
+    (event) => {
+      const point = event.touches[0];
+      touch =
+        event.touches.length === 1 && point
+          ? {
+              x: point.clientX,
+              y: point.clientY,
+              dx: 0,
+              dy: 0,
+              far: 0,
+              at: performance.now(),
+              moves: 0,
+              seen: 0,
+              cancelled: 0,
+              target: event.target as Element,
+              control: event.target instanceof Element ? event.target.closest(ANSWERS) : null,
+              menu: menuInSight(),
+            }
+          : undefined;
+    },
+    { capture: true, passive: true },
+  );
   // Capture every move before page listeners; observe cancellation after dispatch.
-  window.addEventListener('touchmove', event => {
-    const point = event.touches[0];
-    if (!touch || !point) return;
-    touch.moves++;
-    // A stopped event never reaches the window's bubble listener. Count cancellation after
-    // dispatch so preventDefault and stopPropagation are measured independently.
-    const gesture = touch;
-    setTimeout(() => { if (event.defaultPrevented) gesture.cancelled++; }, 0);
-    touch.dx = point.clientX - touch.x;
-    touch.dy = point.clientY - touch.y;
-    touch.far = Math.max(touch.far, Math.hypot(point.clientX - touch.x, touch.dy));
-  }, { capture: true, passive: true });
-  window.addEventListener('touchmove', () => {
-    if (!touch) return;
-    touch.seen++;
-  }, { passive: true });
-  window.addEventListener('touchend', event => {
-    const gesture = touch;
-    touch = undefined;
-    // A tap may tremble a few pixels; it is still a tap that should make a click.
-    if (gesture && !gesture.menu && gesture.far < 10 && performance.now() - gesture.at < 500) watchTap(gesture, event);
-    if (!gesture || gesture.menu || Math.abs(gesture.dy) < 48) return;
-    // A scroll that did happen has fired by the next frames.
-    setTimeout(() => {
-      if (gesture.action?.completed()) return;
-      if (scrolledAt > gesture.at || performance.now() - lastRecord < 2000) return;
-      const list = scrollerAt(gesture.x, gesture.y);
-      if (!list || !canScroll(list, -gesture.dy)) return;
-      lastRecord = performance.now();
-      record('touch', gesture.x, gesture.y, gesture.target, list, {
-        moves: `${gesture.cancelled} cancelled, ${gesture.moves - gesture.seen} stopped, of ${gesture.moves}`,
-        gestureAction: gesture.action?.name,
-        movement: { x: Math.round(gesture.dx), y: Math.round(gesture.dy) },
-      });
-    }, gesture.action ? 600 : 150);
-  }, { passive: true });
-  window.addEventListener('wheel', event => {
-    if (wheelPending || !event.deltaY || menuInSight()) return;
-    const list = scrollerAt(event.clientX, event.clientY);
-    if (!list || !canScroll(list, event.deltaY)) return;
-    wheelPending = true;
-    const top = list.scrollTop, x = event.clientX, y = event.clientY, target = event.target as Element;
-    setTimeout(() => {
-      wheelPending = false;
-      // Automatic streaming follow can move down while an upward wheel is lost.
-      // Only movement in the requested direction counts; unrelated scrollers do not.
-      if (!list.isConnected || (list.scrollTop - top) * event.deltaY > 0 || performance.now() - lastRecord < 2000) return;
-      lastRecord = performance.now();
-      record('wheel', x, y, target, list);
-    }, 200);
-  }, { capture: true, passive: true });
+  window.addEventListener(
+    'touchmove',
+    (event) => {
+      const point = event.touches[0];
+      if (!touch || !point) return;
+      touch.moves++;
+      // A stopped event never reaches the window's bubble listener. Count cancellation after
+      // dispatch so preventDefault and stopPropagation are measured independently.
+      const gesture = touch;
+      setTimeout(() => {
+        if (event.defaultPrevented) gesture.cancelled++;
+      }, 0);
+      touch.dx = point.clientX - touch.x;
+      touch.dy = point.clientY - touch.y;
+      touch.far = Math.max(touch.far, Math.hypot(point.clientX - touch.x, touch.dy));
+    },
+    { capture: true, passive: true },
+  );
+  window.addEventListener(
+    'touchmove',
+    () => {
+      if (!touch) return;
+      touch.seen++;
+    },
+    { passive: true },
+  );
+  window.addEventListener(
+    'touchend',
+    (event) => {
+      const gesture = touch;
+      touch = undefined;
+      // A tap may tremble a few pixels; it is still a tap that should make a click.
+      if (gesture && !gesture.menu && gesture.far < 10 && performance.now() - gesture.at < 500)
+        watchTap(gesture, event);
+      if (!gesture || gesture.menu || Math.abs(gesture.dy) < 48) return;
+      // A scroll that did happen has fired by the next frames.
+      setTimeout(
+        () => {
+          if (gesture.action?.completed()) return;
+          if (scrolledAt > gesture.at || performance.now() - lastRecord < 2000) return;
+          const list = scrollerAt(gesture.x, gesture.y);
+          if (!list || !canScroll(list, -gesture.dy)) return;
+          lastRecord = performance.now();
+          record('touch', gesture.x, gesture.y, gesture.target, list, {
+            moves: `${gesture.cancelled} cancelled, ${gesture.moves - gesture.seen} stopped, of ${gesture.moves}`,
+            gestureAction: gesture.action?.name,
+            movement: { x: Math.round(gesture.dx), y: Math.round(gesture.dy) },
+          });
+        },
+        gesture.action ? 600 : 150,
+      );
+    },
+    { passive: true },
+  );
+  window.addEventListener(
+    'wheel',
+    (event) => {
+      if (wheelPending || !event.deltaY || menuInSight()) return;
+      const list = scrollerAt(event.clientX, event.clientY);
+      if (!list || !canScroll(list, event.deltaY)) return;
+      wheelPending = true;
+      const top = list.scrollTop,
+        x = event.clientX,
+        y = event.clientY,
+        target = event.target as Element;
+      setTimeout(() => {
+        wheelPending = false;
+        // Automatic streaming follow can move down while an upward wheel is lost.
+        // Only movement in the requested direction counts; unrelated scrollers do not.
+        if (!list.isConnected || (list.scrollTop - top) * event.deltaY > 0 || performance.now() - lastRecord < 2000)
+          return;
+        lastRecord = performance.now();
+        record('wheel', x, y, target, list);
+      }, 200);
+    },
+    { capture: true, passive: true },
+  );
 }

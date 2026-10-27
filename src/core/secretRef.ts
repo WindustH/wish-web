@@ -13,7 +13,7 @@ export function parseEnvRef(text: string): string | undefined {
 /** What a secret's field shows: `${NAME}` for a variable, nothing for a redacted value, else the value. */
 export function secretText(value: string | null | undefined, env: string | null | undefined): string {
   if (env != null) return '${' + env + '}';
-  return value === REDACTED ? '' : value ?? '';
+  return value === REDACTED ? '' : (value ?? '');
 }
 
 /**
@@ -26,7 +26,12 @@ export function readSecret(text: string, kept: string | null = null): { value: s
 }
 
 /** Writes what was typed into a credentials map and its map of variables. */
-export function writeCredential(values: Record<string, string>, envs: Record<string, string>, field: string, text: string) {
+export function writeCredential(
+  values: Record<string, string>,
+  envs: Record<string, string>,
+  field: string,
+  text: string,
+) {
   const { value, env } = readSecret(text);
   delete values[field];
   delete envs[field];

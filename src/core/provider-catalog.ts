@@ -38,13 +38,14 @@ export async function readProviders(signal?: AbortSignal): Promise<ProviderInfo[
   return response.providers.filter((provider: ProviderInfo) => provider.enabled);
 }
 
-export const configuredModels = (provider: ProviderInfo): ModelInfo[] => Object.entries(provider.models).map(([id, metadata]) => ({ ...metadata, id, source: 'configured' }));
+export const configuredModels = (provider: ProviderInfo): ModelInfo[] =>
+  Object.entries(provider.models).map(([id, metadata]) => ({ ...metadata, id, source: 'configured' }));
 
 export async function readModels(provider: ProviderInfo, signal?: AbortSignal): Promise<ModelInfo[]> {
   const configured = configuredModels(provider);
   // Model overrides are not an allowlist; the runtime owns catalog support.
   if (!provider.model_catalog_available) return configured;
-  const models = new Map(configured.map(model => [model.id, model]));
+  const models = new Map(configured.map((model) => [model.id, model]));
   for (const model of await readCatalogModels(provider.id, signal)) {
     if (model.allowed_for_provider) models.set(model.id, { ...model, ...provider.models[model.id], source: 'catalog' });
   }
@@ -59,7 +60,12 @@ export async function readCatalogModels(id: string, signal?: AbortSignal) {
 }
 
 /** The catalog of a provider as a form holds it, before or without saving it. */
-export async function readDraftCatalogModels(id: string, provider: ProviderConfig, signal?: AbortSignal, accounts?: Record<string, unknown>) {
+export async function readDraftCatalogModels(
+  id: string,
+  provider: ProviderConfig,
+  signal?: AbortSignal,
+  accounts?: Record<string, unknown>,
+) {
   const models: any[] = [];
   for await (const page of providerDraftCatalogPages(id, provider, { signal }, accounts)) models.push(...page.models);
   return models;

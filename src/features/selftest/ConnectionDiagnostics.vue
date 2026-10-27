@@ -18,34 +18,53 @@ import Spinner from '../../ui/components/Spinner.vue';
 
 const props = defineProps<{ autoRun?: boolean }>();
 
-interface Entry { key: string; status: 'pending' | 'running' | 'pass' | 'fail' | 'skip'; ms?: number; detail?: string }
-interface Check { key: string; label: () => string; optional?: boolean; run: (stillActive: () => boolean) => Promise<string> }
+interface Entry {
+  key: string;
+  status: 'pending' | 'running' | 'pass' | 'fail' | 'skip';
+  ms?: number;
+  detail?: string;
+}
+interface Check {
+  key: string;
+  label: () => string;
+  optional?: boolean;
+  run: (stillActive: () => boolean) => Promise<string>;
+}
 
 const results = ref<Entry[]>([]);
 const running = ref(false);
 
-const CHECK_TIMEOUT_MS = 15_000;      // each check times out on its own
-const SSE_FIRST_EVENT_MS = 12_000;    // the event stream must deliver within this
+const CHECK_TIMEOUT_MS = 15_000; // each check times out on its own
+const SSE_FIRST_EVENT_MS = 12_000; // the event stream must deliver within this
 
-let runGen = 0;                       // unmounting or re-running invalidates everything in flight
+let runGen = 0; // unmounting or re-running invalidates everything in flight
 
 // Each resource registers its own cancellation, so a late, stale request only
 // clears the handles it registered itself.
 const cancels = new Set<() => void>();
 function registerCancel(fn: () => void): () => void {
   cancels.add(fn);
-  return () => { cancels.delete(fn); };
+  return () => {
+    cancels.delete(fn);
+  };
 }
 
 function cancelInFlight() {
   runGen += 1;
   for (const fn of cancels) {
-    try { fn(); } catch (e) { console.warn('diagnostics: could not cancel', e); }
+    try {
+      fn();
+    } catch (e) {
+      console.warn('diagnostics: could not cancel', e);
+    }
   }
   cancels.clear();
 }
 
-onBeforeUnmount(() => { cancelInFlight(); running.value = false; });
+onBeforeUnmount(() => {
+  cancelInFlight();
+  running.value = false;
+});
 
 function withTimeout<T>(p: Promise<T>, what: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -66,7 +85,10 @@ function withTimeout<T>(p: Promise<T>, what: string): Promise<T> {
       off();
       fn();
     };
-    p.then((v) => settle(() => resolve(v)), (e) => settle(() => reject(e)));
+    p.then(
+      (v) => settle(() => resolve(v)),
+      (e) => settle(() => reject(e)),
+    );
   });
 }
 
@@ -79,7 +101,7 @@ async function getJson(path: string, what: string): Promise<any> {
     return await withTimeout(get(path, { signal: ac.signal }), what);
   } finally {
     off();
-    ac.abort();   // a no-op for a finished request; cancels on timeout or unmount
+    ac.abort(); // a no-op for a finished request; cancels on timeout or unmount
   }
 }
 
@@ -95,7 +117,8 @@ const CHECKS: Check[] = [
         ...import.meta.glob('../../platform/**/*.ts'),
       };
       const entries = Object.entries(modules);
-      if (entries.length < 8) throw new Error(tr(`构建中只有 ${entries.length} 个模块`, `Only ${entries.length} modules in the build`));
+      if (entries.length < 8)
+        throw new Error(tr(`构建中只有 ${entries.length} 个模块`, `Only ${entries.length} modules in the build`));
       for (const [, load] of entries) {
         if (!stillActive()) throw new Error(tr('检查已取消', 'Check cancelled'));
         await (load as () => Promise<unknown>)();
@@ -113,11 +136,20 @@ const CHECKS: Check[] = [
       let problem: (() => string) | undefined;
       try {
         for (const l of cfg.i18n.locales) {
-          if (!i18n.setLocale(l)) { problem = () => tr(`无法切换到 ${l}`, `Could not switch to ${l}`); break; }
-          if (!i18n.t('app.name')) { problem = () => tr('翻译返回了空文本', 'A translation came back empty'); break; }
+          if (!i18n.setLocale(l)) {
+            problem = () => tr(`无法切换到 ${l}`, `Could not switch to ${l}`);
+            break;
+          }
+          if (!i18n.t('app.name')) {
+            problem = () => tr('翻译返回了空文本', 'A translation came back empty');
+            break;
+          }
           await tick();
           const lang = document.documentElement.lang;
-          if (lang !== l) { problem = () => tr(`切换到 ${l} 后 html lang 是 ${lang}`, `After switching to ${l}, html lang is ${lang}`); break; }
+          if (lang !== l) {
+            problem = () => tr(`切换到 ${l} 后 html lang 是 ${lang}`, `After switching to ${l}, html lang is ${lang}`);
+            break;
+          }
         }
       } finally {
         i18n.setLocale(original);
@@ -140,9 +172,7 @@ const CHECKS: Check[] = [
           theme.setMode(m);
           await tick();
           const attr = document.documentElement.dataset.theme;
-          const expect = m === 'auto'
-            ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-            : m;
+          const expect = m === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : m;
           if (attr !== expect) throw new Error(`mode=${m} → data-theme=${attr}`);
         }
         return tr(`浅色、深色、跟随系统切换正常，已还原`, 'Switched light, dark and system, then restored');
@@ -203,25 +233,40 @@ const CHECKS: Check[] = [
         let done = false;
         let off: () => void = () => {};
         const seconds = SSE_FIRST_EVENT_MS / 1000;
-        const timer = setTimeout(() => finish(new Error(tr(`${seconds} 秒内没有收到事件`, `No event within ${seconds} s`))), SSE_FIRST_EVENT_MS);
+        const timer = setTimeout(
+          () => finish(new Error(tr(`${seconds} 秒内没有收到事件`, `No event within ${seconds} s`))),
+          SSE_FIRST_EVENT_MS,
+        );
         const sse = createSse({
           url: absUrl('/events'),
           firstTimeoutMs: cfg.sse.firstFrameTimeoutMs,
           headers: {},
-          onFrame: (f: { event?: string }) => { if (f.event) finish(undefined, f.event); },
+          onFrame: (f: { event?: string }) => {
+            if (f.event) finish(undefined, f.event);
+          },
           onState: ({ state, err }: { state: string; err?: { status?: number; message?: string } }) => {
-            if (state === 'denied') finish(new Error(`${tr('鉴权失败', 'Authentication failed')}: ${err?.status ?? ''} ${err?.message ?? ''}`.trim()));
-            else if (state === 'closed') finish(new Error(tr('连接在收到事件前就关闭了', 'The connection closed before any event')));
+            if (state === 'denied')
+              finish(
+                new Error(
+                  `${tr('鉴权失败', 'Authentication failed')}: ${err?.status ?? ''} ${err?.message ?? ''}`.trim(),
+                ),
+              );
+            else if (state === 'closed')
+              finish(new Error(tr('连接在收到事件前就关闭了', 'The connection closed before any event')));
           },
         });
-        off = registerCancel(() => { clearTimeout(timer); sse.close(); });
+        off = registerCancel(() => {
+          clearTimeout(timer);
+          sse.close();
+        });
         function finish(err?: Error, event?: string) {
           if (done) return;
           done = true;
           clearTimeout(timer);
           off();
-          sse.close();                 // close the reader at once; keep no connection open
-          if (err) reject(err); else resolve(event!);
+          sse.close(); // close the reader at once; keep no connection open
+          if (err) reject(err);
+          else resolve(event!);
         }
       });
       return tr(`收到事件 ${first}，已断开`, `Received ${first}, then disconnected`);
@@ -232,15 +277,18 @@ const CHECKS: Check[] = [
     label: () => 'Service Worker',
     optional: true,
     run: async () => {
-      if (!('serviceWorker' in navigator)) throw new Error(tr('此环境不支持（需要 HTTPS，不算失败）', 'Not available here (needs HTTPS; not a failure)'));
+      if (!('serviceWorker' in navigator))
+        throw new Error(tr('此环境不支持（需要 HTTPS，不算失败）', 'Not available here (needs HTTPS; not a failure)'));
       const reg = await navigator.serviceWorker.getRegistration();
-      return reg ? tr(`已注册：${reg.scope}`, `Registered: ${reg.scope}`) : tr('尚未注册（首次打开时正常）', 'Not registered yet (normal on first visit)');
+      return reg
+        ? tr(`已注册：${reg.scope}`, `Registered: ${reg.scope}`)
+        : tr('尚未注册（首次打开时正常）', 'Not registered yet (normal on first visit)');
     },
   },
 ];
 
 async function runAll() {
-  cancelInFlight();                   // abandon everything from the previous run
+  cancelInFlight(); // abandon everything from the previous run
   const gen = runGen;
   const stillActive = () => gen === runGen;
   running.value = true;
@@ -274,17 +322,29 @@ async function runAll() {
 }
 
 const labels = computed(() => Object.fromEntries(CHECKS.map((c) => [c.key, c.label()])));
-const finished = computed(() => results.value.filter((r) => r.status === 'pass' || r.status === 'fail' || r.status === 'skip'));
+const finished = computed(() =>
+  results.value.filter((r) => r.status === 'pass' || r.status === 'fail' || r.status === 'skip'),
+);
 const failed = computed(() => results.value.filter((r) => r.status === 'fail').length);
 const summary = computed(() => {
-  if (running.value) return tr(`正在检查 ${finished.value.length + 1}/${CHECKS.length}…`, `Checking ${finished.value.length + 1} of ${CHECKS.length}…`);
-  if (!results.value.length) return tr('只读检查，不会创建会话、调用模型或修改配置。检查时界面语言和主题会短暂切换。', 'Read-only: creates no session, calls no model and changes no settings. The language and theme switch briefly while it runs.');
+  if (running.value)
+    return tr(
+      `正在检查 ${finished.value.length + 1}/${CHECKS.length}…`,
+      `Checking ${finished.value.length + 1} of ${CHECKS.length}…`,
+    );
+  if (!results.value.length)
+    return tr(
+      '只读检查，不会创建会话、调用模型或修改配置。检查时界面语言和主题会短暂切换。',
+      'Read-only: creates no session, calls no model and changes no settings. The language and theme switch briefly while it runs.',
+    );
   return failed.value
     ? tr(`${failed.value} 项未通过`, `${failed.value} check(s) failed`)
     : tr(`${CHECKS.length} 项全部正常`, `All ${CHECKS.length} checks passed`);
 });
 
-onMounted(() => { if (props.autoRun) void runAll(); });
+onMounted(() => {
+  if (props.autoRun) void runAll();
+});
 </script>
 
 <template>
@@ -296,7 +356,13 @@ onMounted(() => { if (props.autoRun) void runAll(); });
       </div>
       <button class="btn" :disabled="running" @click="runAll">
         <Icon :name="running ? 'loader-circle' : 'refresh-cw'" :class="{ spin: running }" />
-        {{ running ? tr('检查中…', 'Checking…') : results.length ? tr('重新检查', 'Check again') : tr('开始检查', 'Run checks') }}
+        {{
+          running
+            ? tr('检查中…', 'Checking…')
+            : results.length
+              ? tr('重新检查', 'Check again')
+              : tr('开始检查', 'Run checks')
+        }}
       </button>
     </div>
     <div v-for="r in results" :key="r.key" class="diagnostics-row" :class="r.status">
@@ -308,32 +374,103 @@ onMounted(() => { if (props.autoRun) void runAll(); });
       </span>
       <div class="diagnostics-text">
         <span>{{ labels[r.key] }}</span>
-        <small v-if="r.detail">{{ r.detail }}<template v-if="r.ms != null"> · {{ r.ms }} ms</template></small>
+        <small v-if="r.detail"
+          >{{ r.detail }}<template v-if="r.ms != null"> · {{ r.ms }} ms</template></small
+        >
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.diagnostics { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-raised); }
-.diagnostics-row { display: flex; align-items: center; gap: 12px; min-height: 54px; padding: 10px 16px; }
-.diagnostics-row + .diagnostics-row { border-top: 1px solid var(--line); }
-.diagnostics-action { min-height: 58px; }
-.diagnostics-action .btn { flex: none; display: inline-flex; align-items: center; gap: 6px; }
-.diagnostics-action .btn .icon { width: 15px; height: 15px; }
-.diagnostics-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.diagnostics-text > span { font: 500 13.5px/1.45 var(--font); color: var(--fg); }
-.diagnostics-text > small { font-size: 12px; line-height: 1.5; color: var(--fg-subtle); overflow-wrap: anywhere; }
-.diagnostics-text > small.bad { color: var(--err); }
-.diagnostics-status { flex: none; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--bg-sunken); color: var(--fg-faint); }
-.diagnostics-status :deep(svg) { width: 13px; height: 13px; }
-.diagnostics-status :deep(.spinner) { width: 12px; height: 12px; }
-.diagnostics-row.pass .diagnostics-status { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
-.diagnostics-row.fail .diagnostics-status { background: color-mix(in srgb, var(--err) 14%, transparent); color: var(--err); }
-.diagnostics-row.fail .diagnostics-text > small { color: var(--err); }
-.diagnostics-row.pending .diagnostics-text > span { color: var(--fg-subtle); }
+.diagnostics {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-raised);
+}
+.diagnostics-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 54px;
+  padding: 10px 16px;
+}
+.diagnostics-row + .diagnostics-row {
+  border-top: 1px solid var(--line);
+}
+.diagnostics-action {
+  min-height: 58px;
+}
+.diagnostics-action .btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.diagnostics-action .btn .icon {
+  width: 15px;
+  height: 15px;
+}
+.diagnostics-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.diagnostics-text > span {
+  font: 500 13.5px/1.45 var(--font);
+  color: var(--fg);
+}
+.diagnostics-text > small {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg-subtle);
+  overflow-wrap: anywhere;
+}
+.diagnostics-text > small.bad {
+  color: var(--err);
+}
+.diagnostics-status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-sunken);
+  color: var(--fg-faint);
+}
+.diagnostics-status :deep(svg) {
+  width: 13px;
+  height: 13px;
+}
+.diagnostics-status :deep(.spinner) {
+  width: 12px;
+  height: 12px;
+}
+.diagnostics-row.pass .diagnostics-status {
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  color: var(--ok);
+}
+.diagnostics-row.fail .diagnostics-status {
+  background: color-mix(in srgb, var(--err) 14%, transparent);
+  color: var(--err);
+}
+.diagnostics-row.fail .diagnostics-text > small {
+  color: var(--err);
+}
+.diagnostics-row.pending .diagnostics-text > span {
+  color: var(--fg-subtle);
+}
 @media (max-width: 899px) {
-  .diagnostics { border-radius: 14px; }
-  .diagnostics-row { padding: 10px 14px; }
+  .diagnostics {
+    border-radius: 14px;
+  }
+  .diagnostics-row {
+    padding: 10px 14px;
+  }
 }
 </style>

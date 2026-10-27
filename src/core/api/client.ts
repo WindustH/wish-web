@@ -36,7 +36,10 @@ export interface RequestOptions {
 function createClient(initialBase: string) {
   let baseUrl = initialBase;
   let resolvedBase: string | null = null;
-  const setBaseUrl = (url: string) => { baseUrl = url; resolvedBase = null; };
+  const setBaseUrl = (url: string) => {
+    baseUrl = url;
+    resolvedBase = null;
+  };
   const getBaseUrl = () => baseUrl;
   function absoluteBase(): string {
     if (resolvedBase) return resolvedBase;
@@ -45,8 +48,13 @@ function createClient(initialBase: string) {
     } else {
       const loc = globalThis.location;
       if (!loc?.origin) {
-        throw new ApiError(0, 'base-url-missing', 'base-url-missing',
-          `core used outside a browser must call setBaseUrl() with an absolute URL (got ${JSON.stringify(baseUrl)})`, false);
+        throw new ApiError(
+          0,
+          'base-url-missing',
+          'base-url-missing',
+          `core used outside a browser must call setBaseUrl() with an absolute URL (got ${JSON.stringify(baseUrl)})`,
+          false,
+        );
       }
       resolvedBase = new URL(baseUrl, loc.origin).href.replace(/\/+$/, '');
     }
@@ -56,11 +64,18 @@ function createClient(initialBase: string) {
   const api = async (method: string, path: string, opts?: RequestOptions) => request(method, absUrl(path), opts);
   // Whether a URL addresses this backend, so it may carry the access token.
   const isApiUrl = (url: string | URL) => {
-    try { return new URL(String(url), globalThis.location?.href).href.startsWith(absoluteBase() + '/'); }
-    catch { return false; }
+    try {
+      return new URL(String(url), globalThis.location?.href).href.startsWith(absoluteBase() + '/');
+    } catch {
+      return false;
+    }
   };
   return {
-    setBaseUrl, getBaseUrl, absUrl, api, isApiUrl,
+    setBaseUrl,
+    getBaseUrl,
+    absUrl,
+    api,
+    isApiUrl,
     get: (path: string, opts?: RequestOptions) => api('GET', path, opts),
     post: (path: string, body?: unknown, opts?: RequestOptions) => api('POST', path, { ...opts, body }),
     patch: (path: string, body?: unknown, opts?: RequestOptions) => api('PATCH', path, { ...opts, body }),
@@ -69,13 +84,18 @@ function createClient(initialBase: string) {
   };
 }
 
-export const { get, post, patch, put, del, api, absUrl, getBaseUrl, setBaseUrl, isApiUrl } = createClient(cfg.api.baseUrl);
+export const { get, post, patch, put, del, api, absUrl, getBaseUrl, setBaseUrl, isApiUrl } = createClient(
+  cfg.api.baseUrl,
+);
 
 // A backend reached directly (not through the page's own proxy) needs its access
 // token on every request; the proxy adds it server-side otherwise.
 let accessToken = '';
-export const setAccessToken = (token: string | null | undefined) => { accessToken = token || ''; };
-export const authHeaders = (): Record<string, string> => accessToken ? { authorization: `Bearer ${accessToken}` } : {};
+export const setAccessToken = (token: string | null | undefined) => {
+  accessToken = token || '';
+};
+export const authHeaders = (): Record<string, string> =>
+  accessToken ? { authorization: `Bearer ${accessToken}` } : {};
 /** Whether loading this URL needs the token, which an <img> or <a> cannot send. */
 export const needsAccessToken = (url: string) => !!accessToken && isApiUrl(url);
 
@@ -87,16 +107,27 @@ export function apiFetch(url: string, init: RequestInit = {}) {
   return fetch(url, { ...init, headers });
 }
 
-
 async function problemFromBody(body: unknown, status: number) {
   try {
     const j = typeof body === 'string' ? JSON.parse(body) : body;
-    return new ApiError(status, status === 409 ? "state_conflict" : String(status), j.error?.message ?? j.title ?? "HTTP error", j.error?.message ?? j.detail ?? JSON.stringify(j), status >= 500);
-  } catch { return null; }
+    return new ApiError(
+      status,
+      status === 409 ? 'state_conflict' : String(status),
+      j.error?.message ?? j.title ?? 'HTTP error',
+      j.error?.message ?? j.detail ?? JSON.stringify(j),
+      status >= 500,
+    );
+  } catch {
+    return null;
+  }
 }
 
 // Resolves to parsed JSON (raw server data), text, or null for 204.
-async function request(method: string, target: string, { body, query, signal, headers, raw, timeoutMs }: RequestOptions = {}): Promise<any> {
+async function request(
+  method: string,
+  target: string,
+  { body, query, signal, headers, raw, timeoutMs }: RequestOptions = {},
+): Promise<any> {
   const url = new URL(target);
   if (query) {
     for (const [k, v] of Object.entries(query)) {
@@ -106,7 +137,6 @@ async function request(method: string, target: string, { body, query, signal, he
   const h: Record<string, string> = { ...authHeaders(), ...(headers || {}) };
   if (body !== undefined && !raw) h['content-type'] = 'application/json';
 
-
   // A request that can never settle (sleep/wake, a proxy black hole) would
   // pin every busy flag behind it forever, so every call carries the
   // configured timeout alongside the caller's signal. A timeout surfaces as
@@ -115,9 +145,10 @@ async function request(method: string, target: string, { body, query, signal, he
   let res;
   try {
     res = await fetch(url, {
-      method, headers: h,
+      method,
+      headers: h,
       signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-      body: raw ? body as BodyInit : body !== undefined ? JSON.stringify(body) : undefined,
+      body: raw ? (body as BodyInit) : body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch (err: any) {
     if (timeout.aborted) throw new ApiError(0, 'network', 'network', 'request timed out', true);
@@ -126,8 +157,10 @@ async function request(method: string, target: string, { body, query, signal, he
   }
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw (await problemFromBody(text, res.status)) ||
-      new ApiError(res.status, 'http', res.statusText, text.slice(0, 300), res.status >= 500);
+    throw (
+      (await problemFromBody(text, res.status)) ||
+      new ApiError(res.status, 'http', res.statusText, text.slice(0, 300), res.status >= 500)
+    );
   }
   if (res.status === 204) return null;
   const ct = res.headers.get('content-type') || '';

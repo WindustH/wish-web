@@ -10,65 +10,189 @@ import Icon from '../../ui/components/Icon.vue';
 import { prefersReducedMotion } from '../../ui/motion/reducedMotion.ts';
 import type { SkillFolder } from './skillTree.ts';
 
-export interface FolderState { switchable: SkillEntry[]; on: number; total: number; summary: string; checked: boolean | 'indeterminate'; conflict: boolean }
+export interface FolderState {
+  switchable: SkillEntry[];
+  on: number;
+  total: number;
+  summary: string;
+  checked: boolean | 'indeterminate';
+  conflict: boolean;
+}
 export type SkillListRow =
   | { key: string; folder: SkillFolder; state: FolderState; skill?: undefined; note?: undefined }
   | { key: string; skill: SkillEntry; note?: { text: string; warn?: boolean }; folder?: undefined; state?: undefined };
 
 defineProps<{ rows: SkillListRow[]; busy: boolean; enabled: (name: string) => boolean }>();
-const emit = defineEmits<{ open: [folder: SkillFolder]; view: [skill: SkillEntry]; setFolder: [skills: SkillEntry[], on: boolean]; setSkill: [name: string, on: boolean] }>();
+const emit = defineEmits<{
+  open: [folder: SkillFolder];
+  view: [skill: SkillEntry];
+  setFolder: [skills: SkillEntry[], on: boolean];
+  setSkill: [name: string, on: boolean];
+}>();
 const reduced = prefersReducedMotion();
 </script>
 
 <template>
   <AnimatePresence :initial="false">
-    <motion.div v-for="row in rows" :key="row.key" class="skill-line"
-      :initial="reduced ? false : { height: 0, opacity: 0 }" :animate="{ height: 'auto', opacity: 1 }" :exit="reduced ? undefined : { height: 0, opacity: 0 }" :transition="{ duration: 0.18, ease: 'easeOut' }">
+    <motion.div
+      v-for="row in rows"
+      :key="row.key"
+      class="skill-line"
+      :initial="reduced ? false : { height: 0, opacity: 0 }"
+      :animate="{ height: 'auto', opacity: 1 }"
+      :exit="reduced ? undefined : { height: 0, opacity: 0 }"
+      :transition="{ duration: 0.18, ease: 'easeOut' }"
+    >
       <div v-if="row.folder" class="set-row toggle-row skill-row skill-folder-row">
         <button type="button" class="skill-fold" aria-haspopup="dialog" @click="emit('open', row.folder)">
           <Icon name="folder" class="skill-folder-icon" />
           <span class="set-label">
             <span>{{ row.folder.name }}</span>
-            <small>{{ row.state.summary }}<template v-if="row.state.conflict"> · <span class="skill-warn">{{ tr('有重名的 Skill', 'Has skills sharing a name') }}</span></template></small>
+            <small
+              >{{ row.state.summary
+              }}<template v-if="row.state.conflict">
+                · <span class="skill-warn">{{ tr('有重名的 Skill', 'Has skills sharing a name') }}</span></template
+              ></small
+            >
           </span>
           <Icon name="chevron-right" class="skill-chevron" />
         </button>
-        <CheckboxRoot v-if="row.state.total" :model-value="row.state.checked" class="skill-check" :aria-label="row.folder.name" :disabled="busy"
-          @update:model-value="emit('setFolder', row.state.switchable, $event === true)"><CheckboxIndicator class="skill-check-mark"><Icon :name="row.state.checked === 'indeterminate' ? 'minus' : 'check'" /></CheckboxIndicator></CheckboxRoot>
+        <CheckboxRoot
+          v-if="row.state.total"
+          :model-value="row.state.checked"
+          class="skill-check"
+          :aria-label="row.folder.name"
+          :disabled="busy"
+          @update:model-value="emit('setFolder', row.state.switchable, $event === true)"
+          ><CheckboxIndicator class="skill-check-mark"
+            ><Icon :name="row.state.checked === 'indeterminate' ? 'minus' : 'check'" /></CheckboxIndicator
+        ></CheckboxRoot>
       </div>
-      <div v-else class="set-row toggle-row skill-row" :class="{ off: row.skill.standing !== 'used' || !enabled(row.skill.name) }">
+      <div
+        v-else
+        class="set-row toggle-row skill-row"
+        :class="{ off: row.skill.standing !== 'used' || !enabled(row.skill.name) }"
+      >
         <button type="button" class="skill-open" @click="emit('view', row.skill)">
           <span class="set-label">
             <span class="skill-name">{{ row.skill.name }}</span>
             <small class="skill-description">{{ row.skill.description }}</small>
-            <small v-if="row.note" class="skill-note" :class="{ 'skill-warn': row.note.warn }">{{ row.note.text }}</small>
+            <small v-if="row.note" class="skill-note" :class="{ 'skill-warn': row.note.warn }">{{
+              row.note.text
+            }}</small>
           </span>
         </button>
-        <CheckboxRoot v-if="row.skill.standing === 'used'" :model-value="enabled(row.skill.name)" class="skill-check" :aria-label="row.skill.name" :disabled="busy"
-          @update:model-value="emit('setSkill', row.skill!.name, $event === true)"><CheckboxIndicator class="skill-check-mark"><Icon name="check" /></CheckboxIndicator></CheckboxRoot>
+        <CheckboxRoot
+          v-if="row.skill.standing === 'used'"
+          :model-value="enabled(row.skill.name)"
+          class="skill-check"
+          :aria-label="row.skill.name"
+          :disabled="busy"
+          @update:model-value="emit('setSkill', row.skill!.name, $event === true)"
+          ><CheckboxIndicator class="skill-check-mark"><Icon name="check" /></CheckboxIndicator
+        ></CheckboxRoot>
       </div>
     </motion.div>
   </AnimatePresence>
 </template>
 
 <style scoped>
-.skill-open { display: block; min-width: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-@media (hover: hover) { .skill-open:hover .skill-name { color: var(--accent); } }
-.skill-open:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; border-radius: 4px; }
-.skill-name { min-width: 0; font-family: var(--mono); overflow-wrap: anywhere; transition: color var(--dur-fast); }
-.skill-description { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.set-label > small.skill-note { color: var(--fg-faint); overflow-wrap: anywhere; }
-.set-label > small .skill-warn, .set-label > small.skill-warn { color: var(--warn); }
-.skill-row.off .skill-name, .skill-row.off .skill-description { opacity: .55; }
+.skill-open {
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .skill-open:hover .skill-name {
+    color: var(--accent);
+  }
+}
+.skill-open:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.skill-name {
+  min-width: 0;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+  transition: color var(--dur-fast);
+}
+.skill-description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.set-label > small.skill-note {
+  color: var(--fg-faint);
+  overflow-wrap: anywhere;
+}
+.set-label > small .skill-warn,
+.set-label > small.skill-warn {
+  color: var(--warn);
+}
+.skill-row.off .skill-name,
+.skill-row.off .skill-description {
+  opacity: 0.55;
+}
 /* A card for each folder and skill. */
-.skill-line { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-raised); }
-.skill-fold { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.skill-fold > .set-label { flex: 1; min-width: 0; }
-.skill-fold:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; border-radius: 4px; }
-.skill-folder-icon { flex: none; width: 16px; height: 16px; color: var(--fg-subtle); }
-.skill-chevron { flex: none; width: 15px; height: 15px; color: var(--fg-faint); }
-@media (hover: hover) { .skill-fold:hover .set-label > span { color: var(--accent); } }
+.skill-line {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-raised);
+}
+.skill-fold {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.skill-fold > .set-label {
+  flex: 1;
+  min-width: 0;
+}
+.skill-fold:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.skill-folder-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--fg-subtle);
+}
+.skill-chevron {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--fg-faint);
+}
+@media (hover: hover) {
+  .skill-fold:hover .set-label > span {
+    color: var(--accent);
+  }
+}
 @media (max-width: 899px) {
-  .skill-line { border: 0; border-radius: 16px; background: var(--bg-group); }
+  .skill-line {
+    border: 0;
+    border-radius: 16px;
+    background: var(--bg-group);
+  }
 }
 </style>

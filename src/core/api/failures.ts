@@ -1,5 +1,8 @@
 // Shared by snapshots and live events: preserve backend diagnostics for display.
-export interface DisplayFailure { message: string; family: string }
+export interface DisplayFailure {
+  message: string;
+  family: string;
+}
 
 // `value` is a backend failure value (string, error object or single-key variant) or a thrown error.
 export function displayFailure(value: any, family = ''): DisplayFailure | null {

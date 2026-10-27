@@ -19,7 +19,12 @@ const signingOut = ref(false);
 const server = serverName();
 const mac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform);
 const items = computed<MenuItem[]>(() => [
-  { key: 'settings', icon: 'settings', label: i18n.t('nav.settings'), shortcut: props.placement === 'sidebar' ? (mac ? '⌘,' : 'Ctrl+,') : undefined },
+  {
+    key: 'settings',
+    icon: 'settings',
+    label: i18n.t('nav.settings'),
+    shortcut: props.placement === 'sidebar' ? (mac ? '⌘,' : 'Ctrl+,') : undefined,
+  },
   { key: 'stats', icon: 'stats', label: i18n.t('nav.stats') },
   { key: 'data', icon: 'storage', label: tr('会话与数据', 'Sessions & data') },
   { key: 'account', icon: 'account', label: tr('账户状态', 'Account status') },
@@ -37,24 +42,76 @@ function choose(key: string) {
 </script>
 
 <template>
-  <Menu :items="items" :heading="server" content-class="app-menu" :side="placement === 'sidebar' ? 'top' : 'bottom'"
-    :align="placement === 'sidebar' ? 'start' : 'end'" @select="choose">
+  <Menu
+    :items="items"
+    :heading="server"
+    content-class="app-menu"
+    :side="placement === 'sidebar' ? 'top' : 'bottom'"
+    :align="placement === 'sidebar' ? 'start' : 'end'"
+    @select="choose"
+  >
     <template #trigger>
-      <button v-if="placement === 'sidebar'" type="button" class="app-menu-row" :aria-label="tr(`菜单 · ${server}`, `Menu · ${server}`)">
+      <button
+        v-if="placement === 'sidebar'"
+        type="button"
+        class="app-menu-row"
+        :aria-label="tr(`菜单 · ${server}`, `Menu · ${server}`)"
+      >
         <span class="app-menu-server">{{ server }}</span>
         <Icon name="chevrons-up-down" class="app-menu-chevron" />
       </button>
-      <button v-else type="button" class="btn ghost icon-only app-menu-button" :aria-label="tr('菜单', 'Menu')"><Icon name="menu" /></button>
+      <button v-else type="button" class="btn ghost icon-only app-menu-button" :aria-label="tr('菜单', 'Menu')">
+        <Icon name="menu" />
+      </button>
     </template>
   </Menu>
   <SignOutDialog :open="signingOut" @close="signingOut = false" />
 </template>
 
 <style>
-.app-menu-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--bg-raised); box-shadow: var(--shadow-menu); color: var(--fg); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; transition: background var(--dur-fast); }
-@media (hover: hover) { .app-menu-row:hover { background: var(--bg-hover); } }
-.app-menu-row[data-state='open'] { background: var(--bg-hover); }
-.app-menu-server { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.app-menu-chevron { flex: none; width: 15px; height: 15px; color: var(--fg-subtle); }
-.app-menu.menu-pop { width: max-content; min-width: 200px; max-width: min(280px, calc(100vw - 24px)); padding: 4px; }
+.app-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-menu);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+@media (hover: hover) {
+  .app-menu-row:hover {
+    background: var(--bg-hover);
+  }
+}
+.app-menu-row[data-state='open'] {
+  background: var(--bg-hover);
+}
+.app-menu-server {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-menu-chevron {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--fg-subtle);
+}
+.app-menu.menu-pop {
+  width: max-content;
+  min-width: 200px;
+  max-width: min(280px, calc(100vw - 24px));
+  padding: 4px;
+}
 </style>

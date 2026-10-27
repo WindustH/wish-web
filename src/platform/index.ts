@@ -18,7 +18,12 @@ export interface StorageAdapter {
 }
 
 export type NotifyPermission = NotificationPermission | 'unsupported';
-export interface NotifyOptions { title: string; body?: string; tag?: string; silent?: boolean }
+export interface NotifyOptions {
+  title: string;
+  body?: string;
+  tag?: string;
+  silent?: boolean;
+}
 export interface NotifyAdapter {
   readonly isSupported: boolean;
   permission(): NotifyPermission;
@@ -26,11 +31,23 @@ export interface NotifyAdapter {
   show(options: NotifyOptions): boolean;
 }
 
-export interface PickFilesOptions { multiple?: boolean; accept?: string }
-export interface PickedFile { name: string; mime: string; size: number; read(): Promise<ArrayBuffer> }
-export interface FsAdapter { pickFiles(options?: PickFilesOptions): Promise<PickedFile[]> }
+export interface PickFilesOptions {
+  multiple?: boolean;
+  accept?: string;
+}
+export interface PickedFile {
+  name: string;
+  mime: string;
+  size: number;
+  read(): Promise<ArrayBuffer>;
+}
+export interface FsAdapter {
+  pickFiles(options?: PickFilesOptions): Promise<PickedFile[]>;
+}
 
-export interface ClipboardAdapter { writeText(text: string): Promise<void> }
+export interface ClipboardAdapter {
+  writeText(text: string): Promise<void>;
+}
 
 export interface AppAdapter {
   isHidden(): boolean;
@@ -59,4 +76,6 @@ export function platform<K extends PlatformName>(name: K): PlatformAdapters[K] {
   return a;
 }
 
-export function tryPlatform<K extends PlatformName>(name: K): PlatformAdapters[K] | null { return adapters[name] || null; }
+export function tryPlatform<K extends PlatformName>(name: K): PlatformAdapters[K] | null {
+  return adapters[name] || null;
+}

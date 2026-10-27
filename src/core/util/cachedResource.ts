@@ -8,14 +8,26 @@ import { errorText } from '../errors.ts';
  * replaces it when the fresh one arrives. A failed read keeps what was shown and
  * says why in `error`.
  */
-export function createCachedResource<T, Q>(read: (query: Q, signal: AbortSignal) => Promise<T>, cache?: (query: Q) => { key: string; persist: boolean } | null) {
+export function createCachedResource<T, Q>(
+  read: (query: Q, signal: AbortSignal) => Promise<T>,
+  cache?: (query: Q) => { key: string; persist: boolean } | null,
+) {
   const data = shallowRef<T | null>(null);
   const error = shallowRef('');
   const loading = shallowRef(false);
   let controller: AbortController | undefined;
   let generation = 0;
-  function cancel() { generation++; controller?.abort(); controller = undefined; loading.value = false; }
-  function reset() { cancel(); data.value = null; error.value = ''; }
+  function cancel() {
+    generation++;
+    controller?.abort();
+    controller = undefined;
+    loading.value = false;
+  }
+  function reset() {
+    cancel();
+    data.value = null;
+    error.value = '';
+  }
   async function load(query: Q, clear = false) {
     cancel();
     const mine = generation;
@@ -27,7 +39,10 @@ export function createCachedResource<T, Q>(read: (query: Q, signal: AbortSignal)
     if (hit !== undefined) data.value = hit;
     else if (clear) data.value = null;
     // After a reload the memory is empty; IndexedDB may still answer before the network.
-    if (cached && hit === undefined) void readCached<T>(cached.key).then(value => { if (value !== undefined && mine === generation && loading.value) data.value = value; });
+    if (cached && hit === undefined)
+      void readCached<T>(cached.key).then((value) => {
+        if (value !== undefined && mine === generation && loading.value) data.value = value;
+      });
     try {
       const result = await read(query, controller.signal);
       if (mine === generation) {
@@ -37,7 +52,10 @@ export function createCachedResource<T, Q>(read: (query: Q, signal: AbortSignal)
     } catch (cause) {
       if (mine === generation) error.value = errorText(cause);
     } finally {
-      if (mine === generation) { loading.value = false; controller = undefined; }
+      if (mine === generation) {
+        loading.value = false;
+        controller = undefined;
+      }
     }
   }
   return { data, error, loading, load, cancel, reset };

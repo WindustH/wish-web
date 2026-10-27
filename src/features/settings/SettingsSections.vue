@@ -6,8 +6,14 @@ const sectionId = (id: string) => `settings-${props.prefix}-${id}`;
 <template>
   <div class="cfg-layout">
     <div class="cfg-content">
-      <section v-for="item in sections" :id="sectionId(item.id)" :key="item.id"
-        class="cfg-section" tabindex="-1" :aria-labelledby="`${sectionId(item.id)}-heading`">
+      <section
+        v-for="item in sections"
+        :id="sectionId(item.id)"
+        :key="item.id"
+        class="cfg-section"
+        tabindex="-1"
+        :aria-labelledby="`${sectionId(item.id)}-heading`"
+      >
         <h2 :id="`${sectionId(item.id)}-heading`">{{ item.label }}</h2>
         <slot :section="item.id" />
       </section>

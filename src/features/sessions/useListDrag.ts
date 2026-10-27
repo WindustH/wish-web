@@ -49,7 +49,8 @@ export function useListDrag(move: (ids: string[], into: Place) => void, open: (f
   }
   const ours = (event: DragEvent) => !!dragging.value && !!event.dataTransfer?.types.includes(TYPE);
   // Nothing goes into itself, and nothing moves to where it already is.
-  const takes = (place: Place) => !!dragging.value && !(place && dragging.value.ids.includes(place)) && place !== dragging.value.from;
+  const takes = (place: Place) =>
+    !!dragging.value && !(place && dragging.value.ids.includes(place)) && place !== dragging.value.from;
 
   /** dragenter and dragover on a place; a folder held over (`opens`) is opened after a moment. */
   function hover(event: DragEvent, place: Place, opens = false) {
@@ -61,7 +62,10 @@ export function useListDrag(move: (ids: string[], into: Place) => void, open: (f
     }
     if (event.type === 'dragenter' && opens && place && !dragging.value!.ids.includes(place)) {
       clearTimeout(spring);
-      spring = setTimeout(() => { over.value = undefined; open(place); }, SPRING_MS);
+      spring = setTimeout(() => {
+        over.value = undefined;
+        open(place);
+      }, SPRING_MS);
     }
   }
   function leave(event: DragEvent, place: Place) {
@@ -85,12 +89,32 @@ export function useListDrag(move: (ids: string[], into: Place) => void, open: (f
   window.addEventListener('dragend', end);
 
   // A finger's press: where it began, what it would drag, and whether it has been held.
-  let press: { ids: string[]; from: Place | undefined; label: string; x: number; y: number; armed: boolean; timer: ReturnType<typeof setTimeout> } | undefined;
+  let press:
+    | {
+        ids: string[];
+        from: Place | undefined;
+        label: string;
+        x: number;
+        y: number;
+        armed: boolean;
+        timer: ReturnType<typeof setTimeout>;
+      }
+    | undefined;
   function press_(event: TouchEvent, ids: string[], from: Place | undefined, label: string) {
     const touch = event.touches[0];
     if (event.touches.length !== 1 || !touch) return;
     release();
-    press = { ids, from, label, x: touch.clientX, y: touch.clientY, armed: false, timer: setTimeout(() => { if (press) press.armed = true; }, ARM_MS) };
+    press = {
+      ids,
+      from,
+      label,
+      x: touch.clientX,
+      y: touch.clientY,
+      armed: false,
+      timer: setTimeout(() => {
+        if (press) press.armed = true;
+      }, ARM_MS),
+    };
     document.addEventListener('touchmove', onTouchMove, { passive: false });
     document.addEventListener('touchend', onTouchEnd);
     document.addEventListener('touchcancel', release);
@@ -99,9 +123,13 @@ export function useListDrag(move: (ids: string[], into: Place) => void, open: (f
     const touch = event.touches[0];
     if (!press || !touch) return;
     if (!ghost.value) {
-      const dx = touch.clientX - press.x, dy = touch.clientY - press.y;
+      const dx = touch.clientX - press.x,
+        dy = touch.clientY - press.y;
       if (Math.hypot(dx, dy) < SLOP) return;
-      if (!press.armed && Math.abs(dx) <= Math.abs(dy)) { release(); return; }
+      if (!press.armed && Math.abs(dx) <= Math.abs(dy)) {
+        release();
+        return;
+      }
       dragging.value = { ids: press.ids, from: press.from };
       closeMenus();
     }
@@ -114,10 +142,15 @@ export function useListDrag(move: (ids: string[], into: Place) => void, open: (f
     if (next === over.value) return;
     over.value = next;
     clearTimeout(spring);
-    if (next && target?.dataset.dropOpens != null) spring = setTimeout(() => { over.value = undefined; open(next); }, SPRING_MS);
+    if (next && target?.dataset.dropOpens != null)
+      spring = setTimeout(() => {
+        over.value = undefined;
+        open(next);
+      }, SPRING_MS);
   }
   function onTouchEnd() {
-    const place = over.value, ids = dragging.value?.ids;
+    const place = over.value,
+      ids = dragging.value?.ids;
     const dragged = !!ghost.value;
     release();
     if (dragged && ids && place !== undefined) move(ids, place);
@@ -130,7 +163,11 @@ export function useListDrag(move: (ids: string[], into: Place) => void, open: (f
     document.removeEventListener('touchcancel', release);
     if (ghost.value) end();
   }
-  onBeforeUnmount(() => { window.removeEventListener('dragend', end); release(); clearTimeout(spring); });
+  onBeforeUnmount(() => {
+    window.removeEventListener('dragend', end);
+    release();
+    clearTimeout(spring);
+  });
 
   return { dragging, over, ghost, start, hover, leave, drop, press: press_ };
 }

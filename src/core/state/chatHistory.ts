@@ -4,20 +4,44 @@ import { shallowRef, type ShallowRef } from 'vue';
 import { mergeHistory } from './mergeHistory.ts';
 import { cfg } from '../config.ts';
 
-export interface HistoryRequestOptions { signal?: AbortSignal }
-export interface HistoryPageParams { before?: number | null; after?: number; limit: number; order: 'asc' | 'desc' }
-export interface FetchNewerResult { ok: boolean; drained: boolean; added: number }
-export interface HistoryMergeOptions { reportError?: boolean; beforeMerge?: () => void | Promise<void> }
+export interface HistoryRequestOptions {
+  signal?: AbortSignal;
+}
+export interface HistoryPageParams {
+  before?: number | null;
+  after?: number;
+  limit: number;
+  order: 'asc' | 'desc';
+}
+export interface FetchNewerResult {
+  ok: boolean;
+  drained: boolean;
+  added: number;
+}
+export interface HistoryMergeOptions {
+  reportError?: boolean;
+  beforeMerge?: () => void | Promise<void>;
+}
 
 export interface ChatHistoryDeps<E> {
   sessionId: ShallowRef<string | null>;
   error: ShallowRef<unknown>;
   options: () => HistoryRequestOptions;
   open: (id: string) => Promise<void>;
-  readPage: (id: string, params: HistoryPageParams, opts: HistoryRequestOptions) => Promise<{ items: E[]; has_more: boolean }>;
+  readPage: (
+    id: string,
+    params: HistoryPageParams,
+    opts: HistoryRequestOptions,
+  ) => Promise<{ items: E[]; has_more: boolean }>;
 }
 
-export function createChatHistory<E extends { seq: number }>({ sessionId, error, options, open, readPage }: ChatHistoryDeps<E>) {
+export function createChatHistory<E extends { seq: number }>({
+  sessionId,
+  error,
+  options,
+  open,
+  readPage,
+}: ChatHistoryDeps<E>) {
   const entries = shallowRef<E[]>([]);
   const oldestSeq = shallowRef<number | null>(null);
   const newestSeq = shallowRef<number | null>(null);
@@ -55,8 +79,11 @@ export function createChatHistory<E extends { seq: number }>({ sessionId, error,
       abort = () => reject(signal.reason);
       signal.addEventListener('abort', abort, { once: true });
     });
-    try { await Promise.race([Promise.resolve().then(beforeMerge), cancelled]); }
-    finally { signal.removeEventListener('abort', abort); }
+    try {
+      await Promise.race([Promise.resolve().then(beforeMerge), cancelled]);
+    } finally {
+      signal.removeEventListener('abort', abort);
+    }
     signal.throwIfAborted();
   }
   function merge(items: E[]) {
@@ -80,17 +107,13 @@ export function createChatHistory<E extends { seq: number }>({ sessionId, error,
     loadingOlder.value = true;
 
     try {
-      const page = await readPage(
-        id,
-        { before: oldestSeq.value, limit: cfg.history.pageSize, order: 'desc' },
-        opts
-      );
+      const page = await readPage(id, { before: oldestSeq.value, limit: cfg.history.pageSize, order: 'desc' }, opts);
       if (!current(own)) return false;
 
       await prepareMerge(opts.signal, beforeMerge);
       if (!current(own)) return false;
 
-      if (page.has_more && !page.items.some(item => oldestSeq.value == null || item.seq < oldestSeq.value)) {
+      if (page.has_more && !page.items.some((item) => oldestSeq.value == null || item.seq < oldestSeq.value)) {
         throw new Error('History pagination did not advance');
       }
       merge(page.items);
@@ -104,7 +127,11 @@ export function createChatHistory<E extends { seq: number }>({ sessionId, error,
     }
   }
 
-  async function fetchNewer({ pages = cfg.history.maxDrainPages, beforeMerge, reportError = true }: HistoryMergeOptions & { pages?: number } = {}): Promise<FetchNewerResult> {
+  async function fetchNewer({
+    pages = cfg.history.maxDrainPages,
+    beforeMerge,
+    reportError = true,
+  }: HistoryMergeOptions & { pages?: number } = {}): Promise<FetchNewerResult> {
     if (!sessionId.value || loadingNewer.value || locating.value) {
       return { ok: false, drained: false, added: 0 };
     }
@@ -118,17 +145,13 @@ export function createChatHistory<E extends { seq: number }>({ sessionId, error,
     try {
       for (let n = 0; n < pages; n++) {
         const edge = newestSeq.value ?? 0;
-        const page = await readPage(
-          id,
-          { after: edge, limit: cfg.history.pageSize, order: 'asc' },
-          opts
-        );
+        const page = await readPage(id, { after: edge, limit: cfg.history.pageSize, order: 'asc' }, opts);
         if (!current(own)) return { ok: false, drained: false, added };
 
         await prepareMerge(opts.signal, beforeMerge);
         if (!current(own)) return { ok: false, drained: false, added };
 
-        if (page.has_more && !page.items.some(item => item.seq > edge)) {
+        if (page.has_more && !page.items.some((item) => item.seq > edge)) {
           throw new Error('History pagination did not advance');
         }
         const before = entries.value.length;
@@ -166,7 +189,7 @@ export function createChatHistory<E extends { seq: number }>({ sessionId, error,
       if (!current(own)) return false;
 
       const window = mergeHistory([], [...before.items, ...after.items]);
-      if (!window.some(entry => entry.seq === seq)) return false;
+      if (!window.some((entry) => entry.seq === seq)) return false;
       // Commit browse mode with the replacement, not before the request. A failed
       // search must not silently disable reconciliation of the visible latest window.
       viewingPast = true;
@@ -219,11 +242,28 @@ export function createChatHistory<E extends { seq: number }>({ sessionId, error,
     pendingSeq.value = null;
   }
 
-
   return {
-    entries, oldestSeq, newestSeq, historyVersion, hasMoreBefore, hasMoreAfter,
-    pendingSeq, loadingOlder, loadingNewer, locating, bounds,
-    loadOlder, fetchNewer, locate, jumpToLatest, cancelLocate, clearPendingSeq,
-    invalidate, resume: () => { viewingPast = false; }, viewingPast: () => viewingPast,
+    entries,
+    oldestSeq,
+    newestSeq,
+    historyVersion,
+    hasMoreBefore,
+    hasMoreAfter,
+    pendingSeq,
+    loadingOlder,
+    loadingNewer,
+    locating,
+    bounds,
+    loadOlder,
+    fetchNewer,
+    locate,
+    jumpToLatest,
+    cancelLocate,
+    clearPendingSeq,
+    invalidate,
+    resume: () => {
+      viewingPast = false;
+    },
+    viewingPast: () => viewingPast,
   };
 }

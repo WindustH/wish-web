@@ -13,7 +13,7 @@ export function splitStreamBlocks(text: string): StreamBlocks {
   const lines = text.split('\n');
   const blocks: string[] = [];
   let current: string[] = [];
-  let fence: string | null = null;   // the opening fence marker, while open
+  let fence: string | null = null; // the opening fence marker, while open
   for (const line of lines) {
     const marker = FENCE.exec(line);
     if (fence) {
@@ -25,13 +25,16 @@ export function splitStreamBlocks(text: string): StreamBlocks {
       continue;
     }
     if (marker) {
-      if (current.length) blocks.push(current.join('\n'));   // text right before a fence
+      if (current.length) blocks.push(current.join('\n')); // text right before a fence
       current = [line];
       fence = marker[1]!;
       continue;
     }
     if (line.trim() === '') {
-      if (current.length) { blocks.push(current.join('\n')); current = []; }
+      if (current.length) {
+        blocks.push(current.join('\n'));
+        current = [];
+      }
       continue;
     }
     current.push(line);

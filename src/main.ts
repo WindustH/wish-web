@@ -42,9 +42,13 @@ prefs.load();
 installScrollStallLog();
 installActivityRecorder(router);
 
-document.addEventListener('contextmenu', event => {
-  if (!(event.target instanceof Element && event.target.closest('[data-context-menu]'))) event.preventDefault();
-}, true);
+document.addEventListener(
+  'contextmenu',
+  (event) => {
+    if (!(event.target instanceof Element && event.target.closest('[data-context-menu]'))) event.preventDefault();
+  },
+  true,
+);
 
 // theme: system watch + apply resolved + meta theme-color sync
 const mq = matchMedia('(prefers-color-scheme: dark)');
@@ -53,19 +57,29 @@ theme.init({
   watchSystem: (cb: () => void) => mq.addEventListener('change', cb),
   readSystem: () => (mq.matches ? 'dark' : 'light'),
 });
-watch(theme.resolved, (r) => {
-  document.documentElement.dataset.theme = r;
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) (meta as HTMLMetaElement).content = r === 'dark' ? '#1c1c1c' : '#f6f5f2';
-}, { immediate: true });
+watch(
+  theme.resolved,
+  (r) => {
+    document.documentElement.dataset.theme = r;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) (meta as HTMLMetaElement).content = r === 'dark' ? '#1c1c1c' : '#f6f5f2';
+  },
+  { immediate: true },
+);
 
 // i18n: the chosen language, or the browser's; <html lang> follows the one shown.
 i18n.init({
   storageAdapter: tryPlatform('storage'),
-  readSystem: () => navigator.languages?.length ? navigator.languages : [navigator.language].filter(Boolean),
+  readSystem: () => (navigator.languages?.length ? navigator.languages : [navigator.language].filter(Boolean)),
   watchSystem: (cb: () => void) => addEventListener('languagechange', cb),
 });
-watch(i18n.locale, (l) => { document.documentElement.lang = l; }, { immediate: true });
+watch(
+  i18n.locale,
+  (l) => {
+    document.documentElement.lang = l;
+  },
+  { immediate: true },
+);
 
 // Background notifier FIRST: its sync.snapshot baseline must be established
 // before the control plane starts streaming.
@@ -77,7 +91,9 @@ if (!isSignedOut()) {
 }
 
 // Malformed control-plane frame → one visible toast per occurrence.
-watch(sync.protocolError, (err) => { if (err) toast(i18n.t('sync.protocolError')); });
+watch(sync.protocolError, (err) => {
+  if (err) toast(i18n.t('sync.protocolError'));
+});
 
 // keep-awake while a run is active (mobile setting)
 {
@@ -93,7 +109,9 @@ app.use(router);
 app.mount('#app');
 
 installShortcuts({
-  openNewSession: () => { void router.push('/new'); },
+  openNewSession: () => {
+    void router.push('/new');
+  },
 });
 
 initPWA();

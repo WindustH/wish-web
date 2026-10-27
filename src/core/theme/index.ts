@@ -5,7 +5,10 @@ import { cfg } from '../config.ts';
 
 export type ThemeMode = 'auto' | 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';
-interface ThemeStorage { get(key: string): string | null; set(key: string, value: string): void }
+interface ThemeStorage {
+  get(key: string): string | null;
+  set(key: string, value: string): void;
+}
 export interface ThemeInit {
   storageAdapter?: ThemeStorage | null;
   watchSystem?: ((cb: () => void) => void) | null;
@@ -14,8 +17,8 @@ export interface ThemeInit {
 
 export const theme = (() => {
   const mode = shallowRef(cfg.theme.defaultMode as ThemeMode);
-  const resolved = shallowRef<ResolvedTheme>('light');   // after following the system
-  let storage: ThemeStorage | null = null;               // platform adapter
+  const resolved = shallowRef<ResolvedTheme>('light'); // after following the system
+  let storage: ThemeStorage | null = null; // platform adapter
   let watchSystem: ThemeInit['watchSystem'] = null;
   let readSystem: ThemeInit['readSystem'] = null;
 

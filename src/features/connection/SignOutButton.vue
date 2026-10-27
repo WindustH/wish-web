@@ -13,6 +13,9 @@ const label = () => tr(`退出 ${serverName()}`, `Sign out of ${serverName()}`);
 </script>
 
 <template>
-  <Hint :text="label()"><button type="button" :class="buttonClass" :aria-label="label()" @click="confirming = true"><Icon name="log-out" /></button></Hint>
+  <Hint :text="label()"
+    ><button type="button" :class="buttonClass" :aria-label="label()" @click="confirming = true">
+      <Icon name="log-out" /></button
+  ></Hint>
   <SignOutDialog :open="confirming" @close="confirming = false" />
 </template>

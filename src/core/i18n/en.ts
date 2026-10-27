@@ -112,10 +112,11 @@ export const en = {
   'time.hoursAgo': '{n} h ago',
   'time.daysAgo': '{n} d ago',
   'time.older': 'older',
-    'a11y.runDone': 'The reply has finished',
+  'a11y.runDone': 'The reply has finished',
   'notify.runFailed': 'Run failed: {name}',
   'notify.contextCompacted': 'Context compacted ({n} entries trimmed)',
-  'notify.compactionTranslationFailed': 'Encrypted history could not be translated. Some earlier context may be missing.',
+  'notify.compactionTranslationFailed':
+    'Encrypted history could not be translated. Some earlier context may be missing.',
   'search.more': 'Load more results',
   'manage.tags': 'Tags',
   'manage.tagsHint': 'Up to 16 tags, max 64 chars each; press Enter to add',

@@ -2,10 +2,10 @@
 // in linear time; repeated sequence numbers replace their previous payload.
 export function mergeHistory<T extends { seq: number }>(resident: T[], incoming: T[]): T[] {
   if (!incoming.length) return resident;
-  const page = [...new Map(incoming.map(item => [item.seq, item])).values()]
-    .sort((a, b) => a.seq - b.seq);
+  const page = [...new Map(incoming.map((item) => [item.seq, item])).values()].sort((a, b) => a.seq - b.seq);
   const merged: T[] = [];
-  let i = 0, j = 0;
+  let i = 0,
+    j = 0;
   while (i < resident.length && j < page.length) {
     if (resident[i].seq < page[j].seq) merged.push(resident[i++]);
     else {

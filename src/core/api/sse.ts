@@ -9,8 +9,8 @@
 import { cfg } from '../config.ts';
 import { authHeaders } from './client.ts';
 
-const GONE_STATUSES = new Set([404, 410]);      // resource no longer exists
-const DENIED_STATUSES = new Set([401, 403]);    // auth failure — never retried
+const GONE_STATUSES = new Set([404, 410]); // resource no longer exists
+const DENIED_STATUSES = new Set([401, 403]); // auth failure — never retried
 const MAX_FRAME_CHARS = 16 * 1024 * 1024;
 
 export type SseState = 'connecting' | 'open' | 'reconnecting' | 'gone' | 'denied' | 'disabled' | 'closed';
@@ -20,10 +20,23 @@ export type SseError = Error & { status?: number; internal?: boolean };
  *  connection keeps reconnecting underneath; callers can tell it apart by `internal`. */
 export class SseInternalError extends Error {
   readonly internal = true;
-  constructor(message: string) { super(message); this.name = 'SseInternalError'; }
+  constructor(message: string) {
+    super(message);
+    this.name = 'SseInternalError';
+  }
 }
-export interface SseStateEvent { state: SseState; attempt: number; err?: SseError; lastEventId: string }
-export interface SseFrame { event: string; id: string; data: string; retry: number }
+export interface SseStateEvent {
+  state: SseState;
+  attempt: number;
+  err?: SseError;
+  lastEventId: string;
+}
+export interface SseFrame {
+  event: string;
+  id: string;
+  data: string;
+  retry: number;
+}
 export interface SseOptions {
   url: string;
   onFrame?: (frame: SseFrame) => void;
@@ -35,11 +48,11 @@ export type SseConnection = ReturnType<typeof createSse>;
 
 export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extraHeaders }: SseOptions) {
   const stateListeners = new Set<(event: SseStateEvent) => void>();
-  if (onState) stateListeners.add(onState);   // constructor-level listener
+  if (onState) stateListeners.add(onState); // constructor-level listener
   let lastEventId = '';
   let attempt = 0;
-  let aborted = false;        // user-initiated close
-  let terminal = false;       // gone/denied — never reconnect
+  let aborted = false; // user-initiated close
+  let terminal = false; // gone/denied — never reconnect
   let controller: AbortController | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   let heartbeatTimer: ReturnType<typeof setTimeout> | undefined;
@@ -53,9 +66,12 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
   };
 
   function clearTimers() {
-    clearTimeout(reconnectTimer); reconnectTimer = undefined;
-    clearTimeout(heartbeatTimer); heartbeatTimer = undefined;
-    clearTimeout(connectTimer); connectTimer = undefined;
+    clearTimeout(reconnectTimer);
+    reconnectTimer = undefined;
+    clearTimeout(heartbeatTimer);
+    heartbeatTimer = undefined;
+    clearTimeout(connectTimer);
+    connectTimer = undefined;
   }
 
   function scheduleReconnect(err: SseError) {
@@ -124,19 +140,22 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        armHeartbeat();                        // bytes = alive (frames, partials, comments)
+        armHeartbeat(); // bytes = alive (frames, partials, comments)
         for (const frame of splitter.push(dec.decode(value, { stream: true }))) {
           if (frame.id) lastEventId = frame.id;
           if (!aborted && !terminal) onFrame?.(frame);
         }
-        if (aborted || terminal) { reader.cancel().catch(() => {}); return; }
+        if (aborted || terminal) {
+          reader.cancel().catch(() => {});
+          return;
+        }
       }
       if (aborted || terminal) return;
       // Server closed the stream cleanly: reconnect (durable tails end).
       scheduleReconnect(new SseInternalError('stream ended'));
     } catch (err) {
       clearTimeout(connectTimer);
-      if (aborted) return;                     // close(): zero callbacks after
+      if (aborted) return; // close(): zero callbacks after
       if (terminal) return;
       scheduleReconnect((internalAbort ?? err) as SseError);
     }
@@ -145,7 +164,10 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
   connect();
 
   return {
-    onState(fn: (event: SseStateEvent) => void) { stateListeners.add(fn); return () => stateListeners.delete(fn); },
+    onState(fn: (event: SseStateEvent) => void) {
+      stateListeners.add(fn);
+      return () => stateListeners.delete(fn);
+    },
     close() {
       aborted = true;
       clearTimers();
@@ -160,7 +182,9 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
 /** Turns a byte stream's decoded text into frames, holding what a chunk cannot settle yet.
  *  CRLF may be split across chunks: a lone trailing CR is ambiguous, so it waits for the next
  *  chunk to say whether it is one line break or the first half of two (a frame boundary). */
-export interface SseFrameSplitter { push(text: string): SseFrame[] }
+export interface SseFrameSplitter {
+  push(text: string): SseFrame[];
+}
 
 export function createFrameSplitter(): SseFrameSplitter {
   let buf = '';
@@ -168,7 +192,10 @@ export function createFrameSplitter(): SseFrameSplitter {
     push(text) {
       buf += text;
       let heldCr = false;
-      if (buf.endsWith('\r')) { buf = buf.slice(0, -1); heldCr = true; }
+      if (buf.endsWith('\r')) {
+        buf = buf.slice(0, -1);
+        heldCr = true;
+      }
       buf = buf.replace(/\r\n?/g, '\n');
       const frames: SseFrame[] = [];
       let idx;
@@ -176,7 +203,7 @@ export function createFrameSplitter(): SseFrameSplitter {
         const chunk = buf.slice(0, idx);
         buf = buf.slice(idx + 2);
         const frame = parseFrame(chunk);
-        if (frame) frames.push(frame);        // a keepalive comment or blank block is no frame
+        if (frame) frames.push(frame); // a keepalive comment or blank block is no frame
       }
       if (heldCr) buf += '\r';
       // A stream that keeps sending bytes but never a blank-line frame boundary would grow
@@ -189,7 +216,11 @@ export function createFrameSplitter(): SseFrameSplitter {
 }
 
 function parseFrame(chunk: string): SseFrame | null {
-  let event = 'message', dataLines: string[] = [], id = '', retry = 0, sawData = false;
+  let event = 'message',
+    dataLines: string[] = [],
+    id = '',
+    retry = 0,
+    sawData = false;
   for (const line of chunk.split('\n')) {
     if (!line || line.startsWith(':')) continue;
     const colon = line.indexOf(':');
@@ -197,8 +228,10 @@ function parseFrame(chunk: string): SseFrame | null {
     let value = colon < 0 ? '' : line.slice(colon + 1);
     if (value.startsWith(' ')) value = value.slice(1);
     if (field === 'event') event = value;
-    else if (field === 'data') { dataLines.push(value); sawData = true; }
-    else if (field === 'id') id = value;
+    else if (field === 'data') {
+      dataLines.push(value);
+      sawData = true;
+    } else if (field === 'id') id = value;
     else if (field === 'retry') retry = Number(value) || 0;
   }
   if (!sawData && event === 'message' && !id) return null; // keepalive

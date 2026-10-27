@@ -7,8 +7,13 @@ import { createKeyedRefresh } from '../util/keyedRefresh.ts';
 import type { SessionView } from '../api/projections.ts';
 
 // Bus payloads published by this slice.
-export interface SessionUpsert { id: string; body: SessionView }
-export interface SessionTombstone { id: string }
+export interface SessionUpsert {
+  id: string;
+  body: SessionView;
+}
+export interface SessionTombstone {
+  id: string;
+}
 
 export const sync = (() => {
   const online = shallowRef(true);
@@ -46,14 +51,19 @@ export const sync = (() => {
       } else if (event.type === 'list_changed') {
         bus.emit('list.changed', {});
       }
-    } catch (error) { protocolError.value = error; }
+    } catch (error) {
+      protocolError.value = error;
+    }
   }
 
   function start() {
     if (connection) return;
     connection = createSse({
-      url: absUrl('/events'), onFrame: frame,
-      onState: ({ state: next }) => { online.value = next === 'open'; },
+      url: absUrl('/events'),
+      onFrame: frame,
+      onState: ({ state: next }) => {
+        online.value = next === 'open';
+      },
     });
   }
   return { online, snapshotRevision, protocolError, start };

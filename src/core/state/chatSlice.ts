@@ -14,9 +14,17 @@ import type { EntryView, SessionView } from '../api/projections.ts';
 import type { SessionUpsert } from './syncSlice.ts';
 
 // What the open session's model accepts as input; null modalities = unknown.
-export interface SessionCapabilities { input_modalities: string[] | null }
-export interface CapabilitiesOk { status: 'ok'; data: SessionCapabilities }
-export interface CapabilitiesErr { status: 'error'; error: unknown }
+export interface SessionCapabilities {
+  input_modalities: string[] | null;
+}
+export interface CapabilitiesOk {
+  status: 'ok';
+  data: SessionCapabilities;
+}
+export interface CapabilitiesErr {
+  status: 'error';
+  error: unknown;
+}
 export type ChatCapabilities = CapabilitiesOk | CapabilitiesErr;
 
 /** Whether a connection event is a failure the reader should be shown. The client reconnects by
@@ -40,7 +48,10 @@ export function shouldSurfacePollFailure(failures: number): boolean {
 /** How long a draft waits after the last keystroke before it reaches storage. */
 export const DRAFT_PERSIST_MS = 400;
 
-export interface DraftStorage { get(key: string): string | null; set(key: string, value: string): void }
+export interface DraftStorage {
+  get(key: string): string | null;
+  set(key: string, value: string): void;
+}
 export interface DraftWriter {
   read(id: string): string;
   write(id: string, text: string): void;
@@ -64,8 +75,12 @@ export function createDraftWriter(store: DraftStorage, delayMs = DRAFT_PERSIST_M
     store.set(key(id), text);
   }
   function flush(id?: string) {
-    if (id != null) { land(id); return; }
-    clearTimeout(timer); timer = undefined;
+    if (id != null) {
+      land(id);
+      return;
+    }
+    clearTimeout(timer);
+    timer = undefined;
     for (const pendingId of [...pending.keys()]) land(pendingId);
   }
   return {
@@ -74,7 +89,10 @@ export function createDraftWriter(store: DraftStorage, delayMs = DRAFT_PERSIST_M
       for (const other of [...pending.keys()]) if (other !== id) land(other);
       pending.set(id, text);
       clearTimeout(timer);
-      if (text === '') { flush(); return; }
+      if (text === '') {
+        flush();
+        return;
+      }
       timer = setTimeout(() => flush(), delayMs);
     },
     flush,
@@ -129,19 +147,37 @@ export function createChat(deps: ChatDependencies = {}) {
   const options = () => ({ signal: controller?.signal });
 
   const deliveryState = createChatDeliveries({
-    sessionId, snapshot, stream, error, options, requests,
+    sessionId,
+    snapshot,
+    stream,
+    error,
+    options,
+    requests,
     scheduleRefresh,
   });
   const { sending, sentRun, deliveries, send, refreshDeliveries, moveQueued, cancelQueued } = deliveryState;
 
   const history = createChatHistory<EntryView>({
-    sessionId, error, options, open,
+    sessionId,
+    error,
+    options,
+    open,
     readPage: requests.historyPage,
   });
   const {
-    entries, hasMoreBefore, hasMoreAfter,
-    pendingSeq, loadingOlder, loadingNewer, locating, bounds,
-    loadOlder, fetchNewer, locate: locateHistory, jumpToLatest, clearPendingSeq,
+    entries,
+    hasMoreBefore,
+    hasMoreAfter,
+    pendingSeq,
+    loadingOlder,
+    loadingNewer,
+    locating,
+    bounds,
+    loadOlder,
+    fetchNewer,
+    locate: locateHistory,
+    jumpToLatest,
+    clearPendingSeq,
   } = history;
 
   const streamProcessor = createStreamProcessor({
@@ -159,24 +195,31 @@ export function createChat(deps: ChatDependencies = {}) {
     },
     onTurnComplete(kind, turnVersion) {
       if (history.viewingPast()) return;
-      if (loadingInitial.value) { scheduleRefresh(); return; }
+      if (loadingInitial.value) {
+        scheduleRefresh();
+        return;
+      }
       const own = epoch;
-      void fetchNewer({ reportError: false }).then((result) => {
-        if (
-          current(own) &&
-          turnVersion === streamProcessor.getTurnVersion() &&
-          result.ok &&
-          result.drained &&
-          ['ResponseAccepted', 'ResponseInterrupted'].includes(kind)
-        ) {
-          stream.value = {
-            ...stream.value,
-            text: '',
-            reasoning: '',
-            toolCalls: {},
-          };
-        }
-      }).catch(() => { if (current(own)) scheduleRefresh(); });
+      void fetchNewer({ reportError: false })
+        .then((result) => {
+          if (
+            current(own) &&
+            turnVersion === streamProcessor.getTurnVersion() &&
+            result.ok &&
+            result.drained &&
+            ['ResponseAccepted', 'ResponseInterrupted'].includes(kind)
+          ) {
+            stream.value = {
+              ...stream.value,
+              text: '',
+              reasoning: '',
+              toolCalls: {},
+            };
+          }
+        })
+        .catch(() => {
+          if (current(own)) scheduleRefresh();
+        });
     },
     onError(cause) {
       error.value = cause;
@@ -228,8 +271,11 @@ export function createChat(deps: ChatDependencies = {}) {
   }
 
   async function open(id: string): Promise<void> {
-    if (sessionId.value === id) { await initialTask?.catch(() => {}); return; }
-    drafts.flush();          // leaving the last session: its draft lands before the switch
+    if (sessionId.value === id) {
+      await initialTask?.catch(() => {});
+      return;
+    }
+    drafts.flush(); // leaving the last session: its draft lands before the switch
     pollFailures = 0;
     pollError = null;
     initialError = null;
@@ -268,7 +314,10 @@ export function createChat(deps: ChatDependencies = {}) {
       },
       onState: ({ state: s, err }) => {
         if (!current(own)) return;
-        if (s === 'gone') { markMissing(); return; }
+        if (s === 'gone') {
+          markMissing();
+          return;
+        }
         // A reconnect after a heartbeat or connect timeout is the client doing its job; only a
         // real failure takes over the page's error card.
         if (shouldSurfaceSseError(s, err)) {
@@ -287,9 +336,14 @@ export function createChat(deps: ChatDependencies = {}) {
       if (current(own) && event.id === id) scheduleRefresh();
     });
 
-    try { initialTask = initialize(id, own); await initialTask; }
-    catch (cause) {
-      if (current(own)) { initialError = cause; error.value = cause; }
+    try {
+      initialTask = initialize(id, own);
+      await initialTask;
+    } catch (cause) {
+      if (current(own)) {
+        initialError = cause;
+        error.value = cause;
+      }
     } finally {
       if (current(own)) scheduleRefresh();
     }
@@ -309,17 +363,25 @@ export function createChat(deps: ChatDependencies = {}) {
       bounds();
       hasMoreBefore.value = page.has_more;
       // Events arriving while the HTTP read was in flight already describe a newer run.
-      if (liveVersion === version) stream.value = {
-        ...stream.value, active: snap.running, phase: snap.running ? 'pending' : 'idle',
-      };
+      if (liveVersion === version)
+        stream.value = {
+          ...stream.value,
+          active: snap.running,
+          phase: snap.running ? 'pending' : 'idle',
+        };
       initialized = true;
       if (error.value === initialError) error.value = null;
       initialError = null;
       // Queue reads are independent of showing history; a slow queue must not hold
       // the initial-loading gate (and therefore pagination) closed.
-      void refreshDeliveries({ reportError: false }).catch(() => { if (current(own)) scheduleRefresh(); });
+      void refreshDeliveries({ reportError: false }).catch(() => {
+        if (current(own)) scheduleRefresh();
+      });
     } finally {
-      if (current(own)) { loadingInitial.value = false; initialTask = null; }
+      if (current(own)) {
+        loadingInitial.value = false;
+        initialTask = null;
+      }
     }
   }
 
@@ -343,7 +405,10 @@ export function createChat(deps: ChatDependencies = {}) {
     if (!sessionId.value) return;
     // Initial history may be completing a large album. Reconciliation must not publish a
     // separate partial window (from sequence zero) while that atomic read is still pending.
-    if (loadingInitial.value) { scheduleRefresh(); return; }
+    if (loadingInitial.value) {
+      scheduleRefresh();
+      return;
+    }
     const own = epoch;
     const id = sessionId.value;
 
@@ -370,7 +435,10 @@ export function createChat(deps: ChatDependencies = {}) {
       await refreshDeliveries({ reportError: false });
       if (!current(own)) return;
 
-      if (liveVersion !== version || (snapshot.value?.revision ?? 0) > snap.revision) { scheduleRefresh(); return; }
+      if (liveVersion !== version || (snapshot.value?.revision ?? 0) > snap.revision) {
+        scheduleRefresh();
+        return;
+      }
       if (!snap.running && result.ok && result.drained) {
         stream.value = { ...createEmptyStream(), error: stream.value.error };
       } else {
@@ -379,7 +447,10 @@ export function createChat(deps: ChatDependencies = {}) {
 
       if (result.ok && !result.drained) scheduleRefresh();
       pollFailures = 0;
-      if (error.value === pollError) { error.value = null; pollError = null; }
+      if (error.value === pollError) {
+        error.value = null;
+        pollError = null;
+      }
     } catch (cause) {
       // A failed poll is not a failed run: the stream is the source of truth for the reader, and
       // the poll asks again on its own. Only a poll that keeps failing takes the card.
@@ -403,14 +474,20 @@ export function createChat(deps: ChatDependencies = {}) {
     try {
       await requests.sessionRun(id);
       if (sessionId.value === id) await refresh();
-    } finally { retryingRun.value = false; }
+    } finally {
+      retryingRun.value = false;
+    }
   }
 
   async function interrupt(): Promise<void> {
     if (sessionId.value) {
       const own = epoch;
-      try { await requests.sessionInterrupt(sessionId.value); }
-      catch (cause) { if (current(own)) error.value = cause; throw cause; }
+      try {
+        await requests.sessionInterrupt(sessionId.value);
+      } catch (cause) {
+        if (current(own)) error.value = cause;
+        throw cause;
+      }
       if (current(own)) scheduleRefresh();
     }
   }

@@ -10,7 +10,10 @@ const bubbles = computed(() => userBubbles(props.content ?? props.item.entry?.pa
 const groups = computed(() => {
   const result: { files?: any[]; images?: ContentBlock[]; block?: any }[] = [];
   for (const part of imageParts(bubbles.value)) {
-    if (part.type === 'album') { result.push({ images: part.blocks }); continue; }
+    if (part.type === 'album') {
+      result.push({ images: part.blocks });
+      continue;
+    }
     const block = part.block;
     if (block.type === 'file') {
       const last = result.at(-1);
@@ -26,7 +29,11 @@ const groups = computed(() => {
     <template v-for="(group, index) in groups" :key="index">
       <div v-if="group.images" class="entry user">
         <ImageGrid v-slot="{ start, limit }" class="user-album" :count="group.images.length">
-          <UserBubble v-for="(image, imageIndex) in group.images.slice(start, limit)" :key="start + imageIndex" :block="image" />
+          <UserBubble
+            v-for="(image, imageIndex) in group.images.slice(start, limit)"
+            :key="start + imageIndex"
+            :block="image"
+          />
         </ImageGrid>
       </div>
       <div v-else-if="group.files" class="file-group">
@@ -37,12 +44,41 @@ const groups = computed(() => {
   </div>
 </template>
 <style scoped>
-.user-message-parts { display:flex; flex-direction:column; gap:8px; }
-.user-album { width:92%; }
-@media (max-width:599px) { .user-album { width:100%; } }
+.user-message-parts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.user-album {
+  width: 92%;
+}
+@media (max-width: 599px) {
+  .user-album {
+    width: 100%;
+  }
+}
 
-.file-group { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; min-width:0; }
-.file-group :deep(.message-context) { flex:0 1 auto; width:auto; max-width:100%; min-width:0; }
-.file-group :deep(.entry.user .bubble) { width:auto; max-width:100%; }
-.file-group :deep(.message-file) { width:max-content; min-width:min(180px,calc(100vw - 48px)); max-width:min(340px,100%); box-sizing:border-box; }
+.file-group {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.file-group :deep(.message-context) {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+.file-group :deep(.entry.user .bubble) {
+  width: auto;
+  max-width: 100%;
+}
+.file-group :deep(.message-file) {
+  width: max-content;
+  min-width: min(180px, calc(100vw - 48px));
+  max-width: min(340px, 100%);
+  box-sizing: border-box;
+}
 </style>

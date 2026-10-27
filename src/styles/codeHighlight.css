@@ -18,16 +18,44 @@ html[data-theme='dark'] {
   --code-comment: #a09b91;
   --code-variable: #d7b09a;
 }
-.markdown pre code { color: var(--fg); }
-.markdown :is(.hljs-keyword, .hljs-selector-tag, .hljs-name, .hljs-doctag) { color: var(--code-keyword); }
-.markdown :is(.hljs-string, .hljs-regexp, .hljs-meta .hljs-string) { color: var(--code-string); }
-.markdown :is(.hljs-title, .hljs-section, .hljs-selector-id, .hljs-selector-class) { color: var(--code-function); }
-.markdown :is(.hljs-number, .hljs-literal, .hljs-symbol, .hljs-bullet) { color: var(--code-number); }
-.markdown :is(.hljs-type, .hljs-built_in, .hljs-title.class_, .hljs-meta) { color: var(--code-type); }
-.markdown :is(.hljs-attr, .hljs-attribute, .hljs-variable, .hljs-template-variable) { color: var(--code-variable); }
-.markdown :is(.hljs-comment, .hljs-quote) { color: var(--code-comment); }
-.markdown :is(.hljs-subst, .hljs-params, .hljs-punctuation, .hljs-operator) { color: var(--fg); }
-.markdown .hljs-addition { color: var(--code-string); background: color-mix(in srgb, var(--code-string) 10%, transparent); }
-.markdown .hljs-deletion { color: var(--code-keyword); background: color-mix(in srgb, var(--code-keyword) 10%, transparent); }
-.markdown .hljs-emphasis { font-style: italic; }
-.markdown .hljs-strong { font-weight: 700; }
+.markdown pre code {
+  color: var(--fg);
+}
+.markdown :is(.hljs-keyword, .hljs-selector-tag, .hljs-name, .hljs-doctag) {
+  color: var(--code-keyword);
+}
+.markdown :is(.hljs-string, .hljs-regexp, .hljs-meta .hljs-string) {
+  color: var(--code-string);
+}
+.markdown :is(.hljs-title, .hljs-section, .hljs-selector-id, .hljs-selector-class) {
+  color: var(--code-function);
+}
+.markdown :is(.hljs-number, .hljs-literal, .hljs-symbol, .hljs-bullet) {
+  color: var(--code-number);
+}
+.markdown :is(.hljs-type, .hljs-built_in, .hljs-title.class_, .hljs-meta) {
+  color: var(--code-type);
+}
+.markdown :is(.hljs-attr, .hljs-attribute, .hljs-variable, .hljs-template-variable) {
+  color: var(--code-variable);
+}
+.markdown :is(.hljs-comment, .hljs-quote) {
+  color: var(--code-comment);
+}
+.markdown :is(.hljs-subst, .hljs-params, .hljs-punctuation, .hljs-operator) {
+  color: var(--fg);
+}
+.markdown .hljs-addition {
+  color: var(--code-string);
+  background: color-mix(in srgb, var(--code-string) 10%, transparent);
+}
+.markdown .hljs-deletion {
+  color: var(--code-keyword);
+  background: color-mix(in srgb, var(--code-keyword) 10%, transparent);
+}
+.markdown .hljs-emphasis {
+  font-style: italic;
+}
+.markdown .hljs-strong {
+  font-weight: 700;
+}

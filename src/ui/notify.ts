@@ -16,7 +16,9 @@ function show(title: string, body: string, tag: string) {
   if (notify.permission() !== 'granted') return;
   try {
     notify.show({ title, body, tag });
-  } catch (error) { console.warn('[notify]', error); }
+  } catch (error) {
+    console.warn('[notify]', error);
+  }
 }
 
 export function installBackgroundNotify() {
@@ -34,7 +36,7 @@ export function installBackgroundNotify() {
     for (const form of questions.observe(session)) {
       const title = tr(`「${name}」在等你回答`, `${name} is waiting for your answer`);
       announce(title);
-      show(title, form.questions.map(item => item.question).join('\n'), `wish-question-${form.call_id}`);
+      show(title, form.questions.map((item) => item.question).join('\n'), `wish-question-${form.call_id}`);
     }
   });
   bus.on('tombstone.session', (event: any) => {

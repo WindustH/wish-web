@@ -12,10 +12,10 @@ export interface ProviderConfig {
   api_key_env?: string | null;
   refresh_token?: string | null;
   expires_at?: number | null;
-  credentials: Record<string,string>;
-  credentials_env: Record<string,string>;
-  headers: Record<string,string>;
-  models: Record<string,Record<string,any>>;
+  credentials: Record<string, string>;
+  credentials_env: Record<string, string>;
+  headers: Record<string, string>;
+  models: Record<string, Record<string, any>>;
   model_list?: string | null;
   model_list_path?: string | null;
   model_list_base_url?: string | null;
@@ -30,14 +30,16 @@ export interface ProviderPreset {
   region: string;
   billing: string;
   protocols: string[];
-  variants: Record<string,ProviderConfig>;
+  variants: Record<string, ProviderConfig>;
   required_credentials: string[];
   optional_credentials: string[];
-  reasoning_efforts: Record<string,string|number>;
+  reasoning_efforts: Record<string, string | number>;
   max_output_tokens?: number;
   unsupported_protocols: string[];
 }
-export interface ConfigCatalog { presets: ProviderPreset[] }
+export interface ConfigCatalog {
+  presets: ProviderPreset[];
+}
 
 /** The model-use protocols a provider can speak, as the configuration names them. */
 export const MODEL_PROTOCOLS = [
@@ -72,8 +74,18 @@ export const MODEL_PROTOCOLS = [
 
 /** Protocols a provider can be read with on request (the others ride on model replies). */
 export const ACCOUNT_PROTOCOLS = [
-  'deepseek_user_balance', 'kimi_open_balance', 'kimi_code_companion_usage', 'zai_coding_plan_monitor',
-  'minimax_token_plan_remains', 'minimax_account_balance', 'siliconflow_balance', 'openrouter_key_quota',
-  'openrouter_credits', 'hf_whoami_billing', 'qwen_workspace_quota', 'openai_codex_usage',
-  'github_copilot_usage', 'magpie_quotas',
+  'deepseek_user_balance',
+  'kimi_open_balance',
+  'kimi_code_companion_usage',
+  'zai_coding_plan_monitor',
+  'minimax_token_plan_remains',
+  'minimax_account_balance',
+  'siliconflow_balance',
+  'openrouter_key_quota',
+  'openrouter_credits',
+  'hf_whoami_billing',
+  'qwen_workspace_quota',
+  'openai_codex_usage',
+  'github_copilot_usage',
+  'magpie_quotas',
 ];

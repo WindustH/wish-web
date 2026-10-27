@@ -1,5 +1,9 @@
 /** A provider's identity is stable even while its display name is loading. */
-export interface PickerGroupItem { key: string; group?: string; groupKey?: string }
+export interface PickerGroupItem {
+  key: string;
+  group?: string;
+  groupKey?: string;
+}
 export function pickerHeading(item: PickerGroupItem, previous?: PickerGroupItem): boolean {
   return item.groupKey ? item.groupKey !== previous?.groupKey : !!item.group && item.group !== previous?.group;
 }

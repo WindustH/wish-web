@@ -33,16 +33,24 @@ export function useDialogLifecycle(options: DialogLifecycleOptions) {
     if (!options.active() || options.reducedMotion()) finishClose();
     else closeTimer = setTimeout(finishClose, 300);
   }
-  watch(options.open, open => {
-    cancelPendingClose();
-    if (open) phase.value = 'open';
-    else if (phase.value !== 'closed') beginClose();
-  }, { immediate: true, flush: 'sync' });
-  watch(options.active, active => {
-    if (active) return;
-    cancelPendingClose();
-    if (phase.value === 'closing') finishClose();
-  }, { flush: 'sync' });
+  watch(
+    options.open,
+    (open) => {
+      cancelPendingClose();
+      if (open) phase.value = 'open';
+      else if (phase.value !== 'closed') beginClose();
+    },
+    { immediate: true, flush: 'sync' },
+  );
+  watch(
+    options.active,
+    (active) => {
+      if (active) return;
+      cancelPendingClose();
+      if (phase.value === 'closing') finishClose();
+    },
+    { flush: 'sync' },
+  );
 
   async function requestClose() {
     if (!options.active() || !options.dismissable() || phase.value !== 'open' || checkingClose) return;

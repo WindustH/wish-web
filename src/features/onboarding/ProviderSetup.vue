@@ -16,25 +16,38 @@ const emit = defineEmits<{ complete: []; exit: [] }>();
 const setup = reactive(useProviderSetup({ preview: props.preview }));
 const isMobile = useIsMobile();
 const LABELS: Record<SetupStep, () => string> = {
-  provider: () => tr('选择平台', 'Choose platform'), auth: () => tr('连接账户', 'Connect account'), model: () => tr('选择模型', 'Choose model'),
+  provider: () => tr('选择平台', 'Choose platform'),
+  auth: () => tr('连接账户', 'Connect account'),
+  model: () => tr('选择模型', 'Choose model'),
 };
 const current = computed(() => SETUP_STEPS.indexOf(setup.step));
 // A step slides in from the way the setup moves: forward from the right, back from the left.
 const direction = ref<'forward' | 'back'>('forward');
 const page = ref<HTMLElement>();
-watch(() => setup.step, (next, previous) => {
-  direction.value = SETUP_STEPS.indexOf(next) >= SETUP_STEPS.indexOf(previous) ? 'forward' : 'back';
-  page.value?.scrollTo({ top: 0 });
-});
+watch(
+  () => setup.step,
+  (next, previous) => {
+    direction.value = SETUP_STEPS.indexOf(next) >= SETUP_STEPS.indexOf(previous) ? 'forward' : 'back';
+    page.value?.scrollTo({ top: 0 });
+  },
+);
 // A new step takes the focus: its first field on a desktop, its title on a phone, where a field
 // would bring up the keyboard over the page.
 function focusStep() {
   const step = page.value?.querySelector('.setup-step');
-  const target = (!isMobile.value && step?.querySelector<HTMLElement>('[data-autofocus]')) || step?.querySelector<HTMLElement>('h1');
+  const target =
+    (!isMobile.value && step?.querySelector<HTMLElement>('[data-autofocus]')) || step?.querySelector<HTMLElement>('h1');
   target?.focus({ preventScroll: true });
 }
-watch(() => setup.loading, loading => { if (!loading) void nextTick(focusStep); });
-async function finish() { if (await setup.save()) emit('complete'); }
+watch(
+  () => setup.loading,
+  (loading) => {
+    if (!loading) void nextTick(focusStep);
+  },
+);
+async function finish() {
+  if (await setup.save()) emit('complete');
+}
 </script>
 
 <template>
@@ -47,15 +60,28 @@ async function finish() { if (await setup.save()) emit('complete'); }
       <header class="setup-head">
         <img class="setup-brand" src="/app-icons/mark.svg" alt="Wish" />
         <ol v-if="setup.snapshot && !setup.loading" class="setup-steps" :aria-label="tr('设置步骤', 'Setup steps')">
-          <li v-for="(step, index) in SETUP_STEPS" :key="step" :class="{ done: index < current, current: index === current }" :aria-current="index === current ? 'step' : undefined">
-            <button type="button" :disabled="index >= current || setup.saving || setup.verifying" @click="setup.step = step">
-              <span class="setup-step-mark"><Icon v-if="index < current" name="check" /><template v-else>{{ index + 1 }}</template></span>
+          <li
+            v-for="(step, index) in SETUP_STEPS"
+            :key="step"
+            :class="{ done: index < current, current: index === current }"
+            :aria-current="index === current ? 'step' : undefined"
+          >
+            <button
+              type="button"
+              :disabled="index >= current || setup.saving || setup.verifying"
+              @click="setup.step = step"
+            >
+              <span class="setup-step-mark"
+                ><Icon v-if="index < current" name="check" /><template v-else>{{ index + 1 }}</template></span
+              >
               <span class="setup-step-label">{{ LABELS[step]() }}</span>
             </button>
           </li>
         </ol>
       </header>
-      <p v-if="setup.loading" class="setup-status" role="status"><Icon name="loader-circle" class="spin" />{{ tr('正在读取配置…', 'Loading configuration…') }}</p>
+      <p v-if="setup.loading" class="setup-status" role="status">
+        <Icon name="loader-circle" class="spin" />{{ tr('正在读取配置…', 'Loading configuration…') }}
+      </p>
       <div v-else-if="!setup.snapshot" class="setup-status">
         <p class="setup-load-error" role="alert">{{ setup.error }}</p>
         <button type="button" class="btn" @click="setup.load">{{ tr('重试', 'Retry') }}</button>

@@ -13,10 +13,16 @@ export function installSessionNavigation(router: Router) {
     if (!to.params.id) return;
     const saved = router.options.history.state.sessionParent;
     const id = String(to.params.id);
-    const parent = saved === '/sessions' || saved === '/sessions/all' ? saved
-      : from.name === 'all-sessions' ? '/sessions/all'
-      : from.name === 'sessions' || from.name === 'new-chat' ? '/sessions'
-      : from.params.id || id === parentSessionId ? lastSessionParent.value : '/sessions';
+    const parent =
+      saved === '/sessions' || saved === '/sessions/all'
+        ? saved
+        : from.name === 'all-sessions'
+          ? '/sessions/all'
+          : from.name === 'sessions' || from.name === 'new-chat'
+            ? '/sessions'
+            : from.params.id || id === parentSessionId
+              ? lastSessionParent.value
+              : '/sessions';
     lastSessionParent.value = parent;
     parentSessionId = id;
     // Keep the source with this history entry, including reload and browser Back.

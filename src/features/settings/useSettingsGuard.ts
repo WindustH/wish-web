@@ -34,9 +34,7 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
   const preferenceSource = ref(JSON.stringify(preferenceValue()));
 
   const dirty = computed(
-    () =>
-      serverDirty.value ||
-      (isMobile.value && JSON.stringify(preferenceValue()) !== preferenceSource.value)
+    () => serverDirty.value || (isMobile.value && JSON.stringify(preferenceValue()) !== preferenceSource.value),
   );
 
   function restorePreferences() {
@@ -53,18 +51,25 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
     if (saving.value || options.busy.value) return false;
     saving.value = true;
     try {
-    if (serverDirty.value && !(await saveConfig())) return false;
-    preferenceSource.value = JSON.stringify(preferenceValue());
-    return true;
-    } finally { saving.value = false; }
+      if (serverDirty.value && !(await saveConfig())) return false;
+      preferenceSource.value = JSON.stringify(preferenceValue());
+      return true;
+    } finally {
+      saving.value = false;
+    }
   }
 
   function discardDraft() {
-    if (source.value) accept({config: JSON.parse(source.value), revision: revision.value});
+    if (source.value) accept({ config: JSON.parse(source.value), revision: revision.value });
     if (isMobile.value) restorePreferences();
   }
 
-  provide(draftActionsKey, { dirty, busy: computed(() => options.busy.value || saving.value), save, discard: discardDraft });
+  provide(draftActionsKey, {
+    dirty,
+    busy: computed(() => options.busy.value || saving.value),
+    save,
+    discard: discardDraft,
+  });
 
   const discard = ref(false);
   async function discardChanges() {
@@ -128,7 +133,7 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
 
   provide(settingsReturnKey, {
     // Nested pages keep the shared draft; only returning to the settings home prompts.
-    confirm: change => isMobile.value ? Promise.resolve(true) : confirmReturn(change),
+    confirm: (change) => (isMobile.value ? Promise.resolve(true) : confirmReturn(change)),
     save,
     register: (key, back) => {
       if (back) nestedReturns.set(key, back);
@@ -145,9 +150,7 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
   }
 
   onBeforeRouteLeave(guardReturn);
-  onBeforeRouteUpdate((to, from) =>
-    isMobile.value && from.query.section && !to.query.section ? guardReturn() : true
-  );
+  onBeforeRouteUpdate((to, from) => (isMobile.value && from.query.section && !to.query.section ? guardReturn() : true));
 
   return {
     dirty,

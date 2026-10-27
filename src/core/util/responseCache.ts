@@ -14,7 +14,7 @@ const persistedAt = new Map<string, number>();
 let database: Promise<IDBDatabase | null> | undefined;
 
 function open() {
-  database ??= new Promise(resolve => {
+  database ??= new Promise((resolve) => {
     try {
       const request = indexedDB.open(DATABASE, 1);
       request.onupgradeneeded = () => request.result.createObjectStore(STORE);
@@ -47,7 +47,7 @@ export async function readCached<T>(key: string): Promise<T | undefined> {
   if (memory.has(id)) return memory.get(id) as T;
   const db = await open();
   if (!db) return undefined;
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     try {
       const request = db.transaction(STORE).objectStore(STORE).get(id);
       request.onsuccess = () => {
@@ -67,8 +67,12 @@ export function writeCached(key: string, value: unknown, { persist = true } = {}
   remember(id, value);
   if (!persist || Date.now() - (persistedAt.get(id) ?? 0) < PERSIST_INTERVAL_MS) return;
   persistedAt.set(id, Date.now());
-  void open().then(db => {
-    try { db?.transaction(STORE, 'readwrite').objectStore(STORE).put(value, id); } catch { /* quota or private mode */ }
+  void open().then((db) => {
+    try {
+      db?.transaction(STORE, 'readwrite').objectStore(STORE).put(value, id);
+    } catch {
+      /* quota or private mode */
+    }
   });
 }
 
@@ -76,5 +80,9 @@ export async function clearCached() {
   memory.clear();
   persistedAt.clear();
   const db = await open();
-  try { db?.transaction(STORE, 'readwrite').objectStore(STORE).clear(); } catch { /* unavailable */ }
+  try {
+    db?.transaction(STORE, 'readwrite').objectStore(STORE).clear();
+  } catch {
+    /* unavailable */
+  }
 }

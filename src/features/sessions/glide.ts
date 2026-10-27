@@ -15,7 +15,10 @@ export function approach(current: number, target: number, elapsed: number, ease 
 export function glideToEnd(el: HTMLElement): () => void {
   const end = () => Math.max(0, el.scrollHeight - el.clientHeight);
   const reduced = prefersReducedMotion();
-  if (reduced) { el.scrollTop = end(); return () => {}; }
+  if (reduced) {
+    el.scrollTop = end();
+    return () => {};
+  }
   const lead = el.clientHeight * 1.5;
   if (end() - el.scrollTop > lead) el.scrollTop = end() - lead;
   let current = el.scrollTop;
@@ -34,5 +37,8 @@ export function glideToEnd(el: HTMLElement): () => void {
     written = el.scrollTop;
     if (current !== target) frame = requestAnimationFrame(step);
   });
-  return () => { if (frame) cancelAnimationFrame(frame); frame = 0; };
+  return () => {
+    if (frame) cancelAnimationFrame(frame);
+    frame = 0;
+  };
 }

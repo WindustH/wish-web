@@ -11,14 +11,17 @@ const available = computed(() => {
   // Suspended.outcome references an event ID, not its history sequence.
   const outcomeId = snapshot.status?.state?.Suspended?.outcome;
   if (outcomeId == null) return false;
-  const outcome = chat.entries.value.find(entry => entry.event_id === outcomeId);
+  const outcome = chat.entries.value.find((entry) => entry.event_id === outcomeId);
   const failure = outcome?.payload.failure;
   if (!failure || !/transport|streamfailed/i.test(failure.family)) return false;
   return props.sequence == null || outcome?.seq === props.sequence;
 });
 async function retry() {
-  try { await chat.retryRun(props.session); }
-  catch (error) { showError({title: tr('重试失败', 'Retry failed'), error}); }
+  try {
+    await chat.retryRun(props.session);
+  } catch (error) {
+    showError({ title: tr('重试失败', 'Retry failed'), error });
+  }
 }
 </script>
 <template>
@@ -36,7 +39,12 @@ async function retry() {
   border-color: var(--err-border);
 }
 @media (hover: hover) {
-  .retry-run:hover:not(:disabled) { background: color-mix(in srgb, var(--err) 10%, transparent); }
+  .retry-run:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--err) 10%, transparent);
+  }
 }
-.retry-run:focus-visible { outline: 2px solid var(--err); outline-offset: 2px; }
+.retry-run:focus-visible {
+  outline: 2px solid var(--err);
+  outline-offset: 2px;
+}
 </style>

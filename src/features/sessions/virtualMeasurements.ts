@@ -32,7 +32,11 @@ export function observeChatRect(instance: ChatVirtualizer, notify: (rect: { widt
 // hidden row has been cached as zero, mounting it again therefore keeps returning zero
 // until another resize (often the next model response) arrives. Measure visible rows now,
 // and retain their estimate/previous positive size while hidden. Chips really may be zero.
-export function measureChatElement(element: Element, entry: ResizeObserverEntry | undefined, instance: ChatVirtualizer): number {
+export function measureChatElement(
+  element: Element,
+  entry: ResizeObserverEntry | undefined,
+  instance: ChatVirtualizer,
+): number {
   const index = instance.indexFromElement(element);
   const estimate = instance.options.estimateSize(index);
   const cached = instance.itemSizeCache.get(instance.options.getItemKey(index));

@@ -11,26 +11,38 @@ const metadata = computed(() => props.item.entry.payload.metadata);
 const content = computed<any[]>(() => props.item.entry.payload.content);
 const author = computed(() => {
   const from = metadata.value.from ?? {};
-  if (from.kind === 'session') return { name: from.name || from.id.slice(0, 8), color: peerColor(from.id), to: `/s/${from.id}` };
+  if (from.kind === 'session')
+    return { name: from.name || from.id.slice(0, 8), color: peerColor(from.id), to: `/s/${from.id}` };
   return { name: tr('你', 'You'), color: 'var(--fg-muted)' };
 });
 // The model is told the post under a line naming the group and the author, which the card says
 // itself. A file comes as a line of its own, which the card counts; images show under the words.
 const FILE = '[File sha256:';
-const texts = computed<string[]>(() => content.value.filter(b => b.type === 'text').map(b => b.text));
+const texts = computed<string[]>(() => content.value.filter((b) => b.type === 'text').map((b) => b.text));
 const text = computed(() => {
-  const told = texts.value.filter(text => !text.startsWith(FILE)).join('');
+  const told = texts.value.filter((text) => !text.startsWith(FILE)).join('');
   return told.slice(told.indexOf('\n') + 1).trim();
 });
-const images = computed(() => content.value.filter(b => b.type === 'image' && b.data_base64).map(b => `data:${b.mime_type};base64,${b.data_base64}`));
-const files = computed(() => texts.value.filter(text => text.startsWith(FILE)).length);
+const images = computed(() =>
+  content.value
+    .filter((b) => b.type === 'image' && b.data_base64)
+    .map((b) => `data:${b.mime_type};base64,${b.data_base64}`),
+);
+const files = computed(() => texts.value.filter((text) => text.startsWith(FILE)).length);
 </script>
 
 <template>
   <div class="entry assistant group-message">
     <div class="body">
-      <GroupMessageCard :author="author" :verb="tr('在', 'in')" :group="metadata.group" :text="text" :images="images"
-        :note="files ? tr(`${files} 个文件`, `${files} file${files === 1 ? '' : 's'}`) : undefined" :at="item.entry.created_at" />
+      <GroupMessageCard
+        :author="author"
+        :verb="tr('在', 'in')"
+        :group="metadata.group"
+        :text="text"
+        :images="images"
+        :note="files ? tr(`${files} 个文件`, `${files} file${files === 1 ? '' : 's'}`) : undefined"
+        :at="item.entry.created_at"
+      />
     </div>
   </div>
 </template>

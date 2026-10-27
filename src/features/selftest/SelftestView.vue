@@ -15,7 +15,9 @@ const leave = () => (window.history.state?.back ? router.back() : router.push('/
 <template>
   <div class="page selftest-page">
     <header class="page-head page-bar">
-      <button class="btn ghost icon-only" :aria-label="tr('返回', 'Back')" @click="leave"><Icon name="arrow-left" /></button>
+      <button class="btn ghost icon-only" :aria-label="tr('返回', 'Back')" @click="leave">
+        <Icon name="arrow-left" />
+      </button>
       <h1 class="page-bar-title">{{ tr('连接诊断', 'Connection diagnostics') }}</h1>
     </header>
     <div class="selftest-body">
@@ -25,6 +27,14 @@ const leave = () => (window.history.state?.back ? router.back() : router.push('/
 </template>
 
 <style scoped>
-.selftest-body { width: min(100%, 720px); margin: 0 auto; padding: 32px; }
-@media (max-width: 899px) { .selftest-body { padding: 16px; } }
+.selftest-body {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: 32px;
+}
+@media (max-width: 899px) {
+  .selftest-body {
+    padding: 16px;
+  }
+}
 </style>

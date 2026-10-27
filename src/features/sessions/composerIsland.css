@@ -19,7 +19,9 @@
    It therefore floats over the log's foot rather than sitting below it: the conversation runs to
    the pane's bottom edge and scrolls away beneath the island, which is what the transparency is for.
    `--composer-height` (set by ChatPane) keeps the last line resting clear of it. */
-.chat-pane { position: relative; }
+.chat-pane {
+  position: relative;
+}
 div.chat-pane > .composer.desktop,
 div.chat-pane > .composer.mobile {
   position: absolute;
@@ -33,17 +35,24 @@ div.chat-pane > .composer.mobile {
   /* Focus closes the 2% that is open: the surface settles to solid over a beat, never with a
      jolt. The margin and shadow transitions the shared sheet gives the phone's composer ride
      along, since this rule would otherwise replace them. */
-  transition: background-color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out),
-    margin var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+  transition:
+    background-color var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out),
+    margin var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
   /* No blur: what passes under the island is seen as it is, softened only by the 2% that lets it
      through. A frosted pane would smear the very words the reader is following away from. */
 }
 
 /* The log reaches the pane's foot, under the island; its own padding is the room the last line
    needs to come to rest above it. */
-div.chat-pane .chatlog { padding-bottom: calc(var(--composer-height, 96px) + 12px); }
+div.chat-pane .chatlog {
+  padding-bottom: calc(var(--composer-height, 96px) + 12px);
+}
 /* The jump button stands on the island's top edge, never under it. */
-div.chat-pane .jump-latest { bottom: calc(var(--composer-height, 96px) + 14px); }
+div.chat-pane .jump-latest {
+  bottom: calc(var(--composer-height, 96px) + 14px);
+}
 
 /* Keyboard focus keeps marking the island with the accent, as it did before - and makes it wholly
    solid, so nothing of the log shows through the words being typed. */
@@ -54,7 +63,10 @@ div.chat-pane > .composer.mobile:focus-within {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  div.chat-pane > .composer.desktop, div.chat-pane > .composer.mobile { transition: none; }
+  div.chat-pane > .composer.desktop,
+  div.chat-pane > .composer.mobile {
+    transition: none;
+  }
 }
 
 /* The log runs under the island and is seen through it: no mask and no blur. A fade here would

@@ -12,14 +12,25 @@ import { ApiError } from '../../core/api/client.ts';
 // the app asks for one instead.
 const REMEMBER = 'wish.providerGate.ready';
 function rememberedReady() {
-  try { return localStorage.getItem(REMEMBER) === getBaseUrl(); } catch { return false; }
+  try {
+    return localStorage.getItem(REMEMBER) === getBaseUrl();
+  } catch {
+    return false;
+  }
 }
 function remember(ready: boolean) {
-  try { if (ready) localStorage.setItem(REMEMBER, getBaseUrl()); else localStorage.removeItem(REMEMBER); } catch { /* storage unavailable */ }
+  try {
+    if (ready) localStorage.setItem(REMEMBER, getBaseUrl());
+    else localStorage.removeItem(REMEMBER);
+  } catch {
+    /* storage unavailable */
+  }
 }
 
 export function useProviderGate() {
-  const state = shallowRef<'checking' | 'required' | 'ready' | 'error' | 'locked'>(rememberedReady() ? 'ready' : 'checking');
+  const state = shallowRef<'checking' | 'required' | 'ready' | 'error' | 'locked'>(
+    rememberedReady() ? 'ready' : 'checking',
+  );
   const error = shallowRef('');
   let controller: AbortController | undefined;
   let generation = 0;
@@ -47,6 +58,10 @@ export function useProviderGate() {
   }
   const offs = [bus.on('configuration.changed', refresh), bus.on('sync.snapshot', refresh)];
   void refresh();
-  onScopeDispose(() => { generation++; controller?.abort(); offs.forEach(off => off()); });
+  onScopeDispose(() => {
+    generation++;
+    controller?.abort();
+    offs.forEach((off) => off());
+  });
   return { state, error, refresh };
 }

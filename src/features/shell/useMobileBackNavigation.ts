@@ -14,15 +14,24 @@ export function useMobileBackNavigation(router: Router, mobile: Ref<boolean>, ba
   const navigation = backLayers();
 
   function back() {
-    if (exitRequested.value) { exitRequested.value = false; return; }
+    if (exitRequested.value) {
+      exitRequested.value = false;
+      return;
+    }
     const route = router.currentRoute.value;
     const parent = pageBackTarget(route.path, !!route.query.section, backgroundPath());
     if (parent) void router.replace(parent);
     else exitRequested.value = true;
   }
-  watch(mobile, enabled => navigation?.setPageBack(enabled && !leaving ? back : undefined), { immediate: true });
-  const removeRouteListener = router.afterEach(() => { exitRequested.value = false; restoreBoundary(); });
-  onScopeDispose(() => { removeRouteListener(); navigation?.setPageBack(undefined); });
+  watch(mobile, (enabled) => navigation?.setPageBack(enabled && !leaving ? back : undefined), { immediate: true });
+  const removeRouteListener = router.afterEach(() => {
+    exitRequested.value = false;
+    restoreBoundary();
+  });
+  onScopeDispose(() => {
+    removeRouteListener();
+    navigation?.setPageBack(undefined);
+  });
 
   async function confirmExit() {
     leaving = true;

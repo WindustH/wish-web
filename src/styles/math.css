@@ -23,7 +23,7 @@ math {
   word-wrap: normal;
   direction: ltr;
   /* Prevent Firefox from omitting the dot on i or j. */
-  font-feature-settings: "dtls" off;
+  font-feature-settings: 'dtls' off;
 }
 
 math * {
@@ -32,7 +32,7 @@ math * {
 
 /* display: block is necessary in Firefox and Safari.
  * Not in Chromium, which recognizes display: "block math" written inline. */
- math.tml-display {
+math.tml-display {
   display: block;
   width: 100%;
 }
@@ -53,7 +53,7 @@ mo.tml-prime {
 mfrac > :nth-child(2),
 msqrt,
 mover > :first-child {
-  math-shift: compact
+  math-shift: compact;
 }
 
 .menclose {
@@ -70,19 +70,19 @@ mover > :first-child {
   background-color: currentColor;
   /* Use the SVG as an alpha mask (painted by background-color) */
   -webkit-mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><defs><marker id='a' markerHeight='5' markerUnits='strokeWidth' markerWidth='7' orient='auto' refX='7' refY='2.5'><path fill='black' d='m0 0 7 2.5L0 5z'/></marker></defs><line x2='100%25' y1='100%25' stroke='black' stroke-width='.06em' marker-end='url(%23a)' vector-effect='non-scaling-stroke'/></svg>");
-          mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><defs><marker id='a' markerHeight='5' markerUnits='strokeWidth' markerWidth='7' orient='auto' refX='7' refY='2.5'><path fill='black' d='m0 0 7 2.5L0 5z'/></marker></defs><line x2='100%25' y1='100%25' stroke='black' stroke-width='.06em' marker-end='url(%23a)' vector-effect='non-scaling-stroke'/></svg>");
+  mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><defs><marker id='a' markerHeight='5' markerUnits='strokeWidth' markerWidth='7' orient='auto' refX='7' refY='2.5'><path fill='black' d='m0 0 7 2.5L0 5z'/></marker></defs><line x2='100%25' y1='100%25' stroke='black' stroke-width='.06em' marker-end='url(%23a)' vector-effect='non-scaling-stroke'/></svg>");
   -webkit-mask-repeat: no-repeat;
-          mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
   -webkit-mask-size: 100% 100%;
-          mask-size: 100% 100%;
+  mask-size: 100% 100%;
   -webkit-mask-position: 0 0;
-          mask-position: 0 0;
+  mask-position: 0 0;
 }
 
 @supports (-moz-appearance: none) {
   /* \vec w/o italic correction for Firefox */
   .tml-vec {
-    transform: scale(0.75)
+    transform: scale(0.75);
   }
   /* Fix \cancelto in Firefox */
   .ff-narrow {
@@ -109,7 +109,7 @@ mover > :first-child {
     padding-left: 0.05em;
   }
   .tml-med-pad {
-    padding-left: 0.10em;
+    padding-left: 0.1em;
   }
   .tml-lrg-pad {
     padding-left: 0.15em;
@@ -153,8 +153,8 @@ mover > :first-child {
 
 /* \cancel & \phase use background images. Get them to print. */
 menclose {
-  -webkit-print-color-adjust: exact;  /* Chrome & Edge */
-          print-color-adjust: exact;
+  -webkit-print-color-adjust: exact; /* Chrome & Edge */
+  print-color-adjust: exact;
 }
 
 /* Array cell justification in Firefox & WebKit */
@@ -166,32 +166,36 @@ menclose {
 }
 
 /* For CD labels that grow to the left in Firefox and WebKit */
-.tml-shift-left { margin-left:-200% }
+.tml-shift-left {
+  margin-left: -200%;
+}
 
 /* Styles for Chromium only */
 @supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
   /* Italic correction on accents */
   .chr-sml {
-    transform: translate(0.07em, 0)
+    transform: translate(0.07em, 0);
   }
   .chr-sml-vec {
-    transform: scale(0.75) translate(0.07em, 0)
+    transform: scale(0.75) translate(0.07em, 0);
   }
   .chr-med {
-    transform: translate(0.14em, 0)
+    transform: translate(0.14em, 0);
   }
   .chr-med-vec {
-    transform: scale(0.75) translate(0.14em, 0)
+    transform: scale(0.75) translate(0.14em, 0);
   }
   .chr-lrg {
-    transform: translate(0.21em, 0)
+    transform: translate(0.21em, 0);
   }
   .chr-lrg-vec {
-    transform: scale(0.75) translate(0.21em, 0)
+    transform: scale(0.75) translate(0.21em, 0);
   }
 
   /* For CD labels that grow to the left */
-  .tml-shift-left { margin-left:-100% }
+  .tml-shift-left {
+    margin-left: -100%;
+  }
 
   /* MathML Core & Chromium do not support the MathML 3.0 element <menclose> attributes. */
   /* So use styles. */
@@ -200,7 +204,7 @@ menclose {
     padding: 0.5ex 0ex;
   }
 
-    .tml-overline {
+  .tml-overline {
     padding: 0.1em 0 0 0;
     border-top: 0.065em solid;
   }
@@ -226,10 +230,28 @@ menclose {
     clip-path: polygon(0em 0.05em, 0.05em 0em, 100% calc(100% - 0.05em), calc(100% - 0.05em) 100%);
   }
   .sout {
-    clip-path: polygon(0em calc(55% + 0.0333em), 0em calc(55% - 0.0333em), 100% calc(55% - 0.0333em), 100% calc(55% + 0.0333em));
+    clip-path: polygon(
+      0em calc(55% + 0.0333em),
+      0em calc(55% - 0.0333em),
+      100% calc(55% - 0.0333em),
+      100% calc(55% + 0.0333em)
+    );
   }
   .tml-xcancel {
-    clip-path: polygon(0.05em 0em, 0em 0.05em, calc(50% - 0.05em) 50%, 0em calc(100% - 0.05em), 0.05em 100%, 50% calc(50% + 0.05em), calc(100% - 0.05em) 100%, 100% calc(100% - 0.05em), calc(50% + 0.05em) 50%, 100% 0.05em, calc(100% - 0.05em) 0%, 50% calc(50% - 0.05em));
+    clip-path: polygon(
+      0.05em 0em,
+      0em 0.05em,
+      calc(50% - 0.05em) 50%,
+      0em calc(100% - 0.05em),
+      0.05em 100%,
+      50% calc(50% + 0.05em),
+      calc(100% - 0.05em) 100%,
+      100% calc(100% - 0.05em),
+      calc(50% + 0.05em) 50%,
+      100% 0.05em,
+      calc(100% - 0.05em) 0%,
+      50% calc(50% - 0.05em)
+    );
   }
 
   .longdiv-top {
@@ -246,8 +268,10 @@ menclose {
     transform: translateY(-0.067em);
     border-radius: 70%;
     clip-path: inset(0 0 0 0.4em);
-    box-sizing: border-box;}
-    .menclose {display: inline-block;
+    box-sizing: border-box;
+  }
+  .menclose {
+    display: inline-block;
     text-align: left;
     position: relative;
   }
@@ -283,37 +307,37 @@ menclose {
     left: 0;
     border: 0.067em solid;
     border-radius: 50%;
-   }
+  }
 
-   .actuarial {
+  .actuarial {
     padding: 0.03889em 0.03889em 0 0.03889em;
     border-width: 0.08em 0.08em 0em 0em;
     border-style: solid;
     margin-right: 0.03889em;
-   }
+  }
 
-   /* Stretch \widetilde */
+  /* Stretch \widetilde */
   .tml-tilde-2 {
-    transform: scale(2.0, 1.1)
+    transform: scale(2, 1.1);
   }
   .tml-tilde-3 {
-    transform: scale(3.0, 1.1)
+    transform: scale(3, 1.1);
   }
   .tml-tilde-4 {
-    transform: scale(4.0, 1.1)
+    transform: scale(4, 1.1);
   }
   /* Stretch \widehat */
   .tml-hat-1 {
-    transform: scale(1.9, 1.0)
+    transform: scale(1.9, 1);
   }
   .tml-hat-2 {
-    transform: scale(3.9, 1.0)
+    transform: scale(3.9, 1);
   }
   .tml-hat-3 {
-    transform: scale(5.8, 1.1)
+    transform: scale(5.8, 1.1);
   }
   .tml-hat-4 {
-    transform: scale(7.8, 1.1)
+    transform: scale(7.8, 1.1);
   }
 
   /* set array cell justification */
@@ -349,23 +373,46 @@ mtable.tml-small mtd {
 /* Firefox */
 @-moz-document url-prefix() {
   /* Avoid flex-wrap */
-  math { display: inline; }
-  math > mrow { padding: 0 }
+  math {
+    display: inline;
+  }
+  math > mrow {
+    padding: 0;
+  }
   /* Adjust Firefox spacing between array rows */
-  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
-  mtable.tml-jot > mtr > mtd { padding-top: 0.2ex; padding-bottom: 0.2ex; }
+  mtd,
+  mtable.tml-small mtd {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  mtable.tml-jot > mtr > mtd {
+    padding-top: 0.2ex;
+    padding-bottom: 0.2ex;
+  }
 }
 
 /* AMS environment auto-numbering via CSS counter. */
 .tml-eqn::before {
   counter-increment: tmlEqnNo;
-  content: "(" counter(tmlEqnNo) ")";
+  content: '(' counter(tmlEqnNo) ')';
 }
 
 body {
   counter-reset: tmlEqnNo;
 }
 
-.markdown math { font-size: 1.06em; color: inherit; }
-.markdown math[display="block"] { display: block; max-width: 100%; overflow-x: auto; overflow-y: hidden; padding-block: .3em; margin: 1em 0; }
-.markdown .tml-error { color: var(--err); }
+.markdown math {
+  font-size: 1.06em;
+  color: inherit;
+}
+.markdown math[display='block'] {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.3em;
+  margin: 1em 0;
+}
+.markdown .tml-error {
+  color: var(--err);
+}

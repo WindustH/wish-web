@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { modelLabel } from '../../ui/modelLabel.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
-const isMobile=useIsMobile();
+const isMobile = useIsMobile();
 import { computed, inject, provide, nextTick, onScopeDispose, reactive, ref } from 'vue';
 import type { ProviderConfig, ProviderPreset } from '../../core/provider-presets.ts';
 import { readDraftCatalogModels } from '../../core/provider-catalog.ts';
@@ -19,118 +19,348 @@ import { draftActionsKey } from '../../ui/composables/draftActions.ts';
 import { useSettingsReturn } from './settingsReturn.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { useReasoningEfforts, withNewModelDefaults } from './useReasoningEfforts.ts';
-const props=defineProps<{id:string;value:ProviderConfig;preset?:ProviderPreset}>();
-const editing=ref(false),originalId=ref(''),modelId=ref(''),draft=ref<Record<string,any>>({});
-const allowUnknownId=ref(false);
-const catalogOpen=ref(false),catalogBusy=ref(false),catalogFailed=ref(false),catalog=ref<any[]>([]);
-const catalogModal=ref<InstanceType<typeof Modal>>();
-let catalogRequest=0;
+const props = defineProps<{ id: string; value: ProviderConfig; preset?: ProviderPreset }>();
+const editing = ref(false),
+  originalId = ref(''),
+  modelId = ref(''),
+  draft = ref<Record<string, any>>({});
+const allowUnknownId = ref(false);
+const catalogOpen = ref(false),
+  catalogBusy = ref(false),
+  catalogFailed = ref(false),
+  catalog = ref<any[]>([]);
+const catalogModal = ref<InstanceType<typeof Modal>>();
+let catalogRequest = 0;
 let catalogController: AbortController | undefined;
-onScopeDispose(() => { catalogRequest++; catalogController?.abort(); });
-let customAfterCatalog=false;
-const advanced=ref(''),advancedChanged=ref(false),editSource=ref('');
-const modelDirty=computed(()=>JSON.stringify([modelId.value,draft.value])!==editSource.value||(advancedChanged.value&&advanced.value!==JSON.stringify(draft.value,null,2)));
-useSettingsReturn(()=>isMobile.value&&editing.value,async()=>{if(await confirmModelReturn())editing.value=false;});
+onScopeDispose(() => {
+  catalogRequest++;
+  catalogController?.abort();
+});
+let customAfterCatalog = false;
+const advanced = ref(''),
+  advancedChanged = ref(false),
+  editSource = ref('');
+const modelDirty = computed(
+  () =>
+    JSON.stringify([modelId.value, draft.value]) !== editSource.value ||
+    (advancedChanged.value && advanced.value !== JSON.stringify(draft.value, null, 2)),
+);
+useSettingsReturn(
+  () => isMobile.value && editing.value,
+  async () => {
+    if (await confirmModelReturn()) editing.value = false;
+  },
+);
 function stageModel() {
   if (!modelDirty.value) return true;
   if (!apply(false)) return false;
-  originalId.value=modelId.value.trim();
-  draft.value=JSON.parse(JSON.stringify(props.value.models[originalId.value]));
-  advanced.value=JSON.stringify(draft.value,null,2);advancedChanged.value=false;
-  editSource.value=JSON.stringify([modelId.value,draft.value]);
+  originalId.value = modelId.value.trim();
+  draft.value = JSON.parse(JSON.stringify(props.value.models[originalId.value]));
+  advanced.value = JSON.stringify(draft.value, null, 2);
+  advancedChanged.value = false;
+  editSource.value = JSON.stringify([modelId.value, draft.value]);
   return true;
 }
-async function confirmModelReturn(){return stageModel();}
-const parentActions=inject(draftActionsKey,null);
-if(parentActions) provide(draftActionsKey,{
-  dirty:computed(()=>parentActions.dirty.value||(editing.value&&modelDirty.value)),
-  busy:parentActions.busy,
-  save:async()=>{if(editing.value&&!stageModel())return false;return parentActions.save();},
-  discard:()=>{parentActions.discard();editing.value=false;},
-});
+async function confirmModelReturn() {
+  return stageModel();
+}
+const parentActions = inject(draftActionsKey, null);
+if (parentActions)
+  provide(draftActionsKey, {
+    dirty: computed(() => parentActions.dirty.value || (editing.value && modelDirty.value)),
+    busy: parentActions.busy,
+    save: async () => {
+      if (editing.value && !stageModel()) return false;
+      return parentActions.save();
+    },
+    discard: () => {
+      parentActions.discard();
+      editing.value = false;
+    },
+  });
 
-const efforts=reactive(useReasoningEfforts(draft,()=>props.preset));
-function edit(id='',seed:Record<string,any>={}){originalId.value=id;modelId.value=id;allowUnknownId.value=false;draft.value=JSON.parse(JSON.stringify(id?props.value.models[id]:withNewModelDefaults(seed)));efforts.input=draft.value.reasoning_efforts?Object.keys(draft.value.reasoning_efforts).join(', '):'';advanced.value=JSON.stringify(draft.value,null,2);advancedChanged.value=false;editSource.value=JSON.stringify([modelId.value,draft.value]);editing.value=true;}
-function apply(close=true){try{
-  const id=modelId.value.trim();if(!id)throw new Error(tr('请输入模型 ID。','Enter a model ID.'));
-  if(id!==originalId.value&&id in props.value.models)throw new Error(tr('模型 ID 已存在。','Model ID already exists.'));
-  if(!originalId.value&&catalog.value.length&&!catalog.value.some(model=>model.id===id)&&!allowUnknownId.value){
-    const matched=catalog.value.find(model=>modelLabel(model.id).toLowerCase()===id.toLowerCase()||model.name?.toLowerCase()===id.toLowerCase());
-    throw new Error(matched
-      ? tr(`这是显示名。请使用上游模型 ID：${matched.id}`,`That is a display name. Use upstream model ID: ${matched.id}`)
-      : tr('上游目录中没有这个 ID；如确认是自定义模型，请勾选下方选项。','This ID is absent from the upstream catalog. Confirm a custom ID below if intended.'));
+const efforts = reactive(useReasoningEfforts(draft, () => props.preset));
+function edit(id = '', seed: Record<string, any> = {}) {
+  originalId.value = id;
+  modelId.value = id;
+  allowUnknownId.value = false;
+  draft.value = JSON.parse(JSON.stringify(id ? props.value.models[id] : withNewModelDefaults(seed)));
+  efforts.input = draft.value.reasoning_efforts ? Object.keys(draft.value.reasoning_efforts).join(', ') : '';
+  advanced.value = JSON.stringify(draft.value, null, 2);
+  advancedChanged.value = false;
+  editSource.value = JSON.stringify([modelId.value, draft.value]);
+  editing.value = true;
+}
+function apply(close = true) {
+  try {
+    const id = modelId.value.trim();
+    if (!id) throw new Error(tr('请输入模型 ID。', 'Enter a model ID.'));
+    if (id !== originalId.value && id in props.value.models)
+      throw new Error(tr('模型 ID 已存在。', 'Model ID already exists.'));
+    if (
+      !originalId.value &&
+      catalog.value.length &&
+      !catalog.value.some((model) => model.id === id) &&
+      !allowUnknownId.value
+    ) {
+      const matched = catalog.value.find(
+        (model) =>
+          modelLabel(model.id).toLowerCase() === id.toLowerCase() || model.name?.toLowerCase() === id.toLowerCase(),
+      );
+      throw new Error(
+        matched
+          ? tr(
+              `这是显示名。请使用上游模型 ID：${matched.id}`,
+              `That is a display name. Use upstream model ID: ${matched.id}`,
+            )
+          : tr(
+              '上游目录中没有这个 ID；如确认是自定义模型，请勾选下方选项。',
+              'This ID is absent from the upstream catalog. Confirm a custom ID below if intended.',
+            ),
+      );
+    }
+    const value = advancedChanged.value ? JSON.parse(advanced.value) : draft.value;
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+      throw new Error(tr('模型属性必须是 JSON 对象。', 'Model metadata must be a JSON object.'));
+    if (
+      !originalId.value &&
+      allowUnknownId.value &&
+      catalog.value.length &&
+      !catalog.value.some((model) => model.id === id)
+    )
+      value.custom_model_id = true;
+    for (const field of ['context_window_tokens', 'max_output_tokens'])
+      if (value[field] != null && (!Number.isSafeInteger(value[field]) || value[field] <= 0))
+        throw new Error(tr('Token 上限必须是正整数。', 'Token limits must be positive integers.'));
+    if (
+      value.reasoning_efforts != null &&
+      (typeof value.reasoning_efforts !== 'object' || Array.isArray(value.reasoning_efforts))
+    )
+      throw new Error(tr('思考等级必须是对象格式。', 'Reasoning efforts must be an object.'));
+    if (originalId.value && originalId.value !== id) delete props.value.models[originalId.value];
+    props.value.models[id] = value;
+    if (close) editing.value = false;
+    return true;
+  } catch (e) {
+    showError({ title: tr('无法应用模型设置', 'Could not apply the model'), error: e });
+    return false;
   }
-  const value=advancedChanged.value?JSON.parse(advanced.value):draft.value;
-  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error(tr('模型属性必须是 JSON 对象。','Model metadata must be a JSON object.'));
-  if(!originalId.value&&allowUnknownId.value&&catalog.value.length&&!catalog.value.some(model=>model.id===id))value.custom_model_id=true;
-  for(const field of ['context_window_tokens','max_output_tokens'])if(value[field]!=null&&(!Number.isSafeInteger(value[field])||value[field]<=0))throw new Error(tr('Token 上限必须是正整数。','Token limits must be positive integers.'));
-  if(value.reasoning_efforts!=null&&(typeof value.reasoning_efforts!=='object'||Array.isArray(value.reasoning_efforts)))throw new Error(tr('思考等级必须是对象格式。','Reasoning efforts must be an object.'));
-  if(originalId.value&&originalId.value!==id)delete props.value.models[originalId.value];props.value.models[id]=value;if(close)editing.value=false;return true;
-}catch(e){showError({title:tr('无法应用模型设置','Could not apply the model'),error:e});return false;}}
+}
 // The last catalog shows at once and stays usable while a fresh read runs. It is read with the
 // provider as edited here, so a new provider or a changed key needs no save first.
-async function readCatalog(){
-  const request=++catalogRequest;
+async function readCatalog() {
+  const request = ++catalogRequest;
   catalogController?.abort();
   catalogController = new AbortController();
-  const key=`catalog-models:${props.id}`;
-  catalogOpen.value=true;catalogFailed.value=false;
-  const cached=peekCached<any[]>(key)??await readCached<any[]>(key);
-  if(request!==catalogRequest)return;
-  if(cached)catalog.value=cached;
-  catalogBusy.value=!cached;
-  try{
-    const models = await readDraftCatalogModels(props.id, JSON.parse(JSON.stringify(props.value)), catalogController.signal, configDraft?.draft.value.accounts);
-    if(request===catalogRequest){catalog.value=models;writeCached(key,models);}
-  }catch(e){if(request===catalogRequest){catalogFailed.value=true;if(!cached)showError({title:tr('无法读取模型目录','Could not read the model catalog'),error:e,action:{label:tr('重试','Retry'),run:readCatalog}});}
-  }finally{if(request===catalogRequest)catalogBusy.value=false;}
+  const key = `catalog-models:${props.id}`;
+  catalogOpen.value = true;
+  catalogFailed.value = false;
+  const cached = peekCached<any[]>(key) ?? (await readCached<any[]>(key));
+  if (request !== catalogRequest) return;
+  if (cached) catalog.value = cached;
+  catalogBusy.value = !cached;
+  try {
+    const models = await readDraftCatalogModels(
+      props.id,
+      JSON.parse(JSON.stringify(props.value)),
+      catalogController.signal,
+      configDraft?.draft.value.accounts,
+    );
+    if (request === catalogRequest) {
+      catalog.value = models;
+      writeCached(key, models);
+    }
+  } catch (e) {
+    if (request === catalogRequest) {
+      catalogFailed.value = true;
+      if (!cached)
+        showError({
+          title: tr('无法读取模型目录', 'Could not read the model catalog'),
+          error: e,
+          action: { label: tr('重试', 'Retry'), run: readCatalog },
+        });
+    }
+  } finally {
+    if (request === catalogRequest) catalogBusy.value = false;
+  }
 }
-function importModel(id:string){
-  if(catalogBusy.value||props.value.models[id])return;
-  const model=catalog.value.find(item=>item.id===id);
-  if(!model)return;
-  props.value.models[id]=withNewModelDefaults({context_window_tokens:model.context_window,max_output_tokens:model.max_output_tokens??props.preset?.max_output_tokens,supports_reasoning:model.supports_reasoning,default_reasoning_effort:model.default_reasoning_effort,reasoning_efforts:model.reasoning_efforts});
-  catalogOpen.value=false;
+function importModel(id: string) {
+  if (catalogBusy.value || props.value.models[id]) return;
+  const model = catalog.value.find((item) => item.id === id);
+  if (!model) return;
+  props.value.models[id] = withNewModelDefaults({
+    context_window_tokens: model.context_window,
+    max_output_tokens: model.max_output_tokens ?? props.preset?.max_output_tokens,
+    supports_reasoning: model.supports_reasoning,
+    default_reasoning_effort: model.default_reasoning_effort,
+    reasoning_efforts: model.reasoning_efforts,
+  });
+  catalogOpen.value = false;
 }
-function openAdd(){if(props.value.model_list)void readCatalog();else edit();}
-function openCustom(){customAfterCatalog=true;catalogModal.value?.close();}
-function closeCatalog(){
-  catalogOpen.value=false;
-  if(customAfterCatalog){customAfterCatalog=false;void nextTick(()=>edit());}
+function openAdd() {
+  if (props.value.model_list) void readCatalog();
+  else edit();
 }
-defineExpose({openAdd});
+function openCustom() {
+  customAfterCatalog = true;
+  catalogModal.value?.close();
+}
+function closeCatalog() {
+  catalogOpen.value = false;
+  if (customAfterCatalog) {
+    customAfterCatalog = false;
+    void nextTick(() => edit());
+  }
+}
+defineExpose({ openAdd });
 // Limits read better at the size they were published with: 262144 → 256K, 250000 → 250K.
-function tokenLimit(value:number){
-  for(const [base,unit] of [[1048576,'M'],[1_000_000,'M'],[1024,'K'],[1000,'K']] as const)if(value>=base&&value%base===0)return `${value/base}${unit}`;
-  return new Intl.NumberFormat('en',{notation:'compact',maximumFractionDigits:1}).format(value);
+function tokenLimit(value: number) {
+  for (const [base, unit] of [
+    [1048576, 'M'],
+    [1_000_000, 'M'],
+    [1024, 'K'],
+    [1000, 'K'],
+  ] as const)
+    if (value >= base && value % base === 0) return `${value / base}${unit}`;
+  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
-function modelFacts(model:Record<string,any>){
-  const facts:{label:string;value:string;exact?:string}[]=[];
-  if(model.context_window_tokens!=null)facts.push({label:tr('上下文','Context'),value:tokenLimit(model.context_window_tokens),exact:String(model.context_window_tokens)});
-  if(model.max_output_tokens!=null)facts.push({label:tr('输出','Output'),value:tokenLimit(model.max_output_tokens),exact:String(model.max_output_tokens)});
-  if(model.reasoning_efforts)facts.push({label:tr('思考','Reasoning'),value:Object.keys(model.reasoning_efforts).join(' · ')});
+function modelFacts(model: Record<string, any>) {
+  const facts: { label: string; value: string; exact?: string }[] = [];
+  if (model.context_window_tokens != null)
+    facts.push({
+      label: tr('上下文', 'Context'),
+      value: tokenLimit(model.context_window_tokens),
+      exact: String(model.context_window_tokens),
+    });
+  if (model.max_output_tokens != null)
+    facts.push({
+      label: tr('输出', 'Output'),
+      value: tokenLimit(model.max_output_tokens),
+      exact: String(model.max_output_tokens),
+    });
+  if (model.reasoning_efforts)
+    facts.push({ label: tr('思考', 'Reasoning'), value: Object.keys(model.reasoning_efforts).join(' · ') });
   return facts;
 }
-const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLabel(model.id),search:model.id,brand:props.preset?.provider,disabled:!!props.value.models[model.id],description:props.value.models[model.id]?tr('已添加','Already added'):undefined})));
+const choices = computed(() =>
+  catalog.value.map((model) => ({
+    key: model.id,
+    title: modelLabel(model.id),
+    search: model.id,
+    brand: props.preset?.provider,
+    disabled: !!props.value.models[model.id],
+    description: props.value.models[model.id] ? tr('已添加', 'Already added') : undefined,
+  })),
+);
 </script>
 <template>
   <div class="models-editor">
-    <p v-if="!Object.keys(value.models).length" class="hint">{{tr('未配置模型，可手动添加或从上游目录选择。','No configured models. Add one manually or choose from the upstream catalog.')}}</p>
-    <div v-for="(model,name) in value.models" :key="name" class="model-row">
-      <button class="model-edit" :aria-label="tr('编辑模型 ','Edit model ')+name" @click="edit(String(name))"><span class="model-title"><strong>{{modelLabel(String(name))}}</strong><code>{{name}}</code></span><span v-if="modelFacts(model).length" class="model-facts"><span v-for="fact in modelFacts(model)" :key="fact.label" class="model-fact" :title="fact.exact"><span>{{fact.label}}</span>{{fact.value}}</span></span></button>
-      <Hint :text="tr('编辑模型','Edit model')"><button class="btn ghost icon-only" :aria-label="tr('编辑模型配置 ','Edit model configuration ')+name" @click="edit(String(name))"><Icon name="pencil"/></button></Hint>
-      <Hint :text="tr('删除模型','Delete model')"><button class="btn ghost icon-only model-remove" :aria-label="tr('删除模型 ','Delete model ')+name" @click="delete value.models[name]"><Icon name="trash-2"/></button></Hint>
+    <p v-if="!Object.keys(value.models).length" class="hint">
+      {{
+        tr(
+          '未配置模型，可手动添加或从上游目录选择。',
+          'No configured models. Add one manually or choose from the upstream catalog.',
+        )
+      }}
+    </p>
+    <div v-for="(model, name) in value.models" :key="name" class="model-row">
+      <button class="model-edit" :aria-label="tr('编辑模型 ', 'Edit model ') + name" @click="edit(String(name))">
+        <span class="model-title"
+          ><strong>{{ modelLabel(String(name)) }}</strong
+          ><code>{{ name }}</code></span
+        ><span v-if="modelFacts(model).length" class="model-facts"
+          ><span v-for="fact in modelFacts(model)" :key="fact.label" class="model-fact" :title="fact.exact"
+            ><span>{{ fact.label }}</span
+            >{{ fact.value }}</span
+          ></span
+        >
+      </button>
+      <Hint :text="tr('编辑模型', 'Edit model')"
+        ><button
+          class="btn ghost icon-only"
+          :aria-label="tr('编辑模型配置 ', 'Edit model configuration ') + name"
+          @click="edit(String(name))"
+        >
+          <Icon name="pencil" /></button
+      ></Hint>
+      <Hint :text="tr('删除模型', 'Delete model')"
+        ><button
+          class="btn ghost icon-only model-remove"
+          :aria-label="tr('删除模型 ', 'Delete model ') + name"
+          @click="delete value.models[name]"
+        >
+          <Icon name="trash-2" /></button
+      ></Hint>
     </div>
-    <Modal compact :before-close="isMobile?confirmModelReturn:undefined" :content-class="isMobile?'settings-editor mobile-settings-page':'settings-editor'" :page="isMobile" :open="editing" :title="originalId?tr('编辑模型','Edit model'):tr('添加模型','Add model')" @close="editing=false">
-
+    <Modal
+      compact
+      :before-close="isMobile ? confirmModelReturn : undefined"
+      :content-class="isMobile ? 'settings-editor mobile-settings-page' : 'settings-editor'"
+      :page="isMobile"
+      :open="editing"
+      :title="originalId ? tr('编辑模型', 'Edit model') : tr('添加模型', 'Add model')"
+      @close="editing = false"
+    >
       <div class="model-form">
-        <label>{{tr('模型 ID','Model ID')}}<input class="input" v-model="modelId" autocomplete="off" spellcheck="false"/></label>
-        <div v-if="!originalId && catalog.length && modelId.trim() && !catalog.some(model=>model.id===modelId.trim())" class="model-toggle"><span>{{tr('确认使用目录外的自定义 ID','Use this custom ID outside the catalog')}}</span><SwitchRoot v-model="allowUnknownId" class="cfg-switch" :aria-label="tr('确认使用目录外的自定义 ID','Use this custom ID outside the catalog')"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
-        <label>{{tr('上下文窗口','Context window')}}<input class="input" type="number" min="1" :value="draft.context_window_tokens??''" @input="draft.context_window_tokens=($event.target as HTMLInputElement).value?Number(($event.target as HTMLInputElement).value):null"/></label>
-        <label>{{tr('最大输出 Token','Maximum output tokens')}}<input class="input" type="number" min="1" :value="draft.max_output_tokens??''" @input="draft.max_output_tokens=($event.target as HTMLInputElement).value?Number(($event.target as HTMLInputElement).value):null"/></label>
-        <label>{{tr('思考能力','Reasoning support')}}<SelectField mobile-page :model-value="draft.supports_reasoning==null?'unknown':String(draft.supports_reasoning)" :options="[{value:'unknown',label:tr('未指定','Unspecified')},{value:'true',label:tr('支持','Supported')},{value:'false',label:tr('不支持','Unsupported')}]" @update:model-value="$event==='unknown'?delete draft.supports_reasoning:draft.supports_reasoning=$event==='true'"/></label>
-        <div v-if="draft.supports_reasoning!==false" class="model-field efforts-field">
-          <label for="model-reasoning-efforts">{{tr('支持的思考等级','Supported reasoning efforts')}}</label>
+        <label
+          >{{ tr('模型 ID', 'Model ID') }}<input class="input" v-model="modelId" autocomplete="off" spellcheck="false"
+        /></label>
+        <div
+          v-if="
+            !originalId && catalog.length && modelId.trim() && !catalog.some((model) => model.id === modelId.trim())
+          "
+          class="model-toggle"
+        >
+          <span>{{ tr('确认使用目录外的自定义 ID', 'Use this custom ID outside the catalog') }}</span
+          ><SwitchRoot
+            v-model="allowUnknownId"
+            class="cfg-switch"
+            :aria-label="tr('确认使用目录外的自定义 ID', 'Use this custom ID outside the catalog')"
+            ><SwitchThumb class="cfg-switch-thumb"
+          /></SwitchRoot>
+        </div>
+        <label
+          >{{ tr('上下文窗口', 'Context window')
+          }}<input
+            class="input"
+            type="number"
+            min="1"
+            :value="draft.context_window_tokens ?? ''"
+            @input="
+              draft.context_window_tokens = ($event.target as HTMLInputElement).value
+                ? Number(($event.target as HTMLInputElement).value)
+                : null
+            "
+        /></label>
+        <label
+          >{{ tr('最大输出 Token', 'Maximum output tokens')
+          }}<input
+            class="input"
+            type="number"
+            min="1"
+            :value="draft.max_output_tokens ?? ''"
+            @input="
+              draft.max_output_tokens = ($event.target as HTMLInputElement).value
+                ? Number(($event.target as HTMLInputElement).value)
+                : null
+            "
+        /></label>
+        <label
+          >{{ tr('思考能力', 'Reasoning support')
+          }}<SelectField
+            mobile-page
+            :model-value="draft.supports_reasoning == null ? 'unknown' : String(draft.supports_reasoning)"
+            :options="[
+              { value: 'unknown', label: tr('未指定', 'Unspecified') },
+              { value: 'true', label: tr('支持', 'Supported') },
+              { value: 'false', label: tr('不支持', 'Unsupported') },
+            ]"
+            @update:model-value="
+              $event === 'unknown' ? delete draft.supports_reasoning : (draft.supports_reasoning = $event === 'true')
+            "
+        /></label>
+        <div v-if="draft.supports_reasoning !== false" class="model-field efforts-field">
+          <label for="model-reasoning-efforts">{{ tr('支持的思考等级', 'Supported reasoning efforts') }}</label>
           <div class="efforts-editor">
             <div class="efforts-chips" v-if="efforts.commonOptions.length">
               <button
@@ -140,16 +370,18 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
                 class="chip effort-chip"
                 :class="{ active: efforts.isActive(opt), inherited: !efforts.isCustom && efforts.isActive(opt) }"
                 @click="efforts.toggle(opt)"
-              >{{ opt }}</button>
+              >
+                {{ opt }}
+              </button>
               <button
                 v-if="efforts.isCustom && efforts.presetEfforts.length"
                 type="button"
                 class="chip effort-reset"
-                :data-hint="tr('恢复为提供商预设','Reset to provider preset')"
+                :data-hint="tr('恢复为提供商预设', 'Reset to provider preset')"
                 @click="efforts.reset"
               >
-                <Icon name="refresh-cw"/>
-                <span>{{ tr('恢复预设','Reset') }}</span>
+                <Icon name="refresh-cw" />
+                <span>{{ tr('恢复预设', 'Reset') }}</span>
               </button>
             </div>
             <input
@@ -161,80 +393,403 @@ const choices=computed(()=>catalog.value.map(model=>({key:model.id,title:modelLa
             />
           </div>
         </div>
-        <label v-if="draft.supports_reasoning!==false">{{tr('默认思考强度','Default reasoning effort')}}<SelectField mobile-page v-if="efforts.defaultOptions.length" :model-value="draft.default_reasoning_effort??''" :options="[{value:'',label:tr('上游默认','Upstream default')},...efforts.defaultOptions]" @update:model-value="draft.default_reasoning_effort=$event||undefined"/><input v-else class="input" v-model="draft.default_reasoning_effort" :placeholder="tr('上游默认','Upstream default')"/></label>
-        <div class="model-toggle"><span>{{tr('支持图片输入','Supports image input')}}</span><SwitchRoot :model-value="!!draft.input_modalities?.includes('image')" class="cfg-switch" :aria-label="tr('支持图片输入','Supports image input')" @update:model-value="draft.input_modalities=$event?['text','image']:['text']"><SwitchThumb class="cfg-switch-thumb"/></SwitchRoot></div>
-        <details @toggle="($event.target as HTMLDetailsElement).open&&!advancedChanged&&(advanced=JSON.stringify(draft,null,2))"><summary><span>{{tr('完整模型属性 JSON','Full model metadata JSON')}}</span><Icon name="chevron-down"/></summary><textarea class="input" rows="10" v-model="advanced" @input="advancedChanged=true"/></details>
+        <label v-if="draft.supports_reasoning !== false"
+          >{{ tr('默认思考强度', 'Default reasoning effort')
+          }}<SelectField
+            mobile-page
+            v-if="efforts.defaultOptions.length"
+            :model-value="draft.default_reasoning_effort ?? ''"
+            :options="[{ value: '', label: tr('上游默认', 'Upstream default') }, ...efforts.defaultOptions]"
+            @update:model-value="draft.default_reasoning_effort = $event || undefined" /><input
+            v-else
+            class="input"
+            v-model="draft.default_reasoning_effort"
+            :placeholder="tr('上游默认', 'Upstream default')"
+        /></label>
+        <div class="model-toggle">
+          <span>{{ tr('支持图片输入', 'Supports image input') }}</span
+          ><SwitchRoot
+            :model-value="!!draft.input_modalities?.includes('image')"
+            class="cfg-switch"
+            :aria-label="tr('支持图片输入', 'Supports image input')"
+            @update:model-value="draft.input_modalities = $event ? ['text', 'image'] : ['text']"
+            ><SwitchThumb class="cfg-switch-thumb"
+          /></SwitchRoot>
+        </div>
+        <details
+          @toggle="
+            ($event.target as HTMLDetailsElement).open &&
+            !advancedChanged &&
+            (advanced = JSON.stringify(draft, null, 2))
+          "
+        >
+          <summary>
+            <span>{{ tr('完整模型属性 JSON', 'Full model metadata JSON') }}</span
+            ><Icon name="chevron-down" />
+          </summary>
+          <textarea class="input" rows="10" v-model="advanced" @input="advancedChanged = true" />
+        </details>
       </div>
-      <template v-if="!isMobile" #footer><button class="btn" @click="editing=false">{{tr('取消','Cancel')}}</button><button class="btn primary" @click="apply()">{{tr('应用到配置','Apply to configuration')}}</button></template>
+      <template v-if="!isMobile" #footer
+        ><button class="btn" @click="editing = false">{{ tr('取消', 'Cancel') }}</button
+        ><button class="btn primary" @click="apply()">
+          {{ tr('应用到配置', 'Apply to configuration') }}
+        </button></template
+      >
     </Modal>
-    <Modal ref="catalogModal" compact body-scroll="content" content-class="catalog-picker" :open="catalogOpen" :title="tr('上游模型目录','Upstream model catalog')" @close="closeCatalog">
+    <Modal
+      ref="catalogModal"
+      compact
+      body-scroll="content"
+      content-class="catalog-picker"
+      :open="catalogOpen"
+      :title="tr('上游模型目录', 'Upstream model catalog')"
+      @close="closeCatalog"
+    >
       <template #compact-heading>
         <div class="dialog-topline">
-          <h2>{{tr('上游模型目录','Upstream model catalog')}}</h2>
+          <h2>{{ tr('上游模型目录', 'Upstream model catalog') }}</h2>
           <div class="dialog-toolbar catalog-toolbar">
-            <button class="btn ghost catalog-custom" @click="openCustom">{{tr('自定义','Custom')}}</button>
-            <button class="btn ghost icon-only" :disabled="catalogBusy" :aria-label="tr('重新读取','Reload')" :data-hint="tr('重新读取','Reload')" @click="readCatalog"><Icon name="refresh-cw" :class="{spin:catalogBusy}"/></button>
-            <button class="btn ghost icon-only" :aria-label="tr('关闭','Close')" :data-hint="tr('关闭','Close')" @click="catalogOpen=false"><Icon name="x"/></button>
+            <button class="btn ghost catalog-custom" @click="openCustom">{{ tr('自定义', 'Custom') }}</button>
+            <button
+              class="btn ghost icon-only"
+              :disabled="catalogBusy"
+              :aria-label="tr('重新读取', 'Reload')"
+              :data-hint="tr('重新读取', 'Reload')"
+              @click="readCatalog"
+            >
+              <Icon name="refresh-cw" :class="{ spin: catalogBusy }" />
+            </button>
+            <button
+              class="btn ghost icon-only"
+              :aria-label="tr('关闭', 'Close')"
+              :data-hint="tr('关闭', 'Close')"
+              @click="catalogOpen = false"
+            >
+              <Icon name="x" />
+            </button>
           </div>
         </div>
       </template>
-      <PickerList class="modal-scroll-region" :items="choices" :disabled="catalogBusy" :placeholder="tr('搜索模型…','Search models…')" @select="importModel">
+      <PickerList
+        class="modal-scroll-region"
+        :items="choices"
+        :disabled="catalogBusy"
+        :placeholder="tr('搜索模型…', 'Search models…')"
+        @select="importModel"
+      >
         <template #status>
-          <p v-if="catalogFailed" class="catalog-status hint">{{catalog.length?tr('刷新失败，显示的是上次读取的目录。','Refresh failed; showing the last catalog read.'):tr('未能读取模型目录，可以点击刷新重试，或使用自定义模型。','The catalog could not be read. Reload to retry, or add a custom model.')}}</p>
-          <p v-else-if="catalogBusy" class="catalog-status hint" role="status">{{tr('正在读取…','Loading…')}}</p>
+          <p v-if="catalogFailed" class="catalog-status hint">
+            {{
+              catalog.length
+                ? tr('刷新失败，显示的是上次读取的目录。', 'Refresh failed; showing the last catalog read.')
+                : tr(
+                    '未能读取模型目录，可以点击刷新重试，或使用自定义模型。',
+                    'The catalog could not be read. Reload to retry, or add a custom model.',
+                  )
+            }}
+          </p>
+          <p v-else-if="catalogBusy" class="catalog-status hint" role="status">{{ tr('正在读取…', 'Loading…') }}</p>
         </template>
       </PickerList>
     </Modal>
   </div>
 </template>
 <style scoped>
-.models-editor,.model-form{display:grid;gap:14px}
+.models-editor,
+.model-form {
+  display: grid;
+  gap: 14px;
+}
 /* Each model a card of its own: models are added and removed, not a fixed form. */
-.models-editor{gap:8px}
-.model-row{display:flex;align-items:center;gap:8px;padding:10px 8px 10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg-raised)}.model-edit{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;align-items:flex-start;border:0;background:transparent;color:inherit;cursor:pointer;text-align:left}.model-edit strong{overflow-wrap:anywhere}
-.model-title{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;min-width:0}.model-title code{font-family:var(--mono);font-size:12px;color:var(--fg-subtle);overflow-wrap:anywhere}
-.model-facts{display:flex;flex-wrap:wrap;gap:6px}.model-fact{display:inline-flex;align-items:baseline;gap:6px;padding:2px 8px;border-radius:6px;background:var(--bg-sunken);font-size:12px;line-height:1.6;color:var(--fg-muted);font-variant-numeric:tabular-nums}.model-fact span{color:var(--fg-subtle)}
-.model-form label,.model-form .model-field{display:flex;flex-direction:column;gap:6px}.model-form .input{width:100%;min-width:0}.model-form summary{cursor:pointer}
-.efforts-editor{display:flex;flex-direction:column;gap:8px;min-width:0;width:100%}
-.efforts-chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.effort-chip{cursor:pointer;user-select:none;font-family:var(--font-mono,inherit);display:inline-flex;align-items:center;justify-content:center;padding:5px 12px;min-height:28px;font-size:12px;border-radius:6px;transition:color var(--dur-fast),background var(--dur-fast),border-color var(--dur-fast)}
-@media (hover: hover) { .effort-chip:hover:not(.active){background:var(--bg-hover);color:var(--fg)} }
-.effort-chip.active{color:var(--accent);background:var(--accent-soft);border-color:var(--accent)}
-.effort-chip.inherited{border-style:dashed;opacity:.85}
-.effort-reset{cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;min-height:28px;font-size:12px;border-radius:6px;color:var(--fg-subtle);border-style:dashed;transition:color var(--dur-fast),border-color var(--dur-fast),background var(--dur-fast)}
-@media (hover: hover) { .effort-reset:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)} }
-.effort-reset :deep(.icon){width:13px;height:13px}
-.catalog-toolbar .catalog-custom{height:32px;min-height:32px;padding:0 9px;font-size:12px}
-.catalog-status{margin:0 0 8px;font-size:12px}
-:global(.modal-card.catalog-picker){width:min(520px,calc(100vw - 24px));max-height:min(75dvh,560px)}
-:global(.modal-card.catalog-picker.compact .modal-body){padding:14px 16px 16px}
-:global(.catalog-picker .picker-search){margin-bottom:8px}
-@media(min-width:900px){
-  .model-form label,.model-form .model-field{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:16px}
-  .model-form .efforts-field{align-items:start;padding-top:4px}
+.models-editor {
+  gap: 8px;
 }
-.model-form{gap:0;border:1px solid var(--line);border-radius:12px;background:var(--bg-raised);overflow:hidden}
-.model-form>label,.model-form>.model-field,.model-form>.model-toggle{padding:12px 16px;gap:8px;font-size:13.5px;font-weight:500}
-.model-form>*+:is(label,.model-field,.model-toggle,details){border-top:1px solid var(--line)}
-.model-form :is(.input,.control-select,.chip){font-weight:400}
-.model-toggle{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:52px}
-.model-form>details{padding:0 16px}
-.model-form>details>summary{display:flex;align-items:center;justify-content:space-between;min-height:48px;font-size:13px;color:var(--fg-muted);list-style:none}
-.model-form>details>summary::-webkit-details-marker{display:none}
-.model-form>details>summary .icon{width:15px;height:15px;transition:transform var(--dur-fast)}
-.model-form>details[open]>summary .icon{transform:rotate(180deg)}
-.model-form>details textarea{margin:0 0 14px;font-family:var(--mono);font-size:calc(12.5px * var(--mono-scale))}
-@media(max-width:899px){
-.models-editor>.hint{margin:0;padding:14px}
-.model-form{border:0;border-radius:18px;background:var(--bg-group)}
-.model-form>*+:is(label,.model-field,.model-toggle,details){border-top:2px solid var(--bg-sunken)}
-.model-form>label,.model-form>.model-field,.model-form>.model-toggle{padding:12px 14px}
-.model-row{padding:12px 8px 12px 14px;gap:4px;border:0;border-radius:16px;background:var(--bg-group)}
-.model-edit strong{font-size:14px}.model-title code,.model-fact{font-size:11px}
-.efforts-chips{gap:8px}
-.effort-chip{min-height:36px;padding:6px 14px;font-size:13px}
-.effort-reset{min-height:36px;padding:6px 12px;font-size:13px}
+.model-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-raised);
 }
-.model-remove{color:var(--fg-subtle)}
-@media (hover: hover) { .model-remove:hover{color:var(--err);background:var(--err-bg)} }
+.model-edit {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.model-edit strong {
+  overflow-wrap: anywhere;
+}
+.model-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  min-width: 0;
+}
+.model-title code {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--fg-subtle);
+  overflow-wrap: anywhere;
+}
+.model-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.model-fact {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--bg-sunken);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.model-fact span {
+  color: var(--fg-subtle);
+}
+.model-form label,
+.model-form .model-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.model-form .input {
+  width: 100%;
+  min-width: 0;
+}
+.model-form summary {
+  cursor: pointer;
+}
+.efforts-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+.efforts-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.effort-chip {
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--font-mono, inherit);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 12px;
+  min-height: 28px;
+  font-size: 12px;
+  border-radius: 6px;
+  transition:
+    color var(--dur-fast),
+    background var(--dur-fast),
+    border-color var(--dur-fast);
+}
+@media (hover: hover) {
+  .effort-chip:hover:not(.active) {
+    background: var(--bg-hover);
+    color: var(--fg);
+  }
+}
+.effort-chip.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.effort-chip.inherited {
+  border-style: dashed;
+  opacity: 0.85;
+}
+.effort-reset {
+  cursor: pointer;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  min-height: 28px;
+  font-size: 12px;
+  border-radius: 6px;
+  color: var(--fg-subtle);
+  border-style: dashed;
+  transition:
+    color var(--dur-fast),
+    border-color var(--dur-fast),
+    background var(--dur-fast);
+}
+@media (hover: hover) {
+  .effort-reset:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+}
+.effort-reset :deep(.icon) {
+  width: 13px;
+  height: 13px;
+}
+.catalog-toolbar .catalog-custom {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+.catalog-status {
+  margin: 0 0 8px;
+  font-size: 12px;
+}
+:global(.modal-card.catalog-picker) {
+  width: min(520px, calc(100vw - 24px));
+  max-height: min(75dvh, 560px);
+}
+:global(.modal-card.catalog-picker.compact .modal-body) {
+  padding: 14px 16px 16px;
+}
+:global(.catalog-picker .picker-search) {
+  margin-bottom: 8px;
+}
+@media (min-width: 900px) {
+  .model-form label,
+  .model-form .model-field {
+    display: grid;
+    grid-template-columns: 170px minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+  }
+  .model-form .efforts-field {
+    align-items: start;
+    padding-top: 4px;
+  }
+}
+.model-form {
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-raised);
+  overflow: hidden;
+}
+.model-form > label,
+.model-form > .model-field,
+.model-form > .model-toggle {
+  padding: 12px 16px;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.model-form > * + :is(label, .model-field, .model-toggle, details) {
+  border-top: 1px solid var(--line);
+}
+.model-form :is(.input, .control-select, .chip) {
+  font-weight: 400;
+}
+.model-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 52px;
+}
+.model-form > details {
+  padding: 0 16px;
+}
+.model-form > details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  font-size: 13px;
+  color: var(--fg-muted);
+  list-style: none;
+}
+.model-form > details > summary::-webkit-details-marker {
+  display: none;
+}
+.model-form > details > summary .icon {
+  width: 15px;
+  height: 15px;
+  transition: transform var(--dur-fast);
+}
+.model-form > details[open] > summary .icon {
+  transform: rotate(180deg);
+}
+.model-form > details textarea {
+  margin: 0 0 14px;
+  font-family: var(--mono);
+  font-size: calc(12.5px * var(--mono-scale));
+}
+@media (max-width: 899px) {
+  .models-editor > .hint {
+    margin: 0;
+    padding: 14px;
+  }
+  .model-form {
+    border: 0;
+    border-radius: 18px;
+    background: var(--bg-group);
+  }
+  .model-form > * + :is(label, .model-field, .model-toggle, details) {
+    border-top: 2px solid var(--bg-sunken);
+  }
+  .model-form > label,
+  .model-form > .model-field,
+  .model-form > .model-toggle {
+    padding: 12px 14px;
+  }
+  .model-row {
+    padding: 12px 8px 12px 14px;
+    gap: 4px;
+    border: 0;
+    border-radius: 16px;
+    background: var(--bg-group);
+  }
+  .model-edit strong {
+    font-size: 14px;
+  }
+  .model-title code,
+  .model-fact {
+    font-size: 11px;
+  }
+  .efforts-chips {
+    gap: 8px;
+  }
+  .effort-chip {
+    min-height: 36px;
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+  .effort-reset {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}
+.model-remove {
+  color: var(--fg-subtle);
+}
+@media (hover: hover) {
+  .model-remove:hover {
+    color: var(--err);
+    background: var(--err-bg);
+  }
+}
 </style>

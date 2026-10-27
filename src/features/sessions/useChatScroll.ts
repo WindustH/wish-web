@@ -7,9 +7,19 @@ const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)))
 
 // The viewport consumes a narrow history port. It does not own the session singleton,
 // transport, or delivery lifecycle; callers can supply an isolated conversation.
-export type ScrollHistory = Pick<ChatApi,
-  'entries' | 'hasMoreBefore' | 'hasMoreAfter' | 'loadingInitial' | 'loadingOlder' |
-  'loadingNewer' | 'loadOlder' | 'fetchNewer' | 'jumpToLatest' | 'sentRun'>;
+export type ScrollHistory = Pick<
+  ChatApi,
+  | 'entries'
+  | 'hasMoreBefore'
+  | 'hasMoreAfter'
+  | 'loadingInitial'
+  | 'loadingOlder'
+  | 'loadingNewer'
+  | 'loadOlder'
+  | 'fetchNewer'
+  | 'jumpToLatest'
+  | 'sentRun'
+>;
 
 export interface UseChatScrollOptions {
   history: ScrollHistory;
@@ -24,17 +34,7 @@ export interface UseChatScrollOptions {
 }
 
 export function useChatScroll(options: UseChatScrollOptions) {
-  const {
-    history: chat,
-    scrollEl,
-    groups,
-    sessionId,
-    pageActive,
-    running,
-    streamState,
-    owns,
-    getEpoch,
-  } = options;
+  const { history: chat, scrollEl, groups, sessionId, pageActive, running, streamState, owns, getEpoch } = options;
   // A jump to the latest glides; any hand on the list stops it.
   let cancelGlide = () => {};
 
@@ -212,23 +212,39 @@ export function useChatScroll(options: UseChatScrollOptions) {
   let loadingOlderBusy = false;
   let chained = 0;
   let pausedFill: { session: string; oldest: number | undefined } | null = null;
-  watch(chat.loadingInitial, loading => { if (loading) pausedFill = null; }, { flush: 'sync' });
+  watch(
+    chat.loadingInitial,
+    (loading) => {
+      if (loading) pausedFill = null;
+    },
+    { flush: 'sync' },
+  );
 
   async function loadOlderAnchored() {
-    if (loadingOlderBusy || scrollbarHeld.value || !pageActive.value || chat.loadingInitial.value
-      || chat.loadingOlder.value || !chat.hasMoreBefore.value || !scrollEl.value) return;
+    if (
+      loadingOlderBusy ||
+      scrollbarHeld.value ||
+      !pageActive.value ||
+      chat.loadingInitial.value ||
+      chat.loadingOlder.value ||
+      !chat.hasMoreBefore.value ||
+      !scrollEl.value
+    )
+      return;
     loadingOlderBusy = true;
     const gen = getEpoch();
     const oldest = chat.entries.value[0]?.seq;
     const anchor: { value: { top: number; height: number } | null } = { value: null };
     try {
-      const added = await chat.loadOlder({ beforeMerge: async () => {
-        await beforeHistoryMerge();
-        const el = scrollEl.value;
-        if (owns(gen) && pageActive.value && el) {
-          anchor.value = { top: el.scrollTop, height: el.scrollHeight };
-        }
-      } });
+      const added = await chat.loadOlder({
+        beforeMerge: async () => {
+          await beforeHistoryMerge();
+          const el = scrollEl.value;
+          if (owns(gen) && pageActive.value && el) {
+            anchor.value = { top: el.scrollTop, height: el.scrollHeight };
+          }
+        },
+      });
       await nextTick();
       if (!owns(gen) || !pageActive.value) return;
       if (added && anchor.value && scrollEl.value) {
@@ -244,10 +260,17 @@ export function useChatScroll(options: UseChatScrollOptions) {
       // Tool-only pages collapse to a zero-height chips host. Keep reading until there
       // is something to scroll or the history ends, even beyond the ordinary prefetch cap.
       // A non-advancing page or failure must stop rather than spin on the same cursor.
-      if (added && progressed && chat.hasMoreBefore.value && !scrollbarHeld.value
-        && (unfilled || (nearTop.value && chained < 12))) {
+      if (
+        added &&
+        progressed &&
+        chat.hasMoreBefore.value &&
+        !scrollbarHeld.value &&
+        (unfilled || (nearTop.value && chained < 12))
+      ) {
         chained++;
-        queueMicrotask(() => { if (owns(gen) && pageActive.value) void loadOlderAnchored(); });
+        queueMicrotask(() => {
+          if (owns(gen) && pageActive.value) void loadOlderAnchored();
+        });
       } else {
         chained = 0;
       }
@@ -271,8 +294,13 @@ export function useChatScroll(options: UseChatScrollOptions) {
 
   // Opening a long-running tool loop can load forty records but no visible text. Do not
   // wait for a scroll event to fetch the older page that would make scrolling possible.
-  watch([scrollEl, pageActive, chat.loadingInitial, chat.hasMoreBefore, groups],
-    () => { void ensureHistoryScrollable(); }, { immediate: true, flush: 'post' });
+  watch(
+    [scrollEl, pageActive, chat.loadingInitial, chat.hasMoreBefore, groups],
+    () => {
+      void ensureHistoryScrollable();
+    },
+    { immediate: true, flush: 'post' },
+  );
 
   async function fetchNewerBelow() {
     if (chat.loadingNewer.value || scrollbarHeld.value || !pageActive.value) return;
@@ -309,7 +337,10 @@ export function useChatScroll(options: UseChatScrollOptions) {
     await nextTick();
     if (!owns(gen) || !pageActive.value || direction !== 'latest') return;
     const el = scrollEl.value;
-    if (el) { cancelGlide(); cancelGlide = glideToEnd(el); }
+    if (el) {
+      cancelGlide();
+      cancelGlide = glideToEnd(el);
+    }
     stick.value = true;
     measureScroll();
   }

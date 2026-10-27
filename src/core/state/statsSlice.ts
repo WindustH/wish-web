@@ -42,31 +42,35 @@ export const stats = (() => {
     if (pending) return pending;
     const own = epoch;
     // After a reload, show the last snapshot (with its own time) until this read lands.
-    if (updatedAt.value == null) void readCached<StatsSnapshot>('stats-snapshot').then(snapshot => { if (snapshot && own === epoch && updatedAt.value == null) apply(snapshot); });
+    if (updatedAt.value == null)
+      void readCached<StatsSnapshot>('stats-snapshot').then((snapshot) => {
+        if (snapshot && own === epoch && updatedAt.value == null) apply(snapshot);
+      });
     controller = new AbortController();
     const options = { signal: controller.signal };
     loading.value = true;
     error.value = null;
     const range = usageRange.value;
-    pending = Promise.all([
-      api.usageTotals({ ...options, query: rangeBounds(range) }), api.storageStatus(options),
-    ]).then(([us, sg]) => {
-      if (own !== epoch) return;
-      // A range switched meanwhile has its own read; these totals are for the old one.
-      const snapshot: StatsSnapshot = { usage: us, usageKey: usageKey(range), storage: sg, updatedAt: Date.now() };
-      apply(snapshot);
-      writeCached('stats-snapshot', snapshot);
-      writeCached(usageKey(range), us);
-    }).catch(cause => {
-      if (own !== epoch) return;
-      controller!.abort();
-      error.value = cause;
-    }).finally(() => {
-      if (own !== epoch) return;
-      loading.value = false;
-      pending = null;
-      controller = null;
-    });
+    pending = Promise.all([api.usageTotals({ ...options, query: rangeBounds(range) }), api.storageStatus(options)])
+      .then(([us, sg]) => {
+        if (own !== epoch) return;
+        // A range switched meanwhile has its own read; these totals are for the old one.
+        const snapshot: StatsSnapshot = { usage: us, usageKey: usageKey(range), storage: sg, updatedAt: Date.now() };
+        apply(snapshot);
+        writeCached('stats-snapshot', snapshot);
+        writeCached(usageKey(range), us);
+      })
+      .catch((cause) => {
+        if (own !== epoch) return;
+        controller!.abort();
+        error.value = cause;
+      })
+      .finally(() => {
+        if (own !== epoch) return;
+        loading.value = false;
+        pending = null;
+        controller = null;
+      });
     return pending;
   }
 
@@ -78,21 +82,31 @@ export const stats = (() => {
     usageSwitching.value = true;
     const hit = peekCached<UsageSnapshot>(key);
     if (hit) usage.value = hit;
-    else void readCached<UsageSnapshot>(key).then(value => { if (value && usageRange.value === range && usageSwitching.value) usage.value = value; });
+    else
+      void readCached<UsageSnapshot>(key).then((value) => {
+        if (value && usageRange.value === range && usageSwitching.value) usage.value = value;
+      });
     usageController?.abort();
-    const controller = usageController = new AbortController();
-    api.usageTotals({ signal: controller.signal, query: rangeBounds(range) }).then(result => {
-      if (usageRange.value !== range) return;
-      usage.value = result;
-      writeCached(key, result);
-    }).catch(() => {}).finally(() => { if (usageRange.value === range) usageSwitching.value = false; });
+    const controller = (usageController = new AbortController());
+    api
+      .usageTotals({ signal: controller.signal, query: rangeBounds(range) })
+      .then((result) => {
+        if (usageRange.value !== range) return;
+        usage.value = result;
+        writeCached(key, result);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (usageRange.value === range) usageSwitching.value = false;
+      });
   }
 
   function stopAuto() {
     clearInterval(autoTimer);
     autoTimer = undefined;
     epoch++;
-    controller?.abort(); controller = null;
+    controller?.abort();
+    controller = null;
     pending = null;
     loading.value = false;
   }
@@ -101,5 +115,17 @@ export const stats = (() => {
     void refresh();
     autoTimer = setInterval(refresh, cfg.stats.refreshMs);
   }
-  return { usage, usageRange, usageSwitching, storage, loading, error, updatedAt, refresh, setUsageRange, startAuto, stopAuto };
+  return {
+    usage,
+    usageRange,
+    usageSwitching,
+    storage,
+    loading,
+    error,
+    updatedAt,
+    refresh,
+    setUsageRange,
+    startAuto,
+    stopAuto,
+  };
 })();

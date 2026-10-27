@@ -9,7 +9,10 @@ export type Locale = 'zh' | 'en';
 // What the user chose: a language, or 'auto' to follow the system's.
 export type LocaleChoice = 'auto' | Locale;
 const DICTS: Record<string, Record<string, string>> = { zh, en };
-interface LocaleStorage { get(key: string): string | null; set(key: string, value: string): void }
+interface LocaleStorage {
+  get(key: string): string | null;
+  set(key: string, value: string): void;
+}
 export interface LocaleInit {
   storageAdapter?: LocaleStorage | null;
   // The system's languages in order of preference, as BCP 47 tags.
@@ -30,10 +33,12 @@ function systemLocale(tags: readonly string[]): Locale {
 
 export const i18n = (() => {
   const choice = shallowRef<LocaleChoice>('auto');
-  const locale = shallowRef(cfg.i18n.defaultLocale as Locale);   // the language shown
+  const locale = shallowRef(cfg.i18n.defaultLocale as Locale); // the language shown
   let storage: LocaleStorage | null = null;
   let readSystem: LocaleInit['readSystem'] = null;
-  const resolve = () => { locale.value = choice.value === 'auto' ? systemLocale(readSystem?.() ?? []) : choice.value; };
+  const resolve = () => {
+    locale.value = choice.value === 'auto' ? systemLocale(readSystem?.() ?? []) : choice.value;
+  };
 
   function t(key: string, params?: Record<string, unknown>) {
     const dict = DICTS[locale.value] ?? DICTS[cfg.i18n.fallback];
@@ -65,7 +70,9 @@ export const i18n = (() => {
     const saved = storage?.get(cfg.i18n.storageKey);
     if (saved && (saved === 'auto' || cfg.i18n.locales.includes(saved))) choice.value = saved as LocaleChoice;
     readSystem = rs || null;
-    watchSystem?.(() => { if (choice.value === 'auto') resolve(); });
+    watchSystem?.(() => {
+      if (choice.value === 'auto') resolve();
+    });
     resolve();
   }
 

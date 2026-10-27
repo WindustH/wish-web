@@ -21,7 +21,11 @@ const props = defineProps<{
 
 const servers = computed<Record<string, McpServerConfig>>(() => (props.config.mcp ??= { servers: {} }).servers);
 // A save may close instances or change servers, so they are read again after one.
-const { statuses, known, refresh } = useStatuses(mcpServers, (list: McpServerStatus[]) => list, toRef(props, 'revision'));
+const { statuses, known, refresh } = useStatuses(
+  mcpServers,
+  (list: McpServerStatus[]) => list,
+  toRef(props, 'revision'),
+);
 
 const adding = ref(false);
 const newName = ref('');
@@ -35,7 +39,11 @@ const nameProblem = computed(() => {
   return '';
 });
 const transports = [
-  { value: 'stdio', label: tr('本地程序', 'Local program'), description: tr('在这台机器上启动，例如 npx、uvx', 'Started on this machine, such as npx or uvx') },
+  {
+    value: 'stdio',
+    label: tr('本地程序', 'Local program'),
+    description: tr('在这台机器上启动，例如 npx、uvx', 'Started on this machine, such as npx or uvx'),
+  },
   { value: 'http', label: tr('远程服务', 'Remote server'), description: tr('通过网址连接', 'Reached by URL') },
 ];
 function startAdding() {
@@ -47,9 +55,10 @@ function add() {
   const name = newName.value.trim();
   if (!name || nameProblem.value) return;
   const common = { enabled: true, proxy_enabled: true, scope: 'session' as const, idle_timeout: 1800, timeout: 300 };
-  servers.value[name] = newTransport.value === 'stdio'
-    ? { ...common, transport: 'stdio', command: '', args: [], env: {} }
-    : { ...common, transport: 'http', url: '', headers: {} };
+  servers.value[name] =
+    newTransport.value === 'stdio'
+      ? { ...common, transport: 'stdio', command: '', args: [], env: {} }
+      : { ...common, transport: 'http', url: '', headers: {} };
   opened.value = name;
   adding.value = false;
 }
@@ -57,35 +66,120 @@ function add() {
 
 <template>
   <section class="set-section">
-    <div class="set-card"><SwitchRow v-model="config.defaults.tools.mcp" :name="tr('新会话默认启用', 'On for new sessions')" :hint="config.defaults.tools.shell ? tr('每个会话也可以在会话设置里单独开关', 'Each session can switch it in its own settings') : tr('目前需要 Shell，而新会话默认不开启 Shell', 'Needs the shell for now, which new sessions start without')" /></div>
+    <div class="set-card">
+      <SwitchRow
+        v-model="config.defaults.tools.mcp"
+        :name="tr('新会话默认启用', 'On for new sessions')"
+        :hint="
+          config.defaults.tools.shell
+            ? tr('每个会话也可以在会话设置里单独开关', 'Each session can switch it in its own settings')
+            : tr(
+                '目前需要 Shell，而新会话默认不开启 Shell',
+                'Needs the shell for now, which new sessions start without',
+              )
+        "
+      />
+    </div>
   </section>
   <section class="set-section">
-    <header class="set-section-head"><h3>{{ tr('MCP 服务器', 'MCP servers') }}</h3></header>
+    <header class="set-section-head">
+      <h3>{{ tr('MCP 服务器', 'MCP servers') }}</h3>
+    </header>
     <div class="mcp-list">
-      <McpServer v-for="(server, id) in servers" :key="id" :id="String(id)" :value="server" :status="statuses[id]" :status-known="known" :providers="providers" :initially-open="id === opened" :save="save" :dirty="dirty" :busy="busy" @remove="delete servers[id]" @checked="refresh" />
-      <p v-if="!Object.keys(servers).length" class="mcp-empty">{{ tr('还没有 MCP 服务器。', 'No MCP servers yet.') }}</p>
-      <button type="button" class="provider-add" :disabled="busy" @click="startAdding"><span class="provider-add-icon"><Icon name="plus" /></span><span>{{ tr('添加 MCP 服务器', 'Add MCP server') }}</span></button>
+      <McpServer
+        v-for="(server, id) in servers"
+        :key="id"
+        :id="String(id)"
+        :value="server"
+        :status="statuses[id]"
+        :status-known="known"
+        :providers="providers"
+        :initially-open="id === opened"
+        :save="save"
+        :dirty="dirty"
+        :busy="busy"
+        @remove="delete servers[id]"
+        @checked="refresh"
+      />
+      <p v-if="!Object.keys(servers).length" class="mcp-empty">
+        {{ tr('还没有 MCP 服务器。', 'No MCP servers yet.') }}
+      </p>
+      <button type="button" class="provider-add" :disabled="busy" @click="startAdding">
+        <span class="provider-add-icon"><Icon name="plus" /></span
+        ><span>{{ tr('添加 MCP 服务器', 'Add MCP server') }}</span>
+      </button>
     </div>
   </section>
   <Modal compact :open="adding" :title="tr('添加 MCP 服务器', 'Add MCP server')" @close="adding = false">
     <form class="mcp-add" @submit.prevent="add">
-      <label class="mcp-add-field">{{ tr('名称', 'Name') }}<input class="input set-mono" v-model="newName" placeholder="context7" autocomplete="off" autocapitalize="off" spellcheck="false" /><small :class="{ problem: nameProblem }">{{ nameProblem || tr('模型用 wish mcp call 名称/工具 调用它', 'The model calls it as wish mcp call name/tool') }}</small></label>
-      <div class="mcp-add-field">{{ tr('连接方式', 'Transport') }}<SelectField segmented v-model="newTransport" :options="transports" /></div>
+      <label class="mcp-add-field"
+        >{{ tr('名称', 'Name')
+        }}<input
+          class="input set-mono"
+          v-model="newName"
+          placeholder="context7"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+        /><small :class="{ problem: nameProblem }">{{
+          nameProblem || tr('模型用 wish mcp call 名称/工具 调用它', 'The model calls it as wish mcp call name/tool')
+        }}</small></label
+      >
+      <div class="mcp-add-field">
+        {{ tr('连接方式', 'Transport') }}<SelectField segmented v-model="newTransport" :options="transports" />
+      </div>
     </form>
-    <template #footer><button class="btn" @click="adding = false">{{ tr('取消', 'Cancel') }}</button><button class="btn primary" :disabled="!newName.trim() || !!nameProblem" @click="add">{{ tr('添加', 'Add') }}</button></template>
+    <template #footer
+      ><button class="btn" @click="adding = false">{{ tr('取消', 'Cancel') }}</button
+      ><button class="btn primary" :disabled="!newName.trim() || !!nameProblem" @click="add">
+        {{ tr('添加', 'Add') }}
+      </button></template
+    >
   </Modal>
 </template>
 
 <style scoped>
-.mcp-list { display: grid; gap: 12px; }
-.mcp-empty { margin: 0; padding: 18px 16px; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--fg-subtle); font-size: 13px; text-align: center; }
-.mcp-add { display: grid; gap: 16px; }
-.mcp-add-field { display: grid; gap: 8px; font-size: 13px; font-weight: 500; color: var(--fg); }
-.mcp-add-field small { font-weight: 400; font-size: 12px; color: var(--fg-subtle); }
-.mcp-add-field small.problem { color: var(--err); }
-.mcp-add .input::placeholder { font-family: var(--font); }
+.mcp-list {
+  display: grid;
+  gap: 12px;
+}
+.mcp-empty {
+  margin: 0;
+  padding: 18px 16px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  color: var(--fg-subtle);
+  font-size: 13px;
+  text-align: center;
+}
+.mcp-add {
+  display: grid;
+  gap: 16px;
+}
+.mcp-add-field {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg);
+}
+.mcp-add-field small {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--fg-subtle);
+}
+.mcp-add-field small.problem {
+  color: var(--err);
+}
+.mcp-add .input::placeholder {
+  font-family: var(--font);
+}
 @media (max-width: 899px) {
-  .mcp-list { gap: 10px; }
-  .mcp-empty { border-radius: 16px; }
+  .mcp-list {
+    gap: 10px;
+  }
+  .mcp-empty {
+    border-radius: 16px;
+  }
 }
 </style>

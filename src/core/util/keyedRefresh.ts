@@ -13,7 +13,10 @@ export function createKeyedRefresh<K, V>(
   }
   async function refresh(key: K) {
     const pending = jobs.get(key);
-    if (pending) { pending.again = true; return; }
+    if (pending) {
+      pending.again = true;
+      return;
+    }
     const job = { controller: new AbortController(), again: false };
     jobs.set(key, job);
     try {
@@ -30,6 +33,8 @@ export function createKeyedRefresh<K, V>(
       if (jobs.get(key) === job) jobs.delete(key);
     }
   }
-  function clear() { for (const key of jobs.keys()) invalidate(key); }
+  function clear() {
+    for (const key of jobs.keys()) invalidate(key);
+  }
   return { refresh, invalidate, clear };
 }

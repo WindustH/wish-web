@@ -16,19 +16,35 @@ import ImageAlbumEntry from './entries/ImageAlbumEntry.vue';
 // `forcedKeys` are the groups a search holds open to show what it found.
 const props = defineProps<{ item: any; forcedKeys?: ReadonlySet<string>; session?: string; locateSeq?: number }>();
 const entryComponent = computed<Component>(() =>
-  props.item.type === 'image_album' ? ImageAlbumEntry
-  : props.item.type === 'question' ? QuestionCard
-  : props.item.entry?.payload?.metadata?.source === 'ask_user_answer' ? LateAnswerEntry
-  : props.item.entry?.kind === 'group_sent' ? GroupSentEntry
-  : props.item.entry?.kind === 'group_message' ? GroupMessageEntry
-  : props.item.entry?.kind === 'run_error' ? ErrorEntry
-  : props.item.entry?.kind === 'user_message' ? UserEntry
-  : props.item.entry?.kind === 'assistant_message' ? AssistantEntry : SystemEntry);
+  props.item.type === 'image_album'
+    ? ImageAlbumEntry
+    : props.item.type === 'question'
+      ? QuestionCard
+      : props.item.entry?.payload?.metadata?.source === 'ask_user_answer'
+        ? LateAnswerEntry
+        : props.item.entry?.kind === 'group_sent'
+          ? GroupSentEntry
+          : props.item.entry?.kind === 'group_message'
+            ? GroupMessageEntry
+            : props.item.entry?.kind === 'run_error'
+              ? ErrorEntry
+              : props.item.entry?.kind === 'user_message'
+                ? UserEntry
+                : props.item.entry?.kind === 'assistant_message'
+                  ? AssistantEntry
+                  : SystemEntry,
+);
 // What only some of them take: the buttons and the replies that carry them which are held open, and
 // the session they belong to.
-const entryProps = computed(() => props.item.type === 'question' ? { item: props.item, session: props.session }
-  : props.item.type === 'image_album' ? { item: props.item, forcedKeys: props.forcedKeys, session: props.session, locateSeq: props.locateSeq }
-  : props.item.entry?.kind === 'assistant_message' ? { item: props.item, forcedKeys: props.forcedKeys, session: props.session, locateSeq: props.locateSeq } : { item: props.item, ...(props.item.entry?.kind === 'run_error' ? {session: props.session} : {}) });
+const entryProps = computed(() =>
+  props.item.type === 'question'
+    ? { item: props.item, session: props.session }
+    : props.item.type === 'image_album'
+      ? { item: props.item, forcedKeys: props.forcedKeys, session: props.session, locateSeq: props.locateSeq }
+      : props.item.entry?.kind === 'assistant_message'
+        ? { item: props.item, forcedKeys: props.forcedKeys, session: props.session, locateSeq: props.locateSeq }
+        : { item: props.item, ...(props.item.entry?.kind === 'run_error' ? { session: props.session } : {}) },
+);
 </script>
 
 <template>

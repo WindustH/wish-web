@@ -17,29 +17,67 @@ const category = ref<PreviewCategory | 'all' | 'composer' | 'code'>('all');
 const narrow = ref(false);
 const categories = computed(() => [
   { id: 'code', label: tr('代码高亮', 'Code highlighting') },
-  { id: 'composer', label: tr('输入框附件', 'Composer attachments') }, { id: 'all', label: tr('全部', 'All') }, { id: 'files', label: tr('文件卡片', 'Files') },
-  { id: 'messages', label: tr('消息与错误', 'Messages & errors') }, { id: 'tools', label: tr('工具执行', 'Tools') },
+  { id: 'composer', label: tr('输入框附件', 'Composer attachments') },
+  { id: 'all', label: tr('全部', 'All') },
+  { id: 'files', label: tr('文件卡片', 'Files') },
+  { id: 'messages', label: tr('消息与错误', 'Messages & errors') },
+  { id: 'tools', label: tr('工具执行', 'Tools') },
   { id: 'sessions', label: tr('Session / 群组', 'Session / groups') },
 ]);
-const visible = computed(() => samples.filter(sample => category.value === 'all' || sample.category === category.value));
-const chips = samples.filter(sample => sample.kind === 'files').map(sample => sample.item);
+const visible = computed(() =>
+  samples.filter((sample) => category.value === 'all' || sample.category === category.value),
+);
+const chips = samples.filter((sample) => sample.kind === 'files').map((sample) => sample.item);
 const request = ref<ActivityRequest | null>(null);
 let requestId = 0;
-provide(openActivityKey, value => { request.value = { ...value, requestId: ++requestId }; });
+provide(openActivityKey, (value) => {
+  request.value = { ...value, requestId: ++requestId };
+});
 </script>
 <template>
   <div class="style-preview">
-    <p class="hint">{{ tr('使用真实组件和本地样例，不执行命令、不发送消息。卡片可点击查看详情；外观跟随当前主题。窄栏仅模拟内容宽度，手机弹窗请用真实窄窗口检查。', 'Real components with local fixtures: no commands or messages are sent. Click cards for details. Uses the current theme. Narrow mode simulates content width only; use a narrow viewport to check mobile dialogs.') }}</p>
+    <p class="hint">
+      {{
+        tr(
+          '使用真实组件和本地样例，不执行命令、不发送消息。卡片可点击查看详情；外观跟随当前主题。窄栏仅模拟内容宽度，手机弹窗请用真实窄窗口检查。',
+          'Real components with local fixtures: no commands or messages are sent. Click cards for details. Uses the current theme. Narrow mode simulates content width only; use a narrow viewport to check mobile dialogs.',
+        )
+      }}
+    </p>
     <div class="preview-controls">
-      <label>{{ tr('分类', 'Category') }} <select v-model="category"><option v-for="option in categories" :key="option.id" :value="option.id">{{ option.label }}</option></select></label>
+      <label
+        >{{ tr('分类', 'Category') }}
+        <select v-model="category">
+          <option v-for="option in categories" :key="option.id" :value="option.id">{{ option.label }}</option>
+        </select></label
+      >
       <label><input v-model="narrow" type="checkbox" /> {{ tr('窄栏预览（390px）', 'Narrow column (390px)') }}</label>
     </div>
     <div class="preview-canvas" :class="{ narrow }">
-      <section v-if="category === 'all' || category === 'code'" class="preview-sample" data-preview="code-highlighting"><h3>{{ tr('代码高亮', 'Code highlighting') }}</h3><CodeHighlightPreview /></section>
+      <section v-if="category === 'all' || category === 'code'" class="preview-sample" data-preview="code-highlighting">
+        <h3>{{ tr('代码高亮', 'Code highlighting') }}</h3>
+        <CodeHighlightPreview />
+      </section>
       <template v-if="category === 'all' || category === 'composer'">
-        <section class="preview-sample" data-preview="composer-single"><h3>{{ tr('浮动附件 · 单张图片', 'Floating attachment · Single image') }}</h3><ComposerAttachmentPreview :count="1" /></section>
-        <section class="preview-sample" data-preview="composer-mixed"><h3>{{ tr('浮动附件 · 图片与文件', 'Floating attachments · Images and files') }}</h3><ComposerAttachmentPreview :count="3" mixed /></section>
-        <section class="preview-sample" data-preview="composer-stack"><h3>{{ tr('浮动附件 · 超过五个，点击打开附件窗口', 'Floating attachments · More than five, click to open attachments') }}</h3><ComposerAttachmentPreview :count="7" mixed /></section>
+        <section class="preview-sample" data-preview="composer-single">
+          <h3>{{ tr('浮动附件 · 单张图片', 'Floating attachment · Single image') }}</h3>
+          <ComposerAttachmentPreview :count="1" />
+        </section>
+        <section class="preview-sample" data-preview="composer-mixed">
+          <h3>{{ tr('浮动附件 · 图片与文件', 'Floating attachments · Images and files') }}</h3>
+          <ComposerAttachmentPreview :count="3" mixed />
+        </section>
+        <section class="preview-sample" data-preview="composer-stack">
+          <h3>
+            {{
+              tr(
+                '浮动附件 · 超过五个，点击打开附件窗口',
+                'Floating attachments · More than five, click to open attachments',
+              )
+            }}
+          </h3>
+          <ComposerAttachmentPreview :count="7" mixed />
+        </section>
       </template>
       <section v-for="sample in visible" :key="sample.id" class="preview-sample" :data-preview="sample.id">
         <h3>{{ tr(sample.zh, sample.en) }}</h3>
@@ -60,14 +98,56 @@ provide(openActivityKey, value => { request.value = { ...value, requestId: ++req
   </div>
 </template>
 <style scoped>
-.style-preview { min-width: 0; }
-.preview-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin: 16px 0; font-size: 13px; }
-.preview-controls label { display: flex; align-items: center; gap: 8px; }
-.preview-controls select { min-width: 120px; max-width: 100%; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius); color: var(--fg); background: var(--bg-raised); font: inherit; }
-.preview-canvas { width: 100%; min-width: 0; }
-.preview-canvas.narrow { max-width: 390px; }
-.preview-sample { min-width: 0; padding: 18px 0; border-top: 1px solid var(--line); }
-.preview-tool-detail { margin-top: 10px; font-size: 13px; }
-.preview-tool-detail summary { cursor: pointer; color: var(--fg-muted); }
-.preview-sample > h3 { margin: 0 0 12px; color: var(--fg-subtle); font-size: 12px; font-weight: 500; }
+.style-preview {
+  min-width: 0;
+}
+.preview-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin: 16px 0;
+  font-size: 13px;
+}
+.preview-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.preview-controls select {
+  min-width: 120px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--fg);
+  background: var(--bg-raised);
+  font: inherit;
+}
+.preview-canvas {
+  width: 100%;
+  min-width: 0;
+}
+.preview-canvas.narrow {
+  max-width: 390px;
+}
+.preview-sample {
+  min-width: 0;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+.preview-tool-detail {
+  margin-top: 10px;
+  font-size: 13px;
+}
+.preview-tool-detail summary {
+  cursor: pointer;
+  color: var(--fg-muted);
+}
+.preview-sample > h3 {
+  margin: 0 0 12px;
+  color: var(--fg-subtle);
+  font-size: 12px;
+  font-weight: 500;
+}
 </style>

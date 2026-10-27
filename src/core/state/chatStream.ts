@@ -92,10 +92,12 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
         for (const event of data.live_events) {
           next = processFrame(JSON.stringify({ type: 'session_event', event }), next);
         }
-        next.retries = Object.fromEntries((data.retries ?? []).flatMap((value: any) => {
-          const retry = readUpstreamRetry(value, data.server_time);
-          return retry ? [[retry.requestId, retry]] : [];
-        }));
+        next.retries = Object.fromEntries(
+          (data.retries ?? []).flatMap((value: any) => {
+            const retry = readUpstreamRetry(value, data.server_time);
+            return retry ? [[retry.requestId, retry]] : [];
+          }),
+        );
         callbacks.onScheduleRefresh();
         return next;
       }
@@ -169,7 +171,7 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
             active: true,
             phase: 'streaming',
             activity: 'thinking',
-            reasoning: [...reasoningBlocks.values()].map(b => b.display || b.plain).join('\n'),
+            reasoning: [...reasoningBlocks.values()].map((b) => b.display || b.plain).join('\n'),
           };
         }
 

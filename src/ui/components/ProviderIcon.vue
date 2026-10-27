@@ -46,8 +46,56 @@ import perplexity from '@lobehub/icons-static-svg/icons/perplexity.svg?url';
 import searxng from '@lobehub/icons-static-svg/icons/searxng.svg?url';
 
 const props = defineProps<{ brand?: string; fallback?: string }>();
-const icons: Record<string, string> = { Magpie: magpie, CherryIN: cherryin, YYLX: yylx, yylx, 鱼鱼连线: yylx, DeepSeek: deepseek, MiMo: mimo, 'Z.AI': zai, 'Z.ai': zai, Zhipu: zai, SiliconFlow: silicon, Qwen: qwen, Kimi: kimi, 'Tencent Hunyuan (TokenHub)': hunyuan, OpenAI: openai, Anthropic: anthropic, 'Google Gemini': gemini, 'AWS Bedrock': bedrock, MiniMax: minimax, OpenRouter: openrouter, 'Hugging Face Router': huggingface, OpenCode: opencode, Mistral: mistral, xAI: xai, Groq: groq, Cerebras: cerebras, Ollama: ollama, 'LM Studio': lmstudio, vLLM: vllm, 'GitHub Copilot': copilot, StepFun: stepfun, 'Baidu Qianfan': baiducloud, 'Volcengine Ark': volcengine, 'Huawei Cloud': huaweicloud, 'Together AI': together, Fireworks: fireworks, 'NVIDIA NIM': nvidia, ModelScope: modelscope, AiHubMix: aihubmix, '302.AI': ai302, Tavily: tavily, Brave: brave, Exa: exa, Bocha: bocha, Jina: jina, Perplexity: perplexity, SearXNG: searxng };
-const source = computed(() => props.brand ? icons[props.brand] : undefined);
+const icons: Record<string, string> = {
+  Magpie: magpie,
+  CherryIN: cherryin,
+  YYLX: yylx,
+  yylx,
+  鱼鱼连线: yylx,
+  DeepSeek: deepseek,
+  MiMo: mimo,
+  'Z.AI': zai,
+  'Z.ai': zai,
+  Zhipu: zai,
+  SiliconFlow: silicon,
+  Qwen: qwen,
+  Kimi: kimi,
+  'Tencent Hunyuan (TokenHub)': hunyuan,
+  OpenAI: openai,
+  Anthropic: anthropic,
+  'Google Gemini': gemini,
+  'AWS Bedrock': bedrock,
+  MiniMax: minimax,
+  OpenRouter: openrouter,
+  'Hugging Face Router': huggingface,
+  OpenCode: opencode,
+  Mistral: mistral,
+  xAI: xai,
+  Groq: groq,
+  Cerebras: cerebras,
+  Ollama: ollama,
+  'LM Studio': lmstudio,
+  vLLM: vllm,
+  'GitHub Copilot': copilot,
+  StepFun: stepfun,
+  'Baidu Qianfan': baiducloud,
+  'Volcengine Ark': volcengine,
+  'Huawei Cloud': huaweicloud,
+  'Together AI': together,
+  Fireworks: fireworks,
+  'NVIDIA NIM': nvidia,
+  ModelScope: modelscope,
+  AiHubMix: aihubmix,
+  '302.AI': ai302,
+  Tavily: tavily,
+  Brave: brave,
+  Exa: exa,
+  Bocha: bocha,
+  Jina: jina,
+  Perplexity: perplexity,
+  SearXNG: searxng,
+};
+const source = computed(() => (props.brand ? icons[props.brand] : undefined));
 const maskImage = computed(() => `url("${source.value}")`);
 </script>
 
@@ -57,6 +105,17 @@ const maskImage = computed(() => `url("${source.value}")`);
 </template>
 
 <style scoped>
-.provider-icon, .provider-icon-fallback { display: inline-block; width: 20px; height: 20px; flex: none; }
-.provider-icon { background: currentColor; mask-position: center; mask-size: contain; mask-repeat: no-repeat; }
+.provider-icon,
+.provider-icon-fallback {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.provider-icon {
+  background: currentColor;
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
 </style>

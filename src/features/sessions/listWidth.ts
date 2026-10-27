@@ -4,8 +4,8 @@ import { cfg } from '../../core/config.ts';
 import { tryPlatform } from '../../platform/index.ts';
 
 const KEY = 'pref.listWidth';
-const clamp = (w: number) => Math.min(cfg.design.sessionListWidthMax,
-  Math.max(cfg.design.sessionListWidthMin, Math.round(w)));
+const clamp = (w: number) =>
+  Math.min(cfg.design.sessionListWidthMax, Math.max(cfg.design.sessionListWidthMin, Math.round(w)));
 let cancelActiveResize: (() => void) | undefined;
 
 export function cancelListResize() {
@@ -29,8 +29,7 @@ export function onListResizePointerDown(e: PointerEvent) {
   target.setPointerCapture(e.pointerId);
   document.documentElement.classList.add('resizing');
   const startX = e.clientX;
-  const startW = document.querySelector('.sessions-pane')?.getBoundingClientRect().width
-    ?? cfg.design.sessionListWidth;
+  const startW = document.querySelector('.sessions-pane')?.getBoundingClientRect().width ?? cfg.design.sessionListWidth;
   const widthAt = (ev: PointerEvent) => clamp(startW + (ev.clientX - startX));
 
   function finish(save: boolean, value = startW) {
@@ -50,17 +49,24 @@ export function onListResizePointerDown(e: PointerEvent) {
   function end(ev: PointerEvent) {
     if (ev.pointerId === e.pointerId) finish(true, widthAt(ev));
   }
-  function cancel() { finish(false); }
+  function cancel() {
+    finish(false);
+  }
   function pointerCancel(ev: PointerEvent) {
     if (ev.pointerId === e.pointerId) cancel();
   }
-  function lostCapture() { finish(false); }
+  function lostCapture() {
+    finish(false);
+  }
   function visibility() {
     if (document.hidden) cancel();
   }
   function move(ev: PointerEvent) {
     if (ev.pointerId !== e.pointerId) return;
-    if (!(ev.buttons & 1)) { end(ev); return; }
+    if (!(ev.buttons & 1)) {
+      end(ev);
+      return;
+    }
     document.documentElement.style.setProperty('--w-list', `${widthAt(ev)}px`);
   }
   cancelActiveResize = () => finish(false);

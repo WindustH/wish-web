@@ -18,15 +18,35 @@ const selected = ref('');
 </script>
 
 <template>
-  <Modal :page="isMobile" :open="true" body-scroll="content" content-class="picker-dialog" compact :title="title" @close="emit('close')">
-    <PickerList class="modal-scroll-region" v-model="selected" :items="items" :placeholder="placeholder" @select="key => { if (isMobile) emit('choose', key); }" />
+  <Modal
+    :page="isMobile"
+    :open="true"
+    body-scroll="content"
+    content-class="picker-dialog"
+    compact
+    :title="title"
+    @close="emit('close')"
+  >
+    <PickerList
+      class="modal-scroll-region"
+      v-model="selected"
+      :items="items"
+      :placeholder="placeholder"
+      @select="
+        (key) => {
+          if (isMobile) emit('choose', key);
+        }
+      "
+    />
     <slot />
     <template v-if="!isMobile || $slots['footer-start']" #footer>
       <div class="picker-dialog-actions">
         <slot name="footer-start" />
         <template v-if="!isMobile">
           <button type="button" class="btn ghost" @click="emit('close')">{{ tr('取消', 'Cancel') }}</button>
-          <button type="button" class="btn primary" :disabled="!selected" @click="emit('choose', selected)">{{ tr('添加', 'Add') }}</button>
+          <button type="button" class="btn primary" :disabled="!selected" @click="emit('choose', selected)">
+            {{ tr('添加', 'Add') }}
+          </button>
         </template>
       </div>
     </template>
@@ -34,8 +54,18 @@ const selected = ref('');
 </template>
 
 <style scoped>
-.picker-dialog-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; width: 100%; }
+.picker-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+}
 @media (max-width: 899px) {
-  :global(.picker-dialog.modal-page .picker-viewport) { height: auto !important; flex: 1; }
+  :global(.picker-dialog.modal-page .picker-viewport) {
+    height: auto !important;
+    flex: 1;
+  }
 }
 </style>

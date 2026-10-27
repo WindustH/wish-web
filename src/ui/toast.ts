@@ -3,7 +3,10 @@
 import { shallowRef } from 'vue';
 import { bus } from '../core/bus.ts';
 
-export interface ToastItem { id: number; text: string }
+export interface ToastItem {
+  id: number;
+  text: string;
+}
 
 const items = shallowRef<ToastItem[]>([]);
 let seq = 0;
@@ -11,9 +14,13 @@ let seq = 0;
 export function toast(text: string) {
   const id = ++seq;
   items.value = [...items.value, { id, text }];
-  setTimeout(() => { items.value = items.value.filter((t) => t.id !== id); }, 3600);
+  setTimeout(() => {
+    items.value = items.value.filter((t) => t.id !== id);
+  }, 3600);
 }
 
 bus.on('notice', (message: string) => toast(message));
 
-export function useToasts() { return items; }
+export function useToasts() {
+  return items;
+}

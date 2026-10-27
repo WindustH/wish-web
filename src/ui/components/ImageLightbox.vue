@@ -8,7 +8,11 @@ import Icon from './Icon.vue';
 import { closeImageLightbox, imageLightbox } from '../imageLightbox.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { useBackLayer } from '../composables/useBackLayer.ts';
-useBackLayer(() => !!imageLightbox.value, closeImageLightbox, () => 200);
+useBackLayer(
+  () => !!imageLightbox.value,
+  closeImageLightbox,
+  () => 200,
+);
 
 const MAX_SCALE = 8;
 const step = 1.25;
@@ -34,7 +38,10 @@ function zoomTo(next: number, clientX?: number, clientY?: number) {
     y.value = ay - (ay - y.value) * ratio;
   }
   scale.value = target;
-  if (target === 1) { x.value = 0; y.value = 0; }
+  if (target === 1) {
+    x.value = 0;
+    y.value = 0;
+  }
 }
 const zoomed = computed(() => scale.value > 1);
 function onWheel(event: WheelEvent) {
@@ -77,13 +84,20 @@ function onPointerUp(event: PointerEvent) {
 // A click on the page closes; so does a click on a picture shown at its own size. A click on a
 // magnified picture is a look, not a dismissal - Escape and the close button still close.
 function onBackdrop(event: MouseEvent) {
-  if (moved) { moved = false; return; }
+  if (moved) {
+    moved = false;
+    return;
+  }
   const target = event.target as HTMLElement | null;
   if (target?.closest?.('.image-lightbox-close, .image-lightbox-tools')) return;
   if (target !== event.currentTarget && scale.value > 1) return;
   closeImageLightbox();
 }
-function reset() { scale.value = 1; x.value = 0; y.value = 0; }
+function reset() {
+  scale.value = 1;
+  x.value = 0;
+  y.value = 0;
+}
 
 // Two fingers on a phone pinch, and the picture follows them: the distance between the fingers is
 // the scale, their middle the point zoomed on.
@@ -111,7 +125,7 @@ function onTouchEnd(event: PointerEvent) {
   if (touches.size < 2) pinch = 0;
 }
 
-useKeyboardScope(frame, event => {
+useKeyboardScope(frame, (event) => {
   if (event.key === 'Escape') closeImageLightbox();
   else if (event.key === '+' || event.key === '=') zoomTo(scale.value * step);
   else if (event.key === '-') zoomTo(scale.value / step);
@@ -120,38 +134,83 @@ useKeyboardScope(frame, event => {
   return true;
 });
 
-watch(imageLightbox, async (image, previous) => {
-  reset();
-  if (image) {
-    returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    await nextTick();
-    closeButton.value?.focus();
-    return;
-  }
-  touches.clear();
-  pinch = 0;
-  // Back to the picture, without the browser scrolling the log to bring it into view.
-  if (previous) returnTo?.focus?.({ preventScroll: true });
-  returnTo = null;
-}, { immediate: true });
+watch(
+  imageLightbox,
+  async (image, previous) => {
+    reset();
+    if (image) {
+      returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      await nextTick();
+      closeButton.value?.focus();
+      return;
+    }
+    touches.clear();
+    pinch = 0;
+    // Back to the picture, without the browser scrolling the log to bring it into view.
+    if (previous) returnTo?.focus?.({ preventScroll: true });
+    returnTo = null;
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
   <Teleport to="body">
-    <div v-if="imageLightbox" ref="frame" data-keyboard-boundary class="image-lightbox" :class="{ zoomed }" role="dialog" aria-modal="true"
-      :aria-label="imageLightbox.alt || tr('图片', 'Image')" @click="onBackdrop" @wheel="onWheel" @dblclick="reset"
-      @pointerdown="onTouchStart" @pointermove="onTouchMove" @pointerup="onTouchEnd" @pointercancel="onTouchEnd">
-      <img class="image-lightbox-img" :class="{ dragging }" :src="imageLightbox.src" :alt="imageLightbox.alt || ''"
+    <div
+      v-if="imageLightbox"
+      ref="frame"
+      data-keyboard-boundary
+      class="image-lightbox"
+      :class="{ zoomed }"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="imageLightbox.alt || tr('图片', 'Image')"
+      @click="onBackdrop"
+      @wheel="onWheel"
+      @dblclick="reset"
+      @pointerdown="onTouchStart"
+      @pointermove="onTouchMove"
+      @pointerup="onTouchEnd"
+      @pointercancel="onTouchEnd"
+    >
+      <img
+        class="image-lightbox-img"
+        :class="{ dragging }"
+        :src="imageLightbox.src"
+        :alt="imageLightbox.alt || ''"
         :style="{ transform: `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${scale})` }"
-        draggable="false" @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp" @pointercancel="onPointerUp" />
-      <button ref="closeButton" type="button" class="btn ghost icon-only image-lightbox-close" :aria-label="tr('关闭', 'Close')" @click.stop="closeImageLightbox">
+        draggable="false"
+        @pointerdown="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @pointercancel="onPointerUp"
+      />
+      <button
+        ref="closeButton"
+        type="button"
+        class="btn ghost icon-only image-lightbox-close"
+        :aria-label="tr('关闭', 'Close')"
+        @click.stop="closeImageLightbox"
+      >
         <Icon name="x" />
       </button>
       <div class="image-lightbox-tools">
-        <button type="button" class="btn ghost icon-only" :aria-label="tr('放大', 'Zoom in')" :disabled="scale >= MAX_SCALE" @click.stop="zoomTo(scale * step)">
+        <button
+          type="button"
+          class="btn ghost icon-only"
+          :aria-label="tr('放大', 'Zoom in')"
+          :disabled="scale >= MAX_SCALE"
+          @click.stop="zoomTo(scale * step)"
+        >
           <Icon name="plus" />
         </button>
-        <button type="button" class="btn ghost icon-only" :aria-label="tr('缩小', 'Zoom out')" :disabled="scale <= 1" @click.stop="zoomTo(scale / step)">
+        <button
+          type="button"
+          class="btn ghost icon-only"
+          :aria-label="tr('缩小', 'Zoom out')"
+          :disabled="scale <= 1"
+          @click.stop="zoomTo(scale / step)"
+        >
           <Icon name="minus" />
         </button>
       </div>

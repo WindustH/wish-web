@@ -31,17 +31,29 @@ const text = (value: unknown) => (typeof value === 'string' && value.trim() ? va
 /** The questions of a call, with the server's defaults filled in; empty when unreadable. */
 export function readForm(args: unknown): AskQuestion[] {
   let value = args;
-  if (typeof value === 'string') { try { value = JSON.parse(value); } catch { return []; } }
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
   const questions = (value as { questions?: unknown } | null)?.questions;
   if (!Array.isArray(questions)) return [];
   return questions.map((raw): AskQuestion => {
     const item = (raw ?? {}) as Record<string, unknown>;
     const choice = item.type === 'choice';
-    const options = choice && Array.isArray(item.options)
-      ? item.options.map(option => typeof option === 'string'
-        ? { label: option }
-        : { label: String((option as { label?: unknown })?.label ?? ''), description: text((option as { description?: unknown })?.description) })
-      : undefined;
+    const options =
+      choice && Array.isArray(item.options)
+        ? item.options.map((option) =>
+            typeof option === 'string'
+              ? { label: option }
+              : {
+                  label: String((option as { label?: unknown })?.label ?? ''),
+                  description: text((option as { description?: unknown })?.description),
+                },
+          )
+        : undefined;
     return {
       type: choice ? 'choice' : 'text',
       question: String(item.question ?? ''),
@@ -55,28 +67,43 @@ export function readForm(args: unknown): AskQuestion[] {
   });
 }
 
-interface Payload { result?: { status?: string; output?: { status?: string; background?: boolean; answers?: AnswerRecord[] } }; metadata?: { answers?: AnswerRecord[] } }
-export interface QuestionSource { callId: string; result: { payload?: unknown } | null; late: { payload?: unknown } | null }
+interface Payload {
+  result?: { status?: string; output?: { status?: string; background?: boolean; answers?: AnswerRecord[] } };
+  metadata?: { answers?: AnswerRecord[] };
+}
+export interface QuestionSource {
+  callId: string;
+  result: { payload?: unknown } | null;
+  late: { payload?: unknown } | null;
+}
 
 export function formState(item: QuestionSource, pending: readonly PendingQuestion[], running: boolean): FormState {
   const late = item.late?.payload as Payload | undefined;
   if (late) return { kind: 'late', answers: late.metadata?.answers ?? [] };
-  const open = pending.find(form => form.call_id === item.callId);
+  const open = pending.find((form) => form.call_id === item.callId);
   const result = (item.result?.payload as Payload | undefined)?.result;
   // No result yet: the call is still waiting, unless the run ended without closing it.
   if (!result) return (open && !open.timed_out) || running ? { kind: 'open' } : { kind: 'cancelled' };
   const output = result.status === 'success' ? result.output : undefined;
   if (output?.background && open && !open.timed_out) return { kind: 'open' };
   switch (output?.status) {
-    case 'answered': return { kind: 'answered', answers: output.answers ?? [] };
-    case 'skipped': return { kind: 'skipped' };
-    case 'timed_out': return { kind: 'timed_out', open: !!open?.timed_out };
-    default: return { kind: 'cancelled' };
+    case 'answered':
+      return { kind: 'answered', answers: output.answers ?? [] };
+    case 'skipped':
+      return { kind: 'skipped' };
+    case 'timed_out':
+      return { kind: 'timed_out', open: !!open?.timed_out };
+    default:
+      return { kind: 'cancelled' };
   }
 }
 
 /** What the user has put in so far, one entry per question. */
-export interface Draft { selected: string[]; other: string; text: string }
+export interface Draft {
+  selected: string[];
+  other: string;
+  text: string;
+}
 export const emptyDraft = (): Draft => ({ selected: [], other: '', text: '' });
 
 export const draftAnswered = (question: AskQuestion, draft: Draft) =>
@@ -96,7 +123,9 @@ export function draftAnswers(questions: readonly AskQuestion[], drafts: readonly
 /** Picks an option: a single choice replaces the pick, a multiple one toggles it. */
 export function pick(question: AskQuestion, draft: Draft, label: string): Draft {
   if (!question.multi_select) return { ...draft, selected: draft.selected[0] === label ? [] : [label], other: '' };
-  const selected = draft.selected.includes(label) ? draft.selected.filter(item => item !== label) : [...draft.selected, label];
+  const selected = draft.selected.includes(label)
+    ? draft.selected.filter((item) => item !== label)
+    : [...draft.selected, label];
   return { ...draft, selected };
 }
 

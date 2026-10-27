@@ -17,8 +17,12 @@ const storage = () => tryPlatform('storage');
 function read(): Connection | null {
   try {
     const value = JSON.parse(storage()?.get(CONNECTION) || 'null');
-    return value && typeof value.baseUrl === 'string' ? { baseUrl: value.baseUrl, token: String(value.token ?? '') } : null;
-  } catch { return null; }
+    return value && typeof value.baseUrl === 'string'
+      ? { baseUrl: value.baseUrl, token: String(value.token ?? '') }
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Points the API client at the saved server. Call once, before any request. */
@@ -35,7 +39,11 @@ export const lastAddress = () => storage()?.get(LAST_ADDRESS) ?? '';
 /** Host of the server in use, for labels. */
 export function serverName() {
   const saved = read();
-  try { return saved ? new URL(saved.baseUrl).host : globalThis.location.host; } catch { return globalThis.location.host; }
+  try {
+    return saved ? new URL(saved.baseUrl).host : globalThis.location.host;
+  } catch {
+    return globalThis.location.host;
+  }
 }
 
 /** The API base for what the user typed: an origin, optionally with a path; empty means this page's server. */
@@ -53,18 +61,33 @@ const loopback = (host: string) => ['localhost', '127.0.0.1', '[::1]'].includes(
 /** Clearing local preferences is not signing out: returns a function that restores the connection. */
 export function keepConnection() {
   const store = storage();
-  const saved = [CONNECTION, SIGNED_OUT, LAST_ADDRESS].map(key => [key, store?.get(key)] as const);
-  return () => { for (const [key, value] of saved) if (value != null) store?.set(key, value); };
+  const saved = [CONNECTION, SIGNED_OUT, LAST_ADDRESS].map((key) => [key, store?.get(key)] as const);
+  return () => {
+    for (const [key, value] of saved) if (value != null) store?.set(key, value);
+  };
 }
 
 /** Checks that a Wish server answers at this address with this token; throws a readable error otherwise. */
 export async function checkConnection(address: string, token: string) {
   let base: string;
-  try { base = new URL(apiBaseFor(address), location.href).href.replace(/\/+$/, ''); }
-  catch { throw new Error(tr('请输入有效的服务器地址，例如 https://wish.example.com。', 'Enter a valid server address, such as https://wish.example.com.')); }
+  try {
+    base = new URL(apiBaseFor(address), location.href).href.replace(/\/+$/, '');
+  } catch {
+    throw new Error(
+      tr(
+        '请输入有效的服务器地址，例如 https://wish.example.com。',
+        'Enter a valid server address, such as https://wish.example.com.',
+      ),
+    );
+  }
   const target = new URL(base);
   if (location.protocol === 'https:' && target.protocol === 'http:' && !loopback(target.host.replace(/:\d+$/, ''))) {
-    throw new Error(tr('此页面通过 HTTPS 打开，浏览器不允许它连接 HTTP 地址。请使用 HTTPS 地址。', 'This page was opened over HTTPS, so the browser will not let it connect to an HTTP address. Use an HTTPS address.'));
+    throw new Error(
+      tr(
+        '此页面通过 HTTPS 打开，浏览器不允许它连接 HTTP 地址。请使用 HTTPS 地址。',
+        'This page was opened over HTTPS, so the browser will not let it connect to an HTTP address. Use an HTTPS address.',
+      ),
+    );
   }
   let response: Response;
   try {
@@ -73,17 +96,30 @@ export async function checkConnection(address: string, token: string) {
       signal: AbortSignal.timeout(10_000),
     });
   } catch {
-    throw new Error(target.origin === location.origin
-      ? tr('无法连接到服务器。请确认服务器正在运行。', 'Could not reach the server. Check that it is running.')
-      : tr('无法连接到这个地址。请确认地址正确、服务器正在运行，并且它设置了访问令牌：未设置令牌的 Wish 服务器不接受来自其他网页的连接。',
-        'Could not reach this address. Check that it is correct, that the server is running, and that it requires an access token: a Wish server without one does not accept connections from other web pages.'));
+    throw new Error(
+      target.origin === location.origin
+        ? tr('无法连接到服务器。请确认服务器正在运行。', 'Could not reach the server. Check that it is running.')
+        : tr(
+            '无法连接到这个地址。请确认地址正确、服务器正在运行，并且它设置了访问令牌：未设置令牌的 Wish 服务器不接受来自其他网页的连接。',
+            'Could not reach this address. Check that it is correct, that the server is running, and that it requires an access token: a Wish server without one does not accept connections from other web pages.',
+          ),
+    );
   }
   if (response.status === 401) {
-    throw new Error(token ? tr('访问令牌不正确。', 'The access token is not correct.') : tr('这个服务器需要访问令牌。', 'This server requires an access token.'));
+    throw new Error(
+      token
+        ? tr('访问令牌不正确。', 'The access token is not correct.')
+        : tr('这个服务器需要访问令牌。', 'This server requires an access token.'),
+    );
   }
   const identity = response.ok ? await response.json().catch(() => null) : null;
   if (identity?.name !== 'wish') {
-    throw new Error(tr(`这个地址上没有找到 Wish 服务器（HTTP ${response.status}）。`, `No Wish server was found at this address (HTTP ${response.status}).`));
+    throw new Error(
+      tr(
+        `这个地址上没有找到 Wish 服务器（HTTP ${response.status}）。`,
+        `No Wish server was found at this address (HTTP ${response.status}).`,
+      ),
+    );
   }
 }
 
@@ -103,7 +139,11 @@ export async function signOut() {
   const store = storage();
   store?.remove(CONNECTION);
   store?.set(SIGNED_OUT, '1');
-  try { localStorage.removeItem('wish.providerGate.ready'); } catch { /* storage unavailable */ }
+  try {
+    localStorage.removeItem('wish.providerGate.ready');
+  } catch {
+    /* storage unavailable */
+  }
   await clearCached();
   location.replace(location.pathname + location.search);
 }

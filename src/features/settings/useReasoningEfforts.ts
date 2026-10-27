@@ -9,7 +9,8 @@ const DEFAULT_EFFORTS = { low: 'low', medium: 'medium', high: 'high', max: 'max'
 export function withNewModelDefaults(seed: Record<string, any>) {
   const model = { ...seed };
   if (model.supports_reasoning == null) model.supports_reasoning = true;
-  if (model.supports_reasoning !== false && model.reasoning_efforts == null) model.reasoning_efforts = { ...DEFAULT_EFFORTS };
+  if (model.supports_reasoning !== false && model.reasoning_efforts == null)
+    model.reasoning_efforts = { ...DEFAULT_EFFORTS };
   return model;
 }
 
@@ -17,7 +18,8 @@ export function withNewModelDefaults(seed: Record<string, any>) {
 function sortEfforts(tokens: string[]) {
   const order = ['off', ...STANDARD_EFFORTS];
   return [...tokens].sort((a, b) => {
-    const ia = order.indexOf(a), ib = order.indexOf(b);
+    const ia = order.indexOf(a),
+      ib = order.indexOf(b);
     if (ia !== -1 && ib !== -1) return ia - ib;
     if (ia !== -1) return -1;
     if (ib !== -1) return 1;
@@ -34,16 +36,22 @@ export function useReasoningEfforts(draft: Ref<Record<string, any>>, preset: () 
   const input = ref('');
   const presetEfforts = computed(() => Object.keys(preset()?.reasoning_efforts ?? {}));
   const isCustom = computed(() => draft.value.reasoning_efforts != null);
-  const active = computed<string[]>(() => draft.value.reasoning_efforts != null ? Object.keys(draft.value.reasoning_efforts) : presetEfforts.value);
-  const commonOptions = computed(() => sortEfforts([...new Set([...STANDARD_EFFORTS, ...presetEfforts.value, ...active.value].filter(Boolean))]));
+  const active = computed<string[]>(() =>
+    draft.value.reasoning_efforts != null ? Object.keys(draft.value.reasoning_efforts) : presetEfforts.value,
+  );
+  const commonOptions = computed(() =>
+    sortEfforts([...new Set([...STANDARD_EFFORTS, ...presetEfforts.value, ...active.value].filter(Boolean))]),
+  );
   const isActive = (effort: string) => active.value.includes(effort);
   const effortMap = (tokens: string[]) => {
     const existing = draft.value.reasoning_efforts ?? {};
-    return Object.fromEntries(tokens.map(token => [token, existing[token] ?? preset()?.reasoning_efforts?.[token] ?? token]));
+    return Object.fromEntries(
+      tokens.map((token) => [token, existing[token] ?? preset()?.reasoning_efforts?.[token] ?? token]),
+    );
   };
 
   function setList(list: string[]) {
-    const tokens = sortEfforts(list.map(s => s.trim()).filter(Boolean));
+    const tokens = sortEfforts(list.map((s) => s.trim()).filter(Boolean));
     draft.value.reasoning_efforts = tokens.length ? effortMap(tokens) : {};
     input.value = tokens.join(', ');
   }
@@ -56,18 +64,48 @@ export function useReasoningEfforts(draft: Ref<Record<string, any>>, preset: () 
   }
   function onInput(text: string) {
     input.value = text;
-    if (!text.trim()) { delete draft.value.reasoning_efforts; return; }
-    draft.value.reasoning_efforts = effortMap(text.split(/[,，\s]+/).map(s => s.trim()).filter(Boolean));
+    if (!text.trim()) {
+      delete draft.value.reasoning_efforts;
+      return;
+    }
+    draft.value.reasoning_efforts = effortMap(
+      text
+        .split(/[,，\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
   }
   function reset() {
     delete draft.value.reasoning_efforts;
     input.value = '';
   }
-  const placeholder = computed(() => presetEfforts.value.length
-    ? tr('逗号分隔，留空继承预设：', 'Comma-separated, blank to inherit: ') + presetEfforts.value.join(', ')
-    : tr('逗号分隔，如：low, medium, high', 'Comma-separated, e.g. low, medium, high'));
+  const placeholder = computed(() =>
+    presetEfforts.value.length
+      ? tr('逗号分隔，留空继承预设：', 'Comma-separated, blank to inherit: ') + presetEfforts.value.join(', ')
+      : tr('逗号分隔，如：low, medium, high', 'Comma-separated, e.g. low, medium, high'),
+  );
   // The default effort's choices: the model's efforts (or its preset's), and the default it has.
-  const defaultOptions = computed(() => [...new Set([...Object.keys(draft.value.reasoning_efforts ?? preset()?.reasoning_efforts ?? {}), draft.value.default_reasoning_effort].filter(Boolean))].map(value => ({ value, label: value })));
+  const defaultOptions = computed(() =>
+    [
+      ...new Set(
+        [
+          ...Object.keys(draft.value.reasoning_efforts ?? preset()?.reasoning_efforts ?? {}),
+          draft.value.default_reasoning_effort,
+        ].filter(Boolean),
+      ),
+    ].map((value) => ({ value, label: value })),
+  );
 
-  return { input, presetEfforts, isCustom, commonOptions, isActive, toggle, onInput, reset, placeholder, defaultOptions };
+  return {
+    input,
+    presetEfforts,
+    isCustom,
+    commonOptions,
+    isActive,
+    toggle,
+    onInput,
+    reset,
+    placeholder,
+    defaultOptions,
+  };
 }

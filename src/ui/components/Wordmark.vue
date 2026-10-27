@@ -10,15 +10,32 @@
     <polygon class="front" points="125,49 134,40 140,40 140,100 125,100" />
     <polygon class="dot-light" points="132.5,17 132.5,35 123.5,26" />
     <polygon class="dot-dark" points="132.5,17 141.5,26 132.5,35" />
-    <polygon class="front" points="161,40 202,40 202,51.5 167,51.5 167,64.2 202,64.2 202,91 193,100 152,100 152,88.5 187,88.5 187,75.8 152,75.8 152,49" />
-    <polygon class="front" points="214,31 223,22 229,22 229,40 259,40 268,49 268,100 253,100 253,51.5 229,51.5 229,100 214,100" />
+    <polygon
+      class="front"
+      points="161,40 202,40 202,51.5 167,51.5 167,64.2 202,64.2 202,91 193,100 152,100 152,88.5 187,88.5 187,75.8 152,75.8 152,49"
+    />
+    <polygon
+      class="front"
+      points="214,31 223,22 229,22 229,40 259,40 268,49 268,100 253,100 253,51.5 229,51.5 229,100 214,100"
+    />
   </svg>
 </template>
 
 <style scoped>
-.wordmark { display: block; width: auto; }
-.front { fill: currentColor; }
-.back { fill: var(--accent); }
-.dot-light { fill: #eea07c; }
-.dot-dark { fill: #c9653f; }
+.wordmark {
+  display: block;
+  width: auto;
+}
+.front {
+  fill: currentColor;
+}
+.back {
+  fill: var(--accent);
+}
+.dot-light {
+  fill: #eea07c;
+}
+.dot-dark {
+  fill: #c9653f;
+}
 </style>

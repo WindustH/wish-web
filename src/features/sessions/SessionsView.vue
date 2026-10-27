@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SessionListToggle from './SessionListToggle.vue';
-import { useSessionMotion } from "./useSessionMotion.ts";
+import { useSessionMotion } from './useSessionMotion.ts';
 useSessionMotion();
 import Hint from '../../ui/components/Hint.vue';
 // Two-pane shell (desktop): the session list stays mounted while the right
@@ -19,15 +19,19 @@ import { useRecentsSheet } from './useRecentsSheet.ts';
 const route = useRoute();
 const router = useRouter();
 const isMobile = useIsMobile();
-const showList = computed(() => isMobile.value ? route.name === 'all-sessions' : !prefs.sessionListCollapsed.value);
+const showList = computed(() => (isMobile.value ? route.name === 'all-sessions' : !prefs.sessionListCollapsed.value));
 // A phone's home page and all sessions are one screen: the list is a sheet over the home page.
 const home = computed(() => route.name === 'sessions' || route.name === 'all-sessions');
 const split = ref<HTMLElement | null>(null);
 useRecentsSheet(split);
 
-watch([isMobile, () => route.name], ([mobile, name]) => {
-  if (!mobile && name === 'all-sessions') void router.replace('/sessions');
-}, { immediate: true });
+watch(
+  [isMobile, () => route.name],
+  ([mobile, name]) => {
+    if (!mobile && name === 'all-sessions') void router.replace('/sessions');
+  },
+  { immediate: true },
+);
 onMounted(applySavedListWidth);
 onDeactivated(cancelListResize);
 onBeforeUnmount(cancelListResize);
@@ -36,10 +40,21 @@ onBeforeUnmount(cancelListResize);
 <template>
   <div ref="split" class="sessions-split" :class="{ 'sidebar-collapsed': !isMobile && !showList }">
     <SessionListToggle />
-    <SessionList v-if="!isMobile || home" :class="{ 'is-collapsed': !isMobile && !showList, 'sheet-closed': isMobile && !showList }" id="session-list" />
+    <SessionList
+      v-if="!isMobile || home"
+      :class="{ 'is-collapsed': !isMobile && !showList, 'sheet-closed': isMobile && !showList }"
+      id="session-list"
+    />
     <div v-if="!isMobile" class="session-list-edge">
-      <Hint text="↔"><div v-show="showList" class="list-resize" role="separator" aria-orientation="vertical"
-        :aria-label="i18n.t('app.name')" @pointerdown="onListResizePointerDown" /></Hint>
+      <Hint text="↔"
+        ><div
+          v-show="showList"
+          class="list-resize"
+          role="separator"
+          aria-orientation="vertical"
+          :aria-label="i18n.t('app.name')"
+          @pointerdown="onListResizePointerDown"
+      /></Hint>
     </div>
     <div class="content-pane" :class="{ 'sheet-covered': isMobile && showList }">
       <RouterView v-slot="{ Component }">

@@ -27,11 +27,17 @@ export function pastedTextFile(text: string, name = 'Pasted Text 1'): PickedAtta
 }
 
 // Expand in a single pass so token-shaped text inside a pasted block stays literal.
-export function expandPastedText<T extends { pastedText?: boolean; placeholder?: string; bytes?: ArrayBuffer }>(text: string, attachments: readonly T[]) {
-  const pasted = new Map(attachments.filter(item => item.pastedText && item.placeholder)
-    .map(item => [item.placeholder, new TextDecoder().decode(item.bytes)]));
+export function expandPastedText<T extends { pastedText?: boolean; placeholder?: string; bytes?: ArrayBuffer }>(
+  text: string,
+  attachments: readonly T[],
+) {
+  const pasted = new Map(
+    attachments
+      .filter((item) => item.pastedText && item.placeholder)
+      .map((item) => [item.placeholder, new TextDecoder().decode(item.bytes)]),
+  );
   return {
-    text: text.replace(/<paste-[a-f0-9]{64}>/g, token => pasted.get(token) ?? token),
-    attachments: attachments.filter(item => !item.pastedText),
+    text: text.replace(/<paste-[a-f0-9]{64}>/g, (token) => pasted.get(token) ?? token),
+    attachments: attachments.filter((item) => !item.pastedText),
   };
 }

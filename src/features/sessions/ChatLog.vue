@@ -15,7 +15,15 @@ import ActivityRail from './ActivityRail.vue';
 import ActivityDialogs from './ActivityDialogs.vue';
 import { openActivityKey, type ActivityRequest } from './activityDialogs.ts';
 import type { RailEvent, RailRow } from './railLayout.ts';
-import { chipEvents, noticeFailed, noticeIconName, noticeLabel, noticeText, noticeTone, resultLookup } from './entries/railMeta.ts';
+import {
+  chipEvents,
+  noticeFailed,
+  noticeIconName,
+  noticeLabel,
+  noticeText,
+  noticeTone,
+  resultLookup,
+} from './entries/railMeta.ts';
 import type { EntryView } from '../../core/api/projections.ts';
 import HistoryItem from './HistoryItem.vue';
 import Markdown from '../../ui/components/Markdown.vue';
@@ -39,8 +47,16 @@ const pageActive = usePageActivity();
 let epoch = 0;
 const owns = (gen: number) => gen === epoch;
 const getEpoch = () => epoch;
-watch(() => props.sessionId, () => { epoch++; }, { flush: 'sync' });
-onUnmounted(() => { epoch++; });
+watch(
+  () => props.sessionId,
+  () => {
+    epoch++;
+  },
+  { flush: 'sync' },
+);
+onUnmounted(() => {
+  epoch++;
+});
 
 const scrollEl = ref<HTMLElement | null>(null);
 const scrollContentEl = ref<HTMLElement | null>(null);
@@ -57,7 +73,12 @@ const requestFailure = computed(() => displayFailure(chat.error.value));
 // Keep status cards inside the measured list so its size matches the scroll
 // container's actual content height.
 // History rows, then a closing row for a failed request or run.
-type ChatRow = GroupItem<EntryView> | TextItem<EntryView> | ChipsItem<EntryView> | ImageAlbumItem<EntryView> | { type: 'status_request_error' | 'status_run_error'; key: string };
+type ChatRow =
+  | GroupItem<EntryView>
+  | TextItem<EntryView>
+  | ChipsItem<EntryView>
+  | ImageAlbumItem<EntryView>
+  | { type: 'status_request_error' | 'status_run_error'; key: string };
 const groups = computed(() => {
   const items: ChatRow[] = imageAlbums(inlineChips(groupEntries(chat.entries.value)));
   if (requestFailure.value) items.push({ type: 'status_request_error', key: `request-error:${props.sessionId}` });
@@ -66,9 +87,14 @@ const groups = computed(() => {
 });
 
 // A call's result may come in a later run than the call, past a question or a notice.
-const toolResults = computed(() => new Map(chat.entries.value
-  .filter(entry => entry.kind === 'tool_result' && entry.payload?.tool_call_id)
-  .map(entry => [String(entry.payload!.tool_call_id), { kind: 'entry', entry, key: `r${entry.seq}` }])));
+const toolResults = computed(
+  () =>
+    new Map(
+      chat.entries.value
+        .filter((entry) => entry.kind === 'tool_result' && entry.payload?.tool_call_id)
+        .map((entry) => [String(entry.payload!.tool_call_id), { kind: 'entry', entry, key: `r${entry.seq}` }]),
+    ),
+);
 provide(toolResultsKey, toolResults);
 
 // A session owns its activity windows; virtual rows never own modal lifetimes.
@@ -78,7 +104,13 @@ function openActivity(request: Omit<ActivityRequest, 'requestId'>) {
   activityRequest.value = { ...request, requestId: ++activityRequestId };
 }
 provide(openActivityKey, openActivity);
-watch(() => props.sessionId, () => { activityRequest.value = null; }, { flush: 'sync' });
+watch(
+  () => props.sessionId,
+  () => {
+    activityRequest.value = null;
+  },
+  { flush: 'sync' },
+);
 
 // The rail's rows: where each row starts and how tall it is - measured where the log has
 // measured it, estimated where it has not - with the events that came in it.
@@ -104,19 +136,40 @@ const railRows = computed<RailRow[]>(() => {
 function rowActivities(row: ChatRow): ChipItem<EntryView>[] {
   if (row.type === 'chips') return row.chips;
   if (row.type === 'process') return [row];
-  if (row.type === 'image_album') return row.items.flatMap(item => item.before ?? []);
+  if (row.type === 'image_album') return row.items.flatMap((item) => item.before ?? []);
   if (row.type === 'entry') return (row as TextItem<EntryView>).before ?? [];
   return [];
 }
 const activityChips = computed(() => groups.value.flatMap(rowActivities));
 const rowEvents = (row: ChatRow): RailEvent[] => {
   const chips = rowActivities(row);
-  return chips.flatMap((chip: any): RailEvent[] => chip.type === 'process'
-    ? chipEvents(chip, resultLookup(chip, toolResults.value)).map(event => ({ chipKey: chip.key, stepKey: event.key, icon: event.icon,
-      failed: event.failed, warn: false, tip: event.title, seq: event.seq, step: event.step, preview: event.preview }))
-    : [{ chipKey: chip.key, stepKey: null, icon: noticeIconName(chip.entry), failed: noticeFailed(chip.entry) || noticeTone(chip.entry) === 'error',
-      warn: noticeTone(chip.entry) === 'warn', tip: noticeLabel(chip.entry), seq: chip.entry?.seq,
-      step: { kind: 'entry', entry: chip.entry, key: chip.key }, preview: noticeText(chip.entry) }]);
+  return chips.flatMap((chip: any): RailEvent[] =>
+    chip.type === 'process'
+      ? chipEvents(chip, resultLookup(chip, toolResults.value)).map((event) => ({
+          chipKey: chip.key,
+          stepKey: event.key,
+          icon: event.icon,
+          failed: event.failed,
+          warn: false,
+          tip: event.title,
+          seq: event.seq,
+          step: event.step,
+          preview: event.preview,
+        }))
+      : [
+          {
+            chipKey: chip.key,
+            stepKey: null,
+            icon: noticeIconName(chip.entry),
+            failed: noticeFailed(chip.entry) || noticeTone(chip.entry) === 'error',
+            warn: noticeTone(chip.entry) === 'warn',
+            tip: noticeLabel(chip.entry),
+            seq: chip.entry?.seq,
+            step: { kind: 'entry', entry: chip.entry, key: chip.key },
+            preview: noticeText(chip.entry),
+          },
+        ],
+  );
 };
 // Activity metadata changes with history/results/locale, not with geometry. A resize or
 // virtual range change must not parse thousands of tool calls and previews again.
@@ -135,7 +188,12 @@ const railVersion = ref(0);
 const railTotal = computed(() => Math.max(36, virtualizer.value.getTotalSize()));
 // The phone's lane gesture lives on the frame, never on the scroll container; its state outlives
 // a session switch - it is the pane's preference, not the conversation's.
-const railSwipe = useRailSwipe({ wrap: wrapEl, scroll: scrollEl, content: scrollContentEl, enabled: computed(() => props.mobile) });
+const railSwipe = useRailSwipe({
+  wrap: wrapEl,
+  scroll: scrollEl,
+  content: scrollContentEl,
+  enabled: computed(() => props.mobile),
+});
 const railPlace = computed(() => {
   if (props.mobile) return { visible: railSwipe.open.value, lane: false };
   void railVersion.value;
@@ -148,11 +206,13 @@ const railPlace = computed(() => {
   return { visible: true, lane: wordsLeft - 24 < 40 };
 });
 
-const workIndicator = computed(() => chatWorkIndicator({
-  running: running.value,
-  phase: chat.snapshot.value?.phase,
-  queue: chat.snapshot.value?.queue,
-}));
+const workIndicator = computed(() =>
+  chatWorkIndicator({
+    running: running.value,
+    phase: chat.snapshot.value?.phase,
+    queue: chat.snapshot.value?.queue,
+  }),
+);
 const streamText = computed(() => streamState.value?.text || '');
 const streamReasoning = computed(() => streamState.value?.reasoning || '');
 const workStatus = computed(() => {
@@ -172,8 +232,12 @@ const { liveBlocks } = useLiveBlocks(streamText);
 
 // Rows that just arrived slide in. A reply's text is excluded: it was already
 // on screen while it streamed, and must not appear a second time.
-const fresh = useFreshRows(groups, computed(() => props.sessionId), () => !chat.loadingInitial.value,
-  row => !(row.type === 'entry' && row.entry.kind === 'assistant_message'));
+const fresh = useFreshRows(
+  groups,
+  computed(() => props.sessionId),
+  () => !chat.loadingInitial.value,
+  (row) => !(row.type === 'entry' && row.entry.kind === 'assistant_message'),
+);
 
 const virtualizer = useVirtualizer(
   computed(() => {
@@ -234,24 +298,17 @@ const {
 });
 
 // Search locate & virtual item expansion
-const { targetSeq, forcedOpen } = useSearchLocate(
-  chat,
-  groups,
-  virtualizer,
-  owns,
-  getEpoch,
-  (toward) => {
-    scrollIntent(toward);
-    measureScroll();
-  },
-);
+const { targetSeq, forcedOpen } = useSearchLocate(chat, groups, virtualizer, owns, getEpoch, (toward) => {
+  scrollIntent(toward);
+  measureScroll();
+});
 // Whether a row is itself the history entry a search result points at; a step or notice found
 // among a reply's buttons is marked on its own (useSearchLocate).
 function holdsTarget(row: ChatRow | undefined): boolean {
   const seq = targetSeq.value;
   if (seq == null || !row) return false;
   if (row.type === 'entry') return row.entry.seq === seq;
-  if (row.type === 'image_album') return row.items.some(item => item.entry.seq === seq);
+  if (row.type === 'image_album') return row.items.some((item) => item.entry.seq === seq);
   if (row.type === 'question') return row.entry.seq === seq || row.result?.seq === seq;
   return false;
 }
@@ -268,13 +325,19 @@ function refreshVirtualMeasurements(reset = false) {
 
 // A cached page can reappear with the same DOM and no new model output. Restore its viewport
 // and discard hidden/previous-session row sizes now, rather than waiting for a new response.
-watch([pageActive, () => props.sessionId], async (_, __, cleanup) => {
-  let cancelled = false;
-  cleanup(() => { cancelled = true; });
-  const gen = epoch;
-  await nextTick();
-  if (!cancelled && owns(gen)) refreshVirtualMeasurements(true);
-}, { immediate: true, flush: 'post' });
+watch(
+  [pageActive, () => props.sessionId],
+  async (_, __, cleanup) => {
+    let cancelled = false;
+    cleanup(() => {
+      cancelled = true;
+    });
+    const gen = epoch;
+    await nextTick();
+    if (!cancelled && owns(gen)) refreshVirtualMeasurements(true);
+  },
+  { immediate: true, flush: 'post' },
+);
 
 // After every layout change (measure, groups, stream) re-derive scroll state
 watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().length], async () => {
@@ -291,28 +354,32 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
 // Each change is re-read a frame later, when the new layout has settled, so the lane follows a
 // resize instead of vanishing on a stale measurement. The rail itself needs none of this to
 // scroll: it lives in the content and rides the native scroll with no JS on the path.
-watch([wrapEl, innerEl], (elements, _, onCleanup) => {
-  const alive = elements.filter(Boolean) as HTMLElement[];
-  if (!alive.length) return;
-  let frame = 0;
-  const measure = () => {
-    if (frame) return;
-    frame = requestAnimationFrame(() => {
-      frame = 0;
-      refreshVirtualMeasurements();
-      railVersion.value++;
-      void ensureHistoryScrollable();
+watch(
+  [wrapEl, innerEl],
+  (elements, _, onCleanup) => {
+    const alive = elements.filter(Boolean) as HTMLElement[];
+    if (!alive.length) return;
+    let frame = 0;
+    const measure = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        refreshVirtualMeasurements();
+        railVersion.value++;
+        void ensureHistoryScrollable();
+      });
+    };
+    const observer = new ResizeObserver(measure);
+    for (const el of alive) observer.observe(el);
+    window.addEventListener('resize', measure);
+    onCleanup(() => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+      if (frame) cancelAnimationFrame(frame);
     });
-  };
-  const observer = new ResizeObserver(measure);
-  for (const el of alive) observer.observe(el);
-  window.addEventListener('resize', measure);
-  onCleanup(() => {
-    observer.disconnect();
-    window.removeEventListener('resize', measure);
-    if (frame) cancelAnimationFrame(frame);
-  });
-}, { immediate: true });
+  },
+  { immediate: true },
+);
 watch(scrollContentEl, (content, _, onCleanup) => {
   if (!content) return;
   let frame = 0;
@@ -337,101 +404,243 @@ watch(scrollContentEl, (content, _, onCleanup) => {
 </script>
 
 <template>
-  <div ref="wrapEl" class="chatlog-wrap"
-    @wheel.passive="onWheel" @touchstart.passive="onTouchStart" @touchmove.passive="onTouchMove"
-    @touchend.passive="onTouchEnd" @touchcancel.passive="onTouchEnd">
-    <div v-if="chat.loadingOlder.value" class="history-loading" role="status" :aria-label="i18n.t('sessions.loading')"><span class="chat-skeleton older-skeleton" aria-hidden="true" /></div>
-    <div ref="scrollEl" class="chatlog" :class="{ 'rail-lane': railPlace.lane }" data-scroll-preserve :data-following="stick" tabindex="0"
-      @keydown="onKeydown" @pointerdown="onPointerDown" :data-scrollbar-held="scrollbarHeld" @scroll.passive="onScroll">
+  <div
+    ref="wrapEl"
+    class="chatlog-wrap"
+    @wheel.passive="onWheel"
+    @touchstart.passive="onTouchStart"
+    @touchmove.passive="onTouchMove"
+    @touchend.passive="onTouchEnd"
+    @touchcancel.passive="onTouchEnd"
+  >
+    <div v-if="chat.loadingOlder.value" class="history-loading" role="status" :aria-label="i18n.t('sessions.loading')">
+      <span class="chat-skeleton older-skeleton" aria-hidden="true" />
+    </div>
+    <div
+      ref="scrollEl"
+      class="chatlog"
+      :class="{ 'rail-lane': railPlace.lane }"
+      data-scroll-preserve
+      :data-following="stick"
+      tabindex="0"
+      @keydown="onKeydown"
+      @pointerdown="onPointerDown"
+      :data-scrollbar-held="scrollbarHeld"
+      @scroll.passive="onScroll"
+    >
       <div ref="scrollContentEl" class="chatlog-content">
-
-      <div v-if="chat.loadingInitial.value && !groups.length" class="history-skeleton" role="status" :aria-label="i18n.t('sessions.loading')" aria-busy="true">
-        <div class="chat-skeleton skeleton-user" aria-hidden="true" />
-        <div class="skeleton-reply" aria-hidden="true"><span v-for="n in 3" :key="n" class="chat-skeleton" /></div>
-      </div>
-      <div v-else-if="!groups.length && !running" class="chat-empty hint">{{ i18n.t('chat.empty') }}</div>
-      <div ref="innerEl" class="chatlog-inner" :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }">
-        <div v-for="v in virtualizer.getVirtualItems()" :key="String(v.key)" class="chat-virtual-row"
-          :ref="measureElement"
-          :data-index="v.index"
-          :class="{ 'status-error-row': groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error', 'history-target': holdsTarget(groups[v.index]), 'row-enter': fresh.has(groups[v.index]?.key ?? '') }"
-          :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }">
-          <HistoryItem v-if="['entry', 'image_album', 'process', 'chips', 'question'].includes(groups[v.index]?.type ?? '')" :item="groups[v.index]!"
-            :forced-keys="forcedOpen" :session="sessionId" :locate-seq="chat.pendingSeq.value ?? undefined" />
-          <div v-else-if="groups[v.index]?.type === 'status_request_error' && requestFailure" class="chat-run-error" role="alert">
-            <strong>{{ i18n.t('chat.requestFailed') }}</strong>
-            <p>{{ requestFailure.message }}</p>
-            <small v-if="requestFailure.family">{{ requestFailure.family }}</small>
-            <button class="btn ghost sm" @click="chat.reload()">{{ i18n.t('chat.reload') }}</button>
-            <button class="btn ghost sm" @click="chat.error.value = null">{{ i18n.t('common.close') }}</button>
-          </div>
-          <div v-else-if="groups[v.index]?.type === 'status_run_error' && runFailure" class="chat-run-error" role="alert">
-            <strong>{{ i18n.t('chat.runFailed') }}</strong>
-            <p>{{ runFailure.message }}</p>
-            <small v-if="runFailure.family">{{ runFailure.family }}</small>
-            <RetryRunButton :session="sessionId" />
+        <div
+          v-if="chat.loadingInitial.value && !groups.length"
+          class="history-skeleton"
+          role="status"
+          :aria-label="i18n.t('sessions.loading')"
+          aria-busy="true"
+        >
+          <div class="chat-skeleton skeleton-user" aria-hidden="true" />
+          <div class="skeleton-reply" aria-hidden="true"><span v-for="n in 3" :key="n" class="chat-skeleton" /></div>
+        </div>
+        <div v-else-if="!groups.length && !running" class="chat-empty hint">{{ i18n.t('chat.empty') }}</div>
+        <div
+          ref="innerEl"
+          class="chatlog-inner"
+          :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }"
+        >
+          <div
+            v-for="v in virtualizer.getVirtualItems()"
+            :key="String(v.key)"
+            class="chat-virtual-row"
+            :ref="measureElement"
+            :data-index="v.index"
+            :class="{
+              'status-error-row':
+                groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error',
+              'history-target': holdsTarget(groups[v.index]),
+              'row-enter': fresh.has(groups[v.index]?.key ?? ''),
+            }"
+            :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }"
+          >
+            <HistoryItem
+              v-if="['entry', 'image_album', 'process', 'chips', 'question'].includes(groups[v.index]?.type ?? '')"
+              :item="groups[v.index]!"
+              :forced-keys="forcedOpen"
+              :session="sessionId"
+              :locate-seq="chat.pendingSeq.value ?? undefined"
+            />
+            <div
+              v-else-if="groups[v.index]?.type === 'status_request_error' && requestFailure"
+              class="chat-run-error"
+              role="alert"
+            >
+              <strong>{{ i18n.t('chat.requestFailed') }}</strong>
+              <p>{{ requestFailure.message }}</p>
+              <small v-if="requestFailure.family">{{ requestFailure.family }}</small>
+              <button class="btn ghost sm" @click="chat.reload()">{{ i18n.t('chat.reload') }}</button>
+              <button class="btn ghost sm" @click="chat.error.value = null">{{ i18n.t('common.close') }}</button>
+            </div>
+            <div
+              v-else-if="groups[v.index]?.type === 'status_run_error' && runFailure"
+              class="chat-run-error"
+              role="alert"
+            >
+              <strong>{{ i18n.t('chat.runFailed') }}</strong>
+              <p>{{ runFailure.message }}</p>
+              <small v-if="runFailure.family">{{ runFailure.family }}</small>
+              <RetryRunButton :session="sessionId" />
+            </div>
           </div>
         </div>
-      </div>
-      <Transition name="live-work">
-      <div v-if="workIndicator === 'run'" :key="sessionId" class="live-row" aria-live="polite">
-        <div v-if="streamText" class="live-text"><Markdown v-for="(b, i) in liveBlocks.stable" :key="i" :text="b" /><Markdown v-if="liveBlocks.tail" :key="'tail'" :text="liveBlocks.tail" /></div>
-        <ThinkingViewport v-else-if="streamReasoning" :key="sessionId" :text="streamReasoning" :tool="streamState?.currentTool" />
-        <div v-if="!retries.length" class="work-status-slot"><Transition name="work-status">
-          <div :key="workStatus" class="live-status" role="status">
-            <Icon class="work-spinner" name="loader-circle" />
-            <span>{{ workStatus }}</span>
-            <span v-if="standbyPreparing" class="standby-status-hint"> · {{ i18n.t('chat.standbyPreparing') }}</span>
+        <Transition name="live-work">
+          <div v-if="workIndicator === 'run'" :key="sessionId" class="live-row" aria-live="polite">
+            <div v-if="streamText" class="live-text">
+              <Markdown v-for="(b, i) in liveBlocks.stable" :key="i" :text="b" /><Markdown
+                v-if="liveBlocks.tail"
+                :key="'tail'"
+                :text="liveBlocks.tail"
+              />
+            </div>
+            <ThinkingViewport
+              v-else-if="streamReasoning"
+              :key="sessionId"
+              :text="streamReasoning"
+              :tool="streamState?.currentTool"
+            />
+            <div v-if="!retries.length" class="work-status-slot">
+              <Transition name="work-status">
+                <div :key="workStatus" class="live-status" role="status">
+                  <Icon class="work-spinner" name="loader-circle" />
+                  <span>{{ workStatus }}</span>
+                  <span v-if="standbyPreparing" class="standby-status-hint">
+                    · {{ i18n.t('chat.standbyPreparing') }}</span
+                  >
+                </div>
+              </Transition>
+            </div>
           </div>
-        </Transition></div>
-      </div>
-      </Transition>
-      <RetryStatus v-if="retries.length" class="live-row" :retries="retries" />
-      <Transition name="live-work">
-      <div v-if="workIndicator === 'compacting'" :key="sessionId" class="live-row" role="status">
-        <div class="work-status-slot"><div class="live-status"><Icon class="work-spinner" name="loader-circle" /><span>{{ i18n.t('chat.compacting') }}</span></div></div>
-      </div>
-      </Transition>
-      <Transition name="live-work">
-      <div v-if="workIndicator === 'stoppedResume'" :key="sessionId" class="live-row" role="status">
-        <div class="work-status-slot"><div class="live-status stop-marker"><Icon name="square" />{{ i18n.t('chat.resumeHint', { n: chat.snapshot.value?.queue ?? 0 }) }}</div></div>
-      </div>
-      </Transition>
-      <!-- Font-instance warmup: instantiates variable font styles once to prevent frame drops -->
-      <div class="font-warmup" aria-hidden="true"><b>永</b><i>永</i><b><i>永</i></b><span class="warm-display">标题</span><code>code</code></div>
-      <!-- The rail lives in the scrolling content itself: it rides the log's native scroll with no
+        </Transition>
+        <RetryStatus v-if="retries.length" class="live-row" :retries="retries" />
+        <Transition name="live-work">
+          <div v-if="workIndicator === 'compacting'" :key="sessionId" class="live-row" role="status">
+            <div class="work-status-slot">
+              <div class="live-status">
+                <Icon class="work-spinner" name="loader-circle" /><span>{{ i18n.t('chat.compacting') }}</span>
+              </div>
+            </div>
+          </div>
+        </Transition>
+        <Transition name="live-work">
+          <div v-if="workIndicator === 'stoppedResume'" :key="sessionId" class="live-row" role="status">
+            <div class="work-status-slot">
+              <div class="live-status stop-marker">
+                <Icon name="square" />{{ i18n.t('chat.resumeHint', { n: chat.snapshot.value?.queue ?? 0 }) }}
+              </div>
+            </div>
+          </div>
+        </Transition>
+        <!-- Font-instance warmup: instantiates variable font styles once to prevent frame drops -->
+        <div class="font-warmup" aria-hidden="true">
+          <b>永</b><i>永</i><b><i>永</i></b
+          ><span class="warm-display">标题</span><code>code</code>
+        </div>
+        <!-- The rail lives in the scrolling content itself: it rides the log's native scroll with no
            JS on the path, so it can never run a frame behind the messages it annotations. -->
-      <ActivityRail :key="sessionId" :rows="railRows" :total="railTotal" :visible="railPlace.visible" :session="sessionId" @open="openActivity" />
+        <ActivityRail
+          :key="sessionId"
+          :rows="railRows"
+          :total="railTotal"
+          :visible="railPlace.visible"
+          :session="sessionId"
+          @open="openActivity"
+        />
       </div>
     </div>
-    <ActivityDialogs :key="sessionId" :chips="activityChips" :request="activityRequest" :session="sessionId"
-      @dismiss="requestId => { if (activityRequest?.requestId === requestId) activityRequest = null; }"
-      :forced-keys="forcedOpen" :locate-seq="chat.pendingSeq.value ?? undefined" />
-    <Hint :text="i18n.t('chat.jumpLatest')" v-if="showJump"><button type="button" class="jump-latest"
-       :aria-label="i18n.t('chat.jumpLatest')" @click="jumpLatest">
-      <Icon name="arrow-down" :size="20" aria-hidden="true" />
-    </button></Hint>
+    <ActivityDialogs
+      :key="sessionId"
+      :chips="activityChips"
+      :request="activityRequest"
+      :session="sessionId"
+      @dismiss="
+        (requestId) => {
+          if (activityRequest?.requestId === requestId) activityRequest = null;
+        }
+      "
+      :forced-keys="forcedOpen"
+      :locate-seq="chat.pendingSeq.value ?? undefined"
+    />
+    <Hint :text="i18n.t('chat.jumpLatest')" v-if="showJump"
+      ><button type="button" class="jump-latest" :aria-label="i18n.t('chat.jumpLatest')" @click="jumpLatest">
+        <Icon name="arrow-down" :size="20" aria-hidden="true" /></button
+    ></Hint>
   </div>
 </template>
 
 <style scoped>
-.font-warmup { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; opacity: 0.01; pointer-events: none; z-index: -1; font: 400 1px/1 var(--prose); }
-.font-warmup .warm-display { font: 600 1px/1 var(--display); }
-.font-warmup code { font: 400 1px/1 var(--mono); }
+.font-warmup {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0.01;
+  pointer-events: none;
+  z-index: -1;
+  font: 400 1px/1 var(--prose);
+}
+.font-warmup .warm-display {
+  font: 600 1px/1 var(--display);
+}
+.font-warmup code {
+  font: 400 1px/1 var(--mono);
+}
 
 /* The live row keeps pre-wrap for the plain-text fallback; rendered
    markdown manages its own whitespace (pre inside code blocks). */
-.live-text :deep(.markdown) { white-space: normal; }
+.live-text :deep(.markdown) {
+  white-space: normal;
+}
 
-.live-status.stop-marker { color: var(--err); }
-.standby-status-hint { opacity: 0.85; }
-.chat-virtual-row { display: flow-root; }
+.live-status.stop-marker {
+  color: var(--err);
+}
+.standby-status-hint {
+  opacity: 0.85;
+}
+.chat-virtual-row {
+  display: flow-root;
+}
 /* A new row rises into place; `translate` leaves the row's positioning transform alone. */
-.chat-virtual-row.row-enter > :deep(*) { animation: row-enter 420ms cubic-bezier(.2, .8, .2, 1) both; }
-@keyframes row-enter { from { opacity: 0; translate: 0 14px; } }
-.status-error-row { padding: 16px 0; }
-.chat-run-error { margin: 0 auto; padding: 12px 16px; max-width: var(--max-content); border: 1px solid var(--err-border); border-radius: var(--radius); background: var(--err-bg); color: var(--err); overflow-wrap: anywhere; }
-.chat-run-error strong { color: var(--err); font-size: 13px; }
-.chat-run-error p { margin: 6px 0; font-size: 13px; }
-.chat-run-error small { color: inherit; font: calc(1em * var(--mono-scale))/1.6 var(--mono); }
+.chat-virtual-row.row-enter > :deep(*) {
+  animation: row-enter 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes row-enter {
+  from {
+    opacity: 0;
+    translate: 0 14px;
+  }
+}
+.status-error-row {
+  padding: 16px 0;
+}
+.chat-run-error {
+  margin: 0 auto;
+  padding: 12px 16px;
+  max-width: var(--max-content);
+  border: 1px solid var(--err-border);
+  border-radius: var(--radius);
+  background: var(--err-bg);
+  color: var(--err);
+  overflow-wrap: anywhere;
+}
+.chat-run-error strong {
+  color: var(--err);
+  font-size: 13px;
+}
+.chat-run-error p {
+  margin: 6px 0;
+  font-size: 13px;
+}
+.chat-run-error small {
+  color: inherit;
+  font: calc(1em * var(--mono-scale))/1.6 var(--mono);
+}
 </style>

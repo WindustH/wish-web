@@ -25,22 +25,34 @@ export function useMobileNavigationMotion() {
       (to.params.id && from.params.id && to.params.id === from.params.id) ||
       !matchMedia(MOBILE_QUERY).matches ||
       prefersReducedMotion()
-    ) return;
+    )
+      return;
     await nextTick();
     if (current !== revision) return;
     if (depth(to) === depth(from)) return;
     // All sessions opens out of the home page's recent rows instead (useRecentsExpansion).
-    if ([to.name, from.name].every(name => name === 'sessions' || name === 'all-sessions')) return;
+    if ([to.name, from.name].every((name) => name === 'sessions' || name === 'all-sessions')) return;
     const distance = depth(to) > depth(from) ? 24 : -24;
-    const nodes = to.meta.section === 'settings'
-      ? document.querySelectorAll<HTMLElement>(to.query.section ? '.settings-detail' : '.settings-sidebar')
-      : document.querySelectorAll<HTMLElement>('.main-col > .route-page');
+    const nodes =
+      to.meta.section === 'settings'
+        ? document.querySelectorAll<HTMLElement>(to.query.section ? '.settings-detail' : '.settings-sidebar')
+        : document.querySelectorAll<HTMLElement>('.main-col > .route-page');
     for (const node of nodes) {
       if (!node.getClientRects().length) continue;
-      const animation = node.animate([{ opacity: .4, transform: `translateX(${distance}px)` }, { opacity: 1, transform: 'translateX(0)' }], { duration: 180, easing: 'cubic-bezier(.2,.8,.2,1)' });
+      const animation = node.animate(
+        [
+          { opacity: 0.4, transform: `translateX(${distance}px)` },
+          { opacity: 1, transform: 'translateX(0)' },
+        ],
+        { duration: 180, easing: 'cubic-bezier(.2,.8,.2,1)' },
+      );
       animations.add(animation);
       animation.onfinish = animation.oncancel = () => animations.delete(animation);
     }
   });
-  onBeforeUnmount(() => { revision++; remove(); for (const animation of animations) animation.cancel(); });
+  onBeforeUnmount(() => {
+    revision++;
+    remove();
+    for (const animation of animations) animation.cancel();
+  });
 }

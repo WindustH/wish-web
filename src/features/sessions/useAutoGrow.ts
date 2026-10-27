@@ -6,7 +6,11 @@ import { cfg } from '../../core/config.ts';
  * number of lines and a share of the window; then it scrolls. With `fixed` true (the start page's
  * larger field on a desktop) it keeps its own height.
  */
-export function useAutoGrow(element: () => HTMLElement | null | undefined, sources: WatchSource[], options: { mobile: () => boolean; fixed: () => boolean }) {
+export function useAutoGrow(
+  element: () => HTMLElement | null | undefined,
+  sources: WatchSource[],
+  options: { mobile: () => boolean; fixed: () => boolean },
+) {
   watch(sources, async () => {
     await nextTick();
     const el = element();

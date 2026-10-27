@@ -11,15 +11,38 @@ function animate(el: Element, closing: boolean, done: () => void) {
   const current = node.getBoundingClientRect().height;
   const interrupted = animations.has(el);
   cancelFold(el);
-  if (prefersReducedMotion()) { done(); return; }
+  if (prefersReducedMotion()) {
+    done();
+    return;
+  }
   const full = node.getBoundingClientRect().height;
   node.style.overflow = 'hidden';
-  const animation = node.animate([
-    { height: `${closing || interrupted ? current : 0}px`, opacity: closing ? 1 : 0, paddingTop: closing ? getComputedStyle(node).paddingTop : '0px', paddingBottom: closing ? getComputedStyle(node).paddingBottom : '0px' },
-    { height: `${closing ? 0 : full}px`, opacity: closing ? 0 : 1, paddingTop: closing ? '0px' : getComputedStyle(node).paddingTop, paddingBottom: closing ? '0px' : getComputedStyle(node).paddingBottom },
-  ], { duration: 240, easing: 'cubic-bezier(.2,.7,.2,1)' });
+  const animation = node.animate(
+    [
+      {
+        height: `${closing || interrupted ? current : 0}px`,
+        opacity: closing ? 1 : 0,
+        paddingTop: closing ? getComputedStyle(node).paddingTop : '0px',
+        paddingBottom: closing ? getComputedStyle(node).paddingBottom : '0px',
+      },
+      {
+        height: `${closing ? 0 : full}px`,
+        opacity: closing ? 0 : 1,
+        paddingTop: closing ? '0px' : getComputedStyle(node).paddingTop,
+        paddingBottom: closing ? '0px' : getComputedStyle(node).paddingBottom,
+      },
+    ],
+    { duration: 240, easing: 'cubic-bezier(.2,.7,.2,1)' },
+  );
   animations.set(el, animation);
-  animation.onfinish = () => { cancelFold(el); done(); };
+  animation.onfinish = () => {
+    cancelFold(el);
+    done();
+  };
 }
-export function unfold(el: Element, done: () => void) { animate(el, false, done); }
-export function fold(el: Element, done: () => void) { animate(el, true, done); }
+export function unfold(el: Element, done: () => void) {
+  animate(el, false, done);
+}
+export function fold(el: Element, done: () => void) {
+  animate(el, true, done);
+}

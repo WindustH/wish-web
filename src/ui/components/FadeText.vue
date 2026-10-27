@@ -7,7 +7,8 @@ const overflow = ref(false);
 let observer: ResizeObserver | undefined;
 onMounted(() => {
   const measure = () => {
-    overflow.value = !!outer.value && !!inner.value && inner.value.getBoundingClientRect().width > outer.value.clientWidth + .5;
+    overflow.value =
+      !!outer.value && !!inner.value && inner.value.getBoundingClientRect().width > outer.value.clientWidth + 0.5;
   };
   observer = new ResizeObserver(measure);
   if (outer.value) observer.observe(outer.value);
@@ -17,10 +18,23 @@ onMounted(() => {
 onBeforeUnmount(() => observer?.disconnect());
 </script>
 <template>
-  <span ref="outer" class="fade-text" :class="{ 'fade-text-overflow': overflow }"><span ref="inner" class="fade-text-content">{{ text }}</span></span>
+  <span ref="outer" class="fade-text" :class="{ 'fade-text-overflow': overflow }"
+    ><span ref="inner" class="fade-text-content">{{ text }}</span></span
+  >
 </template>
 <style scoped>
-.fade-text{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:clip}
-.fade-text-content{display:inline-block;white-space:nowrap}
-.fade-text-overflow{mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent)}
+.fade-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+}
+.fade-text-content {
+  display: inline-block;
+  white-space: nowrap;
+}
+.fade-text-overflow {
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
 </style>

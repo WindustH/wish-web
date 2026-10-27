@@ -9,13 +9,19 @@ import { showError } from '../../ui/errorDialog.ts';
  * new tab, then watches until the server has the credentials. The page can be opened on any
  * machine, so nothing needs pasting back.
  */
-export function useCopilotLogin(provider: () => string, save: (() => Promise<boolean>) | undefined, onComplete: () => void) {
+export function useCopilotLogin(
+  provider: () => string,
+  save: (() => Promise<boolean>) | undefined,
+  onComplete: () => void,
+) {
   const busy = ref(false);
   const url = ref('');
   const code = ref('');
   const message = ref('');
   let poll: ReturnType<typeof setTimeout> | undefined;
-  onBeforeUnmount(() => { if (poll) clearTimeout(poll); });
+  onBeforeUnmount(() => {
+    if (poll) clearTimeout(poll);
+  });
   const failed = (error: unknown) => showError({ title: tr('GitHub 登录失败', 'GitHub sign-in failed'), error });
 
   async function watch() {
@@ -32,9 +38,12 @@ export function useCopilotLogin(provider: () => string, save: (() => Promise<boo
         busy.value = false;
         code.value = '';
         message.value = '';
-        failed(result.error || (result.status === 'expired'
-          ? tr('验证码已过期，请重新登录。', 'The code expired. Sign in again.')
-          : tr('登录未完成，请重试。', 'Sign-in did not complete. Try again.')));
+        failed(
+          result.error ||
+            (result.status === 'expired'
+              ? tr('验证码已过期，请重新登录。', 'The code expired. Sign in again.')
+              : tr('登录未完成，请重试。', 'Sign-in did not complete. Try again.')),
+        );
         return;
       }
       poll = setTimeout(watch, 1500);
@@ -64,7 +73,10 @@ export function useCopilotLogin(provider: () => string, save: (() => Promise<boo
       url.value = result.verification_uri;
       code.value = result.user_code;
       if (opened) opened.location.href = result.verification_uri;
-      message.value = tr('请在打开的 GitHub 页面输入下面的验证码并授权。', 'Enter the code below on the GitHub page and authorize.');
+      message.value = tr(
+        '请在打开的 GitHub 页面输入下面的验证码并授权。',
+        'Enter the code below on the GitHub page and authorize.',
+      );
       poll = setTimeout(watch, 1500);
     } catch (error) {
       opened?.close();

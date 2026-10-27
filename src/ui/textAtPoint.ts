@@ -4,7 +4,8 @@
 export const SELECTABLE_TEXT = '.entry.user .bubble, .entry.assistant .body > .markdown';
 
 /** Whether a box covers the point. */
-export const covers = (box: DOMRect, x: number, y: number) => x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+export const covers = (box: DOMRect, x: number, y: number) =>
+  x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
 
 // A glyph box omits the leading above/below the font. Treat that space as part
 // of its line, without extending horizontally into message padding or blank columns.
@@ -12,8 +13,9 @@ function coversTextLine(box: DOMRect, x: number, y: number, parent: Element): bo
   const style = getComputedStyle(parent);
   const lineHeight = parseFloat(style.lineHeight);
   const leading = Number.isFinite(lineHeight) ? Math.max(0, (lineHeight - box.height) / 2) : 0;
-  return box.width > 0 && x >= box.left && x <= box.right
-    && y >= box.top - leading - 1 && y <= box.bottom + leading + 1;
+  return (
+    box.width > 0 && x >= box.left && x <= box.right && y >= box.top - leading - 1 && y <= box.bottom + leading + 1
+  );
 }
 
 /** Hit only selected text lines, including their leading; never whole element rectangles. */
@@ -26,7 +28,7 @@ export function selectionCovers(range: Range, x: number, y: number): boolean {
     piece.selectNodeContents(node);
     if (node === range.startContainer) piece.setStart(node, range.startOffset);
     if (node === range.endContainer) piece.setEnd(node, range.endOffset);
-    if ([...piece.getClientRects()].some(box => coversTextLine(box, x, y, node.parentElement!))) return true;
+    if ([...piece.getClientRects()].some((box) => coversTextLine(box, x, y, node.parentElement!))) return true;
   }
   return false;
 }
@@ -61,7 +63,8 @@ export function glyphAt(x: number, y: number, root: Element): { node: Text; inde
     if (index < 0 || index >= caret.node.length) continue;
     glyph.setStart(caret.node, index);
     glyph.setEnd(caret.node, index + 1);
-    if ([...glyph.getClientRects()].some(box => coversTextLine(box, x, y, caret.node.parentElement!))) return { node: caret.node, index };
+    if ([...glyph.getClientRects()].some((box) => coversTextLine(box, x, y, caret.node.parentElement!)))
+      return { node: caret.node, index };
   }
   return null;
 }

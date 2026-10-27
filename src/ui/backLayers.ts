@@ -41,7 +41,9 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
       return Promise.resolve();
     }
     let resolve!: () => void;
-    const promise = new Promise<void>(done => { resolve = done; });
+    const promise = new Promise<void>((done) => {
+      resolve = done;
+    });
     const state = { ...browser.history.state };
     delete state[MARK];
     cleanup = { promise, resolve, url: browser.location.href, state };
@@ -51,53 +53,68 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
     // went dead behind a menu that had been opened once. A navigation that starts first takes the
     // entry over (beforeNavigation abandons it) and this pop is cancelled.
     if (handling) browser.history.back();
-    else queuedPop = setTimeout(() => { queuedPop = undefined; if (cleanup) browser.history.back(); }, 0);
+    else
+      queuedPop = setTimeout(() => {
+        queuedPop = undefined;
+        if (cleanup) browser.history.back();
+      }, 0);
     return promise;
   }
-  browser.addEventListener('popstate', event => {
-    if (restoring && event.state?.[MARK] === sentinel?.token) {
-      event.stopImmediatePropagation();
-      const action = restoring;
-      restoring = undefined;
-      handling = true;
-      try { action(); }
-      finally {
-        handling = false;
-        finishRestoration?.();
-        finishRestoration = undefined;
-        restorationFinished = undefined;
+  browser.addEventListener(
+    'popstate',
+    (event) => {
+      if (restoring && event.state?.[MARK] === sentinel?.token) {
+        event.stopImmediatePropagation();
+        const action = restoring;
+        restoring = undefined;
+        handling = true;
+        try {
+          action();
+        } finally {
+          handling = false;
+          finishRestoration?.();
+          finishRestoration = undefined;
+          restorationFinished = undefined;
+        }
+        return;
       }
-      return;
-    }
-    if (!sentinel || event.state?.[MARK] === sentinel.token) {
-      const waiting = cleanup;
+      if (!sentinel || event.state?.[MARK] === sentinel.token) {
+        const waiting = cleanup;
+        cleanup = undefined;
+        waiting?.resolve();
+        return;
+      }
+      event.stopImmediatePropagation();
+      const pending = cleanup;
       cleanup = undefined;
-      waiting?.resolve();
-      return;
-    }
-    event.stopImmediatePropagation();
-    const pending = cleanup;
-    cleanup = undefined;
-    if (pending) {
-      // A parent-route replacement can leave the boundary over an older URL. Removing
-      // it must keep the visible route (including when resizing back to desktop).
-      if (browser.location.href !== pending.url) browser.history.replaceState(pending.state, '', pending.url);
-      sentinel = undefined;
-      pending.resolve();
-      arm();
-      return;
-    }
-    // Reuse the boundary already in forward history. Pushing a replacement after a Back
-    // makes Chromium mark all this document's entries skippable by its native Back UI.
-    // Restore before invoking the handler, so route replacements cannot race the traversal.
-    const top = layers.reduce<Layer | undefined>((top, layer) => !top || layer.priority() >= top.priority() ? layer : top, undefined);
-    restoring = () => {
-      if (top) { if (layers.includes(top)) top.close(); }
-      else if (!layers.length) pageBack?.();
-    };
-    restorationFinished = new Promise<void>(resolve => { finishRestoration = resolve; });
-    browser.history.forward();
-  }, true);
+      if (pending) {
+        // A parent-route replacement can leave the boundary over an older URL. Removing
+        // it must keep the visible route (including when resizing back to desktop).
+        if (browser.location.href !== pending.url) browser.history.replaceState(pending.state, '', pending.url);
+        sentinel = undefined;
+        pending.resolve();
+        arm();
+        return;
+      }
+      // Reuse the boundary already in forward history. Pushing a replacement after a Back
+      // makes Chromium mark all this document's entries skippable by its native Back UI.
+      // Restore before invoking the handler, so route replacements cannot race the traversal.
+      const top = layers.reduce<Layer | undefined>(
+        (top, layer) => (!top || layer.priority() >= top.priority() ? layer : top),
+        undefined,
+      );
+      restoring = () => {
+        if (top) {
+          if (layers.includes(top)) top.close();
+        } else if (!layers.length) pageBack?.();
+      };
+      restorationFinished = new Promise<void>((resolve) => {
+        finishRestoration = resolve;
+      });
+      browser.history.forward();
+    },
+    true,
+  );
 
   return {
     // The page boundary uses the same history entry as local dialogs. It is not a dialog:
@@ -140,7 +157,10 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
       // Do not traverse while the router is navigating. A replacement retains the current
       // boundary token; a push creates a new route entry. afterNavigation distinguishes them
       // so replacements after native Back never push an extra entry without activation.
-      if (queuedPop !== undefined) { clearTimeout(queuedPop); queuedPop = undefined; }
+      if (queuedPop !== undefined) {
+        clearTimeout(queuedPop);
+        queuedPop = undefined;
+      }
       const waiting = cleanup;
       cleanup = undefined;
       waiting?.resolve();
@@ -174,5 +194,7 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
 
 export type BackLayers = ReturnType<typeof createBackLayers>;
 let shared: BackLayers | undefined;
-export const setBackLayers = (value: BackLayers) => { shared = value; };
+export const setBackLayers = (value: BackLayers) => {
+  shared = value;
+};
 export const backLayers = () => shared;

@@ -13,10 +13,19 @@ export interface UpstreamRetry {
 /** Translate server wall time into a local deadline, including snapshots after reconnect. */
 export function readUpstreamRetry(value: any, serverTime = value?.observed_at, now = Date.now()): UpstreamRetry | null {
   if (!value?.request_id || !['waiting', 'attempting'].includes(value.phase)) return null;
-  if (!Number.isInteger(value.retry) || !Number.isInteger(value.max_retries) || value.retry < 1 || value.retry > value.max_retries) return null;
+  if (
+    !Number.isInteger(value.retry) ||
+    !Number.isInteger(value.max_retries) ||
+    value.retry < 1 ||
+    value.retry > value.max_retries
+  )
+    return null;
   return {
-    requestId: String(value.request_id), operation: String(value.operation), phase: value.phase,
-    retry: value.retry, maxRetries: value.max_retries,
+    requestId: String(value.request_id),
+    operation: String(value.operation),
+    phase: value.phase,
+    retry: value.retry,
+    maxRetries: value.max_retries,
     retryAt: now + Math.max(0, (Number(value.retry_at) || 0) - (Number(serverTime) || 0)),
     failure: displayFailure(value.error),
   };

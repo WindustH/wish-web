@@ -15,21 +15,34 @@ export const providerTitlesRead = readonly(read);
 
 function load() {
   // Names from the last launch cover the wait; the fresh list replaces them.
-  if (!Object.keys(known.value).length) void readCached<typeof known.value>('provider-titles').then(cached => { if (cached && !Object.keys(known.value).length) { known.value = cached; read.value = true; } });
+  if (!Object.keys(known.value).length)
+    void readCached<typeof known.value>('provider-titles').then((cached) => {
+      if (cached && !Object.keys(known.value).length) {
+        known.value = cached;
+        read.value = true;
+      }
+    });
   pending ??= providerConfigs()
     .then(({ providers }: { providers: { id: string; display_name?: string | null; preset: string }[] }) => {
-      const titles = Object.fromEntries(providers.map(p => [p.id, { display_name: p.display_name ?? null, preset: p.preset }]));
+      const titles = Object.fromEntries(
+        providers.map((p) => [p.id, { display_name: p.display_name ?? null, preset: p.preset }]),
+      );
       known.value = titles;
       writeCached('provider-titles', titles);
     })
     .catch(() => {})
-    .finally(() => { pending = undefined; read.value = true; });
+    .finally(() => {
+      pending = undefined;
+      read.value = true;
+    });
 }
 
 // Display name, then preset brand, then ID; a name several providers share keeps
 // the ID beside it. Computed over every configured provider, so each place agrees.
 // Before the names are read, nothing.
-const titles = computed(() => providerTitles(Object.entries(known.value).map(([id, provider]) => ({ id, ...provider }))));
+const titles = computed(() =>
+  providerTitles(Object.entries(known.value).map(([id, provider]) => ({ id, ...provider }))),
+);
 
 export function useProviderTitles() {
   load();

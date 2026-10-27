@@ -9,7 +9,10 @@ import { chat } from '../../core/state/chatSlice.ts';
 export function useSessionRequests() {
   let generation = 0;
   let alive = true;
-  onUnmounted(() => { alive = false; generation++; });
+  onUnmounted(() => {
+    alive = false;
+    generation++;
+  });
   const owns = (sid: string | null | undefined) => alive && !!sid && chat.sessionId.value === sid;
   return {
     owns,
@@ -19,6 +22,8 @@ export function useSessionRequests() {
       return () => mine === generation && owns(sid);
     },
     /** Drops every answer still on its way. */
-    invalidate() { generation++; },
+    invalidate() {
+      generation++;
+    },
   };
 }

@@ -7,19 +7,19 @@ import { fileCardsHeight } from './fileChanges.ts';
 import type { GroupBlock, GroupItem } from './grouping.ts';
 import { albumHeight, imageParts, type ImageAlbumItem } from './imageAlbums.ts';
 
-const LINE = 28.05;        // message text: 17px at line-height 1.65
-const PARAGRAPH = 18;       // what each further source line adds in rendered Markdown (margins, lists, headings)
-const WIDE = 17;            // a CJK or full-width character at message size
-const NARROW = 9.1;         // the average of everything else
-const WRAP = 1.06;          // room lost to breaking at word boundaries
+const LINE = 28.05; // message text: 17px at line-height 1.65
+const PARAGRAPH = 18; // what each further source line adds in rendered Markdown (margins, lists, headings)
+const WIDE = 17; // a CJK or full-width character at message size
+const NARROW = 9.1; // the average of everything else
+const WRAP = 1.06; // room lost to breaking at word boundaries
 const MAX_LINES = 400;
-
 
 const wide = /[　-鿿가-힯＀-￯]/g;
 
 /** Wrapped lines and source lines of some text set `width` pixels wide. */
 function textLines(text: string, width: number): { wrapped: number; source: number } {
-  let wrapped = 0, source = 0;
+  let wrapped = 0,
+    source = 0;
   for (const line of text.split('\n')) {
     if (!line.trim()) continue;
     const wideCount = line.match(wide)?.length ?? 0;
@@ -30,9 +30,24 @@ function textLines(text: string, width: number): { wrapped: number; source: numb
   return { wrapped: Math.min(wrapped, MAX_LINES * 4), source };
 }
 
-const textOf = (blocks: readonly GroupBlock[]) => blocks.filter(block => block.type === 'text').map(block => block.text ?? '').join('\n');
-const mediaHeight = (blocks: readonly GroupBlock[], width: number) => imageParts(blocks).reduce((height, part) => height + (part.type === 'album'
-  ? albumHeight(part.blocks.length, width) : part.block.type === 'image' ? 220 : part.block.type === 'file' ? 44 : 0), 0);
+const textOf = (blocks: readonly GroupBlock[]) =>
+  blocks
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text ?? '')
+    .join('\n');
+const mediaHeight = (blocks: readonly GroupBlock[], width: number) =>
+  imageParts(blocks).reduce(
+    (height, part) =>
+      height +
+      (part.type === 'album'
+        ? albumHeight(part.blocks.length, width)
+        : part.block.type === 'image'
+          ? 220
+          : part.block.type === 'file'
+            ? 44
+            : 0),
+    0,
+  );
 
 /** `width` is the conversation column's; below 600px the phone layout's sizes apply. */
 export function estimateRow(row: GroupItem | ImageAlbumItem | { type: string }, width: number): number {
@@ -47,10 +62,16 @@ function estimateContent(row: GroupItem | ImageAlbumItem | { type: string }, wid
   if (row.type === 'image_album') {
     const album = row as ImageAlbumItem;
     const user = album.items[0]?.entry.kind === 'user_message';
-    return (user ? 24 : 20) + albumHeight(album.items.reduce((n, item) => n + item.blocks.length, 0), user && !compact ? width * 0.92 : width);
+    return (
+      (user ? 24 : 20) +
+      albumHeight(
+        album.items.reduce((n, item) => n + item.blocks.length, 0),
+        user && !compact ? width * 0.92 : width,
+      )
+    );
   }
   if (row.type === 'question') {
-    const questions = ((row as { arguments?: { questions?: unknown[] } }).arguments?.questions?.length) ?? 1;
+    const questions = (row as { arguments?: { questions?: unknown[] } }).arguments?.questions?.length ?? 1;
     return 110 + 80 * questions;
   }
   if (row.type !== 'entry') return 110;

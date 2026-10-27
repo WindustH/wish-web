@@ -10,12 +10,18 @@ export const bus = {
     listeners.get(topic)!.add(fn);
     return () => bus.off(topic, fn);
   },
-  off(topic: string, fn: Listener) { listeners.get(topic)?.delete(fn); },
+  off(topic: string, fn: Listener) {
+    listeners.get(topic)?.delete(fn);
+  },
   emit(topic: string, payload?: unknown) {
     const set = listeners.get(topic);
     if (!set) return;
     for (const fn of [...set]) {
-      try { fn(payload); } catch (err) { console.error(`[bus] ${topic}`, err); }
+      try {
+        fn(payload);
+      } catch (err) {
+        console.error(`[bus] ${topic}`, err);
+      }
     }
   },
 };

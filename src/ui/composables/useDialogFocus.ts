@@ -6,10 +6,20 @@ let trackingInput = false;
 function trackInputModality() {
   if (trackingInput || typeof document === 'undefined') return;
   trackingInput = true;
-  document.addEventListener('pointerdown', () => { lastInputWasKeyboard = false; }, true);
-  document.addEventListener('keydown', event => {
-    if (!event.metaKey && !event.ctrlKey && !event.altKey) lastInputWasKeyboard = true;
-  }, true);
+  document.addEventListener(
+    'pointerdown',
+    () => {
+      lastInputWasKeyboard = false;
+    },
+    true,
+  );
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (!event.metaKey && !event.ctrlKey && !event.altKey) lastInputWasKeyboard = true;
+    },
+    true,
+  );
 }
 export function useDialogFocus() {
   trackInputModality();
@@ -24,7 +34,10 @@ export function useDialogFocus() {
       content.focus({ preventScroll: true });
       return;
     }
-    if (initial) { event.preventDefault(); initial.focus({ preventScroll: true }); }
+    if (initial) {
+      event.preventDefault();
+      initial.focus({ preventScroll: true });
+    }
   }
   function closed(event: Event) {
     const active = document.activeElement;

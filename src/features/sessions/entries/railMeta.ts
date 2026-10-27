@@ -4,7 +4,16 @@
 // drawing, so the rail and the notice itself can never disagree.
 import { i18n } from '../../../core/i18n/index.ts';
 import { firstLine } from '../../../core/util/fmt.ts';
-import { searchResults, stepFailed, stepSeq, stepToolName, summarizeSteps, toolIcon, toolTitle, toolOutput } from './processDetails.ts';
+import {
+  searchResults,
+  stepFailed,
+  stepSeq,
+  stepToolName,
+  summarizeSteps,
+  toolIcon,
+  toolTitle,
+  toolOutput,
+} from './processDetails.ts';
 
 // Transcript notices come in two severities plus the neutral system face: red = a turn failed
 // outright (wish_run_failed), amber = the backend is handling a problem by itself.
@@ -27,20 +36,32 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 export const noticeTone = (entry: any): 'error' | 'warn' | 'system' =>
-  entry.payload?.source === 'wish_run_failed' ? 'error' : WARN_SOURCES.has(entry.payload?.source ?? '') ? 'warn' : 'system';
+  entry.payload?.source === 'wish_run_failed'
+    ? 'error'
+    : WARN_SOURCES.has(entry.payload?.source ?? '')
+      ? 'warn'
+      : 'system';
 
 /** Whether a background command's notice tells of its death: killed, errored, or exited otherwise than 0. */
 export function noticeFailed(entry: any): boolean {
   const output = entry.payload?.result?.output;
-  return entry.payload?.result?.status === 'failed' || entry.payload?.result?.status === 'unknown' || entry.payload?.result?.status === 'cancelled' || output?.process?.status === 'killed' || !!output?.error || !!output?.process?.error
-    || (output?.process?.exit_code != null && output.process.exit_code !== 0);
+  return (
+    entry.payload?.result?.status === 'failed' ||
+    entry.payload?.result?.status === 'unknown' ||
+    entry.payload?.result?.status === 'cancelled' ||
+    output?.process?.status === 'killed' ||
+    !!output?.error ||
+    !!output?.process?.error ||
+    (output?.process?.exit_code != null && output.process.exit_code !== 0)
+  );
 }
 
 /** What a notice is called, in the words its own window is titled with. */
 export function noticeLabel(entry: any): string {
   if (entry.payload?.instruction_title) return entry.payload.instruction_title;
   if (entry.payload?.background) {
-    if (entry.payload.tool_name && entry.payload.tool_name !== 'shell') return `${toolTitle(entry.payload.tool_name)} · ${i18n.locale.value === 'zh' ? '后台结果' : 'Background result'}`;
+    if (entry.payload.tool_name && entry.payload.tool_name !== 'shell')
+      return `${toolTitle(entry.payload.tool_name)} · ${i18n.locale.value === 'zh' ? '后台结果' : 'Background result'}`;
     const output = entry.payload.result?.output;
     const zh = i18n.locale.value === 'zh';
     if (output?.process?.status === 'killed') return zh ? '后台 Shell 已终止' : 'Background shell terminated';
@@ -48,23 +69,38 @@ export function noticeLabel(entry: any): string {
     return zh ? '后台 Shell 已完成' : 'Background shell completed';
   }
   if (entry.kind === 'developer_message') return i18n.locale.value === 'zh' ? '开发者指令' : 'Developer instructions';
-  return i18n.t(entry.kind === 'background_terminal' ? 'entry.backgroundTerminal' : SOURCE_LABELS[entry.payload?.source ?? ''] ?? 'entry.system');
+  return i18n.t(
+    entry.kind === 'background_terminal'
+      ? 'entry.backgroundTerminal'
+      : (SOURCE_LABELS[entry.payload?.source ?? ''] ?? 'entry.system'),
+  );
 }
 
 export const noticeIconName = (entry: any): string => {
-  if (entry.payload?.instruction_title || entry.kind === 'developer_message' && !entry.payload?.background) return 'instruction';
+  if (entry.payload?.instruction_title || (entry.kind === 'developer_message' && !entry.payload?.background))
+    return 'instruction';
   if (entry.payload?.background) return toolIcon(entry.payload.tool_name ?? 'shell');
   const tone = noticeTone(entry);
   return tone === 'system' ? 'circle-dot' : tone === 'error' ? 'x' : 'triangle-alert';
 };
 
-export interface ChipFace { icon: string; count: number; failed: boolean; warn: boolean; seq: number | undefined; tip: string }
+export interface ChipFace {
+  icon: string;
+  count: number;
+  failed: boolean;
+  warn: boolean;
+  seq: number | undefined;
+  tip: string;
+}
 
 /** Where a call's result is for the merge below: in the run, or in a later one the session kept. */
 export function resultLookup(chip: any, sessionResults?: Map<string, any> | null) {
-  const steps: any[] = chip?.type === 'process' ? chip.steps ?? [] : [];
-  const results = new Map(steps.filter(step => step.kind === 'entry' && step.entry.payload?.tool_call_id)
-    .map(step => [step.entry.payload.tool_call_id, step]));
+  const steps: any[] = chip?.type === 'process' ? (chip.steps ?? []) : [];
+  const results = new Map(
+    steps
+      .filter((step) => step.kind === 'entry' && step.entry.payload?.tool_call_id)
+      .map((step) => [step.entry.payload.tool_call_id, step]),
+  );
   return (callId: string) => results.get(callId) ?? sessionResults?.get(callId) ?? null;
 }
 
@@ -74,36 +110,82 @@ export function resultLookup(chip: any, sessionResults?: Map<string, any> | null
 export function chipFace(chip: any, resultOf: (callId: string) => any): ChipFace {
   if (chip.type !== 'process') {
     const entry = chip.entry ?? {};
-    return { icon: noticeIconName(entry), count: 1, failed: noticeFailed(entry) || noticeTone(entry) === 'error',
-      warn: noticeTone(entry) === 'warn', seq: entry.seq, tip: noticeLabel(entry) };
+    return {
+      icon: noticeIconName(entry),
+      count: 1,
+      failed: noticeFailed(entry) || noticeTone(entry) === 'error',
+      warn: noticeTone(entry) === 'warn',
+      seq: entry.seq,
+      tip: noticeLabel(entry),
+    };
   }
   const steps: any[] = chip.steps ?? [];
-  const called = new Set(steps.filter(step => step.block?.type === 'tool_call').map(step => step.block.id));
-  const events = steps.filter(step => !(step.kind === 'entry' && called.has(step.entry?.payload?.tool_call_id)));
-  const failed = events.some(step => step.kind === 'entry' ? stepFailed(step)
-    : step.block?.type === 'tool_call' ? (() => { const result = resultOf(step.block.id); return !!result && stepFailed(result); })()
-    : false);
+  const called = new Set(steps.filter((step) => step.block?.type === 'tool_call').map((step) => step.block.id));
+  const events = steps.filter((step) => !(step.kind === 'entry' && called.has(step.entry?.payload?.tool_call_id)));
+  const failed = events.some((step) =>
+    step.kind === 'entry'
+      ? stepFailed(step)
+      : step.block?.type === 'tool_call'
+        ? (() => {
+            const result = resultOf(step.block.id);
+            return !!result && stepFailed(result);
+          })()
+        : false,
+  );
   const first = events[0];
-  const icon = first && (first.kind === 'entry' || first.block?.type === 'tool_call')
-    ? toolIcon(stepToolName(first)) : 'thinking';
-  return { icon, count: events.length, failed, warn: false, seq: first ? (first.kind === 'entry' ? first.entry.seq : first.fromSeq) : undefined,
-    tip: summarizeSteps(steps, i18n.locale.value === 'zh') };
+  const icon =
+    first && (first.kind === 'entry' || first.block?.type === 'tool_call') ? toolIcon(stepToolName(first)) : 'thinking';
+  return {
+    icon,
+    count: events.length,
+    failed,
+    warn: false,
+    seq: first ? (first.kind === 'entry' ? first.entry.seq : first.fromSeq) : undefined,
+    tip: summarizeSteps(steps, i18n.locale.value === 'zh'),
+  };
 }
 
-export interface ChipEvent { key: string; step: any; icon: string; title: string; preview: string; failed: boolean; seq: number | undefined }
+export interface ChipEvent {
+  key: string;
+  step: any;
+  icon: string;
+  title: string;
+  preview: string;
+  failed: boolean;
+  seq: number | undefined;
+}
 
 // The one grey line a step says of itself in a list: its command or query, or what came back.
 // The reasoning's own words never reach a node's tip; in a window they may, as they always have.
 function stepPreview(step: any, zh: boolean): string {
   if (step.kind === 'entry') {
     const found = searchResults(step);
-    if (found) return zh ? `${found.results.length} 条结果 · ${found.provider_name}` : `${found.results.length} results · ${found.provider_name}`;
+    if (found)
+      return zh
+        ? `${found.results.length} 条结果 · ${found.provider_name}`
+        : `${found.results.length} results · ${found.provider_name}`;
     const value = toolOutput(step);
-    return firstLine(value?.path || value?.text || value?.message || (step.entry.payload?.content ?? []).map((block: any) => block.text ?? '').join('\n'), 120);
+    return firstLine(
+      value?.path ||
+        value?.text ||
+        value?.message ||
+        (step.entry.payload?.content ?? []).map((block: any) => block.text ?? '').join('\n'),
+      120,
+    );
   }
   if (step.block?.type === 'tool_call') {
     const args = step.block.arguments ?? {};
-    return firstLine((args.action ? [args.action, args.target || args.input?.name].filter(Boolean).join(' · ') : '') || args.command || args.query || args.text || args.execution_id || args.path || args.operation || '', 120);
+    return firstLine(
+      (args.action ? [args.action, args.target || args.input?.name].filter(Boolean).join(' · ') : '') ||
+        args.command ||
+        args.query ||
+        args.text ||
+        args.execution_id ||
+        args.path ||
+        args.operation ||
+        '',
+      120,
+    );
   }
   return firstLine(step.block?.text || '', 160);
 }
@@ -113,25 +195,55 @@ function stepPreview(step: any, zh: boolean): string {
 export function chipEvents(chip: any, resultOf: (callId: string) => any): ChipEvent[] {
   if (chip.type !== 'process') return [];
   const steps: any[] = chip.steps ?? [];
-  const called = new Set(steps.filter(step => step.block?.type === 'tool_call').map(step => step.block.id));
-  return steps.flatMap(step => {
+  const called = new Set(steps.filter((step) => step.block?.type === 'tool_call').map((step) => step.block.id));
+  return steps.flatMap((step) => {
     if (step.kind === 'entry') {
       if (called.has(step.entry.payload?.tool_call_id)) return [];
-      return [{ key: step.key, step, icon: toolIcon(stepToolName(step)), title: `${toolTitle(stepToolName(step))} · ${i18n.t('entry.toolResult')}`,
-        preview: stepPreview(step, i18n.locale.value === 'zh'), failed: stepFailed(step), seq: stepSeq(step) }];
+      return [
+        {
+          key: step.key,
+          step,
+          icon: toolIcon(stepToolName(step)),
+          title: `${toolTitle(stepToolName(step))} · ${i18n.t('entry.toolResult')}`,
+          preview: stepPreview(step, i18n.locale.value === 'zh'),
+          failed: stepFailed(step),
+          seq: stepSeq(step),
+        },
+      ];
     }
     if (step.block?.type === 'tool_call') {
       const result = resultOf(step.block.id);
-      return [{ key: step.key, step, icon: toolIcon(stepToolName(step)), title: toolTitle(stepToolName(step)) || '—',
-        preview: stepPreview(step, i18n.locale.value === 'zh'), failed: !!result && stepFailed(result), seq: stepSeq(step) }];
+      return [
+        {
+          key: step.key,
+          step,
+          icon: toolIcon(stepToolName(step)),
+          title: toolTitle(stepToolName(step)) || '—',
+          preview: stepPreview(step, i18n.locale.value === 'zh'),
+          failed: !!result && stepFailed(result),
+          seq: stepSeq(step),
+        },
+      ];
     }
-    return [{ key: step.key, step, icon: 'thinking', title: i18n.t('entry.thinking'),
-      preview: stepPreview(step, i18n.locale.value === 'zh'), failed: false, seq: stepSeq(step) }];
+    return [
+      {
+        key: step.key,
+        step,
+        icon: 'thinking',
+        title: i18n.t('entry.thinking'),
+        preview: stepPreview(step, i18n.locale.value === 'zh'),
+        failed: false,
+        seq: stepSeq(step),
+      },
+    ];
   });
 }
 
 /** What a notice says, as one line - the grey line under its title in a window's list. */
 export function noticeText(entry: any): string {
-  return (entry.payload?.content ?? []).map((block: { text?: string }) => block.text ?? '').join('\n')
-    || entry.payload?.text || '';
+  return (
+    (entry.payload?.content ?? []).map((block: { text?: string }) => block.text ?? '').join('\n') ||
+    entry.payload?.text ||
+    ''
+  );
 }

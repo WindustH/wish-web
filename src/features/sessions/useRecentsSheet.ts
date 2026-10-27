@@ -14,12 +14,12 @@ import { clearRecentsTransition, paintRecentsTransition } from './recentsTransit
 // hold of it where it is. A pull down on the recent rows only stretches them. Taps, links and the
 // back button move it along the same path. Motion stops at the end it heads for, never past it.
 // A touch that only takes hold, without moving, is still a tap: the sheet settles and the tap acts.
-const FLING = 350;        // px/s of release that decides the way on its own
-const SLOP = 6;           // px a finger moves before it drags rather than taps
-const MAX_STRETCH = 96;   // px the recent rows stretch at most
-const SPRING = { type: 'spring', bounce: 0, visualDuration: .24 } as const;
+const FLING = 350; // px/s of release that decides the way on its own
+const SLOP = 6; // px a finger moves before it drags rather than taps
+const MAX_STRETCH = 96; // px the recent rows stretch at most
+const SPRING = { type: 'spring', bounce: 0, visualDuration: 0.24 } as const;
 
-const restOf = (name: unknown) => name === 'all-sessions' ? 1 : name === 'sessions' ? 0 : undefined;
+const restOf = (name: unknown) => (name === 'all-sessions' ? 1 : name === 'sessions' ? 0 : undefined);
 
 /** Back to the home page: back through history when that is where the list was opened from. */
 export function goHome(router: Router) {
@@ -46,9 +46,17 @@ function settleAt(value: MotionValue<number>, to: number, done: () => void): { s
     done();
   };
   const from = value.get();
-  const unwatch = value.on('change', current => { if ((current - to) * (from - to) <= 0) finish(); });
+  const unwatch = value.on('change', (current) => {
+    if ((current - to) * (from - to) <= 0) finish();
+  });
   controls = animate(value, to, { ...SPRING, velocity: value.getVelocity(), onComplete: finish });
-  return { stop: () => { finished = true; unwatch(); controls?.stop(); } };
+  return {
+    stop: () => {
+      finished = true;
+      unwatch();
+      controls?.stop();
+    },
+  };
 }
 
 export function useRecentsSheet(split: Ref<HTMLElement | null>) {
@@ -57,12 +65,12 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   const phone = useIsMobile();
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
-  const progress = motionValue(restOf(route.name) ?? 0);  // 0 closed, 1 open
+  const progress = motionValue(restOf(route.name) ?? 0); // 0 closed, 1 open
   const stretch = motionValue(0);
   let settling: { stop: () => void } | undefined;
   let target: 0 | 1 = progress.get() ? 1 : 0;
-  let shift = 120;     // px of finger travel between closed and open
-  let quietUntil = 0;  // a click before this time (performance.now) ends a drag, not opens anything
+  let shift = 120; // px of finger travel between closed and open
+  let quietUntil = 0; // a click before this time (performance.now) ends a drag, not opens anything
   let stretching: { stop: () => void } | undefined;
   type Drag = { kind: 'open' | 'close' | 'hold'; mode?: 'sheet' | 'stretch'; x: number; y: number; from: number };
   let drag: Drag | undefined;
@@ -74,20 +82,21 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
 
   // Gesture distance depends on the viewport, never on which rows a folder happens to show.
   function measure() {
-    shift = Math.max(120, Math.min(320, (split.value?.clientHeight ?? 0) * .35));
+    shift = Math.max(120, Math.min(320, (split.value?.clientHeight ?? 0) * 0.35));
   }
 
   // The two whole views crossfade; the full list also makes a small upward move.
   function paint() {
     if (!phone.value || restOf(route.name) === undefined) return;
-    const pane = sheet(), page = home();
+    const pane = sheet(),
+      page = home();
     if (!pane || !page) return;
     paintRecentsTransition(pane, page, progress.get(), moving());
   }
   progress.on('change', paint);
-  stretch.on('change', offset => {
+  stretch.on('change', (offset) => {
     const node = recents();
-    if (node) node.style.translate = offset > .1 ? `0 ${offset}px` : '';
+    if (node) node.style.translate = offset > 0.1 ? `0 ${offset}px` : '';
   });
 
   function clear() {
@@ -112,7 +121,12 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   function settle(to: 0 | 1) {
     target = to;
     settling?.stop();
-    if (reduced.matches || progress.get() === to) { settling = undefined; progress.jump(to); arrive(); return; }
+    if (reduced.matches || progress.get() === to) {
+      settling = undefined;
+      progress.jump(to);
+      arrive();
+      return;
+    }
     settling = settleAt(progress, to, arrive);
     paint();
   }
@@ -134,7 +148,10 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
     }
     if (!kind) return;
     // Taking hold stops it where it is.
-    if (kind === 'hold') { settling?.stop(); settling = undefined; }
+    if (kind === 'hold') {
+      settling?.stop();
+      settling = undefined;
+    }
     stretching?.stop();
     stretching = undefined;
     drag = { kind, x: touch.clientX, y: touch.clientY, from: 0 };
@@ -142,23 +159,35 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
 
   function onTouchMove(event: TouchEvent) {
     // Inner regions get the movement first and may consume their own gesture.
-    if (event.defaultPrevented) { drag = undefined; return; }
+    if (event.defaultPrevented) {
+      drag = undefined;
+      return;
+    }
     const touch = event.touches[0];
     if (!drag || !touch) return;
     if (!drag.mode) {
-      const dx = touch.clientX - drag.x, dy = touch.clientY - drag.y;
+      const dx = touch.clientX - drag.x,
+        dy = touch.clientY - drag.y;
       // A finger that only trembles is still tapping: its click stays its own.
       if (Math.hypot(dx, dy) < SLOP) return;
       if (drag.kind === 'hold') drag.mode = 'sheet';
-      else if (Math.abs(dx) > Math.abs(dy)) { drag = undefined; return; }
-      else if (drag.kind === 'close') {
-        if (dy < 0) { drag = undefined; return; }  // scrolling the list
+      else if (Math.abs(dx) > Math.abs(dy)) {
+        drag = undefined;
+        return;
+      } else if (drag.kind === 'close') {
+        if (dy < 0) {
+          drag = undefined;
+          return;
+        } // scrolling the list
         measure();
         drag.mode = 'sheet';
       } else {
         // On the home page: up opens, down stretches, unless the page itself scrolls that way first.
         const page = home()?.querySelector<HTMLElement>('.start-chat');
-        if (page && (dy < 0 ? page.scrollTop + page.clientHeight < page.scrollHeight - 1 : page.scrollTop > 0)) { drag = undefined; return; }
+        if (page && (dy < 0 ? page.scrollTop + page.clientHeight < page.scrollHeight - 1 : page.scrollTop > 0)) {
+          drag = undefined;
+          return;
+        }
         if (dy < 0) {
           const list = sheet()?.querySelector<HTMLElement>('.sl-scroll');
           if (list) list.scrollTop = 0;
@@ -184,19 +213,21 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
     if (ended.mode) quietUntil = performance.now() + 400;
     if (ended.mode === 'stretch') {
       noteTouchAction('recents stretch', () => stretch.get() === 0);
-      stretching = settleAt(stretch, 0, () => { stretching = undefined; });
+      stretching = settleAt(stretch, 0, () => {
+        stretching = undefined;
+      });
       return;
     }
     if (ended.mode !== 'sheet' && ended.kind !== 'hold') return;
     const value = progress.get();
-    const speed = -progress.getVelocity() * shift;  // px/s, down
+    const speed = -progress.getVelocity() * shift; // px/s, down
     let to: 0 | 1;
-    if (event.type === 'touchcancel') to = value >= .5 ? 1 : 0;
+    if (event.type === 'touchcancel') to = value >= 0.5 ? 1 : 0;
     else if (Math.abs(speed) > FLING) to = speed < 0 ? 1 : 0;
     // A third of the way either way commits.
     else if (ended.kind === 'open') to = value > 1 / 3 ? 1 : 0;
     else if (ended.kind === 'close') to = value < 2 / 3 ? 0 : 1;
-    else to = value >= .5 ? 1 : 0;
+    else to = value >= 0.5 ? 1 : 0;
     noteTouchAction('recents sheet', () => !moving() && progress.get() === to && restOf(route.name) === to);
     settle(to);
   }
@@ -209,38 +240,64 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
     noteSwallowedClick('recents sheet: the touch dragged it');
   }
 
-  watch(split, (element, _, cleanup) => {
-    if (!element) return;
-    element.addEventListener('touchstart', onTouchStart, { passive: true });
-    element.addEventListener('touchmove', onTouchMove, { passive: false });
-    element.addEventListener('touchend', onTouchEnd);
-    element.addEventListener('touchcancel', onTouchEnd);
-    element.addEventListener('click', onClick, true);
-    cleanup(() => {
-      element.removeEventListener('touchstart', onTouchStart);
-      element.removeEventListener('touchmove', onTouchMove);
-      element.removeEventListener('touchend', onTouchEnd);
-      element.removeEventListener('touchcancel', onTouchEnd);
-      element.removeEventListener('click', onClick, true);
-    });
-  }, { immediate: true });
+  watch(
+    split,
+    (element, _, cleanup) => {
+      if (!element) return;
+      element.addEventListener('touchstart', onTouchStart, { passive: true });
+      element.addEventListener('touchmove', onTouchMove, { passive: false });
+      element.addEventListener('touchend', onTouchEnd);
+      element.addEventListener('touchcancel', onTouchEnd);
+      element.addEventListener('click', onClick, true);
+      cleanup(() => {
+        element.removeEventListener('touchstart', onTouchStart);
+        element.removeEventListener('touchmove', onTouchMove);
+        element.removeEventListener('touchend', onTouchEnd);
+        element.removeEventListener('touchcancel', onTouchEnd);
+        element.removeEventListener('click', onClick, true);
+      });
+    },
+    { immediate: true },
+  );
 
   // Routes move the sheet too: along its path between the two, straight to its place otherwise.
-  watch([() => route.name, phone, split], ([name, mobile], [previous]) => {
-    const rest = restOf(name);
-    if (!mobile || rest === undefined) { clear(); progress.jump(rest ?? 0); target = rest ?? 0; return; }
-    if (drag?.mode === 'sheet' || (settling && target === rest)) return;
-    if (!settling && progress.get() === rest) { paint(); return; }
-    if (restOf(previous) === undefined || !sheet()) { settling?.stop(); settling = undefined; progress.jump(rest); paint(); return; }
-    if (!moving()) {
-      if (!progress.get()) {
-        const list = sheet()?.querySelector<HTMLElement>('.sl-scroll');
-        if (list) list.scrollTop = 0;
+  watch(
+    [() => route.name, phone, split],
+    ([name, mobile], [previous]) => {
+      const rest = restOf(name);
+      if (!mobile || rest === undefined) {
+        clear();
+        progress.jump(rest ?? 0);
+        target = rest ?? 0;
+        return;
       }
-      measure();
-    }
-    settle(rest);
-  }, { immediate: true, flush: 'post' });
+      if (drag?.mode === 'sheet' || (settling && target === rest)) return;
+      if (!settling && progress.get() === rest) {
+        paint();
+        return;
+      }
+      if (restOf(previous) === undefined || !sheet()) {
+        settling?.stop();
+        settling = undefined;
+        progress.jump(rest);
+        paint();
+        return;
+      }
+      if (!moving()) {
+        if (!progress.get()) {
+          const list = sheet()?.querySelector<HTMLElement>('.sl-scroll');
+          if (list) list.scrollTop = 0;
+        }
+        measure();
+      }
+      settle(rest);
+    },
+    { immediate: true, flush: 'post' },
+  );
 
-  onBeforeUnmount(() => { clear(); progress.destroy(); stretch.destroy(); });
+  onBeforeUnmount(() => {
+    clear();
+    progress.destroy();
+    stretch.destroy();
+  });
 }

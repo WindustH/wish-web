@@ -14,7 +14,12 @@ declare module 'vue-router' {
 // Window-targeted popstate listeners run in registration order on Android Chrome.
 // Install local navigation ownership BEFORE createWebHashHistory registers the router listener.
 // canArm is evaluated only after router initialization, when a page or dialog adds a boundary.
-const windows = createBackLayers(window, () => new URL(router.options.history.createHref(router.currentRoute.value.fullPath), window.location.href).href === window.location.href);
+const windows = createBackLayers(
+  window,
+  () =>
+    new URL(router.options.history.createHref(router.currentRoute.value.fullPath), window.location.href).href ===
+    window.location.href,
+);
 setBackLayers(windows);
 
 export const router = createRouter({
@@ -43,16 +48,35 @@ export const router = createRouter({
           children: [
             { path: '', name: 'chat', component: { render: () => null } },
             { path: 'info', name: 'chat-info', component: () => import('./features/sessions/InfoPane.vue') },
-            { path: 'search', name: 'chat-search', component: () => import('./features/sessions/InfoPane.vue'), props: { initialSection: 'search' } },
-            { path: 'settings', name: 'chat-settings', component: () => import('./features/sessions/SessionSettingsPane.vue') },
+            {
+              path: 'search',
+              name: 'chat-search',
+              component: () => import('./features/sessions/InfoPane.vue'),
+              props: { initialSection: 'search' },
+            },
+            {
+              path: 'settings',
+              name: 'chat-settings',
+              component: () => import('./features/sessions/SessionSettingsPane.vue'),
+            },
           ],
         },
       ],
     },
-    { path: '/stats', name: 'stats', meta: { section: 'stats' }, component: () => import('./features/stats/StatsView.vue') },
+    {
+      path: '/stats',
+      name: 'stats',
+      meta: { section: 'stats' },
+      component: () => import('./features/stats/StatsView.vue'),
+    },
     { path: '/data', name: 'data', meta: { section: 'data' }, component: () => import('./features/data/DataView.vue') },
     // Root-owned settings screen (config editor round).
-    { path: '/settings', name: 'settings', meta: { section: 'settings' }, component: () => import('./features/settings/SettingsView.vue') },
+    {
+      path: '/settings',
+      name: 'settings',
+      meta: { section: 'settings' },
+      component: () => import('./features/settings/SettingsView.vue'),
+    },
     { path: '/account', name: 'account', component: () => import('./features/account/AccountView.vue') },
     { path: '/selftest', name: 'selftest', component: () => import('./features/selftest/SelftestView.vue') },
     { path: '/:pathMatch(.*)*', redirect: { path: '/sessions', replace: true } },
@@ -67,7 +91,8 @@ router.afterEach((to, from, failure) => {
   const ticket = windowNavigations.get(to);
   // Crossing the desktop breakpoint turns a routed session panel into a local window and
   // normalizes its child URL. That window stays open through the normalization.
-  const normalizedPanel = to.name === 'chat' && from.name !== 'chat' && !!to.params.id && to.params.id === from.params.id;
+  const normalizedPanel =
+    to.name === 'chat' && from.name !== 'chat' && !!to.params.id && to.params.id === from.params.id;
   if (ticket != null) windows.afterNavigation(!failure, ticket, normalizedPanel);
 });
 installSessionNavigation(router);

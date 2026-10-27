@@ -42,19 +42,29 @@ const routeTab = computed<SessionTab | null>(() => {
 });
 const desktopTab = ref<SessionTab | null>(null);
 const infoInitialSection = ref<'overview' | 'search'>('overview');
-const tab = computed(() => isMobile.value ? routeTab.value : desktopTab.value);
+const tab = computed(() => (isMobile.value ? routeTab.value : desktopTab.value));
 
 // Existing mobile/deep links still open the right panel. On desktop the
 // panel is local UI state, so normalize a child URL to the session URL once.
-watch([isMobile, routeTab, id, () => route.name], ([mobile, child, sessionId, routeName]) => {
-  if (!mobile && child && sessionId) {
-    infoInitialSection.value = routeName === 'chat-search' ? 'search' : 'overview';
-    desktopTab.value = child;
-    void router.replace({ name: 'chat', params: { id: sessionId } });
-  }
-}, { immediate: true });
+watch(
+  [isMobile, routeTab, id, () => route.name],
+  ([mobile, child, sessionId, routeName]) => {
+    if (!mobile && child && sessionId) {
+      infoInitialSection.value = routeName === 'chat-search' ? 'search' : 'overview';
+      desktopTab.value = child;
+      void router.replace({ name: 'chat', params: { id: sessionId } });
+    }
+  },
+  { immediate: true },
+);
 
-watch(id, (next) => { if (next) chat.open(next); }, { immediate: true });
+watch(
+  id,
+  (next) => {
+    if (next) chat.open(next);
+  },
+  { immediate: true },
+);
 
 // A session that is gone leaves a phone on its home page, and a desktop on a new chat beside the list.
 watch(chat.missingSessionId, (missingId) => {
@@ -75,7 +85,9 @@ function titleAction(key: string) {
   if (key === 'generate-name') void sessionNaming.generate(session.id);
   else if (key === 'rename') renameTarget.value = { id: session.id, name: session.name, kind: 'session' };
 }
-watch(id, () => { renameTarget.value = null; });
+watch(id, () => {
+  renameTarget.value = null;
+});
 const tabs = computed(() => [
   { key: 'info', icon: 'info', label: i18n.t('chatbar.info') },
   { key: 'settings', icon: 'tune', label: i18n.t('chatbar.settings') },
@@ -89,7 +101,10 @@ let composerObserver: ResizeObserver | null = null;
 const measureComposer = (composer: Element | null) => {
   composerObserver?.disconnect();
   composerObserver = null;
-  if (!(composer instanceof HTMLElement)) { paneEl.value?.style.removeProperty('--composer-height'); return; }
+  if (!(composer instanceof HTMLElement)) {
+    paneEl.value?.style.removeProperty('--composer-height');
+    return;
+  }
   // The island's height above the pane's foot, its margins included, is what the log must clear.
   const apply = () => {
     const pane = paneEl.value;
@@ -103,15 +118,25 @@ const measureComposer = (composer: Element | null) => {
 };
 onMounted(() => measureComposer(paneEl.value?.querySelector('.composer') ?? null));
 watch(isMobile, () => measureComposer(paneEl.value?.querySelector('.composer') ?? null));
-onBeforeUnmount(() => { composerObserver?.disconnect(); composerObserver = null; });
+onBeforeUnmount(() => {
+  composerObserver?.disconnect();
+  composerObserver = null;
+});
 const onQueueEdit = (text: string, attachments?: any[]) => composerRef.value?.fill(text, attachments);
 const { effort, error: effortError } = useResolvedEffort(snapshot);
 const modelOpen = ref(false);
 const reasoningOpen = ref(false);
-watch(id, () => { modelOpen.value = false; reasoningOpen.value = false; desktopTab.value = null; });
+watch(id, () => {
+  modelOpen.value = false;
+  reasoningOpen.value = false;
+  desktopTab.value = null;
+});
 
 const closeTab = (ownerPath = route.fullPath) => {
-  if (!isMobile.value) { desktopTab.value = null; return; }
+  if (!isMobile.value) {
+    desktopTab.value = null;
+    return;
+  }
   if (router.currentRoute.value.fullPath !== ownerPath) return;
   return router.push({ name: 'chat', params: { id: id.value } });
 };
@@ -120,8 +145,10 @@ const goTab = (t: SessionTab) => {
     if (desktopTab.value === t) {
       if (panelClose.value) panelClose.value();
       else desktopTab.value = null;
+    } else {
+      infoInitialSection.value = 'overview';
+      desktopTab.value = t;
     }
-    else { infoInitialSection.value = 'overview'; desktopTab.value = t; }
   } else if (routeTab.value === t) closeTab();
   else void router.push({ name: `chat-${t}`, params: { id: id.value } });
 };
@@ -130,23 +157,63 @@ const goTab = (t: SessionTab) => {
 <template>
   <div class="chat-pane" ref="paneEl">
     <div class="chatbar">
-      <button v-if="isMobile" class="btn ghost icon-only" :aria-label="i18n.t('chatbar.back')"
-        @click="router.push(sessionParent)"><Icon name="arrow-left" /></button>
+      <button
+        v-if="isMobile"
+        class="btn ghost icon-only"
+        :aria-label="i18n.t('chatbar.back')"
+        @click="router.push(sessionParent)"
+      >
+        <Icon name="arrow-left" />
+      </button>
       <div class="chat-title">
-        <span v-if="!snapshot" class="chat-skeleton title-skeleton" :aria-label="i18n.t('sessions.loading')" role="status" /><Menu v-else :key="snapshot.id" context :items="titleActions" @select="titleAction">
-          <FadeText class="name" :text="sessionTitle(snapshot)" tabindex="0" aria-haspopup="menu" :aria-label="tr('会话名称菜单', 'Session title menu')" />
+        <span
+          v-if="!snapshot"
+          class="chat-skeleton title-skeleton"
+          :aria-label="i18n.t('sessions.loading')"
+          role="status"
+        /><Menu v-else :key="snapshot.id" context :items="titleActions" @select="titleAction">
+          <FadeText
+            class="name"
+            :text="sessionTitle(snapshot)"
+            tabindex="0"
+            aria-haspopup="menu"
+            :aria-label="tr('会话名称菜单', 'Session title menu')"
+          />
         </Menu>
-        <span v-if="!snapshot" class="chat-skeleton model-skeleton" aria-hidden="true" /><span v-else class="model-selection">
-        <Hint :text="i18n.t('model.chipTitle')"><button class="model-chip" :aria-expanded="modelOpen" @click="modelOpen = true">
-          <span>{{ modelLabel(snapshot?.model || '') || '—' }}</span>
-        </button></Hint>
-        <span class="selection-dot" aria-hidden="true">·</span>
-        <Hint :text="effortError ? String(effortError) : i18n.t('reasoning.title')"><button class="reasoning-chip" :aria-expanded="reasoningOpen" :aria-label="`${i18n.t('reasoning.title')}：${effortLabel(effort)}`" @click="reasoningOpen = true"><span>{{ effortLabel(effort).toUpperCase() }}</span></button></Hint>
+        <span v-if="!snapshot" class="chat-skeleton model-skeleton" aria-hidden="true" /><span
+          v-else
+          class="model-selection"
+        >
+          <Hint :text="i18n.t('model.chipTitle')"
+            ><button class="model-chip" :aria-expanded="modelOpen" @click="modelOpen = true">
+              <span>{{ modelLabel(snapshot?.model || '') || '—' }}</span>
+            </button></Hint
+          >
+          <span class="selection-dot" aria-hidden="true">·</span>
+          <Hint :text="effortError ? String(effortError) : i18n.t('reasoning.title')"
+            ><button
+              class="reasoning-chip"
+              :aria-expanded="reasoningOpen"
+              :aria-label="`${i18n.t('reasoning.title')}：${effortLabel(effort)}`"
+              @click="reasoningOpen = true"
+            >
+              <span>{{ effortLabel(effort).toUpperCase() }}</span>
+            </button></Hint
+          >
         </span>
       </div>
       <template v-if="!isMobile">
-        <Hint v-for="item in tabs" :key="item.key" :text="item.label"><button class="btn ghost icon-only" :aria-label="item.label"
-          :class="{ selected: tab === item.key }" :data-session-panel="item.key" :aria-pressed="tab === item.key" @click="goTab(item.key as SessionTab)"><Icon :name="item.icon" /></button></Hint>
+        <Hint v-for="item in tabs" :key="item.key" :text="item.label"
+          ><button
+            class="btn ghost icon-only"
+            :aria-label="item.label"
+            :class="{ selected: tab === item.key }"
+            :data-session-panel="item.key"
+            :aria-pressed="tab === item.key"
+            @click="goTab(item.key as SessionTab)"
+          >
+            <Icon :name="item.icon" /></button
+        ></Hint>
       </template>
       <Menu v-else :items="tabs" :label="i18n.t('chatbar.more')" @select="goTab($event as SessionTab)">
         <Icon name="ellipsis-vertical" />
@@ -156,14 +223,20 @@ const goTab = (t: SessionTab) => {
     <Composer ref="composerRef" :owner="id" :mobile="isMobile">
       <template #tools>
         <Transition name="queue-dock" appear>
-          <div v-if="queued.length > 0" class="queue-dock-slot"><QueueDock :items="queued" :refill="onQueueEdit" /></div>
+          <div v-if="queued.length > 0" class="queue-dock-slot">
+            <QueueDock :items="queued" :refill="onQueueEdit" />
+          </div>
         </Transition>
       </template>
     </Composer>
     <RouterView v-slot="{ Component, route: panelRoute }">
       <component :is="Component" v-if="isMobile" :key="panelRoute.fullPath" @close="closeTab(panelRoute.fullPath)" />
     </RouterView>
-    <InfoPane v-if="!isMobile && desktopTab === 'info'" :initial-section="infoInitialSection" @close="desktopTab = null" />
+    <InfoPane
+      v-if="!isMobile && desktopTab === 'info'"
+      :initial-section="infoInitialSection"
+      @close="desktopTab = null"
+    />
     <SessionSettingsPane v-if="!isMobile && desktopTab === 'settings'" @close="desktopTab = null" />
     <SessionListAction v-if="renameTarget" :target="renameTarget" kind="rename" @close="renameTarget = null" />
     <ModelSettings v-if="modelOpen" :session-id="id" @close="modelOpen = false" />
@@ -173,15 +246,36 @@ const goTab = (t: SessionTab) => {
 
 <style scoped>
 /* Reserve the button's width gradually, so its arrival does not jerk the toolbar. */
-.queue-dock-slot { display: flex; align-items: center; flex: none; width: 36px; }
-.queue-dock-enter-active, .queue-dock-leave-active {
-  overflow: clip;
-  transition: width 230ms var(--ease-out), opacity 170ms ease, transform 230ms var(--ease-out);
+.queue-dock-slot {
+  display: flex;
+  align-items: center;
+  flex: none;
+  width: 36px;
 }
-.queue-dock-enter-from { width: 0; opacity: 0; transform: translateY(5px) scale(.9); }
-.queue-dock-leave-to { width: 0; opacity: 0; }
-.queue-dock-leave-active { pointer-events: none; }
+.queue-dock-enter-active,
+.queue-dock-leave-active {
+  overflow: clip;
+  transition:
+    width 230ms var(--ease-out),
+    opacity 170ms ease,
+    transform 230ms var(--ease-out);
+}
+.queue-dock-enter-from {
+  width: 0;
+  opacity: 0;
+  transform: translateY(5px) scale(0.9);
+}
+.queue-dock-leave-to {
+  width: 0;
+  opacity: 0;
+}
+.queue-dock-leave-active {
+  pointer-events: none;
+}
 @media (prefers-reduced-motion: reduce) {
-  .queue-dock-enter-active, .queue-dock-leave-active { transition: none; }
+  .queue-dock-enter-active,
+  .queue-dock-leave-active {
+    transition: none;
+  }
 }
 </style>

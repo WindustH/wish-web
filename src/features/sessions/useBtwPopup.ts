@@ -2,18 +2,25 @@ import { useKeyboardScope } from '../../ui/composables/useKeyboardScope.ts';
 import { nextTick, ref, watch, type Ref } from 'vue';
 
 export function useBtwPopup(
-  mobile: Ref<boolean>, pageActive: Ref<boolean>,
-  composerEl: Ref<HTMLElement | null>, ta: Ref<{ blur(): void } | null>,
-  btwButton: Ref<HTMLButtonElement | null>, btwBubble: Ref<HTMLElement | null>,
+  mobile: Ref<boolean>,
+  pageActive: Ref<boolean>,
+  composerEl: Ref<HTMLElement | null>,
+  ta: Ref<{ blur(): void } | null>,
+  btwButton: Ref<HTMLButtonElement | null>,
+  btwBubble: Ref<HTMLElement | null>,
 ) {
   const btwOpen = ref(false);
   const btwHidden = ref(true);
   const btwPosition = ref<Record<string, string>>({});
-  watch(pageActive, active => { if (!active) btwOpen.value = false; });
+  watch(pageActive, (active) => {
+    if (!active) btwOpen.value = false;
+  });
   let frame = 0;
   function schedulePosition() {
     cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(() => { if (btwOpen.value) positionBtw(); });
+    frame = requestAnimationFrame(() => {
+      if (btwOpen.value) positionBtw();
+    });
   }
   function positionBtw() {
     const button = btwButton.value;
@@ -37,7 +44,7 @@ export function useBtwPopup(
     if (mobile.value && composerEl.value?.contains(target)) return;
     if (!btwBubble.value?.contains(target) && !btwButton.value?.contains(target)) btwOpen.value = false;
   }
-  useKeyboardScope(btwBubble, event => {
+  useKeyboardScope(btwBubble, (event) => {
     if (event.key !== 'Escape' || !btwOpen.value) return false;
     btwOpen.value = false;
     if (!mobile.value) btwButton.value?.focus();

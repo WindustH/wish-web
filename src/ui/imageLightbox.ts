@@ -7,7 +7,10 @@ export type LightboxImage = { src: string; alt?: string };
 
 export const imageLightbox = shallowRef<LightboxImage | null>(null);
 let ownedUrl: string | undefined;
-function releaseImage() { if (ownedUrl) URL.revokeObjectURL(ownedUrl); ownedUrl = undefined; }
+function releaseImage() {
+  if (ownedUrl) URL.revokeObjectURL(ownedUrl);
+  ownedUrl = undefined;
+}
 
 export function openImageLightbox(src: string, alt?: string, blob?: Blob) {
   if (!src) return;

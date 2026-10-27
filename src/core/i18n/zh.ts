@@ -112,7 +112,7 @@ export const zh = {
   'time.hoursAgo': '{n} 小时前',
   'time.daysAgo': '{n} 天前',
   'time.older': '更早',
-    'a11y.runDone': '本轮回复已完成',
+  'a11y.runDone': '本轮回复已完成',
   'notify.runFailed': '运行失败：{name}',
   'notify.contextCompacted': '上下文已压缩（裁剪了 {n} 条记录）',
   'notify.compactionTranslationFailed': '无法翻译旧模型的加密压缩历史，后续对话可能缺少部分背景。',

@@ -15,7 +15,10 @@ export interface AccountRow {
   error?: string;
   loading: boolean;
 }
-interface CachedReading { state: AccountState; checkedAt: number }
+interface CachedReading {
+  state: AccountState;
+  checkedAt: number;
+}
 
 const cacheKey = (id: string) => `account-state:${id}`;
 const PROVIDERS_KEY = 'account-providers';
@@ -31,21 +34,23 @@ export function useAccountStates() {
   onScopeDispose(() => controller?.abort());
 
   function show(providers: ProviderSummary[]) {
-    const previous = new Map(rows.value.map(row => [row.id, row]));
-    rows.value = providers.filter(item => item.readable).map(item => {
-      const cached = peekCached<CachedReading>(cacheKey(item.id));
-      // Keep the last reading on screen; take names from the fresh list.
-      return { ...cached, ...previous.get(item.id), id: item.id, brand: item.brand, loading: true, error: undefined };
-    });
-    unconfigured.value = providers.filter(item => !item.readable);
+    const previous = new Map(rows.value.map((row) => [row.id, row]));
+    rows.value = providers
+      .filter((item) => item.readable)
+      .map((item) => {
+        const cached = peekCached<CachedReading>(cacheKey(item.id));
+        // Keep the last reading on screen; take names from the fresh list.
+        return { ...cached, ...previous.get(item.id), id: item.id, brand: item.brand, loading: true, error: undefined };
+      });
+    unconfigured.value = providers.filter((item) => !item.readable);
   }
 
   async function refresh() {
     controller?.abort();
-    const own = controller = new AbortController();
+    const own = (controller = new AbortController());
     loading.value = true;
     error.value = '';
-    const cached = peekCached<ProviderSummary[]>(PROVIDERS_KEY) ?? await readCached<ProviderSummary[]>(PROVIDERS_KEY);
+    const cached = peekCached<ProviderSummary[]>(PROVIDERS_KEY) ?? (await readCached<ProviderSummary[]>(PROVIDERS_KEY));
     if (cached && !rows.value.length) show(cached);
     for (const row of rows.value) {
       if (!row.state) {
@@ -55,9 +60,13 @@ export function useAccountStates() {
     }
     try {
       const { providers } = await providerConfigs({ signal: own.signal });
-      const summary: ProviderSummary[] = providers.filter(item => item.enabled).map(item => ({
-        id: item.id, brand: item.brand, readable: !!item.account_state,
-      }));
+      const summary: ProviderSummary[] = providers
+        .filter((item) => item.enabled)
+        .map((item) => ({
+          id: item.id,
+          brand: item.brand,
+          readable: !!item.account_state,
+        }));
       writeCached(PROVIDERS_KEY, summary);
       show(summary);
     } catch (cause) {
@@ -67,25 +76,27 @@ export function useAccountStates() {
       for (const row of rows.value) row.loading = false;
       return;
     }
-    await Promise.all(rows.value.map(async row => {
-      try {
-        const state = await providerAccount(row.id, { signal: own.signal }) as AccountState;
-        if (own.signal.aborted) return;
-        const reading: CachedReading = { state, checkedAt: Date.now() };
-        writeCached(cacheKey(row.id), reading);
-        Object.assign(row, reading, { error: undefined });
-      } catch (cause) {
-        if (own.signal.aborted) return;
-        row.error = describeError(cause).message;
-      } finally {
-        if (!own.signal.aborted) row.loading = false;
-      }
-    }));
+    await Promise.all(
+      rows.value.map(async (row) => {
+        try {
+          const state = (await providerAccount(row.id, { signal: own.signal })) as AccountState;
+          if (own.signal.aborted) return;
+          const reading: CachedReading = { state, checkedAt: Date.now() };
+          writeCached(cacheKey(row.id), reading);
+          Object.assign(row, reading, { error: undefined });
+        } catch (cause) {
+          if (own.signal.aborted) return;
+          row.error = describeError(cause).message;
+        } finally {
+          if (!own.signal.aborted) row.loading = false;
+        }
+      }),
+    );
     if (!own.signal.aborted) loading.value = false;
   }
 
   // When the freshest reading was taken, for the "updated" note.
-  const checkedAt = computed(() => Math.max(0, ...rows.value.map(row => row.checkedAt ?? 0)) || null);
+  const checkedAt = computed(() => Math.max(0, ...rows.value.map((row) => row.checkedAt ?? 0)) || null);
 
   return { rows, unconfigured, loading, error, checkedAt, refresh };
 }

@@ -15,7 +15,7 @@ function hide() {
   clearTimeout(timer);
   observer?.disconnect();
   if (anchor) {
-    const ids = (anchor.getAttribute('aria-describedby') || '').split(/\s+/).filter(value => value && value !== id);
+    const ids = (anchor.getAttribute('aria-describedby') || '').split(/\s+/).filter((value) => value && value !== id);
     if (ids.length) anchor.setAttribute('aria-describedby', ids.join(' '));
     else anchor.removeAttribute('aria-describedby');
   }
@@ -44,9 +44,11 @@ function show(el: HTMLElement | null) {
     text.value = el.dataset.hint || '';
     await nextTick();
     if (anchor !== el || !tooltip.value) return;
-    const box = el.getBoundingClientRect(), tip = tooltip.value.getBoundingClientRect();
+    const box = el.getBoundingClientRect(),
+      tip = tooltip.value.getBoundingClientRect();
     const viewport = window.visualViewport;
-    const left = (viewport?.offsetLeft ?? 0) + 10, top = (viewport?.offsetTop ?? 0) + 10;
+    const left = (viewport?.offsetLeft ?? 0) + 10,
+      top = (viewport?.offsetTop ?? 0) + 10;
     const right = left + (viewport?.width ?? innerWidth) - 20;
     const bottom = top + (viewport?.height ?? innerHeight) - 20;
     position.value = {
@@ -56,17 +58,25 @@ function show(el: HTMLElement | null) {
     };
     const ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
     el.setAttribute('aria-describedby', [...new Set([...ids, id])].join(' '));
-    observer = new MutationObserver(() => { if (!el.isConnected) hide(); });
+    observer = new MutationObserver(() => {
+      if (!el.isConnected) hide();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
   }, 450);
 }
-function over(event: PointerEvent) { if (event.pointerType !== 'touch' && !event.buttons) show(targetOf(event.target)); }
-function out(event: PointerEvent) { if (anchor && (!(event.relatedTarget instanceof Node) || !anchor.contains(event.relatedTarget))) hide(); }
+function over(event: PointerEvent) {
+  if (event.pointerType !== 'touch' && !event.buttons) show(targetOf(event.target));
+}
+function out(event: PointerEvent) {
+  if (anchor && (!(event.relatedTarget instanceof Node) || !anchor.contains(event.relatedTarget))) hide();
+}
 function focus(event: FocusEvent) {
   const el = targetOf(event.target);
   if (el?.matches(':focus-visible')) show(el);
 }
-function key(event: KeyboardEvent) { if (event.key === 'Escape') hide(); }
+function key(event: KeyboardEvent) {
+  if (event.key === 'Escape') hide();
+}
 watch(() => route.fullPath, hide);
 onMounted(() => {
   document.addEventListener('pointerover', over);
@@ -98,13 +108,29 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <Transition name="hover-hint">
-      <div v-if="text" :id="id" ref="tooltip" role="tooltip" class="control-tooltip delegated-tooltip" :style="position">{{ text }}</div>
+      <div
+        v-if="text"
+        :id="id"
+        ref="tooltip"
+        role="tooltip"
+        class="control-tooltip delegated-tooltip"
+        :style="position"
+      >
+        {{ text }}
+      </div>
     </Transition>
   </Teleport>
 </template>
 
 <style scoped>
-.delegated-tooltip { position:fixed; pointer-events:none; }
-.hover-hint-leave-active { transition:opacity 120ms ease-in; }
-.hover-hint-leave-to { opacity:0; }
+.delegated-tooltip {
+  position: fixed;
+  pointer-events: none;
+}
+.hover-hint-leave-active {
+  transition: opacity 120ms ease-in;
+}
+.hover-hint-leave-to {
+  opacity: 0;
+}
 </style>

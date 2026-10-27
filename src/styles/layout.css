@@ -1,30 +1,111 @@
-.shell { display: flex; height: 100dvh; overflow: hidden; }
-.main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
-.main-col { position: relative; flex: 1; display: flex; min-width: 0; min-height: 0; overflow: hidden; }
-.sessions-split { position: relative; flex: 1; display: flex; min-width: 0; min-height: 0; }
-.sessions-pane {
-  position: relative; width: var(--w-list); flex: none; border-right: 1px solid var(--line); display: flex;
-  flex-direction: column; background: var(--bg-sunken); min-height: 0;
+.shell {
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
 }
-.content-pane { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-.shell.mobile { flex-direction: column; }
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.main-col {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.sessions-split {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+.sessions-pane {
+  position: relative;
+  width: var(--w-list);
+  flex: none;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sunken);
+  min-height: 0;
+}
+.content-pane {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.shell.mobile {
+  flex-direction: column;
+}
 /* On a desktop the list is a panel beside the conversation, a layer of its own; on a phone it is the
    whole page, and takes the page's color like the conversation does. */
-.shell.mobile .sessions-pane { width: 100%; flex: 1; border-right: 0; background: var(--bg); }
-.shell.mobile .content-pane { position: relative; flex: 1; }
+.shell.mobile .sessions-pane {
+  width: 100%;
+  flex: 1;
+  border-right: 0;
+  background: var(--bg);
+}
+.shell.mobile .content-pane {
+  position: relative;
+  flex: 1;
+}
 /* On a phone all sessions is a sheet over the home page (useRecentsSheet moves it); until that has
    run, the route alone decides which of the two shows. */
-.shell.mobile .sessions-split { position: relative; }
+.shell.mobile .sessions-split {
+  position: relative;
+}
 /* Fade the complete page, its background included. Opaque child panels with only their rows
    fading used to cover the recent list with a solid rectangle during the transition. */
-.shell.mobile .sessions-split > .sessions-pane { position: absolute; inset: 0; z-index: 2; background: var(--bg); }
-.shell.mobile .sessions-pane.sheet-closed, .shell.mobile .content-pane.sheet-covered { visibility: hidden; }
+.shell.mobile .sessions-split > .sessions-pane {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--bg);
+}
+.shell.mobile .sessions-pane.sheet-closed,
+.shell.mobile .content-pane.sheet-covered {
+  visibility: hidden;
+}
 /* Mobile tools are secondary pages; resizing never changes their route. */
-.shell.mobile .main-col { flex-direction: column; }
-.shell.mobile { padding-bottom: env(safe-area-inset-bottom); }
-.session-list-edge { position: relative; width: 0; flex: none; z-index: 25; }
-.list-resize { position: absolute; inset: 0 auto 0 -4px; width: 7px; cursor: col-resize; touch-action: none; }
-.list-resize::after { content: ''; position: absolute; inset-block: 0; left: 3px; width: 1px; background: var(--edge-line, transparent); transition: background var(--dur-fast); }
+.shell.mobile .main-col {
+  flex-direction: column;
+}
+.shell.mobile {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.session-list-edge {
+  position: relative;
+  width: 0;
+  flex: none;
+  z-index: 25;
+}
+.list-resize {
+  position: absolute;
+  inset: 0 auto 0 -4px;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.list-resize::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: 3px;
+  width: 1px;
+  background: var(--edge-line, transparent);
+  transition: background var(--dur-fast);
+}
 /* Resize feedback belongs to the divider. */
 html.resizing .session-list-edge {
   --edge-line: var(--accent);
@@ -38,17 +119,42 @@ html.resizing .session-list-edge {
     --edge-icon: var(--accent-fg);
   }
 }
-html.resizing, html.resizing * { cursor: col-resize !important; user-select: none !important; }
+html.resizing,
+html.resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
 
 @media (max-width: 899px) {
   .shell.mobile .sessions-pane > :is(.sl-masthead, .sl-filters, .sl-scroll) {
-    width: 100%; max-width: var(--mobile-content-width); margin-inline: auto;
+    width: 100%;
+    max-width: var(--mobile-content-width);
+    margin-inline: auto;
   }
 }
 
-.shell.desktop .sessions-pane { transition: width var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out); overflow: hidden; }
-.shell.desktop .sessions-pane.is-collapsed { width: 0; opacity: 0; border-right: 0; pointer-events: none; visibility: hidden; transition: width var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out), visibility 0s var(--dur); }
-html.resizing .shell .sessions-pane { transition: none; }
+.shell.desktop .sessions-pane {
+  transition:
+    width var(--dur) var(--ease-out),
+    opacity var(--dur) var(--ease-out);
+  overflow: hidden;
+}
+.shell.desktop .sessions-pane.is-collapsed {
+  width: 0;
+  opacity: 0;
+  border-right: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    width var(--dur) var(--ease-out),
+    opacity var(--dur) var(--ease-out),
+    visibility 0s var(--dur);
+}
+html.resizing .shell .sessions-pane {
+  transition: none;
+}
 
 /* The shared toggle stays outside both the sliding sidebar and route fades. */
-.shell.desktop .sessions-split.sidebar-collapsed .chatbar { padding-left: 56px; }
+.shell.desktop .sessions-split.sidebar-collapsed .chatbar {
+  padding-left: 56px;
+}

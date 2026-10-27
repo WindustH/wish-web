@@ -28,19 +28,41 @@ async function create() {
 </script>
 
 <template>
-  <Modal compact :open="true" :dismissable="!busy" :title="parent ? tr('新建子文件夹', 'New folder inside') : tr('新建文件夹', 'New folder')" @close="emit('close')">
+  <Modal
+    compact
+    :open="true"
+    :dismissable="!busy"
+    :title="parent ? tr('新建子文件夹', 'New folder inside') : tr('新建文件夹', 'New folder')"
+    @close="emit('close')"
+  >
     <form class="new-folder" @submit.prevent="create">
-      <input v-model="name" class="input" data-initial-focus :placeholder="tr('文件夹名称', 'Folder name')" :aria-label="tr('文件夹名称', 'Folder name')" :disabled="busy" />
+      <input
+        v-model="name"
+        class="input"
+        data-initial-focus
+        :placeholder="tr('文件夹名称', 'Folder name')"
+        :aria-label="tr('文件夹名称', 'Folder name')"
+        :disabled="busy"
+      />
       <p v-if="failed" class="new-folder-error" role="alert">{{ failed }}</p>
     </form>
     <template #footer>
       <button class="btn ghost" :disabled="busy" @click="emit('close')">{{ tr('取消', 'Cancel') }}</button>
-      <button class="btn primary" :disabled="busy || !name.trim()" @click="create"><Icon v-if="busy" name="loader-circle" class="spin" />{{ tr('创建', 'Create') }}</button>
+      <button class="btn primary" :disabled="busy || !name.trim()" @click="create">
+        <Icon v-if="busy" name="loader-circle" class="spin" />{{ tr('创建', 'Create') }}
+      </button>
     </template>
   </Modal>
 </template>
 
 <style scoped>
-.new-folder { display: grid; gap: 8px; }
-.new-folder-error { margin: 0; color: var(--danger); font-size: 12.5px; }
+.new-folder {
+  display: grid;
+  gap: 8px;
+}
+.new-folder-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 12.5px;
+}
 </style>

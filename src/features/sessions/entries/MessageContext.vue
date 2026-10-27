@@ -13,9 +13,11 @@ import { saveBlob } from '../../../ui/download.ts';
 
 const props = defineProps<{ text: string; kind: 'user' | 'assistant'; image?: { src: string; filename?: string } }>();
 const hasMenu = computed(() => !!props.image || !!props.text.trim());
-const items = computed<MenuItem[]>(() => props.image
-  ? [{ key: 'save', icon: 'download', label: tr('保存图片', 'Save image') }]
-  : [{ key: 'copy', icon: 'copy', label: tr('复制消息', 'Copy message') }]);
+const items = computed<MenuItem[]>(() =>
+  props.image
+    ? [{ key: 'save', icon: 'download', label: tr('保存图片', 'Save image') }]
+    : [{ key: 'copy', icon: 'copy', label: tr('复制消息', 'Copy message') }],
+);
 const selectionItems: MenuItem[] = [{ key: 'copy-selection', icon: 'copy', label: tr('复制', 'Copy') }];
 function choose(key: string, selection?: string) {
   if (key === 'copy-selection') void copyText(selection ?? '');
@@ -28,12 +30,20 @@ async function saveImage() {
     const response = await apiFetch(props.image.src);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const blob = await response.blob();
-    const ext = ({ 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp',
-      'image/avif': 'avif', 'image/svg+xml': 'svg' } as Record<string, string>)[blob.type] || 'png';
+    const ext =
+      (
+        {
+          'image/jpeg': 'jpg',
+          'image/gif': 'gif',
+          'image/webp': 'webp',
+          'image/avif': 'avif',
+          'image/svg+xml': 'svg',
+        } as Record<string, string>
+      )[blob.type] || 'png';
     const filename = props.image.filename?.replace(/[\\/]/g, '_') || `image.${ext}`;
     saveBlob(blob, filename);
   } catch (error) {
-    toast((tr('保存图片失败：', 'Could not save image: ')) + String(error));
+    toast(tr('保存图片失败：', 'Could not save image: ') + String(error));
   }
 }
 
@@ -41,7 +51,15 @@ const copyMessage = () => copyText(props.text);
 </script>
 
 <template>
-  <Menu context selects-text :items="items" :selection-items="selectionItems" :disabled="!hasMenu" :within="kind === 'user' ? '.bubble' : '.body'" @select="choose">
+  <Menu
+    context
+    selects-text
+    :items="items"
+    :selection-items="selectionItems"
+    :disabled="!hasMenu"
+    :within="kind === 'user' ? '.bubble' : '.body'"
+    @select="choose"
+  >
     <div class="message-context" :class="kind" :tabindex="hasMenu ? 0 : undefined">
       <slot />
     </div>
@@ -49,5 +67,8 @@ const copyMessage = () => copyText(props.text);
 </template>
 
 <style scoped>
-.message-context{width:100%;outline:none}
+.message-context {
+  width: 100%;
+  outline: none;
+}
 </style>

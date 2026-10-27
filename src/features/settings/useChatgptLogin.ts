@@ -9,7 +9,11 @@ import { showError } from '../../ui/errorDialog.ts';
  * arrive. When the browser cannot reach the server's callback, `complete` takes the redirect URL
  * pasted from the address bar instead.
  */
-export function useChatgptLogin(provider: () => string, save: (() => Promise<boolean>) | undefined, onComplete: () => void) {
+export function useChatgptLogin(
+  provider: () => string,
+  save: (() => Promise<boolean>) | undefined,
+  onComplete: () => void,
+) {
   const busy = ref(false);
   const url = ref('');
   const message = ref('');
@@ -17,7 +21,9 @@ export function useChatgptLogin(provider: () => string, save: (() => Promise<boo
   const submitting = ref(false);
   let poll: ReturnType<typeof setTimeout> | undefined;
   let popup: Window | null = null;
-  onBeforeUnmount(() => { if (poll) clearTimeout(poll); });
+  onBeforeUnmount(() => {
+    if (poll) clearTimeout(poll);
+  });
   const failed = (error: unknown) => showError({ title: tr('ChatGPT 登录失败', 'ChatGPT sign-in failed'), error });
   const succeeded = () => {
     busy.value = false;

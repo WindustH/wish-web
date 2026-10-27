@@ -1,7 +1,18 @@
 // Server configuration draft and provider management.
 import { bus } from '../../core/bus.ts';
 import { ref, computed, type InjectionKey } from 'vue';
-import { requireAvailableModel, configSnapshot, configSave, providerPresets, searchPresets, fetchPresets, type FetchPreset, proxyEnvironment as readProxyEnvironment, shellCatalog, type SearchPreset } from '../../core/api/endpoints.ts';
+import {
+  requireAvailableModel,
+  configSnapshot,
+  configSave,
+  providerPresets,
+  searchPresets,
+  fetchPresets,
+  type FetchPreset,
+  proxyEnvironment as readProxyEnvironment,
+  shellCatalog,
+  type SearchPreset,
+} from '../../core/api/endpoints.ts';
 import { replayConfigChanges } from '../../core/configMerge.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { providerTitles } from '../../ui/providerPresentation.ts';
@@ -11,7 +22,6 @@ import type { ConfigCatalog, ProviderPreset } from '../../core/provider-presets.
 import type { ShellCatalog } from '../../core/api/endpoints.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
 import { MODEL_PROTOCOLS } from '../../core/provider-presets.ts';
-
 
 export function useConfigDraft() {
   const draft = ref<any>();
@@ -36,32 +46,42 @@ export function useConfigDraft() {
   const serverDirty = computed(
     () =>
       !!draft.value &&
-      (JSON.stringify(draft.value) !== source.value ||
-        Object.values(advancedPending.value).some(Boolean))
+      (JSON.stringify(draft.value) !== source.value || Object.values(advancedPending.value).some(Boolean)),
   );
 
   // Names over the providers being edited; two instances of one vendor keep their IDs apart.
-  const providerTitleMap = computed(() => providerTitles(
-    Object.entries(draft.value?.providers ?? {}).map(([id, value]) => ({ id, display_name: (value as any).display_name, preset: (value as any).preset })),
-  ));
+  const providerTitleMap = computed(() =>
+    providerTitles(
+      Object.entries(draft.value?.providers ?? {}).map(([id, value]) => ({
+        id,
+        display_name: (value as any).display_name,
+        preset: (value as any).preset,
+      })),
+    ),
+  );
   const providerTitle = (id: string) => providerTitleMap.value.get(id) ?? id;
   const providerOptions = computed(() =>
     Object.entries(draft.value?.providers ?? {}).map(([id, value]) => {
       const p = findPreset((value as any).preset);
-      return { value: id, label: providerTitle(id), brand: p?.provider, preset: (value as any).preset as string | undefined };
-    })
+      return {
+        value: id,
+        label: providerTitle(id),
+        brand: p?.provider,
+        preset: (value as any).preset as string | undefined,
+      };
+    }),
   );
 
   const effortOptions = computed(() => {
     const provider = draft.value?.providers[draft.value?.defaults.provider];
     const model = provider?.models?.[draft.value?.defaults.model];
     return [
-      ...new Set([
-        ...Object.keys(
-          model?.reasoning_efforts ?? findPreset(provider?.preset)?.reasoning_efforts ?? {}
-        ),
-        draft.value?.defaults.reasoning?.effort,
-      ].filter(Boolean)),
+      ...new Set(
+        [
+          ...Object.keys(model?.reasoning_efforts ?? findPreset(provider?.preset)?.reasoning_efforts ?? {}),
+          draft.value?.defaults.reasoning?.effort,
+        ].filter(Boolean),
+      ),
     ].map((value) => ({ value, label: value }));
   });
 
@@ -96,7 +116,11 @@ export function useConfigDraft() {
       shells.value = installed;
       accept(configuration);
     } catch (e) {
-      showError({ title: tr('无法载入设置', 'Could not load settings'), error: e, action: { label: tr('重试', 'Retry'), run: load } });
+      showError({
+        title: tr('无法载入设置', 'Could not load settings'),
+        error: e,
+        action: { label: tr('重试', 'Retry'), run: load },
+      });
     } finally {
       busy.value = false;
     }
@@ -110,7 +134,7 @@ export function useConfigDraft() {
       }
       draft.value.providers[id] = value;
       advancedPending.value[id] = false;
-        return true;
+      return true;
     } catch (e) {
       showError({ title: tr('无法应用配置 JSON', 'Could not apply the JSON'), error: e });
       return false;
@@ -125,12 +149,15 @@ export function useConfigDraft() {
     try {
       const defaults = draft.value.defaults;
       const savedDefaults = JSON.parse(source.value).defaults;
-      if (defaults?.provider && defaults?.model &&
-          (defaults.provider !== savedDefaults?.provider || defaults.model !== savedDefaults?.model)) {
+      if (
+        defaults?.provider &&
+        defaults?.model &&
+        (defaults.provider !== savedDefaults?.provider || defaults.model !== savedDefaults?.model)
+      ) {
         await requireAvailableModel(
           { id: defaults.provider, ...draft.value.providers[defaults.provider] },
           defaults.model,
-          { provider: draft.value.providers[defaults.provider], accounts: draft.value.accounts }
+          { provider: draft.value.providers[defaults.provider], accounts: draft.value.accounts },
         );
       }
       let saved;
@@ -146,9 +173,14 @@ export function useConfigDraft() {
       }
       accept(saved);
       bus.emit('configuration.changed', {});
-      toast(rebased
-        ? tr('配置已更新；已合并本地修改并保存。','Configuration changed; local edits were merged and saved.')
-        : tr('已保存并生效。正在运行的调用继续使用原配置。','Saved and applied. In-flight calls retain their configuration.'));
+      toast(
+        rebased
+          ? tr('配置已更新；已合并本地修改并保存。', 'Configuration changed; local edits were merged and saved.')
+          : tr(
+              '已保存并生效。正在运行的调用继续使用原配置。',
+              'Saved and applied. In-flight calls retain their configuration.',
+            ),
+      );
       return true;
     } catch (e) {
       showError({ title: tr('保存失败', 'Could not save'), error: e });
@@ -159,7 +191,7 @@ export function useConfigDraft() {
   }
 
   function addProvider(preset?: ProviderPreset) {
-    const id = uniqueId(preset?.id || 'custom', taken => taken in draft.value.providers);
+    const id = uniqueId(preset?.id || 'custom', (taken) => taken in draft.value.providers);
     const first = preset?.protocols[0];
     draft.value.providers[id] =
       preset && first
@@ -210,15 +242,23 @@ export function useConfigDraft() {
     if (draft.value.defaults?.provider === id) {
       showError({
         title: tr('无法删除提供商', 'Could not delete the provider'),
-        error: tr('默认模型属于这个提供商。请先在“会话”设置中更换默认模型，再删除它。', 'The default model belongs to this provider. Choose another default model in the Sessions settings first.'),
+        error: tr(
+          '默认模型属于这个提供商。请先在“会话”设置中更换默认模型，再删除它。',
+          'The default model belongs to this provider. Choose another default model in the Sessions settings first.',
+        ),
       });
       return;
     }
-    const borrowing = Object.entries(draft.value.search?.providers ?? {}).filter(([, item]: [string, any]) => item.auth_provider === id).map(([name]) => name);
+    const borrowing = Object.entries(draft.value.search?.providers ?? {})
+      .filter(([, item]: [string, any]) => item.auth_provider === id)
+      .map(([name]) => name);
     if (borrowing.length) {
       showError({
         title: tr('无法删除提供商', 'Could not delete the provider'),
-        error: tr(`联网搜索的 ${borrowing.join('、')} 在借用这个提供商的账户。请先在“联网搜索”设置中删除或换掉它，再删除这个提供商。`, `The search provider ${borrowing.join(', ')} uses this provider's account. Remove it under Web search first.`),
+        error: tr(
+          `联网搜索的 ${borrowing.join('、')} 在借用这个提供商的账户。请先在“联网搜索”设置中删除或换掉它，再删除这个提供商。`,
+          `The search provider ${borrowing.join(', ')} uses this provider's account. Remove it under Web search first.`,
+        ),
       });
       return;
     }

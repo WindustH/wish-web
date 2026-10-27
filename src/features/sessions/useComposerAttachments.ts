@@ -27,10 +27,7 @@ export interface AttachmentLimits {
   fileCount: number;
 }
 
-export function useComposerAttachments(
-  sessionId: Ref<string>,
-  limits: Ref<AttachmentLimits>,
-) {
+export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<AttachmentLimits>) {
   let attachmentEpoch = 0;
   let pastedTextNumber = 0;
   const currentSid = ref(sessionId.value);
@@ -73,37 +70,51 @@ export function useComposerAttachments(
     saveAttachmentDrafts(currentSid.value, []);
     readingAttachments.value = 1;
     try {
-    for (const item of items) {
-      try {
-        const response = await apiFetch(blobUrl(item.blob_id));
-        if (!response.ok) throw new Error(`blob ${item.blob_id}: ${response.status}`);
-        const bytes = await response.arrayBuffer();
-        if (epoch !== attachmentEpoch || !hasAttachmentSpace(item.kind)) continue;
-        const mime = item.mime_type || response.headers.get('content-type') || 'application/octet-stream';
-        attachments.value = [
-          ...attachments.value,
-          {
-            kind: item.kind,
-            name: item.filename,
-            mime,
-            stored: { owner: item.blob_id.split('/')[0], id: item.blob_id.split('/').at(-1) },
-            placeholder: item.placeholder,
-            bytes,
-            localUrl: URL.createObjectURL(new Blob([bytes], { type: mime })),
-          },
-        ];
-        saveAttachmentDrafts(currentSid.value, attachments.value);
-      } catch (error) {
-        if (epoch === attachmentEpoch) {
-          attachments.value.push({kind: item.kind, name: item.filename, placeholder: item.placeholder,
-            stored: {owner: item.blob_id.split('/')[0], id: item.blob_id.split('/').at(-1)},
-            mime: item.mime_type || 'application/octet-stream', bytes: new ArrayBuffer(0), localUrl: '', unavailable: true});
+      for (const item of items) {
+        try {
+          const response = await apiFetch(blobUrl(item.blob_id));
+          if (!response.ok) throw new Error(`blob ${item.blob_id}: ${response.status}`);
+          const bytes = await response.arrayBuffer();
+          if (epoch !== attachmentEpoch || !hasAttachmentSpace(item.kind)) continue;
+          const mime = item.mime_type || response.headers.get('content-type') || 'application/octet-stream';
+          attachments.value = [
+            ...attachments.value,
+            {
+              kind: item.kind,
+              name: item.filename,
+              mime,
+              stored: { owner: item.blob_id.split('/')[0], id: item.blob_id.split('/').at(-1) },
+              placeholder: item.placeholder,
+              bytes,
+              localUrl: URL.createObjectURL(new Blob([bytes], { type: mime })),
+            },
+          ];
           saveAttachmentDrafts(currentSid.value, attachments.value);
-          toast(tr('附件无法恢复，可能已被清理。请移除或重新添加原文件。', 'Attachment unavailable; it may have been cleaned up. Remove it or attach the original file again.'));
+        } catch (error) {
+          if (epoch === attachmentEpoch) {
+            attachments.value.push({
+              kind: item.kind,
+              name: item.filename,
+              placeholder: item.placeholder,
+              stored: { owner: item.blob_id.split('/')[0], id: item.blob_id.split('/').at(-1) },
+              mime: item.mime_type || 'application/octet-stream',
+              bytes: new ArrayBuffer(0),
+              localUrl: '',
+              unavailable: true,
+            });
+            saveAttachmentDrafts(currentSid.value, attachments.value);
+            toast(
+              tr(
+                '附件无法恢复，可能已被清理。请移除或重新添加原文件。',
+                'Attachment unavailable; it may have been cleaned up. Remove it or attach the original file again.',
+              ),
+            );
+          }
         }
       }
+    } finally {
+      if (epoch === attachmentEpoch) readingAttachments.value = 0;
     }
-    } finally { if (epoch === attachmentEpoch) readingAttachments.value = 0; }
   }
 
   function replaceAttachments(items: AttachmentInput[]) {
@@ -111,7 +122,8 @@ export function useComposerAttachments(
     readingAttachments.value = 0;
     deletedAttachments.clear();
     revokeAll(attachments.value);
-    attachments.value = items.map(item => ({ ...item,
+    attachments.value = items.map((item) => ({
+      ...item,
       localUrl: item.unavailable ? '' : URL.createObjectURL(new Blob([item.bytes], { type: item.mime })),
     }));
     saveAttachmentDrafts(currentSid.value, attachments.value);
@@ -126,7 +138,8 @@ export function useComposerAttachments(
       });
       if (epoch !== attachmentEpoch) return;
       await readAttachments(
-        picked.map((file: Omit<PickedAttachment, 'kind'>) => ({ ...file, kind })), inserted,
+        picked.map((file: Omit<PickedAttachment, 'kind'>) => ({ ...file, kind })),
+        inserted,
       );
     } catch (error) {
       if (epoch === attachmentEpoch) toast('Could not read attachment: ' + String(error));
@@ -135,7 +148,7 @@ export function useComposerAttachments(
 
   async function onPaste(event: ClipboardEvent, inserted?: (placeholder: string) => void) {
     const text = event.clipboardData?.getData('text/plain') ?? '';
-    const files: PickedAttachment[] = Array.from(event.clipboardData?.files ?? []).map(file => ({
+    const files: PickedAttachment[] = Array.from(event.clipboardData?.files ?? []).map((file) => ({
       kind: hasImagePreview(file.type) ? 'image' : 'file',
       name: file.name || undefined,
       mime: file.type || 'application/octet-stream',
@@ -166,7 +179,9 @@ export function useComposerAttachments(
       for (const file of files) {
         if (epoch !== attachmentEpoch) return;
         if (file.size > Math.max(limits.value.imageBytes, limits.value.fileBytes)) {
-          toast(`Attachment exceeds size limit (${fmtBytes(Math.max(limits.value.imageBytes, limits.value.fileBytes))})`);
+          toast(
+            `Attachment exceeds size limit (${fmtBytes(Math.max(limits.value.imageBytes, limits.value.fileBytes))})`,
+          );
           continue;
         }
         const bytes = await file.read();
@@ -176,11 +191,13 @@ export function useComposerAttachments(
         const mime = imageMime || imageFormat(bytes) || file.mime;
         if (!attachmentAccepted({ ...file, kind, size: bytes.byteLength })) continue;
         if (kind !== file.kind) {
-          toast(tr('此图片格式不受支持，已转为文件附件。', 'This image format is unsupported; added as a file attachment.'));
+          toast(
+            tr('此图片格式不受支持，已转为文件附件。', 'This image format is unsupported; added as a file attachment.'),
+          );
         }
         const placeholder = `<${file.pastedText ? 'paste' : kind}-${await attachmentDigest(bytes)}>`;
         if (epoch !== attachmentEpoch) return;
-        if (placeholder && attachments.value.some(item => item.placeholder === placeholder)) {
+        if (placeholder && attachments.value.some((item) => item.placeholder === placeholder)) {
           inserted?.(placeholder);
           continue;
         }
@@ -219,15 +236,21 @@ export function useComposerAttachments(
     let restored = false;
     for (const [token, attachment] of deletedAttachments) {
       if (!previous.includes(token) && next.includes(token)) {
-        attachments.value.push({ ...attachment, localUrl: attachment.unavailable ? '' : URL.createObjectURL(new Blob([attachment.bytes], { type: attachment.mime })) });
+        attachments.value.push({
+          ...attachment,
+          localUrl: attachment.unavailable
+            ? ''
+            : URL.createObjectURL(new Blob([attachment.bytes], { type: attachment.mime })),
+        });
         deletedAttachments.delete(token);
         restored = true;
       }
     }
     if (restored) {
-      const position = (attachment: Attachment) => attachment.placeholder ? next.indexOf(attachment.placeholder) : -1;
+      const position = (attachment: Attachment) => (attachment.placeholder ? next.indexOf(attachment.placeholder) : -1);
       attachments.value.sort((a, b) => {
-        const left = position(a), right = position(b);
+        const left = position(a),
+          right = position(b);
         return (left < 0 ? Number.MAX_SAFE_INTEGER : left) - (right < 0 ? Number.MAX_SAFE_INTEGER : right);
       });
     }

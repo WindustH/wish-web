@@ -32,7 +32,22 @@ export interface SessionDescriptor {
 }
 /** `mcp` adds no tool of its own: the model reaches MCP servers with `wish mcp` in the shell. */
 export type ToolDelivery = 'tool' | 'command';
-export interface ToolSwitches { history_search?: boolean; history_search_delivery?: ToolDelivery; task_delivery?: ToolDelivery; web_fetch_delivery?: ToolDelivery; web_search_delivery?: ToolDelivery; ask_user_delivery?: ToolDelivery; shell: boolean; ask_user: boolean; mcp: boolean; web_search: boolean; web_fetch?: boolean; skills: boolean; sessions: boolean; sessions_delivery?: ToolDelivery }
+export interface ToolSwitches {
+  history_search?: boolean;
+  history_search_delivery?: ToolDelivery;
+  task_delivery?: ToolDelivery;
+  web_fetch_delivery?: ToolDelivery;
+  web_search_delivery?: ToolDelivery;
+  ask_user_delivery?: ToolDelivery;
+  shell: boolean;
+  ask_user: boolean;
+  mcp: boolean;
+  web_search: boolean;
+  web_fetch?: boolean;
+  skills: boolean;
+  sessions: boolean;
+  sessions_delivery?: ToolDelivery;
+}
 /** One question of an `ask_user` form, with its optional fields settled by the server. */
 export interface AskQuestion {
   type: 'choice' | 'text';
@@ -54,19 +69,39 @@ export interface PendingQuestion {
 }
 export type SessionPhase = 'compacting' | 'running' | 'queued' | 'idle';
 export interface SessionView {
-  id: string; name: string; provider: string; model: string;
-  reasoning_effort: string | undefined; metadata: any;
-  phase: SessionPhase; running: boolean; queue: number;
-  revision: number; created_at: number; updated_at: number;
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
+  reasoning_effort: string | undefined;
+  metadata: any;
+  phase: SessionPhase;
+  running: boolean;
+  queue: number;
+  revision: number;
+  created_at: number;
+  updated_at: number;
   compaction_count: number;
   standby_preparing: boolean;
   context_tokens: number | null;
   pending_questions: PendingQuestion[];
   background_tools?: { id: string; call_id: string; name: string; status: string }[];
   last_error: DisplayFailure | null;
-  agent_custom: any; config: SessionConfig; descriptor: SessionDescriptor; status: any;
+  agent_custom: any;
+  config: SessionConfig;
+  descriptor: SessionDescriptor;
+  status: any;
 }
-export type EntryKind = 'run_error' | 'history_event' | 'system_message' | 'developer_message' | 'user_message' | 'assistant_message' | 'tool_result' | 'group_message' | 'group_sent';
+export type EntryKind =
+  | 'run_error'
+  | 'history_event'
+  | 'system_message'
+  | 'developer_message'
+  | 'user_message'
+  | 'assistant_message'
+  | 'tool_result'
+  | 'group_message'
+  | 'group_sent';
 export interface EntryPayload {
   via?: 'command';
   instruction_title?: string;
@@ -82,8 +117,13 @@ export interface EntryPayload {
   metadata?: any;
 }
 export interface EntryView {
-  seq: number; id: number | string; event_id?: number; run_id?: number | null;
-  created_at: number; kind: EntryKind; payload: EntryPayload;
+  seq: number;
+  id: number | string;
+  event_id?: number;
+  run_id?: number | null;
+  created_at: number;
+  kind: EntryKind;
+  payload: EntryPayload;
 }
 // A configured provider as the pickers read it; the remaining settings pass through.
 export interface ProviderView {
@@ -104,12 +144,27 @@ export interface ProviderView {
 export function sessionView(value: any): SessionView {
   const { session, status } = value;
   const config = status.config;
-  const phase = status.phase === 'Compacting' ? 'compacting' : status.running ? 'running' : status.phase === 'Ready' ? 'queued' : 'idle';
+  const phase =
+    status.phase === 'Compacting'
+      ? 'compacting'
+      : status.running
+        ? 'running'
+        : status.phase === 'Ready'
+          ? 'queued'
+          : 'idle';
   return {
-    id: session.id, name: session.name, provider: session.provider, model: config.model,
-    reasoning_effort: config.reasoning?.effort, metadata: status.metadata,
-    phase, running: status.running, queue: status.queue_count,
-    revision: session.revision, created_at: session.created_at, updated_at: session.updated_at,
+    id: session.id,
+    name: session.name,
+    provider: session.provider,
+    model: config.model,
+    reasoning_effort: config.reasoning?.effort,
+    metadata: status.metadata,
+    phase,
+    running: status.running,
+    queue: status.queue_count,
+    revision: session.revision,
+    created_at: session.created_at,
+    updated_at: session.updated_at,
     compaction_count: status.active_generation ?? 0,
     standby_preparing: Boolean(status.standby_preparing),
     // Input size of the last conversation call in the active context; null until one completes.
@@ -118,42 +173,92 @@ export function sessionView(value: any): SessionView {
     pending_questions: status.pending_questions ?? [],
     background_tools: status.background_tools ?? [],
     last_error: operationFailure(status.last_operation),
-    agent_custom: status.metadata?.agent_custom, config, descriptor: session, status,
+    agent_custom: status.metadata?.agent_custom,
+    config,
+    descriptor: session,
+    status,
   };
 }
 export function entryView(item: any, sessionId: string): EntryView {
   if (item.content.kind === 'event') {
-    const failure = operationFailure({outcome: item.content.value.Finished});
+    const failure = operationFailure({ outcome: item.content.value.Finished });
     // A note of Wish's that the session sent a message to a group.
     const sent = item.content.value.Application;
     if (sent?.type === 'command_tool_use') {
-      return { seq: item.record.sequence, id: `event-${item.record.sequence}`, created_at: item.record.recorded_at,
-        kind: 'assistant_message', payload: { via: 'command', content: [{ type: 'tool_call', id: sent.call_id, name: sent.name, arguments: sent.arguments }] } };
+      return {
+        seq: item.record.sequence,
+        id: `event-${item.record.sequence}`,
+        created_at: item.record.recorded_at,
+        kind: 'assistant_message',
+        payload: {
+          via: 'command',
+          content: [{ type: 'tool_call', id: sent.call_id, name: sent.name, arguments: sent.arguments }],
+        },
+      };
     }
     if (sent?.type === 'command_tool_result') {
-      return { seq: item.record.sequence, id: `event-${item.record.sequence}`, created_at: item.record.recorded_at,
-        kind: 'tool_result', payload: { via: 'command', tool_name: sent.name, tool_call_id: sent.call_id, result: sent.content, metadata: sent.metadata, content: [] } };
+      return {
+        seq: item.record.sequence,
+        id: `event-${item.record.sequence}`,
+        created_at: item.record.recorded_at,
+        kind: 'tool_result',
+        payload: {
+          via: 'command',
+          tool_name: sent.name,
+          tool_call_id: sent.call_id,
+          result: sent.content,
+          metadata: sent.metadata,
+          content: [],
+        },
+      };
     }
     if (sent?.type === 'model_instruction') {
       const note = sent.instruction;
       const text = (note.content ?? []).map((block: any) => block.Text?.text ?? '').join('\n\n');
-      return { seq: item.record.sequence, id: `event-${item.record.sequence}`, created_at: item.record.recorded_at,
-        kind: 'system_message', payload: { instruction_title: note.title, content: [{ type: 'text', text }],
-          instruction_sections: note.title?.startsWith('系统指令') ? instructionSections(text) : undefined } };
+      return {
+        seq: item.record.sequence,
+        id: `event-${item.record.sequence}`,
+        created_at: item.record.recorded_at,
+        kind: 'system_message',
+        payload: {
+          instruction_title: note.title,
+          content: [{ type: 'text', text }],
+          instruction_sections: note.title?.startsWith('系统指令') ? instructionSections(text) : undefined,
+        },
+      };
     }
     if (sent?.type === 'group_message_sent') {
-      return {seq: item.record.sequence, id: `event-${item.record.sequence}`, created_at: item.record.recorded_at,
-        kind: 'group_sent', payload: {metadata: sent, content: [{ type: 'text', text: sent.text ?? '' }]}};
+      return {
+        seq: item.record.sequence,
+        id: `event-${item.record.sequence}`,
+        created_at: item.record.recorded_at,
+        kind: 'group_sent',
+        payload: { metadata: sent, content: [{ type: 'text', text: sent.text ?? '' }] },
+      };
     }
-    return {seq: item.record.sequence, id: `event-${item.record.sequence}`,
-      event_id: item.record.item?.Event, created_at: item.record.recorded_at, kind: failure ? 'run_error' : 'history_event',
-      payload: {failure, content: []}};
+    return {
+      seq: item.record.sequence,
+      id: `event-${item.record.sequence}`,
+      event_id: item.record.item?.Event,
+      created_at: item.record.recorded_at,
+      kind: failure ? 'run_error' : 'history_event',
+      payload: { failure, content: [] },
+    };
   }
   const entry = item.content.value;
   const [type, message] = Object.entries<any>(entry.message)[0];
-  const result: EntryView = { seq: item.record.sequence, id: entry.id, run_id: item.record.model_call_id,
-    created_at: item.record.recorded_at, kind: 'system_message', payload: { content: [] } };
-  const blocks = (content: any[] | undefined): ContentBlock[] => (content ?? []).map(block => block.Text ? { type: 'text', text: block.Text.text } : { type: 'image', ...block.Image });
+  const result: EntryView = {
+    seq: item.record.sequence,
+    id: entry.id,
+    run_id: item.record.model_call_id,
+    created_at: item.record.recorded_at,
+    kind: 'system_message',
+    payload: { content: [] },
+  };
+  const blocks = (content: any[] | undefined): ContentBlock[] =>
+    (content ?? []).map((block) =>
+      block.Text ? { type: 'text', text: block.Text.text } : { type: 'image', ...block.Image },
+    );
   switch (type) {
     case 'Developer':
     case 'User': {
@@ -163,50 +268,126 @@ export function entryView(item: any, sessionId: string): EntryView {
         result.payload = { metadata: message.metadata, content: blocks(message.content) };
       } else if (message.metadata?.source === 'background_tool_finished') {
         result.kind = 'developer_message';
-        result.payload = { tool_name: message.metadata.tool_name, background: true,
-          metadata: { ...message.metadata, ...message.metadata.tool_metadata }, result: message.metadata.result,
-          content: blocks(message.content) };
+        result.payload = {
+          tool_name: message.metadata.tool_name,
+          background: true,
+          metadata: { ...message.metadata, ...message.metadata.tool_metadata },
+          result: message.metadata.result,
+          content: blocks(message.content),
+        };
       } else if (message.metadata?.source === 'background_execution_finished') {
-        const raw = (message.content ?? []).filter((b: any) => b.Text).map((b: any) => b.Text.text).join('\n');
+        const raw = (message.content ?? [])
+          .filter((b: any) => b.Text)
+          .map((b: any) => b.Text.text)
+          .join('\n');
         let completion = message.metadata?.completion;
-        if (!completion) { try { completion = JSON.parse(raw.slice(raw.indexOf('\n') + 1)); } catch {} }
+        if (!completion) {
+          try {
+            completion = JSON.parse(raw.slice(raw.indexOf('\n') + 1));
+          } catch {}
+        }
         result.kind = 'developer_message';
-        result.payload = {tool_name:'shell',background:true,command:completion?.command,metadata:message.metadata,
-          result:completion?.result ? {status:'success',output:completion.result} : undefined,
-          content:[{type:'text',text:raw}]};
+        result.payload = {
+          tool_name: 'shell',
+          background: true,
+          command: completion?.command,
+          metadata: message.metadata,
+          result: completion?.result ? { status: 'success', output: completion.result } : undefined,
+          content: [{ type: 'text', text: raw }],
+        };
       } else if (message.metadata?.source === 'group') {
         // A post a group told this session: who wrote it and where are in the metadata.
         result.kind = 'group_message';
         result.payload = { metadata: message.metadata, content: blocks(message.content) };
-      } else { result.kind = type === 'Developer' ? 'developer_message' : 'user_message'; result.payload = { metadata: message.metadata, content: blocks(message.content) }; }
+      } else {
+        result.kind = type === 'Developer' ? 'developer_message' : 'user_message';
+        result.payload = { metadata: message.metadata, content: blocks(message.content) };
+      }
       break;
     }
-    case 'Assistant': result.kind = 'assistant_message'; result.payload.content = blocks(message.content); break;
-    case 'Reasoning': result.kind = 'assistant_message'; result.payload.content = [{ type: 'reasoning', display_summary: message.display != null, text: message.display || message.plaintext }]; break;
-    case 'ToolUse': result.kind = 'assistant_message'; result.payload.content = [{ type: 'tool_call', id: message.call_id, name: message.name, arguments: message.arguments }]; break;
-    case 'ToolResult': result.kind = 'tool_result'; result.payload = { tool_name: message.name, tool_call_id: message.call_id, result: message.content, metadata: message.metadata, content: [{ type: 'text', text: typeof message.content === 'string' ? message.content : JSON.stringify(message.content, null, 2) }] }; break;
-    default: result.payload = { metadata: message.metadata, content: message.content ? blocks(message.content) : [{ type: 'text', text: JSON.stringify(message, null, 2) }] };
+    case 'Assistant':
+      result.kind = 'assistant_message';
+      result.payload.content = blocks(message.content);
+      break;
+    case 'Reasoning':
+      result.kind = 'assistant_message';
+      result.payload.content = [
+        { type: 'reasoning', display_summary: message.display != null, text: message.display || message.plaintext },
+      ];
+      break;
+    case 'ToolUse':
+      result.kind = 'assistant_message';
+      result.payload.content = [
+        { type: 'tool_call', id: message.call_id, name: message.name, arguments: message.arguments },
+      ];
+      break;
+    case 'ToolResult':
+      result.kind = 'tool_result';
+      result.payload = {
+        tool_name: message.name,
+        tool_call_id: message.call_id,
+        result: message.content,
+        metadata: message.metadata,
+        content: [
+          {
+            type: 'text',
+            text: typeof message.content === 'string' ? message.content : JSON.stringify(message.content, null, 2),
+          },
+        ],
+      };
+      break;
+    default:
+      result.payload = {
+        metadata: message.metadata,
+        content: message.content ? blocks(message.content) : [{ type: 'text', text: JSON.stringify(message, null, 2) }],
+      };
   }
   if (type === 'System' && message.metadata?.source === 'wish_agent_instructions') {
-    result.payload.instruction_sections = instructionSections((message.content ?? []).map((block: any) => block.Text?.text ?? '').join('\n\n'), item.instruction_preview);
+    result.payload.instruction_sections = instructionSections(
+      (message.content ?? []).map((block: any) => block.Text?.text ?? '').join('\n\n'),
+      item.instruction_preview,
+    );
   }
   if (entry.origin === 'Summary' || type === 'UpstreamCompaction') {
     result.kind = 'system_message';
     result.payload.instruction_title = type === 'UpstreamCompaction' ? '上游上下文压缩' : '上下文摘要';
   }
   if (Array.isArray(item.initial_tools)) {
-    const sections = result.payload.instruction_sections ?? [{ title: '系统指令', content: result.payload.content.map(block => block.type === 'text' ? block.text : '').join('\n'), supplemental: false }];
-    result.payload.instruction_sections = [{ title: '工具定义 · Generation #0', content: JSON.stringify(item.initial_tools, null, 2), supplemental: false }, ...sections];
+    const sections = result.payload.instruction_sections ?? [
+      {
+        title: '系统指令',
+        content: result.payload.content.map((block) => (block.type === 'text' ? block.text : '')).join('\n'),
+        supplemental: false,
+      },
+    ];
+    result.payload.instruction_sections = [
+      { title: '工具定义 · Generation #0', content: JSON.stringify(item.initial_tools, null, 2), supplemental: false },
+      ...sections,
+    ];
   }
   if (type === 'User' && Array.isArray(message.metadata?.input_parts)) {
     result.payload.content = orderedUserContent(message, sessionId, result.payload.content);
     return result;
   }
   const files = message.metadata?.attachments?.filter((a: any) => a.kind === 'file') ?? [];
-  if (files.length) result.payload.content.push(...files.map((a: any) => ({ type: 'file', blob_id: `${sessionId}/${a.id}`, filename: a.name, byte_count: a.byte_count })));
+  if (files.length)
+    result.payload.content.push(
+      ...files.map((a: any) => ({
+        type: 'file',
+        blob_id: `${sessionId}/${a.id}`,
+        filename: a.name,
+        byte_count: a.byte_count,
+      })),
+    );
   return result;
 }
 export function providerView(p: any): ProviderView {
-  return { ...p, preset: p.preset ?? '', enabled: p.enabled, model_catalog_available: !!p.model_list,
-    reasoning_efforts: p.reasoning_efforts ?? {}, models: p.models ?? {} };
+  return {
+    ...p,
+    preset: p.preset ?? '',
+    enabled: p.enabled,
+    model_catalog_available: !!p.model_list,
+    reasoning_efforts: p.reasoning_efforts ?? {},
+    models: p.models ?? {},
+  };
 }

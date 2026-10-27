@@ -1,11 +1,25 @@
 import type { PieSlice } from './pieDistribution.ts';
 import type { EChartsCoreOption } from 'echarts/core';
-export interface PlotSeries { key: string; label: string; colorIndex?: number; scatter?: boolean; points: [number, number | null, number?][] }
-export interface ChartStyle { foreground: string; muted: string; line: string; surface: string; font: string; colors: string[]; heat: string[] }
+export interface PlotSeries {
+  key: string;
+  label: string;
+  colorIndex?: number;
+  scatter?: boolean;
+  points: [number, number | null, number?][];
+}
+export interface ChartStyle {
+  foreground: string;
+  muted: string;
+  line: string;
+  surface: string;
+  font: string;
+  colors: string[];
+  heat: string[];
+}
 // Recompute each model's ±2σ band after clipping so extreme spikes cannot
 // mask smaller outliers. Bound the passes; never modify source/aggregate data.
 function filterTpsOutliers(points: PlotSeries['points']): PlotSeries['points'] {
-  let kept = points.filter(point => point[1] !== null && Number.isFinite(point[1]));
+  let kept = points.filter((point) => point[1] !== null && Number.isFinite(point[1]));
   for (let pass = 0; pass < 8 && kept.length >= 3; pass++) {
     let mean = 0;
     let squaredDeviation = 0;
@@ -17,7 +31,7 @@ function filterTpsOutliers(points: PlotSeries['points']): PlotSeries['points'] {
     });
     if (squaredDeviation === 0) break;
     const radius = 2 * Math.sqrt(Math.max(0, squaredDeviation / kept.length));
-    const next = kept.filter(point => Math.abs(point[1]! - mean) <= radius);
+    const next = kept.filter((point) => Math.abs(point[1]! - mean) <= radius);
     if (!next.length || next.length === kept.length) break;
     kept = next;
   }
@@ -25,16 +39,27 @@ function filterTpsOutliers(points: PlotSeries['points']): PlotSeries['points'] {
 }
 export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: string, unit: string): EChartsCoreOption {
   const format = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
-  const times = series.flatMap(item => item.points.map(point => point[0]));
-  const span = times.length ? times.reduce((a,b)=>Math.max(a,b),-Infinity) - times.reduce((a,b)=>Math.min(a,b),Infinity) : 0;
+  const times = series.flatMap((item) => item.points.map((point) => point[0]));
+  const span = times.length
+    ? times.reduce((a, b) => Math.max(a, b), -Infinity) - times.reduce((a, b) => Math.min(a, b), Infinity)
+    : 0;
   return {
-    animation: true, animationDuration: 0, animationDurationUpdate: 260, animationEasingUpdate: 'cubicOut',
+    animation: true,
+    animationDuration: 0,
+    animationDurationUpdate: 260,
+    animationEasingUpdate: 'cubicOut',
     textStyle: { fontFamily: style.font, color: style.foreground },
     grid: { left: 8, right: 18, top: 24, bottom: 8, containLabel: true },
     // HTML rather than richText: canvas text is measured with a different font
     // than it renders with, so the box came out narrower than its text.
-    tooltip: { trigger: series.some(item => item.scatter) ? 'item' : 'axis', confine: true, renderMode: 'html', backgroundColor: style.surface, borderColor: style.line,
-      padding: [10, 12], borderRadius: 8,
+    tooltip: {
+      trigger: series.some((item) => item.scatter) ? 'item' : 'axis',
+      confine: true,
+      renderMode: 'html',
+      backgroundColor: style.surface,
+      borderColor: style.line,
+      padding: [10, 12],
+      borderRadius: 8,
       extraCssText: 'max-width:calc(100% - 24px);white-space:normal;box-sizing:border-box;pointer-events:none;',
       textStyle: { color: style.foreground, fontFamily: style.font, fontSize: 12 },
       formatter: (params: any) => {
@@ -47,7 +72,8 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
         content.append(time);
         for (const point of actual) {
           const row = document.createElement('div');
-          row.style.cssText = 'display:flex;align-items:center;gap:6px;line-height:1.6;font-variant-numeric:tabular-nums;';
+          row.style.cssText =
+            'display:flex;align-items:center;gap:6px;line-height:1.6;font-variant-numeric:tabular-nums;';
           const dot = document.createElement('span');
           dot.style.cssText = `width:8px;height:8px;border-radius:50%;flex:none;background:${point.color};`;
           const name = document.createElement('span');
@@ -60,20 +86,63 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
         }
         return content;
       },
-      axisPointer: { type: 'line', lineStyle: { color: style.muted, type: 'dashed' } } },
-    xAxis: { type: 'time', boundaryGap: false, axisLine: { lineStyle: { color: style.line } }, axisTick: { show: false },
-      axisLabel: { color: style.muted, hideOverlap: true, formatter: (value: number) => new Date(value).toLocaleString(locale, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', ...(span < 3_600_000 ? { second: '2-digit' as const } : {}) }) }, splitNumber: 4 },
-    yAxis: { type: 'value', min: 0, name: unit, nameTextStyle: { color: style.muted, align: 'left' }, axisLabel: { color: style.muted, formatter: (value: number) => new Intl.NumberFormat('en', { notation: 'compact' }).format(value) },
-      splitLine: { lineStyle: { color: style.line } } },
+      axisPointer: { type: 'line', lineStyle: { color: style.muted, type: 'dashed' } },
+    },
+    xAxis: {
+      type: 'time',
+      boundaryGap: false,
+      axisLine: { lineStyle: { color: style.line } },
+      axisTick: { show: false },
+      axisLabel: {
+        color: style.muted,
+        hideOverlap: true,
+        formatter: (value: number) =>
+          new Date(value).toLocaleString(locale, {
+            month: 'numeric',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            ...(span < 3_600_000 ? { second: '2-digit' as const } : {}),
+          }),
+      },
+      splitNumber: 4,
+    },
+    yAxis: {
+      type: 'value',
+      min: 0,
+      name: unit,
+      nameTextStyle: { color: style.muted, align: 'left' },
+      axisLabel: {
+        color: style.muted,
+        formatter: (value: number) => new Intl.NumberFormat('en', { notation: 'compact' }).format(value),
+      },
+      splitLine: { lineStyle: { color: style.line } },
+    },
     series: series.map((item, index) => ({
-      id: item.key, name: item.label, type: item.scatter ? 'scatter' : 'line',
-      data: item.scatter ? filterTpsOutliers(item.points) : item.points, smooth: false, connectNulls: false,
-      showSymbol: true, symbol: 'circle', symbolSize: item.scatter ? 5 : 4,
-      lineStyle: { width: 2 }, itemStyle: { color: style.colors[(item.colorIndex ?? index) % style.colors.length], opacity: item.scatter ? .7 : 1 }, emphasis: { focus: 'series' },
+      id: item.key,
+      name: item.label,
+      type: item.scatter ? 'scatter' : 'line',
+      data: item.scatter ? filterTpsOutliers(item.points) : item.points,
+      smooth: false,
+      connectNulls: false,
+      showSymbol: true,
+      symbol: 'circle',
+      symbolSize: item.scatter ? 5 : 4,
+      lineStyle: { width: 2 },
+      itemStyle: {
+        color: style.colors[(item.colorIndex ?? index) % style.colors.length],
+        opacity: item.scatter ? 0.7 : 1,
+      },
+      emphasis: { focus: 'series' },
     })),
   };
 }
-export interface HeatData { buckets: { start_ms: number; total_tokens: number }[]; bucketMs: number; offsetMinutes: number; endMs: number }
+export interface HeatData {
+  buckets: { start_ms: number; total_tokens: number }[];
+  bucketMs: number;
+  offsetMinutes: number;
+  endMs: number;
+}
 export function calendarLayout(count: number, width: number) {
   const available = Math.max(1, width - 4);
   const rows = 7;
@@ -84,16 +153,29 @@ export function calendarLayout(count: number, width: number) {
 export function calendarOptions(heat: HeatData, style: ChartStyle, locale: string, width = 800): EChartsCoreOption {
   const layout = calendarLayout(heat.buckets.length, width);
   const { rows, columns } = layout;
-  const max = Math.max(1, ...heat.buckets.map(bucket => bucket.total_tokens));
-  const date = (at: number, time = false) => new Date(at + heat.offsetMinutes * 60_000).toLocaleString(locale, {
-    timeZone: 'UTC', month: 'numeric', day: 'numeric', ...(time ? { hour: '2-digit' as const, minute: '2-digit' as const } : {}) });
+  const max = Math.max(1, ...heat.buckets.map((bucket) => bucket.total_tokens));
+  const date = (at: number, time = false) =>
+    new Date(at + heat.offsetMinutes * 60_000).toLocaleString(locale, {
+      timeZone: 'UTC',
+      month: 'numeric',
+      day: 'numeric',
+      ...(time ? { hour: '2-digit' as const, minute: '2-digit' as const } : {}),
+    });
   const interval = heat.bucketMs !== 86_400_000;
   return {
-    animation: true, animationDuration: 0, animationDurationUpdate: 260, animationEasingUpdate: 'cubicOut',
+    animation: true,
+    animationDuration: 0,
+    animationDurationUpdate: 260,
+    animationEasingUpdate: 'cubicOut',
     textStyle: { fontFamily: style.font, color: style.foreground },
     grid: { top: 30, left: (width - layout.width) / 2, width: layout.width, height: layout.height },
-    tooltip: { confine: true, renderMode: 'html', backgroundColor: style.surface, borderColor: style.line,
-      padding: [10, 12], borderRadius: 8,
+    tooltip: {
+      confine: true,
+      renderMode: 'html',
+      backgroundColor: style.surface,
+      borderColor: style.line,
+      padding: [10, 12],
+      borderRadius: 8,
       extraCssText: 'max-width:calc(100% - 24px);white-space:normal;box-sizing:border-box;pointer-events:none;',
       textStyle: { color: style.foreground, fontFamily: style.font, fontSize: 12 },
       formatter: (params: any) => {
@@ -114,17 +196,46 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
         amount.append(value, unit);
         content.append(period, amount);
         return content;
-      } },
-    xAxis: { type: 'category', position: 'top', data: Array.from({ length: columns }, (_, i) => i),
-      axisLine: { show: false }, axisTick: { show: false }, splitArea: { show: false },
-      axisLabel: { color: style.muted, fontSize: 10, hideOverlap: true, interval: Math.max(0, Math.ceil(columns / 5) - 1), formatter: (column: string) => date(heat.buckets[Number(column) * rows]!.start_ms, heat.buckets.length * heat.bucketMs <= 86_400_000) } },
+      },
+    },
+    xAxis: {
+      type: 'category',
+      position: 'top',
+      data: Array.from({ length: columns }, (_, i) => i),
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitArea: { show: false },
+      axisLabel: {
+        color: style.muted,
+        fontSize: 10,
+        hideOverlap: true,
+        interval: Math.max(0, Math.ceil(columns / 5) - 1),
+        formatter: (column: string) =>
+          date(heat.buckets[Number(column) * rows]!.start_ms, heat.buckets.length * heat.bucketMs <= 86_400_000),
+      },
+    },
     yAxis: { type: 'category', inverse: true, data: Array.from({ length: rows }, (_, i) => i), show: false },
-    visualMap: { show: false, dimension: 2, type: 'piecewise', pieces: [
-      { value: 0, color: style.heat[0] },
-      ...[0, 1, 2, 3].map(index => ({ gt: max * index / 4, lte: max * (index + 1) / 4, color: style.heat[index + 1] }))
-    ] },
-    series: [{ type: 'heatmap', data: heat.buckets.map((bucket, index) => [Math.floor(index / rows), index % rows, bucket.total_tokens, index]),
-      itemStyle: { borderColor: style.surface, borderWidth: 2, borderRadius: 3 }, emphasis: { itemStyle: { borderColor: style.foreground, borderWidth: 1 } } }],
+    visualMap: {
+      show: false,
+      dimension: 2,
+      type: 'piecewise',
+      pieces: [
+        { value: 0, color: style.heat[0] },
+        ...[0, 1, 2, 3].map((index) => ({
+          gt: (max * index) / 4,
+          lte: (max * (index + 1)) / 4,
+          color: style.heat[index + 1],
+        })),
+      ],
+    },
+    series: [
+      {
+        type: 'heatmap',
+        data: heat.buckets.map((bucket, index) => [Math.floor(index / rows), index % rows, bucket.total_tokens, index]),
+        itemStyle: { borderColor: style.surface, borderWidth: 2, borderRadius: 3 },
+        emphasis: { itemStyle: { borderColor: style.foreground, borderWidth: 1 } },
+      },
+    ],
   };
 }
 
@@ -133,15 +244,36 @@ export function pieOptions(items: PieSlice[], style: ChartStyle): EChartsCoreOpt
     // No pie animation at all: every stats refresh rebuilds the slice list,
     // which replays an expand tween even when the shares barely moved.
     // Lines and the heatmap keep their update transitions.
-    animation: false, color: style.colors,
+    animation: false,
+    color: style.colors,
     // The hovered slice is described in the donut's hole by the page, so no
     // floating tooltip lands on the legend beside it.
     tooltip: { show: false },
     // A donut with separated, softly rounded slices; the card places the total
     // in the hole. Hovering lifts a slice and dims the rest.
-    series: [{ type: 'pie', radius: ['60%', '92%'], padAngle: 1.5, minAngle: 3, stillShowZeroSum: false, label: { show: false }, labelLine: { show: false },
-      itemStyle: { borderColor: style.surface, borderWidth: 1, borderRadius: 4 },
-      emphasis: { scale: true, scaleSize: 4, focus: 'self' }, blur: { itemStyle: { opacity: .35 } },
-      data: items.map(item => ({ name: item.name, itemStyle: { color: item.colorIndex == null ? style.muted : style.colors[item.colorIndex % style.colors.length] }, value: item.displayShare, tokens: item.value, share: item.share, members: item.members })) }],
+    series: [
+      {
+        type: 'pie',
+        radius: ['60%', '92%'],
+        padAngle: 1.5,
+        minAngle: 3,
+        stillShowZeroSum: false,
+        label: { show: false },
+        labelLine: { show: false },
+        itemStyle: { borderColor: style.surface, borderWidth: 1, borderRadius: 4 },
+        emphasis: { scale: true, scaleSize: 4, focus: 'self' },
+        blur: { itemStyle: { opacity: 0.35 } },
+        data: items.map((item) => ({
+          name: item.name,
+          itemStyle: {
+            color: item.colorIndex == null ? style.muted : style.colors[item.colorIndex % style.colors.length],
+          },
+          value: item.displayShare,
+          tokens: item.value,
+          share: item.share,
+          members: item.members,
+        })),
+      },
+    ],
   };
 }

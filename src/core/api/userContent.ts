@@ -24,8 +24,18 @@ export function orderedUserContent(message: any, sessionId: string, fallback: Co
   return parts.flatMap((part): ContentBlock[] => {
     if (part.type === 'text') return [{ type: 'text', text: part.text }];
     const file = attachments[part.index];
-    return file ? [{ type: file.kind, blob_id: `${sessionId}/${file.id}`, filename: file.name,
-      image_id: file.id, byte_count: file.byte_count, placeholder: file.placeholder }] : [];
+    return file
+      ? [
+          {
+            type: file.kind,
+            blob_id: `${sessionId}/${file.id}`,
+            filename: file.name,
+            image_id: file.id,
+            byte_count: file.byte_count,
+            placeholder: file.placeholder,
+          },
+        ]
+      : [];
   });
 }
 export function userBubbles(content: readonly ContentBlock[] | null | undefined): ContentBlock[] {
@@ -38,5 +48,5 @@ export function userBubbles(content: readonly ContentBlock[] | null | undefined)
       else bubbles.push({ ...block });
     } else if (block.type === 'image' || block.type === 'file') bubbles.push(block);
   }
-  return bubbles.filter(block => block.type !== 'text' || block.text.trim());
+  return bubbles.filter((block) => block.type !== 'text' || block.text.trim());
 }

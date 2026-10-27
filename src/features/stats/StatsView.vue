@@ -20,94 +20,186 @@ import { tr } from '../../core/i18n/tr.ts';
 const UsagePlot = defineAsyncComponent(() => import('../usage/UsagePlot.vue'));
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 const charts = ref<{ refresh: () => void }>();
-function refresh() { void stats.refresh(); charts.value?.refresh(); }
+function refresh() {
+  void stats.refresh();
+  charts.value?.refresh();
+}
 const { usage, storage, loading, error, updatedAt } = stats;
 const hiddenModels = ref(new Set<string>());
-function toggleModel(key:string){const next=new Set(hiddenModels.value);next.has(key)?next.delete(key):next.add(key);hiddenModels.value=next;}
+function toggleModel(key: string) {
+  const next = new Set(hiddenModels.value);
+  next.has(key) ? next.delete(key) : next.add(key);
+  hiddenModels.value = next;
+}
 const providerTitle = useProviderTitles();
-const modelName = (model: string | null) => model ? modelLabel(model) : tr('未记录', 'Not recorded');
-const providerLabel = (provider: string | null) => provider ? providerTitle(provider) : tr('未记录', 'Not recorded');
-const modelKey = (row: {provider: string | null; model: string | null}) => keyOf(row.provider, row.model);
+const modelName = (model: string | null) => (model ? modelLabel(model) : tr('未记录', 'Not recorded'));
+const providerLabel = (provider: string | null) => (provider ? providerTitle(provider) : tr('未记录', 'Not recorded'));
+const modelKey = (row: { provider: string | null; model: string | null }) => keyOf(row.provider, row.model);
 // Models without usage in the chosen range have nothing to show or toggle.
-const rows = computed(() => (usage.value?.statistics.by_provider_model ?? []).filter(row => row.totals.tokens.total_tokens > 0));
+const rows = computed(() =>
+  (usage.value?.statistics.by_provider_model ?? []).filter((row) => row.totals.tokens.total_tokens > 0),
+);
 // Every chart colors a model by its lasting slot, matching the buttons and the donut.
-const modelColor = (row: {provider: string | null; model: string | null}) => color(modelColorIndex(modelKey(row)));
-const selectedRows = computed(() => rows.value.filter(row=>!hiddenModels.value.has(modelKey(row))));
-const totals = computed(() => selectedRows.value.reduce((sum,row)=>{
-  sum.tokens.input_tokens+=row.totals.tokens.input_tokens;
-  sum.tokens.output_tokens+=row.totals.tokens.output_tokens;
-  sum.cache.read_input_tokens+=row.totals.cache.read_input_tokens;
-  return sum;
-},{tokens:{input_tokens:0,output_tokens:0},cache:{read_input_tokens:0}}));
-const totalTokens = computed(()=>usage.value?.statistics.totals.tokens.total_tokens??0);
+const modelColor = (row: { provider: string | null; model: string | null }) => color(modelColorIndex(modelKey(row)));
+const selectedRows = computed(() => rows.value.filter((row) => !hiddenModels.value.has(modelKey(row))));
+const totals = computed(() =>
+  selectedRows.value.reduce(
+    (sum, row) => {
+      sum.tokens.input_tokens += row.totals.tokens.input_tokens;
+      sum.tokens.output_tokens += row.totals.tokens.output_tokens;
+      sum.cache.read_input_tokens += row.totals.cache.read_input_tokens;
+      return sum;
+    },
+    { tokens: { input_tokens: 0, output_tokens: 0 }, cache: { read_input_tokens: 0 } },
+  ),
+);
+const totalTokens = computed(() => usage.value?.statistics.totals.tokens.total_tokens ?? 0);
 const usageRange = stats.usageRange;
 const usageSwitching = stats.usageSwitching;
-const errorMessage = computed(() => error.value instanceof Error ? error.value.message : String(error.value));
+const errorMessage = computed(() => (error.value instanceof Error ? error.value.message : String(error.value)));
 const number = (value: number) => new Intl.NumberFormat(i18n.locale.value).format(value);
-const percent = (value: number | null) => value == null ? '—' : new Intl.NumberFormat(i18n.locale.value, { style: 'percent', maximumFractionDigits: 1 }).format(value);
+const percent = (value: number | null) =>
+  value == null
+    ? '—'
+    : new Intl.NumberFormat(i18n.locale.value, { style: 'percent', maximumFractionDigits: 1 }).format(value);
 // Keep the button's original color index through filtering and pie sorting.
-const models = computed(() => rows.value.flatMap(row => {
-  if (hiddenModels.value.has(modelKey(row))) return [];
-  const colorIndex = modelColorIndex(modelKey(row));
-  const label = modelName(row.model);
-  const duplicate = rows.value.some(other => other !== row && other.model === row.model);
-  return [{
-    name: duplicate ? [label, providerLabel(row.provider)].filter(Boolean).join(' · ') : label,
-    value: row.totals.tokens.total_tokens,
-    colorIndex,
-  }];
-}));
+const models = computed(() =>
+  rows.value.flatMap((row) => {
+    if (hiddenModels.value.has(modelKey(row))) return [];
+    const colorIndex = modelColorIndex(modelKey(row));
+    const label = modelName(row.model);
+    const duplicate = rows.value.some((other) => other !== row && other.model === row.model);
+    return [
+      {
+        name: duplicate ? [label, providerLabel(row.provider)].filter(Boolean).join(' · ') : label,
+        value: row.totals.tokens.total_tokens,
+        colorIndex,
+      },
+    ];
+  }),
+);
 const slices = computed(() => pieDistribution(models.value, tr('其他', 'Other')));
-const showPie = computed(() => models.value.filter(item => item.value > 0).length > 1);
+const showPie = computed(() => models.value.filter((item) => item.value > 0).length > 1);
 const pieTotal = computed(() => models.value.reduce((sum, item) => sum + item.value, 0));
 // The hovered slice takes over the donut's hole instead of a floating tooltip.
 const hovered = ref<number | null>(null);
-const hoveredSlice = computed(() => hovered.value == null ? null : slices.value[hovered.value] ?? null);
+const hoveredSlice = computed(() => (hovered.value == null ? null : (slices.value[hovered.value] ?? null)));
 onActivated(stats.startAuto);
 onDeactivated(stats.stopAuto);
 </script>
 
 <template>
-  <OverlayWindow :title="i18n.t('nav.stats')" :close-label="tr('关闭统计', 'Close statistics')" max-width="680px" gutter="24px" mobile-padding="0 20px 32px">
+  <OverlayWindow
+    :title="i18n.t('nav.stats')"
+    :close-label="tr('关闭统计', 'Close statistics')"
+    max-width="680px"
+    gutter="24px"
+    mobile-padding="0 20px 32px"
+  >
     <template #tools><RefreshStamp :at="updatedAt" :loading="loading" @refresh="refresh" /></template>
     <div class="statistics-body">
-      <p v-if="error" class="load-error" role="alert">{{ errorMessage }}<span v-if="updatedAt">{{ tr('下方保留上次成功读取的数据。', 'The last successful snapshot remains below.') }}</span></p>
+      <p v-if="error" class="load-error" role="alert">
+        {{ errorMessage
+        }}<span v-if="updatedAt">{{
+          tr('下方保留上次成功读取的数据。', 'The last successful snapshot remains below.')
+        }}</span>
+      </p>
       <Spinner v-if="loading && !updatedAt" />
       <UsageCharts ref="charts">
         <section v-if="totals && usage" class="card statistics-usage" :class="{ switching: usageSwitching }">
-          <header class="statistics-usage-head"><h3>{{ tr('模型用量', 'Usage by model') }}</h3><UsageRangePicker allow-all :model-value="usageRange" @update:model-value="stats.setUsageRange" /></header>
-          <p v-if="!rows.length" class="statistics-usage-empty">{{ tr('这段时间没有模型调用。', 'No model calls in this period.') }}</p>
-          <div class="statistics-models" role="group" :aria-label="tr('用量统计模型','Usage model')">
-            <button v-for="row in rows" :key="modelKey(row)" class="statistics-model" :aria-pressed="!hiddenModels.has(modelKey(row))" @click="toggleModel(modelKey(row))">
-              <i class="statistics-model-dot" :style="{background:modelColor(row)}"/>
-              <span>{{modelName(row.model)}}<small :class="{ unread: !providerTitlesRead }">{{providerLabel(row.provider)}}<em class="statistics-model-share-inline"> · {{percent(totalTokens>0?row.totals.tokens.total_tokens/totalTokens:0)}}</em></small></span>
-              <small class="statistics-model-share">{{percent(totalTokens>0?row.totals.tokens.total_tokens/totalTokens:0)}}</small>
+          <header class="statistics-usage-head">
+            <h3>{{ tr('模型用量', 'Usage by model') }}</h3>
+            <UsageRangePicker allow-all :model-value="usageRange" @update:model-value="stats.setUsageRange" />
+          </header>
+          <p v-if="!rows.length" class="statistics-usage-empty">
+            {{ tr('这段时间没有模型调用。', 'No model calls in this period.') }}
+          </p>
+          <div class="statistics-models" role="group" :aria-label="tr('用量统计模型', 'Usage model')">
+            <button
+              v-for="row in rows"
+              :key="modelKey(row)"
+              class="statistics-model"
+              :aria-pressed="!hiddenModels.has(modelKey(row))"
+              @click="toggleModel(modelKey(row))"
+            >
+              <i class="statistics-model-dot" :style="{ background: modelColor(row) }" />
+              <span
+                >{{ modelName(row.model)
+                }}<small :class="{ unread: !providerTitlesRead }"
+                  >{{ providerLabel(row.provider)
+                  }}<em class="statistics-model-share-inline">
+                    · {{ percent(totalTokens > 0 ? row.totals.tokens.total_tokens / totalTokens : 0) }}</em
+                  ></small
+                ></span
+              >
+              <small class="statistics-model-share">{{
+                percent(totalTokens > 0 ? row.totals.tokens.total_tokens / totalTokens : 0)
+              }}</small>
             </button>
           </div>
           <dl class="statistics-values">
-            <div><dt>{{ i18n.t('stats.tokensIn') }} <small>Token</small></dt><Hint :text="number(totals.tokens.input_tokens)"><dd data-stat="input">{{ fmtTokens(totals.tokens.input_tokens) }}</dd></Hint></div>
-            <div><dt>{{ i18n.t('stats.tokensOut') }} <small>Token</small></dt><Hint :text="number(totals.tokens.output_tokens)"><dd data-stat="output">{{ fmtTokens(totals.tokens.output_tokens) }}</dd></Hint></div>
-            <div><dt>{{ tr('缓存命中', 'Cache read') }} <small>Token</small></dt><Hint :text="number(totals.cache.read_input_tokens)"><dd data-stat="cached">{{ fmtTokens(totals.cache.read_input_tokens) }}</dd></Hint></div>
-            <div><dt>{{ tr('缓存命中率', 'Cache hit rate') }}</dt><dd>{{ percent(totals.tokens.input_tokens > 0 ? totals.cache.read_input_tokens / totals.tokens.input_tokens : null) }}</dd></div>
+            <div>
+              <dt>{{ i18n.t('stats.tokensIn') }} <small>Token</small></dt>
+              <Hint :text="number(totals.tokens.input_tokens)"
+                ><dd data-stat="input">{{ fmtTokens(totals.tokens.input_tokens) }}</dd></Hint
+              >
+            </div>
+            <div>
+              <dt>{{ i18n.t('stats.tokensOut') }} <small>Token</small></dt>
+              <Hint :text="number(totals.tokens.output_tokens)"
+                ><dd data-stat="output">{{ fmtTokens(totals.tokens.output_tokens) }}</dd></Hint
+              >
+            </div>
+            <div>
+              <dt>{{ tr('缓存命中', 'Cache read') }} <small>Token</small></dt>
+              <Hint :text="number(totals.cache.read_input_tokens)"
+                ><dd data-stat="cached">{{ fmtTokens(totals.cache.read_input_tokens) }}</dd></Hint
+              >
+            </div>
+            <div>
+              <dt>{{ tr('缓存命中率', 'Cache hit rate') }}</dt>
+              <dd>
+                {{
+                  percent(
+                    totals.tokens.input_tokens > 0 ? totals.cache.read_input_tokens / totals.tokens.input_tokens : null,
+                  )
+                }}
+              </dd>
+            </div>
           </dl>
           <h3 v-if="showPie">{{ tr('模型 Token 占比', 'Token share by model') }}</h3>
           <div v-if="showPie" class="model-share">
             <div class="model-share-chart">
-              <UsagePlot :pie="slices" :label="tr('各模型总 Token 消耗占比', 'Total Token consumption by model')" @hover="hovered = $event" />
-              <div v-if="hoveredSlice" class="model-share-total hovered" aria-hidden="true"><span class="model-share-name">{{ hoveredSlice.name }}</span><strong>{{ fmtTokens(hoveredSlice.value) }}</strong><span>{{ percent(hoveredSlice.share) }}</span></div>
-              <div v-else class="model-share-total" aria-hidden="true"><strong>{{ fmtTokens(pieTotal) }}</strong><span>Token</span></div>
+              <UsagePlot
+                :pie="slices"
+                :label="tr('各模型总 Token 消耗占比', 'Total Token consumption by model')"
+                @hover="hovered = $event"
+              />
+              <div v-if="hoveredSlice" class="model-share-total hovered" aria-hidden="true">
+                <span class="model-share-name">{{ hoveredSlice.name }}</span
+                ><strong>{{ fmtTokens(hoveredSlice.value) }}</strong
+                ><span>{{ percent(hoveredSlice.share) }}</span>
+              </div>
+              <div v-else class="model-share-total" aria-hidden="true">
+                <strong>{{ fmtTokens(pieTotal) }}</strong
+                ><span>Token</span>
+              </div>
             </div>
             <ul class="distribution-legend">
-              <li v-for="(item,index) in slices" :key="index" :class="{ active: hovered === index }"><i :style="{ background: item.colorIndex == null ? 'var(--fg-subtle)' : color(item.colorIndex) }" /><span>{{ item.name }}</span><strong>{{ percent(item.share) }}</strong></li>
+              <li v-for="(item, index) in slices" :key="index" :class="{ active: hovered === index }">
+                <i
+                  :style="{ background: item.colorIndex == null ? 'var(--fg-subtle)' : color(item.colorIndex) }"
+                /><span>{{ item.name }}</span
+                ><strong>{{ percent(item.share) }}</strong>
+              </li>
             </ul>
           </div>
         </section>
       </UsageCharts>
       <div class="statistics-grid">
         <div class="statistics-footer">
-        <StorageCard v-if="storage" :storage="storage" :color="color" />
+          <StorageCard v-if="storage" :storage="storage" :color="color" />
         </div>
-
       </div>
     </div>
   </OverlayWindow>
@@ -116,65 +208,314 @@ onDeactivated(stats.stopAuto);
 <style scoped>
 @media (max-width: 899px) {
   /* The phone's grouped look: cards one step above a sunken page. */
-  .statistics-usage, .statistics-panel, .statistics-body :deep(.usage-chart-card) { border: 0; border-radius: 18px; background: var(--bg-group); }
+  .statistics-usage,
+  .statistics-panel,
+  .statistics-body :deep(.usage-chart-card) {
+    border: 0;
+    border-radius: 18px;
+    background: var(--bg-group);
+  }
 }
-.statistics-body { width: 100%; max-width: 640px; min-width: 0; margin-inline: auto; padding: 0; }
-.statistics-usage { padding: 14px 16px; min-width: 0; transition: opacity var(--dur-fast); }
-.statistics-usage.switching { opacity: .6; }
-.statistics-usage-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
-.statistics-usage-head h3 { margin: 0; font: 600 14px/1.4 var(--font); }
-.statistics-usage-empty { margin: 8px 0 16px; font-size: 13px; color: var(--fg-subtle); }
+.statistics-body {
+  width: 100%;
+  max-width: 640px;
+  min-width: 0;
+  margin-inline: auto;
+  padding: 0;
+}
+.statistics-usage {
+  padding: 14px 16px;
+  min-width: 0;
+  transition: opacity var(--dur-fast);
+}
+.statistics-usage.switching {
+  opacity: 0.6;
+}
+.statistics-usage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.statistics-usage-head h3 {
+  margin: 0;
+  font: 600 14px/1.4 var(--font);
+}
+.statistics-usage-empty {
+  margin: 8px 0 16px;
+  font-size: 13px;
+  color: var(--fg-subtle);
+}
 /* Equal cells keep names, providers and shares aligned however many models there are. */
-.statistics-models { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:2px 12px; margin-bottom:10px; min-width:0; }
-.statistics-model { display:flex; align-items:center; gap:8px; width:100%; min-width:0; padding:4px 6px; line-height:1.35; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--fg-subtle); font:inherit; font-size:12px; text-align:left; cursor:pointer; }
-@media (hover: hover) { .statistics-model:hover { background:var(--bg-hover); } }
-.statistics-model[aria-pressed='true'] { color:var(--fg); }
-.statistics-model[aria-pressed='false'] { opacity:.45; }
-.statistics-model .statistics-model-share { flex:none; margin-left:auto; padding-left:6px; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.statistics-model:focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
-.statistics-model span { flex:1; min-width:0; overflow-wrap:anywhere; }
-.statistics-model-share-inline { display:none; font-style:normal; font-variant-numeric:tabular-nums; }
-/* Phones: the share joins the provider line so names keep the full cell width. */
-@media (max-width:599px) { .statistics-models { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:2px 6px; } .statistics-model { padding-inline:6px; } .statistics-model .statistics-model-share { display:none; } .statistics-model-share-inline { display:inline; } }
-.statistics-model small { display:block; margin-top:2px; font-size:10px; color:var(--fg-subtle); }
-.statistics-model-dot { width:7px; height:7px; border-radius:50%; flex:none; }
-.statistics-grid { display: grid; gap: 12px; min-width: 0; margin-top: 12px; }
-.statistics-footer { display: grid; gap: 12px; min-width: 0; }
-h2 { font: 600 16px/1.5 var(--font); margin: 0 0 16px; }
-h3 { font-size: 14px; margin: 12px 0 6px; font-weight: 500; }
-.statistics-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; margin: 0; padding: 10px 0; border-block: 1px solid var(--line); }
-dt small { font-size: 12px; font-weight: 400; color: var(--fg-muted); letter-spacing: 0; }
-dt { color: var(--fg-muted); font-size: 13px; }
-dd { margin: 3px 0 0; font-size: 18px; font-weight: 500; letter-spacing: -.03em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.load-error { margin-bottom: 20px; }
-.model-share { display: grid; grid-template-columns: minmax(100px, 124px) minmax(0, 1fr); gap: 16px; align-items: center; }
-.model-share :deep(.usage-canvas) { height: 124px; }
-.distribution-legend { list-style: none; padding: 0; margin: 0; font-size: 13px; }
-.distribution-legend li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 5px 0; }
-.distribution-legend li + li { border-top: 1px solid var(--line); }
-.distribution-legend i { width: 8px; height: 8px; flex: none; border-radius: 50%; }
-.distribution-legend span { flex: 1; min-width: 0; color: var(--fg-muted); overflow-wrap: anywhere; }
-.distribution-legend strong { font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.model-share-chart { position: relative; min-width: 0; }
-.model-share-total { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; line-height: 1.2; }
-.model-share-total strong { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
-.model-share-total span { font-size: 10px; color: var(--fg-subtle); }
-.model-share-total .model-share-name { max-width: 64%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; color: var(--fg-muted); }
-.distribution-legend li { transition: opacity var(--dur-fast); }
-.distribution-legend:has(li.active) li:not(.active) { opacity: .45; }
-/* Storage: a card matching the chart cards above. */
-.statistics-panel { min-width: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); }
-@media (max-width: 899px) { .statistics-footer { gap: 16px; } .statistics-grid { margin-top: 16px; } .statistics-panel { padding: 16px; } }
-.statistics-body :deep(.usage-charts) { gap: 12px; margin-block: 10px 12px; }
-@media (min-width: 600px) {
-  .statistics-values { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .statistics-values > div + div { border-left: 1px solid var(--line); padding-left: 12px; }
-  dt, dt small { font-size: 11px; }
+.statistics-models {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 12px;
+  margin-bottom: 10px;
+  min-width: 0;
 }
-@media (max-width: 450px) { .model-share { grid-template-columns: minmax(100px, 130px) minmax(0, 1fr); gap: 10px; } .model-share :deep(.usage-canvas) { height: 140px; } }
+.statistics-model {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 6px;
+  line-height: 1.35;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-subtle);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .statistics-model:hover {
+    background: var(--bg-hover);
+  }
+}
+.statistics-model[aria-pressed='true'] {
+  color: var(--fg);
+}
+.statistics-model[aria-pressed='false'] {
+  opacity: 0.45;
+}
+.statistics-model .statistics-model-share {
+  flex: none;
+  margin-left: auto;
+  padding-left: 6px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.statistics-model:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.statistics-model span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.statistics-model-share-inline {
+  display: none;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+/* Phones: the share joins the provider line so names keep the full cell width. */
 @media (max-width: 599px) {
-  .statistics-usage { padding: 16px 12px; }
-  .model-share { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .model-share :deep(.usage-canvas) { height: 124px; }
+  .statistics-models {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 6px;
+  }
+  .statistics-model {
+    padding-inline: 6px;
+  }
+  .statistics-model .statistics-model-share {
+    display: none;
+  }
+  .statistics-model-share-inline {
+    display: inline;
+  }
+}
+.statistics-model small {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--fg-subtle);
+}
+.statistics-model-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+.statistics-grid {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin-top: 12px;
+}
+.statistics-footer {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+h2 {
+  font: 600 16px/1.5 var(--font);
+  margin: 0 0 16px;
+}
+h3 {
+  font-size: 14px;
+  margin: 12px 0 6px;
+  font-weight: 500;
+}
+.statistics-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  margin: 0;
+  padding: 10px 0;
+  border-block: 1px solid var(--line);
+}
+dt small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--fg-muted);
+  letter-spacing: 0;
+}
+dt {
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+dd {
+  margin: 3px 0 0;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.load-error {
+  margin-bottom: 20px;
+}
+.model-share {
+  display: grid;
+  grid-template-columns: minmax(100px, 124px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+.model-share :deep(.usage-canvas) {
+  height: 124px;
+}
+.distribution-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 13px;
+}
+.distribution-legend li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 5px 0;
+}
+.distribution-legend li + li {
+  border-top: 1px solid var(--line);
+}
+.distribution-legend i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+}
+.distribution-legend span {
+  flex: 1;
+  min-width: 0;
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+}
+.distribution-legend strong {
+  font-weight: 500;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.model-share-chart {
+  position: relative;
+  min-width: 0;
+}
+.model-share-total {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  line-height: 1.2;
+}
+.model-share-total strong {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.model-share-total span {
+  font-size: 10px;
+  color: var(--fg-subtle);
+}
+.model-share-total .model-share-name {
+  max-width: 64%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--fg-muted);
+}
+.distribution-legend li {
+  transition: opacity var(--dur-fast);
+}
+.distribution-legend:has(li.active) li:not(.active) {
+  opacity: 0.45;
+}
+/* Storage: a card matching the chart cards above. */
+.statistics-panel {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-raised);
+}
+@media (max-width: 899px) {
+  .statistics-footer {
+    gap: 16px;
+  }
+  .statistics-grid {
+    margin-top: 16px;
+  }
+  .statistics-panel {
+    padding: 16px;
+  }
+}
+.statistics-body :deep(.usage-charts) {
+  gap: 12px;
+  margin-block: 10px 12px;
+}
+@media (min-width: 600px) {
+  .statistics-values {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .statistics-values > div + div {
+    border-left: 1px solid var(--line);
+    padding-left: 12px;
+  }
+  dt,
+  dt small {
+    font-size: 11px;
+  }
+}
+@media (max-width: 450px) {
+  .model-share {
+    grid-template-columns: minmax(100px, 130px) minmax(0, 1fr);
+    gap: 10px;
+  }
+  .model-share :deep(.usage-canvas) {
+    height: 140px;
+  }
+}
+@media (max-width: 599px) {
+  .statistics-usage {
+    padding: 16px 12px;
+  }
+  .model-share {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .model-share :deep(.usage-canvas) {
+    height: 124px;
+  }
 }
 </style>

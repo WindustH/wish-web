@@ -51,7 +51,7 @@
   --message-leading: 1.65;
   --mono: 'Maple Mono NF CN', ui-monospace, monospace;
   /* Mean A–Z/a–z ink height: Montserrat 400 / Maple Mono 400 ≈ 0.944. */
-  --mono-scale: .944;
+  --mono-scale: 0.944;
   /* Latin labels meant to read bold. The calibrated fonts (tools/build-latin-fonts.py) set CSS 600
      and 700 lighter, to match Chinese stems; these land Montserrat on its own 600 and 700. */
   --weight-latin-semibold: 714;
@@ -59,10 +59,13 @@
   --icon: 20px;
   --mobile-content-width: 640px;
   --w-list: 256px;
-  --h-topbar: 56px; --h-session-row: 36px;
+  --h-topbar: 56px;
+  --h-session-row: 36px;
   --max-content: 46rem;
-  --dur-fast: 140ms; --dur: 240ms; --dur-slow: 400ms;
-  --ease-out: cubic-bezier(.2,.8,.2,1);
+  --dur-fast: 140ms;
+  --dur: 240ms;
+  --dur-slow: 400ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   color-scheme: light;
 }
 html[data-theme='dark'] {
@@ -110,12 +113,28 @@ html[data-theme='dark'] {
    Earthy hues around the terracotta accent, ordered so neighbouring slots stay
    apart under protanopia and deuteranopia in both themes. */
 :root {
-  --chart-1: #b95c3a; --chart-2: #3c62a1; --chart-3: #b48226;
-  --chart-4: #7f447b; --chart-5: #549957; --chart-6: #91394b;
-  --heat-0: #ebe8e3; --heat-1: #c5decb; --heat-2: #8abc99; --heat-3: #4c9764; --heat-4: #27733f;
+  --chart-1: #b95c3a;
+  --chart-2: #3c62a1;
+  --chart-3: #b48226;
+  --chart-4: #7f447b;
+  --chart-5: #549957;
+  --chart-6: #91394b;
+  --heat-0: #ebe8e3;
+  --heat-1: #c5decb;
+  --heat-2: #8abc99;
+  --heat-3: #4c9764;
+  --heat-4: #27733f;
 }
 html[data-theme='dark'] {
-  --chart-1: #d47452; --chart-2: #5787ce; --chart-3: #ba8a2e;
-  --chart-4: #a864a2; --chart-5: #57a45b; --chart-6: #b65263;
-  --heat-0: #2e2e2e; --heat-1: #355641; --heat-2: #457b53; --heat-3: #68aa72; --heat-4: #9bd19b;
+  --chart-1: #d47452;
+  --chart-2: #5787ce;
+  --chart-3: #ba8a2e;
+  --chart-4: #a864a2;
+  --chart-5: #57a45b;
+  --chart-6: #b65263;
+  --heat-0: #2e2e2e;
+  --heat-1: #355641;
+  --heat-2: #457b53;
+  --heat-3: #68aa72;
+  --heat-4: #9bd19b;
 }

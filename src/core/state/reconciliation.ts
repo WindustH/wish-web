@@ -16,29 +16,38 @@ export function createReconciliation(options: {
 
   function schedule() {
     if (!active || running || timer !== undefined || !requested || !options.ready()) return;
-    timer = setTimeout(() => { timer = undefined; void drain(); }, options.delayMs);
+    timer = setTimeout(() => {
+      timer = undefined;
+      void drain();
+    }, options.delayMs);
   }
   async function drain() {
     if (!active || running || !options.ready()) return;
     const own = generation;
     running = true;
     requested = false;
-    try { await options.run(); }
-    finally {
+    try {
+      await options.run();
+    } finally {
       if (own === generation) {
         running = false;
         schedule();
       }
     }
   }
-  function request() { requested = true; schedule(); }
+  function request() {
+    requested = true;
+    schedule();
+  }
   function stop() {
     generation++;
     active = false;
     running = false;
     requested = false;
-    clearTimeout(timer); timer = undefined;
-    clearInterval(poll); poll = undefined;
+    clearTimeout(timer);
+    timer = undefined;
+    clearInterval(poll);
+    poll = undefined;
   }
   function start() {
     stop();

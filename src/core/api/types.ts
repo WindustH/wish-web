@@ -6,80 +6,212 @@ import type { SessionView, ToolSwitches } from './projections.ts';
 export type EndpointOptions = Omit<RequestOptions, 'body' | 'raw'>;
 
 // Sessions.
-export interface SessionsListParams { cursor?: number | string | null; limit?: number; order?: string; query?: string; tag?: string }
+export interface SessionsListParams {
+  cursor?: number | string | null;
+  limit?: number;
+  order?: string;
+  query?: string;
+  tag?: string;
+}
 /** A folder of the list: it holds sessions, groups and folders, as a directory does. */
 export interface FolderView {
-  id: string; name: string;
+  id: string;
+  name: string;
   /** The folder it is in; null for the root. */
   parent: string | null;
-  pinned: boolean; created_at: number;
+  pinned: boolean;
+  created_at: number;
   /** How many entries it holds directly; listings give it. */
   items?: number;
 }
-export interface SessionsPage { items: SessionView[]; next_cursor: any; has_more: boolean }
+export interface SessionsPage {
+  items: SessionView[];
+  next_cursor: any;
+  has_more: boolean;
+}
 
 // Groups: chats among the user and several sessions.
 export interface GroupView {
-  id: string; name: string;
+  id: string;
+  name: string;
   /** Its sessions, in the order they joined; the user is in every group. */
   members: string[];
   /** The session that made it with `wish session`; null for one the user made. */
   created_by: string | null;
-  created_at: number; updated_at: number;
+  created_at: number;
+  updated_at: number;
 }
 export type GroupAuthor = { kind: 'user' } | { kind: 'session'; id: string; name: string };
 export interface GroupMessage {
-  seq: number; at: number; author: GroupAuthor; text: string;
+  seq: number;
+  at: number;
+  author: GroupAuthor;
+  text: string;
   /** Images and files the user posted, in the group's files. */
   attachments?: { id: string; kind: 'image' | 'file'; name: string | null }[];
 }
-export interface GroupMessagesPage { items: GroupMessage[]; next: number | null }
+export interface GroupMessagesPage {
+  items: GroupMessage[];
+  next: number | null;
+}
 /** A row of the list a user browses: a session or a group. */
 /** Where an entry of the list is: its folder (null for the root), and whether it is pinned there. */
-export interface Placement { parent: string | null; pinned: boolean }
-export type Conversation = ({ kind: 'session' } & SessionView & Placement) | ({ kind: 'group' } & GroupView & Placement) | ({ kind: 'folder' } & FolderView);
-export interface ConversationsPage { items: Conversation[]; next_cursor: any; has_more: boolean }
-export interface InitialInput { request_id: string; text: string; attachments: { kind: 'image' | 'file'; name?: string; placeholder?: string; id: string }[] }
-export interface CreateSessionBody { first_input?: InitialInput; provider: string; model: string; name?: string; cwd?: string; reasoning_effort?: string; agent_custom?: string; folder?: string | null }
-export interface ModelChange { provider?: string; model?: string; reasoning_effort?: string }
-export interface ShellSettings { program: string; args: string[] | null }
+export interface Placement {
+  parent: string | null;
+  pinned: boolean;
+}
+export type Conversation =
+  | ({ kind: 'session' } & SessionView & Placement)
+  | ({ kind: 'group' } & GroupView & Placement)
+  | ({ kind: 'folder' } & FolderView);
+export interface ConversationsPage {
+  items: Conversation[];
+  next_cursor: any;
+  has_more: boolean;
+}
+export interface InitialInput {
+  request_id: string;
+  text: string;
+  attachments: { kind: 'image' | 'file'; name?: string; placeholder?: string; id: string }[];
+}
+export interface CreateSessionBody {
+  first_input?: InitialInput;
+  provider: string;
+  model: string;
+  name?: string;
+  cwd?: string;
+  reasoning_effort?: string;
+  agent_custom?: string;
+  folder?: string | null;
+}
+export interface ModelChange {
+  provider?: string;
+  model?: string;
+  reasoning_effort?: string;
+}
+export interface ShellSettings {
+  program: string;
+  args: string[] | null;
+}
 
 // History.
-export interface HistoryQuery { before?: number | null; after?: number | null; limit?: number; order?: 'asc' | 'desc' }
-export interface HistorySearchParams { q: string; limit?: number; order?: string; message_types?: string[]; since?: number; until?: number }
-export interface HistoryHit { seq: number; kind: string; created_at: number; snippet: string }
+export interface HistoryQuery {
+  before?: number | null;
+  after?: number | null;
+  limit?: number;
+  order?: 'asc' | 'desc';
+}
+export interface HistorySearchParams {
+  q: string;
+  limit?: number;
+  order?: string;
+  message_types?: string[];
+  since?: number;
+  until?: number;
+}
+export interface HistoryHit {
+  seq: number;
+  kind: string;
+  created_at: number;
+  snippet: string;
+}
 
 // Input and the queue.
-export interface MessageBlock { type: string; blob_id: string; filename?: string | null; byte_count?: number | null; placeholder?: string }
+export interface MessageBlock {
+  type: string;
+  blob_id: string;
+  filename?: string | null;
+  byte_count?: number | null;
+  placeholder?: string;
+}
 // An attachment reference carried by a queued delivery (blob ids are session-qualified).
-export interface QueuedAttachment { kind: string; blob_id: string; filename?: string | null; byte_count?: number; placeholder?: string }
-export interface QueuedDelivery { id: string; state: 'queued'; text: string; attachments: QueuedAttachment[] }
+export interface QueuedAttachment {
+  kind: string;
+  blob_id: string;
+  filename?: string | null;
+  byte_count?: number;
+  placeholder?: string;
+}
+export interface QueuedDelivery {
+  id: string;
+  state: 'queued';
+  text: string;
+  attachments: QueuedAttachment[];
+}
 /** One answer per question: what was chosen or written, or `skipped`. */
 export type QuestionAnswer = { skipped: true } | { selected?: string[]; other?: string } | { text: string };
 
 // Blobs.
-export interface BlobInfo { id: string; mime_type: string; byte_count: number }
-export interface UploadedBlob extends BlobInfo { sha256: string }
+export interface BlobInfo {
+  id: string;
+  mime_type: string;
+  byte_count: number;
+}
+export interface UploadedBlob extends BlobInfo {
+  sha256: string;
+}
 
 // Configuration.
-export interface EffectiveConfig { defaults: { provider: string; model: string; reasoning?: { effort?: string }; instructions: string; cwd: string; tools: ToolSwitches }; session_config?: { compaction?: any } }
-export interface DefaultModel { provider: string; model: string; reasoning_effort?: string }
+export interface EffectiveConfig {
+  defaults: {
+    provider: string;
+    model: string;
+    reasoning?: { effort?: string };
+    instructions: string;
+    cwd: string;
+    tools: ToolSwitches;
+  };
+  session_config?: { compaction?: any };
+}
+export interface DefaultModel {
+  provider: string;
+  model: string;
+  reasoning_effort?: string;
+}
 // The configuration file as the server shows it - secrets redacted - with the revision a save must name.
-export interface ConfigSnapshot { revision: string; config: any }
+export interface ConfigSnapshot {
+  revision: string;
+  config: any;
+}
 // The shells the server can run commands in: its default and the ones installed.
 export type ShellInfo = { name: string | null; program: string; args: string[] };
 export type ShellCatalog = { default: ShellInfo; installed: ShellInfo[] };
 // Signing a Codex provider in with ChatGPT in the browser.
-export interface ChatgptLogin { status: 'pending' | 'complete' | 'failed' | 'expired' | string; authorization_url?: string; error?: string }
-export interface CopilotLogin { status: 'idle' | 'pending' | 'complete' | 'failed' | 'expired' | string; error?: string | null }
-export interface CopilotDeviceCode { verification_uri: string; user_code: string; expires_in: number }
+export interface ChatgptLogin {
+  status: 'pending' | 'complete' | 'failed' | 'expired' | string;
+  authorization_url?: string;
+  error?: string;
+}
+export interface CopilotLogin {
+  status: 'idle' | 'pending' | 'complete' | 'failed' | 'expired' | string;
+  error?: string | null;
+}
+export interface CopilotDeviceCode {
+  verification_uri: string;
+  user_code: string;
+  expires_in: number;
+}
 // Just what requireAvailableModel reads from a provider's settings.
-export interface ModelCatalogSource { id: string; model_list?: unknown; models?: Record<string, any> | null }
-export interface DirectoryListing { path: string; parent: string | null; directories: string[] }
+export interface ModelCatalogSource {
+  id: string;
+  model_list?: unknown;
+  models?: Record<string, any> | null;
+}
+export interface DirectoryListing {
+  path: string;
+  parent: string | null;
+  directories: string[];
+}
 
 // MCP servers.
 /** One tool as an MCP server defines it. */
-export interface McpTool { name: string; title?: string; description?: string; inputSchema?: unknown; annotations?: Record<string, unknown> }
+export interface McpTool {
+  name: string;
+  title?: string;
+  description?: string;
+  inputSchema?: unknown;
+  annotations?: Record<string, unknown>;
+}
 /** A configured MCP server and what is known of it. `tools` is null until it has connected once. */
 export interface McpServerStatus {
   id: string;
@@ -95,10 +227,15 @@ export interface McpServerStatus {
 /** A skill as settings list it: where it was found, whether it is off, and whether sessions see it or another of its name
  *  keeps it out - one in an earlier directory (`shadowed`), or one beside it in the same directory (`conflict`). */
 export interface SkillEntry {
-  name: string; description: string;
+  name: string;
+  description: string;
   /** Its folders, and its own directory, under the directory it was found in: `tools/git`, `tools/git/rebase`. */
-  category: string | null; path: string;
-  dir: string; source: string; disabled: boolean; standing: 'used' | 'shadowed' | 'conflict';
+  category: string | null;
+  path: string;
+  dir: string;
+  source: string;
+  disabled: boolean;
+  standing: 'used' | 'shadowed' | 'conflict';
 }
 export interface SkillsSnapshot {
   /** Wish's own directory. */
@@ -108,7 +245,14 @@ export interface SkillsSnapshot {
   problems: { path: string; message: string }[];
 }
 /** A skill's instructions and the files beside them, relative to its directory. */
-export interface SkillContent { name: string; description: string; dir: string; body: string; files: string[]; more_files: number }
+export interface SkillContent {
+  name: string;
+  description: string;
+  dir: string;
+  body: string;
+  files: string[];
+  more_files: number;
+}
 
 // Web search.
 /** A search service Wish knows. `borrows_from` lists the model presets a subscription's search comes with. */
@@ -138,7 +282,13 @@ export interface SearchProviderStatus {
   available: boolean;
   problem: string | null;
 }
-export interface SearchHit { title: string; url: string; snippet?: string; site?: string; published?: string }
+export interface SearchHit {
+  title: string;
+  url: string;
+  snippet?: string;
+  site?: string;
+  published?: string;
+}
 
 // Usage and storage.
 export interface UsageTotals {
@@ -165,10 +315,21 @@ export interface StorageSnapshot {
   leftover_usage: { calls: number; stream_samples: number };
 }
 /** Each database by what it holds, in order, each kind's bytes on disk. */
-export interface StorageDetail { session_data: StorageKind[]; service_data: StorageKind[] }
-export interface StorageKind { kind: string; bytes: number }
+export interface StorageDetail {
+  session_data: StorageKind[];
+  service_data: StorageKind[];
+}
+export interface StorageKind {
+  kind: string;
+  bytes: number;
+}
 /** What one session keeps: its history in the database, its attachments and its commands' output. */
-export interface SessionBytes { history: number; attachments: number; shell: number; total: number }
+export interface SessionBytes {
+  history: number;
+  attachments: number;
+  shell: number;
+  total: number;
+}
 export interface SessionStorage {
   id: string;
   name: string;
@@ -197,7 +358,12 @@ export interface GroupStorage {
   bytes: SessionBytes;
 }
 // What pruning released, or would: history outside the sessions' context and the files only it named.
-export interface PruneCounts { messages: number; events: number; files: number; bytes: { history: number; files: number; total: number } }
+export interface PruneCounts {
+  messages: number;
+  events: number;
+  files: number;
+  bytes: { history: number; files: number; total: number };
+}
 export interface PruneResult extends PruneCounts {
   sessions: (PruneCounts & { id: string })[];
   skipped: { id: string; reason: string }[];
