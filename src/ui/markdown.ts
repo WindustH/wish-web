@@ -1,10 +1,11 @@
 import MarkdownIt from 'markdown-it';
+import { highlightCode } from './codeHighlight.ts';
 import DOMPurify from 'dompurify';
 import { tex } from '@mdit/plugin-tex';
 import temml from 'temml';
 import { createBoundedCache } from '../core/util/boundedCache.ts';
 
-const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true, typographer: true });
+const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true, typographer: true, highlight: highlightCode });
 markdown.use(tex, {
   render: (content, displayMode) => temml.renderToString(content, {
     displayMode, annotate: true, trust: false, throwOnError: false,

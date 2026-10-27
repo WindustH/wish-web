@@ -20,6 +20,7 @@ import './generated/fonts/bitter.css';
 import './generated/fonts/sarasa.css';
 import './generated/fonts/maple.css';
 import './styles/math.css';
+import './styles/codeHighlight.css';
 import '@fontsource-variable/noto-serif-sc';
 import './styles/tokens.css';
 import './styles/base.css';

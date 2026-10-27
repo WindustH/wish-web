@@ -1,0 +1,33 @@
+/* Wish code palette: terracotta keywords, sage strings, muted blue functions.
+   Token colours change with the theme; code surfaces keep the shared Wish roles. */
+:root {
+  --code-keyword: #9e422e;
+  --code-string: #426447;
+  --code-function: #345f80;
+  --code-number: #80552d;
+  --code-type: #715085;
+  --code-comment: #6d675e;
+  --code-variable: #80503d;
+}
+html[data-theme='dark'] {
+  --code-keyword: #e69b80;
+  --code-string: #abc49a;
+  --code-function: #9fc0d8;
+  --code-number: #dbc193;
+  --code-type: #c4acd6;
+  --code-comment: #a09b91;
+  --code-variable: #d7b09a;
+}
+.markdown pre code { color: var(--fg); }
+.markdown :is(.hljs-keyword, .hljs-selector-tag, .hljs-name, .hljs-doctag) { color: var(--code-keyword); }
+.markdown :is(.hljs-string, .hljs-regexp, .hljs-meta .hljs-string) { color: var(--code-string); }
+.markdown :is(.hljs-title, .hljs-section, .hljs-selector-id, .hljs-selector-class) { color: var(--code-function); }
+.markdown :is(.hljs-number, .hljs-literal, .hljs-symbol, .hljs-bullet) { color: var(--code-number); }
+.markdown :is(.hljs-type, .hljs-built_in, .hljs-title.class_, .hljs-meta) { color: var(--code-type); }
+.markdown :is(.hljs-attr, .hljs-attribute, .hljs-variable, .hljs-template-variable) { color: var(--code-variable); }
+.markdown :is(.hljs-comment, .hljs-quote) { color: var(--code-comment); }
+.markdown :is(.hljs-subst, .hljs-params, .hljs-punctuation, .hljs-operator) { color: var(--fg); }
+.markdown .hljs-addition { color: var(--code-string); background: color-mix(in srgb, var(--code-string) 10%, transparent); }
+.markdown .hljs-deletion { color: var(--code-keyword); background: color-mix(in srgb, var(--code-keyword) 10%, transparent); }
+.markdown .hljs-emphasis { font-style: italic; }
+.markdown .hljs-strong { font-weight: 700; }

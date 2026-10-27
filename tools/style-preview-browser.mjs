@@ -1,5 +1,5 @@
-// File cards, stacking and session-owned detail windows.
-// Run: node tools/file-changes-browser.mjs (CHROME may override the executable).
+// Style gallery, code highlighting and session-owned detail windows.
+// Run: node tools/style-preview-browser.mjs (CHROME may override the executable).
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
@@ -11,6 +11,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import {createApp,h} from 'vue';import {TooltipProvider} from 'reka-ui';
 import {createRouter,createMemoryHistory} from 'vue-router';
+import {use} from '/src/platform/index.ts';
+use('clipboard',{writeText:async text=>{window.copiedCode=text}});
+import {renderMarkdown} from '/src/ui/markdown.ts';
+window.renderMarkdown=renderMarkdown;
+import '/src/styles/codeHighlight.css';
 import StylePreview from '/src/features/settings/StylePreview.vue';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/features.css';
 const router=createRouter({history:createMemoryHistory(),routes:[{path:'/',component:{render:()=>null}}]});
@@ -42,17 +47,34 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/__style_preview`});
-  await until('document.querySelectorAll(".preview-sample").length===19','all gallery samples');
+  await until('document.querySelectorAll(".preview-sample").length===20','all gallery samples');
+  const highlightResult=await js(`(() => {
+    const code='const label = "<img src=x onerror=alert(1)>";\\n';
+    const parse=(text)=>{const host=document.createElement('div');host.innerHTML=renderMarkdown(text,'Copy');return host;};
+    const fence=(language,body)=>String.fromCharCode(96).repeat(3)+language+'\\n'+body+String.fromCharCode(96).repeat(3);
+    const known=parse(fence('js',code)),unknown=parse(fence('unknown',code));
+    const largeCode='const item = 1;\\n'.repeat(3000),large=parse(fence('js',largeCode));
+    const partial=parse(String.fromCharCode(96).repeat(3)+'python\\ndef run():\\n    return "unfinished');
+    return {highlighted:!!known.querySelector('.hljs-keyword'),preserved:known.querySelector('code').textContent===code,
+      safe:!known.querySelector('img,script'),unknown:unknown.querySelector('code').textContent===code&&!unknown.querySelector('.hljs-keyword'),
+      large:large.querySelector('code').textContent===largeCode&&!large.querySelector('.hljs-keyword'),partial:partial.querySelector('code').textContent.includes('unfinished')};
+  })()`);
+  assert.ok(Object.values(highlightResult).every(Boolean),JSON.stringify(highlightResult));
+  await js(`document.querySelector('[data-preview=code-highlighting] .code-copy').click()`);
+  assert.equal(await js('window.copiedCode'),await js(`document.querySelector('[data-preview=code-highlighting] pre code').textContent`),'copy keeps original code');
+  const themeColours=[];
   for(const width of [390,1200]) {
     await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width===390});
     for(const theme of ['dark','light']) {
       await js(`document.documentElement.dataset.theme=${JSON.stringify(theme)}`);
+      themeColours.push(await js("getComputedStyle(document.querySelector('[data-preview=code-highlighting] .hljs-keyword')).color"));
       assert.ok(await js('document.documentElement.scrollWidth<=innerWidth'),'no horizontal overflow');
       await mkdir('.cache/style-preview',{recursive:true});
       const image=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
       await writeFile(`.cache/style-preview/${width}-${theme}.png`,Buffer.from(image.data,'base64'));
     }
   }
+  assert.notEqual(themeColours[0],themeColours[1],'theme switches without re-rendering code');
   for (const width of [390, 1200]) {
     await send('Emulation.setDeviceMetricsOverride', {width,height:844,deviceScaleFactor:1,mobile:width===390});
     assert.ok(await js(`Array.from(document.querySelectorAll('.attachment-composer-sample')).every(el => el.querySelector('.composer-attachment-tray').getBoundingClientRect().bottom < el.getBoundingClientRect().top)`), 'attachments float above the input border');
@@ -103,7 +125,7 @@ try {
   await until('!!document.querySelector(".proc-event")','session operation timeline');
   await close();
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['19 real-component samples','desktop/mobile dark/light','six-file dialog','category filter','group details without navigation','session operation timeline']}));
+  console.log(JSON.stringify({ok:true,checks:['20 real-component samples','desktop/mobile dark/light','six-file dialog','category filter','syntax colours and exact copy','safe fallback and streaming','group details without navigation','session operation timeline']}));
 
 } finally {
   ws?.close();
