@@ -4,7 +4,7 @@ import type { Component } from 'vue';
 import { computed } from 'vue';
 import FileChangeCards from './entries/FileChangeCards.vue';
 import ErrorEntry from './entries/ErrorEntry.vue';
-import UserEntry from './entries/UserEntry.vue';
+import UserEntry from '../chat/entries/UserEntry.vue';
 import AssistantEntry from './entries/AssistantEntry.vue';
 import SystemEntry from './entries/SystemEntry.vue';
 import QuestionCard from './entries/QuestionCard.vue';

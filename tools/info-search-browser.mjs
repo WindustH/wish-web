@@ -15,7 +15,7 @@ import InfoPane from '/src/features/sessions/InfoPane.vue';
 import {chat} from '/src/core/state/chatSlice.ts';
 import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/layout.css';import '/src/styles/features.css';
-registerBrowserPlatform();
+registerBrowserPlatform({ namespace: 'wish-webui', version: 1 });
 const router=createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]});await router.push('/s/fixture/info');
 const rawFetch=window.fetch;
 window.fetch=async(input,options)=>{
@@ -37,7 +37,7 @@ const server = await createServer({ configFile: false, define:{__BUILD_ID__:JSON
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__info_search', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__info_search', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/settings/ToolSwitchRows.vue'], include: ['echarts/charts', 'echarts/components', 'echarts/core', 'echarts/renderers', 'vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/ui/domain/settings/ToolSwitchRows.vue'], include: ['echarts/charts', 'echarts/components', 'echarts/core', 'echarts/renderers', 'vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-info-search-'));
 let chrome, ws;
 try {

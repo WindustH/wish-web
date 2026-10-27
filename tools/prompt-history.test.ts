@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createPromptHistory, sessionPrompts } from '../src/features/sessions/promptHistory.ts';
+import { createPromptHistory, sessionPrompts } from '../src/features/chat/promptHistory.ts';
 import { uploadAttachments, type AttachmentInput } from '../src/core/attachments.ts';
 
 test('history preserves edited prompts and unsent draft, resets between sessions', () => {

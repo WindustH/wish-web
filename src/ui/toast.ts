@@ -1,5 +1,6 @@
 // Toast queue as a Vue ref; ToastHost renders it. One owner (this module).
 // Core state publishes its notes on the bus as `notice`; they show here too.
+import { cfg } from '../core/config.ts';
 import { shallowRef } from 'vue';
 import { bus } from '../core/bus.ts';
 
@@ -16,7 +17,7 @@ export function toast(text: string) {
   items.value = [...items.value, { id, text }];
   setTimeout(() => {
     items.value = items.value.filter((t) => t.id !== id);
-  }, 3600);
+  }, cfg.notifications.toastMs);
 }
 
 bus.on('notice', (message: string) => toast(message));

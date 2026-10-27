@@ -4,7 +4,8 @@
 import { computed } from 'vue';
 import FadeText from '../../ui/components/FadeText.vue';
 import Icon from '../../ui/components/Icon.vue';
-import Menu, { type MenuItem } from '../../ui/components/Menu.vue';
+import Menu from '../../ui/components/Menu.vue';
+import type { MenuItem } from '../../ui/components/menuTypes.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { useMedia } from '../../ui/composables/useMedia.ts';

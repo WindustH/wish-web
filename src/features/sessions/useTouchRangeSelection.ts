@@ -1,5 +1,5 @@
 import { ref, watch, type Ref } from 'vue';
-import { noteTouchAction } from '../../ui/scrollStalls.ts';
+import { noteTouchAction } from '../../ui/domain/diagnostics/scrollStalls.ts';
 
 const HOLD_MS = 450;
 const MOVE_TOLERANCE = 10;

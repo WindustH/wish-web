@@ -6,7 +6,8 @@
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import Icon from '../../ui/components/Icon.vue';
-import Menu, { type MenuItem } from '../../ui/components/Menu.vue';
+import Menu from '../../ui/components/Menu.vue';
+import type { MenuItem } from '../../ui/components/menuTypes.ts';
 import SignOutDialog from '../connection/SignOutDialog.vue';
 import { accountDialogOpen } from '../account/accountDialog.ts';
 import { serverName } from '../../core/connection.ts';

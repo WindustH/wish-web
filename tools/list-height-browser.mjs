@@ -15,7 +15,7 @@ import SessionList from '/src/features/sessions/SessionList.vue';
 import {sessions} from '/src/core/state/sessionsSlice.ts';
 import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/layout.css';import '/src/styles/features.css';
-registerBrowserPlatform();
+registerBrowserPlatform({ namespace: 'wish-webui', version: 1 });
 const router=createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]});await router.push('/s/s1');
 const rawFetch=window.fetch;
 window.fetch=async(input,options)=>{
@@ -31,7 +31,7 @@ const server = await createServer({ configFile: false, root: process.cwd(), plug
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__list_height', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__list_height', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/settings/ToolSwitchRows.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/ui/domain/settings/ToolSwitchRows.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-list-height-'));
 let chrome, ws;
 try {

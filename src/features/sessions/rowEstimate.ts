@@ -4,8 +4,8 @@
 // small, so scrolling up through history stays steady. The numbers come from
 // measuring real conversations at desktop and phone widths.
 import { fileCardsHeight } from './fileChanges.ts';
-import type { GroupBlock, GroupItem } from './grouping.ts';
-import { albumHeight, imageParts, type ImageAlbumItem } from './imageAlbums.ts';
+import type { GroupBlock, GroupItem } from '../chat/grouping.ts';
+import { albumHeight, imageParts, type ImageAlbumItem } from '../chat/imageAlbums.ts';
 
 const LINE = 28.05; // message text: 17px at line-height 1.65
 const PARAGRAPH = 18; // what each further source line adds in rendered Markdown (margins, lists, headings)

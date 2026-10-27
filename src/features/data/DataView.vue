@@ -7,7 +7,8 @@
 import { computed, onActivated, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import Icon from '../../ui/components/Icon.vue';
-import Menu, { type MenuItem } from '../../ui/components/Menu.vue';
+import Menu from '../../ui/components/Menu.vue';
+import type { MenuItem } from '../../ui/components/menuTypes.ts';
 import RefreshStamp from '../../ui/components/RefreshStamp.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 import SessionListAction, { type ActionTarget } from '../sessions/SessionListAction.vue';

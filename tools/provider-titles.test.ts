@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { i18n } from '../src/core/i18n/index.ts';
-import { providerTitles } from '../src/ui/providerPresentation.ts';
+import { providerTitles } from '../src/ui/domain/providers/providerPresentation.ts';
 
 test('instances of one vendor keep their IDs apart', () => {
   i18n.setLocale('en');

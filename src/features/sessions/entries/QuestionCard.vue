@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // An `ask_user` call: the form while the call waits (or, after a timeout, while it still takes
 // a late answer), and what became of it afterwards.
-import { computed, inject, onUnmounted, ref, watch } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
 import * as api from '../../../core/api/endpoints.ts';
 import { chat } from '../../../core/state/chatSlice.ts';
 import { tr, intlLocale } from '../../../core/i18n/tr.ts';
+import { useQuestionClock } from '../../../ui/domain/chat/useQuestionClock.ts';
 import Icon from '../../../ui/components/Icon.vue';
 import Markdown from '../../../ui/components/Markdown.vue';
 import { showError } from '../../../ui/errorDialog.ts';
@@ -19,7 +20,7 @@ import {
   pick,
   readForm,
 } from '../askUser.ts';
-import type { QuestionItem } from '../grouping.ts';
+import type { QuestionItem } from '../../chat/grouping.ts';
 import type { EntryView } from '../../../core/api/projections.ts';
 import { openActivityKey } from '../activityDialogs.ts';
 import AnswerSummary from './AnswerSummary.vue';
@@ -35,7 +36,15 @@ const state = computed(() => formState(props.item, pending.value, running.value)
 // Drafts outlive the card: the list recycles rows that scroll away.
 const key = `${props.session}:${props.item.callId}`;
 const drafts = ref<Draft[]>(stored.get(key) ?? questions.value.map(emptyDraft));
-watch(drafts, (value) => stored.set(key, value), { deep: true });
+watch(
+  drafts,
+  (value) => {
+    stored.delete(key);
+    stored.set(key, value);
+    while (stored.size > 128) stored.delete(stored.keys().next().value!);
+  },
+  { deep: true },
+);
 
 // Answers sent but not yet reflected in the history.
 const sent = ref<AnswerRecord[] | 'skipped' | null>(null);
@@ -99,11 +108,7 @@ function openCard(event: MouseEvent) {
 }
 
 // How long the call keeps waiting, when the model set a timeout.
-const now = ref(Date.now());
-const clock = setInterval(() => {
-  now.value = Date.now();
-}, 15_000);
-onUnmounted(() => clearInterval(clock));
+const now = useQuestionClock();
 const deadline = computed(() => {
   const form = pending.value.find((item) => item.call_id === props.item.callId);
   if (background.value || state.value.kind !== 'open' || !form?.timeout_seconds) return null;

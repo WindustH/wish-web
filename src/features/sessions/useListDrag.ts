@@ -100,7 +100,7 @@ export function useListDrag(move: (ids: string[], into: Place) => void, open: (f
         timer: ReturnType<typeof setTimeout>;
       }
     | undefined;
-  function press_(event: TouchEvent, ids: string[], from: Place | undefined, label: string) {
+  function beginPress(event: TouchEvent, ids: string[], from: Place | undefined, label: string) {
     const touch = event.touches[0];
     if (event.touches.length !== 1 || !touch) return;
     release();
@@ -169,5 +169,5 @@ export function useListDrag(move: (ids: string[], into: Place) => void, open: (f
     clearTimeout(spring);
   });
 
-  return { dragging, over, ghost, start, hover, leave, drop, press: press_ };
+  return { dragging, over, ghost, start, hover, leave, drop, press: beginPress };
 }

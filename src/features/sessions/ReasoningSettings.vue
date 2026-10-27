@@ -12,7 +12,8 @@ import {
 import { useSessionSelection, type ModelSelection } from './useSessionSelection.ts';
 import { effortLabel, resolvedEffort } from './reasoningLabels.ts';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
-import PickerList, { type PickerItem } from '../../ui/components/PickerList.vue';
+import PickerList from '../../ui/domain/providers/PickerList.vue';
+import type { PickerItem } from '../../ui/domain/providers/types.ts';
 import SelectionStatus from './SelectionStatus.vue';
 
 const panel = ref<InstanceType<typeof CommandPanel>>();

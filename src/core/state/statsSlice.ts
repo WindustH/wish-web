@@ -80,6 +80,7 @@ export const stats = (() => {
     if (key === usageKey(usageRange.value)) return;
     usageRange.value = range;
     usageSwitching.value = true;
+    error.value = null;
     const hit = peekCached<UsageSnapshot>(key);
     if (hit) usage.value = hit;
     else
@@ -95,7 +96,9 @@ export const stats = (() => {
         usage.value = result;
         writeCached(key, result);
       })
-      .catch(() => {})
+      .catch((cause) => {
+        if (!controller.signal.aborted && usageRange.value === range) error.value = cause;
+      })
       .finally(() => {
         if (usageRange.value === range) usageSwitching.value = false;
       });

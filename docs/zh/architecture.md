@@ -84,7 +84,7 @@ Service Worker 由 `vite-plugin-pwa` 借助 Workbox 生成：
 ## 多语言
 
 - `core/i18n/zh.ts` 和 `en.ts` 包含相同的键，通过 `i18n.t(key, params)` 查找，缺失时回退到英文。只在一处出现的文字直接写成 `tr('中文', 'English')`。
-- 界面语言默认为中文，保存在 `localStorage` 中，并同步设置 `<html lang>`。不会根据浏览器语言自动选择。
+- 界面语言默认跟随浏览器，也可手动选择中文或英文；偏好通过平台存储适配器保存，并同步设置 `<html lang>`。
 - `core/i18n/errorMessages.ts` 负责在错误对话框中翻译服务端的错误信息。
 - 自检页面的详细信息目前只有中文。
 
@@ -114,3 +114,14 @@ Shell 结果中的文件修改从 `metadata.edits`（旧结果回退到工具输
 Shell 和 Session 操作仍保留时间轴记录，文件卡片不会替代工具执行历史。
 
 验证：`tools/file-changes.test.ts`、`tools/file-changes-browser.mjs`。
+
+
+## 依赖边界
+
+`main.ts` 和路由负责组合功能。`core` 可以使用平台契约，但不得导入 UI 或 feature；平台适配器通过注册参数接收应用配置。`pnpm lint` 解析静态、动态导入和导出，拒绝反向分层依赖及 feature 之间的循环。
+
+`features/chat` 提供可复用的输入框和消息原语，会话与群组单向依赖它。提供商配置和登录逻辑位于 `features/providers`，诊断预览位于 `features/debug`。`ui/components` 保留通用组件，`ui/domain/{chat,providers,settings,diagnostics}` 明确容纳领域展示。共享设置控件和样式不属于设置路由。`SessionPanelModal` 负责聊天栏锚点，通用弹窗只接收锚点和外部点击策略。DraftActions 仍是通过注入提供的通用表单操作，不依赖设置 feature。
+
+指令投影返回稳定的语义类型，由展示层翻译标题；服务器保存的原始标题保持原样。设置快照和事件总线具有明确的类型契约，但这不表示所有上游字段都已经过运行时校验。
+
+不按文件行数机械拆分：ChatLog 的滚动和虚拟化已经委托给多个 composable；页面保留装配职责。局部布局断点和算法常量不必集中到全局配置。通用状态组件、共享用量图表以及注入式表单操作也不构成反向依赖。

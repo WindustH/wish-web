@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import SessionHistorySearch from './SessionHistorySearch.vue';
-import SelectField from '../../ui/components/SelectField.vue';
-import { errorDetail } from '../../core/errors.ts';
-import Modal from '../../ui/components/Modal.vue';
+import SelectField from '../../ui/domain/providers/SelectField.vue';
+import { describeError } from '../../core/i18n/errorMessages.ts';
+const errorDetail = (error: unknown) => describeError(error).message;
+import Modal from '../../ui/domain/chat/SessionPanelModal.vue';
 // Session details and usage; requests belong to this mounted session.
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
 import * as api from '../../core/api/endpoints.ts';
@@ -12,12 +13,12 @@ import { tr } from '../../core/i18n/tr.ts';
 import { fmtDateTime, fmtTokens } from '../../core/util/fmt.ts';
 import type { UsageSnapshot } from '../../core/state/statsSlice.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
-import { providerTitlesRead, useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
-import { modelLabel } from '../../ui/modelLabel.ts';
-import { presetBrand } from '../../ui/providerPresentation.ts';
-import ProviderIcon from '../../ui/components/ProviderIcon.vue';
+import { providerTitlesRead, useProviderTitles } from '../../ui/domain/providers/useProviderTitles.ts';
+import { modelLabel } from '../../ui/domain/providers/modelLabel.ts';
+import { presetBrand } from '../../ui/domain/providers/providerPresentation.ts';
+import ProviderIcon from '../../ui/domain/providers/ProviderIcon.vue';
 import { contextGauge } from './contextUsage.ts';
-import { useModelCatalog } from '../../ui/composables/useModelCatalog.ts';
+import { useModelCatalog } from '../../ui/domain/providers/useModelCatalog.ts';
 import { useSessionRequests } from './useSessionRequests.ts';
 import { RouterLink } from 'vue-router';
 import Icon from '../../ui/components/Icon.vue';
@@ -41,7 +42,7 @@ const isMobile = useIsMobile();
 const snapshot = computed(() => chat.snapshot.value);
 const buildId = __BUILD_ID__;
 const usage = ref<UsageSnapshot | null>(null);
-const err = ref<any>(null);
+const err = ref<unknown>(null);
 const requests = useSessionRequests();
 
 async function refresh() {
@@ -100,11 +101,17 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
 
 // The groups the session is in.
 const groups = ref<GroupView[]>([]);
+const groupsError = ref<unknown>(null);
 async function loadGroups(id: string | null) {
   groups.value = [];
+  groupsError.value = null;
   if (!id) return;
-  const found = await api.sessionGroups(id).catch(() => []);
-  if (chat.sessionId.value === id) groups.value = found;
+  try {
+    const found = await api.sessionGroups(id);
+    if (chat.sessionId.value === id) groups.value = found;
+  } catch (error) {
+    if (chat.sessionId.value === id) groupsError.value = error;
+  }
 }
 watch(() => chat.sessionId.value, loadGroups, { immediate: true });
 </script>
@@ -193,11 +200,17 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
           </button>
         </section>
 
-        <section v-if="groups.length" class="info-card">
+        <section v-if="groups.length || groupsError" class="info-card">
           <header class="info-card-head">
             <h4>{{ tr('所在群组', 'Groups') }}</h4>
           </header>
-          <ul class="info-members">
+          <div v-if="groupsError" class="load-error" role="alert">
+            <span>{{ errorDetail(groupsError) }}</span
+            ><button class="btn ghost sm" @click="loadGroups(chat.sessionId.value)">
+              {{ i18n.t('common.retry') }}
+            </button>
+          </div>
+          <ul v-else class="info-members">
             <li v-for="item in groups" :key="item.id">
               <RouterLink :to="`/g/${item.id}`" class="info-member"
                 ><Icon name="users" />{{ item.name || item.id.slice(0, 8) }}</RouterLink

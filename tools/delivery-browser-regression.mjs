@@ -10,20 +10,35 @@ import vue from '@vitejs/plugin-vue';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import {createApp,h,ref} from 'vue';import {TooltipProvider} from 'reka-ui';
-import ToolSwitchRows from '/src/features/settings/ToolSwitchRows.vue';
+import {deliveriesList} from '/src/core/api/endpoints.ts';
+import ToolSwitchRows from '/src/ui/domain/settings/ToolSwitchRows.vue';
 import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
 import {createBackLayers,setBackLayers} from '/src/ui/backLayers.ts';
-import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/features/settings/settings.css';
-registerBrowserPlatform();setBackLayers(createBackLayers(window));
+import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/ui/domain/settings/settings.css';
+registerBrowserPlatform({ namespace: 'wish-webui', version: 1 });setBackLayers(createBackLayers(window));
 const tools=ref({shell:true,ask_user:true,web_fetch:true,web_search:true,mcp:true,skills:true,sessions:true});
 createApp({setup(){return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;width:min(800px,100%);margin:auto'},[h('div',{class:'set-card'},[h(ToolSwitchRows,{modelValue:tools.value,'onUpdate:modelValue':v=>tools.value=v,searchAvailable:true})])]))}}).mount('#app');
 window.fixture={tools};
+window.readQueue=async()=>{
+ const original=window.fetch,calls=[];
+ window.fetch=async(input)=>{
+  const url=new URL(String(input),location.href);
+  let body;
+  if(url.pathname.endsWith('/queue'))body={items:[12,10,11,95,98],next:5};
+  else if(url.pathname.endsWith('/entries')){
+   const start=Number(url.searchParams.get('start')),limit=Number(url.searchParams.get('limit'));calls.push([start,limit]);
+   body={items:Array.from({length:limit},(_,i)=>({message:{User:{content:[{Text:{text:'Entry '+(start+i)}}],metadata:start+i===98?{source:'internal'}:{}}}}))};
+  } else body={session:{id:'batch',name:'Batch'},status:{phase:'Idle',running:false,queue_head:0,config:{}}};
+  return new Response(JSON.stringify(body),{headers:{'content-type':'application/json'}});
+ };
+ try{return {result:await deliveriesList('batch'),calls}}finally{window.fetch=original}
+};
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__delivery_regression', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__delivery_regression', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/settings/ToolSwitchRows.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/ui/domain/settings/ToolSwitchRows.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-delivery-browser-'));
 let chrome, ws;
 try {
@@ -45,7 +60,7 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/__delivery_regression`});
-  await until('!!window.fixture && document.querySelectorAll(".tool-delivery").length===4','delivery settings mount');
+  await until('!!window.fixture && document.querySelectorAll(".tool-delivery").length===6','delivery settings mount');
   for(const width of [320,390,844,1100]) {
     await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<900});
     await sleep(150);
@@ -54,24 +69,28 @@ try {
     await writeFile('/tmp/wish-tool-delivery-'+width+'.png',Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
   }
   for (const mode of ['command','off','tool']) {
-    const point=await js(`(()=>{const r=document.querySelector('.tool-delivery input[value="${mode}"]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
+    const point=await js(`(()=>{const r=document.querySelector('.tool-delivery[aria-label^="Web Fetch"] input[value="${mode}"]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
     await send('Input.dispatchMouseEvent',{type:'mouseMoved',...point});
     await send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...point});
     await send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...point});
     await until(mode==='off'?'fixture.tools.value.web_fetch===false':`fixture.tools.value.web_fetch && fixture.tools.value.web_fetch_delivery==="${mode}"`,'segment '+mode);
   }
-  await js(`document.querySelector('.tool-delivery input[value="tool"]').focus()`);
+  await js(`document.querySelector('.tool-delivery[aria-label^="Web Fetch"] input[value="tool"]').focus()`);
   await send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowLeft',code:'ArrowLeft',windowsVirtualKeyCode:37});
   await send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowLeft',code:'ArrowLeft',windowsVirtualKeyCode:37});
   await until('fixture.tools.value.web_fetch_delivery==="command"','keyboard segment navigation');
-  const hintPoint=await js(`(()=>{const r=document.querySelector('.tool-delivery input[value="command"]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
+  const hintPoint=await js(`(()=>{const r=document.querySelector('.tool-delivery[aria-label^="Web Fetch"] input[value="command"]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
   await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1,y:1});
   await send('Input.dispatchMouseEvent',{type:'mouseMoved',...hintPoint});
   await until('!!document.querySelector(".control-tooltip")','icon hover explanation');
   await js('fixture.tools.value.shell=false');
-  await until(`document.querySelector('.tool-delivery input[value="command"]').disabled`,'shell mode unavailable without shell');
+  await until(`document.querySelector('.tool-delivery[aria-label^="Web Fetch"] input[value="command"]').disabled`,'shell mode unavailable without shell');
+  const queued=await js('window.readQueue()');
+  assert.deepEqual(queued.result.items.map(item=>item.id),['12','10','11','95'],'queue order survives batched reads; internal instructions remain hidden');
+  assert.deepEqual(queued.calls,[[10,3],[95,1],[98,1]],'read adjacent entries together without reading history gaps');
+  assert.equal(queued.result.has_more,true);
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,widths:[320,390,844,1100],checks:['delivery selectors','no horizontal overflow','shared settings styling']}));
+  console.log(JSON.stringify({ok:true,widths:[320,390,844,1100],checks:['delivery selectors','no horizontal overflow','shared settings styling','batched queue order and sparse ranges']}));
 } finally {
   ws?.close();
   if(chrome&&chrome.exitCode===null){chrome.kill('SIGTERM');await Promise.race([new Promise(r=>chrome.once('exit',r)),sleep(2000)]);if(chrome.exitCode===null)chrome.kill('SIGKILL');}

@@ -87,8 +87,14 @@ export function createGroupHistory(requests: Pick<typeof api, 'groupGet' | 'grou
       if (signal.aborted) return;
       group.value = record;
       append(fresh);
+      failed.value = null;
       watermark = fresh.reduce((max, item) => Math.max(max, item.seq), last);
-    })();
+    })().catch((error) => {
+      if (!signal.aborted) {
+        failed.value = error;
+        throw error;
+      }
+    });
     syncing = task;
     void task
       .finally(() => {

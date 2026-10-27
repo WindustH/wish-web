@@ -4,7 +4,7 @@ import { useVirtualizer } from '@tanstack/vue-virtual';
 import type { GroupMessage } from '../../core/api/types.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
-import { measureChatElement, observeChatRect, refreshChatViewport } from '../sessions/virtualMeasurements.ts';
+import { measureChatElement, observeChatRect, refreshChatViewport } from '../chat/virtualMeasurements.ts';
 import GroupMessageItem from './GroupMessageItem.vue';
 
 const props = defineProps<{ groupId: string; messages: GroupMessage[]; loading: boolean; hasOlder: boolean }>();
@@ -137,6 +137,7 @@ onBeforeUnmount(() => {
   <div class="chatlog-wrap">
     <div
       ref="scrollEl"
+      data-selection-viewport
       class="chatlog"
       tabindex="0"
       @scroll.passive="onScroll"

@@ -12,6 +12,7 @@ import {
 import { completeHistoryContext } from './historyContext.ts';
 import { cfg } from '../config.ts';
 import type { SeriesQuery, DailyQuery, UsageSeriesResponse, UsageDailyResponse } from '../usage/types.ts';
+import { mapConcurrent } from '../util/mapConcurrent.ts';
 import type { ConfigCatalog, ProviderConfig } from '../provider-presets.ts';
 import type {
   BlobInfo,
@@ -346,28 +347,47 @@ export async function deliveriesList(
     query: { start: snap.status.queue_head, limit: params?.limit ?? 50 },
     ...opts,
   });
-  const items: (QueuedDelivery | null)[] = await Promise.all(
-    page.items.map(async (entry: number): Promise<QueuedDelivery | null> => {
-      const values = await get(`${path(id)}/entries`, { query: { start: entry, limit: 1 }, ...opts });
-      const message = values.items[0].message.User;
-      if (!message || message.metadata?.source) return null;
-      const text =
-        message.metadata?.input_text ??
-        message.content
-          .filter((b: any) => b.Text)
-          .map((b: any) => b.Text.text)
-          .join('\n') ??
-        '';
-      const attachments = (message.metadata?.attachments ?? []).map((a: any) => ({
-        kind: a.kind,
-        blob_id: `${id}/${a.id}`,
-        filename: a.name,
-        byte_count: a.byte_count,
-        placeholder: a.placeholder,
-      }));
-      return { id: String(entry), state: 'queued', text, attachments };
-    }),
+  const ranges: { start: number; limit: number }[] = [];
+  for (const entry of [...new Set<number>(page.items)].sort((a, b) => a - b)) {
+    const previous = ranges.at(-1);
+    if (previous && previous.start + previous.limit === entry && previous.limit < 50) previous.limit++;
+    else ranges.push({ start: entry, limit: 1 });
+  }
+  const pages = await mapConcurrent(ranges, 4, async (range) => ({
+    start: range.start,
+    page: await get(`${path(id)}/entries`, { ...opts, query: range }),
+  }));
+  const messages = new Map(
+    pages.flatMap(({ start, page }) =>
+      page.items.map(
+        (item: { message: { User?: unknown } }, index: number) => [start + index, item.message.User] as const,
+      ),
+    ),
   );
+  const items: (QueuedDelivery | null)[] = page.items.map((entry: number): QueuedDelivery | null => {
+    const message = messages.get(entry) as
+      | {
+          metadata?: { source?: string; input_text?: string; attachments?: any[] };
+          content: { Text?: { text: string } }[];
+        }
+      | undefined;
+    if (!message || message.metadata?.source) return null;
+    const text =
+      message.metadata?.input_text ??
+      message.content
+        .filter((b: any) => b.Text)
+        .map((b: any) => b.Text.text)
+        .join('\n') ??
+      '';
+    const attachments = (message.metadata?.attachments ?? []).map((a: any) => ({
+      kind: a.kind,
+      blob_id: `${id}/${a.id}`,
+      filename: a.name,
+      byte_count: a.byte_count,
+      placeholder: a.placeholder,
+    }));
+    return { id: String(entry), state: 'queued', text, attachments };
+  });
   return { items: items.filter((item) => item !== null), has_more: page.next != null };
 }
 export const moveQueuedInput = (id: string, entry: string, before: string | number | null) =>

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { changedFiles, rowFileChanges, stackedFiles, fileCardsHeight } from '../src/features/sessions/fileChanges.ts';
-import { groupEntries, inlineChips } from '../src/features/sessions/grouping.ts';
+import { groupEntries, inlineChips } from '../src/features/chat/grouping.ts';
 import { estimateRow } from '../src/features/sessions/rowEstimate.ts';
 const result = (seq: number, edits: any[], tool_name = 'shell') => ({ kind: 'tool_result', seq, payload: { tool_name, metadata: { edits } } });
 const chip = (edits: any[], name = 'shell') => ({ type: 'process', key: 'p', steps: [{ kind: 'entry', entry: result(1, edits, name) }] });

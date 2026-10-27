@@ -200,3 +200,20 @@ const fieldName = (key: string) =>
     <pre>{{ fullText }}</pre>
   </details>
 </template>
+
+<style scoped>
+:deep(.virtual-rows-item > .proc-event) {
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+:deep(.virtual-rows-item .proc-event-text strong) {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+:deep(.virtual-rows-item .proc-event-text small) {
+  -webkit-line-clamp: 1;
+}
+</style>

@@ -11,12 +11,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import {createApp,h} from 'vue';import {TooltipProvider} from 'reka-ui';
 import {createRouter,createMemoryHistory} from 'vue-router';
-import DebugSettings from '/src/features/settings/DebugSettings.vue';
+import DebugSettings from '/src/features/debug/DebugSettings.vue';
 import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
-import {stalls} from '/src/ui/scrollStalls.ts';
-registerBrowserPlatform();
+import {stalls} from '/src/ui/domain/diagnostics/scrollStalls.ts';
+registerBrowserPlatform({ namespace: 'wish-webui', version: 1 });
 stalls.value=[{at:'2026-10-26T00:00:00Z',kind:'wheel',route:'#/s/test',target:'button',layers:[],build:'fixture'}];
-import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/features.css';import '/src/features/settings/settings.css';
+import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/features.css';import '/src/ui/domain/settings/settings.css';
 const router=createRouter({history:createMemoryHistory(),routes:[{path:'/',component:{render:()=>null}}]});
 createApp({render:()=>h(TooltipProvider,{},()=>h('main',{style:'width:100%;max-width:736px;margin:24px auto;padding:16px'},h(DebugSettings)))}).use(router).mount('#app');
 </script></body></html>`;
@@ -24,7 +24,7 @@ const server = await createServer({ configFile: false, define:{__BUILD_ID__:JSON
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__debug_windows', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__debug_windows', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/settings/StylePreview.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/debug/StylePreview.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-debug-windows-'));
 let chrome, ws;
 try {

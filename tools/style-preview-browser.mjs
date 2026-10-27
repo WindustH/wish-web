@@ -9,23 +9,25 @@ import { createServer } from 'vite';
 import vue from '@vitejs/plugin-vue';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
-import {createApp,h} from 'vue';import {TooltipProvider} from 'reka-ui';
+import {createApp,h,ref} from 'vue';import {TooltipProvider} from 'reka-ui';
 import {createRouter,createMemoryHistory} from 'vue-router';
 import {use} from '/src/platform/index.ts';
 use('clipboard',{writeText:async text=>{window.copiedCode=text}});
 import {renderMarkdown} from '/src/ui/markdown.ts';
 window.renderMarkdown=renderMarkdown;
 import '/src/styles/codeHighlight.css';
-import StylePreview from '/src/features/settings/StylePreview.vue';
+import GroupMessageCard from '/src/features/sessions/entries/GroupMessageCard.vue';
+const groupPreview=ref(false);window.groupPreview=groupPreview;
+import StylePreview from '/src/features/debug/StylePreview.vue';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/features.css';
-const router=createRouter({history:createMemoryHistory(),routes:[{path:'/',component:{render:()=>null}}]});
-createApp({render:()=>h(TooltipProvider,{},()=>h('main',{style:'max-width:736px;margin:24px auto;padding:16px'},h(StylePreview)))}).use(router).mount('#app');
+const router=createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]});
+createApp({render:()=>h(TooltipProvider,{},()=>h('main',{style:'max-width:736px;margin:24px auto;padding:16px'},[h(StylePreview),h('div',{id:'group-link-probe'},h(GroupMessageCard,{preview:groupPreview.value,author:{name:'Author',color:'#789',to:'/s/author'},verb:'in',group:{id:'group',name:'Group'},text:'A message with text'}))]))}).use(router).mount('#app');
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__style_preview', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__style_preview', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/settings/StylePreview.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/debug/StylePreview.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-style-preview-'));
 let chrome, ws;
 try {
@@ -48,6 +50,12 @@ try {
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/__style_preview`});
   await until('document.querySelectorAll(".preview-sample").length===22','all gallery samples');
+  await until('document.querySelectorAll("#group-link-probe a").length===2','mounted group card retains author and group links');
+  await js('window.groupPreview.value=true');
+  await until('document.querySelectorAll("#group-link-probe a").length===0','preview prop suppresses navigation');
+  await js('window.groupPreview.value=false');
+  await until('document.querySelectorAll("#group-link-probe a").length===2','leaving preview restores links');
+  await js('window.groupPreview.value=true;document.querySelector("#group-link-probe").style.display="none"');
   for (const id of ['retry-waiting','retry-attempting']) {
     await js(`document.querySelector('[data-preview=${id}] .retry-reason-toggle').click()`);
     assert.equal(await js(`document.querySelector('[data-preview=${id}] .retry-reason-toggle').getAttribute('aria-expanded')`),'true');

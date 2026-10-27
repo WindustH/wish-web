@@ -4,11 +4,10 @@ import * as api from '../api/endpoints.ts';
 import { bus } from '../bus.ts';
 import { tr } from '../i18n/tr.ts';
 import { errorText } from '../errors.ts';
-import { toast } from '../../ui/toast.ts';
 
 export function createSessionNaming(
   requests: Pick<typeof api, 'sessionGenerateName' | 'sessionRename'> = api,
-  notify = toast,
+  notify: (text: string) => void = (text) => bus.emit('notice', text),
 ) {
   const pending = shallowRef<ReadonlySet<string>>(new Set());
   async function generate(id: string, firstEntry?: number): Promise<void> {

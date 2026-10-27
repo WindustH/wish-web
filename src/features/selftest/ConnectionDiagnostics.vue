@@ -239,7 +239,7 @@ const CHECKS: Check[] = [
         );
         const sse = createSse({
           url: absUrl('/events'),
-          firstTimeoutMs: cfg.sse.firstFrameTimeoutMs,
+          connectTimeoutMs: cfg.sse.firstFrameTimeoutMs,
           headers: {},
           onFrame: (f: { event?: string }) => {
             if (f.event) finish(undefined, f.event);

@@ -78,8 +78,8 @@ serve.ts                       生产环境服务器
 - **文案。** 所有可见文字都要有中英两个版本。多处共用的文字写成 `src/core/i18n/zh.ts` 和 `en.ts` 中的键（两个文件的键必须一致），通过 `i18n.t('key')` 使用；只在一处出现的文字可以直接写成 `tr('中文', 'English')`。
 - **错误与反馈。** 出错时调用 `src/ui/errorDialog.ts` 中的 `showError({ title, error })`，它会弹出对话框，服务端的错误信息由 `src/core/i18n/errorMessages.ts` 翻译。操作成功时用简短的 `toast()` 提示。
 - **较慢的读取。** 对于加载慢、稍旧一点也无妨的数据（统计、模型目录），使用 `src/core/util/responseCache.ts` 中的 `peekCached`、`readCached` 和 `writeCached`：先立即显示上次的结果，新数据到达后再替换。只能缓存普通的 JSON 数据。
-- **布局。** 只有一个断点：900 像素（`cfg.breakpoints.desktop`），组件用 `useMedia('(max-width: 899px)')` 判断是否使用手机布局。改动后请分别在桌面端和手机端、浅色和深色主题下检查。
-- **参数与平台。** 数值写在 `src/core/config.ts` 中，不要写死在组件里。存储、通知、文件、剪贴板和屏幕唤醒一律通过 `src/platform/` 的 `platform()` 访问，不要直接调用浏览器 API。
+- **布局。** 页面级桌面/移动端断点为 900 像素（`cfg.breakpoints.desktop`）；组件内部可按内容需要使用较窄断点。组件用 `useMedia('(max-width: 899px)')` 判断是否使用手机布局。改动后请分别在桌面端和手机端、浅色和深色主题下检查。
+- **参数与平台。** 跨组件的产品参数写在 `src/core/config.ts` 或 CSS token 中；局部布局和算法常量留在所属模块。存储、通知、文件、剪贴板和屏幕唤醒一律通过 `src/platform/` 的 `platform()` 访问，不要直接调用浏览器 API。
 
 ## 依赖补丁
 
@@ -99,3 +99,6 @@ serve.ts                       生产环境服务器
 更纱黑体 SC（Sarasa Gothic SC，中文）和 Maple Mono NF CN（代码）按 Unicode 区段拆成许多小的 WOFF2 文件，浏览器只下载用得到的字形（`tools/build-cjk-fonts.py`，借用已安装的 Noto Serif SC 包的 Unicode 区段划分）。STIX Two Math 按原样使用。许可证信息见 [THIRD_PARTY.md](../../THIRD_PARTY.md)。
 
 同一个 CSS 字重下，一行里各个字体的笔画应当一样粗。基准是中文字体：`tools/build-cjk-fonts.py` 为每个 CSS 字重选定静态字重。Montserrat 和 Bitter 向它看齐：`tools/build-latin-fonts.py` 从 `node_modules/@fontsource-variable/` 取出这两个字体并重新校准字重映射。本来就要显示为粗体的英文标签使用 `--weight-latin-semibold` / `--weight-latin-bold`，让 Montserrat 回到它自己的 600 和 700。改动其中任何字体后，运行 `python3 tools/measure-font-weights.py`（需要 NumPy 和 Pillow）：它按 CSS 字重列出各字体的笔画粗细，以及与之匹配的拉丁字重，把结果填进 `tools/build-latin-fonts.py`。
+
+
+运行 `pnpm check` 检查依赖边界、TypeScript 和格式；`pnpm format` 应用统一的 Prettier 风格。CI 同时构建项目，并运行已有检查和浏览器回归。本轮没有新增单元测试。

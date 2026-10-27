@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import { describeError } from '../../core/i18n/errorMessages.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { sessionNaming } from '../../core/state/sessionNaming.ts';
 import SessionListAction, { type ActionTarget } from './SessionListAction.vue';
 import FadeText from '../../ui/components/FadeText.vue';
-import { modelLabel } from '../../ui/modelLabel.ts';
+import { modelLabel } from '../../ui/domain/providers/modelLabel.ts';
 import { sessionParent } from '../shell/sessionNavigation.ts';
-import { sessionPanelCloseKey } from '../../ui/composables/sessionPanel.ts';
+import { sessionPanelCloseKey } from '../../ui/domain/chat/sessionPanel.ts';
 import Hint from '../../ui/components/Hint.vue';
 // Chat surface: top bar (desktop information/settings / mobile back+menu), log,
 // composer, and child-route dialogs (mobile subpages). Opening session
@@ -18,7 +19,7 @@ import { chat } from '../../core/state/chatSlice.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
 import ChatLog from './ChatLog.vue';
-import Composer from './Composer.vue';
+import Composer from '../chat/Composer.vue';
 import QueueDock from './QueueDock.vue';
 import InfoPane from './InfoPane.vue';
 import SessionSettingsPane from './SessionSettingsPane.vue';
@@ -190,11 +191,11 @@ const goTab = (t: SessionTab) => {
             </button></Hint
           >
           <span class="selection-dot" aria-hidden="true">·</span>
-          <Hint :text="effortError ? String(effortError) : i18n.t('reasoning.title')"
+          <Hint :text="effortError ? describeError(effortError).message : i18n.t('reasoning.title')"
             ><button
               class="reasoning-chip"
               :aria-expanded="reasoningOpen"
-              :aria-label="`${i18n.t('reasoning.title')}：${effortLabel(effort)}`"
+              :aria-label="`${i18n.t('reasoning.title')}: ${effortLabel(effort)}`"
               @click="reasoningOpen = true"
             >
               <span>{{ effortLabel(effort).toUpperCase() }}</span>

@@ -1,4 +1,4 @@
-import { instructionSections } from '../../features/sessions/instructionSections.ts';
+import { instructionSections, type InstructionKind, type InstructionSection } from '../instructions.ts';
 import { orderedUserContent, type ContentBlock } from './userContent.ts';
 import { operationFailure, type DisplayFailure } from './failures.ts';
 export type { ContentBlock } from './userContent.ts';
@@ -105,7 +105,8 @@ export type EntryKind =
 export interface EntryPayload {
   via?: 'command';
   instruction_title?: string;
-  instruction_sections?: { title: string; content: string; supplemental?: boolean }[];
+  instruction_kind?: InstructionKind;
+  instruction_sections?: InstructionSection[];
   instruction_supplemental?: boolean;
   content: ContentBlock[];
   failure?: DisplayFailure | null;
@@ -223,7 +224,7 @@ export function entryView(item: any, sessionId: string): EntryView {
         payload: {
           instruction_title: note.title,
           content: [{ type: 'text', text }],
-          instruction_sections: note.title?.startsWith('系统指令') ? instructionSections(text) : undefined,
+          instruction_sections: instructionSections(text).length > 1 ? instructionSections(text) : undefined,
         },
       };
     }
@@ -350,18 +351,18 @@ export function entryView(item: any, sessionId: string): EntryView {
   }
   if (entry.origin === 'Summary' || type === 'UpstreamCompaction') {
     result.kind = 'system_message';
-    result.payload.instruction_title = type === 'UpstreamCompaction' ? '上游上下文压缩' : '上下文摘要';
+    result.payload.instruction_kind = type === 'UpstreamCompaction' ? 'upstream-compaction' : 'summary';
   }
   if (Array.isArray(item.initial_tools)) {
     const sections = result.payload.instruction_sections ?? [
       {
-        title: '系统指令',
+        kind: 'base' as const,
         content: result.payload.content.map((block) => (block.type === 'text' ? block.text : '')).join('\n'),
         supplemental: false,
       },
     ];
     result.payload.instruction_sections = [
-      { title: '工具定义 · Generation #0', content: JSON.stringify(item.initial_tools, null, 2), supplemental: false },
+      { kind: 'initial-tools', content: JSON.stringify(item.initial_tools, null, 2), supplemental: false },
       ...sections,
     ];
   }

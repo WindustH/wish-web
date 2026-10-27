@@ -11,13 +11,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import {createApp,h,ref} from 'vue';
 import {TooltipProvider} from 'reka-ui';
-import Composer from '/src/features/sessions/Composer.vue';
+import Composer from '/src/features/chat/Composer.vue';
 import AttachmentPreview from '/src/ui/components/AttachmentPreview.vue';
 import {chat} from '/src/core/state/chatSlice.ts';
 import {uploadAttachments,attachmentDraftsFor} from '/src/core/attachments.ts';
 import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';
-registerBrowserPlatform();
+registerBrowserPlatform({ namespace: 'wish-webui', version: 1 });
 const owner=ref('A');chat.sessionId.value='A';
 const hash='a'.repeat(64), fileHash='b'.repeat(64);
 const metadata={attachments:[{kind:'image',id:hash,name:'pixel.png',placeholder:'<image-'+hash+'>'},{kind:'file',id:fileHash,name:'notes.txt',placeholder:'<file-'+fileHash+'>'}],input_parts:[{type:'text',text:'inspect '},{type:'attachment',index:0},{type:'text',text:' and '},{type:'attachment',index:1}]};
@@ -42,7 +42,7 @@ const server = await createServer({ configFile: false, root: process.cwd(), plug
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__prompt_history', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__prompt_history', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/sessions/Composer.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/chat/Composer.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-prompt-history-'));
 let chrome, ws;
 try {

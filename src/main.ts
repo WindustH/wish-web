@@ -1,4 +1,5 @@
 // Bootstrap: platform → core (theme/i18n/prefs/sync) → Vue app.
+import { cfg } from './core/config.ts';
 import { createApp, watch } from 'vue';
 import { registerBrowserPlatform } from './platform/browser/index.ts';
 import { tryPlatform } from './platform/index.ts';
@@ -10,8 +11,11 @@ import { sync } from './core/state/syncSlice.ts';
 import { toast } from './ui/toast.ts';
 import { applyTokens } from './ui/applyTokens.ts';
 import { initPWA } from './ui/pwa.ts';
+import { sessionSearchCommands } from './features/sessions/searchCommands.ts';
 import { installShortcuts } from './features/shell/shortcuts.ts';
 import App from './App.vue';
+import { showError } from './ui/errorDialog.ts';
+import { tr } from './core/i18n/tr.ts';
 import { router } from './router.ts';
 import { applyConnection, isSignedOut } from './core/connection.ts';
 
@@ -27,11 +31,11 @@ import './styles/base.css';
 import './styles/layout.css';
 import './styles/components.css';
 import './styles/features.css';
-import { installActivityRecorder } from './ui/diagnostics/activityRecorder.ts';
-import { installScrollStallLog } from './ui/scrollStalls.ts';
+import { installActivityRecorder } from './ui/domain/diagnostics/activityRecorder.ts';
+import { installScrollStallLog } from './ui/domain/diagnostics/scrollStalls.ts';
 
 applyTokens();
-registerBrowserPlatform();
+registerBrowserPlatform({ namespace: cfg.meta.storageNamespace, version: cfg.meta.storageVersion });
 applyConnection();
 prefs.load();
 
@@ -85,7 +89,7 @@ watch(
 // before the control plane starts streaming.
 // Signed out, the sign-in page picks a server first.
 if (!isSignedOut()) {
-  const { installBackgroundNotify } = await import('./ui/notify.ts');
+  const { installBackgroundNotify } = await import('./ui/domain/chat/notify.ts');
   installBackgroundNotify();
   sync.start();
 }
@@ -105,10 +109,22 @@ watch(sync.protocolError, (err) => {
 }
 
 const app = createApp(App);
+app.config.errorHandler = (error, _instance, info) => {
+  console.error('Vue error:', info, error);
+  showError({ title: tr('界面发生错误', 'Interface error'), error });
+};
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason?.name !== 'AbortError')
+    showError({ title: tr('操作未能完成', 'Operation failed'), error: event.reason });
+});
 app.use(router);
 app.mount('#app');
 
 installShortcuts({
+  ...sessionSearchCommands(router),
+  openSettings: () => {
+    void router.push('/settings');
+  },
   openNewSession: () => {
     void router.push('/new');
   },

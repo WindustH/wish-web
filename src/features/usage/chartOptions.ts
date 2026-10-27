@@ -114,7 +114,7 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
       nameTextStyle: { color: style.muted, align: 'left' },
       axisLabel: {
         color: style.muted,
-        formatter: (value: number) => new Intl.NumberFormat('en', { notation: 'compact' }).format(value),
+        formatter: (value: number) => new Intl.NumberFormat(locale, { notation: 'compact' }).format(value),
       },
       splitLine: { lineStyle: { color: style.line } },
     },

@@ -19,7 +19,7 @@ import CachedPage from './ui/components/CachedPage.vue';
 import { i18n } from './core/i18n/index.ts';
 import { sync } from './core/state/syncSlice.ts';
 import { needRefresh, refreshApp } from './ui/pwa.ts';
-import { useProviderGate } from './ui/composables/useProviderGate.ts';
+import { useProviderGate } from './ui/domain/providers/useProviderGate.ts';
 import { tr } from './core/i18n/tr.ts';
 import { isSignedOut } from './core/connection.ts';
 import { accountDialogOpen } from './features/account/accountDialog.ts';

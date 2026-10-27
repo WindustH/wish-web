@@ -47,15 +47,15 @@ const title = computed(() => `${props.author ? `${props.author.name} · ` : ''}$
 const hasBody = computed(() => !!props.text.trim() || !!props.images?.length);
 
 // The preview fades out at its foot only when the words go on below it.
-const preview = ref<HTMLElement | null>(null);
+const previewEl = ref<HTMLElement | null>(null);
 const clipped = ref(false);
 let observer: ResizeObserver | undefined;
 onMounted(() => {
-  if (!preview.value) return;
+  if (!previewEl.value) return;
   observer = new ResizeObserver(() => {
-    clipped.value = preview.value!.scrollHeight > preview.value!.clientHeight + 1;
+    clipped.value = previewEl.value!.scrollHeight > previewEl.value!.clientHeight + 1;
   });
-  observer.observe(preview.value);
+  observer.observe(previewEl.value);
 });
 onBeforeUnmount(() => observer?.disconnect());
 </script>
@@ -87,7 +87,7 @@ onBeforeUnmount(() => observer?.disconnect());
       </span>
     </header>
     <div v-if="hasBody" class="group-card-body">
-      <div v-if="text.trim()" ref="preview" class="group-card-preview" :class="{ clipped }">
+      <div v-if="text.trim()" ref="previewEl" class="group-card-preview" :class="{ clipped }">
         <Markdown :text="text" />
       </div>
       <div v-if="images?.length" class="group-card-images">

@@ -2,7 +2,7 @@ import { onBeforeUnmount, watch, type Ref } from 'vue';
 import { useRoute, useRouter, type Router } from 'vue-router';
 import { animate, motionValue, type AnimationPlaybackControls, type MotionValue } from 'motion-v';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
-import { noteSwallowedClick, noteTouchAction } from '../../ui/scrollStalls.ts';
+import { noteSwallowedClick, noteTouchAction } from '../../ui/domain/diagnostics/scrollStalls.ts';
 import { clearRecentsTransition, paintRecentsTransition } from './recentsTransition.ts';
 
 // On a phone the full session list is a sheet over the home page. Its two resting places are the

@@ -3,6 +3,7 @@
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 
+export function replayConfigChanges<T>(base: T, edited: T, latest: T): T;
 export function replayConfigChanges(base: unknown, edited: unknown, latest: unknown): unknown {
   if (JSON.stringify(base) === JSON.stringify(edited)) return latest;
   if (!isRecord(base) || !isRecord(edited) || !isRecord(latest)) return edited;

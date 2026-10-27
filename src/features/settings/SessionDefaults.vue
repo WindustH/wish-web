@@ -3,7 +3,7 @@
 // instructions, and how its context is compacted. A phone edits them in MobileSessionSettings.
 import { inject } from 'vue';
 import DefaultModelPicker from './DefaultModelPicker.vue';
-import CompactionRows from './CompactionRows.vue';
+import CompactionRows from '../../ui/domain/settings/CompactionRows.vue';
 import { configDraftKey } from './useConfigDraft.ts';
 import { tr } from '../../core/i18n/tr.ts';
 

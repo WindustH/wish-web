@@ -1,6 +1,6 @@
 type Account = {
   name?: string;
-  preset?: string;
+  preset?: string | null;
   api_key?: string | null;
   api_key_env?: string | null;
   credentials?: Record<string, unknown>;

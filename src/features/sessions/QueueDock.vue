@@ -6,7 +6,8 @@
 // consumed it, nothing is refilled); delete is a plain cancel. Refill travels as a callback prop, not
 // an emit: the emit happens after an await, and by then the row's removal (local or via the delivery
 // SSE) may have unmounted this component - Vue drops emits on unmounted instances.
-import { errorDetail } from '../../core/errors.ts';
+import { describeError } from '../../core/i18n/errorMessages.ts';
+const errorDetail = (error: unknown) => describeError(error).message;
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { PopoverArrow, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui';
 import { i18n } from '../../core/i18n/index.ts';

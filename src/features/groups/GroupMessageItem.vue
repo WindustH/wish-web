@@ -8,8 +8,8 @@ import type { GroupMessage } from '../../core/api/types.ts';
 import { groupBlob } from '../../core/api/endpoints.ts';
 import type { ContentBlock } from '../../core/api/userContent.ts';
 import Markdown from '../../ui/components/Markdown.vue';
-import MessageContext from '../sessions/entries/MessageContext.vue';
-import UserEntry from '../sessions/entries/UserEntry.vue';
+import MessageContext from '../chat/entries/MessageContext.vue';
+import UserEntry from '../chat/entries/UserEntry.vue';
 import { peerColor } from './peerColor.ts';
 
 const props = defineProps<{ message: GroupMessage; groupId: string; continues: boolean }>();
@@ -37,7 +37,7 @@ const content = computed<ContentBlock[]>(() => [
           <span class="group-peer-name">{{ name }}</span>
         </RouterLink>
       </div>
-      <div class="body"><Markdown :text="message.text" /></div>
+      <div class="body"><Markdown data-selectable-text :text="message.text" /></div>
     </div>
   </MessageContext>
 </template>

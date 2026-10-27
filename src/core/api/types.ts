@@ -1,3 +1,4 @@
+import type { SettingsConfig } from '../configTypes.ts';
 // The shapes the endpoints take and return. Session and entry views are in projections.ts.
 import type { RequestOptions } from './client.ts';
 import type { SessionView, ToolSwitches } from './projections.ts';
@@ -171,7 +172,7 @@ export interface DefaultModel {
 // The configuration file as the server shows it - secrets redacted - with the revision a save must name.
 export interface ConfigSnapshot {
   revision: string;
-  config: any;
+  config: SettingsConfig;
 }
 // The shells the server can run commands in: its default and the ones installed.
 export type ShellInfo = { name: string | null; program: string; args: string[] };

@@ -5,10 +5,10 @@ import { i18n } from '../../../core/i18n/index.ts';
 import { blobUrl } from '../../../core/api/endpoints.ts';
 import { fmtTokens } from '../../../core/util/fmt.ts';
 import Markdown from '../../../ui/components/Markdown.vue';
-import MessageContext from './MessageContext.vue';
+import MessageContext from '../../chat/entries/MessageContext.vue';
 import ApiImage from '../../../ui/components/ApiImage.vue';
-import ImageGrid from './ImageGrid.vue';
-import { imageParts } from '../imageAlbums.ts';
+import ImageGrid from '../../chat/entries/ImageGrid.vue';
+import { imageParts } from '../../chat/imageAlbums.ts';
 
 const props = defineProps<{ item: any; session?: string; forcedKeys?: ReadonlySet<string>; locateSeq?: number }>();
 const texts = computed(() => (props.item.blocks || []).filter((b: any) => b.type === 'text'));
@@ -53,7 +53,7 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
               />
             </div>
           </ImageGrid>
-          <Markdown v-else-if="part.block.type === 'text'" :text="part.block.text" />
+          <Markdown data-selectable-text v-else-if="part.block.type === 'text'" :text="part.block.text" />
           <ApiImage
             v-else-if="part.block.type === 'image' && blobSrc(part.block)"
             class="assistant-img"

@@ -1105,7 +1105,7 @@ img.zoomable {
 }
 
 @media (min-width: 900px) {
-  .modal-card.session-bubble {
+  .modal-card.anchored-modal {
     --bubble-surface: var(--bg-overlay);
     background: transparent;
     border-color: transparent;
@@ -1113,12 +1113,12 @@ img.zoomable {
     isolation: isolate;
     overflow: visible;
     transform-origin: calc(100% - 24px) top;
-    animation: session-bubble-in var(--dur) var(--ease-out);
+    animation: anchored-modal-in var(--dur) var(--ease-out);
   }
-  .modal-card.session-bubble[data-state='closed'] {
-    animation: session-bubble-out var(--dur-fast) ease-in;
+  .modal-card.anchored-modal[data-state='closed'] {
+    animation: anchored-modal-out var(--dur-fast) ease-in;
   }
-  .session-bubble > .modal-body {
+  .anchored-modal > .modal-body {
     margin: 6px;
     padding: 14px;
     border-radius: 6px;
@@ -1126,11 +1126,11 @@ img.zoomable {
   }
 }
 @media (max-width: 899px) {
-  .modal-card.session-bubble > .session-bubble-surface {
+  .modal-card.anchored-modal > .anchored-modal-surface {
     display: none;
   }
 }
-@keyframes session-bubble-in {
+@keyframes anchored-modal-in {
   from {
     opacity: 0;
     transform: translateY(-6px) scale(0.96);
@@ -1140,7 +1140,7 @@ img.zoomable {
     transform: none;
   }
 }
-@keyframes session-bubble-out {
+@keyframes anchored-modal-out {
   from {
     opacity: 1;
     transform: none;
@@ -1151,7 +1151,7 @@ img.zoomable {
   }
 }
 
-.session-bubble:focus-visible {
+.anchored-modal:focus-visible {
   outline: none;
 }
 

@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { usePageActivity } from '../composables/usePageActivity.ts';
 // Centered confirm/content modal on Reka primitives (title/description
 // wired for a11y). While `dismissable` is false no path closes it — Esc,
 // overlay, close button are all suppressed; the owner resolves the busy work.
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from 'reka-ui';
 
-import { sessionPanelCloseKey } from '../composables/sessionPanel.ts';
 import Icon from './Icon.vue';
 import DraftActions from './DraftActions.vue';
 import BubbleSurface from './BubbleSurface.vue';
@@ -37,6 +36,8 @@ const props = withDefaults(
     dismissable?: boolean;
     compact?: boolean;
     backLayer?: boolean;
+    anchor?: () => HTMLElement | null;
+    ignoreOutside?: (target: Element) => boolean;
   }>(),
   { dismissable: true, backLayer: true },
 );
@@ -59,24 +60,11 @@ useBackLayer(
   },
   () => layer.value,
 );
-// A session window opens as a bubble under its chat-bar button instead of a centered card.
-const bubble = computed(() => !props.page && !!props.contentClass?.split(' ').includes('session-window'));
+// Anchored presentation is explicitly selected by the caller.
+const bubble = computed(() => !props.page && !!props.anchor);
 // Compact cards drop the head and footer bands: the title joins the content
 // flow and the actions follow it. Page sheets keep their head (back button).
 const compactCard = computed(() => props.compact && !props.page);
-const panelClose = inject(sessionPanelCloseKey, null);
-watch(
-  [bubble, pageActive],
-  ([value, active]) => {
-    if (!panelClose) return;
-    if (value && active) panelClose.value = requestClose;
-    else if (panelClose.value === requestClose) panelClose.value = null;
-  },
-  { immediate: true },
-);
-onBeforeUnmount(() => {
-  if (panelClose?.value === requestClose) panelClose.value = null;
-});
 // Counts the card's showings: it is put on the page a moment after `open`, and again when its page
 // comes back, and what holds it - the sheet's drag - looks for it then.
 const shown = ref(0);
@@ -114,7 +102,7 @@ function outside(event: Event) {
     looking() ||
     (target instanceof Element && target.closest('.pwa-update')) ||
     !props.dismissable ||
-    (bubble.value && target instanceof Element && target.closest('[data-session-panel]'))
+    (target instanceof Element && props.ignoreOutside?.(target))
   )
     event.preventDefault();
 }
@@ -138,7 +126,7 @@ useSheetDrag(
 );
 function positionBubble() {
   if (!bubble.value) return;
-  const button = document.querySelector('.chatbar [data-session-panel][aria-pressed="true"]');
+  const button = props.anchor?.();
   if (!button) return;
   const rect = button.getBoundingClientRect();
   const top = rect.bottom + 10;
@@ -171,7 +159,7 @@ onBeforeUnmount(untrackBubblePosition);
 function onCloseAnimationEnd(event: AnimationEvent) {
   if (
     event.target === event.currentTarget &&
-    ['popup-fade-out', 'page-out', 'sheet-out', 'session-panel-out', 'session-bubble-out'].includes(event.animationName)
+    ['popup-fade-out', 'page-out', 'sheet-out', 'anchored-modal-out'].includes(event.animationName)
   )
     finishClose();
 }
@@ -200,7 +188,7 @@ defineExpose({ close: requestClose });
         @close-auto-focus="focus.closed"
         class="modal-card"
         :class="[
-          { wide, 'modal-page': page, 'modal-sheet': sheet, 'session-bubble': bubble, compact: compactCard },
+          { wide, 'modal-page': page, 'modal-sheet': sheet, 'anchored-modal': bubble, compact: compactCard },
           contentClass,
         ]"
         :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }"
@@ -218,7 +206,7 @@ defineExpose({ close: requestClose });
         @interact-outside="outside"
         @pointer-down-outside="outside"
       >
-        <BubbleSurface v-if="bubble" class="session-bubble-surface" side="top" :tail-x="24" align-end />
+        <BubbleSurface v-if="bubble" class="anchored-modal-surface" side="top" :tail-x="24" align-end />
         <DialogTitle v-if="bubble" class="visually-hidden">{{ title }}</DialogTitle>
         <div v-else-if="!compactCard" class="modal-head">
           <button

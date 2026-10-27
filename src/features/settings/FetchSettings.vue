@@ -3,12 +3,12 @@ import { computed, inject, ref } from 'vue';
 import { ReorderGroup, ReorderItem, useDragControls } from 'motion-v';
 import { post } from '../../core/api/client.ts';
 import Modal from '../../ui/components/Modal.vue';
-import PickerDialog from '../../ui/components/PickerDialog.vue';
-import ProviderIcon from '../../ui/components/ProviderIcon.vue';
+import PickerDialog from '../../ui/domain/providers/PickerDialog.vue';
+import ProviderIcon from '../../ui/domain/providers/ProviderIcon.vue';
 import Icon from '../../ui/components/Icon.vue';
 import SettingsItemCard from './SettingsItemCard.vue';
 import AccountPicker from './AccountPicker.vue';
-import SwitchRow from './SwitchRow.vue';
+import SwitchRow from '../../ui/domain/settings/SwitchRow.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { configDraftKey } from './useConfigDraft.ts';
 import { fetchAccountPresets } from './accountCompatibility.ts';
@@ -122,7 +122,7 @@ async function check(id: string) {
             draggable
             :title="name(config.providers[id].preset)"
             :summary="
-              draft.accounts?.[config.providers[id].credential_id]?.name || tr('未关联账户', 'No linked account')
+              draft.accounts?.[config.providers[id].credential_id ?? '']?.name || tr('未关联账户', 'No linked account')
             "
             :position="Number(index) + 1"
             :state="{

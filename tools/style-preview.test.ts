@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { stylePreviewFixtures } from '../src/features/settings/stylePreviewFixtures.ts';
+import { stylePreviewFixtures } from '../src/features/debug/stylePreviewFixtures.ts';
 import { changedFiles } from '../src/features/sessions/fileChanges.ts';
 import { formState } from '../src/features/sessions/askUser.ts';
 test('style gallery covers files, messages, tools and session/group operations', () => {

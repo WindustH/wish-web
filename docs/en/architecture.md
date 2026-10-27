@@ -84,7 +84,7 @@ The manifest (`public/manifest.webmanifest`) sets standalone display, the start 
 ## Internationalization
 
 - `core/i18n/zh.ts` and `en.ts` hold the same keys; `i18n.t(key, params)` looks them up, falling back to English. Text used in a single place is written inline as `tr('中文', 'English')`.
-- The language defaults to Chinese, is stored in `localStorage`, and sets `<html lang>`. There is no automatic detection from the browser.
+- The language defaults to the browser language. Users can choose Chinese or English explicitly; the preference uses the platform storage adapter and updates `<html lang>`.
 - `core/i18n/errorMessages.ts` translates server errors for the error dialog.
 - Detail messages on the self-test page are in Chinese only.
 
@@ -105,3 +105,12 @@ After Back, the boundary is restored with forward before dismissing a layer or r
 Device testing also established that Window popstate listener order cannot be repaired by capture=true: initialize backLayers before createWebHashHistory. Otherwise the router consumes the traversal before the boundary controller restores it, producing duplicate navigation. Test dispatch must preserve registration order rather than sorting capture listeners first.
 
 With ADB connected, run `node tools/android-back-regression.mjs http://host:8790 TAB_ID` with that Wish tab foregrounded on its homepage. It opens configuration without editing or saving it, and uses Android left/right edge swipes to verify detail/category/home navigation, exit confirmation, and cancellation without interaction locks.
+
+
+## Dependency boundaries
+
+`main.ts` and the router compose features. `core` may use platform contracts but never imports UI or features. Platform adapters receive application options at registration. `pnpm lint` parses imports and rejects reversed layer dependencies and feature cycles.
+
+`features/chat` owns reusable composer/message primitives; sessions and groups depend on it. Provider setup/authentication is in `features/providers`; diagnostic previews are in `features/debug`. `ui/components` contains general primitives; `ui/domain/{chat,providers,settings,diagnostics}` explicitly contains domain-aware presentation. Shared form controls and styles do not belong to the settings route. `SessionPanelModal` owns chat anchoring; the generic modal accepts an anchor and outside-click policy. Draft actions remain a generic injected form capability, not a settings dependency.
+
+Instruction projections carry stable semantic kinds. Display labels are localized by presentation code, and stored titles remain intact. Settings snapshots and bus events have explicit contracts; this does not imply runtime validation of every upstream field.

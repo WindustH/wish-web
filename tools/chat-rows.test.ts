@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { effectScope, nextTick, ref } from 'vue';
 import { approach } from '../src/features/sessions/glide.ts';
 import { estimateRow } from '../src/features/sessions/rowEstimate.ts';
-import { groupEntries, inlineChips } from '../src/features/sessions/grouping.ts';
+import { groupEntries, inlineChips } from '../src/features/chat/grouping.ts';
 import { layoutRail, RAIL_PITCH, rowSlots, type RailEvent, type RailRow } from '../src/features/sessions/railLayout.ts';
 import { stepIcons, summarizeSteps, toolIcon } from '../src/features/sessions/entries/processDetails.ts';
 import { useFreshRows } from '../src/features/sessions/useFreshRows.ts';

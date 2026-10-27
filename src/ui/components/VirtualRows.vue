@@ -110,18 +110,4 @@ defineExpose({ scrollToIndex });
   box-sizing: border-box;
   overflow: hidden;
 }
-.virtual-rows-item > :deep(.proc-event) {
-  height: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-.virtual-rows-item :deep(.proc-event-text strong) {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.virtual-rows-item :deep(.proc-event-text small) {
-  -webkit-line-clamp: 1;
-}
 </style>

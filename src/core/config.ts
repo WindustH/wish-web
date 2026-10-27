@@ -1,9 +1,6 @@
 // ─── central configuration ─────────────────────────────────────────────
-// Single source of truth for every tunable (sizes, durations, thresholds,
-// page sizes, breakpoints). UI components must read values from here or
-// from CSS custom properties derived here — never hard-code numbers.
-// Design decisions made where the spec is silent are marked [decision] and
-// mirrored in from-llm/32-decision-log.md.
+// Shared product settings and cross-component design tokens live here.
+// Component-specific layout and algorithm constants stay with their owners.
 
 import manifest from '../../package.json' with { type: 'json' };
 
@@ -78,6 +75,8 @@ export const cfg = Object.freeze({
     defaultMode: 'auto',
     storageKey: 'theme.mode',
   },
+
+  notifications: { toastMs: 3600 },
 
   breakpoints: {
     // px; ≥desktop ⇒ two-pane shell

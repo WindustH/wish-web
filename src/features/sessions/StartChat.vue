@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { attachmentDigest } from '../../core/attachmentDigest.ts';
 import { sessionNaming } from '../../core/state/sessionNaming.ts';
-import { modelLabel as formatModelLabel } from '../../ui/modelLabel.ts';
+import { modelLabel as formatModelLabel } from '../../ui/domain/providers/modelLabel.ts';
 import { resolvedEffort, effortLabel } from './reasoningLabels.ts';
 import { initialInput, initialSessionName, uploadAttachments, type AttachmentInput } from '../../core/attachments.ts';
 import Hint from '../../ui/components/Hint.vue';
@@ -13,12 +13,12 @@ import { i18n } from '../../core/i18n/index.ts';
 import { errorText } from '../../core/errors.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { pageActivityKey, usePageActivity } from '../../ui/composables/usePageActivity.ts';
-import { useModelCatalog } from '../../ui/composables/useModelCatalog.ts';
+import { useModelCatalog } from '../../ui/domain/providers/useModelCatalog.ts';
 import { bus } from '../../core/bus.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import type { ModelSelection } from './useSessionSelection.ts';
 import RecentSessions from './RecentSessions.vue';
-import Composer from './Composer.vue';
+import Composer from '../chat/Composer.vue';
 import DirectoryPicker from '../../ui/components/DirectoryPicker.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';

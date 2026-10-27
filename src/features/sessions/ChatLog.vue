@@ -9,8 +9,15 @@ import { chatWorkIndicator } from './phaseIndicator.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { announce } from '../../ui/live.ts';
-import { groupEntries, inlineChips, type ChipItem, type ChipsItem, type GroupItem, type TextItem } from './grouping.ts';
-import { imageAlbums, type ImageAlbumItem } from './imageAlbums.ts';
+import {
+  groupEntries,
+  inlineChips,
+  type ChipItem,
+  type ChipsItem,
+  type GroupItem,
+  type TextItem,
+} from '../chat/grouping.ts';
+import { imageAlbums, type ImageAlbumItem } from '../chat/imageAlbums.ts';
 import ActivityRail from './ActivityRail.vue';
 import ActivityDialogs from './ActivityDialogs.vue';
 import { openActivityKey, type ActivityRequest } from './activityDialogs.ts';
@@ -36,7 +43,7 @@ import { useChatScroll } from './useChatScroll.ts';
 import { useSearchLocate } from './useSearchLocate.ts';
 import { useRailSwipe } from './useRailSwipe.ts';
 import { estimateRow } from './rowEstimate.ts';
-import { measureChatElement, observeChatRect, refreshChatViewport } from './virtualMeasurements.ts';
+import { measureChatElement, observeChatRect, refreshChatViewport } from '../chat/virtualMeasurements.ts';
 import { useFreshRows } from './useFreshRows.ts';
 import { awaitsAnswer } from '../../core/questionWatch.ts';
 import { toolResultsKey } from './entries/processDetails.ts';
@@ -418,6 +425,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
     </div>
     <div
       ref="scrollEl"
+      data-selection-viewport
       class="chatlog"
       :class="{ 'rail-lane': railPlace.lane }"
       data-scroll-preserve

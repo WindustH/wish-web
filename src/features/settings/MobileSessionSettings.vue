@@ -3,10 +3,10 @@ import DefaultModelPicker from './DefaultModelPicker.vue';
 import { computed, ref } from 'vue';
 import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
-import { type SelectOption } from '../../ui/components/SelectField.vue';
+import type { SelectOption } from '../../ui/domain/providers/types.ts';
 import { useSettingsReturn } from './settingsReturn.ts';
 import { tr } from '../../core/i18n/tr.ts';
-import CompactionRows from './CompactionRows.vue';
+import CompactionRows from '../../ui/domain/settings/CompactionRows.vue';
 const props = defineProps<{ config: any; providers: SelectOption[]; efforts: SelectOption[] }>();
 const page = ref('');
 const titles = computed<Record<string, string>>(() => ({

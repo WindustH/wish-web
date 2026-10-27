@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { ref } from 'vue';
 import ts from 'typescript';
 
 function setup() {
@@ -27,9 +28,9 @@ function setup() {
     .replace(/^import .*;\n/gm, '')
     .replace(/^export /gm, '');
   const cfg = { design: { sessionListWidthMin: 200, sessionListWidthMax: 600, sessionListWidth: 350 } };
-  const result = new Function('cfg', 'tryPlatform', 'document', 'window', 'exports',
+  const result = new Function('ref', 'cfg', 'tryPlatform', 'document', 'window', 'exports',
     code + '\nreturn { onListResizePointerDown, cancelListResize };')(
-    cfg, () => ({ get: (key: string) => saved.get(key), set: (key: string, value: string) => saved.set(key, value) }), document, window, {});
+    ref, cfg, () => ({ get: (key: string) => saved.get(key), set: (key: string, value: string) => saved.set(key, value) }), document, window, {});
   const start = () => result.onListResizePointerDown({ button: 0, currentTarget: target,
     pointerId: 4, clientX: 400, preventDefault() {} });
   const event = (kind: string, values = {}) => window.dispatchEvent(Object.assign(new Event(kind), { pointerId: 4, clientX: 440, buttons: 1, ...values }));

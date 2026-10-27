@@ -78,8 +78,8 @@ serve.ts                       production server
 - **Text.** Every visible string exists in Chinese and English. Shared strings are keys in `src/core/i18n/zh.ts` and `en.ts` (both files keep the same keys), used through `i18n.t('key')`. Text used in one place can be written inline as `tr('中文', 'English')`.
 - **Errors and feedback.** Report failures with `showError({ title, error })` from `src/ui/errorDialog.ts`. It opens a dialog, and `src/core/i18n/errorMessages.ts` translates server errors. Confirm successful actions with a short `toast()`.
 - **Slow reads.** For data that is slow to load and fine to show slightly stale (statistics, model catalogs), use `peekCached`, `readCached` and `writeCached` from `src/core/util/responseCache.ts`: render the last response at once, then replace it when the fresh one arrives. Store plain JSON only.
-- **Layout.** There is one breakpoint: 900 pixels (`cfg.breakpoints.desktop`). Components check `useMedia('(max-width: 899px)')` for the mobile layout. Check changes on desktop and mobile, in light and dark themes.
-- **Tunables and platform.** Put numbers in `src/core/config.ts`, not in components. Reach storage, notifications, files, the clipboard and wake lock through `platform()` in `src/platform/`, never directly.
+- **Layout.** The page-level desktop/mobile breakpoint is 900 pixels; components may use narrower content-driven breakpoints (`cfg.breakpoints.desktop`). Components check `useMedia('(max-width: 899px)')` for the mobile layout. Check changes on desktop and mobile, in light and dark themes.
+- **Tunables and platform.** Put shared product parameters in `src/core/config.ts` or CSS tokens; keep local layout and algorithm constants with their owners. Reach storage, notifications, files, the clipboard and wake lock through `platform()` in `src/platform/`, never directly.
 
 ## Dependency patches
 
@@ -99,3 +99,6 @@ No font files are kept in the repository. `./pnpmw build` and `./pnpmw dev` firs
 Sarasa Gothic SC (Chinese) and Maple Mono NF CN (code) are split into small WOFF2 files by Unicode range, so browsers download only the glyphs they need (`tools/build-cjk-fonts.py`, which reuses the Unicode ranges of the installed Noto Serif SC package). STIX Two Math is used as downloaded. Licenses are listed in [THIRD_PARTY.md](../../THIRD_PARTY.md).
 
 A CSS weight should give every font on a line the same stroke. The Chinese fonts set the scale: `tools/build-cjk-fonts.py` picks the static weight for each CSS weight. Montserrat and Bitter follow it: `tools/build-latin-fonts.py` takes them from `node_modules/@fontsource-variable/` with their weight mapping recalibrated. Latin labels meant to read bold use `--weight-latin-semibold` / `--weight-latin-bold`, which land Montserrat on its own 600 and 700. After changing any of these fonts, run `python3 tools/measure-font-weights.py` (needs NumPy and Pillow): it prints each face's stems per CSS weight and the Latin weights that match, which go into `tools/build-latin-fonts.py`.
+
+
+Run `pnpm check` for import boundaries, TypeScript and formatting; `pnpm format` applies the shared Prettier style. CI also builds and runs the existing checks and browser regressions. No new unit test suite is introduced.

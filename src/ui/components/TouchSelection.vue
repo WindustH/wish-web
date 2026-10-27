@@ -13,7 +13,7 @@ import Icon from './Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { copyText } from '../clipboard.ts';
 import { caretAt, glyphAt, selectionCovers, SELECTABLE_TEXT as ROOTS } from '../textAtPoint.ts';
-import { noteSwallowedClick } from '../scrollStalls.ts';
+import { noteSwallowedClick } from '../domain/diagnostics/scrollStalls.ts';
 
 // As long as a held finger takes to open a message's menu, so the two gestures read alike.
 const HOLD_MS = 500;
@@ -91,7 +91,7 @@ function place() {
   if (!current || !root) return;
   if (!root.isConnected) return clear();
   const whole = current.getBoundingClientRect();
-  const view = (root.closest('.chatlog') ?? document.documentElement).getBoundingClientRect();
+  const view = (root.closest('[data-selection-viewport]') ?? document.documentElement).getBoundingClientRect();
   // Words of one line that run on across elements (a bold word, a link) make one mark, not a seam.
   const lines: Box[] = [];
   for (const box of textBoxes(current)) {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { computed, effectScope, nextTick, onScopeDispose, shallowRef, type Ref } from 'vue';
 import { useChatScroll } from '../src/features/sessions/useChatScroll.ts';
 import { chat } from '../src/core/state/chatSlice.ts';
-import { groupEntries, inlineChips } from '../src/features/sessions/grouping.ts';
+import { groupEntries, inlineChips } from '../src/features/chat/grouping.ts';
 import { estimateRow } from '../src/features/sessions/rowEstimate.ts';
 
 const originalFrame = Object.getOwnPropertyDescriptor(globalThis, 'requestAnimationFrame');

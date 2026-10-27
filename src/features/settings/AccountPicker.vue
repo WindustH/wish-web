@@ -2,10 +2,10 @@
 import { computed, inject, ref, onMounted } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
-import SelectField from '../../ui/components/SelectField.vue';
+import SelectField from '../../ui/domain/providers/SelectField.vue';
 import AccountEditor from './AccountEditor.vue';
 import { configDraftKey } from './useConfigDraft.ts';
-import { presetBrand } from '../../ui/providerPresentation.ts';
+import { presetBrand } from '../../ui/domain/providers/providerPresentation.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
 import { compatibleAccounts, defaultAccount } from './accountCompatibility.ts';
 import { tr } from '../../core/i18n/tr.ts';

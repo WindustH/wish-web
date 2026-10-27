@@ -12,8 +12,15 @@ import { useRoute, useRouter } from 'vue-router';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import SessionList from './SessionList.vue';
 import { prefs } from '../../core/state/prefsSlice.ts';
-import { applySavedListWidth, cancelListResize, onListResizePointerDown } from './listWidth.ts';
-import { i18n } from '../../core/i18n/index.ts';
+import {
+  applySavedListWidth,
+  cancelListResize,
+  onListResizePointerDown,
+  onListResizeKeyDown,
+  listWidth,
+} from './listWidth.ts';
+import { tr } from '../../core/i18n/tr.ts';
+import { cfg } from '../../core/config.ts';
 import { useRecentsSheet } from './useRecentsSheet.ts';
 
 const route = useRoute();
@@ -52,7 +59,13 @@ onBeforeUnmount(cancelListResize);
           class="list-resize"
           role="separator"
           aria-orientation="vertical"
-          :aria-label="i18n.t('app.name')"
+          :aria-label="tr('调整会话列表宽度', 'Resize session list')"
+          tabindex="0"
+          aria-controls="session-list"
+          :aria-valuenow="listWidth"
+          :aria-valuemin="cfg.design.sessionListWidthMin"
+          :aria-valuemax="cfg.design.sessionListWidthMax"
+          @keydown="onListResizeKeyDown"
           @pointerdown="onListResizePointerDown"
       /></Hint>
     </div>

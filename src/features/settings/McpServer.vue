@@ -4,7 +4,7 @@ import { computed, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
-import SelectField from '../../ui/components/SelectField.vue';
+import SelectField from '../../ui/domain/providers/SelectField.vue';
 import AnimatedDetails from '../../ui/components/AnimatedDetails.vue';
 import KeyValueEditor from './KeyValueEditor.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
@@ -15,21 +15,7 @@ import { describeError } from '../../core/i18n/errorMessages.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import SettingsItemCard, { type ItemState } from './SettingsItemCard.vue';
 
-export interface McpServerConfig {
-  enabled: boolean;
-  transport: 'stdio' | 'http';
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-  cwd?: string | null;
-  url?: string;
-  headers?: Record<string, string>;
-  auth_provider?: string | null;
-  proxy_enabled: boolean;
-  scope: 'session' | 'shared';
-  idle_timeout: number;
-  timeout: number;
-}
+import type { McpServerConfig } from '../../core/configTypes.ts';
 
 const props = defineProps<{
   id: string;

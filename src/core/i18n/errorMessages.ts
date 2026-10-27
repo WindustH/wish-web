@@ -34,6 +34,11 @@ const mcpReason = (reason: string) => {
 };
 
 const zh: Rule[] = [
+  [/^Attachment is unavailable.*$/, () => '附件无法读取，可能已被清理，请重新添加。'],
+  [/^Attachment exceeds size limit.*$/, () => '附件超过大小限制，请选择较小的文件。'],
+  [/^Too many attachments.*$/, () => '附件数量超过限制，请移除部分附件。'],
+  [/^Invalid attachment kind.*$/, () => '不支持此附件类型。'],
+  [/^Provider is unavailable.*$/, () => '提供商不可用，请检查配置与连接。'],
   // Configuration saves (server/configuration.rs, server/config.rs).
   [/^configuration changed; reload before saving$/, () => '配置已在其他地方修改，请重新载入后再保存。'],
   [

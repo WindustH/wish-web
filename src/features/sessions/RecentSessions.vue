@@ -37,14 +37,9 @@ function refresh() {
   clearTimeout(timer);
   if (active.value) timer = setTimeout(() => recent.load(), 200);
 }
-const off = [
-  'upsert.session',
-  'tombstone.session',
-  'upsert.group',
-  'tombstone.group',
-  'list.changed',
-  'sync.snapshot',
-].map((topic) => bus.on(topic, refresh));
+const off = (
+  ['upsert.session', 'tombstone.session', 'upsert.group', 'tombstone.group', 'list.changed', 'sync.snapshot'] as const
+).map((topic) => bus.on(topic, refresh));
 watch(
   active,
   (value) => {

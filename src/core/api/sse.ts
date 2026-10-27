@@ -41,12 +41,12 @@ export interface SseOptions {
   url: string;
   onFrame?: (frame: SseFrame) => void;
   onState?: (event: SseStateEvent) => void;
-  firstTimeoutMs?: number;
+  connectTimeoutMs?: number;
   headers?: Record<string, string>;
 }
 export type SseConnection = ReturnType<typeof createSse>;
 
-export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extraHeaders }: SseOptions) {
+export function createSse({ url, onFrame, onState, connectTimeoutMs, headers: extraHeaders }: SseOptions) {
   const stateListeners = new Set<(event: SseStateEvent) => void>();
   if (onState) stateListeners.add(onState); // constructor-level listener
   let lastEventId = '';
@@ -103,7 +103,7 @@ export function createSse({ url, onFrame, onState, firstTimeoutMs, headers: extr
     emitState(attempt ? 'reconnecting' : 'connecting');
     // Connect timeout: headers must arrive within this window or we abort
     // and retry (covers black-holed connections, not just refused ones).
-    const connectDeadline = firstTimeoutMs ?? cfg.sse.connectTimeoutMs;
+    const connectDeadline = connectTimeoutMs ?? cfg.sse.connectTimeoutMs;
     connectTimer = setTimeout(() => {
       internalAbort = new SseInternalError('connect timeout');
       controller!.abort(internalAbort);

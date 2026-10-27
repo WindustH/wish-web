@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // A group's window: who is in it and how they are woken, with members to add and remove.
+import { mapConcurrent } from '../../core/util/mapConcurrent.ts';
 import { ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import * as api from '../../core/api/endpoints.ts';
@@ -10,7 +11,7 @@ import { tr } from '../../core/i18n/tr.ts';
 import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 import { fmtDateTime } from '../../core/util/fmt.ts';
 import Icon from '../../ui/components/Icon.vue';
-import Modal from '../../ui/components/Modal.vue';
+import Modal from '../../ui/domain/chat/SessionPanelModal.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import SessionPicker from './SessionPicker.vue';
 
@@ -23,9 +24,14 @@ const isMobile = useIsMobile();
 const names = ref<Record<string, string>>({});
 watch(
   () => [...props.group.members, props.group.created_by ?? ''],
-  async (sessions) => {
-    const missing = sessions.filter((id) => id && !(id in names.value));
-    const found = await Promise.all(missing.map((id) => api.sessionGet(id).then(sessionTitle, () => id.slice(0, 8))));
+  async (sessions, _old, onCleanup) => {
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    const missing = [...new Set(sessions)].filter((id) => id && !(id in names.value));
+    const found = await mapConcurrent(missing, 4, (id) =>
+      api.sessionGet(id, { signal: controller.signal }).then(sessionTitle, () => id.slice(0, 8)),
+    );
+    if (controller.signal.aborted) return;
     names.value = { ...names.value, ...Object.fromEntries(missing.map((id, index) => [id, found[index]!])) };
   },
   { immediate: true },

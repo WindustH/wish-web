@@ -10,7 +10,7 @@ import { toast } from '../../ui/toast.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
 import { REDACTED, secretText, readSecret, writeCredential } from '../../core/secretRef.ts';
 import { configSnapshot, configSave, providerPresets } from '../../core/api/endpoints.ts';
-import { presetProfile } from '../settings/preset-profile.ts';
+import { presetProfile } from '../providers/preset-profile.ts';
 
 // The first-run setup, in three steps: the provider, its credentials, then the model new sessions
 // start with, chosen from the provider's own catalog once the credentials can read it. Nothing is

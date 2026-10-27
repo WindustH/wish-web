@@ -4,13 +4,14 @@
 // click chooses it; its menu acts on it alone.
 import { computed } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
-import Menu, { type MenuItem } from '../../ui/components/Menu.vue';
+import Menu from '../../ui/components/Menu.vue';
+import type { MenuItem } from '../../ui/components/menuTypes.ts';
 import type { GroupStorage, SessionBytes, SessionStorage } from '../../core/api/endpoints.ts';
 import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 import { fmtBytes, fmtDateTime, relTime } from '../../core/util/fmt.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
-import { modelLabel } from '../../ui/modelLabel.ts';
+import { modelLabel } from '../../ui/domain/providers/modelLabel.ts';
 
 export type DataItem = ({ kind: 'session' } & SessionStorage) | ({ kind: 'group' } & GroupStorage);
 const props = defineProps<{

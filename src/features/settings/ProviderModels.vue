@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { modelLabel } from '../../ui/modelLabel.ts';
+import { modelLabel } from '../../ui/domain/providers/modelLabel.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 const isMobile = useIsMobile();
 import { computed, inject, provide, nextTick, onScopeDispose, reactive, ref } from 'vue';
@@ -10,14 +10,14 @@ import { peekCached, readCached, writeCached } from '../../core/util/responseCac
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
 import Modal from '../../ui/components/Modal.vue';
-import PickerList from '../../ui/components/PickerList.vue';
-import SelectField from '../../ui/components/SelectField.vue';
+import PickerList from '../../ui/domain/providers/PickerList.vue';
+import SelectField from '../../ui/domain/providers/SelectField.vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { configDraftKey } from './useConfigDraft.ts';
 const configDraft = inject(configDraftKey);
 import { draftActionsKey } from '../../ui/composables/draftActions.ts';
 import { useSettingsReturn } from './settingsReturn.ts';
-import { tr } from '../../core/i18n/tr.ts';
+import { tr, intlLocale } from '../../core/i18n/tr.ts';
 import { useReasoningEfforts, withNewModelDefaults } from './useReasoningEfforts.ts';
 const props = defineProps<{ id: string; value: ProviderConfig; preset?: ProviderPreset }>();
 const editing = ref(false),
@@ -222,7 +222,7 @@ function tokenLimit(value: number) {
     [1000, 'K'],
   ] as const)
     if (value >= base && value % base === 0) return `${value / base}${unit}`;
-  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+  return new Intl.NumberFormat(intlLocale(), { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
 function modelFacts(model: Record<string, any>) {
   const facts: { label: string; value: string; exact?: string }[] = [];

@@ -9,8 +9,8 @@ import InfoHint from '../../ui/components/InfoHint.vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { fmtTokens } from '../../core/util/fmt.ts';
 import type { UsageChartData } from '../../core/usage/types.ts';
-import { modelLabel } from '../../ui/modelLabel.ts';
-import { useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
+import { modelLabel } from '../../ui/domain/providers/modelLabel.ts';
+import { useProviderTitles } from '../../ui/domain/providers/useProviderTitles.ts';
 import { tr } from '../../core/i18n/tr.ts';
 const props = defineProps<{
   data: UsageChartData | null;
@@ -55,8 +55,8 @@ const models = computed(() =>
         key,
         colorIndex,
         color: chartColor(colorIndex),
-        modelName: model.model ? modelLabel(model.model) : 'Unknown model',
-        providerName: model.provider ? providerTitle(model.provider) : 'Unknown provider',
+        modelName: model.model ? modelLabel(model.model) : tr('未知模型', 'Unknown model'),
+        providerName: model.provider ? providerTitle(model.provider) : tr('未知提供商', 'Unknown provider'),
       };
     })
     .map((model) => ({ ...model, label: [model.modelName, model.providerName].filter(Boolean).join(' · ') })),

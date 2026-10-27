@@ -1,0 +1,35 @@
+name: Frontend quality
+on:
+  pull_request:
+  push:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - run: npm install --global pnpm@12.3.4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install fonttools brotli numpy
+      - run: sudo apt-get update && sudo apt-get install -y p7zip-full
+      - run: pnpm build
+      - name: Browser regressions
+        env:
+          CHROME: /usr/bin/google-chrome
+        run: |
+          node tools/style-preview-browser.mjs
+          node tools/selection-retry-browser.mjs
+          node tools/info-search-browser.mjs
+          node tools/settings-navigation-browser.mjs
+          node tools/accounts-browser-regression.mjs
+          node tools/delivery-browser-regression.mjs

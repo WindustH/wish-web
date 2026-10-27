@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, effectScope, onScopeDispose, ref, shallowRef, watch, type EffectScope } from 'vue';
-import { modelLabel } from '../../ui/modelLabel.ts';
+import { modelLabel } from '../../ui/domain/providers/modelLabel.ts';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
-import PickerList from '../../ui/components/PickerList.vue';
+import PickerList from '../../ui/domain/providers/PickerList.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import Spinner from '../../ui/components/Spinner.vue';
 import { errorText } from '../../core/errors.ts';
-import { useModelCatalog } from '../../ui/composables/useModelCatalog.ts';
-import type { SelectOption } from '../../ui/components/SelectField.vue';
+import { useModelCatalog } from '../../ui/domain/providers/useModelCatalog.ts';
+import type { SelectOption } from '../../ui/domain/providers/types.ts';
 const props = defineProps<{ config: any; providers: SelectOption[]; efforts: SelectOption[] }>();
 const effortQuery = ref('');
 const open = ref<'model' | 'effort' | ''>('');

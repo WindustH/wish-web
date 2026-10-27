@@ -5,11 +5,11 @@ import { accountRemovalPlan, removeAccountAndServices } from './accountRemoval.t
 import AccountEditor from './AccountEditor.vue';
 import AddProvider from './AddProvider.vue';
 import SettingsItemCard from './SettingsItemCard.vue';
-import ProviderIcon from '../../ui/components/ProviderIcon.vue';
+import ProviderIcon from '../../ui/domain/providers/ProviderIcon.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { configDraftKey } from './useConfigDraft.ts';
 import type { ProviderPreset } from '../../core/provider-presets.ts';
-import { presetBrand, providerName } from '../../ui/providerPresentation.ts';
+import { presetBrand, providerName } from '../../ui/domain/providers/providerPresentation.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
 import { tr } from '../../core/i18n/tr.ts';
 const { draft, catalog, busy } = inject(configDraftKey)!;
@@ -29,11 +29,13 @@ function add(preset?: ProviderPreset) {
   editing.value = id;
 }
 function uses(id: string) {
-  return [
-    ['providers', tr('模型', 'Model')],
-    ['search', tr('搜索', 'Search')],
-    ['fetch', tr('网页读取', 'Web fetch')],
-  ].flatMap(([group, label]) =>
+  return (
+    [
+      ['providers', tr('模型', 'Model')],
+      ['search', tr('搜索', 'Search')],
+      ['fetch', tr('网页读取', 'Web fetch')],
+    ] as const
+  ).flatMap(([group, label]) =>
     Object.entries<any>(group === 'providers' ? draft.value.providers : (draft.value[group!]?.providers ?? {}))
       .filter(([, p]) => p.credential_id === id)
       .map(([key, p]) => `${label} · ${p.display_name || key}`),

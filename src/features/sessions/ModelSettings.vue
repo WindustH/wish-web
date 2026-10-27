@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import Icon from '../../ui/components/Icon.vue';
-import { modelLabel } from '../../ui/modelLabel.ts';
+import { modelLabel } from '../../ui/domain/providers/modelLabel.ts';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, ref, toRef, watch } from 'vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { errorText } from '../../core/errors.ts';
-import { presetBrand } from '../../ui/providerPresentation.ts';
-import { providerTitlesRead, useProviderTitles } from '../../ui/composables/useProviderTitles.ts';
+import { presetBrand } from '../../ui/domain/providers/providerPresentation.ts';
+import { providerTitlesRead, useProviderTitles } from '../../ui/domain/providers/useProviderTitles.ts';
 import { useSessionSelection, type ModelSelection } from './useSessionSelection.ts';
-import { useModelCatalog } from '../../ui/composables/useModelCatalog.ts';
+import { useModelCatalog } from '../../ui/domain/providers/useModelCatalog.ts';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
-import PickerList from '../../ui/components/PickerList.vue';
+import PickerList from '../../ui/domain/providers/PickerList.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import SelectionStatus from './SelectionStatus.vue';
 

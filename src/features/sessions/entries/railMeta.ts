@@ -2,6 +2,7 @@
 // the first act's icon, how many things it did, whether anything went wrong, where a search finds
 // it, and what it is called in a word or two. The notice faces are shared with SystemEntry's own
 // drawing, so the rail and the notice itself can never disagree.
+import { instructionLabel } from '../instructionPresentation.ts';
 import { i18n } from '../../../core/i18n/index.ts';
 import { firstLine } from '../../../core/util/fmt.ts';
 import {
@@ -58,6 +59,7 @@ export function noticeFailed(entry: any): boolean {
 
 /** What a notice is called, in the words its own window is titled with. */
 export function noticeLabel(entry: any): string {
+  if (entry.payload?.instruction_kind) return instructionLabel(entry.payload.instruction_kind);
   if (entry.payload?.instruction_title) return entry.payload.instruction_title;
   if (entry.payload?.background) {
     if (entry.payload.tool_name && entry.payload.tool_name !== 'shell')
@@ -77,7 +79,11 @@ export function noticeLabel(entry: any): string {
 }
 
 export const noticeIconName = (entry: any): string => {
-  if (entry.payload?.instruction_title || (entry.kind === 'developer_message' && !entry.payload?.background))
+  if (
+    entry.payload?.instruction_kind ||
+    entry.payload?.instruction_title ||
+    (entry.kind === 'developer_message' && !entry.payload?.background)
+  )
     return 'instruction';
   if (entry.payload?.background) return toolIcon(entry.payload.tool_name ?? 'shell');
   const tone = noticeTone(entry);

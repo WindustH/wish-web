@@ -1,4 +1,6 @@
 // Server configuration draft and provider management.
+import type { ConfigSnapshot } from '../../core/api/types.ts';
+import type { SettingsConfig } from '../../core/configTypes.ts';
 import { bus } from '../../core/bus.ts';
 import { ref, computed, type InjectionKey } from 'vue';
 import {
@@ -15,7 +17,7 @@ import {
 } from '../../core/api/endpoints.ts';
 import { replayConfigChanges } from '../../core/configMerge.ts';
 import { tr } from '../../core/i18n/tr.ts';
-import { providerTitles } from '../../ui/providerPresentation.ts';
+import { providerTitles } from '../../ui/domain/providers/providerPresentation.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { toast } from '../../ui/toast.ts';
 import type { ConfigCatalog, ProviderPreset } from '../../core/provider-presets.ts';
@@ -24,7 +26,17 @@ import { uniqueId } from '../../core/util/uniqueId.ts';
 import { MODEL_PROTOCOLS } from '../../core/provider-presets.ts';
 
 export function useConfigDraft() {
-  const draft = ref<any>();
+  const snapshot = ref<SettingsConfig>();
+  // Editors mount only after load; writes before that are an explicit programming error.
+  const draft = computed({
+    get() {
+      if (!snapshot.value) throw new Error('Configuration is not loaded');
+      return snapshot.value;
+    },
+    set(value: SettingsConfig) {
+      snapshot.value = value;
+    },
+  });
   const revision = ref('');
   const source = ref('');
   const busy = ref(false);
@@ -41,18 +53,18 @@ export function useConfigDraft() {
   const advanced = ref<Record<string, string>>({});
   const advancedPending = ref<Record<string, boolean>>({});
 
-  const findPreset = (id?: string) => catalog.value.presets.find((p) => p.id === id);
+  const findPreset = (id?: string | null) => catalog.value.presets.find((p) => p.id === id);
 
   const serverDirty = computed(
     () =>
-      !!draft.value &&
+      !!snapshot.value &&
       (JSON.stringify(draft.value) !== source.value || Object.values(advancedPending.value).some(Boolean)),
   );
 
   // Names over the providers being edited; two instances of one vendor keep their IDs apart.
   const providerTitleMap = computed(() =>
     providerTitles(
-      Object.entries(draft.value?.providers ?? {}).map(([id, value]) => ({
+      Object.entries(snapshot.value?.providers ?? {}).map(([id, value]) => ({
         id,
         display_name: (value as any).display_name,
         preset: (value as any).preset,
@@ -61,7 +73,7 @@ export function useConfigDraft() {
   );
   const providerTitle = (id: string) => providerTitleMap.value.get(id) ?? id;
   const providerOptions = computed(() =>
-    Object.entries(draft.value?.providers ?? {}).map(([id, value]) => {
+    Object.entries(snapshot.value?.providers ?? {}).map(([id, value]) => {
       const p = findPreset((value as any).preset);
       return {
         value: id,
@@ -73,19 +85,19 @@ export function useConfigDraft() {
   );
 
   const effortOptions = computed(() => {
-    const provider = draft.value?.providers[draft.value?.defaults.provider];
-    const model = provider?.models?.[draft.value?.defaults.model];
+    const provider = snapshot.value?.providers[snapshot.value?.defaults.provider];
+    const model = provider?.models?.[snapshot.value?.defaults.model ?? ''];
     return [
       ...new Set(
         [
           ...Object.keys(model?.reasoning_efforts ?? findPreset(provider?.preset)?.reasoning_efforts ?? {}),
-          draft.value?.defaults.reasoning?.effort,
-        ].filter(Boolean),
+          snapshot.value?.defaults.reasoning?.effort,
+        ].filter((value): value is string => typeof value === 'string' && !!value),
       ),
     ].map((value) => ({ value, label: value }));
   });
 
-  function accept(value: any) {
+  function accept(value: ConfigSnapshot) {
     draft.value = value.config;
     revision.value = value.revision;
     source.value = JSON.stringify(value.config);
@@ -230,8 +242,8 @@ export function useConfigDraft() {
         'compaction',
         'account_state',
         'account_state_base_url',
-      ]) {
-        provider[field] = (variant as any)[field] ?? null;
+      ] as const) {
+        Object.assign(provider, { [field]: variant[field] ?? null });
       }
     }
     provider.protocol = protocol;
@@ -267,6 +279,7 @@ export function useConfigDraft() {
   }
 
   return {
+    ready: computed(() => !!snapshot.value),
     draft,
     revision,
     source,

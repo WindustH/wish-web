@@ -9,7 +9,8 @@ import { createReconciliation } from '../../core/state/reconciliation.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { uploadAttachments, type AttachmentInput } from '../../core/attachments.ts';
 import { bus } from '../../core/bus.ts';
-import { errorDetail } from '../../core/errors.ts';
+import { describeError } from '../../core/i18n/errorMessages.ts';
+const errorDetail = (error: unknown) => describeError(error).message;
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import FadeText from '../../ui/components/FadeText.vue';
@@ -18,7 +19,7 @@ import Icon from '../../ui/components/Icon.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { toast } from '../../ui/toast.ts';
 import { sessionParent } from '../shell/sessionNavigation.ts';
-import Composer from '../sessions/Composer.vue';
+import Composer from '../chat/Composer.vue';
 import GroupLog from './GroupLog.vue';
 import GroupMembers from './GroupMembers.vue';
 
@@ -32,6 +33,7 @@ const { group, messages, older, loading, failed, append } = history;
 const infoOpen = ref(false);
 const active = usePageActivity();
 const reconciliation = createReconciliation({
+  // The history owner exposes refresh failures through `failed`.
   run: () => history.catchUp().catch(() => {}),
   ready: () => active.value && !!group.value,
   delayMs: 250,
@@ -91,7 +93,7 @@ async function post(text: string, attachments: AttachmentInput[]) {
 }
 
 const memberCount = computed(() => group.value?.members.length ?? 0);
-const infoLabel = tr('群组信息', 'Group info');
+const infoLabel = computed(() => tr('群组信息', 'Group info'));
 </script>
 
 <template>

@@ -11,8 +11,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import {createApp,h,ref} from 'vue';
 import {TooltipProvider} from 'reka-ui';
-import ToolSwitchRows from '/src/features/settings/ToolSwitchRows.vue';
-import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/features/settings/settings.css';
+import ToolSwitchRows from '/src/ui/domain/settings/ToolSwitchRows.vue';
+import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/ui/domain/settings/settings.css';
 const tools=ref({shell:true,task_delivery:'command',history_search:true,history_search_delivery:'command',web_fetch:true,web_search:true,ask_user:true,mcp:true,skills:true,sessions:true});
 window.fixture={tools};
 createApp({render:()=>h(TooltipProvider,{},()=>h('div',{class:'settings'},h(ToolSwitchRows,{modelValue:tools.value,'onUpdate:modelValue':value=>tools.value=value,searchAvailable:true})))}).mount('#app');
@@ -21,7 +21,7 @@ const server = await createServer({ configFile: false, root: process.cwd(), plug
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__tool_switches', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__tool_switches', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/settings/ToolSwitchRows.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/ui/domain/settings/ToolSwitchRows.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-tool-switches-'));
 let chrome, ws;
 try {
