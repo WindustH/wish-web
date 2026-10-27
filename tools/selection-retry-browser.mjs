@@ -34,6 +34,7 @@ window.fetch=async(input,opts)=>{
 };
 await sessions.loadFirst();
 const failure={family:'Transport',message:'Connection lost'};
+const retries=ref([{requestId:'r',operation:'model',retry:1,maxRetries:5,phase:'waiting',retryAt:Date.now()+5000,failure}]);
 chat.sessionId.value='s1';chat.snapshot.value=sessionView({session:{id:'s1'},status:{config:{},phase:'Suspended',running:false,state:{Suspended:{outcome:24}}}});
 chat.entries.value=[entryView({record:{sequence:29,item:{Event:24},recorded_at:0},content:{kind:'event',value:{Finished:{Failed:{Transport:{retryable:true,message:'Connection lost'}}}}}},'s1')];
 let runs=0;chat.retryRun=async()=>{runs++;chat.snapshot.value={...chat.snapshot.value,running:true};};
@@ -41,12 +42,12 @@ const Sheet={setup(){const root=ref(null);useRecentsSheet(root);return()=>h('div
 const handled={region:0,parent:0};
 const Region={setup(){const root=ref(null);useKeyboardScope(root,event=>{if(event.key!=='Escape')return false;handled.region++;return true;});return()=>h('div',{ref:root,id:'other-region',tabindex:-1},[h('input',{id:'consuming-control',onKeydown:event=>event.preventDefault()})]);}};
 const Parent={setup(){const root=ref(null);useKeyboardScope(root,()=>{handled.parent++;return true;});return()=>h('div',{ref:root},[h(Region)]);}};
-window.fixture={router,chat,sessions,handled,async loadMany(){sessionCount=45;await sessions.refresh();},get runs(){return runs;}};
+window.fixture={router,chat,sessions,handled,retries,async loadMany(){sessionCount=45;await sessions.refresh();},get runs(){return runs;}};
 createApp({render:()=>h(TooltipProvider,null,{default:()=>[
  h(Parent),
  h(Sheet),
  h(ErrorEntry,{item:{entry:chat.entries.value[0]},session:'s1'}),
- h(RetryStatus,{retries:[{requestId:'r',operation:'model',retry:1,maxRetries:5,phase:'waiting',retryAt:Date.now()+5000,failure}]})
+ h(RetryStatus,{retries:retries.value,style:'margin-left:400px;width:500px;'})
 ]})}).use(router).mount('#app');
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {name:'pwa-fixture',resolveId(id){if(id==='virtual:pwa-register')return id;},load(id){if(id==='virtual:pwa-register')return 'export const registerSW=()=>()=>{}';}}, {
@@ -106,6 +107,23 @@ try {
   await until('!document.querySelector(".sl-select-bar") && document.querySelectorAll(".sl-item.chosen").length===0','Escape exits selection and clears chosen rows');
   await until('!!document.querySelector(".retry-run")','current transport failure offers retry');
   assert.equal(await js('getComputedStyle(document.querySelector(".upstream-retry")).backgroundColor'),'rgb(54, 48, 32)','automatic retry uses warning background');
+  const retryToggle=await js(`(() => {const r=document.querySelector('.retry-reason-toggle').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
+  await send('Input.dispatchMouseEvent',{type:'mousePressed',...retryToggle,button:'left',clickCount:1});
+  await send('Input.dispatchMouseEvent',{type:'mouseReleased',...retryToggle,button:'left',clickCount:1});
+  await until(`document.querySelector('.retry-reason-toggle').getAttribute('aria-expanded')==='true'`,'mouse expands retry details');
+  await sleep(1100);
+  await js(`fixture.retries.value=fixture.retries.value.map(r=>({...r,phase:'attempting',retry:2,failure:{...r.failure,message:'Second attempt failed'}}))`);
+  await until(`document.querySelector('.retry-reason-content').textContent.includes('Second attempt failed')`,'failure updates');
+  assert.equal(await js(`getComputedStyle(document.querySelector('.retry-reason-content')).display!=='none'`),true,'countdown and attempt updates retain expansion');
+  await js(`document.querySelector('.retry-reason-toggle').focus()`);
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,text:'\r',unmodifiedText:'\r'});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
+  await until(`document.querySelector('.retry-reason-toggle').getAttribute('aria-expanded')==='false'`,'keyboard collapses details');
+  await js(`document.querySelector('.retry-reason-toggle').click();fixture.retries.value=[]`);
+  await until(`!document.querySelector('.upstream-retry')`,'completed request removed');
+  await js(`fixture.retries.value=[{requestId:'r',operation:'model',retry:1,maxRetries:5,phase:'waiting',retryAt:Date.now(),failure:{message:'New request'}}]`);
+  await until(`!!document.querySelector('.retry-reason-toggle')`,'next request rendered');
+  assert.equal(await js(`document.querySelector('.retry-reason-toggle').getAttribute('aria-expanded')`),'false','completed request leaves no expansion state');
   await js('document.querySelector(".retry-run").click()');
   await until('!document.querySelector(".retry-run")','running session hides retry');
   assert.equal(await js('fixture.runs'),1);
@@ -184,7 +202,7 @@ try {
   await pullDown();
   await until('fixture.router.currentRoute.value.path==="/sessions"','downward dismissal works again after leaving selection');
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['selection does not dismiss mobile sheet','dismissal restored after selection','selected anchor deselects range','deselection reversal restores baseline','touch hold range and reversal','virtual list edge scrolling','touch cancellation','tap and native swipe preserved','focused regions stay independent','child control consumption','IME isolation','Escape exits selection','native suspended outcome resolves retry','Shift range selection','no Shift navigation','retry visibility','automatic retry warning']}));
+  console.log(JSON.stringify({ok:true,checks:['selection does not dismiss mobile sheet','dismissal restored after selection','selected anchor deselects range','deselection reversal restores baseline','touch hold range and reversal','virtual list edge scrolling','touch cancellation','tap and native swipe preserved','focused regions stay independent','child control consumption','IME isolation','Escape exits selection','native suspended outcome resolves retry','Shift range selection','no Shift navigation','retry visibility','automatic retry warning','mouse and keyboard retry details','expansion survives retry updates']}));
 
 } finally {
   ws?.close();
