@@ -3,6 +3,8 @@
 // is easier to read from what was on it at that moment than to guess at: what the finger landed on,
 // what lay over it, and whether the page's own listeners cancelled or stopped the events.
 import { ref } from 'vue';
+import { scrollRegionAt, scrollRegionState } from './diagnostics/scrollEvidence.ts';
+import { recordActivity } from './diagnostics/activityStore.ts';
 
 export interface ScrollStall {
   at: string;
@@ -62,14 +64,7 @@ function describe(element: Element | null | undefined): string {
   return parts.join(' < ') || String(element?.nodeName ?? 'nothing');
 }
 // The list under a point that has something to scroll, looking through whatever lies over it.
-function scrollerAt(x: number, y: number): HTMLElement | null {
-  for (const element of document.elementsFromPoint(x, y)) {
-    for (let node: HTMLElement | null = element as HTMLElement; node; node = node.parentElement) {
-      if (/auto|scroll/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1) return node;
-    }
-  }
-  return null;
-}
+const scrollerAt = scrollRegionAt;
 // Whether the list has room to move its content up (toward > 0) or down.
 const canScroll = (list: HTMLElement, toward: number) => toward > 0 ? list.scrollTop + list.clientHeight < list.scrollHeight - 1 : list.scrollTop > 0;
 function layers(): string[] {
@@ -85,11 +80,11 @@ function layers(): string[] {
 }
 function record(kind: ScrollStall['kind'], x: number, y: number, target: Element | null, list: HTMLElement | null, extra: Partial<ScrollStall> = {}) {
   const top = document.elementFromPoint(x, y);
-  keep({
+  const stall: ScrollStall = {
     at: new Date().toISOString(),
     build: typeof __WEB_BUILD_ID__ === 'string' ? __WEB_BUILD_ID__ : 'development',
     kind,
-    route: location.hash || location.pathname,
+    route: location.hash.split('?')[0] || location.pathname,
     target: describe(target),
     scroller: list ? describe(list) : '',
     coveredBy: top && !(list ?? target)?.contains(top) ? describe(top) : undefined,
@@ -99,7 +94,9 @@ function record(kind: ScrollStall['kind'], x: number, y: number, target: Element
     scroll: list ? `${Math.round(list.scrollTop)} / ${list.scrollHeight} / ${list.clientHeight}` : '',
     page: `body{${document.body.getAttribute('style') ?? ''}} html.${[...document.documentElement.classList].join('.')}`,
     layers: layers(),
-  });
+  };
+  keep(stall);
+  recordActivity('scroll.stall', { ...stall, region: scrollRegionState(list) });
 }
 
 let scrolledAt = 0;
@@ -107,7 +104,7 @@ type TouchAction = { name: string; completed: () => boolean };
 type Touch = { action?: TouchAction; dx: number; x: number; y: number; dy: number; far: number; at: number; moves: number; seen: number; cancelled: number; target: Element | null; control: Element | null; menu: boolean };
 let touch: Touch | undefined;
 let wheelPending = false;
-let lastRecord = 0;
+let lastRecord = -Infinity;
 // A menu in sight takes the next press only to close; that press scrolling nothing is no stall.
 const menuInSight = () => [...document.querySelectorAll('.menu-pop, [role="dialog"]:not(.pwa-update)')].some(element => {
   const box = element.getBoundingClientRect();
@@ -212,10 +209,12 @@ export function installScrollStallLog() {
     const list = scrollerAt(event.clientX, event.clientY);
     if (!list || !canScroll(list, event.deltaY)) return;
     wheelPending = true;
-    const at = performance.now(), top = list.scrollTop, x = event.clientX, y = event.clientY, target = event.target as Element;
+    const top = list.scrollTop, x = event.clientX, y = event.clientY, target = event.target as Element;
     setTimeout(() => {
       wheelPending = false;
-      if (scrolledAt > at || list.scrollTop !== top || performance.now() - lastRecord < 2000) return;
+      // Automatic streaming follow can move down while an upward wheel is lost.
+      // Only movement in the requested direction counts; unrelated scrollers do not.
+      if (!list.isConnected || (list.scrollTop - top) * event.deltaY > 0 || performance.now() - lastRecord < 2000) return;
       lastRecord = performance.now();
       record('wheel', x, y, target, list);
     }, 200);

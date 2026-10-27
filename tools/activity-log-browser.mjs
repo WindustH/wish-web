@@ -12,12 +12,14 @@ const html = `<!doctype html><html><meta name="viewport" content="width=device-w
 import {createRouter,createMemoryHistory} from 'vue-router';
 import {installActivityRecorder} from '/src/ui/diagnostics/activityRecorder.ts';
 import * as log from '/src/ui/diagnostics/activityStore.ts';
+import {installScrollStallLog,stalls,clearStalls} from '/src/ui/scrollStalls.ts';
+installScrollStallLog();
 const router=createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{}}]});await router.push('/sessions');
 const fetchBase=window.fetch;
 window.fetch=(input,init)=>String(input).includes('/diagnostic-test')?Promise.resolve(new Response('ok')):fetchBase(input,init);
 window.originalFetch=window.fetch;
 installActivityRecorder(router);
-window.fixture={...log,router};
+window.fixture={...log,router,stalls,clearStalls};
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {name:'pwa-stub',resolveId(id){if(id==='virtual:pwa-register')return '\0pwa-stub';},load(id){if(id==='\0pwa-stub')return 'export const registerSW=()=>()=>{}';}}, {
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__activity_regression', async (_, res) => {
@@ -62,6 +64,21 @@ try {
   for(const kind of ['click','input','request.start','request.headers','navigation.start','navigation.finish','resource.error']) assert.ok(records.some(r=>r.kind===kind),kind);
   assert.ok(records.every(r=>r.build && r.at && r.tab),'records identify build and timing');
   await js('fixture.setActivityEnabled(false)');
+  // The pane is still rendered, but hit testing bypasses it. Streaming moves
+  // down while the user's upward wheel never reaches the scrolling container.
+  await js(`fixture.setActivityEnabled(true);fixture.clearStalls();
+    const pane=document.createElement('div');pane.className='content-pane';
+    pane.style.cssText='position:fixed;left:0;top:250px;width:300px;height:200px;pointer-events:none';
+    pane.innerHTML='<div class="chatlog" style="height:200px;overflow:auto"><div style="height:2000px">scroll fixture</div></div>';
+    document.body.append(pane);pane.firstChild.scrollTop=500;
+    window.addEventListener('wheel',()=>setTimeout(()=>pane.firstChild.scrollTop+=40,30),{once:true});`);
+  await send('Input.dispatchMouseEvent',{type:'mouseWheel',x:100,y:300,deltaY:-100,deltaX:0});
+  await sleep(400);
+  const evidence=await js(`JSON.parse(fixture.exportActivity()).records.filter(r=>r.kind==='wheel'||r.kind==='scroll.stall'||r.kind==='wheel.finished')`);
+  assert.ok(evidence.some(r=>r.kind==='wheel'&&r.detail.deltaY===-100&&r.detail.targetInsideRegion===false));
+  assert.ok(evidence.some(r=>r.kind==='scroll.stall'&&r.detail.region.ancestors.some(a=>a.pointerEvents==='none')),'auto-follow must not hide blocked upward wheel');
+  assert.ok(evidence.some(r=>r.kind==='wheel.finished'&&r.detail.region.top===540));
+  await js(`document.querySelector('.content-pane').remove();fixture.setActivityEnabled(false)`);
   const count=await js('fixture.activityCount.value');
   await js('document.querySelector("#action").click();fetch("/diagnostic-test")');
   assert.equal(await js('fixture.activityCount.value'),count,'disabling detaches listeners');
@@ -74,7 +91,7 @@ try {
   await js('fixture.setActivityEnabled(false);fixture.clearActivity()');
   assert.equal(await js('fixture.activityCount.value'),0,'clear saved logs');
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['off by default','input privacy','request metadata','navigation','image failure','disable cleanup','reload persistence','bounded storage','clear']}));
+  console.log(JSON.stringify({ok:true,checks:['off by default','input privacy','request metadata','navigation','image failure','disable cleanup','reload persistence','bounded storage','clear','blocked wheel during auto-follow']}));
 
 } finally {
   ws?.close();

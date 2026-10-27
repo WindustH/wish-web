@@ -1,4 +1,5 @@
 import { watch } from 'vue';
+import { scrollRegionAt, scrollRegionState } from './scrollEvidence.ts';
 import type { Router } from 'vue-router';
 import { activityEnabled, flushActivity, recordActivity } from './activityStore.ts';
 
@@ -44,6 +45,18 @@ export function installActivityRecorder(router: Router) {
       }
       const detail: Record<string, unknown> = { target };
       if (event instanceof PointerEvent) Object.assign(detail, { pointer: event.pointerType, x: Math.round(event.clientX), y: Math.round(event.clientY) });
+      if (event instanceof WheelEvent) {
+        const region = scrollRegionAt(event.clientX, event.clientY);
+        Object.assign(detail, { x: Math.round(event.clientX), y: Math.round(event.clientY),
+          deltaX: event.deltaX, deltaY: event.deltaY, deltaMode: event.deltaMode,
+          region: scrollRegionState(region), targetInsideRegion: !!region?.contains(event.target as Node) });
+        // A timer observes the completed dispatch and subsequent scroll, unlike a
+        // microtask from a capture listener, which may run before target handlers.
+        setTimeout(() => {
+          if (active) recordActivity('wheel.finished', { target, cancelled: event.defaultPrevented,
+            region: scrollRegionState(region), hit: targetName(document.elementFromPoint(event.clientX, event.clientY)) });
+        }, 200);
+      }
       if (event instanceof KeyboardEvent) {
         // Printable characters, including shortcuts in password fields, are never captured.
         if (event.key.length === 1) return;
