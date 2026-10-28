@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, reactive } from 'vue';
+import { computed, inject, reactive, shallowRef, watch } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
 import SwitchRow from '../../ui/domain/settings/SwitchRow.vue';
@@ -8,7 +8,7 @@ import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { configDraftKey } from './useConfigDraft.ts';
 import { useChatgptLogin } from '../providers/useChatgptLogin.ts';
 import { useCopilotLogin } from '../providers/useCopilotLogin.ts';
-import { secretText, readSecret, writeCredential } from '../../core/secretRef.ts';
+import { REDACTED, secretText, readSecret, writeCredential } from '../../core/secretRef.ts';
 import { useAccountCatalog } from './useAccountCatalog.ts';
 import { tr } from '../../core/i18n/tr.ts';
 const props = defineProps<{ id: string; allowRemove?: boolean; linked?: boolean }>();
@@ -19,6 +19,15 @@ const accountCatalog = useAccountCatalog();
 const account = computed(() => draft.value.accounts[props.id]);
 const login = reactive(useChatgptLogin(() => `account:${props.id}`, saveConfig, load));
 const copilot = reactive(useCopilotLogin(() => `account:${props.id}`, saveConfig, load));
+// Keep saved placeholders while a replacement is typed and then erased.
+const savedSecrets = shallowRef<{ api_key?: string | null; credentials?: Record<string, string> }>({});
+watch(
+  account,
+  (value) => {
+    savedSecrets.value = JSON.parse(JSON.stringify(value ?? {}));
+  },
+  { immediate: true },
+);
 const fields = computed(() => [
   ...new Set([
     ...(accountCatalog.value.find((p) => p.id === account.value.preset)?.fields ?? []),
@@ -27,12 +36,18 @@ const fields = computed(() => [
   ]),
 ]);
 function key(text: string) {
-  const x = readSecret(text, account.value.api_key === '<redacted>' ? account.value.api_key : null);
+  const x = readSecret(text, savedSecrets.value.api_key === REDACTED ? REDACTED : null);
   account.value.api_key = x.value;
   account.value.api_key_env = x.env;
 }
 function field(name: string, text: string) {
-  writeCredential((account.value.credentials ??= {}), (account.value.credentials_env ??= {}), name, text);
+  writeCredential(
+    (account.value.credentials ??= {}),
+    (account.value.credentials_env ??= {}),
+    name,
+    text,
+    savedSecrets.value.credentials?.[name] === REDACTED ? REDACTED : null,
+  );
 }
 </script>
 <template>

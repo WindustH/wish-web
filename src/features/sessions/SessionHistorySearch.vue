@@ -41,7 +41,7 @@ async function search(query: string, limit: number, keepItems: boolean) {
   const current = requests.begin(sid);
   state.value = keepItems ? { ...state.value, status: 'busy' } : { status: 'busy' };
   try {
-    const res = await api.historySearch(sid!, { q: query, order: 'desc', limit });
+    const res = await api.historySearch(sid!, { q: query, order: 'desc', limit }, { signal: current.signal });
     if (!current()) return;
     state.value = { status: 'done', query, items: res.items ?? [], more: res.has_more };
   } catch (e) {

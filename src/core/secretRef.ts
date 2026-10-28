@@ -31,8 +31,9 @@ export function writeCredential(
   envs: Record<string, string>,
   field: string,
   text: string,
+  kept: string | null = values[field] === REDACTED ? REDACTED : null,
 ) {
-  const { value, env } = readSecret(text);
+  const { value, env } = readSecret(text, kept);
   delete values[field];
   delete envs[field];
   if (env) envs[field] = env;

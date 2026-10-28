@@ -2,7 +2,7 @@
 // Choosing sessions: a searchable list with a box to tick per session, for a group's members,
 // leaving out the sessions `excluded` names. In a flex column it takes the height left, its list
 // scrolling within it, as on a phone's page.
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import * as api from '../../core/api/endpoints.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { sessionTitle } from '../../core/state/sessionsSlice.ts';
@@ -16,27 +16,49 @@ const rows = ref<{ id: string; name: string; model: string; provider: string }[]
 const loading = ref(true);
 const failed = ref(false);
 const query = ref('');
-onMounted(async () => {
+const cursor = ref<number | null>(null);
+let controller = new AbortController();
+let debounce: ReturnType<typeof setTimeout> | undefined;
+async function load(more = false) {
+  controller.abort();
+  const own = (controller = new AbortController());
+  loading.value = true;
+  failed.value = false;
   try {
-    const page = await api.sessionsList({ limit: 200, order: 'desc' });
-    rows.value = page.items.map((item) => ({
+    const page = await api.sessionsList(
+      { limit: 200, order: 'desc', query: query.value.trim() || undefined, cursor: more ? cursor.value : null },
+      { signal: own.signal },
+    );
+    if (own.signal.aborted) return;
+    const found = page.items.map((item) => ({
       id: item.id,
       name: sessionTitle(item),
       model: item.model,
       provider: item.provider,
     }));
+    rows.value = more ? [...rows.value, ...found] : found;
+    cursor.value = page.next_cursor ?? null;
   } catch {
-    failed.value = true;
+    if (!own.signal.aborted) failed.value = true;
   } finally {
-    loading.value = false;
+    if (!own.signal.aborted) loading.value = false;
   }
+}
+onMounted(() => load());
+watch(query, () => {
+  controller.abort();
+  cursor.value = null;
+  rows.value = [];
+  loading.value = true;
+  clearTimeout(debounce);
+  debounce = setTimeout(() => load(), 250);
 });
-const shown = computed(() => {
-  const terms = query.value.trim().toLocaleLowerCase().split(/\s+/);
-  return rows.value
-    .filter((row) => !props.excluded?.includes(row.id))
-    .filter((row) => terms.every((term) => `${row.name} ${row.model} ${row.id}`.toLocaleLowerCase().includes(term)));
+onBeforeUnmount(() => {
+  controller.abort();
+  clearTimeout(debounce);
 });
+// The backend owns query matching and pagination; a second local filter could hide matches.
+const shown = computed(() => rows.value.filter((row) => !props.excluded?.includes(row.id)));
 function toggle(id: string) {
   chosen.value = chosen.value.includes(id) ? chosen.value.filter((item) => item !== id) : [...chosen.value, id];
 }
@@ -53,9 +75,10 @@ function toggle(id: string) {
         spellcheck="false"
     /></label>
     <div class="session-picker-list" role="listbox" aria-multiselectable="true">
-      <p v-if="loading" class="session-picker-empty"><Spinner /></p>
+      <p v-if="loading && !rows.length" class="session-picker-empty"><Spinner /></p>
       <p v-else-if="failed" class="session-picker-empty">
         {{ tr('无法读取会话列表。', 'Could not read the sessions.') }}
+        <button class="btn sm" @click="load()">{{ tr('重试', 'Retry') }}</button>
       </p>
       <p v-else-if="!shown.length" class="session-picker-empty">
         {{ rows.length ? tr('没有匹配的会话。', 'No session matches.') : tr('还没有会话。', 'No sessions yet.') }}
@@ -76,6 +99,9 @@ function toggle(id: string) {
           ><span>{{ row.name }}</span
           ><small>{{ modelLabel(row.model) || row.model }}</small></span
         >
+      </button>
+      <button v-if="cursor != null" class="btn sm" :disabled="loading" @click="load(true)">
+        {{ tr('加载更多', 'Load more') }}
       </button>
     </div>
   </div>

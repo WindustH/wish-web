@@ -112,6 +112,9 @@ export const stats = (() => {
     controller = null;
     pending = null;
     loading.value = false;
+    usageController?.abort();
+    usageController = null;
+    usageSwitching.value = false;
   }
   function startAuto() {
     stopAuto();

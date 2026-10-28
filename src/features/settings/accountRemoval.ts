@@ -6,7 +6,9 @@ export function accountRemovalPlan(config: any, accountId: string) {
     return provider.credential_id === accountId || models.includes(provider.auth_provider);
   });
   const readers = Object.keys(config.fetch?.providers ?? {}).filter(
-    (id) => config.fetch.providers[id].credential_id === accountId,
+    (id) =>
+      config.fetch.providers[id].credential_id === accountId ||
+      models.includes(config.fetch.providers[id].auth_provider),
   );
   const images = Object.keys(config.image_generation?.providers ?? {}).filter(
     (id) => config.image_generation.providers[id].credential_id === accountId,
@@ -16,11 +18,15 @@ export function accountRemovalPlan(config: any, accountId: string) {
       .filter((id) => config[group].providers[id].credential_id === accountId)
       .map((id) => ({ group, id })),
   );
-  return { models, searches, readers, images, media, resetsDefault: models.includes(config.defaults?.provider) };
+  const mcp = Object.keys(config.mcp?.servers ?? {}).filter((id) =>
+    models.includes(config.mcp.servers[id].auth_provider),
+  );
+  return { models, searches, readers, images, media, mcp, resetsDefault: models.includes(config.defaults?.provider) };
 }
 export function removeAccountAndServices(config: any, accountId: string) {
   const plan = accountRemovalPlan(config, accountId);
   for (const id of plan.models) delete config.providers[id];
+  for (const id of plan.mcp) delete config.mcp.servers[id];
   for (const [group, ids] of [
     [config.search, plan.searches],
     [config.fetch, plan.readers],

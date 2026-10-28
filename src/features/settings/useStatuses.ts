@@ -1,4 +1,4 @@
-import { ref, shallowRef, watch, type Ref } from 'vue';
+import { ref, shallowRef, watch, onScopeDispose, type Ref } from 'vue';
 
 /**
  * What the server knows of configured items - search providers, MCP servers - by id. It is read
@@ -17,9 +17,15 @@ export function useStatuses<Reply, Status extends { id: string }>(
   // save until the reading after it, an item's state is unknown - not "never checked", nor "not
   // saved" for one just saved.
   const known = ref(false);
+  let generation = 0;
+  onScopeDispose(() => {
+    generation++;
+  });
   async function refresh() {
+    const own = ++generation;
     try {
       const value = await read();
+      if (own !== generation) return;
       reply.value = value;
       statuses.value = Object.fromEntries(list(value).map((status) => [status.id, status]));
       known.value = true;

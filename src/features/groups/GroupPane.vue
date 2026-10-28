@@ -20,12 +20,15 @@ import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { toast } from '../../ui/toast.ts';
 import { sessionParent } from '../shell/sessionNavigation.ts';
 import Composer from '../chat/Composer.vue';
+import { useComposerHeight } from '../chat/useComposerHeight.ts';
 import GroupLog from './GroupLog.vue';
 import GroupMembers from './GroupMembers.vue';
 
 const route = useRoute();
 const router = useRouter();
 const isMobile = useIsMobile();
+const paneEl = ref<HTMLElement | null>(null);
+useComposerHeight(paneEl, isMobile);
 const id = computed(() => route.params.id as string);
 
 const history = createGroupHistory(api);
@@ -97,7 +100,7 @@ const infoLabel = computed(() => tr('群组信息', 'Group info'));
 </script>
 
 <template>
-  <div class="chat-pane group-pane">
+  <div ref="paneEl" class="chat-pane group-pane">
     <div class="chatbar">
       <button
         v-if="isMobile"

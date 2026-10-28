@@ -49,7 +49,13 @@ installActivityRecorder(router);
 document.addEventListener(
   'contextmenu',
   (event) => {
-    if (!(event.target instanceof Element && event.target.closest('[data-context-menu]'))) event.preventDefault();
+    if (!(
+      event.target instanceof Element &&
+      event.target.closest(
+        '[data-context-menu], input, textarea, select, [contenteditable], pre, .markdown, .error-dialog-message',
+      )
+    ))
+      event.preventDefault();
   },
   true,
 );

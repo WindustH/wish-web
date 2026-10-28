@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { serviceOrder } from './serviceOrder.ts';
 import { computed, inject, ref } from 'vue';
 import { configDraftKey } from './useConfigDraft.ts';
 import AccountPicker from './AccountPicker.vue';
@@ -48,10 +49,7 @@ const choices = computed(() =>
 const icon = computed(() =>
   props.section === 'video_generation' ? 'video' : props.section === 'audio_transcription' ? 'mic' : 'audio',
 );
-const ids = computed(() => [
-  ...config.value.order,
-  ...Object.keys(config.value.providers).filter((id) => !config.value.order.includes(id)),
-]);
+const ids = computed(() => serviceOrder(config.value.order, config.value.providers));
 function add(id: string) {
   const preset = spec(id);
   if (!preset) return;

@@ -31,6 +31,7 @@ export const en = {
   'sessions.empty': 'No sessions',
   'sessions.loading': 'Loading…',
   'sessions.filter.group': 'Filters',
+  'phase.suspended': 'stopped',
   'phase.idle': 'idle',
   'phase.running': 'running',
   'phase.queued': 'queued',

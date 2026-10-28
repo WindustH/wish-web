@@ -227,8 +227,8 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
         <section class="info-card">
           <dl class="info-facts">
             <div>
-              <dt>{{ i18n.t('info.compactionCount') }}</dt>
-              <dd>{{ snapshot.compaction_count }}</dd>
+              <dt>{{ tr('当前上下文代次', 'Context generation') }}</dt>
+              <dd>{{ snapshot.active_generation }}</dd>
             </div>
             <div>
               <dt>{{ i18n.t('info.queue') }}</dt>

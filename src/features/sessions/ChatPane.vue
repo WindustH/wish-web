@@ -11,7 +11,7 @@ import Hint from '../../ui/components/Hint.vue';
 // Chat surface: top bar (desktop information/settings / mobile back+menu), log,
 // composer, and child-route dialogs (mobile subpages). Opening session
 // actions never rebuilds the conversation.
-import { computed, onBeforeUnmount, onMounted, provide, shallowRef, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, provide, shallowRef, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -22,6 +22,7 @@ import ChatLog from './ChatLog.vue';
 import Composer from '../chat/Composer.vue';
 import QueueDock from './QueueDock.vue';
 import InfoPane from './InfoPane.vue';
+import { useComposerHeight } from '../chat/useComposerHeight.ts';
 import SessionSettingsPane from './SessionSettingsPane.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
@@ -35,7 +36,9 @@ const route = useRoute();
 const router = useRouter();
 const isMobile = useIsMobile();
 
-const id = computed(() => route.params.id as string);
+const id = computed(() =>
+  ['chat', 'chat-info', 'chat-search', 'chat-settings'].includes(String(route.name)) ? (route.params.id as string) : '',
+);
 type SessionTab = 'info' | 'settings';
 const routeTab = computed<SessionTab | null>(() => {
   const n = route.name as string;
@@ -59,10 +62,17 @@ watch(
   { immediate: true },
 );
 
+let openedSession: string | undefined;
 watch(
   id,
   (next) => {
-    if (next) chat.open(next);
+    if (next) {
+      openedSession = next;
+      void chat.open(next);
+    } else if (chat.sessionId.value === openedSession) {
+      chat.close();
+      openedSession = undefined;
+    }
   },
   { immediate: true },
 );
@@ -98,31 +108,9 @@ const composerRef = ref<{ fill: (v: string, attachments?: any[]) => void } | nul
 // The composer floats over the log's foot, so the pane tells its styles how tall that island is:
 // the log keeps its last line clear of it, the fade above it and the jump button stand on its top.
 const paneEl = ref<HTMLElement | null>(null);
-let composerObserver: ResizeObserver | null = null;
-const measureComposer = (composer: Element | null) => {
-  composerObserver?.disconnect();
-  composerObserver = null;
-  if (!(composer instanceof HTMLElement)) {
-    paneEl.value?.style.removeProperty('--composer-height');
-    return;
-  }
-  // The island's height above the pane's foot, its margins included, is what the log must clear.
-  const apply = () => {
-    const pane = paneEl.value;
-    if (!pane) return;
-    const span = pane.getBoundingClientRect().bottom - composer.getBoundingClientRect().top;
-    pane.style.setProperty('--composer-height', `${Math.round(span)}px`);
-  };
-  apply();
-  composerObserver = new ResizeObserver(apply);
-  composerObserver.observe(composer);
-};
-onMounted(() => measureComposer(paneEl.value?.querySelector('.composer') ?? null));
-watch(isMobile, () => measureComposer(paneEl.value?.querySelector('.composer') ?? null));
+useComposerHeight(paneEl, isMobile);
 onBeforeUnmount(() => {
-  if (chat.sessionId.value === id.value) chat.close();
-  composerObserver?.disconnect();
-  composerObserver = null;
+  if (chat.sessionId.value === openedSession) chat.close();
 });
 const onQueueEdit = (text: string, attachments?: any[]) => composerRef.value?.fill(text, attachments);
 const { effort, error: effortError } = useResolvedEffort(snapshot);

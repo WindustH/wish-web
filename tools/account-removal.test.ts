@@ -4,7 +4,7 @@ import { accountRemovalPlan, removeAccountAndServices } from '../src/features/se
 test('account removal includes linked services, legacy borrowers, order and default model',()=>{
  const config:any={accounts:{target:{},keep:{}},providers:{a:{credential_id:'target'},b:{credential_id:'keep'}},search:{order:['direct','borrowed','keep'],providers:{direct:{credential_id:'target'},borrowed:{auth_provider:'a'},keep:{credential_id:'keep'}}},fetch:{order:['reader','keep'],providers:{reader:{credential_id:'target'},keep:{credential_id:'keep'}}},defaults:{provider:'a',model:'model',cwd:'/work'}};
  const before=structuredClone(config);
- assert.deepEqual(accountRemovalPlan(config,'target'),{models:['a'],searches:['direct','borrowed'],readers:['reader'],images:[],media:[],resetsDefault:true});
+ assert.deepEqual(accountRemovalPlan(config,'target'),{models:['a'],searches:['direct','borrowed'],readers:['reader'],images:[],media:[],mcp:[],resetsDefault:true});
  assert.deepEqual(config,before,'planning does not delete anything');
  removeAccountAndServices(config,'target');
  assert.deepEqual(Object.keys(config.accounts),['keep']);assert.deepEqual(Object.keys(config.providers),['b']);

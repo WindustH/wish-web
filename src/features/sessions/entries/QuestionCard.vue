@@ -47,7 +47,7 @@ watch(
 );
 
 // Answers sent but not yet reflected in the history.
-const sent = ref<AnswerRecord[] | 'skipped' | null>(null);
+const sent = ref<AnswerRecord[] | 'skipped' | 'dropped' | null>(null);
 const sending = ref(false);
 const answerable = computed(
   () => !sent.value && (state.value.kind === 'open' || (state.value.kind === 'timed_out' && state.value.open)),
@@ -67,6 +67,7 @@ const shownAnswers = computed<AnswerRecord[] | null>(() => {
 });
 const status = computed(() => {
   const current = state.value;
+  if (sent.value === 'dropped') return { tone: 'muted', text: tr('提问已关闭', 'Question closed') };
   if (sent.value && (current.kind === 'open' || current.kind === 'timed_out'))
     return { tone: 'done', text: tr('正在送达…', 'Sending…') };
   switch (current.kind) {
@@ -179,7 +180,8 @@ async function submit(skip = false) {
     );
     stored.delete(key);
     // A dropped form just closes; the others wait for the history to show what was sent.
-    if (delivered !== 'dropped')
+    if (delivered === 'dropped') sent.value = 'dropped';
+    else
       sent.value = skip
         ? 'skipped'
         : questions.value.map(

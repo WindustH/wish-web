@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { serviceOrder } from './serviceOrder.ts';
 // The search providers web_search asks, in order, edited in the settings draft.
 import { computed, ref, watch } from 'vue';
 import { ReorderGroup, ReorderItem, useDragControls } from 'motion-v';
@@ -38,7 +39,7 @@ watch(
   { immediate: true },
 );
 const order = computed({
-  get: () => search.value.order,
+  get: () => serviceOrder(search.value.order, search.value.providers),
   set: (ids: string[]) => {
     search.value.order = ids;
   },

@@ -51,15 +51,18 @@ export function useAccountStates() {
     loading.value = true;
     error.value = '';
     const cached = peekCached<ProviderSummary[]>(PROVIDERS_KEY) ?? (await readCached<ProviderSummary[]>(PROVIDERS_KEY));
+    if (own.signal.aborted) return;
     if (cached && !rows.value.length) show(cached);
     for (const row of rows.value) {
       if (!row.state) {
         const reading = await readCached<CachedReading>(cacheKey(row.id));
+        if (own.signal.aborted) return;
         if (reading) Object.assign(row, reading);
       }
     }
     try {
       const { providers } = await providerConfigs({ signal: own.signal });
+      if (own.signal.aborted) return;
       const summary: ProviderSummary[] = providers
         .filter((item) => item.enabled)
         .map((item) => ({

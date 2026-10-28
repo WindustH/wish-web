@@ -416,7 +416,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
     class="chatlog-wrap"
     @wheel.passive="onWheel"
     @touchstart.passive="onTouchStart"
-    @touchmove.passive="onTouchMove"
+    @touchmove="onTouchMove"
     @touchend.passive="onTouchEnd"
     @touchcancel.passive="onTouchEnd"
   >

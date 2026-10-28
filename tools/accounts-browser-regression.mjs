@@ -23,7 +23,7 @@ import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
 import {createBackLayers,setBackLayers} from '/src/ui/backLayers.ts';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/ui/domain/settings/settings.css';
 registerBrowserPlatform({ namespace: 'wish-webui', version: 1 });setBackLayers(createBackLayers(window));
-const draft=ref({accounts:{shared:{name:'Shared account',preset:'deepseek',api_key:'<redacted>',credentials:{},credentials_env:{},proxy_enabled:true}},providers:{model:{credential_id:'shared'}},search:{providers:{}},fetch:{order:[],providers:{}}});
+const draft=ref({accounts:{shared:{name:'Shared account',preset:'deepseek',api_key:'<redacted>',credentials:{refresh_token:'<redacted>'},credentials_env:{},proxy_enabled:true}},providers:{model:{credential_id:'shared'}},search:{providers:{}},fetch:{order:[],providers:{}}});
 const catalog=ref({presets:[{id:'deepseek',provider:'DeepSeek',required_credentials:[],optional_credentials:[]}]});
 const searchCatalog=ref([{id:'tavily',name:'Tavily',brand:'Tavily',key:'required'},{id:'jina',name:'Jina',brand:'Jina',key:'required'},{id:'tavily_keyless',name:'Tavily Free',key:'none'}]);
 const imageCatalog=ref([{id:'bfl_images',name:'Black Forest Labs',brand:'BFL',protocol:'bfl',base_url:'https://api.bfl.ai/v1',path:'/{model}',model:'flux-2-pro',account_presets:['bfl'],parameters:{},docs_url:'https://docs.bfl.ai'}]);
@@ -90,6 +90,9 @@ try {
     await js('document.querySelector(".settings-item-row, .settings-item-actions button[aria-label^=编辑], .settings-item-actions button[aria-label^=Edit]").click()');
     await until('!!document.querySelector(".account-form")','account editor');
     assert.equal(await js('document.querySelector(".account-form input[type=password]").value'),'', 'stored secrets stay hidden');
+    await js('for(const input of document.querySelectorAll(".account-form input[type=password]")){input.value="replacement";input.dispatchEvent(new Event("input",{bubbles:true}));input.value="";input.dispatchEvent(new Event("input",{bubbles:true}));}');
+    assert.equal(await js('fixture.draft.value.accounts.shared.api_key'),'<redacted>','erased key replacement retains saved key');
+    assert.equal(await js('fixture.draft.value.accounts.shared.credentials.refresh_token'),'<redacted>','erased credential replacement retains saved token');
     assert.ok(await js('document.documentElement.scrollWidth<=innerWidth+1'),'account editor fits width');
     await js('history.back()');
     await until('!document.querySelector(".account-form")','back closes account editor');
@@ -222,7 +225,7 @@ try {
   assert.equal(await js('document.querySelector(".tool-media audio").preload'),'metadata');
   assert.ok(await js('document.documentElement.scrollWidth<=innerWidth+1'),'media result fits viewport');
   assert.deepEqual(exceptions,[],'no runtime exceptions');
-  console.log(JSON.stringify({ok:true,widths:[390,1100],checks:['video/audio/ASR settings and account linking','native audio range playback','image service and nested image account','search and reader account catalog','keyless services excluded','search account creation and editing','masked credentials','nested account creation','back dismisses top layer','no horizontal overflow','mouse and touch drag reorder','search overflow at 320/390/844px','two-stage account deletion and cancellation']}));
+  console.log(JSON.stringify({ok:true,widths:[390,1100],checks:['video/audio/ASR settings and account linking','native audio range playback','image service and nested image account','search and reader account catalog','keyless services excluded','search account creation and editing','masked credentials and erased replacements','nested account creation','back dismisses top layer','no horizontal overflow','mouse and touch drag reorder','search overflow at 320/390/844px','two-stage account deletion and cancellation']}));
 } finally {
   ws?.close();
   if(chrome&&chrome.exitCode===null){chrome.kill('SIGTERM');await Promise.race([new Promise(r=>chrome.once('exit',r)),sleep(2000)]);if(chrome.exitCode===null)chrome.kill('SIGKILL');}

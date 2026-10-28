@@ -4,7 +4,7 @@
 // attachments and command output, a group's messages and files. Clicking a row chooses it; the
 // chosen ones are deleted together, and the chosen sessions cleared of old history; each row's
 // menu opens, renames or deletes that one, and a session's also tags or clears it.
-import { computed, onActivated, ref } from 'vue';
+import { computed, onActivated, onDeactivated, onBeforeUnmount, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
@@ -65,6 +65,8 @@ function refresh() {
   if (!loading.value) void reading.load();
 }
 onActivated(refresh);
+onDeactivated(() => reading.cancel());
+onBeforeUnmount(() => reading.cancel());
 
 // Finding and ordering.
 const query = ref('');
@@ -91,7 +93,17 @@ const shown = computed(() => {
   };
   return [...list].sort(by[order.value] ?? by.updated);
 });
-const scale = computed(() => Math.max(0, ...shown.value.map((item) => item.bytes.total)));
+const page = ref(0);
+const pageSize = 100;
+const pageCount = computed(() => Math.max(1, Math.ceil(shown.value.length / pageSize)));
+const pageItems = computed(() => shown.value.slice(page.value * pageSize, (page.value + 1) * pageSize));
+watch([query, order], () => {
+  page.value = 0;
+});
+watch(pageCount, (count) => {
+  page.value = Math.min(page.value, count - 1);
+});
+const scale = computed(() => shown.value.reduce((max, item) => Math.max(max, item.bytes.total), 0));
 
 // What a session's bytes are made of, in the order the bars show them.
 const parts = computed(() => [
@@ -248,9 +260,14 @@ function deleted() {
               : tr('还没有会话。', 'No sessions yet.')
           }}
         </p>
+        <nav v-if="pageCount > 1" class="data-pagination" :aria-label="tr('分页', 'Pagination')">
+          <button class="btn sm" :disabled="page === 0" @click="page--">{{ tr('上一页', 'Previous') }}</button>
+          <span>{{ page + 1 }} / {{ pageCount }}</span>
+          <button class="btn sm" :disabled="page + 1 >= pageCount" @click="page++">{{ tr('下一页', 'Next') }}</button>
+        </nav>
         <div class="data-list">
           <DataRow
-            v-for="item in shown"
+            v-for="item in pageItems"
             :key="item.id"
             :item="item"
             :parts="parts"
@@ -324,6 +341,13 @@ function deleted() {
 </template>
 
 <style scoped>
+.data-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 12px 0;
+}
 .data-body {
   display: grid;
   gap: 16px;

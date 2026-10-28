@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { serviceOrder } from './serviceOrder.ts';
 import { computed, inject, ref } from 'vue';
 import { configDraftKey } from './useConfigDraft.ts';
 import AccountPicker from './AccountPicker.vue';
@@ -15,10 +16,7 @@ import { showError } from '../../ui/errorDialog.ts';
 const { draft, imageCatalog } = inject(configDraftKey)!;
 const mobile = useIsMobile();
 const config = computed(() => (draft.value.image_generation ??= { order: [], providers: {} }));
-const ids = computed(() => [
-  ...config.value.order,
-  ...Object.keys(config.value.providers).filter((id) => !config.value.order.includes(id)),
-]);
+const ids = computed(() => serviceOrder(config.value.order, config.value.providers));
 const adding = ref(false),
   editing = ref('');
 const current = computed(() => config.value.providers[editing.value]);

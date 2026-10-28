@@ -67,7 +67,7 @@ export function createChatDeliveries({
     if (!id || sending.value) return null;
     sending.value = true;
 
-    const direct = !stream.value.active && snapshot.value?.phase === 'idle';
+    const direct = !stream.value.active && ['idle', 'suspended'].includes(snapshot.value?.phase ?? '');
     directSending = direct;
     if (direct) deliveriesVersion++;
 

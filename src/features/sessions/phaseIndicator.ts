@@ -16,6 +16,6 @@ export function chatWorkIndicator(input: {
   // specific "compacting" status beats a generic working spinner.
   if (input.phase === 'compacting') return 'compacting';
   if (input.running) return 'run';
-  if (input.phase === 'interrupted' && (input.queue ?? 0) > 0) return 'stoppedResume';
+  if ((input.phase === 'suspended' || input.phase === 'interrupted') && (input.queue ?? 0) > 0) return 'stoppedResume';
   return null;
 }

@@ -2,7 +2,7 @@
 import type { ConfigSnapshot } from '../../core/api/types.ts';
 import type { SettingsConfig } from '../../core/configTypes.ts';
 import { bus } from '../../core/bus.ts';
-import { ref, computed, type InjectionKey } from 'vue';
+import { ref, computed, onScopeDispose, type InjectionKey } from 'vue';
 import {
   requireAvailableModel,
   configSnapshot,
@@ -112,7 +112,12 @@ export function useConfigDraft() {
     }
   }
 
+  let loadGeneration = 0;
+  onScopeDispose(() => {
+    loadGeneration++;
+  });
   async function load() {
+    const own = ++loadGeneration;
     busy.value = true;
     try {
       const [configuration, presets, searches, readers, environment, installed, images, media] = await Promise.all([
@@ -127,6 +132,7 @@ export function useConfigDraft() {
         imagePresets().catch(() => ({ presets: [] })),
         mediaPresets().catch(() => ({ presets: [] })),
       ]);
+      if (own !== loadGeneration) return;
       catalog.value = presets;
       searchCatalog.value = searches.presets;
       fetchCatalog.value = readers.presets;
@@ -136,13 +142,14 @@ export function useConfigDraft() {
       shells.value = installed;
       accept(configuration);
     } catch (e) {
+      if (own !== loadGeneration) return;
       showError({
         title: tr('无法载入设置', 'Could not load settings'),
         error: e,
         action: { label: tr('重试', 'Retry'), run: load },
       });
     } finally {
-      busy.value = false;
+      if (own === loadGeneration) busy.value = false;
     }
   }
 
@@ -151,6 +158,19 @@ export function useConfigDraft() {
       const value = JSON.parse(advanced.value[id]!);
       if (!value || typeof value !== 'object' || Array.isArray(value)) {
         throw new Error(tr('提供商配置必须是 JSON 对象。', 'Provider configuration must be a JSON object.'));
+      }
+      const object = (item: unknown) => item != null && typeof item === 'object' && !Array.isArray(item);
+      if (
+        !['protocol', 'base_url', 'path', 'auth'].every((key) => typeof value[key] === 'string') ||
+        !['models', 'credentials', 'credentials_env', 'headers'].every((key) => object(value[key])) ||
+        !Object.values(value.models).every(object)
+      ) {
+        throw new Error(
+          tr(
+            '提供商配置缺少有效的协议、地址、模型或凭据映射。',
+            'Provider configuration needs valid protocol, address, models and credential maps.',
+          ),
+        );
       }
       draft.value.providers[id] = value;
       advancedPending.value[id] = false;
@@ -265,6 +285,24 @@ export function useConfigDraft() {
         error: tr(
           '默认模型属于这个提供商。请先在“会话”设置中更换默认模型，再删除它。',
           'The default model belongs to this provider. Choose another default model in the Sessions settings first.',
+        ),
+      });
+      return;
+    }
+    const dependent = [
+      ...Object.entries(draft.value.mcp?.servers ?? {})
+        .filter(([, item]) => item.auth_provider === id)
+        .map(([name]) => `MCP · ${name}`),
+      ...Object.entries(draft.value.fetch?.providers ?? {})
+        .filter(([, item]) => item.auth_provider === id)
+        .map(([name]) => `Web fetch · ${name}`),
+    ];
+    if (dependent.length) {
+      showError({
+        title: tr('无法删除提供商', 'Could not delete the provider'),
+        error: tr(
+          `以下服务仍在使用这个提供商，请先修改其关联：${dependent.join('、')}`,
+          `These services still use this provider. Change their links first: ${dependent.join(', ')}`,
         ),
       });
       return;

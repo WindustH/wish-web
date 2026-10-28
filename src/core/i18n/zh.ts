@@ -31,6 +31,7 @@ export const zh = {
   'sessions.empty': '没有会话',
   'sessions.loading': '加载中…',
   'sessions.filter.group': '筛选',
+  'phase.suspended': '已停止',
   'phase.idle': '空闲',
   'phase.running': '运行中',
   'phase.queued': '排队',

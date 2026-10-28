@@ -141,6 +141,8 @@ let press: { x: number; y: number; timer: ReturnType<typeof setTimeout> } | unde
 function cancelPress() {
   if (press) clearTimeout(press.timer);
   press = undefined;
+  window.removeEventListener('pointerup', cancelPress, true);
+  window.removeEventListener('pointercancel', cancelPress, true);
 }
 // The last press, for the events the platform sends while it is held: the selection it landed on,
 // and for a touch whether it held the blank rather than text. A touch on unselected text under
@@ -167,11 +169,13 @@ function onPointerDown(event: PointerEvent) {
   const part = pressed(event);
   if (!part || !blankPress) return;
   const selection = pressSelection;
+  window.addEventListener('pointerup', cancelPress, true);
+  window.addEventListener('pointercancel', cancelPress, true);
   press = {
     x,
     y,
     timer: setTimeout(() => {
-      press = undefined;
+      cancelPress();
       openAt(part, x, y, selection);
     }, LONG_PRESS_MS),
   };

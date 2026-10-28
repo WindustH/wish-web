@@ -265,7 +265,7 @@ export function useChatScroll(options: UseChatScrollOptions) {
         progressed &&
         chat.hasMoreBefore.value &&
         !scrollbarHeld.value &&
-        chained < 12 &&
+        chained < (unfilled ? 64 : 12) &&
         (unfilled || nearTop.value)
       ) {
         chained++;
@@ -273,7 +273,7 @@ export function useChatScroll(options: UseChatScrollOptions) {
           if (owns(gen) && pageActive.value) void loadOlderAnchored();
         });
       } else {
-        if (chained >= 12) pausedFill = { session: sessionId.value, oldest: nextOldest };
+        if (chained >= (unfilled ? 64 : 12)) pausedFill = { session: sessionId.value, oldest: nextOldest };
         chained = 0;
       }
     } finally {

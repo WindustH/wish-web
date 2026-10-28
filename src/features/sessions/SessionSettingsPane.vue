@@ -25,7 +25,7 @@ import ToolExecutionRow from '../../ui/domain/settings/ToolExecutionRow.vue';
 defineEmits<{ close: [] }>();
 const isMobile = useIsMobile();
 const snapshot = computed(() => chat.snapshot.value);
-const running = computed(() => snapshot.value?.phase !== 'idle');
+const running = computed(() => !!snapshot.value && ['running', 'compacting', 'queued'].includes(snapshot.value.phase));
 
 type Compaction = { trigger_tokens: number; target_tokens: number; segment_tokens: number; [key: string]: unknown };
 type Shell = { program: string; args: string[] | null };
@@ -153,6 +153,16 @@ async function save() {
   const current = snapshot.value;
   if (!id || !current || busy.value) return;
   const saved = JSON.parse(source.value);
+  if (
+    running.value &&
+    (execution.value !== saved.execution ||
+      backgroundTools.value !== saved.backgroundTools ||
+      JSON.stringify(tools.value) !== JSON.stringify(saved.tools) ||
+      JSON.stringify(compaction.value) !== JSON.stringify(saved.compaction))
+  ) {
+    toast(savedLater());
+    return;
+  }
   busy.value = true;
   try {
     if (
@@ -305,7 +315,7 @@ async function act(kind: 'compact' | 'clear') {
         <h3>{{ tr('工具', 'Tools') }}</h3>
         <p>{{ tr('模型在这个会话里可以使用的内置工具。', 'Built-in tools the model can use in this session.') }}</p>
       </header>
-      <div class="set-card">
+      <fieldset class="set-card" :disabled="running || busy">
         <ToolExecutionRow v-model="execution" :disabled="running || busy" :note="running ? savedLater() : undefined" />
         <ToolBackgroundRow v-model="backgroundTools" :disabled="running || busy" />
         <ToolSwitchRows
@@ -314,7 +324,7 @@ async function act(kind: 'compact' | 'clear') {
           :search-available="searchAvailable"
           :note="running ? savedLater() : undefined"
         />
-      </div>
+      </fieldset>
     </section>
 
     <section class="set-section">

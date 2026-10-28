@@ -1,18 +1,30 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onBeforeUnmount } from 'vue';
 import { mediaJobStatus, mediaPlayback } from '../../../core/api/endpoints.ts';
 import { absUrl } from '../../../core/api/client.ts';
 import type { MediaJob } from '../../../core/mediaGeneration.ts';
 import { tr } from '../../../core/i18n/tr.ts';
 import { showError } from '../../../ui/errorDialog.ts';
 const props = defineProps<{ session: string; output: MediaJob }>();
+let generation = 0;
+let controller = new AbortController();
+onBeforeUnmount(() => {
+  generation++;
+  controller.abort();
+});
 const current = ref(props.output),
   busy = ref(false),
   sources = ref<Record<string, string>>({}),
   playbackErrors = ref<Record<string, boolean>>({});
 watch(
-  () => props.output,
-  (value) => (current.value = value),
+  () => [props.session, props.output] as const,
+  ([, value]) => {
+    generation++;
+    controller.abort();
+    controller = new AbortController();
+    busy.value = false;
+    current.value = value;
+  },
 );
 const status = computed(
   () =>
@@ -34,7 +46,7 @@ watch(
     playbackErrors.value = {};
     for (const artifact of artifacts ?? []) {
       try {
-        const grant = await mediaPlayback(session, artifact.id);
+        const grant = await mediaPlayback(session, artifact.id, { signal: controller.signal });
         if (alive) sources.value[artifact.id] = absUrl(grant.path);
       } catch (error) {
         if (alive) showError({ title: tr('无法读取媒体', 'Could not load media'), error });
@@ -44,26 +56,34 @@ watch(
   { immediate: true },
 );
 async function reloadMedia(id: string) {
+  const own = generation;
   try {
-    const grant = await mediaPlayback(props.session, id);
+    const grant = await mediaPlayback(props.session, id, { signal: controller.signal });
+    if (own !== generation) return;
     sources.value[id] = absUrl(grant.path);
     playbackErrors.value[id] = false;
   } catch (error) {
+    if (own !== generation) return;
     showError({ title: tr('无法读取媒体', 'Could not load media'), error });
   }
 }
 async function refresh() {
+  if (busy.value) return;
+  const own = generation;
   busy.value = true;
   try {
-    current.value = await mediaJobStatus(
+    const value = await mediaJobStatus(
       props.session,
       current.value.kind === 'video' ? 'video' : 'audio',
       current.value.job_id,
+      { signal: controller.signal },
     );
+    if (own === generation) current.value = value;
   } catch (error) {
+    if (own !== generation) return;
     showError({ title: tr('无法查询任务', 'Could not query task'), error });
   } finally {
-    busy.value = false;
+    if (own === generation) busy.value = false;
   }
 }
 </script>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, inject, onMounted, provide, watch } from 'vue';
+import { ref, computed, inject, onActivated, provide, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
@@ -108,7 +108,9 @@ const { dirty, save, discard, discardChanges, leave, leaveBusy, resolveLeave, sa
   saveConfig,
 });
 
-onMounted(load);
+onActivated(() => {
+  if (!serverDirty.value && !busy.value) void load();
+});
 </script>
 <template>
   <DialogRoot

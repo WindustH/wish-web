@@ -1,11 +1,21 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { diffCounts, parseDiff } from './processDetails.ts';
 import CopyButton from '../../../ui/components/CopyButton.vue';
 import { tr } from '../../../core/i18n/tr.ts';
 const props = defineProps<{ edit: any; flat?: boolean }>();
 const lines = computed(() => parseDiff(props.edit.diff ?? ''));
 const counts = computed(() => diffCounts(lines.value));
+const page = ref(0);
+const pageSize = 500;
+const pages = computed(() => Math.max(1, Math.ceil(lines.value.length / pageSize)));
+const visible = computed(() => lines.value.slice(page.value * pageSize, (page.value + 1) * pageSize));
+watch(
+  () => props.edit,
+  () => {
+    page.value = 0;
+  },
+);
 </script>
 <template>
   <section class="file-diff" :class="{ flat }">
@@ -16,9 +26,14 @@ const counts = computed(() => diffCounts(lines.value));
         ><b class="removed">−{{ counts.removed }}</b></span
       ><CopyButton v-if="edit.diff" :text="edit.diff" />
     </header>
+    <nav v-if="pages > 1" class="diff-pagination" :aria-label="tr('差异分页', 'Diff pages')">
+      <button class="btn sm" :disabled="!page" @click="page--">{{ tr('上一页', 'Previous') }}</button>
+      <span>{{ page + 1 }} / {{ pages }}</span>
+      <button class="btn sm" :disabled="page + 1 >= pages" @click="page++">{{ tr('下一页', 'Next') }}</button>
+    </nav>
     <div v-if="edit.diff" class="diff-scroll">
       <div class="diff-lines">
-        <div v-for="(line, index) in lines" :key="index" class="diff-line" :class="line.kind">
+        <div v-for="(line, index) in visible" :key="index" class="diff-line" :class="line.kind">
           <span class="line-number">{{ line.before }}</span
           ><span class="line-number">{{ line.after }}</span
           ><code>{{ line.text }}</code>
@@ -39,6 +54,12 @@ const counts = computed(() => diffCounts(lines.value));
   </section>
 </template>
 <style scoped>
+.diff-pagination {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+}
 .file-diff {
   border: 1px solid var(--line);
   border-radius: 8px;

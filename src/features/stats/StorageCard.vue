@@ -2,7 +2,7 @@
 // What Wish keeps on disk: the total, a bar of its parts, and a row per part. The two databases
 // open in place to what they hold - their records, indexes and the room SQLite keeps - read when
 // opened, since measuring reads every page of both.
-import { computed, ref } from 'vue';
+import { computed, ref, onBeforeUnmount } from 'vue';
 import * as api from '../../core/api/endpoints.ts';
 import type { StorageDetail, StorageKind, StorageSnapshot } from '../../core/api/types.ts';
 import { errorDetail } from '../../core/errors.ts';
@@ -90,15 +90,20 @@ const showSmall = ref(false);
 const opened = ref<Database | null>(null);
 const detail = ref<StorageDetail | null>(null);
 const failed = ref<unknown>(null);
+let detailController = new AbortController();
+onBeforeUnmount(() => detailController.abort());
 async function toggle(database: Database) {
+  detailController.abort();
+  const own = (detailController = new AbortController());
   opened.value = opened.value === database ? null : database;
   showSmall.value = false;
   if (!opened.value) return;
   failed.value = null;
   try {
-    detail.value = await api.storageDetail();
+    const value = await api.storageDetail({ signal: own.signal });
+    if (!own.signal.aborted) detail.value = value;
   } catch (error) {
-    failed.value = error;
+    if (!own.signal.aborted) failed.value = error;
   }
 }
 </script>

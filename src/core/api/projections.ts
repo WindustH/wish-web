@@ -75,7 +75,7 @@ export interface PendingQuestion {
   timeout_seconds: number | null;
   timed_out: boolean;
 }
-export type SessionPhase = 'compacting' | 'running' | 'queued' | 'idle';
+export type SessionPhase = 'compacting' | 'running' | 'queued' | 'idle' | 'suspended';
 export interface SessionView {
   id: string;
   name: string;
@@ -89,7 +89,7 @@ export interface SessionView {
   revision: number;
   created_at: number;
   updated_at: number;
-  compaction_count: number;
+  active_generation: number;
   standby_preparing: boolean;
   context_tokens: number | null;
   pending_questions: PendingQuestion[];
@@ -158,9 +158,11 @@ export function sessionView(value: any): SessionView {
       ? 'compacting'
       : status.running
         ? 'running'
-        : status.phase === 'Ready'
-          ? 'queued'
-          : 'idle';
+        : status.phase === 'Suspended'
+          ? 'suspended'
+          : status.phase === 'Ready'
+            ? 'queued'
+            : 'idle';
   return {
     id: session.id,
     name: session.name,
@@ -174,7 +176,7 @@ export function sessionView(value: any): SessionView {
     revision: session.revision,
     created_at: session.created_at,
     updated_at: session.updated_at,
-    compaction_count: status.active_generation ?? 0,
+    active_generation: status.active_generation ?? 0,
     standby_preparing: Boolean(status.standby_preparing),
     // Input size of the last conversation call in the active context; null until one completes.
     context_tokens: status.context_tokens ?? null,

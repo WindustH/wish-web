@@ -112,20 +112,24 @@ export const sessions = (() => {
     return p;
   }
 
+  let listController = new AbortController();
   function bump() {
+    listController.abort();
+    listController = new AbortController();
     gen += 1;
     loading.value = false;
     loadingMore.value = false;
   }
 
   async function loadFirst(): Promise<void> {
-    const myGen = ++gen;
+    bump();
+    const myGen = gen;
     loading.value = true;
     loadingMore.value = false;
     error.value = null;
     void loadFolders();
     try {
-      const page = await api.conversationsList(requestParams());
+      const page = await api.conversationsList(requestParams(), { signal: listController.signal });
       if (myGen !== gen) return;
       items.value = page.items as ListRow[];
       cursor.value = page.next_cursor ?? null;
@@ -142,7 +146,8 @@ export const sessions = (() => {
   // count (bounded by rebuildMaxPages), then adopts the server's membership,
   // order and cursor wholesale.
   async function rebuild(): Promise<void> {
-    const myGen = ++gen;
+    bump();
+    const myGen = gen;
     loading.value = true;
     loadingMore.value = false;
     error.value = null;
@@ -154,7 +159,10 @@ export const sessions = (() => {
         more = true,
         pages = 0;
       while (more && rows.length < keep && pages < cfg.sessions.rebuildMaxPages) {
-        const page = await api.conversationsList({ ...requestParams(), cursor: cur });
+        const page = await api.conversationsList(
+          { ...requestParams(), cursor: cur },
+          { signal: listController.signal },
+        );
         if (myGen !== gen) return;
         rows = rows.concat(page.items as ListRow[]);
         cur = page.next_cursor ?? null;
@@ -176,7 +184,10 @@ export const sessions = (() => {
     const myGen = gen;
     loadingMore.value = true;
     try {
-      const page = await api.conversationsList({ ...requestParams(), cursor: cursor.value });
+      const page = await api.conversationsList(
+        { ...requestParams(), cursor: cursor.value },
+        { signal: listController.signal },
+      );
       if (myGen !== gen) return false;
       items.value = uniqueById([...items.value, ...(page.items as ListRow[])]);
       cursor.value = page.next_cursor ?? null;

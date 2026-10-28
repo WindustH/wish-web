@@ -15,9 +15,9 @@ import FileChangeCards from '/src/features/sessions/entries/FileChangeCards.vue'
 import ActivityDialogs from '/src/features/sessions/ActivityDialogs.vue';
 import {openActivityKey} from '/src/features/sessions/activityDialogs.ts';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/features.css';
-const count=ref(3), visible=ref(true), request=ref(null);let tick=0;
-const chip=computed(()=>({type:'process',key:'files',steps:[{kind:'entry',key:'result',entry:{seq:2,payload:{tool_name:'shell',metadata:{edits:Array.from({length:count.value},(_,i)=>({path:'/project/src/file-'+i+'.ts',changed:true,diff:['@@ -1 +1 @@','-before','+after'].join(String.fromCharCode(10))}))}}}}]}));
-window.fixture={count,visible,request};
+const many=ref(false), count=ref(3), visible=ref(true), request=ref(null);let tick=0;
+const chip=computed(()=>({type:'process',key:'files',steps:[{kind:'entry',key:'result',entry:{seq:2,payload:{tool_name:'shell',metadata:{edits:Array.from({length:count.value},(_,i)=>({path:'/project/src/file-'+i+'.ts',changed:true,diff:(many.value ? ['@@ -0,0 +1,2000 @@',...Array.from({length:2000},(_,n)=>'+line-'+n)] : ['@@ -1 +1 @@','-before','+after']).join(String.fromCharCode(10))}))}}}}]}));
+window.fixture={count,visible,request,many};
 createApp({setup(){provide(openActivityKey,value=>request.value={...value,requestId:++tick});return()=>h(TooltipProvider,{},()=>[
  h('main',{style:'max-width:736px;margin:40px auto;padding:16px'},[h('h3','文件修改 / File changes'),visible.value?h(FileChangeCards,{item:chip.value}):null]),
  h(ActivityDialogs,{chips:[chip.value],request:request.value,session:'fixture',onDismiss:()=>request.value=null})]);}}).mount('#app');
@@ -81,8 +81,14 @@ try {
   assert.ok(await js('document.querySelector(".diff-path").textContent.includes("file-1.ts")'));
   assert.equal(await js('getComputedStyle(document.querySelector(".file-diff")).backgroundColor'),'rgba(0, 0, 0, 0)','single file has no extra background');
   assert.equal(await js('getComputedStyle(document.querySelector(".file-diff")).borderTopWidth'),'0px','single file has no nested border');
+  await js('fixture.many.value=true');
+  await until('!!document.querySelector(".diff-pagination")','large diff is paged');
+  assert.ok(await js('document.querySelectorAll(".diff-line").length<=500'),'diff DOM remains bounded');
+  await js('document.querySelectorAll(".diff-pagination button")[1].click()');
+  await until('document.querySelector(".diff-pagination span").textContent.startsWith("2")','diff next page');
+  assert.ok(await js('document.querySelectorAll(".diff-line").length<=500'),'next diff page remains bounded');
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['1/3 individual cards','4-file stack','desktop/mobile','dark/light','single-file detail','stable modal host','Escape closes']}));
+  console.log(JSON.stringify({ok:true,checks:['1/3 individual cards','4-file stack','desktop/mobile','dark/light','single-file detail','stable modal host','Escape closes','2000-line diff pagination']}));
 
 } finally {
   ws?.close();

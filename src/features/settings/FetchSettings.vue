@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { serviceOrder } from './serviceOrder.ts';
 import { computed, inject, ref } from 'vue';
 import { ReorderGroup, ReorderItem, useDragControls } from 'motion-v';
 import { post } from '../../core/api/client.ts';
@@ -21,7 +22,7 @@ const { draft, fetchCatalog: catalog } = inject(configDraftKey)!;
 const mobile = useIsMobile();
 const config = computed(() => (draft.value.fetch ??= { order: [], providers: {} }));
 const order = computed<string[]>({
-  get: () => config.value.order,
+  get: () => serviceOrder(config.value.order, config.value.providers),
   set: (ids) => {
     config.value.order = ids;
   },

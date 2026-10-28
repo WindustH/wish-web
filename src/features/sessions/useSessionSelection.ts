@@ -28,7 +28,7 @@ export function useSessionSelection(
       !!error.value &&
       typeof error.value === 'object' &&
       'code' in error.value &&
-      error.value.code === 'revision_conflict',
+      error.value.code === 'state_conflict',
   );
   let generation = 0;
   let controller: AbortController;

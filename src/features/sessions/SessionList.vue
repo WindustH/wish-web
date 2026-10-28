@@ -297,9 +297,15 @@ const lines = computed<Line[]>(() => {
               : ['older', tr('更早', 'Older')];
     }
     if (id !== current)
-      out.push({ kind: 'heading', key: `heading:${id}`, label, section: id, folded: folded.value.has(id) });
+      out.push({
+        kind: 'heading',
+        key: `heading:${id}`,
+        label,
+        section: id,
+        folded: !sessions.filtered.value && folded.value.has(id),
+      });
     current = id;
-    if (!folded.value.has(id)) out.push({ kind: 'row', key: row.id, row });
+    if (sessions.filtered.value || !folded.value.has(id)) out.push({ kind: 'row', key: row.id, row });
   }
   return out;
 });
