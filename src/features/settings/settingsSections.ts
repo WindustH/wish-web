@@ -42,6 +42,13 @@ export const sections = computed(() => [
     ),
   },
   {
+    id: 'image_generation',
+    icon: 'image',
+    label: tr('图片生成', 'Image generation'),
+    summary: tr('生图服务、模型与账户', 'Image services, models and accounts'),
+    description: tr('生成图片并保存到会话 blob。', 'Generate images into session blob storage.'),
+  },
+  {
     id: 'fetch',
     icon: 'web-reader',
     label: tr('网页读取', 'Web fetch'),

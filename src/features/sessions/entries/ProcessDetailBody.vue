@@ -46,6 +46,11 @@ const imageSrc = computed(() => {
     .at(-1);
   return props.session && hash && /^[a-f0-9]{64}$/.test(hash) ? blobUrl(`${props.session}/${hash}`) : '';
 });
+const generatedImages = computed(() =>
+  name.value === 'image_generate' && props.session && Array.isArray(output.value?.images)
+    ? output.value.images.filter((image: { id?: string }) => /^[a-f0-9]{64}$/.test(image.id ?? ''))
+    : [],
+);
 const isShellTool = computed(() => name.value?.startsWith('shell_'));
 const isHistoryTool = computed(() => name.value?.startsWith('history_'));
 // A search's results as the page shows them: kept on the result beside what the model read.
@@ -148,6 +153,15 @@ const fieldName = (key: string) =>
           </p>
         </section>
         <p v-if="output.process.error" class="tool-error">{{ output.process.error }}</p>
+      </template>
+      <template v-else-if="generatedImages.length">
+        <ToolImage
+          v-for="image in generatedImages"
+          :key="image.id"
+          :src="blobUrl(`${session}/${image.id}`)"
+          :mime="image.mime_type"
+          :path="image.path"
+        />
       </template>
       <template v-else-if="name === 'view_image' && result?.status === 'success'">
         <ToolImage v-if="imageSrc" :src="imageSrc" :mime="output.mime_type" :path="output.path" />

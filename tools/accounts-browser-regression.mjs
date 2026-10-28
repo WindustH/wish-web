@@ -13,6 +13,7 @@ import {createApp,h,ref,provide} from 'vue';
 import {TooltipProvider} from 'reka-ui';
 import {createRouter,createMemoryHistory} from 'vue-router';
 import AccountSettings from '/src/features/settings/AccountSettings.vue';
+import ImageGenerationSettings from '/src/features/settings/ImageGenerationSettings.vue';
 import SearchSettings from '/src/features/settings/SearchSettings.vue';
 import FetchSettings from '/src/features/settings/FetchSettings.vue';
 import {configDraftKey} from '/src/features/settings/useConfigDraft.ts';
@@ -23,9 +24,10 @@ registerBrowserPlatform({ namespace: 'wish-webui', version: 1 });setBackLayers(c
 const draft=ref({accounts:{shared:{name:'Shared account',preset:'deepseek',api_key:'<redacted>',credentials:{},credentials_env:{},proxy_enabled:true}},providers:{model:{credential_id:'shared'}},search:{providers:{}},fetch:{order:[],providers:{}}});
 const catalog=ref({presets:[{id:'deepseek',provider:'DeepSeek',required_credentials:[],optional_credentials:[]}]});
 const searchCatalog=ref([{id:'tavily',name:'Tavily',brand:'Tavily',key:'required'},{id:'jina',name:'Jina',brand:'Jina',key:'required'},{id:'tavily_keyless',name:'Tavily Free',key:'none'}]);
+const imageCatalog=ref([{id:'bfl_images',name:'Black Forest Labs',brand:'BFL',protocol:'bfl',base_url:'https://api.bfl.ai/v1',path:'/{model}',model:'flux-2-pro',account_presets:['bfl'],parameters:{},docs_url:'https://docs.bfl.ai'}]);
 const mode=ref('accounts');const saveConfig=async()=>true;
 const fetchCatalog=ref([{id:'deepseek_fetch',name:'DeepSeek',key:'required',base_url:'https://api.deepseek.com'},{id:'zai_reader',name:'Z.AI',key:'required'},{id:'jina_reader',name:'Jina Reader',key:'optional'},{id:'codex_fetch',name:'ChatGPT / Codex',key:'required'}]);
-createApp({setup(){provide(configDraftKey,{draft,catalog,searchCatalog,fetchCatalog,saveConfig,load:async()=>{}});return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;width:min(800px,100vw);margin:auto'},[h('h1','Settings fixture'),mode.value==='accounts'?h(AccountSettings):mode.value==='search'?h(SearchSettings,{config:draft.value,models:[],presets:[{id:'chatgpt',name:'ChatGPT',brand:'OpenAI'}],statuses:{chatgpt:{available:true}},statusesKnown:true,save:saveConfig,busy:false,dirty:false}):h(FetchSettings,{save:saveConfig})]));}}).use(createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]})).mount('#app');
+createApp({setup(){provide(configDraftKey,{draft,catalog,searchCatalog,fetchCatalog,imageCatalog,saveConfig,load:async()=>{}});return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;width:min(800px,100vw);margin:auto'},[h('h1','Settings fixture'),mode.value==='images'?h(ImageGenerationSettings):mode.value==='accounts'?h(AccountSettings):mode.value==='search'?h(SearchSettings,{config:draft.value,models:[],presets:[{id:'chatgpt',name:'ChatGPT',brand:'OpenAI'}],statuses:{chatgpt:{available:true}},statusesKnown:true,save:saveConfig,busy:false,dirty:false}):h(FetchSettings,{save:saveConfig})]));}}).use(createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]})).mount('#app');
 window.fixture={draft,mode};
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {
@@ -79,6 +81,22 @@ try {
     assert.ok(await js('document.documentElement.scrollWidth<=innerWidth+1'),'account editor fits width');
     await js('history.back()');
     await until('!document.querySelector(".account-form")','back closes account editor');
+    await js('fixture.mode.value="images"');
+    await until('!!document.querySelector(".image-generation-settings .provider-add")','image generation settings');
+    await js('document.querySelector(".image-generation-settings .provider-add").click()');
+    await until('!!document.querySelector("[data-choice-key=bfl_images]")','image preset picker');
+    await js('document.querySelector("[data-choice-key=bfl_images]").click()');
+    if(width>=900) await js('document.querySelector(".picker-dialog-actions .primary").click()');
+    await until('!!document.querySelector(".image-editor")','image service editor');
+    assert.ok(await js('document.documentElement.scrollWidth<=innerWidth+1'),'image editor fits viewport');
+    await js('document.querySelector(".image-editor .account-picker .btn").click()');
+    await until('!!document.querySelector(".account-form")','new image account editor');
+    assert.ok(await js('Object.values(fixture.draft.value.accounts).some(a=>a.preset==="bfl")'),'image account platform retained');
+    await js('history.back()');
+    await until('!document.querySelector(".account-form")','close nested image account');
+    assert.ok(await js('Object.values(fixture.draft.value.image_generation.providers).every(p=>p.credential_id && p.model==="flux-2-pro")'),'image service links account and model');
+    await js('history.back()');
+    await until('!document.querySelector(".image-editor")','close image editor');
     await js('fixture.mode.value="fetch"');
     await until('!!document.querySelector(".fetch-list .provider-add")','fetch page');
     await js('document.querySelector(".fetch-list .provider-add").click()');
@@ -155,7 +173,7 @@ try {
   assert.ok(await js('!!fixture.draft.value.accounts.keep && !!fixture.draft.value.providers.keep'),'unrelated configuration retained');
   assert.equal(await js('fixture.draft.value.defaults.provider'),'','deleted default cleared');
   assert.deepEqual(exceptions,[],'no runtime exceptions');
-  console.log(JSON.stringify({ok:true,widths:[390,1100],checks:['search and reader account catalog','keyless services excluded','search account creation and editing','masked credentials','nested account creation','back dismisses top layer','no horizontal overflow','mouse and touch drag reorder','search overflow at 320/390/844px','two-stage account deletion and cancellation']}));
+  console.log(JSON.stringify({ok:true,widths:[390,1100],checks:['image service and nested image account','search and reader account catalog','keyless services excluded','search account creation and editing','masked credentials','nested account creation','back dismisses top layer','no horizontal overflow','mouse and touch drag reorder','search overflow at 320/390/844px','two-stage account deletion and cancellation']}));
 } finally {
   ws?.close();
   if(chrome&&chrome.exitCode===null){chrome.kill('SIGTERM');await Promise.race([new Promise(r=>chrome.once('exit',r)),sleep(2000)]);if(chrome.exitCode===null)chrome.kill('SIGKILL');}

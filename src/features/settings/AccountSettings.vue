@@ -44,6 +44,7 @@ function uses(id: string) {
       ['providers', tr('模型', 'Model')],
       ['search', tr('搜索', 'Search')],
       ['fetch', tr('网页读取', 'Web fetch')],
+      ['image_generation', tr('图片生成', 'Image generation')],
     ] as const
   ).flatMap(([group, label]) =>
     Object.entries<any>(group === 'providers' ? draft.value.providers : (draft.value[group!]?.providers ?? {}))
@@ -57,6 +58,7 @@ const removalPlan = computed(() => accountRemovalPlan(draft.value, removing.valu
 const affected = computed(() => [
   ...removalPlan.value.models.map((id) => `${tr('模型', 'Model')} · ${draft.value.providers[id].display_name || id}`),
   ...removalPlan.value.searches.map((id) => `${tr('搜索', 'Search')} · ${id}`),
+  ...removalPlan.value.images.map((id) => `${tr('图片生成', 'Image generation')} · ${id}`),
   ...removalPlan.value.readers.map((id) => `${tr('网页读取', 'Web fetch')} · ${id}`),
 ]);
 function remove(id: string) {

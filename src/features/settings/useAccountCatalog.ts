@@ -18,7 +18,7 @@ export interface AccountPreset {
 export const searchAccountPreset = (id: string) => (id === 'jina' ? 'jina_reader' : id);
 
 export function useAccountCatalog() {
-  const { catalog, searchCatalog, fetchCatalog } = inject(configDraftKey)!;
+  const { catalog, searchCatalog, fetchCatalog, imageCatalog } = inject(configDraftKey)!;
   return computed(() => {
     const entries = new Map<string, AccountPreset>();
     for (const p of [...catalog.value.presets].sort(
@@ -59,6 +59,21 @@ export function useAccountCatalog() {
             description: tr('网页读取', 'Web fetch'),
             fields: [],
           });
+      }
+    }
+    for (const p of imageCatalog?.value ?? []) {
+      for (const id of p.account_presets) {
+        const existing = entries.get(id);
+        if (!existing)
+          entries.set(id, {
+            id,
+            name: p.name,
+            brand: p.brand,
+            description: tr('图片生成', 'Image generation'),
+            fields: [],
+          });
+        else if (!existing.description.includes(tr('图片生成', 'Image generation')))
+          existing.description += ` · ${tr('图片生成', 'Image generation')}`;
       }
     }
     return [...entries.values()];

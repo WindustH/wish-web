@@ -44,6 +44,8 @@ export interface ToolSwitches {
   mcp: boolean;
   web_search: boolean;
   web_fetch?: boolean;
+  image_generate?: boolean;
+  image_generate_delivery?: ToolDelivery;
   skills: boolean;
   sessions: boolean;
   sessions_delivery?: ToolDelivery;

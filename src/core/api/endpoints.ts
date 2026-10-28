@@ -683,3 +683,6 @@ export const sessionGenerationStructure = (
     ...opts,
     query: { start, limit: 20, ...(kind ? { kind } : {}), ...(origin ? { origin } : {}) },
   });
+
+export const imagePresets = (): Promise<{ presets: import('../imageGeneration.ts').ImagePreset[] }> =>
+  get('/image-presets');

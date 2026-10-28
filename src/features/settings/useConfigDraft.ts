@@ -10,6 +10,7 @@ import {
   providerPresets,
   searchPresets,
   fetchPresets,
+  imagePresets,
   type FetchPreset,
   proxyEnvironment as readProxyEnvironment,
   shellCatalog,
@@ -45,6 +46,7 @@ export function useConfigDraft() {
   // Read with the configuration, so a search provider shows its name from the start.
   const searchCatalog = ref<SearchPreset[]>([]);
   const fetchCatalog = ref<FetchPreset[]>([]);
+  const imageCatalog = ref<import('../../core/imageGeneration.ts').ImagePreset[]>([]);
   const proxyEnvironment = ref<{ name: string; value: string; redacted: boolean }[]>([]);
   const shells = ref<ShellCatalog | null>(null);
   const adding = ref(false);
@@ -111,7 +113,7 @@ export function useConfigDraft() {
   async function load() {
     busy.value = true;
     try {
-      const [configuration, presets, searches, readers, environment, installed] = await Promise.all([
+      const [configuration, presets, searches, readers, environment, installed, images] = await Promise.all([
         configSnapshot(),
         providerPresets(),
         // Without them, search providers show by their ids; the rest of settings still loads.
@@ -120,10 +122,12 @@ export function useConfigDraft() {
         readProxyEnvironment(),
         // Only the picker needs it; the shell stays editable as a path without it.
         shellCatalog().catch(() => null),
+        imagePresets().catch(() => ({ presets: [] })),
       ]);
       catalog.value = presets;
       searchCatalog.value = searches.presets;
       fetchCatalog.value = readers.presets;
+      imageCatalog.value = images.presets;
       proxyEnvironment.value = environment.variables;
       shells.value = installed;
       accept(configuration);
@@ -287,6 +291,7 @@ export function useConfigDraft() {
     catalog,
     searchCatalog,
     fetchCatalog,
+    imageCatalog,
     proxyEnvironment,
     shells,
     adding,

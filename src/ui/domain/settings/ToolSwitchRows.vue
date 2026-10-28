@@ -34,6 +34,14 @@ const rows = computed(() => [
     hint: tr('通过网页读取提供商获取链接正文', 'Read webpages through configured fetch providers'),
   },
   {
+    key: 'image_generate' as const,
+    name: 'Image Generate',
+    hint: tr(
+      '使用已配置的生图服务，结果保存到会话 blob',
+      'Generate images using configured services and save to session blobs',
+    ),
+  },
+  {
     key: 'ask_user' as const,
     name: 'Ask User',
     hint: tr(
@@ -76,14 +84,20 @@ const capabilityOptions = computed(() => [
   { value: 'off', icon: 'x', tone: 'danger' as const, label: tr('关闭', 'Off') },
   ...deliveryOptions.value,
 ]);
-function setCapability(key: 'ask_user' | 'web_fetch' | 'web_search' | 'history_search' | 'sessions', value: string) {
+function setCapability(
+  key: 'image_generate' | 'ask_user' | 'web_fetch' | 'web_search' | 'history_search' | 'sessions',
+  value: string,
+) {
   tools.value[key] = value !== 'off';
   if (value !== 'off') tools.value[deliveryKey(key)] = value as ToolDelivery;
 }
-function deliveryKey(key: 'shell' | 'ask_user' | 'web_fetch' | 'web_search' | 'history_search' | 'sessions') {
+function deliveryKey(
+  key: 'shell' | 'image_generate' | 'ask_user' | 'web_fetch' | 'web_search' | 'history_search' | 'sessions',
+) {
   return key === 'shell'
     ? ('task_delivery' as const)
     : (`${key}_delivery` as
+        | 'image_generate_delivery'
         | 'ask_user_delivery'
         | 'web_fetch_delivery'
         | 'web_search_delivery'
@@ -91,7 +105,7 @@ function deliveryKey(key: 'shell' | 'ask_user' | 'web_fetch' | 'web_search' | 'h
         | 'sessions_delivery');
 }
 function delivery(
-  key: 'shell' | 'ask_user' | 'web_fetch' | 'web_search' | 'history_search' | 'sessions',
+  key: 'shell' | 'image_generate' | 'ask_user' | 'web_fetch' | 'web_search' | 'history_search' | 'sessions',
 ): ToolDelivery {
   return tools.value[deliveryKey(key)] ?? (key === 'shell' || key === 'sessions' ? 'command' : 'tool');
 }

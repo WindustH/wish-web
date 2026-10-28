@@ -8,7 +8,10 @@ export function accountRemovalPlan(config: any, accountId: string) {
   const readers = Object.keys(config.fetch?.providers ?? {}).filter(
     (id) => config.fetch.providers[id].credential_id === accountId,
   );
-  return { models, searches, readers, resetsDefault: models.includes(config.defaults?.provider) };
+  const images = Object.keys(config.image_generation?.providers ?? {}).filter(
+    (id) => config.image_generation.providers[id].credential_id === accountId,
+  );
+  return { models, searches, readers, images, resetsDefault: models.includes(config.defaults?.provider) };
 }
 export function removeAccountAndServices(config: any, accountId: string) {
   const plan = accountRemovalPlan(config, accountId);
@@ -16,6 +19,7 @@ export function removeAccountAndServices(config: any, accountId: string) {
   for (const [group, ids] of [
     [config.search, plan.searches],
     [config.fetch, plan.readers],
+    [config.image_generation, plan.images],
   ] as const) {
     if (!group) continue;
     for (const id of ids) delete group.providers[id];
