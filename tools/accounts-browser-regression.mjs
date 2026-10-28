@@ -13,6 +13,8 @@ import {createApp,h,ref,provide} from 'vue';
 import {TooltipProvider} from 'reka-ui';
 import {createRouter,createMemoryHistory} from 'vue-router';
 import AccountSettings from '/src/features/settings/AccountSettings.vue';
+import ToolMedia from '/src/features/sessions/entries/ToolMedia.vue';
+import MediaGenerationSettings from '/src/features/settings/MediaGenerationSettings.vue';
 import ImageGenerationSettings from '/src/features/settings/ImageGenerationSettings.vue';
 import SearchSettings from '/src/features/settings/SearchSettings.vue';
 import FetchSettings from '/src/features/settings/FetchSettings.vue';
@@ -25,13 +27,23 @@ const draft=ref({accounts:{shared:{name:'Shared account',preset:'deepseek',api_k
 const catalog=ref({presets:[{id:'deepseek',provider:'DeepSeek',required_credentials:[],optional_credentials:[]}]});
 const searchCatalog=ref([{id:'tavily',name:'Tavily',brand:'Tavily',key:'required'},{id:'jina',name:'Jina',brand:'Jina',key:'required'},{id:'tavily_keyless',name:'Tavily Free',key:'none'}]);
 const imageCatalog=ref([{id:'bfl_images',name:'Black Forest Labs',brand:'BFL',protocol:'bfl',base_url:'https://api.bfl.ai/v1',path:'/{model}',model:'flux-2-pro',account_presets:['bfl'],parameters:{},docs_url:'https://docs.bfl.ai'}]);
+const mediaCatalog=ref(${JSON.stringify(JSON.parse(await readFile('../wish-core/resources/media-presets.json','utf8')))});
 const mode=ref('accounts');const saveConfig=async()=>true;
 const fetchCatalog=ref([{id:'deepseek_fetch',name:'DeepSeek',key:'required',base_url:'https://api.deepseek.com'},{id:'zai_reader',name:'Z.AI',key:'required'},{id:'jina_reader',name:'Jina Reader',key:'optional'},{id:'codex_fetch',name:'ChatGPT / Codex',key:'required'}]);
-createApp({setup(){provide(configDraftKey,{draft,catalog,searchCatalog,fetchCatalog,imageCatalog,saveConfig,load:async()=>{}});return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;width:min(800px,100vw);margin:auto'},[h('h1','Settings fixture'),mode.value==='images'?h(ImageGenerationSettings):mode.value==='accounts'?h(AccountSettings):mode.value==='search'?h(SearchSettings,{config:draft.value,models:[],presets:[{id:'chatgpt',name:'ChatGPT',brand:'OpenAI'}],statuses:{chatgpt:{available:true}},statusesKnown:true,save:saveConfig,busy:false,dirty:false}):h(FetchSettings,{save:saveConfig})]));}}).use(createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]})).mount('#app');
+createApp({setup(){provide(configDraftKey,{draft,catalog,searchCatalog,fetchCatalog,imageCatalog,mediaCatalog,saveConfig,load:async()=>{}});return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;width:min(800px,100vw);margin:auto'},[h('h1','Settings fixture'),mode.value==='player'?h(ToolMedia,{session:'fixture',output:{job_id:'job',kind:'music',provider:'mock',model:'fixture',status:'running',artifacts:[]}}):mode.value.startsWith('media:')?h(MediaGenerationSettings,{section:mode.value.slice(6)}):mode.value==='images'?h(ImageGenerationSettings):mode.value==='accounts'?h(AccountSettings):mode.value==='search'?h(SearchSettings,{config:draft.value,models:[],presets:[{id:'chatgpt',name:'ChatGPT',brand:'OpenAI'}],statuses:{chatgpt:{available:true}},statusesKnown:true,save:saveConfig,busy:false,dirty:false}):h(FetchSettings,{save:saveConfig})]));}}).use(createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]})).mount('#app');
 window.fixture={draft,mode};
 </script></body></html>`;
+const wav=Buffer.alloc(3244);wav.write('RIFF');wav.writeUInt32LE(3236,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(16000,24);wav.writeUInt32LE(32000,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(3200,40);
+let rangeRequests=0;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {
-  name: 'chat-regression', configureServer(server) { server.middlewares.use('/__accounts_regression', async (_, res) => {
+  name: 'chat-regression', configureServer(server) {
+    server.middlewares.use('/api', (req,res,next)=>{
+      if(req.url==='/sessions/fixture/media/audio/job/status') {res.setHeader('Content-Type','application/json');res.end(JSON.stringify({job_id:'job',kind:'music',provider:'mock',model:'fixture',status:'succeeded',artifacts:[{id:'a'.repeat(64),path:'/session/generated.wav',mime_type:'audio/wav',byte_count:wav.length}]}));return;}
+      if(req.url?.endsWith('/playback')) {res.setHeader('Content-Type','application/json');res.end(JSON.stringify({path:'/fixture-audio',expires_at:9999999999}));return;}
+      if(req.url==='/fixture-audio') {res.setHeader('Content-Type','audio/wav');res.setHeader('Accept-Ranges','bytes');if(req.headers.range){rangeRequests++;res.statusCode=206;res.setHeader('Content-Range',`bytes 0-${wav.length-1}/${wav.length}`);}res.setHeader('Content-Length',wav.length);res.end(wav);return;}
+      next();
+    });
+    server.middlewares.use('/__accounts_regression', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__accounts_regression', html));
   }); },
 }], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/settings/AccountSettings.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
@@ -97,6 +109,24 @@ try {
     assert.ok(await js('Object.values(fixture.draft.value.image_generation.providers).every(p=>p.credential_id && p.model==="flux-2-pro")'),'image service links account and model');
     await js('history.back()');
     await until('!document.querySelector(".image-editor")','close image editor');
+    for (const [section,preset] of [['video_generation','minimax_h3'],['audio_generation','elevenlabs_speech'],['audio_transcription','elevenlabs_asr']]) {
+      await js('fixture.mode.value='+JSON.stringify('media:'+section));
+      await until('!!document.querySelector(".media-settings .provider-add")','media settings');
+      await js('document.querySelector(".media-settings .provider-add").click()');
+      await until('!!document.querySelector("[data-choice-key='+preset+']")','media preset');
+      await js('document.querySelector("[data-choice-key='+preset+']").click()');
+      if(width>=900) await js('document.querySelector(".picker-dialog-actions .primary").click()');
+      await until('!!document.querySelector(".media-editor")','media editor');
+      assert.ok(await js('document.documentElement.scrollWidth<=innerWidth+1'),'media editor fits viewport');
+      await sleep(200);
+      await writeFile('/tmp/wish-'+section+'-'+width+'.png', Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
+      await js('document.querySelector(".media-editor .account-picker .btn").click()');
+      await until('!!document.querySelector(".account-form")','media account editor');
+      assert.ok(await js('Object.values(fixture.draft.value.accounts).some(a=>a.preset==='+JSON.stringify(section==='video_generation'?'minimax':'elevenlabs')+')'),'media account platform retained');
+      await js('history.back()');await until('!document.querySelector(".account-form")','close media account');
+      assert.ok(await js('Object.values(fixture.draft.value['+JSON.stringify(section)+'].providers).every(p=>p.credential_id)'),'media service account linked');
+      await js('history.back()');await until('!document.querySelector(".media-editor")','close media editor');
+    }
     await js('fixture.mode.value="fetch"');
     await until('!!document.querySelector(".fetch-list .provider-add")','fetch page');
     await js('document.querySelector(".fetch-list .provider-add").click()');
@@ -172,8 +202,16 @@ try {
   await until('!fixture.draft.value.accounts.shared','confirmed cascade');
   assert.ok(await js('!!fixture.draft.value.accounts.keep && !!fixture.draft.value.providers.keep'),'unrelated configuration retained');
   assert.equal(await js('fixture.draft.value.defaults.provider'),'','deleted default cleared');
+  await js('fixture.mode.value="player"');
+  await until('!!document.querySelector(".tool-media .btn")','media progress card');
+  await js('document.querySelector(".tool-media .btn").click()');
+  await until('!!document.querySelector(".tool-media audio")','native audio player');
+  await until('document.querySelector(".tool-media audio").readyState>=1','audio metadata loaded');
+  assert.ok(rangeRequests>0,'native player uses byte-range requests');
+  assert.equal(await js('document.querySelector(".tool-media audio").preload'),'metadata');
+  assert.ok(await js('document.documentElement.scrollWidth<=innerWidth+1'),'media result fits viewport');
   assert.deepEqual(exceptions,[],'no runtime exceptions');
-  console.log(JSON.stringify({ok:true,widths:[390,1100],checks:['image service and nested image account','search and reader account catalog','keyless services excluded','search account creation and editing','masked credentials','nested account creation','back dismisses top layer','no horizontal overflow','mouse and touch drag reorder','search overflow at 320/390/844px','two-stage account deletion and cancellation']}));
+  console.log(JSON.stringify({ok:true,widths:[390,1100],checks:['video/audio/ASR settings and account linking','native audio range playback','image service and nested image account','search and reader account catalog','keyless services excluded','search account creation and editing','masked credentials','nested account creation','back dismisses top layer','no horizontal overflow','mouse and touch drag reorder','search overflow at 320/390/844px','two-stage account deletion and cancellation']}));
 } finally {
   ws?.close();
   if(chrome&&chrome.exitCode===null){chrome.kill('SIGTERM');await Promise.race([new Promise(r=>chrome.once('exit',r)),sleep(2000)]);if(chrome.exitCode===null)chrome.kill('SIGKILL');}

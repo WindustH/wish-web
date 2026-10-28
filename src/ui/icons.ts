@@ -14,8 +14,13 @@ const BUBBLE =
   'M3 7.5A3.5 3.5 0 0 1 6.5 4h11A3.5 3.5 0 0 1 21 7.5v6a3.5 3.5 0 0 1-3.5 3.5H10.5L6 20.5V17h-.5A2.5 2.5 0 0 1 3 14.5Z';
 
 export const ICONS: Record<string, string> = {
+  video: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m10 8 6 4-6 4z"/>',
+  audio: '<path d="M4 10v4m4-7v10m4-13v16m4-13v10m4-7v4"/>',
+  mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>',
+
   instruction: `<path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8Z" ${SOFT}/><path d="M14 3v5h5M9 12h6M9 16h6"/>`,
   // Controls
+  'chevron-up': '<path d="m6.5 14.5 5.5-5.5 5.5 5.5"/>',
   'chevron-down': '<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>',
   'chevron-left': '<path d="m14.5 6-6 6 6 6"/>',
   'chevron-right': '<path d="m9.5 6 6 6-6 6"/>',

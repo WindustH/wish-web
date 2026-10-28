@@ -17,6 +17,7 @@ import McpSettings from './McpSettings.vue';
 import SkillsSettings from './SkillsSettings.vue';
 import AccountSettings from './AccountSettings.vue';
 import FetchSettings from './FetchSettings.vue';
+import MediaGenerationSettings from './MediaGenerationSettings.vue';
 import ImageGenerationSettings from './ImageGenerationSettings.vue';
 import SearchSettings from './SearchSettings.vue';
 import { useStatuses } from './useStatuses.ts';
@@ -265,6 +266,11 @@ onMounted(load);
                   :save="save"
                 />
                 <ImageGenerationSettings v-else-if="tab === 'image_generation'" />
+                <MediaGenerationSettings
+                  v-else-if="tab === 'video_generation' || tab === 'audio_generation' || tab === 'audio_transcription'"
+                  :key="tab"
+                  :section="tab"
+                />
                 <NetworkSettings v-else-if="tab === 'network'" /><ProviderSettings v-else :save="save" />
               </template>
               <div v-else-if="!busy" class="settings-empty">

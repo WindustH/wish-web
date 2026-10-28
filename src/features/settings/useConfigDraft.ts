@@ -11,6 +11,7 @@ import {
   searchPresets,
   fetchPresets,
   imagePresets,
+  mediaPresets,
   type FetchPreset,
   proxyEnvironment as readProxyEnvironment,
   shellCatalog,
@@ -46,6 +47,7 @@ export function useConfigDraft() {
   // Read with the configuration, so a search provider shows its name from the start.
   const searchCatalog = ref<SearchPreset[]>([]);
   const fetchCatalog = ref<FetchPreset[]>([]);
+  const mediaCatalog = ref<import('../../core/mediaGeneration.ts').MediaPreset[]>([]);
   const imageCatalog = ref<import('../../core/imageGeneration.ts').ImagePreset[]>([]);
   const proxyEnvironment = ref<{ name: string; value: string; redacted: boolean }[]>([]);
   const shells = ref<ShellCatalog | null>(null);
@@ -113,7 +115,7 @@ export function useConfigDraft() {
   async function load() {
     busy.value = true;
     try {
-      const [configuration, presets, searches, readers, environment, installed, images] = await Promise.all([
+      const [configuration, presets, searches, readers, environment, installed, images, media] = await Promise.all([
         configSnapshot(),
         providerPresets(),
         // Without them, search providers show by their ids; the rest of settings still loads.
@@ -123,11 +125,13 @@ export function useConfigDraft() {
         // Only the picker needs it; the shell stays editable as a path without it.
         shellCatalog().catch(() => null),
         imagePresets().catch(() => ({ presets: [] })),
+        mediaPresets().catch(() => ({ presets: [] })),
       ]);
       catalog.value = presets;
       searchCatalog.value = searches.presets;
       fetchCatalog.value = readers.presets;
       imageCatalog.value = images.presets;
+      mediaCatalog.value = media.presets;
       proxyEnvironment.value = environment.variables;
       shells.value = installed;
       accept(configuration);
@@ -292,6 +296,7 @@ export function useConfigDraft() {
     searchCatalog,
     fetchCatalog,
     imageCatalog,
+    mediaCatalog,
     proxyEnvironment,
     shells,
     adding,

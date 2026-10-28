@@ -11,7 +11,12 @@ export function accountRemovalPlan(config: any, accountId: string) {
   const images = Object.keys(config.image_generation?.providers ?? {}).filter(
     (id) => config.image_generation.providers[id].credential_id === accountId,
   );
-  return { models, searches, readers, images, resetsDefault: models.includes(config.defaults?.provider) };
+  const media = ['video_generation', 'audio_generation', 'audio_transcription'].flatMap((group) =>
+    Object.keys(config[group]?.providers ?? {})
+      .filter((id) => config[group].providers[id].credential_id === accountId)
+      .map((id) => ({ group, id })),
+  );
+  return { models, searches, readers, images, media, resetsDefault: models.includes(config.defaults?.provider) };
 }
 export function removeAccountAndServices(config: any, accountId: string) {
   const plan = accountRemovalPlan(config, accountId);
@@ -24,6 +29,10 @@ export function removeAccountAndServices(config: any, accountId: string) {
     if (!group) continue;
     for (const id of ids) delete group.providers[id];
     if (group.order) group.order = group.order.filter((id: string) => !ids.includes(id));
+  }
+  for (const { group, id } of plan.media) {
+    delete config[group].providers[id];
+    config[group].order = config[group].order.filter((key: string) => key !== id);
   }
   if (plan.resetsDefault) {
     config.defaults.provider = '';

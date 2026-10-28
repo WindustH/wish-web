@@ -18,7 +18,7 @@ export interface AccountPreset {
 export const searchAccountPreset = (id: string) => (id === 'jina' ? 'jina_reader' : id);
 
 export function useAccountCatalog() {
-  const { catalog, searchCatalog, fetchCatalog, imageCatalog } = inject(configDraftKey)!;
+  const { catalog, searchCatalog, fetchCatalog, imageCatalog, mediaCatalog } = inject(configDraftKey)!;
   return computed(() => {
     const entries = new Map<string, AccountPreset>();
     for (const p of [...catalog.value.presets].sort(
@@ -74,6 +74,27 @@ export function useAccountCatalog() {
           });
         else if (!existing.description.includes(tr('图片生成', 'Image generation')))
           existing.description += ` · ${tr('图片生成', 'Image generation')}`;
+      }
+    }
+    for (const p of mediaCatalog?.value ?? []) {
+      const label =
+        p.kind === 'video'
+          ? tr('视频生成', 'Video generation')
+          : p.kind === 'transcription'
+            ? tr('语音转写', 'Transcription')
+            : tr('音频生成', 'Audio generation');
+      for (const id of p.account_presets) {
+        if (id === 'custom') continue;
+        const existing = entries.get(id);
+        if (!existing)
+          entries.set(id, {
+            id,
+            name: p.brand === 'elevenlabs' ? 'ElevenLabs' : p.name,
+            brand: p.brand,
+            description: label,
+            fields: [],
+          });
+        else if (!existing.description.includes(label)) existing.description += ` · ${label}`;
       }
     }
     return [...entries.values()];

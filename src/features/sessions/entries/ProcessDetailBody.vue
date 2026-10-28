@@ -8,6 +8,7 @@ import { blobUrl } from '../../../core/api/endpoints.ts';
 import { fmtBytes } from '../../../core/util/fmt.ts';
 import { stepText, stepToolName, toolOutput, toolResult, fileEdits, searchResults } from './processDetails.ts';
 import FileDiff from './FileDiff.vue';
+import ToolMedia from './ToolMedia.vue';
 import ToolImage from './ToolImage.vue';
 import { tr } from '../../../core/i18n/tr.ts';
 const props = defineProps<{ step: any; relatedResult?: any; session?: string; diffOnly?: boolean }>();
@@ -154,6 +155,11 @@ const fieldName = (key: string) =>
         </section>
         <p v-if="output.process.error" class="tool-error">{{ output.process.error }}</p>
       </template>
+      <ToolMedia
+        v-else-if="['video_generate', 'audio_generate'].includes(name || '') && session && output?.job_id"
+        :session="session"
+        :output="output"
+      />
       <template v-else-if="generatedImages.length">
         <ToolImage
           v-for="image in generatedImages"

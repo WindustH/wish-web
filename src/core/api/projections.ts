@@ -44,6 +44,12 @@ export interface ToolSwitches {
   mcp: boolean;
   web_search: boolean;
   web_fetch?: boolean;
+  video_generate?: boolean;
+  video_generate_delivery?: ToolDelivery;
+  audio_generate?: boolean;
+  audio_generate_delivery?: ToolDelivery;
+  audio_transcribe?: boolean;
+  audio_transcribe_delivery?: ToolDelivery;
   image_generate?: boolean;
   image_generate_delivery?: ToolDelivery;
   skills: boolean;

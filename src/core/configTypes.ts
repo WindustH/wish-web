@@ -1,4 +1,5 @@
 // Editable server configuration, matching the serialized /config contract.
+import type { MediaService } from './mediaGeneration.ts';
 import type { ImageService } from './imageGeneration.ts';
 import type { ProviderConfig } from './provider-presets.ts';
 import type { ToolSwitches } from './api/projections.ts';
@@ -53,6 +54,9 @@ export interface SettingsConfig {
   search: { order: string[]; providers: Record<string, WebProviderConfig> };
   fetch: { order: string[]; providers: Record<string, WebProviderConfig> };
   image_generation?: { order: string[]; providers: Record<string, ImageService> };
+  video_generation?: { order: string[]; providers: Record<string, MediaService> };
+  audio_generation?: { order: string[]; providers: Record<string, MediaService> };
+  audio_transcription?: { order: string[]; providers: Record<string, MediaService> };
   skills: { dirs: string[]; disabled: string[] };
   usage: { stream_sample_limit: number | null };
   defaults: {

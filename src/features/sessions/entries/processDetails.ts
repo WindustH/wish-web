@@ -60,6 +60,9 @@ const TOOL_TITLES: Record<string, string> = {
   web_search: 'Web Search',
   web_fetch: 'Web Fetch',
   image_generate: 'Image Generate',
+  video_generate: 'Video Generate',
+  audio_generate: 'Audio Generate',
+  audio_transcribe: 'Audio Transcribe',
 };
 export const toolTitle = (name?: string) => (name ? (TOOL_TITLES[name] ?? name) : '');
 export function toolIcon(name?: string): string {
@@ -75,6 +78,9 @@ export function toolIcon(name?: string): string {
   if (name === 'history_query') return 'history-query';
   if (name === 'ask_user') return 'question';
   if (name === 'web_search') return 'web-search';
+  if (name === 'video_generate') return 'video';
+  if (name === 'audio_generate') return 'audio';
+  if (name === 'audio_transcribe') return 'mic';
   if (name === 'image_generate') return 'image';
   if (name === 'web_fetch') return 'web-reader';
   return 'tool';
@@ -136,7 +142,18 @@ export function summarizeSteps(steps: any[], zh: boolean): string {
     if (
       name.startsWith('shell') ||
       name.startsWith('history_') ||
-      ['image_generate', 'web_search', 'web_fetch', 'task', 'session', 'view_image', 'ask_user'].includes(name)
+      [
+        'image_generate',
+        'video_generate',
+        'audio_generate',
+        'audio_transcribe',
+        'web_search',
+        'web_fetch',
+        'task',
+        'session',
+        'view_image',
+        'ask_user',
+      ].includes(name)
     )
       continue;
     parts.push(zh ? `调用了 ${toolTitle(name)}` : `used ${toolTitle(name)}`);

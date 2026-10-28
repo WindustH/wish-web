@@ -686,3 +686,14 @@ export const sessionGenerationStructure = (
 
 export const imagePresets = (): Promise<{ presets: import('../imageGeneration.ts').ImagePreset[] }> =>
   get('/image-presets');
+
+export const mediaPresets = (): Promise<{ presets: import('../mediaGeneration.ts').MediaPreset[] }> =>
+  get('/media-presets');
+export const mediaJobStatus = (
+  session: string,
+  kind: 'video' | 'audio',
+  job: string,
+): Promise<import('../mediaGeneration.ts').MediaJob> =>
+  post(`${path(session)}/media/${kind}/${encodeURIComponent(job)}/status`, {}, { timeoutMs: 610_000 });
+export const mediaPlayback = (session: string, blob: string): Promise<{ path: string; expires_at: number }> =>
+  post(`${path(session)}/blobs/${encodeURIComponent(blob)}/playback`, {});

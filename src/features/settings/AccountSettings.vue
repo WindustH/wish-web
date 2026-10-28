@@ -45,6 +45,9 @@ function uses(id: string) {
       ['search', tr('搜索', 'Search')],
       ['fetch', tr('网页读取', 'Web fetch')],
       ['image_generation', tr('图片生成', 'Image generation')],
+      ['video_generation', tr('视频生成', 'Video generation')],
+      ['audio_generation', tr('音频生成', 'Audio generation')],
+      ['audio_transcription', tr('语音转写', 'Transcription')],
     ] as const
   ).flatMap(([group, label]) =>
     Object.entries<any>(group === 'providers' ? draft.value.providers : (draft.value[group!]?.providers ?? {}))
@@ -56,6 +59,7 @@ const removing = ref(''),
   removalStep = ref(1);
 const removalPlan = computed(() => accountRemovalPlan(draft.value, removing.value));
 const affected = computed(() => [
+  ...removalPlan.value.media.map(({ id }) => `${tr('媒体服务', 'Media service')} · ${id}`),
   ...removalPlan.value.models.map((id) => `${tr('模型', 'Model')} · ${draft.value.providers[id].display_name || id}`),
   ...removalPlan.value.searches.map((id) => `${tr('搜索', 'Search')} · ${id}`),
   ...removalPlan.value.images.map((id) => `${tr('图片生成', 'Image generation')} · ${id}`),
