@@ -19,21 +19,34 @@ export function useChatgptLogin(
   const message = ref('');
   const callbackUrl = ref('');
   const submitting = ref(false);
+  let alive = true;
+  let generation = 0;
   let poll: ReturnType<typeof setTimeout> | undefined;
   let popup: Window | null = null;
   onBeforeUnmount(() => {
+    alive = false;
+    generation++;
+    popup?.close();
     if (poll) clearTimeout(poll);
   });
   const failed = (error: unknown) => showError({ title: tr('ChatGPT 登录失败', 'ChatGPT sign-in failed'), error });
   const succeeded = () => {
+    if (!alive) return;
+    generation++;
+    if (poll) clearTimeout(poll);
+    popup?.close();
     busy.value = false;
     message.value = tr('ChatGPT 登录成功，凭据已保存。', 'ChatGPT sign-in succeeded. Credentials were saved.');
     onComplete();
   };
 
   async function watch() {
+    const attempt = generation;
+    const valid = () => alive && attempt === generation;
+    if (!valid()) return;
     try {
       const result = await chatgptLoginStatus(provider());
+      if (!valid()) return;
       if (result.status === 'complete') return succeeded();
       if (result.status === 'failed' || result.status === 'expired') {
         busy.value = false;
@@ -42,12 +55,16 @@ export function useChatgptLogin(
       }
       poll = setTimeout(watch, 1500);
     } catch (error) {
+      if (!valid()) return;
       busy.value = false;
       failed(error);
     }
   }
 
   async function start() {
+    if (!alive || busy.value) return;
+    const attempt = ++generation;
+    const valid = () => alive && attempt === generation;
     if (submitting.value) return;
     if (poll) clearTimeout(poll);
     popup?.close();
@@ -66,13 +83,22 @@ export function useChatgptLogin(
         busy.value = false;
         return;
       }
+      if (!valid()) {
+        opened?.close();
+        return;
+      }
       const result = await chatgptLoginStart(provider());
+      if (!valid()) {
+        opened?.close();
+        return;
+      }
       url.value = result.authorization_url;
       if (opened) opened.location.href = result.authorization_url;
       message.value = tr('请在打开的 ChatGPT 页面完成授权。', 'Complete authorization in the ChatGPT page.');
       poll = setTimeout(watch, 1500);
     } catch (error) {
       opened?.close();
+      if (!valid()) return;
       busy.value = false;
       failed(error);
     }
@@ -83,13 +109,14 @@ export function useChatgptLogin(
     submitting.value = true;
     try {
       await chatgptLoginComplete(provider(), callbackUrl.value.trim());
+      if (!alive) return;
       if (poll) clearTimeout(poll);
       callbackUrl.value = '';
       popup?.close();
       popup = null;
       succeeded();
     } catch (error) {
-      failed(error);
+      if (alive) failed(error);
     } finally {
       submitting.value = false;
     }

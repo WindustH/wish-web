@@ -31,6 +31,11 @@ type Compaction = { trigger_tokens: number; target_tokens: number; segment_token
 type Shell = { program: string; args: string[] | null };
 const compaction = ref<Compaction | null>(null);
 const tools = ref<ToolSwitches>({
+  image_generate: false,
+  video_generate: false,
+  audio_generate: false,
+  audio_transcribe: false,
+  history_search: false,
   shell: false,
   ask_user: false,
   mcp: false,
@@ -304,6 +309,7 @@ async function act(kind: 'compact' | 'clear') {
         <ToolExecutionRow v-model="execution" :disabled="running || busy" :note="running ? savedLater() : undefined" />
         <ToolBackgroundRow v-model="backgroundTools" :disabled="running || busy" />
         <ToolSwitchRows
+          v-if="snapshot"
           v-model="tools"
           :search-available="searchAvailable"
           :note="running ? savedLater() : undefined"

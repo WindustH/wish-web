@@ -15,6 +15,10 @@ import { showError } from '../../ui/errorDialog.ts';
 const { draft, imageCatalog } = inject(configDraftKey)!;
 const mobile = useIsMobile();
 const config = computed(() => (draft.value.image_generation ??= { order: [], providers: {} }));
+const ids = computed(() => [
+  ...config.value.order,
+  ...Object.keys(config.value.providers).filter((id) => !config.value.order.includes(id)),
+]);
 const adding = ref(false),
   editing = ref('');
 const current = computed(() => config.value.providers[editing.value]);
@@ -45,10 +49,11 @@ function add(id: string) {
   editing.value = key;
 }
 function remove(id: string) {
+  if (editing.value === id) editing.value = '';
   delete config.value.providers[id];
   config.value.order = config.value.order.filter((key) => key !== id);
 }
-function first(id: string) {
+function setPreferred(id: string) {
   config.value.order = [id, ...config.value.order.filter((key) => key !== id)];
 }
 function parameters(event: Event) {
@@ -76,7 +81,7 @@ function parameters(event: Event) {
     </p>
     <div class="image-services">
       <SettingsItemCard
-        v-for="(id, index) in config.order"
+        v-for="(id, index) in ids"
         :key="id"
         :title="spec(config.providers[id].preset)?.name || id"
         :summary="`${config.providers[id].model} · ${draft.accounts[config.providers[id].credential_id]?.name || tr('未关联账户', 'No account')}`"
@@ -87,7 +92,7 @@ function parameters(event: Event) {
       >
         <template #mark><ProviderIcon :brand="spec(config.providers[id].preset)?.brand" fallback="image" /></template>
         <template #actions
-          ><button v-if="index" class="btn sm ghost" @click.stop="first(id)">
+          ><button v-if="index" class="btn sm ghost" @click.stop="setPreferred(id)">
             {{ tr('设为首选', 'Use by default') }}
           </button></template
         >
@@ -126,6 +131,7 @@ function parameters(event: Event) {
           <div class="set-row stacked">
             <span class="set-label">{{ tr('账户', 'Account') }}</span
             ><AccountPicker
+              required
               v-model="current.credential_id"
               :allowed="spec(current.preset)?.account_presets"
               :preset="spec(current.preset)?.account_presets[0]"
@@ -173,9 +179,15 @@ function parameters(event: Event) {
           >{{ tr('服务文档', 'Service documentation') }}</a
         >
       </div>
-      <template #footer
-        ><button class="btn primary" @click="editing = ''">{{ tr('完成', 'Done') }}</button></template
-      >
+      <template #footer>
+        <button v-if="mobile && config.order[0] !== editing" class="btn ghost" @click="setPreferred(editing)">
+          {{ tr('设为首选', 'Use by default') }}
+        </button>
+        <button v-if="mobile" class="btn danger ghost" @click="remove(editing)">
+          {{ tr('删除服务', 'Delete service') }}
+        </button>
+        <button class="btn primary" @click="editing = ''">{{ tr('完成', 'Done') }}</button>
+      </template>
     </Modal>
   </section>
 </template>

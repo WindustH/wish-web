@@ -34,6 +34,20 @@ const mcpReason = (reason: string) => {
 };
 
 const zh: Rule[] = [
+  [/^(?:media|image) service requires an account$/, () => '请先为此服务关联账户。'],
+  [/^invalid (?:image|media) provider order$/, () => '服务优先顺序无效，请检查重复或已删除的服务。'],
+  [/^provider belongs to a different media category$/, () => '此供应商不支持当前媒体类别。'],
+  [/^invalid media model ID$/, () => '模型 ID 不能为空，且不能超过 200 个字符。'],
+  [/^unsupported ASR model$/, () => '不支持此语音转写模型。'],
+  [/^account type is incompatible with this media provider$/, () => '账户类型与此媒体供应商不匹配。'],
+  [/^ASR defaults are specified per tool call$/, () => '语音转写参数应在调用工具时指定。'],
+  [/^image count must be between 1 and 8$/, () => '图片数量必须在 1 到 8 之间。'],
+  [/^image parameter (.+) is managed by Wish$/, (name) => `参数 ${name} 由 Wish 管理，不能覆盖。`],
+  [
+    /^ChatGPT subscription credentials cannot be used as an image API key$/,
+    () => 'ChatGPT 订阅凭据不能作为图片 API 密钥使用。',
+  ],
+
   [/^Attachment is unavailable.*$/, () => '附件无法读取，可能已被清理，请重新添加。'],
   [/^Attachment exceeds size limit.*$/, () => '附件超过大小限制，请选择较小的文件。'],
   [/^Too many attachments.*$/, () => '附件数量超过限制，请移除部分附件。'],

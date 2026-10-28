@@ -17,8 +17,8 @@ export const sections = computed(() => [
     label: tr('账户', 'Accounts'),
     summary: tr('凭据与订阅登录', 'Credentials and sign-in'),
     description: tr(
-      '模型、搜索与网页读取服务共同使用的账户。',
-      'Accounts shared by model, search and web fetch services.',
+      '模型、搜索、网页读取、媒体生成与语音转写服务使用的账户。',
+      'Accounts for models, search, web fetch, media generation and transcription.',
     ),
   },
   {

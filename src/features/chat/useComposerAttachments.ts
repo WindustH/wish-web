@@ -6,7 +6,7 @@ import { ref, watch, onBeforeUnmount, type Ref } from 'vue';
 import {
   attachmentDraftsFor,
   hasImagePreview,
-  saveAttachmentDrafts,
+  saveAttachmentDrafts as storeAttachmentDrafts,
   type AttachmentInput,
   type PickedAttachment,
 } from '../../core/attachments.ts';
@@ -42,6 +42,9 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
       if (i?.localUrl) URL.revokeObjectURL(i.localUrl);
     }
   };
+
+  const saveAttachmentDrafts = (id: string, items: readonly Attachment[]) =>
+    storeAttachmentDrafts(id, items, revokeAll);
 
   function hasAttachmentSpace(kind: 'image' | 'file') {
     const isImage = kind === 'image';

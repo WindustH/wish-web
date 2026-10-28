@@ -1,4 +1,5 @@
 import { computed, readonly, ref } from 'vue';
+import { bus } from '../../../core/bus.ts';
 import { providerConfigs } from '../../../core/api/endpoints.ts';
 import { providerTitles } from './providerPresentation.ts';
 import { readCached, writeCached } from '../../../core/util/responseCache.ts';
@@ -14,7 +15,10 @@ let pending: Promise<void> | undefined;
 /** Whether provider names can be shown yet; until then, what shows one keeps its place empty. */
 export const providerTitlesRead = readonly(read);
 
+let loadedAt = 0;
+let revision = 0;
 function load() {
+  if (Date.now() - loadedAt < 30_000) return;
   // Names from the last launch cover the wait; the fresh list replaces them.
   if (!Object.keys(known.value).length)
     void readCached<typeof known.value>('provider-titles').then((cached) => {
@@ -23,21 +27,26 @@ function load() {
         read.value = true;
       }
     });
-  pending ??= providerConfigs()
+  if (pending) return;
+  const requestedRevision = revision;
+  pending = providerConfigs()
     .then(({ providers }: { providers: { id: string; display_name?: string | null; preset: string }[] }) => {
+      if (requestedRevision !== revision) return;
       const titles = Object.fromEntries(
         providers.map((p) => [p.id, { display_name: p.display_name ?? null, preset: p.preset }]),
       );
+      loadedAt = Date.now();
       known.value = titles;
       providerTitlesError.value = null;
       writeCached('provider-titles', titles);
     })
     .catch((error) => {
-      providerTitlesError.value = error;
+      if (requestedRevision === revision) providerTitlesError.value = error;
     })
     .finally(() => {
       pending = undefined;
       read.value = true;
+      if (requestedRevision !== revision) load();
     });
 }
 
@@ -52,3 +61,10 @@ export function useProviderTitles() {
   load();
   return (id: string) => titles.value.get(id) ?? (read.value ? id : '');
 }
+
+// One application-lifetime subscriber, shared by all consumers.
+bus.on('configuration.changed', () => {
+  revision++;
+  loadedAt = 0;
+  load();
+});

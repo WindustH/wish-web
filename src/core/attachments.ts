@@ -55,7 +55,11 @@ const attachmentDrafts = new Map<string, AttachmentInput[]>();
 export function attachmentDraftsFor<T extends AttachmentInput = AttachmentInput>(sessionId: string): T[] {
   return (attachmentDrafts.get(sessionId) ?? []) as T[];
 }
-export function saveAttachmentDrafts<T extends AttachmentInput>(sessionId: string, attachments: readonly T[]) {
+export function saveAttachmentDrafts<T extends AttachmentInput>(
+  sessionId: string,
+  attachments: readonly T[],
+  releaseEvicted?: (items: T[]) => void,
+) {
   if (attachments.length) {
     attachmentDrafts.set(sessionId, [...attachments]);
     // In-memory only, but unbounded sessions would still grow it; evict the
@@ -63,6 +67,7 @@ export function saveAttachmentDrafts<T extends AttachmentInput>(sessionId: strin
     while (attachmentDrafts.size > 32) {
       const oldest = attachmentDrafts.keys().next().value;
       if (oldest === undefined || oldest === sessionId) break;
+      releaseEvicted?.(attachmentDrafts.get(oldest) as T[]);
       attachmentDrafts.delete(oldest);
     }
   } else attachmentDrafts.delete(sessionId);

@@ -120,6 +120,7 @@ const measureComposer = (composer: Element | null) => {
 onMounted(() => measureComposer(paneEl.value?.querySelector('.composer') ?? null));
 watch(isMobile, () => measureComposer(paneEl.value?.querySelector('.composer') ?? null));
 onBeforeUnmount(() => {
+  if (chat.sessionId.value === id.value) chat.close();
   composerObserver?.disconnect();
   composerObserver = null;
 });

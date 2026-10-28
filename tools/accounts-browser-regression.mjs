@@ -27,7 +27,7 @@ const draft=ref({accounts:{shared:{name:'Shared account',preset:'deepseek',api_k
 const catalog=ref({presets:[{id:'deepseek',provider:'DeepSeek',required_credentials:[],optional_credentials:[]}]});
 const searchCatalog=ref([{id:'tavily',name:'Tavily',brand:'Tavily',key:'required'},{id:'jina',name:'Jina',brand:'Jina',key:'required'},{id:'tavily_keyless',name:'Tavily Free',key:'none'}]);
 const imageCatalog=ref([{id:'bfl_images',name:'Black Forest Labs',brand:'BFL',protocol:'bfl',base_url:'https://api.bfl.ai/v1',path:'/{model}',model:'flux-2-pro',account_presets:['bfl'],parameters:{},docs_url:'https://docs.bfl.ai'}]);
-const mediaCatalog=ref(${JSON.stringify(JSON.parse(await readFile('../wish-core/resources/media-presets.json','utf8')))});
+const mediaCatalog=ref(${JSON.stringify(JSON.parse(await readFile(new URL('./fixtures/media-presets.json', import.meta.url),'utf8')))});
 const mode=ref('accounts');const saveConfig=async()=>true;
 const fetchCatalog=ref([{id:'deepseek_fetch',name:'DeepSeek',key:'required',base_url:'https://api.deepseek.com'},{id:'zai_reader',name:'Z.AI',key:'required'},{id:'jina_reader',name:'Jina Reader',key:'optional'},{id:'codex_fetch',name:'ChatGPT / Codex',key:'required'}]);
 createApp({setup(){provide(configDraftKey,{draft,catalog,searchCatalog,fetchCatalog,imageCatalog,mediaCatalog,saveConfig,load:async()=>{}});return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;width:min(800px,100vw);margin:auto'},[h('h1','Settings fixture'),mode.value==='player'?h(ToolMedia,{session:'fixture',output:{job_id:'job',kind:'music',provider:'mock',model:'fixture',status:'running',artifacts:[]}}):mode.value.startsWith('media:')?h(MediaGenerationSettings,{section:mode.value.slice(6)}):mode.value==='images'?h(ImageGenerationSettings):mode.value==='accounts'?h(AccountSettings):mode.value==='search'?h(SearchSettings,{config:draft.value,models:[],presets:[{id:'chatgpt',name:'ChatGPT',brand:'OpenAI'}],statuses:{chatgpt:{available:true}},statusesKnown:true,save:saveConfig,busy:false,dirty:false}):h(FetchSettings,{save:saveConfig})]));}}).use(createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]})).mount('#app');
@@ -125,7 +125,18 @@ try {
       assert.ok(await js('Object.values(fixture.draft.value.accounts).some(a=>a.preset==='+JSON.stringify(section==='video_generation'?'minimax':'elevenlabs')+')'),'media account platform retained');
       await js('history.back()');await until('!document.querySelector(".account-form")','close media account');
       assert.ok(await js('Object.values(fixture.draft.value['+JSON.stringify(section)+'].providers).every(p=>p.credential_id)'),'media service account linked');
-      await js('history.back()');await until('!document.querySelector(".media-editor")','close media editor');
+      assert.equal(await js('Array.from(document.querySelectorAll(".account-picker button")).some(b=>/解除关联|Unlink account/.test(b.getAttribute("aria-label")||""))'),false,'required media account cannot be unlinked');
+      if(width<900) {
+        await js('(()=>{const c=fixture.draft.value['+JSON.stringify(section)+'];const id=c.order.at(-1);c.providers["priority-other"]=structuredClone(JSON.parse(JSON.stringify(c.providers[id])));c.order.push("priority-other");})()');
+        await sleep(50);
+        await js('Array.from(document.querySelectorAll(".media-order button")).find(b=>/下移|Move down/.test(b.textContent)).click()');
+        assert.equal(await js('fixture.draft.value['+JSON.stringify(section)+'].order.at(-2)'), 'priority-other','mobile move changes priority');
+        await js('Array.from(document.querySelectorAll("button")).find(b=>/^(删除服务|Delete service)$/.test(b.textContent.trim())).click()');
+        await until('!document.querySelector(".media-editor")','mobile delete closes editor');
+        assert.equal(await js('Object.keys(fixture.draft.value['+JSON.stringify(section)+'].providers).length'),1,'mobile service deleted');
+      } else {
+        await js('history.back()');await until('!document.querySelector(".media-editor")','close media editor');
+      }
     }
     await js('fixture.mode.value="fetch"');
     await until('!!document.querySelector(".fetch-list .provider-add")','fetch page');

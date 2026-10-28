@@ -69,11 +69,12 @@ function add(id: string) {
   editing.value = key;
 }
 function remove(id: string) {
+  if (editing.value === id) editing.value = '';
   delete config.value.providers[id];
   config.value.order = config.value.order.filter((key) => key !== id);
 }
 function move(id: string, direction: number) {
-  const order = [...config.value.order],
+  const order = [...ids.value],
     index = order.indexOf(id);
   if (index < 0) {
     order.push(id);
@@ -84,7 +85,7 @@ function move(id: string, direction: number) {
   }
   config.value.order = order;
 }
-function duration(event: Event) {
+function applyDurationInput(event: Event) {
   if (current.value) {
     const value = (event.target as HTMLInputElement).value;
     current.value.parameters.duration = value === '' ? null : Number(value);
@@ -171,6 +172,7 @@ function duration(event: Event) {
           <div class="set-row stacked">
             <span class="set-label">{{ tr('账户', 'Account') }}</span
             ><AccountPicker
+              required
               v-model="current.credential_id"
               :allowed="currentSpec?.account_presets"
               :preset="currentSpec?.account_presets[0]"
@@ -200,7 +202,7 @@ function duration(event: Event) {
               class="input"
               type="number"
               :value="current.parameters.duration"
-              @input="duration"
+              @input="applyDurationInput"
               :placeholder="tr('使用服务默认值', 'Service default')"
           /></label>
           <template v-if="currentSpec?.kind === 'video'">
@@ -228,6 +230,14 @@ function duration(event: Event) {
             :name="tr('纯音乐', 'Instrumental')"
           />
         </div>
+        <div v-if="mobile" class="media-order">
+          <button class="btn sm" :disabled="ids.indexOf(editing) === 0" @click="move(editing, -1)">
+            {{ tr('上移', 'Move up') }}
+          </button>
+          <button class="btn sm" :disabled="ids.indexOf(editing) === ids.length - 1" @click="move(editing, 1)">
+            {{ tr('下移', 'Move down') }}
+          </button>
+        </div>
         <p class="hint">
           {{ tr('服务 ID', 'Service ID') }}: <code>{{ editing }}</code>
         </p>
@@ -235,9 +245,12 @@ function duration(event: Event) {
           tr('服务文档', 'Service documentation')
         }}</a>
       </div>
-      <template #footer
-        ><button class="btn primary" @click="editing = ''">{{ tr('完成', 'Done') }}</button></template
-      >
+      <template #footer>
+        <button v-if="mobile" class="btn danger ghost" @click="remove(editing)">
+          {{ tr('删除服务', 'Delete service') }}
+        </button>
+        <button class="btn primary" @click="editing = ''">{{ tr('完成', 'Done') }}</button>
+      </template>
     </Modal>
   </section>
 </template>

@@ -258,20 +258,22 @@ export function useChatScroll(options: UseChatScrollOptions) {
       const progressed = nextOldest != null && (oldest == null || nextOldest < oldest);
       pausedFill = added && progressed ? null : { session: sessionId.value, oldest: nextOldest };
       // Tool-only pages collapse to a zero-height chips host. Keep reading until there
-      // is something to scroll or the history ends, even beyond the ordinary prefetch cap.
+      // is something to scroll, up to a bounded burst; another user gesture may resume.
       // A non-advancing page or failure must stop rather than spin on the same cursor.
       if (
         added &&
         progressed &&
         chat.hasMoreBefore.value &&
         !scrollbarHeld.value &&
-        (unfilled || (nearTop.value && chained < 12))
+        chained < 12 &&
+        (unfilled || nearTop.value)
       ) {
         chained++;
         queueMicrotask(() => {
           if (owns(gen) && pageActive.value) void loadOlderAnchored();
         });
       } else {
+        if (chained >= 12) pausedFill = { session: sessionId.value, oldest: nextOldest };
         chained = 0;
       }
     } finally {

@@ -2,13 +2,23 @@
 // Everything a step's detail says of itself, under its heading: the command, the fields, what
 // came back - output, images, search hits, history records - the edits it made, and its raw
 // text. Shared by the detail's two homes: a window of its own, or a panel inside a run's window.
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import Markdown from '../../../ui/components/Markdown.vue';
 import { blobUrl } from '../../../core/api/endpoints.ts';
 import { fmtBytes } from '../../../core/util/fmt.ts';
 import { stepText, stepToolName, toolOutput, toolResult, fileEdits, searchResults } from './processDetails.ts';
 import FileDiff from './FileDiff.vue';
 import ToolMedia from './ToolMedia.vue';
+import ToolTranscript from './ToolTranscript.vue';
+const rawOpen = ref(false);
+const safeSearchUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : undefined;
+  } catch {
+    return undefined;
+  }
+};
 import ToolImage from './ToolImage.vue';
 import { tr } from '../../../core/i18n/tr.ts';
 const props = defineProps<{ step: any; relatedResult?: any; session?: string; diffOnly?: boolean }>();
@@ -160,6 +170,11 @@ const fieldName = (key: string) =>
         :session="session"
         :output="output"
       />
+      <ToolTranscript
+        v-else-if="name === 'audio_transcribe' && session && typeof output?.text === 'string'"
+        :session="session"
+        :output="output"
+      />
       <template v-else-if="generatedImages.length">
         <ToolImage
           v-for="image in generatedImages"
@@ -191,7 +206,7 @@ const fieldName = (key: string) =>
         </p>
         <ol class="search-hits">
           <li v-for="(hit, index) in searchFound.results" :key="index">
-            <a :href="hit.url" target="_blank" rel="noreferrer">{{ hit.title || hit.url }}</a
+            <a :href="safeSearchUrl(hit.url)" target="_blank" rel="noreferrer">{{ hit.title || hit.url }}</a
             ><small>{{ [hit.site || hostOf(hit.url), hit.published].filter(Boolean).join(' · ') }}</small>
             <p v-if="hit.snippet">{{ hit.snippet }}</p>
           </li>
@@ -215,9 +230,13 @@ const fieldName = (key: string) =>
     </template>
     <p v-else class="detail-muted">{{ tr('还没有结果。', 'No result yet.') }}</p>
   </template>
-  <details v-if="!isReasoning && !diffOnly" class="raw-tool">
+  <details
+    v-if="!isReasoning && !diffOnly"
+    class="raw-tool"
+    @toggle="rawOpen = ($event.target as HTMLDetailsElement).open"
+  >
     <summary>{{ tr('原始数据', 'Raw data') }}</summary>
-    <pre>{{ fullText }}</pre>
+    <pre v-if="rawOpen">{{ fullText }}</pre>
   </details>
 </template>
 

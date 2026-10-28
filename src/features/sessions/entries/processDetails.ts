@@ -137,6 +137,13 @@ export function summarizeSteps(steps: any[], zh: boolean): string {
     parts.push(zh ? '查阅了会话历史' : 'looked through the history');
   const images = count('view_image');
   if (images) parts.push(zh ? `查看了 ${images} 张图片` : `viewed ${plural(images, 'image')}`);
+  for (const name of ['image_generate', 'video_generate', 'audio_generate', 'audio_transcribe']) {
+    const n = count(name);
+    if (n)
+      parts.push(
+        zh ? `调用了 ${n} 次 ${toolTitle(name)}` : `used ${toolTitle(name)} ${n} ${n === 1 ? 'time' : 'times'}`,
+      );
+  }
   if (count('ask_user')) parts.push(zh ? '向你提问' : 'asked you');
   for (const name of calls.keys()) {
     if (

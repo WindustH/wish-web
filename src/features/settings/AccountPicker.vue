@@ -15,6 +15,7 @@ const props = defineProps<{
   preset?: string;
   creationPreset?: string;
   allowed?: string[];
+  required?: boolean;
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>();
 const { draft } = inject(configDraftKey)!;
@@ -30,7 +31,7 @@ const options = computed(() =>
   ),
 );
 onMounted(() => {
-  if (!props.modelValue && (props.allowed || props.preset)) {
+  if (props.modelValue === '' && props.required && (props.allowed || props.preset)) {
     const id = defaultAccount(draft.value.accounts ?? {}, props.allowed ?? (props.preset ? [props.preset] : undefined));
     if (id) emit('update:modelValue', id);
   }
@@ -62,7 +63,7 @@ function add() {
     ><Hint v-if="modelValue" :text="tr('编辑账户', 'Edit account')"
       ><button class="btn ghost icon-only" :aria-label="tr('编辑账户', 'Edit account')" @click="editing = modelValue!">
         <Icon name="pencil" /></button></Hint
-    ><Hint v-if="modelValue" :text="tr('解除关联', 'Unlink account')"
+    ><Hint v-if="modelValue && !required" :text="tr('解除关联', 'Unlink account')"
       ><button
         class="btn ghost icon-only"
         :aria-label="tr('解除关联', 'Unlink account')"

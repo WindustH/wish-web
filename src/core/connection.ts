@@ -139,11 +139,7 @@ export async function signOut() {
   const store = storage();
   store?.remove(CONNECTION);
   store?.set(SIGNED_OUT, '1');
-  try {
-    localStorage.removeItem('wish.providerGate.ready');
-  } catch {
-    /* storage unavailable */
-  }
+  store?.remove('wish.providerGate.ready');
   await clearCached();
   location.replace(location.pathname + location.search);
 }

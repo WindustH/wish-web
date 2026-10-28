@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { apiFetch } from '../../../core/api/client.ts';
+import { apiFetch, needsAccessToken } from '../../../core/api/client.ts';
 import { tr } from '../../../core/i18n/tr.ts';
 const props = defineProps<{ src: string; mime: string; path: string }>();
 const url = ref(''),
@@ -20,6 +20,10 @@ watch(
     error.value = false;
     size.value = '';
     zoom.value = false;
+    if (!needsAccessToken(src)) {
+      url.value = src;
+      return;
+    }
     try {
       const response = await apiFetch(src, { signal: controller.signal });
       if (!response.ok) throw new Error(String(response.status));
