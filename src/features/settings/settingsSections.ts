@@ -15,7 +15,7 @@ export const sections = computed(() => [
     id: 'accounts',
     icon: 'key',
     label: tr('账户', 'Accounts'),
-    summary: tr('共享凭据与订阅登录', 'Shared credentials and sign-in'),
+    summary: tr('凭据与订阅登录', 'Credentials and sign-in'),
     description: tr(
       '模型、搜索与网页读取服务共同使用的账户。',
       'Accounts shared by model, search and web fetch services.',

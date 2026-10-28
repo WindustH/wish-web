@@ -132,7 +132,7 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:2});
   await js(`fixture.router.push('/sessions/all')`);
-  await sleep(100);
+  await until('document.querySelector(".content-pane").inert','list opening has settled before range selection');
   const point=async id=>js(`(()=>{const r=document.querySelector('[data-session-id="${id}"] .sl-row').getBoundingClientRect();return {x:r.left+60,y:r.top+r.height/2}})()`);
   const touch=async(type,position)=>send('Input.dispatchTouchEvent',{type,touchPoints:position?[{...position,id:1,radiusX:2,radiusY:2}]:[]});
   await js(`document.querySelector('[data-session-id="s1"] .sl-row').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}))`);

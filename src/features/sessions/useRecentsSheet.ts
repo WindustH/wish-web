@@ -1,5 +1,5 @@
 import { onBeforeUnmount, watch, type Ref } from 'vue';
-import { useRoute, useRouter, type Router } from 'vue-router';
+import { useRouter, type Router } from 'vue-router';
 import { animate, motionValue, type AnimationPlaybackControls, type MotionValue } from 'motion-v';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { noteSwallowedClick, noteTouchAction } from '../../ui/domain/diagnostics/scrollStalls.ts';
@@ -60,12 +60,14 @@ function settleAt(value: MotionValue<number>, to: number, done: () => void): { s
 }
 
 export function useRecentsSheet(split: Ref<HTMLElement | null>) {
-  const route = useRoute();
   const router = useRouter();
+  // This page can be cached with a frozen injected route. Animation ownership follows
+  // the actual router, including navigation away while a spring is still running.
+  const route = router.currentRoute;
   const phone = useIsMobile();
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
-  const progress = motionValue(restOf(route.name) ?? 0); // 0 closed, 1 open
+  const progress = motionValue(restOf(route.value.name) ?? 0); // 0 closed, 1 open
   const stretch = motionValue(0);
   let settling: { stop: () => void } | undefined;
   let target: 0 | 1 = progress.get() ? 1 : 0;
@@ -74,6 +76,8 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   let stretching: { stop: () => void } | undefined;
   type Drag = { kind: 'open' | 'close' | 'hold'; mode?: 'sheet' | 'stretch'; x: number; y: number; from: number };
   let drag: Drag | undefined;
+  let navigating = false;
+  let pendingNavigation: object | undefined;
 
   const sheet = () => split.value?.querySelector<HTMLElement>(':scope > #session-list') ?? null;
   const home = () => split.value?.querySelector<HTMLElement>(':scope > .content-pane') ?? null;
@@ -87,7 +91,7 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
 
   // The two whole views crossfade; the full list also makes a small upward move.
   function paint() {
-    if (!phone.value || restOf(route.name) === undefined) return;
+    if (!phone.value || restOf(route.value.name) === undefined) return;
     const pane = sheet(),
       page = home();
     if (!pane || !page) return;
@@ -110,24 +114,30 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   }
 
   // Once at rest, the route follows where the sheet came to rest.
-  function arrive() {
+  function arrive(commit: boolean) {
     settling = undefined;
     paint();
-    const rest = restOf(route.name);
+    if (!commit || navigating || restOf(route.value.name) === undefined) return;
+    const rest = restOf(route.value.name);
     if (progress.get() === 1 && rest !== 1) void router.push('/sessions/all');
     else if (progress.get() === 0 && rest !== 0) goHome(router);
   }
 
-  function settle(to: 0 | 1) {
+  function settle(to: 0 | 1, commit = false) {
     target = to;
     settling?.stop();
     if (reduced.matches || progress.get() === to) {
       settling = undefined;
       progress.jump(to);
-      arrive();
+      arrive(commit);
       return;
     }
-    settling = settleAt(progress, to, arrive);
+    // Install ownership before starting: even a synchronous completion must clear it.
+    const owner = { stop: () => {} };
+    settling = owner;
+    owner.stop = settleAt(progress, to, () => {
+      if (settling === owner) arrive(commit);
+    }).stop;
     paint();
   }
 
@@ -136,9 +146,10 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
     // Whatever the last touch was, this one is new; only its own drag may keep its click.
     quietUntil = 0;
     const touch = event.touches[0];
-    if (!phone.value || event.touches.length !== 1 || !touch) return;
+    if (navigating || !phone.value || restOf(route.value.name) === undefined || event.touches.length !== 1 || !touch)
+      return;
     const at = event.target as Element;
-    const name = route.name;
+    const name = route.value.name;
     let kind: Drag['kind'] | undefined;
     if (moving()) kind = 'hold';
     else if (name === 'sessions' && !progress.get() && at.closest('.recent-sessions')) kind = 'open';
@@ -160,7 +171,11 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   function onTouchMove(event: TouchEvent) {
     // Inner regions get the movement first and may consume their own gesture.
     if (event.defaultPrevented) {
+      const interrupted = drag;
       drag = undefined;
+      // A child selecting rows/text can take over after we caught the spring.
+      // Release ownership and finish the visual transition instead of stranding it.
+      if (interrupted && moving()) settle(restOf(route.value.name) ?? target);
       return;
     }
     const touch = event.touches[0];
@@ -228,8 +243,20 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
     else if (ended.kind === 'open') to = value > 1 / 3 ? 1 : 0;
     else if (ended.kind === 'close') to = value < 2 / 3 ? 0 : 1;
     else to = value >= 0.5 ? 1 : 0;
-    noteTouchAction('recents sheet', () => !moving() && progress.get() === to && restOf(route.name) === to);
-    settle(to);
+    noteTouchAction('recents sheet', () => !moving() && progress.get() === to && restOf(route.value.name) === to);
+    settle(to, true);
+  }
+
+  // Inner regions may stop the terminal event as well as movement. Capture only
+  // schedules cleanup; their handlers still get to finish before ownership is released.
+  function onTouchFinished() {
+    const owned = drag;
+    setTimeout(() => {
+      if (!owned || drag !== owned || navigating) return;
+      drag = undefined;
+      if (owned.mode === 'stretch') stretch.jump(0);
+      else if (moving()) settle(restOf(route.value.name) ?? target);
+    }, 0);
   }
 
   function onClick(event: MouseEvent) {
@@ -246,12 +273,16 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
       if (!element) return;
       element.addEventListener('touchstart', onTouchStart, { passive: true });
       element.addEventListener('touchmove', onTouchMove, { passive: false });
+      element.addEventListener('touchend', onTouchFinished, true);
+      element.addEventListener('touchcancel', onTouchFinished, true);
       element.addEventListener('touchend', onTouchEnd);
       element.addEventListener('touchcancel', onTouchEnd);
       element.addEventListener('click', onClick, true);
       cleanup(() => {
         element.removeEventListener('touchstart', onTouchStart);
         element.removeEventListener('touchmove', onTouchMove);
+        element.removeEventListener('touchend', onTouchFinished, true);
+        element.removeEventListener('touchcancel', onTouchFinished, true);
         element.removeEventListener('touchend', onTouchEnd);
         element.removeEventListener('touchcancel', onTouchEnd);
         element.removeEventListener('click', onClick, true);
@@ -260,42 +291,53 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
     { immediate: true },
   );
 
-  // Routes move the sheet too: along its path between the two, straight to its place otherwise.
-  watch(
-    [() => route.name, phone, split],
-    ([name, mobile], [previous]) => {
-      const rest = restOf(name);
-      if (!mobile || rest === undefined) {
-        clear();
-        progress.jump(rest ?? 0);
-        target = rest ?? 0;
-        return;
-      }
-      if (drag?.mode === 'sheet' || (settling && target === rest)) return;
-      if (!settling && progress.get() === rest) {
-        paint();
-        return;
-      }
-      if (restOf(previous) === undefined || !sheet()) {
-        settling?.stop();
-        settling = undefined;
-        progress.jump(rest);
-        paint();
-        return;
-      }
-      if (!moving()) {
-        if (!progress.get()) {
-          const list = sheet()?.querySelector<HTMLElement>('.sl-scroll');
-          if (list) list.scrollTop = 0;
-        }
-        measure();
-      }
-      settle(rest);
-    },
-    { immediate: true, flush: 'post' },
-  );
+  function followRoute() {
+    if (navigating) return;
+    const rest = restOf(route.value.name);
+    if (!phone.value || rest === undefined) {
+      clear();
+      progress.jump(rest ?? 0);
+      target = rest ?? 0;
+      return;
+    }
+    if (drag?.mode === 'sheet') return;
+    if (!settling && progress.get() === rest) {
+      paint();
+      return;
+    }
+    if (!moving()) measure();
+    // Route changes only animate; they never initiate another navigation on completion.
+    settle(rest);
+  }
+  const stopBeforeNavigation = router.beforeEach((to) => {
+    pendingNavigation = to;
+    navigating = true;
+    settling?.stop();
+    settling = undefined;
+    stretching?.stop();
+    stretching = undefined;
+    stretch.jump(0);
+    drag = undefined;
+    quietUntil = 0;
+  });
+  const stopAfterNavigation = router.afterEach((to) => {
+    if (pendingNavigation && pendingNavigation !== to) return;
+    pendingNavigation = undefined;
+    navigating = false;
+    followRoute();
+  });
+  const stopNavigationError = router.onError((_error, to) => {
+    if (pendingNavigation && pendingNavigation !== to) return;
+    pendingNavigation = undefined;
+    navigating = false;
+    followRoute();
+  });
+  watch([() => route.value.name, phone, split], followRoute, { immediate: true, flush: 'post' });
 
   onBeforeUnmount(() => {
+    stopBeforeNavigation();
+    stopAfterNavigation();
+    stopNavigationError();
     clear();
     progress.destroy();
     stretch.destroy();

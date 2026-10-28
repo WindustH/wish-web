@@ -16,7 +16,8 @@ const Shell = {
   setup() {
     const split = ref(null), route = useRoute();
     useRecentsSheet(split);
-    window.fixture = { go: path => router.push(path), route };
+    window.fixture = { go: path => router.push(path), route, delayChat: false };
+    router.beforeResolve(async to => { if(to.name==='chat' && window.fixture.delayChat) await new Promise(resolve=>setTimeout(resolve,500)); });
     const rows = (count, recent = false) => Array.from({ length: count }, (_, index) =>
       h('a', { class: 'row', href: '#', onClick: event => {
         event.preventDefault(); window.clicked = index;
@@ -84,6 +85,33 @@ try {
   await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:120,y:90}]});
   await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await sleep(400);
   assert.equal(await js('window.clicked'),0,'a list row still answers taps');
+  // An inner region can take over after a finger catches an opening animation.
+  for (const stopped of [false,true]) {
+    await js("fixture.go('/sessions')");await sleep(700);
+    await js("fixture.go('/sessions/all')");await sleep(60);
+    await js(`{
+      const list=document.querySelector('.sl-scroll');
+      const point=new Touch({identifier:91,target:list,clientX:120,clientY:300});
+      list.dispatchEvent(new TouchEvent('touchstart',{bubbles:true,touches:[point],changedTouches:[point]}));
+      list.addEventListener('touchmove',event=>{event.preventDefault();if(${stopped})event.stopPropagation()},{once:true,passive:false});
+      if(${stopped})list.addEventListener('touchend',event=>event.stopPropagation(),{once:true});
+      const moved=new Touch({identifier:91,target:list,clientX:120,clientY:250});
+      list.dispatchEvent(new TouchEvent('touchmove',{bubbles:true,cancelable:true,touches:[moved],changedTouches:[moved]}));
+      list.dispatchEvent(new TouchEvent('touchend',{bubbles:true,touches:[],changedTouches:[moved]}));
+    }`);
+    await sleep(750);
+    assert.equal(await js("document.querySelector('.content-pane').inert"),true,'child takeover must not strand the opening spring');
+    await swipe(500,180);
+    assert.ok(await js("document.querySelector('.sl-scroll').scrollTop>100"),'native scroll works after child takeover');
+  }
+  // A slow route load cannot be cancelled by the departing sheet animation.
+  await js("fixture.go('/sessions')");await sleep(700);
+  await js("fixture.go('/sessions/all')");await sleep(40);
+  await js("fixture.delayChat=true;window.navigation=fixture.go('/chat')");
+  await sleep(800);
+  assert.equal((await state()).route,'chat','animation must not override navigation to a conversation');
+  await js("fixture.delayChat=false;fixture.go('/sessions/all')");await sleep(750);
+  await js("document.querySelector('.sl-scroll').scrollTop=0;window.stalls.value=[]");
   // Deliberately strand a gesture: successful actions alone should be excluded, never all drags.
   await js(`const list=document.querySelector('.sl-scroll');list.addEventListener('touchmove',event=>{event.preventDefault();event.stopPropagation()},{passive:false});list.addEventListener('touchend',()=>window.noteTouchAction('unfinished test action',()=>false));`);
   await sleep(2100);await swipe(500,180);
@@ -98,7 +126,7 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:1280,height:800,deviceScaleFactor:1,mobile:false});await sleep(100);
   assert.equal(await js("document.querySelectorAll('[inert]').length"),0,'desktop clears mobile inert state');
   assert.deepEqual(exceptions,[],'no runtime exceptions');
-  console.log(JSON.stringify({ok:true,checks:['sheet navigation','native scrolling','interrupted transition','route return and taps','no false stall','blocked scroll still captured','build and cancellation evidence','desktop cleanup']}));
+  console.log(JSON.stringify({ok:true,checks:['sheet navigation','native scrolling','interrupted transition','route return and taps','child takeover releases sheet','slow conversation navigation retains ownership','no false stall','blocked scroll still captured','build and cancellation evidence','desktop cleanup']}));
 
 } finally {
   ws?.close();
