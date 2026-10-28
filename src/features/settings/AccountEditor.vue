@@ -9,19 +9,19 @@ import { configDraftKey } from './useConfigDraft.ts';
 import { useChatgptLogin } from '../providers/useChatgptLogin.ts';
 import { useCopilotLogin } from '../providers/useCopilotLogin.ts';
 import { secretText, readSecret, writeCredential } from '../../core/secretRef.ts';
-import { providerName, presetDescription } from '../../ui/domain/providers/providerPresentation.ts';
+import { useAccountCatalog } from './useAccountCatalog.ts';
 import { tr } from '../../core/i18n/tr.ts';
 const props = defineProps<{ id: string; allowRemove?: boolean; linked?: boolean }>();
 const emit = defineEmits<{ close: []; remove: [] }>();
-const { draft, catalog, saveConfig, load } = inject(configDraftKey)!;
+const { draft, saveConfig, load } = inject(configDraftKey)!;
 const mobile = useIsMobile();
+const accountCatalog = useAccountCatalog();
 const account = computed(() => draft.value.accounts[props.id]);
 const login = reactive(useChatgptLogin(() => `account:${props.id}`, saveConfig, load));
 const copilot = reactive(useCopilotLogin(() => `account:${props.id}`, saveConfig, load));
 const fields = computed(() => [
   ...new Set([
-    ...(catalog.value.presets.find((p) => p.id === account.value.preset)?.required_credentials ?? []),
-    ...(catalog.value.presets.find((p) => p.id === account.value.preset)?.optional_credentials ?? []),
+    ...(accountCatalog.value.find((p) => p.id === account.value.preset)?.fields ?? []),
     ...Object.keys(account.value.credentials ?? {}),
     ...Object.keys(account.value.credentials_env ?? {}),
   ]),
@@ -57,12 +57,14 @@ function field(name: string, text: string) {
             @update:model-value="account.preset = $event"
             :options="[
               { value: 'custom', label: tr('自定义 API Key', 'Custom API key') },
-              ...(account.preset === 'jina_reader' ? [{ value: 'jina_reader', label: 'Jina Reader' }] : []),
-              ...catalog.presets.map((p) => ({
+              ...(account.preset && account.preset !== 'custom' && !accountCatalog.some((p) => p.id === account.preset)
+                ? [{ value: account.preset, label: account.preset }]
+                : []),
+              ...accountCatalog.map((p) => ({
                 value: p.id,
-                label: providerName(p.provider),
-                brand: p.provider,
-                annotation: presetDescription(p),
+                label: p.name,
+                brand: p.brand,
+                annotation: p.description,
               })),
             ]"
         /></label>
@@ -123,8 +125,8 @@ function field(name: string, text: string) {
       <p class="hint">
         {{
           tr(
-            '此账户由关联服务共享。更换凭据会应用到所有关联服务。',
-            'Linked services share this account. Credential changes apply to all linked services.',
+            '更换凭据会应用到此账户关联的所有服务。',
+            'Credential changes apply to all services linked to this account.',
           )
         }}
       </p>

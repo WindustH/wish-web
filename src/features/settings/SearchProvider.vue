@@ -5,6 +5,7 @@ import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
 import AccountPicker from './AccountPicker.vue';
+import { searchAccountPreset } from './useAccountCatalog.ts';
 import ProviderIcon from '../../ui/domain/providers/ProviderIcon.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { searchCheck, type SearchPreset, type SearchProviderStatus } from '../../core/api/endpoints.ts';
@@ -155,8 +156,9 @@ async function check() {
             <span class="set-label">{{ tr('账户', 'Account') }}</span
             ><AccountPicker
               v-model="value.credential_id"
-              :allowed="preset?.borrows_from"
+              :allowed="preset?.borrows_from?.length ? preset.borrows_from : undefined"
               :preset="preset?.borrows_from?.[0]"
+              :creation-preset="preset?.borrows_from?.[0] || searchAccountPreset(value.preset)"
             />
           </div>
           <label class="set-row"

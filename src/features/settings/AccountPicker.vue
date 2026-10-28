@@ -8,14 +8,25 @@ import { configDraftKey } from './useConfigDraft.ts';
 import { presetBrand } from '../../ui/domain/providers/providerPresentation.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
 import { compatibleAccounts, defaultAccount } from './accountCompatibility.ts';
+import { useAccountCatalog } from './useAccountCatalog.ts';
 import { tr } from '../../core/i18n/tr.ts';
-const props = defineProps<{ modelValue?: string | null; preset?: string; allowed?: string[] }>();
+const props = defineProps<{
+  modelValue?: string | null;
+  preset?: string;
+  creationPreset?: string;
+  allowed?: string[];
+}>();
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>();
 const { draft } = inject(configDraftKey)!;
 const editing = ref('');
+const accountCatalog = useAccountCatalog();
 const options = computed(() =>
   compatibleAccounts(draft.value.accounts ?? {}, props.allowed ?? (props.preset ? [props.preset] : undefined)).map(
-    ([id, a]) => ({ value: id, label: a.name || id, brand: presetBrand(a.preset || '') }),
+    ([id, a]) => ({
+      value: id,
+      label: a.name || id,
+      brand: accountCatalog.value.find((p) => p.id === a.preset)?.brand || presetBrand(a.preset || ''),
+    }),
   ),
 );
 onMounted(() => {
@@ -26,10 +37,11 @@ onMounted(() => {
 });
 function add() {
   draft.value.accounts ??= {};
-  const id = uniqueId(props.preset || 'account', (id) => id in draft.value.accounts);
+  const preset = props.creationPreset || props.preset;
+  const id = uniqueId(preset || 'account', (id) => id in draft.value.accounts);
   draft.value.accounts[id] = {
-    name: props.preset || tr('新账户', 'New account'),
-    preset: props.preset || 'custom',
+    name: accountCatalog.value.find((p) => p.id === preset)?.name || preset || tr('新账户', 'New account'),
+    preset: preset || 'custom',
     credentials: {},
     credentials_env: {},
     proxy_enabled: true,

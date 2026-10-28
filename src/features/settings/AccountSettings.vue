@@ -3,23 +3,33 @@ import { computed, inject, ref } from 'vue';
 import Modal from '../../ui/components/Modal.vue';
 import { accountRemovalPlan, removeAccountAndServices } from './accountRemoval.ts';
 import AccountEditor from './AccountEditor.vue';
-import AddProvider from './AddProvider.vue';
+import PickerDialog from '../../ui/domain/providers/PickerDialog.vue';
+import { useAccountCatalog, type AccountPreset } from './useAccountCatalog.ts';
 import SettingsItemCard from './SettingsItemCard.vue';
 import ProviderIcon from '../../ui/domain/providers/ProviderIcon.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { configDraftKey } from './useConfigDraft.ts';
-import type { ProviderPreset } from '../../core/provider-presets.ts';
-import { presetBrand, providerName } from '../../ui/domain/providers/providerPresentation.ts';
+import { presetBrand } from '../../ui/domain/providers/providerPresentation.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
 import { tr } from '../../core/i18n/tr.ts';
-const { draft, catalog, busy } = inject(configDraftKey)!;
+const { draft, busy } = inject(configDraftKey)!;
+const accountCatalog = useAccountCatalog();
+const accountChoices = computed(() =>
+  accountCatalog.value.map((p) => ({
+    key: p.id,
+    title: p.name,
+    brand: p.brand,
+    description: p.description,
+    search: p.id,
+  })),
+);
 const editing = ref(''),
   adding = ref(false);
-function add(preset?: ProviderPreset) {
+function add(preset?: AccountPreset) {
   draft.value.accounts ??= {};
   const id = uniqueId(preset?.id || 'account', (id) => id in draft.value.accounts);
   draft.value.accounts[id] = {
-    name: preset ? providerName(preset.provider) : tr('新账户', 'New account'),
+    name: preset ? preset.name : tr('新账户', 'New account'),
     preset: preset?.id || 'custom',
     credentials: {},
     credentials_env: {},
@@ -78,20 +88,28 @@ function confirmRemoval() {
         @open="editing = String(id)"
         @remove="remove(String(id))"
       >
-        <template #mark><ProviderIcon :brand="presetBrand(account.preset || '')" fallback="key" /></template>
+        <template #mark
+          ><ProviderIcon
+            :brand="accountCatalog.find((p) => p.id === account.preset)?.brand || presetBrand(account.preset || '')"
+            fallback="key"
+        /></template>
       </SettingsItemCard>
       <button type="button" class="provider-add" @click="adding = true">
         <span class="provider-add-icon"><Icon name="plus" /></span><span>{{ tr('添加账户', 'Add account') }}</span>
       </button>
     </div>
-    <AddProvider
+    <PickerDialog
       v-if="adding"
-      :catalog="catalog"
+      :items="accountChoices"
       :title="tr('添加账户', 'Add account')"
-      :custom-label="tr('自定义账户', 'Custom account')"
+      :placeholder="tr('搜索账户平台…', 'Search account platforms…')"
       @close="adding = false"
-      @select="add"
-    />
+      @choose="add(accountCatalog.find((p) => p.id === $event))"
+    >
+      <template #footer-start
+        ><button class="btn ghost" @click="add()">{{ tr('自定义账户', 'Custom account') }}</button></template
+      >
+    </PickerDialog>
     <AccountEditor
       v-if="editing"
       :id="editing"

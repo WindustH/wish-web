@@ -22,9 +22,10 @@ import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/style
 registerBrowserPlatform({ namespace: 'wish-webui', version: 1 });setBackLayers(createBackLayers(window));
 const draft=ref({accounts:{shared:{name:'Shared account',preset:'deepseek',api_key:'<redacted>',credentials:{},credentials_env:{},proxy_enabled:true}},providers:{model:{credential_id:'shared'}},search:{providers:{}},fetch:{order:[],providers:{}}});
 const catalog=ref({presets:[{id:'deepseek',provider:'DeepSeek',required_credentials:[],optional_credentials:[]}]});
+const searchCatalog=ref([{id:'tavily',name:'Tavily',brand:'Tavily',key:'required'},{id:'jina',name:'Jina',brand:'Jina',key:'required'},{id:'tavily_keyless',name:'Tavily Free',key:'none'}]);
 const mode=ref('accounts');const saveConfig=async()=>true;
 const fetchCatalog=ref([{id:'deepseek_fetch',name:'DeepSeek',key:'required',base_url:'https://api.deepseek.com'},{id:'zai_reader',name:'Z.AI',key:'required'},{id:'jina_reader',name:'Jina Reader',key:'optional'},{id:'codex_fetch',name:'ChatGPT / Codex',key:'required'}]);
-createApp({setup(){provide(configDraftKey,{draft,catalog,fetchCatalog,saveConfig,load:async()=>{}});return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;width:min(800px,100vw);margin:auto'},[h('h1','Settings fixture'),mode.value==='accounts'?h(AccountSettings):mode.value==='search'?h(SearchSettings,{config:draft.value,models:[],presets:[{id:'chatgpt',name:'ChatGPT',brand:'OpenAI'}],statuses:{chatgpt:{available:true}},statusesKnown:true,save:saveConfig,busy:false,dirty:false}):h(FetchSettings,{save:saveConfig})]));}}).use(createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]})).mount('#app');
+createApp({setup(){provide(configDraftKey,{draft,catalog,searchCatalog,fetchCatalog,saveConfig,load:async()=>{}});return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;width:min(800px,100vw);margin:auto'},[h('h1','Settings fixture'),mode.value==='accounts'?h(AccountSettings):mode.value==='search'?h(SearchSettings,{config:draft.value,models:[],presets:[{id:'chatgpt',name:'ChatGPT',brand:'OpenAI'}],statuses:{chatgpt:{available:true}},statusesKnown:true,save:saveConfig,busy:false,dirty:false}):h(FetchSettings,{save:saveConfig})]));}}).use(createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]})).mount('#app');
 window.fixture={draft,mode};
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {
@@ -54,6 +55,16 @@ try {
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/__accounts_regression`});
   await until('!!window.fixture && !!document.querySelector(".provider-add")','accounts mount');
+  await js('document.querySelector(".provider-add").click()');
+  await until('!!document.querySelector("[data-choice-key=tavily]")','search account offered');
+  assert.ok(await js('!!document.querySelector("[data-choice-key=jina_reader]")'),'reader account offered');
+  assert.equal(await js('!!document.querySelector("[data-choice-key=tavily_keyless]")'),false,'keyless service is not an account');
+  await js('document.querySelector("[data-choice-key=tavily]").click()');
+  await until('!!document.querySelector(".account-form")','search account editor');
+  assert.equal(await js('fixture.draft.value.accounts.tavily.preset'),'tavily','search account retains platform');
+  assert.ok(await js('document.querySelector(".account-form .control-select").textContent.includes("Tavily")'),'editor recognizes search platform');
+  await js('history.back()');
+  await until('!document.querySelector(".account-form")','close search account editor');
   for(const width of [390,1100]) {
     await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<700});
     await js('fixture.mode.value="accounts"');
@@ -144,7 +155,7 @@ try {
   assert.ok(await js('!!fixture.draft.value.accounts.keep && !!fixture.draft.value.providers.keep'),'unrelated configuration retained');
   assert.equal(await js('fixture.draft.value.defaults.provider'),'','deleted default cleared');
   assert.deepEqual(exceptions,[],'no runtime exceptions');
-  console.log(JSON.stringify({ok:true,widths:[390,1100],checks:['masked credentials','nested account creation','back dismisses top layer','no horizontal overflow','mouse and touch drag reorder','search overflow at 320/390/844px','two-stage account deletion and cancellation']}));
+  console.log(JSON.stringify({ok:true,widths:[390,1100],checks:['search and reader account catalog','keyless services excluded','search account creation and editing','masked credentials','nested account creation','back dismisses top layer','no horizontal overflow','mouse and touch drag reorder','search overflow at 320/390/844px','two-stage account deletion and cancellation']}));
 } finally {
   ws?.close();
   if(chrome&&chrome.exitCode===null){chrome.kill('SIGTERM');await Promise.race([new Promise(r=>chrome.once('exit',r)),sleep(2000)]);if(chrome.exitCode===null)chrome.kill('SIGKILL');}
