@@ -44,6 +44,11 @@ import bocha from '@lobehub/icons-static-svg/icons/bocha.svg?url';
 import jina from '@lobehub/icons-static-svg/icons/jina.svg?url';
 import perplexity from '@lobehub/icons-static-svg/icons/perplexity.svg?url';
 import searxng from '@lobehub/icons-static-svg/icons/searxng.svg?url';
+import elevenlabs from '@lobehub/icons-static-svg/icons/elevenlabs.svg?url';
+import bfl from '@lobehub/icons-static-svg/icons/bfl.svg?url';
+import fal from '@lobehub/icons-static-svg/icons/fal.svg?url';
+import replicate from '@lobehub/icons-static-svg/icons/replicate.svg?url';
+import stability from '@lobehub/icons-static-svg/icons/stability.svg?url';
 
 const props = defineProps<{ brand?: string; fallback?: string }>();
 const icons: Record<string, string> = {
@@ -94,8 +99,18 @@ const icons: Record<string, string> = {
   Jina: jina,
   Perplexity: perplexity,
   SearXNG: searxng,
+  ElevenLabs: elevenlabs,
+  BFL: bfl,
+  'Black Forest Labs': bfl,
+  fal,
+  'fal.ai': fal,
+  Replicate: replicate,
+  Stability: stability,
+  'Stability AI': stability,
 };
-const source = computed(() => (props.brand ? icons[props.brand] : undefined));
+// Preset catalogs may use either a brand ID or its display-name capitalization.
+const normalizedIcons = new Map(Object.entries(icons).map(([brand, icon]) => [brand.toLowerCase(), icon]));
+const source = computed(() => normalizedIcons.get(props.brand?.trim().toLowerCase() ?? ''));
 const maskImage = computed(() => `url("${source.value}")`);
 </script>
 
