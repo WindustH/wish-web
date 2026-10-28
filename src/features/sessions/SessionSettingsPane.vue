@@ -6,7 +6,8 @@ import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import * as api from '../../core/api/endpoints.ts';
 import { chat } from '../../core/state/chatSlice.ts';
 import { tr } from '../../core/i18n/tr.ts';
-import Modal from '../../ui/domain/chat/SessionPanelModal.vue';
+import SessionPanelModal from '../../ui/domain/chat/SessionPanelModal.vue';
+import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { showError } from '../../ui/errorDialog.ts';
@@ -221,7 +222,7 @@ async function act(kind: 'compact' | 'clear') {
 </script>
 
 <template>
-  <Modal
+  <SessionPanelModal
     :open="true"
     :back-layer="!isMobile"
     content-class="session-window session-settings-window"
@@ -376,7 +377,7 @@ async function act(kind: 'compact' | 'clear') {
         <Icon :name="busy ? 'loader-circle' : 'save'" :class="{ spin: busy }" />{{ tr('保存', 'Save') }}
       </button>
     </template>
-  </Modal>
+  </SessionPanelModal>
   <Modal
     compact
     :open="confirmClear"

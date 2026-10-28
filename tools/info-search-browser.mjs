@@ -11,6 +11,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import {createApp,h,ref} from 'vue';import {TooltipProvider} from 'reka-ui';
 import {createRouter,createMemoryHistory} from 'vue-router';
+import SessionSettingsPane from '/src/features/sessions/SessionSettingsPane.vue';
 import InfoPane from '/src/features/sessions/InfoPane.vue';
 import {chat} from '/src/core/state/chatSlice.ts';
 import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
@@ -21,6 +22,10 @@ const rawFetch=window.fetch;
 window.fetch=async(input,options)=>{
  const url=String(input);const response=value=>new Response(JSON.stringify(value),{headers:{'content-type':'application/json'}});
  if(url.includes('/history/search'))return response({items:[{record:{sequence:42,recorded_at:0},message_type:'user',snippet:'matched history message'}],has_more:false});
+ if(url.endsWith('/defaults'))return response({session_config:{},defaults:{}});
+ if(url.endsWith('/config'))return response({config:{shell:{program:'',args:null}}});
+ if(url.endsWith('/shells'))return response({default:{program:'/bin/sh',args:[]},shells:[]});
+ if(url.endsWith('/search/providers'))return response({available:false,providers:[]});
  if(url.endsWith('/groups'))return response([]);
  if(url.endsWith('/providers'))return response({providers:[]});
  if(url.endsWith('/usage'))return response({statistics:{totals:{tokens:{}},model_attempts:0}});
@@ -29,9 +34,9 @@ window.fetch=async(input,options)=>{
 };
 chat.sessionId.value='fixture';chat.snapshot.value={id:'fixture',name:'Information test',phase:'idle',config:{}};
 let located=null;chat.locate=async(sid,seq)=>{located={sid,seq};return true;};
-const initial=ref('overview'),open=ref(true);
-window.fixture={open,initial,get located(){return located;}};
-createApp({render:()=>h(TooltipProvider,null,{default:()=>open.value?h(InfoPane,{initialSection:initial.value,onClose:()=>open.value=false}):null})}).use(router).mount('#app');
+const initial=ref('overview'),open=ref(true),settings=ref(false);
+window.fixture={open,initial,settings,get located(){return located;}};
+createApp({render:()=>h(TooltipProvider,null,{default:()=>open.value?h(settings.value?SessionSettingsPane:InfoPane,{initialSection:initial.value,onClose:()=>open.value=false}):null})}).use(router).mount('#app');
 </script></body></html>`;
 const server = await createServer({ configFile: false, define:{__BUILD_ID__:JSON.stringify('info-search-test')}, root: process.cwd(), plugins: [vue(), {name:'pwa-fixture',resolveId(id){if(id==='virtual:pwa-register')return id;},load(id){if(id==='virtual:pwa-register')return 'export const registerSW=()=>()=>{}';}}, {
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__info_search', async (_, res) => {
@@ -77,8 +82,24 @@ try {
   assert.equal(await js('document.querySelectorAll("[role=dialog]").length'),1);
   await js(`Array.from(document.querySelectorAll('.info-sections button')).find(button=>button.textContent.includes('概览')).click()`);
   await until('!!document.querySelector(".info-hero")','mobile can return to overview within information');
+  await js('fixture.open.value=false');await sleep(300);
+  for(const width of [1200,390]){
+    await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<900});
+    await js('fixture.settings.value=true;fixture.open.value=true');
+    await until('!!document.querySelector(".session-settings-window")','session settings mounted');
+    await js(`Array.from(document.querySelectorAll('.session-settings-window button')).find(button=>button.textContent.trim()==='清空').click()`);
+    await until('document.querySelectorAll("[role=dialog]").length===2','clear confirmation opens above settings');
+    await sleep(350);
+    const box=await js(`(()=>{const el=Array.from(document.querySelectorAll('[role=dialog]')).find(el=>el.textContent.includes('清空当前上下文？'));const r=el.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,anchored:el.classList.contains('anchored-modal'),overlay:document.querySelectorAll('.modal-overlay').length}})()`);
+    assert.equal(box.anchored,false,'confirmation must not inherit panel positioning');
+    assert.ok(Math.abs(box.x-width/2)<2 && Math.abs(box.y-422)<2,'confirmation centered in viewport');
+    assert.ok(box.overlay>0,'confirmation has modal overlay');
+    await js(`Array.from(document.querySelectorAll('[role=dialog]')).find(el=>el.textContent.includes('清空当前上下文？')).querySelector('.modal-actions button').click()`);
+    await until('document.querySelectorAll("[role=dialog]").length===1','cancel closes only confirmation');
+    await js('fixture.open.value=false');await sleep(350);
+  }
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['one information surface','embedded search results','result location and close','desktop focus','mobile direct search and overview']}));
+  console.log(JSON.stringify({ok:true,checks:['one information surface','embedded search results','result location and close','desktop focus','mobile direct search and overview','desktop/mobile confirmation centering and cancellation']}));
 
 } finally {
   ws?.close();

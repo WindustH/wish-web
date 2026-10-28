@@ -11,7 +11,8 @@ import { tr } from '../../core/i18n/tr.ts';
 import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 import { fmtDateTime } from '../../core/util/fmt.ts';
 import Icon from '../../ui/components/Icon.vue';
-import Modal from '../../ui/domain/chat/SessionPanelModal.vue';
+import SessionPanelModal from '../../ui/domain/chat/SessionPanelModal.vue';
+import Modal from '../../ui/components/Modal.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import SessionPicker from './SessionPicker.vue';
 
@@ -57,7 +58,7 @@ async function setMembers(members: string[]) {
 </script>
 
 <template>
-  <Modal
+  <SessionPanelModal
     :open="true"
     content-class="session-window"
     :title="tr('群组信息', 'Group info')"
@@ -161,7 +162,7 @@ async function setMembers(members: string[]) {
         </button>
       </template>
     </Modal>
-  </Modal>
+  </SessionPanelModal>
 </template>
 
 <style scoped>
