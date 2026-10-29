@@ -71,7 +71,10 @@ defineExpose({ close });
   >
     <DialogPortal v-if="pageActive">
       <DialogOverlay class="modal-overlay" :style="{ zIndex: layer }" />
+      <!-- The fixed overlay owns pointer isolation. Avoid a document-wide pointer lock:
+           cached routes can outlive a picker and must remain independently interactive. -->
       <DialogContent
+        :disable-outside-pointer-events="false"
         @animationend="finished"
         class="command-panel"
         :style="{ zIndex: layer + 1 }"
