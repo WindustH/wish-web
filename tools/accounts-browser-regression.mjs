@@ -112,7 +112,7 @@ try {
     assert.ok(await js('Object.values(fixture.draft.value.image_generation.providers).every(p=>p.credential_id && p.model==="flux-2-pro")'),'image service links account and model');
     await js('history.back()');
     await until('!document.querySelector(".image-editor")','close image editor');
-    for (const [section,preset] of [['video_generation','runway_video'],['audio_generation','siliconflow_speech'],['audio_transcription','groq_asr']]) {
+    for (const [section,preset] of [['video_generation','seedance_video'],['audio_generation','siliconflow_speech'],['audio_transcription','groq_asr']]) {
       await js('fixture.mode.value='+JSON.stringify('media:'+section));
       await until('!!document.querySelector(".media-settings .provider-add")','media settings');
       await js('document.querySelector(".media-settings .provider-add").click()');
@@ -122,15 +122,15 @@ try {
       await until('!!document.querySelector(".media-editor")','media editor');
       assert.ok(await js('document.documentElement.scrollWidth<=innerWidth+1'),'media editor fits viewport');
       if(section==='video_generation') {
-        assert.equal(await js('Array.from(document.querySelectorAll(".media-editor select option")).some(o=>o.textContent==="2K")'),false,'Runway does not show MiniMax resolutions');
-        assert.ok(await js('Array.from(document.querySelectorAll(".media-editor select option")).some(o=>o.textContent==="720p")'),'Runway 720p available');
+        assert.equal(await js('Array.from(document.querySelectorAll(".media-editor select option")).some(o=>o.textContent==="2K")'),false,'Seedance does not show MiniMax resolutions');
+        assert.ok(await js('Array.from(document.querySelectorAll(".media-editor select option")).some(o=>o.textContent==="720p")'),'Seedance 720p available');
       }
       if(section==='audio_generation') assert.ok(await js('Object.values(fixture.draft.value.audio_generation.providers).some(p=>p.parameters.voice==="FunAudioLLM/CosyVoice2-0.5B:alex")'),'speech voice default applied');
       await sleep(200);
       await writeFile('/tmp/wish-'+section+'-'+width+'.png', Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
       await js('document.querySelector(".media-editor .account-picker .btn").click()');
       await until('!!document.querySelector(".account-form")','media account editor');
-      assert.ok(await js('Object.values(fixture.draft.value.accounts).some(a=>a.preset==='+JSON.stringify(section==='video_generation'?'runway':section==='audio_generation'?'siliconflow_cn':'groq')+')'),'media account platform retained');
+      assert.ok(await js('Object.values(fixture.draft.value.accounts).some(a=>a.preset==='+JSON.stringify(section==='video_generation'?'volcengine_cn':section==='audio_generation'?'siliconflow_cn':'groq')+')'),'media account platform retained');
       await js('history.back()');await until('!document.querySelector(".account-form")','close media account');
       assert.ok(await js('Object.values(fixture.draft.value['+JSON.stringify(section)+'].providers).every(p=>p.credential_id)'),'media service account linked');
       assert.equal(await js('Array.from(document.querySelectorAll(".account-picker button")).some(b=>/解除关联|Unlink account/.test(b.getAttribute("aria-label")||""))'),false,'required media account cannot be unlinked');
