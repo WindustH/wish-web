@@ -60,7 +60,7 @@ function add(id: string) {
     model: preset.model,
     enabled: true,
     proxy_enabled: true,
-    parameters: {},
+    parameters: { ...preset.defaults },
   };
   config.value.order.push(key);
   adding.value = false;
@@ -139,8 +139,8 @@ function applyDurationInput(event: Event) {
       {{
         props.section === 'audio_transcription'
           ? tr(
-              '在「工具」中启用 Audio Transcribe。当前文件上限为 32 MiB，支持语言提示与说话人区分。',
-              'Enable Audio Transcribe under Tools. Files up to 32 MiB are supported, with language hints and speaker attribution.',
+              '在「工具」中启用 Audio Transcribe。文件上限最高为 32 MiB，部分服务限 25 MB；语言提示和说话人区分取决于服务。',
+              'Enable Audio Transcribe under Tools. Files up to 32 MiB are supported (25 MB for some services); language hints and speaker attribution depend on the service.',
             )
           : tr(
               '在「工具」中启用对应生成工具。生成请求中断后不会自动重发或切换服务。',
@@ -207,17 +207,17 @@ function applyDurationInput(event: Event) {
             <label class="set-row stacked"
               ><span class="set-label">{{ tr('画幅', 'Aspect ratio') }}</span
               ><select class="input" v-model="current.parameters.aspect_ratio">
-                <option :value="null">16:9 ({{ tr('默认', 'default') }})</option>
-                <option v-for="ratio in ['21:9', '16:9', '4:3', '1:1', '3:4', '9:16']" :key="ratio">{{ ratio }}</option>
+                <option :value="null">{{ tr('使用服务默认值', 'Service default') }}</option>
+                <option v-for="ratio in currentSpec?.aspect_ratios ?? []" :key="ratio">{{ ratio }}</option>
               </select></label
             >
             <label class="set-row stacked"
               ><span class="set-label">{{ tr('分辨率', 'Resolution') }}</span
               ><select class="input" v-model="current.parameters.resolution">
-                <option :value="null">768P ({{ tr('默认', 'default') }})</option>
-                <option>480P</option>
-                <option>768P</option>
-                <option>2K</option></select
+                <option :value="null">{{ tr('使用服务默认值', 'Service default') }}</option>
+                <option v-for="resolution in currentSpec?.resolutions ?? []" :key="resolution">
+                  {{ resolution }}
+                </option></select
               ><small>{{ tr('可选分辨率取决于模型。', 'Supported resolutions depend on the model.') }}</small></label
             >
           </template>

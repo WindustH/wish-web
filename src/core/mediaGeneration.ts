@@ -25,6 +25,9 @@ export interface MediaPreset {
   base_url: string;
   account_presets: string[];
   docs_url: string;
+  defaults?: MediaOptions;
+  resolutions?: string[];
+  aspect_ratios?: string[];
 }
 export interface MediaArtifact {
   id: string;

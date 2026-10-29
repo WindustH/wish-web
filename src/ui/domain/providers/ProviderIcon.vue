@@ -44,6 +44,8 @@ import bocha from '@lobehub/icons-static-svg/icons/bocha.svg?url';
 import jina from '@lobehub/icons-static-svg/icons/jina.svg?url';
 import perplexity from '@lobehub/icons-static-svg/icons/perplexity.svg?url';
 import searxng from '@lobehub/icons-static-svg/icons/searxng.svg?url';
+import runway from '@lobehub/icons-static-svg/icons/runway.svg?url';
+import luma from '@lobehub/icons-static-svg/icons/luma.svg?url';
 import elevenlabs from '@lobehub/icons-static-svg/icons/elevenlabs.svg?url';
 import bfl from '@lobehub/icons-static-svg/icons/bfl.svg?url';
 import fal from '@lobehub/icons-static-svg/icons/fal.svg?url';
@@ -100,6 +102,8 @@ const icons: Record<string, string> = {
   Perplexity: perplexity,
   SearXNG: searxng,
   ElevenLabs: elevenlabs,
+  Runway: runway,
+  Luma: luma,
   BFL: bfl,
   'Black Forest Labs': bfl,
   fal,

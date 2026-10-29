@@ -89,7 +89,7 @@ export function useAccountCatalog() {
         if (!existing)
           entries.set(id, {
             id,
-            name: p.brand === 'elevenlabs' ? 'ElevenLabs' : p.name,
+            name: providerName(p.brand),
             brand: p.brand,
             description: label,
             fields: [],
