@@ -86,7 +86,9 @@ function field(name: string, text: string) {
       </div>
       <div class="set-card">
         <label class="set-row stacked"
-          ><span class="set-label">API Key / Access token</span
+          ><span class="set-label">{{
+            account.preset === 'novelai' ? 'Persistent API Token' : 'API Key / Access token'
+          }}</span
           ><input
             class="input"
             :type="account.api_key_env ? 'text' : 'password'"

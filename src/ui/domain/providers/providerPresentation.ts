@@ -103,6 +103,7 @@ export function presetBrand(id: string) {
       aws: 'AWS Bedrock',
       minimax: 'MiniMax',
       elevenlabs: 'ElevenLabs',
+      novelai: 'NovelAI',
       bfl: 'BFL',
       fal: 'fal',
       replicate: 'Replicate',

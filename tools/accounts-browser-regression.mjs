@@ -26,7 +26,7 @@ registerBrowserPlatform({ namespace: 'wish-webui', version: 1 });setBackLayers(c
 const draft=ref({accounts:{shared:{name:'Shared account',preset:'deepseek',api_key:'<redacted>',credentials:{refresh_token:'<redacted>'},credentials_env:{},proxy_enabled:true}},providers:{model:{credential_id:'shared'}},search:{providers:{}},fetch:{order:[],providers:{}}});
 const catalog=ref({presets:[{id:'deepseek',provider:'DeepSeek',required_credentials:[],optional_credentials:[]}]});
 const searchCatalog=ref([{id:'tavily',name:'Tavily',brand:'Tavily',key:'required'},{id:'jina',name:'Jina',brand:'Jina',key:'required'},{id:'tavily_keyless',name:'Tavily Free',key:'none'}]);
-const imageCatalog=ref([{id:'bfl_images',name:'Black Forest Labs',brand:'BFL',protocol:'bfl',base_url:'https://api.bfl.ai/v1',path:'/{model}',model:'flux-2-pro',account_presets:['bfl'],parameters:{},docs_url:'https://docs.bfl.ai'}]);
+const imageCatalog=ref(${JSON.stringify(JSON.parse(await readFile(new URL('./fixtures/image-presets.json', import.meta.url),'utf8')))});
 const mediaCatalog=ref(${JSON.stringify(JSON.parse(await readFile(new URL('./fixtures/media-presets.json', import.meta.url),'utf8')))});
 const mode=ref('accounts');const saveConfig=async()=>true;
 const fetchCatalog=ref([{id:'deepseek_fetch',name:'DeepSeek',key:'required',base_url:'https://api.deepseek.com'},{id:'zai_reader',name:'Z.AI',key:'required'},{id:'jina_reader',name:'Jina Reader',key:'optional'},{id:'codex_fetch',name:'ChatGPT / Codex',key:'required'}]);
@@ -99,17 +99,20 @@ try {
     await js('fixture.mode.value="images"');
     await until('!!document.querySelector(".image-generation-settings .provider-add")','image generation settings');
     await js('document.querySelector(".image-generation-settings .provider-add").click()');
-    await until('!!document.querySelector("[data-choice-key=bfl_images]")','image preset picker');
-    await js('document.querySelector("[data-choice-key=bfl_images]").click()');
+    await until('!!document.querySelector(".picker-search input")','image search');
+    await js('(()=>{const input=document.querySelector(".picker-search input");input.value="NovelAI";input.dispatchEvent(new Event("input",{bubbles:true}));})()');
+    await until('!!document.querySelector("[data-choice-key=novelai_images]")','image preset picker');
+    await js('document.querySelector("[data-choice-key=novelai_images]").click()');
     if(width>=900) await js('document.querySelector(".picker-dialog-actions .primary").click()');
     await until('!!document.querySelector(".image-editor")','image service editor');
     assert.ok(await js('document.documentElement.scrollWidth<=innerWidth+1'),'image editor fits viewport');
     await js('document.querySelector(".image-editor .account-picker .btn").click()');
     await until('!!document.querySelector(".account-form")','new image account editor');
-    assert.ok(await js('Object.values(fixture.draft.value.accounts).some(a=>a.preset==="bfl")'),'image account platform retained');
+    assert.ok(await js('Object.values(fixture.draft.value.accounts).some(a=>a.preset==="novelai")'),'image account platform retained');
+    assert.ok(await js('document.querySelector(".account-form").textContent.includes("Persistent API Token")'),'NovelAI token label');
     await js('history.back()');
     await until('!document.querySelector(".account-form")','close nested image account');
-    assert.ok(await js('Object.values(fixture.draft.value.image_generation.providers).every(p=>p.credential_id && p.model==="flux-2-pro")'),'image service links account and model');
+    assert.ok(await js('Object.values(fixture.draft.value.image_generation.providers).every(p=>p.credential_id && p.model==="nai-diffusion-4-5-full")'),'image service links account and model');
     await js('history.back()');
     await until('!document.querySelector(".image-editor")','close image editor');
     for (const [section,preset] of [['video_generation','seedance_video'],['audio_generation','siliconflow_speech'],['audio_transcription','groq_asr']]) {
