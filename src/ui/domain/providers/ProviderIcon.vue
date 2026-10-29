@@ -45,6 +45,9 @@ import jina from '@lobehub/icons-static-svg/icons/jina.svg?url';
 import perplexity from '@lobehub/icons-static-svg/icons/perplexity.svg?url';
 import searxng from '@lobehub/icons-static-svg/icons/searxng.svg?url';
 import novelai from '@lobehub/icons-static-svg/icons/novelai.svg?url';
+// Official RunningHub login brand mark; the upstream asset is PNG.
+import runninghub from '../../assets/runninghub.png?url';
+import jimeng from '@lobehub/icons-static-svg/icons/jimeng.svg?url';
 import runway from '@lobehub/icons-static-svg/icons/runway.svg?url';
 import luma from '@lobehub/icons-static-svg/icons/luma.svg?url';
 import elevenlabs from '@lobehub/icons-static-svg/icons/elevenlabs.svg?url';
@@ -88,6 +91,7 @@ const icons: Record<string, string> = {
   StepFun: stepfun,
   'Baidu Qianfan': baiducloud,
   'Volcengine Ark': volcengine,
+  'Volcengine Visual': volcengine,
   'Huawei Cloud': huaweicloud,
   'Together AI': together,
   Fireworks: fireworks,
@@ -105,6 +109,8 @@ const icons: Record<string, string> = {
   ElevenLabs: elevenlabs,
   NovelAI: novelai,
   Runway: runway,
+  Jimeng: jimeng,
+  RunningHub: runninghub,
   Luma: luma,
   BFL: bfl,
   'Black Forest Labs': bfl,
@@ -121,17 +127,22 @@ const maskImage = computed(() => `url("${source.value}")`);
 </script>
 
 <template>
-  <span v-if="source" class="provider-icon" :style="{ maskImage }" aria-hidden="true" />
+  <img v-if="source === runninghub" :src="source" class="provider-icon-image" alt="" aria-hidden="true" />
+  <span v-else-if="source" class="provider-icon" :style="{ maskImage }" aria-hidden="true" />
   <Icon :name="fallback ?? 'providers'" v-else class="provider-icon-fallback" :size="20" aria-hidden="true" />
 </template>
 
 <style scoped>
 .provider-icon,
+.provider-icon-image,
 .provider-icon-fallback {
   display: inline-block;
   width: 20px;
   height: 20px;
   flex: none;
+}
+.provider-icon-image {
+  object-fit: contain;
 }
 .provider-icon {
   background: currentColor;

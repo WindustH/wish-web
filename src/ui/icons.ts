@@ -113,6 +113,7 @@ export const ICONS: Record<string, string> = {
   // Groups: two people.
   users: `<circle cx="8" cy="7.5" r="3.2" ${SOFT}/><circle cx="17" cy="9" r="2.5" ${SOFT}/><path d="M2.5 20v-1.5a5.5 5.5 0 0 1 11 0V20M16 14.5h.5A4.5 4.5 0 0 1 21 19v1"/>`,
   // MCP: two servers linked through the bridge.
+  extensions: `<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M17.5 14v7M14 17.5h7"/>`,
   mcp: `<rect x="3" y="3" width="8" height="8" rx="2.5" ${SOFT}/><rect x="13" y="13" width="8" height="8" rx="2.5"/><path d="M11 7h2.5A3.5 3.5 0 0 1 17 10.5V13M7 11v2.5a3.5 3.5 0 0 0 3.5 3.5H13"/>`,
   // Interface: a window, and light and dark in it.
   appearance: `<rect x="3" y="4" width="18" height="16" rx="3.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 7.5a4.5 4.5 0 0 0 0 9Z" ${SOLID}/>`,

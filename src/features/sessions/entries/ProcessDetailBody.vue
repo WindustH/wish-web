@@ -1,15 +1,16 @@
 <script setup lang="ts">
-// Everything a step's detail says of itself, under its heading: the command, the fields, what
-// came back - output, images, search hits, history records - the edits it made, and its raw
-// text. Shared by the detail's two homes: a window of its own, or a panel inside a run's window.
 import { computed, ref } from 'vue';
 import Markdown from '../../../ui/components/Markdown.vue';
 import { blobUrl } from '../../../core/api/endpoints.ts';
 import { fmtBytes } from '../../../core/util/fmt.ts';
 import { stepText, stepToolName, toolOutput, toolResult, fileEdits, searchResults } from './processDetails.ts';
 import FileDiff from './FileDiff.vue';
-import ToolMedia from './ToolMedia.vue';
-import ToolTranscript from './ToolTranscript.vue';
+import { extensionTool } from '../../../extensions/registry.ts';
+import ToolImage from '../../../ui/domain/media/ToolImage.vue';
+import { tr } from '../../../core/i18n/tr.ts';
+// Everything a step's detail says of itself, under its heading: the command, the fields, what
+// came back - output, images, search hits, history records - the edits it made, and its raw
+// text. Shared by the detail's two homes: a window of its own, or a panel inside a run's window.
 const rawOpen = ref(false);
 const safeSearchUrl = (url: string) => {
   try {
@@ -19,8 +20,6 @@ const safeSearchUrl = (url: string) => {
     return undefined;
   }
 };
-import ToolImage from './ToolImage.vue';
-import { tr } from '../../../core/i18n/tr.ts';
 const props = defineProps<{ step: any; relatedResult?: any; session?: string; diffOnly?: boolean }>();
 const isResult = computed(() => props.step.kind === 'entry');
 const isReasoning = computed(() => !isResult.value && props.step.block?.type !== 'tool_call');
@@ -57,11 +56,15 @@ const imageSrc = computed(() => {
     .at(-1);
   return props.session && hash && /^[a-f0-9]{64}$/.test(hash) ? blobUrl(`${props.session}/${hash}`) : '';
 });
-const generatedImages = computed(() =>
-  name.value === 'image_generate' && props.session && Array.isArray(output.value?.images)
-    ? output.value.images.filter((image: { id?: string }) => /^[a-f0-9]{64}$/.test(image.id ?? ''))
-    : [],
-);
+const extensionContext = computed(() => ({
+  tool: name.value ?? '',
+  session: props.session,
+  arguments: args.value,
+  output: output.value,
+  metadata: res.value?.entry?.payload?.metadata,
+}));
+const extensionResult = computed(() => extensionTool(name.value)?.result(extensionContext.value));
+const extensionInvocation = computed(() => extensionTool(name.value)?.invocation?.(extensionContext.value));
 const isShellTool = computed(() => name.value?.startsWith('shell_'));
 const isHistoryTool = computed(() => name.value?.startsWith('history_'));
 // A search's results as the page shows them: kept on the result beside what the model read.
@@ -114,7 +117,8 @@ const fieldName = (key: string) =>
         <h3>{{ tr('命令', 'Command') }}</h3>
         <pre class="terminal-output">{{ args.command }}</pre>
       </section>
-      <dl v-if="fields.length" class="tool-fields">
+      <component v-if="extensionInvocation" :is="extensionInvocation.component" v-bind="extensionInvocation.props" />
+      <dl v-else-if="fields.length" class="tool-fields">
         <div v-for="[key, value] in fields" :key="key">
           <dt>{{ fieldName(key) }}</dt>
           <dd>{{ printable(value) }}</dd>
@@ -165,25 +169,7 @@ const fieldName = (key: string) =>
         </section>
         <p v-if="output.process.error" class="tool-error">{{ output.process.error }}</p>
       </template>
-      <ToolMedia
-        v-else-if="['video_generate', 'audio_generate'].includes(name || '') && session && output?.job_id"
-        :session="session"
-        :output="output"
-      />
-      <ToolTranscript
-        v-else-if="name === 'audio_transcribe' && session && typeof output?.text === 'string'"
-        :session="session"
-        :output="output"
-      />
-      <template v-else-if="generatedImages.length">
-        <ToolImage
-          v-for="image in generatedImages"
-          :key="image.id"
-          :src="blobUrl(`${session}/${image.id}`)"
-          :mime="image.mime_type"
-          :path="image.path"
-        />
-      </template>
+      <component v-else-if="extensionResult" :is="extensionResult.component" v-bind="extensionResult.props" />
       <template v-else-if="name === 'view_image' && result?.status === 'success'">
         <ToolImage v-if="imageSrc" :src="imageSrc" :mime="output.mime_type" :path="output.path" />
         <p v-else class="detail-muted">

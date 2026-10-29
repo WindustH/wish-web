@@ -1,3 +1,4 @@
+import { extensionTool } from '../../../extensions/registry.ts';
 import type { InjectionKey, Ref } from 'vue';
 export function stepText(step: any): string {
   if (step.kind === 'entry')
@@ -59,13 +60,11 @@ const TOOL_TITLES: Record<string, string> = {
   ask_user: 'Ask User',
   web_search: 'Web Search',
   web_fetch: 'Web Fetch',
-  image_generate: 'Image Generate',
-  video_generate: 'Video Generate',
-  audio_generate: 'Audio Generate',
-  audio_transcribe: 'Audio Transcribe',
 };
-export const toolTitle = (name?: string) => (name ? (TOOL_TITLES[name] ?? name) : '');
+export const toolTitle = (name?: string) => (name ? (extensionTool(name)?.title ?? TOOL_TITLES[name] ?? name) : '');
 export function toolIcon(name?: string): string {
+  const extension = extensionTool(name);
+  if (extension) return extension.icon;
   // An edit reads as the change it makes: the diff mark, wherever the tool is shown - the rail,
   // a window's rows, a step's heading.
   if (name === 'shell_edit') return 'file-diff';
@@ -78,10 +77,6 @@ export function toolIcon(name?: string): string {
   if (name === 'history_query') return 'history-query';
   if (name === 'ask_user') return 'question';
   if (name === 'web_search') return 'web-search';
-  if (name === 'video_generate') return 'video';
-  if (name === 'audio_generate') return 'audio';
-  if (name === 'audio_transcribe') return 'mic';
-  if (name === 'image_generate') return 'image';
   if (name === 'web_fetch') return 'web-reader';
   return 'tool';
 }
@@ -185,6 +180,7 @@ export function stepFailed(step: any): boolean {
     output = toolOutput(step);
   return (
     result?.status === 'failed' ||
+    extensionTool(stepToolName(step))?.failed?.(output) === true ||
     ['failed', 'killed'].includes(output?.process?.status) ||
     (output?.process?.exit_code != null && output.process.exit_code !== 0)
   );

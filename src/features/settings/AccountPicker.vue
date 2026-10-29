@@ -16,6 +16,7 @@ const props = defineProps<{
   creationPreset?: string;
   allowed?: string[];
   required?: boolean;
+  requiredCredentials?: string[];
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>();
 const { draft } = inject(configDraftKey)!;
@@ -32,7 +33,11 @@ const options = computed(() =>
 );
 onMounted(() => {
   if (props.modelValue === '' && props.required && (props.allowed || props.preset)) {
-    const id = defaultAccount(draft.value.accounts ?? {}, props.allowed ?? (props.preset ? [props.preset] : undefined));
+    const id = defaultAccount(
+      draft.value.accounts ?? {},
+      props.allowed ?? (props.preset ? [props.preset] : undefined),
+      props.requiredCredentials,
+    );
     if (id) emit('update:modelValue', id);
   }
 });

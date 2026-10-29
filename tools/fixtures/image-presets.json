@@ -11,7 +11,14 @@
       "openai"
     ],
     "parameters": {},
-    "docs_url": "https://developers.openai.com/api/docs/guides/image-generation"
+    "docs_url": "https://developers.openai.com/api/docs/guides/image-generation",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": true,
+    "reference_image_limit": 16,
+    "mask_editing": true,
+    "image_required": false,
+    "markup_editing": true
   },
   {
     "id": "codex_images",
@@ -25,7 +32,14 @@
       "openai_codex"
     ],
     "parameters": {},
-    "docs_url": "https://learn.chatgpt.com/docs/image-generation"
+    "docs_url": "https://learn.chatgpt.com/docs/image-generation",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": false,
+    "reference_image_limit": 0,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false
   },
   {
     "id": "gemini_images",
@@ -44,7 +58,18 @@
         "IMAGE"
       ]
     },
-    "docs_url": "https://ai.google.dev/api/generate-content"
+    "docs_url": "https://ai.google.dev/api/generate-content",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": true,
+    "reference_image_limit": 14,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false,
+    "image_options": [
+      "aspect_ratio",
+      "image_size"
+    ]
   },
   {
     "id": "gemini_interactions_images",
@@ -58,13 +83,20 @@
       "google_gemini"
     ],
     "parameters": {},
-    "docs_url": "https://ai.google.dev/gemini-api/docs/image-generation"
+    "docs_url": "https://ai.google.dev/gemini-api/docs/image-generation",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": true,
+    "reference_image_limit": 14,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false
   },
   {
     "id": "xai_images",
     "name": "xAI Grok Imagine",
     "brand": "xAI",
-    "protocol": "openai",
+    "protocol": "xai",
     "base_url": "https://api.x.ai/v1",
     "path": "/images/generations",
     "model": "grok-imagine-image-2.0",
@@ -72,7 +104,14 @@
       "xai"
     ],
     "parameters": {},
-    "docs_url": "https://docs.x.ai/developers/model-capabilities/images/generation"
+    "docs_url": "https://docs.x.ai/developers/model-capabilities/images/generation",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": true,
+    "reference_image_limit": 5,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false
   },
   {
     "id": "together_images",
@@ -88,7 +127,14 @@
     "parameters": {
       "response_format": "base64"
     },
-    "docs_url": "https://docs.together.ai/docs/inference/images/overview"
+    "docs_url": "https://docs.together.ai/docs/inference/images/overview",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": false,
+    "reference_image_limit": 0,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false
   },
   {
     "id": "siliconflow_images",
@@ -102,7 +148,14 @@
       "siliconflow_cn"
     ],
     "parameters": {},
-    "docs_url": "https://docs.siliconflow.cn/docs/userguide/capabilities/images"
+    "docs_url": "https://docs.siliconflow.cn/docs/userguide/capabilities/images",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": false,
+    "reference_image_limit": 0,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false
   },
   {
     "id": "seedream_images",
@@ -119,7 +172,14 @@
       "size": "2048x2048",
       "response_format": "url"
     },
-    "docs_url": "https://docs.volcengine.com/docs/lake-ai-service/image-generation-seed-ream-series-models?lang=en"
+    "docs_url": "https://docs.volcengine.com/docs/lake-ai-service/image-generation-seed-ream-series-models?lang=en",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": true,
+    "reference_image_limit": 8,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false
   },
   {
     "id": "bfl_images",
@@ -133,7 +193,21 @@
       "bfl"
     ],
     "parameters": {},
-    "docs_url": "https://docs.bfl.ai/quick_start/generating_images"
+    "docs_url": "https://docs.bfl.ai/quick_start/generating_images",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": true,
+    "reference_image_limit": 8,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false,
+    "image_options": [
+      "width",
+      "height",
+      "seed",
+      "output_format",
+      "prompt_upsampling"
+    ]
   },
   {
     "id": "fal_images",
@@ -147,7 +221,14 @@
       "fal"
     ],
     "parameters": {},
-    "docs_url": "https://fal.ai/docs/documentation/model-apis/inference/queue"
+    "docs_url": "https://fal.ai/docs/documentation/model-apis/inference/queue",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": false,
+    "reference_image_limit": 0,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false
   },
   {
     "id": "replicate_images",
@@ -161,7 +242,14 @@
       "replicate"
     ],
     "parameters": {},
-    "docs_url": "https://replicate.com/docs/reference/http"
+    "docs_url": "https://replicate.com/docs/reference/http",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": false,
+    "reference_image_limit": 0,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false
   },
   {
     "id": "stability_images",
@@ -177,7 +265,14 @@
     "parameters": {
       "output_format": "png"
     },
-    "docs_url": "https://docs.stability.ai/api-reference"
+    "docs_url": "https://docs.stability.ai/api-reference",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": false,
+    "reference_image_limit": 0,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false
   },
   {
     "id": "seedream_ark_images",
@@ -194,7 +289,14 @@
       "size": "2K",
       "response_format": "url"
     },
-    "docs_url": "https://docs.volcengine.com/docs/ark/image-generation-tutorial?lang=en"
+    "docs_url": "https://docs.volcengine.com/docs/ark/image-generation-tutorial?lang=en",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": true,
+    "reference_image_limit": 8,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false
   },
   {
     "id": "wan_images_cn",
@@ -211,7 +313,14 @@
       "size": "2K",
       "n": 1
     },
-    "docs_url": "https://www.alibabacloud.com/help/en/model-studio/wan-image-generation-and-editing-api-reference"
+    "docs_url": "https://www.alibabacloud.com/help/en/model-studio/wan-image-generation-and-editing-api-reference",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": true,
+    "reference_image_limit": 9,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false
   },
   {
     "id": "wan_images_singapore",
@@ -228,7 +337,14 @@
       "size": "2K",
       "n": 1
     },
-    "docs_url": "https://www.alibabacloud.com/help/en/model-studio/wan-image-generation-and-editing-api-reference"
+    "docs_url": "https://www.alibabacloud.com/help/en/model-studio/wan-image-generation-and-editing-api-reference",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": true,
+    "reference_image_limit": 9,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false
   },
   {
     "id": "novelai_images",
@@ -251,6 +367,94 @@
       "noise_schedule": "karras",
       "negative_prompt": ""
     },
-    "docs_url": "https://image.novelai.net/docs/index.html"
+    "docs_url": "https://image.novelai.net/docs/index.html",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": true,
+    "reference_image_limit": 1,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false
+  },
+  {
+    "id": "jimeng_images",
+    "name": "即梦 4.6",
+    "brand": "Jimeng",
+    "protocol": "jimeng",
+    "base_url": "https://visual.volcengineapi.com",
+    "path": "/",
+    "model": "jimeng_seedream46_cvtob",
+    "account_presets": [
+      "volcengine_visual",
+      "custom"
+    ],
+    "parameters": {
+      "force_single": true
+    },
+    "docs_url": "https://docs.volcengine.com/docs/jimeng-ai/jimeng-ai-image-generation-46-interface-documentation",
+    "required_credentials": [
+      "access_key_id",
+      "secret_access_key"
+    ],
+    "optional_credentials": [
+      "session_token"
+    ],
+    "reference_images": true,
+    "reference_image_limit": 14,
+    "mask_editing": false,
+    "image_required": false,
+    "markup_editing": false
+  },
+  {
+    "id": "bfl_fill_images",
+    "name": "Black Forest Labs · Fill",
+    "brand": "BFL",
+    "protocol": "bfl",
+    "base_url": "https://api.bfl.ai/v1",
+    "path": "/{model}",
+    "model": "flux-pro-1.0-fill",
+    "account_presets": [
+      "bfl"
+    ],
+    "parameters": {},
+    "docs_url": "https://docs.bfl.ai/flux_1_fill",
+    "required_credentials": [],
+    "optional_credentials": [],
+    "reference_images": true,
+    "reference_image_limit": 1,
+    "mask_editing": true,
+    "image_required": true,
+    "markup_editing": false,
+    "image_options": [
+      "seed",
+      "output_format",
+      "prompt_upsampling",
+      "steps",
+      "guidance"
+    ]
+  },
+  {
+    "id": "runninghub_images",
+    "name": "RunningHub Seedream 5 Pro",
+    "brand": "RunningHub",
+    "protocol": "runninghub",
+    "base_url": "https://www.runninghub.ai",
+    "path": "/openapi/v2/{model}/text-to-image",
+    "model": "seedream-v5-pro",
+    "account_presets": [
+      "runninghub",
+      "custom"
+    ],
+    "parameters": {
+      "resolution": "2k",
+      "outputFormat": "png"
+    },
+    "docs_url": "https://www.runninghub.ai/runninghub-api-doc-en/api-494859263",
+    "optional_credentials": [],
+    "reference_images": true,
+    "reference_image_limit": 10,
+    "mask_editing": false,
+    "markup_editing": false,
+    "image_required": false
   }
 ]

@@ -36,7 +36,12 @@ defineProps<{ config: any; shells: ShellCatalog | null; busy: boolean; searchAva
           :disabled="busy"
           @update:model-value="config.defaults.run = { ...config.defaults.run, background_tools_on_input: $event }"
         />
-        <ToolSwitchRows v-model="config.defaults.tools" :search-available="searchAvailable" in-settings />
+        <ToolSwitchRows
+          v-model="config.defaults.tools"
+          :search-available="searchAvailable"
+          :include="['shell', 'sessions', 'history_search', 'ask_user']"
+          in-settings
+        />
       </div>
     </section>
     <section v-if="config.shell" class="set-section">

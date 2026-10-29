@@ -1,13 +1,21 @@
 // Each model keeps the slot it first received, so filtering a time range or
 // hiding models never recolors the rest. Remembered across launches.
-const STORAGE = 'wish.modelColors';
+import { tryPlatform } from '../../platform/index.ts';
+const STORAGE = 'modelColors';
 const PALETTE = 6;
 let slots: Record<string, number> | undefined;
 
 function load() {
   if (slots) return slots;
   try {
-    slots = JSON.parse(localStorage.getItem(STORAGE) || '{}');
+    const value: unknown = JSON.parse(tryPlatform('storage')?.get(STORAGE) || '{}');
+    slots = Object.fromEntries(
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? Object.entries(value).filter(
+            ([, index]) => typeof index === 'number' && Number.isSafeInteger(index) && index >= 0,
+          )
+        : [],
+    );
   } catch {
     slots = {};
   }
@@ -27,7 +35,7 @@ export function modelColorIndex(key: string): number {
     while (used.has(index % PALETTE) && index < PALETTE) index++;
     known[key] = index < PALETTE ? index : Object.keys(known).length;
     try {
-      localStorage.setItem(STORAGE, JSON.stringify(known));
+      tryPlatform('storage')?.set(STORAGE, JSON.stringify(known));
     } catch {
       /* storage unavailable */
     }

@@ -9,6 +9,13 @@ export interface ImagePreset {
   account_presets: string[];
   parameters: Record<string, unknown>;
   docs_url: string;
+  required_credentials?: string[];
+  optional_credentials?: string[];
+  reference_images?: boolean;
+  reference_image_limit?: number;
+  mask_editing?: boolean;
+  markup_editing?: boolean;
+  image_required?: boolean;
 }
 export interface ImageService {
   preset: string;

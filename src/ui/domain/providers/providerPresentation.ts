@@ -87,6 +87,7 @@ export function providerTitles(providers: readonly NamedProvider[]): Map<string,
 // Brand identities belong to presentation; service endpoints and protocols
 // remain authoritative in the backend preset catalog.
 export function presetBrand(id: string) {
+  if (id === 'volcengine_visual') return 'Volcengine Visual';
   const prefix = id.split('_')[0];
   return (
     {
@@ -104,6 +105,8 @@ export function presetBrand(id: string) {
       minimax: 'MiniMax',
       elevenlabs: 'ElevenLabs',
       novelai: 'NovelAI',
+      jimeng: 'Jimeng',
+      runninghub: 'RunningHub',
       bfl: 'BFL',
       fal: 'fal',
       replicate: 'Replicate',

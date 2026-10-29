@@ -185,10 +185,22 @@ const relatedResult = computed(() =>
 );
 const diffs = computed(() =>
   steps.value.flatMap((step: any) =>
-    fileEdits(step).map((edit: any, index: number) => ({ step, edit, key: `${step.key}:${index}` })),
+    fileEdits(step).map((edit: any, index: number) => ({
+      step,
+      edit,
+      key: `${step.key}:${index}`,
+    })),
   ),
 );
-const changeCounts = (change: any) => diffCounts(parseDiff(change.edit.diff ?? ''));
+const diffCache = new WeakMap<object, ReturnType<typeof diffCounts>>();
+function changeCounts(change: any) {
+  let counts = diffCache.get(change);
+  if (!counts) {
+    counts = diffCounts(parseDiff(change.edit.diff ?? ''));
+    diffCache.set(change, counts);
+  }
+  return counts;
+}
 const windowRows = computed(() =>
   open.value
     ? [

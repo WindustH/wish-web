@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { VideoMode } from '../../core/mediaGeneration.ts';
 import { serviceOrder } from './serviceOrder.ts';
 import { computed, inject, ref } from 'vue';
 import { configDraftKey } from './useConfigDraft.ts';
@@ -8,6 +9,7 @@ import PickerDialog from '../../ui/domain/providers/PickerDialog.vue';
 import ProviderIcon from '../../ui/domain/providers/ProviderIcon.vue';
 import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
+import SpeechControlRows from './SpeechControlRows.vue';
 import SwitchRow from '../../ui/domain/settings/SwitchRow.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
@@ -30,6 +32,22 @@ const adding = ref(false),
 const current = computed(() => config.value.providers[editing.value]);
 const spec = (id: string) => catalog.value.find((p) => p.id === id);
 const currentSpec = computed(() => current.value && spec(current.value.preset));
+const videoCapabilities = computed(() =>
+  currentSpec.value?.model === current.value?.model ? currentSpec.value?.video : undefined,
+);
+const editOnly = computed(
+  () => videoCapabilities.value?.modes.length === 1 && videoCapabilities.value.modes[0] === 'edit',
+);
+const modeTitle = (mode: VideoMode) =>
+  ({
+    text: tr('文生视频', 'Text to video'),
+    frames: videoCapabilities.value?.input_roles.includes('last_frame')
+      ? tr('首尾帧 / 图生视频', 'Frame-guided video')
+      : tr('图生视频', 'Image to video'),
+    reference: tr('多模态参考', 'Multimodal references'),
+    edit: tr('视频编辑', 'Video editing'),
+    extend: tr('视频延长', 'Video extension'),
+  })[mode];
 const kindTitle = (kind: string) =>
   ({
     video: tr('视频', 'Video'),
@@ -139,11 +157,11 @@ function applyDurationInput(event: Event) {
       {{
         props.section === 'audio_transcription'
           ? tr(
-              '在「工具」中启用 Audio Transcribe。文件上限最高为 32 MiB，部分服务限 25 MB；语言提示和说话人区分取决于服务。',
+              '在「扩展工具」中启用 Audio Transcribe。文件上限最高为 32 MiB，部分服务限 25 MB；语言提示和说话人区分取决于服务。',
               'Enable Audio Transcribe under Tools. Files up to 32 MiB are supported (25 MB for some services); language hints and speaker attribution depend on the service.',
             )
           : tr(
-              '在「工具」中启用对应生成工具。生成请求中断后不会自动重发或切换服务。',
+              '在「扩展工具」中启用对应生成工具。生成请求中断后不会自动重发或切换服务。',
               'Enable the corresponding generation tool under Tools. Interrupted submissions are not automatically repeated or switched to another provider.',
             )
       }}
@@ -173,10 +191,11 @@ function applyDurationInput(event: Event) {
               required
               v-model="current.credential_id"
               :allowed="currentSpec?.account_presets"
+              :required-credentials="currentSpec?.required_credentials"
               :preset="currentSpec?.account_presets[0]"
             />
           </div>
-          <label class="set-row stacked"
+          <label v-if="currentSpec?.protocol !== 'xai_speech'" class="set-row stacked"
             ><span class="set-label">{{ tr('模型 ID', 'Model ID') }}</span
             ><input class="input" v-model="current.model"
           /></label>
@@ -186,15 +205,19 @@ function applyDurationInput(event: Event) {
           /></label>
           <SwitchRow v-model="current.proxy_enabled" :name="tr('使用代理', 'Use proxy')" />
         </div>
-        <div v-if="currentSpec?.kind !== 'transcription'" class="set-card">
+        <div v-if="currentSpec?.kind !== 'transcription' && !editOnly" class="set-card">
           <label v-if="currentSpec?.kind === 'speech'" class="set-row stacked"
             ><span class="set-label">{{ tr('默认音色 ID', 'Default voice ID') }}</span
             ><input
               class="input"
               v-model="current.parameters.voice"
-              :placeholder="tr('留空由模型调用时指定', 'Leave empty to choose per call')"
+              :placeholder="
+                currentSpec?.protocol === 'xai_speech'
+                  ? 'eve'
+                  : tr('留空由模型调用时指定', 'Leave empty to choose per call')
+              "
           /></label>
-          <label v-else class="set-row stacked"
+          <label v-else-if="currentSpec?.protocol !== 'xiaoyunque_video'" class="set-row stacked"
             ><span class="set-label">{{ tr('默认时长（秒）', 'Default duration (seconds)') }}</span
             ><input
               class="input"
@@ -203,6 +226,65 @@ function applyDurationInput(event: Event) {
               @input="applyDurationInput"
               :placeholder="tr('使用服务默认值', 'Service default')"
           /></label>
+          <SpeechControlRows
+            v-if="['minimax_speech', 'xai_speech'].includes(currentSpec?.protocol || '')"
+            v-model="current.parameters"
+            :model="current.model"
+            :protocol="currentSpec?.protocol"
+          />
+          <template v-if="currentSpec?.protocol === 'xiaoyunque_video'">
+            <label class="set-row stacked"
+              ><span class="set-label">{{ tr('目标时长', 'Target duration') }}</span>
+              <select class="input" v-model="current.parameters.duration_hint">
+                <option :value="null">{{ tr('由服务决定', 'Let the service choose') }}</option>
+                <option v-for="duration in ['～15s', '～30s', '40～60s', '1min+']" :key="duration">
+                  {{ duration }}
+                </option></select
+              ><small>{{
+                tr(
+                  '最终时长由服务决定，可能与目标值不同。',
+                  'The service determines the final duration, which may differ from this target.',
+                )
+              }}</small>
+            </label>
+            <label class="set-row stacked"
+              ><span class="set-label">{{ tr('视频语言', 'Video language') }}</span>
+              <select class="input" v-model="current.parameters.language">
+                <option :value="null">{{ tr('使用服务默认值', 'Service default') }}</option>
+                <option
+                  v-for="language in [
+                    'Chinese',
+                    'English',
+                    'Japanese',
+                    'Thai',
+                    'SouthAfrican',
+                    'French',
+                    'Turkish',
+                    'Malay',
+                    'German',
+                    'Korean',
+                    'Russian',
+                    'Spanish',
+                    'Indonesian',
+                    'Italian',
+                    'Portuguese',
+                    'Filipino',
+                    'Vietnamese',
+                    'Dutch',
+                    'Arabic',
+                  ]"
+                  :key="language"
+                >
+                  {{ language }}
+                </option>
+              </select>
+            </label>
+            <SwitchRow
+              :model-value="current.parameters.watermark ?? true"
+              @update:model-value="current.parameters.watermark = $event"
+              :name="tr('显示生成水印', 'Show generation watermark')"
+            />
+          </template>
           <template v-if="currentSpec?.kind === 'video'">
             <label class="set-row stacked"
               ><span class="set-label">{{ tr('画幅', 'Aspect ratio') }}</span
@@ -211,7 +293,7 @@ function applyDurationInput(event: Event) {
                 <option v-for="ratio in currentSpec?.aspect_ratios ?? []" :key="ratio">{{ ratio }}</option>
               </select></label
             >
-            <label class="set-row stacked"
+            <label v-if="currentSpec?.resolutions?.length" class="set-row stacked"
               ><span class="set-label">{{ tr('分辨率', 'Resolution') }}</span
               ><select class="input" v-model="current.parameters.resolution">
                 <option :value="null">{{ tr('使用服务默认值', 'Service default') }}</option>
@@ -227,6 +309,24 @@ function applyDurationInput(event: Event) {
             @update:model-value="current.parameters.instrumental = $event"
             :name="tr('纯音乐', 'Instrumental')"
           />
+        </div>
+        <div v-if="videoCapabilities" class="set-card">
+          <div class="set-row stacked">
+            <span class="set-label">{{ tr('支持的用途', 'Supported uses') }}</span>
+            <span>{{ videoCapabilities.modes.map(modeTitle).join(' · ') }}</span>
+            <small>{{
+              tr(
+                '具体输入角色与限制可由模型通过工具查询。编辑模式不适用的生成默认值不会发送。',
+                'The tool exposes supported input roles and limits. Generation defaults that do not apply to editing are not sent.',
+              )
+            }}</small>
+            <small v-if="!videoCapabilities.blob_inputs.includes('video')">{{
+              tr(
+                '视频素材需公网地址；已生成的视频可复用保存的来源地址。当前不会自动公开本地附件。',
+                'Video inputs require a public URL; generated videos can reuse their recorded source URL. Local attachments are not automatically published.',
+              )
+            }}</small>
+          </div>
         </div>
         <div v-if="mobile" class="media-order">
           <button class="btn sm" :disabled="ids.indexOf(editing) === 0" @click="move(editing, -1)">

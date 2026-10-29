@@ -35,6 +35,12 @@ const fields = computed(() => [
     ...Object.keys(account.value.credentials_env ?? {}),
   ]),
 ]);
+function credentialLabel(name: string) {
+  if (name === 'access_key_id') return 'Access Key ID (AK)';
+  if (name === 'secret_access_key') return 'Secret Access Key (SK)';
+  if (name === 'session_token') return tr('临时安全令牌（可选）', 'Session token (optional)');
+  return name;
+}
 function key(text: string) {
   const x = readSecret(text, savedSecrets.value.api_key === REDACTED ? REDACTED : null);
   account.value.api_key = x.value;
@@ -85,7 +91,15 @@ function field(name: string, text: string) {
         /></label>
       </div>
       <div class="set-card">
-        <label class="set-row stacked"
+        <label
+          v-if="
+            account.preset === 'custom' ||
+            !account.preset ||
+            account.api_key ||
+            account.api_key_env ||
+            (!fields.includes('access_key_id') && !fields.includes('secret_access_key'))
+          "
+          class="set-row stacked"
           ><span class="set-label">{{
             account.preset === 'novelai' ? 'Persistent API Token' : 'API Key / Access token'
           }}</span
@@ -99,8 +113,25 @@ function field(name: string, text: string) {
             autocomplete="new-password"
             @input="key(($event.target as HTMLInputElement).value)"
         /></label>
+        <label v-if="account.preset === 'custom' || !account.preset" class="set-row stacked">
+          <span class="set-label">{{ tr('添加凭据字段', 'Add credential field') }}</span>
+          <SelectField
+            model-value=""
+            :options="[
+              { value: '', label: tr('选择字段…', 'Choose a field…') },
+              ...['access_key_id', 'secret_access_key', 'session_token', 'region', 'access_token', 'refresh_token']
+                .filter((name) => !fields.includes(name))
+                .map((name) => ({ value: name, label: credentialLabel(name) })),
+            ]"
+            @update:model-value="
+              (name) => {
+                if (name) (account.credentials ??= {})[name] = '';
+              }
+            "
+          />
+        </label>
         <label v-for="name in fields" :key="name" class="set-row stacked"
-          ><span class="set-label">{{ name }}</span
+          ><span class="set-label">{{ credentialLabel(name) }}</span
           ><input
             class="input"
             type="password"

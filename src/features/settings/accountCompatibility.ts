@@ -24,17 +24,39 @@ export function compatibleAccounts(accounts: Record<string, Account>, allowed?: 
     ([, account]) => allowed === undefined || allowed.includes(account.preset ?? ''),
   );
 }
-export function defaultAccount(accounts: Record<string, Account>, allowed?: string[]): string | null {
+export function defaultAccount(
+  accounts: Record<string, Account>,
+  allowed?: string[],
+  required: string[] = [],
+): string | null {
   return (
-    compatibleAccounts(accounts, allowed).find(([, a]) =>
-      [
+    compatibleAccounts(accounts, allowed).find(([, a]) => {
+      const field = (name: string) =>
+        [a.credentials?.[name], a.credentials_env?.[name]].some(
+          (value) => typeof value === 'string' && value.trim().length > 0,
+        );
+      if (required.length)
+        return required.every((name) =>
+          name === 'api_key' ? Boolean(a.api_key?.trim() || a.api_key_env?.trim()) : field(name),
+        );
+      if (
+        a.preset === 'volcengine_visual' ||
+        a.preset?.startsWith('aws') ||
+        field('access_key_id') ||
+        field('secret_access_key')
+      ) {
+        return (
+          field('access_key_id') && field('secret_access_key') && (!a.preset?.startsWith('aws') || field('region'))
+        );
+      }
+      return [
         a.api_key,
         a.api_key_env,
         a.credentials?.access_token,
         a.credentials_env?.access_token,
         a.credentials?.refresh_token,
         a.credentials_env?.refresh_token,
-      ].some((v) => typeof v === 'string' && v.trim().length > 0),
-    )?.[0] ?? null
+      ].some((v) => typeof v === 'string' && v.trim().length > 0);
+    })?.[0] ?? null
   );
 }

@@ -19,7 +19,7 @@ for (const file of await files(root)) {
       : ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword ? node.arguments[0] : undefined;
     if (specifier && ts.isStringLiteral(specifier) && specifier.text.startsWith('.')) {
       const target = path.resolve(path.dirname(file), specifier.text), from = layer(file), to = layer(target);
-      if ((from[0] === 'core' && ['ui', 'features'].includes(to[0])) || (from[0] === 'platform' && ['core', 'ui', 'features'].includes(to[0])) || (from[0] === 'ui' && to[0] === 'features') || (from[0] === 'features' && to.length === 1)) failures.push(`${from.join('/')} -> ${to.join('/')}`);
+      if ((from[0] === 'core' && ['ui', 'features', 'extensions'].includes(to[0])) || (from[0] === 'platform' && ['core', 'ui', 'features', 'extensions'].includes(to[0])) || (from[0] === 'ui' && ['features', 'extensions'].includes(to[0])) || (from[0] === 'extensions' && to[0] === 'features') || (from[0] === 'extensions' && from[1] === 'shared' && to[0] === 'extensions' && to[1] !== 'shared') || (from[0] === 'features' && to.length === 1)) failures.push(`${from.join('/')} -> ${to.join('/')}`);
       if (from[0] === 'features' && to[0] === 'features' && from[1] !== to[1]) {
         if (!features.has(from[1])) features.set(from[1], new Set());
         features.get(from[1]).add(to[1]);

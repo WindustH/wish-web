@@ -1,7 +1,7 @@
 import { computed, inject } from 'vue';
 import { configDraftKey } from './useConfigDraft.ts';
 import { fetchAccountPresets } from './accountCompatibility.ts';
-import { providerName, presetDescription } from '../../ui/domain/providers/providerPresentation.ts';
+import { providerName, presetBrand, presetDescription } from '../../ui/domain/providers/providerPresentation.ts';
 import { providerPriority } from '../../ui/domain/providers/catalogOrder.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
@@ -63,14 +63,15 @@ export function useAccountCatalog() {
     }
     for (const p of imageCatalog?.value ?? []) {
       for (const id of p.account_presets) {
+        if (id === 'custom') continue;
         const existing = entries.get(id);
         if (!existing)
           entries.set(id, {
             id,
-            name: p.name,
-            brand: p.brand,
+            name: presetBrand(id) ?? providerName(p.brand),
+            brand: id === 'volcengine_visual' ? 'Volcengine Visual' : p.brand,
             description: tr('图片生成', 'Image generation'),
-            fields: [],
+            fields: [...new Set([...(p.required_credentials ?? []), ...(p.optional_credentials ?? [])])],
           });
         else if (!existing.description.includes(tr('图片生成', 'Image generation')))
           existing.description += ` · ${tr('图片生成', 'Image generation')}`;
@@ -89,14 +90,17 @@ export function useAccountCatalog() {
         if (!existing)
           entries.set(id, {
             id,
-            name: providerName(p.brand),
+            name: presetBrand(id) ?? providerName(p.brand),
             brand: p.brand,
             description: label,
-            fields: [],
+            fields: [...new Set([...(p.required_credentials ?? []), ...(p.optional_credentials ?? [])])],
           });
         else if (!existing.description.includes(label)) existing.description += ` · ${label}`;
       }
     }
-    return [...entries.values()];
+    return [...entries.values()].map((entry) => ({
+      ...entry,
+      fields: entry.fields.filter((field) => field !== 'api_key'),
+    }));
   });
 }

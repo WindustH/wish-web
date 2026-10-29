@@ -75,6 +75,7 @@ export function createSse({ url, onFrame, onState, connectTimeoutMs, headers: ex
   }
 
   function scheduleReconnect(err: SseError) {
+    clearTimers();
     if (aborted || terminal) return;
     const base = Math.min(cfg.sse.reconnectBaseMs * 2 ** attempt, cfg.sse.reconnectMaxMs);
     const delay = base / 2 + Math.random() * (base / 2);

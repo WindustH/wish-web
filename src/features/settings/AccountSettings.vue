@@ -38,23 +38,29 @@ function add(preset?: AccountPreset) {
   adding.value = false;
   editing.value = id;
 }
-function uses(id: string) {
-  return (
-    [
-      ['providers', tr('模型', 'Model')],
-      ['search', tr('搜索', 'Search')],
-      ['fetch', tr('网页读取', 'Web fetch')],
-      ['image_generation', tr('图片生成', 'Image generation')],
-      ['video_generation', tr('视频生成', 'Video generation')],
-      ['audio_generation', tr('音频生成', 'Audio generation')],
-      ['audio_transcription', tr('语音转写', 'Transcription')],
-    ] as const
-  ).flatMap(([group, label]) =>
-    Object.entries<any>(group === 'providers' ? draft.value.providers : (draft.value[group!]?.providers ?? {}))
-      .filter(([, p]) => p.credential_id === id)
-      .map(([key, p]) => `${label} · ${p.display_name || key}`),
-  );
-}
+const accountUses = computed(() => {
+  const links = new Map<string, string[]>();
+  const groups = [
+    ['providers', tr('模型', 'Model')],
+    ['search', tr('搜索', 'Search')],
+    ['fetch', tr('网页读取', 'Web fetch')],
+    ['image_generation', tr('图片生成', 'Image generation')],
+    ['video_generation', tr('视频生成', 'Video generation')],
+    ['audio_generation', tr('音频生成', 'Audio generation')],
+    ['audio_transcription', tr('语音转写', 'Transcription')],
+  ] as const;
+  for (const [group, label] of groups) {
+    const services = group === 'providers' ? draft.value.providers : (draft.value[group]?.providers ?? {});
+    for (const [id, service] of Object.entries(services)) {
+      if (!service.credential_id) continue;
+      const names = links.get(service.credential_id) ?? [];
+      names.push(`${label} · ${'display_name' in service ? service.display_name || id : id}`);
+      links.set(service.credential_id, names);
+    }
+  }
+  return links;
+});
+const uses = (id: string) => accountUses.value.get(id) ?? [];
 const removing = ref(''),
   removalStep = ref(1);
 const removalPlan = computed(() => accountRemovalPlan(draft.value, removing.value));

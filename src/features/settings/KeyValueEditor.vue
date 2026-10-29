@@ -12,13 +12,16 @@ const props = defineProps<{
   namePlaceholder: string;
   valuePlaceholder: string;
   addLabel: string;
+  secretValues?: boolean;
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: Record<string, string> | undefined] }>();
 
 type Row = { name: string; value: string; hidden: boolean };
 const rows = ref<Row[]>(
   Object.entries(props.modelValue ?? {}).map(([name, value]) =>
-    value === REDACTED ? { name, value: '', hidden: true } : { name, value, hidden: false },
+    props.secretValues !== false && value === REDACTED
+      ? { name, value: '', hidden: true }
+      : { name, value, hidden: false },
   ),
 );
 

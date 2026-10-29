@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { cfg } from '../../../core/config.ts';
+import { acquireImageLoad } from './imageLoad.ts';
 import { apiFetch, needsAccessToken } from '../../../core/api/client.ts';
 import { tr } from '../../../core/i18n/tr.ts';
 const props = defineProps<{ src: string; mime: string; path: string }>();
@@ -7,32 +9,82 @@ const url = ref(''),
   error = ref(false),
   size = ref(''),
   zoom = ref(false);
+const surface = ref<HTMLElement>();
+const visible = ref(false);
+let observer: IntersectionObserver | undefined;
+let releaseImage = () => {};
+onMounted(() => {
+  if (typeof IntersectionObserver === 'undefined') {
+    visible.value = true;
+    return;
+  }
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        visible.value = true;
+        observer?.disconnect();
+      }
+    },
+    { rootMargin: '200px' },
+  );
+  if (surface.value) observer.observe(surface.value);
+});
+onBeforeUnmount(() => observer?.disconnect());
+function failed() {
+  error.value = true;
+  releaseImage();
+}
 watch(
-  () => props.src,
-  async (src, _, onCleanup) => {
+  () => [props.src, visible.value] as const,
+  async ([src, ready], _, onCleanup) => {
     const controller = new AbortController();
     let objectUrl = '';
-    onCleanup(() => {
-      controller.abort();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    let timedOut = false;
+    let active = true;
+    const release = () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
+      objectUrl = '';
+    };
+    releaseImage = release;
+    onCleanup(() => {
+      active = false;
+      clearTimeout(timeout);
+      controller.abort();
+      release();
     });
     url.value = '';
     error.value = false;
     size.value = '';
     zoom.value = false;
+    if (!ready) return;
     if (!needsAccessToken(src)) {
       url.value = src;
       return;
     }
+    let releasePermit: (() => void) | undefined;
     try {
+      releasePermit = await acquireImageLoad(controller.signal);
+      controller.signal.throwIfAborted();
+      timeout = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, cfg.api.requestTimeoutMs);
       const response = await apiFetch(src, { signal: controller.signal });
       if (!response.ok) throw new Error(String(response.status));
       const bytes = await response.arrayBuffer();
       if (controller.signal.aborted) return;
-      objectUrl = URL.createObjectURL(new Blob([bytes], { type: props.mime }));
+      objectUrl = URL.createObjectURL(
+        new Blob([bytes], {
+          type: (props.mime && !props.mime.includes('*') ? props.mime : response.headers.get('content-type')) || '',
+        }),
+      );
       url.value = objectUrl;
     } catch {
-      if (!controller.signal.aborted) error.value = true;
+      if (active && (timedOut || !controller.signal.aborted)) error.value = true;
+    } finally {
+      clearTimeout(timeout);
+      releasePermit?.();
     }
   },
   { immediate: true },
@@ -43,7 +95,7 @@ function loaded(event: Event) {
 }
 </script>
 <template>
-  <figure class="tool-image">
+  <figure ref="surface" class="tool-image">
     <button
       v-if="url && !error"
       class="image-surface"
@@ -51,7 +103,7 @@ function loaded(event: Event) {
       :aria-label="tr('切换原始尺寸', 'Toggle original size')"
       @click="zoom = !zoom"
     >
-      <img :src="url" :alt="path" loading="lazy" decoding="async" @load="loaded" @error="error = true" />
+      <img :src="url" :alt="path" loading="lazy" decoding="async" @load="loaded" @error="failed" />
     </button>
     <p v-if="error" role="status">{{ tr('图片暂时无法加载。', 'Image could not be loaded.') }}</p>
     <p v-else-if="!url">{{ tr('正在读取图片…', 'Loading image…') }}</p>

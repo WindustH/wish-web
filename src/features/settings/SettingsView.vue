@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, inject, onActivated, provide, watch } from 'vue';
+import { ref, computed, inject, onActivated, onScopeDispose, provide, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
@@ -13,13 +13,10 @@ import DebugSettings from '../debug/DebugSettings.vue';
 import MobileSessionSettings from './MobileSessionSettings.vue';
 import Modal from '../../ui/components/Modal.vue';
 import ToolSettings from './ToolSettings.vue';
+import ExtensionToolsSettings from './ExtensionToolsSettings.vue';
 import McpSettings from './McpSettings.vue';
 import SkillsSettings from './SkillsSettings.vue';
 import AccountSettings from './AccountSettings.vue';
-import FetchSettings from './FetchSettings.vue';
-import MediaGenerationSettings from './MediaGenerationSettings.vue';
-import ImageGenerationSettings from './ImageGenerationSettings.vue';
-import SearchSettings from './SearchSettings.vue';
 import { useStatuses } from './useStatuses.ts';
 import { searchProviders } from '../../core/api/endpoints.ts';
 import '../../ui/domain/settings/settings.css';
@@ -43,7 +40,7 @@ function handleOutside(event: CustomEvent) {
 
 const closeSettings = inject(closeOverlayKey)!;
 
-import { sections } from './settingsSections.ts';
+import { sections, extensionSections } from './settingsSections.ts';
 const searchQuery = ref('');
 const visibleSections = computed(() => searchSettings(sections.value, searchQuery.value));
 function openFirstResult() {
@@ -55,21 +52,74 @@ const current = computed(() => sections.value.find((item) => item.id === tab.val
 
 const route = useRoute();
 const router = useRouter();
-const desktopSection = ref('service');
+const desktopSection = ref(
+  extensionSections.value.some((item) => item.id === route.query.section)
+    ? 'extensions'
+    : sections.value.some((item) => item.id === route.query.section)
+      ? String(route.query.section)
+      : 'service',
+);
+watch(
+  () => route.query.section,
+  (value) => {
+    if (extensionSections.value.some((item) => item.id === value)) desktopSection.value = 'extensions';
+    else if (sections.value.some((item) => item.id === value)) desktopSection.value = String(value);
+  },
+);
+function validExtension(value: unknown) {
+  return typeof value === 'string' && extensionSections.value.some((item) => item.id === value) ? value : undefined;
+}
+const extensionSection = ref(
+  validExtension(route.query.tool) ?? validExtension(route.query.section) ?? 'image_generation',
+);
+watch(
+  () => [route.query.tool, route.query.section],
+  () => {
+    const selected = validExtension(route.query.tool) ?? validExtension(route.query.section);
+    if (selected) extensionSection.value = selected;
+  },
+);
+function selectExtension(id: string) {
+  if (!validExtension(id)) return;
+  extensionSection.value = id;
+  if (isMobile.value) void router.replace({ path: '/settings', query: { section: 'extensions', tool: id } });
+}
 const mobileSection = computed(() =>
-  sections.value.some((item) => item.id === route.query.section) ? String(route.query.section) : '',
+  extensionSections.value.some((item) => item.id === route.query.section)
+    ? 'extensions'
+    : sections.value.some((item) => item.id === route.query.section)
+      ? String(route.query.section)
+      : '',
 );
 const tab = computed(() => (isMobile.value ? mobileSection.value : desktopSection.value));
 
 function selectSection(id: string) {
-  if (isMobile.value) router.push({ path: '/settings', query: { section: id } });
+  if (id === 'extensions' && searchQuery.value.trim()) {
+    extensionSection.value = searchSettings(extensionSections.value, searchQuery.value)[0]?.id ?? 'image_generation';
+  }
+  if (isMobile.value)
+    router.push({
+      path: '/settings',
+      query: {
+        section: id,
+        ...(id === 'extensions' && extensionSection.value ? { tool: extensionSection.value } : {}),
+      },
+    });
   else desktopSection.value = id;
 }
 
 // Desktop tabs share one scroller; each tab starts at its top.
 const content = ref<HTMLElement>();
-watch(tab, () => {
-  if (!isMobile.value && content.value) content.value.scrollTop = 0;
+const sidebarScrolling = ref(false);
+let sidebarScrollTimer: ReturnType<typeof setTimeout> | undefined;
+function showSidebarScrollbar() {
+  sidebarScrolling.value = true;
+  clearTimeout(sidebarScrollTimer);
+  sidebarScrollTimer = setTimeout(() => (sidebarScrolling.value = false), 600);
+}
+onScopeDispose(() => clearTimeout(sidebarScrollTimer));
+watch([tab, extensionSection], () => {
+  if (content.value) content.value.scrollTop = 0;
 });
 
 function backToCategories() {
@@ -88,7 +138,6 @@ const {
   serverDirty,
   providerOptions,
   effortOptions,
-  searchCatalog,
   accept,
   load,
   saveConfig,
@@ -145,7 +194,11 @@ onActivated(() => {
               <DialogTitle class="settings-title page-bar-title">{{ tr('设置', 'Settings') }}</DialogTitle>
               <DraftActions v-if="isMobile" />
             </header>
-            <div class="settings-sidebar-body">
+            <div
+              class="settings-sidebar-body"
+              :class="{ scrolling: sidebarScrolling }"
+              @scroll.passive="showSidebarScrollbar"
+            >
               <div class="settings-search" role="search">
                 <Icon name="search" />
                 <input
@@ -241,14 +294,12 @@ onActivated(() => {
                   :busy="busy"
                   :search-available="searchAvailable"
                 />
-                <SearchSettings
-                  v-else-if="tab === 'search'"
-                  :config="draft"
-                  :presets="searchCatalog"
-                  :models="providerOptions"
+                <ExtensionToolsSettings
+                  v-else-if="tab === 'extensions'"
+                  :initial-section="extensionSection"
+                  @selected="selectExtension"
                   :save="save"
-                  :busy="busy"
-                  :dirty="serverDirty"
+                  :search-available="searchAvailable"
                   :statuses="search.statuses.value"
                   :statuses-known="search.known.value"
                   @checked="search.refresh"
@@ -263,16 +314,7 @@ onActivated(() => {
                   :revision="revision"
                 />
                 <SkillsSettings v-else-if="tab === 'skills'" :config="draft" :busy="busy" :revision="revision" />
-                <AccountSettings v-else-if="tab === 'accounts'" /><FetchSettings
-                  v-else-if="tab === 'fetch'"
-                  :save="save"
-                />
-                <ImageGenerationSettings v-else-if="tab === 'image_generation'" />
-                <MediaGenerationSettings
-                  v-else-if="tab === 'video_generation' || tab === 'audio_generation' || tab === 'audio_transcription'"
-                  :key="tab"
-                  :section="tab"
-                />
+                <AccountSettings v-else-if="tab === 'accounts'" />
                 <NetworkSettings v-else-if="tab === 'network'" /><ProviderSettings v-else :save="save" />
               </template>
               <div v-else-if="!busy" class="settings-empty">
@@ -358,6 +400,29 @@ onActivated(() => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color var(--dur-slow) var(--ease-out);
+}
+.settings-sidebar-body.scrolling {
+  scrollbar-color: var(--line-strong) transparent;
+}
+.settings-sidebar-body::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-color: transparent;
+  transition: background var(--dur-slow) var(--ease-out);
+}
+.settings-sidebar-body.scrolling::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+}
+@media (hover: hover) {
+  .settings-sidebar-body:hover {
+    scrollbar-color: var(--line-strong) transparent;
+  }
+  .settings-sidebar-body:hover::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+  }
 }
 .settings-search {
   display: flex;
@@ -635,7 +700,7 @@ onActivated(() => {
   }
   .settings-sidebar {
     width: 216px;
-    padding: 20px 12px 16px;
+    padding: 20px 0 16px;
     border-right: 1px solid var(--line);
     background: var(--bg-sunken);
   }
@@ -653,8 +718,11 @@ onActivated(() => {
     font-weight: 600;
     line-height: 1.4;
   }
+  .settings-sidebar-body {
+    padding: 0 12px;
+  }
   .settings-home-heading {
-    padding: 0 8px 16px;
+    padding: 0 20px 16px;
   }
   .settings-brand {
     padding: 12px 8px 0;
