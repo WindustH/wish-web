@@ -1,3 +1,3 @@
 import tools from './tools.ts';
 import type { ExtensionPresentation } from '../types.ts';
-export default { id: 'metaso', tools } satisfies ExtensionPresentation;
+export default { id: 'metaso', settings: ['search'], tools } satisfies ExtensionPresentation;

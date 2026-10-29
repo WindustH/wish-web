@@ -11,6 +11,7 @@ const SpeechResult = defineAsyncComponent(() => import('./SpeechResult.vue'));
 const Result = defineAsyncComponent(() => import('./TranscriptionResult.vue'));
 export default {
   id: 'xai',
+  settings: ['image_generation', 'video_generation', 'audio_generation', 'audio_transcription'],
   tools: [
     ...additionalTools,
     {

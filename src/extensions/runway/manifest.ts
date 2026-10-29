@@ -6,6 +6,7 @@ const VideoInvocation = defineAsyncComponent(() => import('./VideoInvocation.vue
 const VideoResult = defineAsyncComponent(() => import('./VideoResult.vue'));
 export default {
   id: 'runway',
+  settings: ['video_generation'],
   tools: [
     {
       name: 'runway_video',

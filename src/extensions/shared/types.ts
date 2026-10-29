@@ -23,5 +23,6 @@ export interface ExtensionToolPresentation {
 }
 export interface ExtensionPresentation {
   id: string;
+  settings?: readonly import('./settings.ts').ExtensionCategory[];
   tools: readonly ExtensionToolPresentation[];
 }

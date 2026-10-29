@@ -45,8 +45,8 @@ import jina from '@lobehub/icons-static-svg/icons/jina.svg?url';
 import perplexity from '@lobehub/icons-static-svg/icons/perplexity.svg?url';
 import searxng from '@lobehub/icons-static-svg/icons/searxng.svg?url';
 import novelai from '@lobehub/icons-static-svg/icons/novelai.svg?url';
-// Official RunningHub login brand mark; the upstream asset is PNG.
-import runninghub from '../../assets/runninghub.png?url';
+// Monochrome mark follows the same theme color as other provider icons.
+import runninghub from '../../assets/runninghub.svg?url';
 import jimeng from '@lobehub/icons-static-svg/icons/jimeng.svg?url';
 import runway from '@lobehub/icons-static-svg/icons/runway.svg?url';
 import luma from '@lobehub/icons-static-svg/icons/luma.svg?url';
@@ -127,22 +127,17 @@ const maskImage = computed(() => `url("${source.value}")`);
 </script>
 
 <template>
-  <img v-if="source === runninghub" :src="source" class="provider-icon-image" alt="" aria-hidden="true" />
-  <span v-else-if="source" class="provider-icon" :style="{ maskImage }" aria-hidden="true" />
+  <span v-if="source" class="provider-icon" :style="{ maskImage }" aria-hidden="true" />
   <Icon :name="fallback ?? 'providers'" v-else class="provider-icon-fallback" :size="20" aria-hidden="true" />
 </template>
 
 <style scoped>
 .provider-icon,
-.provider-icon-image,
 .provider-icon-fallback {
   display: inline-block;
   width: 20px;
   height: 20px;
   flex: none;
-}
-.provider-icon-image {
-  object-fit: contain;
 }
 .provider-icon {
   background: currentColor;

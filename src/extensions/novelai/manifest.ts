@@ -6,6 +6,7 @@ const Result = defineAsyncComponent(() => import('./ImageResult.vue'));
 
 export default {
   id: 'novelai',
+  settings: ['image_generation'],
   tools: [
     {
       name: 'novelai_generate',

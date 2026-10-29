@@ -2,7 +2,7 @@
 // The built-in tools new sessions start with, whether they may manage other sessions, and the shell
 // they run commands in.
 import ServerShellSettings from '../../ui/domain/settings/ServerShellSettings.vue';
-import ToolSwitchRows from '../../ui/domain/settings/ToolSwitchRows.vue';
+import ToolSwitchRows from '../tool-settings/ToolSwitchRows.vue';
 import ToolBackgroundRow from '../../ui/domain/settings/ToolBackgroundRow.vue';
 import ToolExecutionRow from '../../ui/domain/settings/ToolExecutionRow.vue';
 import type { ShellCatalog } from '../../core/api/endpoints.ts';

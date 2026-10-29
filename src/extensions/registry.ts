@@ -25,7 +25,7 @@ import tavily from './tavily/manifest.ts';
 import replicate from './replicate/manifest.ts';
 import fal from './fal/manifest.ts';
 import searxng from './searxng/manifest.ts';
-import type { ExtensionToolPresentation } from './types.ts';
+import type { ExtensionPresentation, ExtensionToolPresentation } from './types.ts';
 import legacy from './legacy/manifest.ts';
 import novelai from './novelai/manifest.ts';
 import bfl from './bfl/manifest.ts';
@@ -33,7 +33,7 @@ import minimax from './minimax/manifest.ts';
 import xai from './xai/manifest.ts';
 import runway from './runway/manifest.ts';
 // Only bundled manifests are executable. Backend metadata never supplies JavaScript or component paths.
-const manifests = [
+export const manifests: readonly ExtensionPresentation[] = [
   discovery,
   legacy,
   novelai,

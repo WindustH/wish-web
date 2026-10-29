@@ -17,7 +17,7 @@ import type { ToolSwitches } from '../../core/api/projections.ts';
 import ServerShellSettings from '../../ui/domain/settings/ServerShellSettings.vue';
 import type { ShellCatalog } from '../../core/api/endpoints.ts';
 import '../../ui/domain/settings/settings.css';
-import ToolSwitchRows from '../../ui/domain/settings/ToolSwitchRows.vue';
+import ToolSwitchRows from '../tool-settings/ToolSwitchRows.vue';
 import SwitchRow from '../../ui/domain/settings/SwitchRow.vue';
 import ToolBackgroundRow from '../../ui/domain/settings/ToolBackgroundRow.vue';
 import ToolExecutionRow from '../../ui/domain/settings/ToolExecutionRow.vue';

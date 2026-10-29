@@ -8,6 +8,7 @@ const Result = defineAsyncComponent(() => import('./SpeechResult.vue'));
 const job = (value: unknown) => mediaJob(value) && value.kind === 'speech';
 export default {
   id: 'minimax',
+  settings: ['video_generation', 'audio_generation', 'search'],
   tools: [
     ...additionalTools,
     {

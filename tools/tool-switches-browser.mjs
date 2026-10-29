@@ -11,17 +11,18 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import {createApp,h,ref} from 'vue';
 import {TooltipProvider} from 'reka-ui';
-import ToolSwitchRows from '/src/ui/domain/settings/ToolSwitchRows.vue';
+import ToolSwitchRows from '/src/features/tool-settings/ToolSwitchRows.vue';
+import ProviderIcon from '/src/ui/domain/providers/ProviderIcon.vue';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/ui/domain/settings/settings.css';
 const tools=ref({shell:true,task_delivery:'command',history_search:true,history_search_delivery:'command',web_fetch:true,web_search:true,ask_user:true,mcp:true,skills:true,sessions:true});
 window.fixture={tools};
-createApp({render:()=>h(TooltipProvider,{},()=>h('div',{class:'settings'},h(ToolSwitchRows,{modelValue:tools.value,'onUpdate:modelValue':value=>tools.value=value,searchAvailable:true})))}).mount('#app');
+createApp({render:()=>h(TooltipProvider,{},()=>h('div',{class:'settings'},[h(ProviderIcon,{brand:'RunningHub',id:'runninghub-icon'}),h(ToolSwitchRows,{modelValue:tools.value,'onUpdate:modelValue':value=>tools.value=value,searchAvailable:true})]))}).mount('#app');
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__tool_switches', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__tool_switches', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/ui/domain/settings/ToolSwitchRows.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/tool-settings/ToolSwitchRows.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-tool-switches-'));
 let chrome, ws;
 try {
@@ -43,7 +44,7 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/__tool_switches`});
-  await until('!!window.fixture && document.querySelectorAll(".tool-delivery").length===6','controls mounted');
+  await until('!!window.fixture && document.querySelectorAll(".tool-delivery").length===10','controls mounted');
   const session=`document.querySelector('[aria-label="Session 提供方式"], [aria-label="Session delivery"]')`;
   await js(session+`.querySelector('input[value="tool"]').click()`);
   await until('fixture.tools.value.sessions_delivery==="tool" && fixture.tools.value.sessions','session direct tool');
@@ -69,7 +70,8 @@ try {
     })`),'controls align to the right at '+width);
     assert.ok(await js('document.documentElement.scrollWidth<=innerWidth'),'no horizontal overflow');
   }
-  assert.ok(await js(`Array.from(document.querySelectorAll('.segment.danger')).every(label=>getComputedStyle(label).color==='rgb(232, 133, 123)')`),'off icons use danger red');
+  await until(`Array.from(document.querySelectorAll('.segment.danger:not(:has(input:checked))')).every(label=>getComputedStyle(label).color==='rgb(232, 133, 123)')`,'off icons use danger red');
+  assert.ok(await js(`(()=>{const icon=document.querySelector('#runninghub-icon');const css=getComputedStyle(icon);return icon.tagName==='SPAN'&&css.maskImage.includes('svg')&&css.backgroundColor===css.color;})()`),'RunningHub uses the same monochrome theme mask as other providers');
   assert.deepEqual(exceptions,[]);
   console.log(JSON.stringify({ok:true,checks:['Task three states','Shell follows and restores','right alignment','red off icons']}));
 

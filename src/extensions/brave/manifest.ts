@@ -1,3 +1,3 @@
 import tools from './tools.ts';
 import type { ExtensionPresentation } from '../types.ts';
-export default { id: 'brave', tools } satisfies ExtensionPresentation;
+export default { id: 'brave', settings: ['search'], tools } satisfies ExtensionPresentation;

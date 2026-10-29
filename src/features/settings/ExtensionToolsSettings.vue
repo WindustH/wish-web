@@ -3,7 +3,7 @@ import { computed, inject, ref, watch } from 'vue';
 import type { SearchProviderStatus } from '../../core/api/endpoints.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import Icon from '../../ui/components/Icon.vue';
-import ToolSwitchRows from '../../ui/domain/settings/ToolSwitchRows.vue';
+import ToolSwitchRows from '../tool-settings/ToolSwitchRows.vue';
 import { configDraftKey } from './useConfigDraft.ts';
 import { extensionSections } from './settingsSections.ts';
 import ImageGenerationSettings from './ImageGenerationSettings.vue';
@@ -20,20 +20,12 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ checked: []; selected: [section: string] }>();
 const { draft, busy, serverDirty, providerOptions, searchCatalog } = inject(configDraftKey)!;
-const toolKeys = {
-  image_generation: 'image_generate',
-  video_generation: 'video_generate',
-  audio_generation: 'audio_generate',
-  audio_transcription: 'audio_transcribe',
-  fetch: 'web_fetch',
-  search: 'web_search',
-} as const;
-type Section = keyof typeof toolKeys;
+type Section = (typeof extensionSections.value)[number]['id'];
 const selected = ref<Section>('image_generation');
 watch(
   () => props.initialSection,
   (value) => {
-    if (value && Object.hasOwn(toolKeys, value)) selected.value = value as Section;
+    if (value && extensionSections.value.some((section) => section.id === value)) selected.value = value as Section;
   },
   { immediate: true },
 );
@@ -66,7 +58,7 @@ const current = computed(() => extensionSections.value.find((item) => item.id ==
       <div class="set-card">
         <ToolSwitchRows
           v-model="draft.defaults.tools"
-          :include="[toolKeys[selected]]"
+          :include="[current.toolKey]"
           :search-available="searchAvailable"
           in-settings
         />

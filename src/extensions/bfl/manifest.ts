@@ -26,6 +26,7 @@ function result(context: ToolRenderContext): ToolRenderBinding | undefined {
 }
 export default {
   id: 'bfl',
+  settings: ['image_generation'],
   tools: [
     {
       name: 'bfl_generate',
