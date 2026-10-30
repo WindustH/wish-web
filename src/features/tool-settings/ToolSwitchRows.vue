@@ -131,7 +131,9 @@ function delivery(
 </script>
 
 <template>
-  <template v-for="row in rows" :key="row.key">
+  <!-- A single-row picker changes the tool in place. Keep its SelectField mounted so
+       closing the menu can restore focus instead of dismissing the containing panel. -->
+  <template v-for="row in rows" :key="$slots.label && rows.length === 1 ? 'capability-picker' : row.key">
     <SwitchRow v-if="row.key === 'shell'" v-model="tools.shell" :name="row.name" :hint="note ?? row.hint" />
     <div v-else class="set-row inline capability-row" :class="{ compact }" :data-tool="row.key">
       <div v-if="$slots.label" class="capability-picker"><slot name="label" :row="row" /></div>
@@ -196,6 +198,15 @@ function delivery(
 }
 .compact .tool-delivery {
   width: 132px;
+}
+.capability-row.compact:has(.capability-picker) {
+  padding: 4px;
+  gap: 4px;
+}
+.compact .capability-picker :deep(.control-select) {
+  border-color: transparent;
+  background: transparent;
+  min-width: 0;
 }
 @media (max-width: 640px) {
   .capability-row {

@@ -5,6 +5,7 @@ import { usePageActivity } from '../composables/usePageActivity.ts';
 const pageActive = usePageActivity();
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
 import { i18n } from '../../core/i18n/index.ts';
+import { useDialogNesting } from '../composables/useDialogNesting.ts';
 import { useDialogLayer } from '../composables/useDialogLayer.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
 import { prefersReducedMotion } from '../motion/reducedMotion.ts';
@@ -14,6 +15,7 @@ const props = defineProps<{ title: string; busy?: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 const focus = useDialogFocus();
 const layer = useDialogLayer();
+const hasChildDialog = useDialogNesting(() => pageActive.value);
 useBackLayer(
   () => pageActive.value,
   close,
@@ -89,7 +91,7 @@ defineExpose({ close });
         "
         @interact-outside="
           (event) => {
-            if (busy) event.preventDefault();
+            if (busy || hasChildDialog) event.preventDefault();
           }
         "
       >

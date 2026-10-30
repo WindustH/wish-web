@@ -10,6 +10,7 @@ import Icon from './Icon.vue';
 import DraftActions from './DraftActions.vue';
 import BubbleSurface from './BubbleSurface.vue';
 import { i18n } from '../../core/i18n/index.ts';
+import { useDialogNesting } from '../composables/useDialogNesting.ts';
 import { useDialogLayer } from '../composables/useDialogLayer.ts';
 import { imageLightbox } from '../imageLightbox.ts';
 import { useDialogLifecycle } from '../composables/useDialogLifecycle.ts';
@@ -52,6 +53,7 @@ const { mounted, contentOpen, requestClose, finishClose } = useDialogLifecycle({
   reducedMotion: prefersReducedMotion,
   closed: () => emit('close'),
 });
+const hasChildDialog = useDialogNesting(() => mounted.value);
 const layer = useDialogLayer(() => props.layer ?? 60);
 // Presentation does not determine navigation ownership: local pickers/editors can also
 // fill the screen. Routed panels opt out explicitly with backLayer=false.
@@ -101,6 +103,7 @@ function looking() {
 function outside(event: Event) {
   const target = (event as CustomEvent).detail?.originalEvent?.target as Node | undefined;
   if (
+    hasChildDialog.value ||
     looking() ||
     (target instanceof Element && target.closest('.pwa-update')) ||
     !props.dismissable ||

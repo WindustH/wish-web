@@ -38,27 +38,34 @@ const current = computed(() => extensionSections.value.find((item) => item.id ==
 <template>
   <div class="extension-tools-settings">
     <ExtensionCategoryPicker
-      v-if="!mobile || overview"
+      v-if="overview"
       :model-value="selected"
-      :pages="mobile"
+      pages
       @update:model-value="
         selected = $event as Section;
         emit('selected', $event);
       "
     />
     <template v-if="!overview">
-      <header v-if="!mobile" class="set-section-head">
-        <h3>{{ current.label }}</h3>
-        <p>{{ current.summary }}</p>
-      </header>
       <fieldset v-if="draft.defaults.tools" class="settings-form extension-defaults" :disabled="busy">
         <div class="set-card">
           <ToolSwitchRows
             v-model="draft.defaults.tools"
+            :compact="!mobile"
             :include="[current.toolKey]"
             :search-available="searchAvailable"
             in-settings
-          />
+          >
+            <template v-if="!mobile" #label>
+              <ExtensionCategoryPicker
+                :model-value="selected"
+                @update:model-value="
+                  selected = $event as Section;
+                  emit('selected', $event);
+                "
+              />
+            </template>
+          </ToolSwitchRows>
         </div>
         <p class="extension-defaults-note">
           {{

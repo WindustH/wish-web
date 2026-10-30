@@ -6,6 +6,7 @@ import Icon from '../../ui/components/Icon.vue';
 import DraftActions from '../../ui/components/DraftActions.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import { useDialogNesting } from '../../ui/composables/useDialogNesting.ts';
 import { useDialogFocus } from '../../ui/composables/useDialogFocus.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import UiSettings from './UiSettings.vue';
@@ -34,9 +35,11 @@ import { extensionSection as validExtension, settingsBackTarget } from '../shell
 const isMobile = useIsMobile();
 const pageActive = usePageActivity();
 const focus = useDialogFocus();
+const hasChildDialog = useDialogNesting(() => pageActive.value);
 
 function handleOutside(event: CustomEvent) {
-  if ((event.detail.originalEvent.target as Element)?.closest?.('.pwa-update')) event.preventDefault();
+  if (hasChildDialog.value || (event.detail.originalEvent.target as Element)?.closest?.('.pwa-update'))
+    event.preventDefault();
 }
 
 const closeSettings = inject(closeOverlayKey)!;

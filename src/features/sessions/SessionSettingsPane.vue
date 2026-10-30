@@ -452,15 +452,6 @@ async function act(kind: 'compact' | 'clear') {
 .session-settings-window.modal-page > .modal-head {
   background: var(--bg);
 }
-.session-extension-switch .capability-row.compact {
-  padding: 4px;
-  gap: 4px;
-}
-.session-extension-switch .extension-category-select {
-  border-color: transparent;
-  background: transparent;
-  min-width: 0;
-}
 .session-settings-intro {
   margin: 0 0 18px;
   font-size: 12px;
