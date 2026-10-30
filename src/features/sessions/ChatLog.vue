@@ -223,6 +223,12 @@ const workIndicator = computed(() =>
 const streamText = computed(() => streamState.value?.text || '');
 const streamReasoning = computed(() => streamState.value?.reasoning || '');
 const workStatus = computed(() => {
+  if (streamState.value.recovery) {
+    return tr(
+      `正在恢复生成 · 第 ${streamState.value.recovery.attempt} 次`,
+      `Resuming generation · attempt ${streamState.value.recovery.attempt}`,
+    );
+  }
   const state = streamState.value;
   // A question waits on the user, not on work: say so rather than "tool call · ask_user".
   // The open forms come with the snapshot, so this holds after a reload too.

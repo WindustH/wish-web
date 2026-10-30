@@ -17,6 +17,7 @@ export interface StreamState {
   toolCalls: Record<string | number, ToolCallData>;
   currentTool: string | null;
   usage: any;
+  recovery?: { attempt: number; delayMs: number };
   error: any;
   gap: boolean;
   startedAt: number;
@@ -54,10 +55,24 @@ export interface StreamCallbacks {
 }
 
 export function createStreamProcessor(callbacks: StreamCallbacks) {
+  function copyState(state: StreamState): StreamState {
+    return {
+      ...state,
+      toolCalls: Object.fromEntries(Object.entries(state.toolCalls).map(([k, v]) => [k, { ...v }])),
+      retries: { ...state.retries },
+      usage: state.usage && { ...state.usage },
+    };
+  }
   let turnVersion = 0;
   let reasoningBlocks = new Map<number, { plain: string; display: string }>();
 
+  type StreamCheckpoint =
+    { revision: number; state: StreamState; reasoning: Map<number, { plain: string; display: string }> } | undefined;
+
+  let checkpoint: StreamCheckpoint;
+
   function reset() {
+    checkpoint = undefined;
     turnVersion = 0;
     reasoningBlocks.clear();
   }
@@ -88,10 +103,25 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
       if (data.type === 'snapshot' && Array.isArray(data.live_events)) {
         turnVersion++;
         reasoningBlocks.clear();
+        checkpoint = undefined;
+        let savedCheckpoint: StreamCheckpoint;
+        if (data.stream_checkpoint) {
+          let saved = createEmptyStream();
+          for (const event of data.stream_checkpoint.events ?? []) {
+            saved = processFrame(JSON.stringify({ type: 'session_event', event }), saved);
+          }
+          savedCheckpoint = {
+            revision: data.stream_checkpoint.revision,
+            state: copyState(saved),
+            reasoning: structuredClone(reasoningBlocks),
+          };
+          reasoningBlocks.clear();
+        }
         let next = { ...createEmptyStream(), active: !!data.data?.status?.running };
         for (const event of data.live_events) {
           next = processFrame(JSON.stringify({ type: 'session_event', event }), next);
         }
+        checkpoint = savedCheckpoint;
         next.retries = Object.fromEntries(
           (data.retries ?? []).flatMap((value: any) => {
             const retry = readUpstreamRetry(value, data.server_time);
@@ -130,6 +160,7 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
       const [kind, event] = Object.entries(data.event)[0] as [string, any];
 
       if (kind === 'TurnStarted') {
+        checkpoint = undefined;
         turnVersion++;
         reasoningBlocks.clear();
         return {
@@ -143,6 +174,26 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
 
       if (kind === 'ModelStream') {
         const [type, value] = Object.entries(event)[0] as [string, any];
+
+        if (type === 'Checkpoint') {
+          checkpoint = {
+            revision: value.revision,
+            state: copyState(current),
+            reasoning: structuredClone(reasoningBlocks),
+          };
+          return current;
+        }
+        if (type === 'Rewind') {
+          if (!checkpoint || checkpoint.revision !== value.revision) return { ...current, gap: true };
+          reasoningBlocks = structuredClone(checkpoint.reasoning);
+          return { ...copyState(checkpoint.state), retries: current.retries };
+        }
+        if (type === 'Recovering') {
+          return { ...current, recovery: { attempt: value.attempt, delayMs: value.delay_ms }, activity: 'working' };
+        }
+        if (['TextDelta', 'ReasoningDelta', 'ReasoningDisplayDelta', 'ToolUseDelta', 'Stop'].includes(type)) {
+          current = { ...current, recovery: undefined };
+        }
 
         if (type === 'BlockStart' && value.kind === 'Reasoning') {
           return { ...current, active: true, phase: 'streaming', activity: 'thinking' };
