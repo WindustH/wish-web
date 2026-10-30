@@ -59,6 +59,8 @@ export function noticeFailed(entry: any): boolean {
 
 /** What a notice is called, in the words its own window is titled with. */
 export function noticeLabel(entry: any): string {
+  if (entry.payload?.instruction_operation === 'remove')
+    return `${entry.payload.instruction_title} · ${i18n.locale.value === 'zh' ? '已从上下文移除' : 'Removed from context'}`;
   if (entry.payload?.instruction_kind) return instructionLabel(entry.payload.instruction_kind);
   if (entry.payload?.instruction_title) return entry.payload.instruction_title;
   if (entry.payload?.background) {

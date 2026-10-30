@@ -114,6 +114,8 @@ export interface EntryPayload {
   via?: 'command';
   instruction_title?: string;
   instruction_observation?: boolean;
+  instruction_key?: string;
+  instruction_operation?: 'set' | 'remove';
   instruction_kind?: InstructionKind;
   instruction_sections?: InstructionSection[];
   instruction_supplemental?: boolean;
@@ -235,8 +237,11 @@ export function entryView(item: any, sessionId: string): EntryView {
         payload: {
           instruction_title: note.title,
           instruction_observation: true,
+          instruction_key: sent.key,
+          instruction_operation: sent.operation,
           content: [{ type: 'text', text }],
-          instruction_sections: instructionSections(text).length > 1 ? instructionSections(text) : undefined,
+          instruction_sections:
+            !sent.operation && instructionSections(text).length > 1 ? instructionSections(text) : undefined,
         },
       };
     }

@@ -116,12 +116,22 @@ export function groupEntries<E extends GroupEntry>(entries: readonly E[]): Group
     group = null;
   };
 
-  const instructionObservations = new Set<string>();
+  const instructionObservations = new Map<string, string>();
   for (const entry of entries) {
-    if (payloadOf(entry).instruction_observation) {
-      const key = JSON.stringify([payloadOf(entry).instruction_title, payloadOf(entry).content]);
-      if (instructionObservations.has(key)) continue;
-      instructionObservations.add(key);
+    const payload = payloadOf(entry);
+    if (payload.instruction_observation) {
+      const title = payload.instruction_title ?? '';
+      const text = payload.content?.find((block: GroupBlock) => block.type === 'text')?.text ?? '';
+      const key = payload.instruction_key ?? (title === '图片输入说明' ? text.split(']')[0] : title);
+      const value = JSON.stringify(payload.content);
+      if (payload.instruction_operation === 'remove') instructionObservations.delete(key);
+      else {
+        // New records are explicit deltas. Fold only legacy repeated observations,
+        // comparing the latest state so A -> B -> A remains visible in history.
+        const repeated = !payload.instruction_operation && instructionObservations.get(key) === value;
+        instructionObservations.set(key, value);
+        if (repeated) continue;
+      }
     }
     if (entry.kind === 'history_event') continue;
     const sections = payloadOf(entry).instruction_sections;

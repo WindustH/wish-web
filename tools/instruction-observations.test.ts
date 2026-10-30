@@ -16,11 +16,22 @@ test('old repeated request observations are folded while changed definitions and
     note(4, '图片输入说明', '[Image sha256:a]'),
     note(5, '图片输入说明', '[Image sha256:b]'),
     note(6, '可用工具定义', '["shell","view_image"]'),
+    note(7, '可用工具定义', '["shell"]'),
   ];
   const before = JSON.stringify(entries);
   const grouped = groupEntries(entries);
-  assert.deepEqual(grouped.flatMap(item => item.type === 'entry' ? [item.entry.seq] : []), [1, 2, 5, 6]);
+  assert.deepEqual(grouped.flatMap(item => item.type === 'entry' ? [item.entry.seq] : []), [1, 2, 5, 6, 7]);
   assert.equal(JSON.stringify(entries), before);
   const actual = entries.slice(0, 1).map(entry => ({ ...entry, payload: { ...entry.payload, instruction_observation: false } }));
   assert.equal(groupEntries([...actual, { ...actual[0], seq: 7 }]).length, 2);
+});
+
+test('explicit context deltas retain removal and reintroduction of the same instruction', () => {
+  const entries = ['set', 'remove', 'set'].map((operation, index) => {
+    const entry = note(index + 1, '图片输入说明', '[Image sha256:a]');
+    entry.payload.instruction_key = '[Image sha256:a';
+    entry.payload.instruction_operation = operation as 'set' | 'remove';
+    return entry;
+  });
+  assert.deepEqual(groupEntries(entries).flatMap(item => item.type === 'entry' ? [item.entry.seq] : []), [1, 2, 3]);
 });
