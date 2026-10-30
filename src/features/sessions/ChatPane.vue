@@ -29,7 +29,9 @@ import ReasoningSettings from './ReasoningSettings.vue';
 import { useResolvedEffort } from './useResolvedEffort.ts';
 import { effortLabel } from './reasoningLabels.ts';
 import { sessionTitle } from '../../core/state/sessionsSlice.ts';
+import { touchButton } from '../../ui/touchButton.ts';
 
+const backTouch = touchButton();
 const panelClose = shallowRef<(() => void) | null>(null);
 provide(sessionPanelCloseKey, panelClose);
 const route = useRoute();
@@ -151,7 +153,11 @@ const goTab = (t: SessionTab) => {
         v-if="isMobile"
         class="btn ghost icon-only"
         :aria-label="i18n.t('chatbar.back')"
-        @click="router.push(sessionParent)"
+        @click="backTouch.acceptsClick($event) && router.push(sessionParent)"
+        @touchstart.passive="backTouch.start"
+        @touchmove.passive="backTouch.move"
+        @touchend="backTouch.end"
+        @touchcancel="backTouch.cancel"
       >
         <Icon name="arrow-left" />
       </button>

@@ -47,7 +47,11 @@ export function useMobileNavigationMotion() {
         { duration: 180, easing: 'cubic-bezier(.2,.8,.2,1)' },
       );
       animations.add(animation);
-      animation.onfinish = animation.oncancel = () => animations.delete(animation);
+      animation.oncancel = () => animations.delete(animation);
+      animation.onfinish = () => {
+        animations.delete(animation);
+        animation.cancel();
+      };
     }
   });
   onBeforeUnmount(() => {

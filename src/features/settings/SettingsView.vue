@@ -181,6 +181,7 @@ onActivated(() => {
     <DialogPortal :disabled="isMobile">
       <DialogOverlay v-if="!isMobile" class="settings-overlay" />
       <DialogContent
+        :disable-outside-pointer-events="false"
         as-child
         :aria-describedby="undefined"
         @open-auto-focus="focus.opened"

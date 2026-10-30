@@ -17,7 +17,9 @@ import { useDialogFocus } from '../composables/useDialogFocus.ts';
 import { prefersReducedMotion } from '../motion/reducedMotion.ts';
 import { useSheetDrag } from '../composables/useSheetDrag.ts';
 import { useBackLayer } from '../composables/useBackLayer.ts';
+import { touchButton } from '../touchButton.ts';
 const focus = useDialogFocus();
+const backTouch = touchButton();
 const pageActive = usePageActivity();
 
 // `sheet`: a card that slides up from the bottom of a phone's screen rather than one in its middle.
@@ -179,7 +181,9 @@ defineExpose({ close: requestClose });
     <!-- Once our close finishes, unmount the owned layer even if a browser stalls its CSS exit. -->
     <DialogPortal v-if="mounted">
       <DialogOverlay v-if="!bubble" class="modal-overlay" :style="{ zIndex: layer }" />
+      <!-- The scrim isolates pointer input; keep the modal focus trap without locking cached pages. -->
       <DialogContent
+        :disable-outside-pointer-events="false"
         data-keyboard-boundary
         :data-modal="mark"
         @pointerdown.capture="ownFieldDrag"
@@ -215,7 +219,11 @@ defineExpose({ close: requestClose });
             class="btn ghost icon-only"
             :disabled="dismissable === false"
             :aria-label="i18n.t('chatbar.back')"
-            @click="back ? back() : requestClose()"
+            @click="backTouch.acceptsClick($event) && (back ? back() : requestClose())"
+            @touchstart.passive="backTouch.start"
+            @touchmove.passive="backTouch.move"
+            @touchend="backTouch.end"
+            @touchcancel="backTouch.cancel"
           >
             <Icon name="arrow-left" />
           </button>

@@ -91,7 +91,7 @@ try {
   // Simulate a suspended exit animation, as can happen when a mobile browser loses foreground.
   await js(`(()=>{const style=document.createElement('style');style.textContent='.modal-card[data-state="closed"],.modal-overlay[data-state="closed"]{animation-duration:10s!important;animation-play-state:paused!important}';document.head.append(style);dialogOpen.value=true})()`);
   await until('!!document.querySelector(".modal-card")','real modal opens');
-  assert.equal(await js('document.body.style.pointerEvents'),'none');
+  assert.equal(await js('document.body.style.pointerEvents'),'','dialog uses its overlay without a document lock');
   await js(`document.querySelector('.modal-head button').click()`);
   await sleep(400);
   assert.equal(await js('document.querySelectorAll(".modal-card,.modal-overlay").length'),0,'completed close unmounts its owned layer');

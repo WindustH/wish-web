@@ -11,6 +11,7 @@ import SwitchRow from '../../ui/domain/settings/SwitchRow.vue';
 
 const props = defineProps<{
   searchAvailable: boolean | null;
+  compact?: boolean;
   include?: readonly (keyof ToolSwitches)[];
   /** Shown inside settings, where web search providers are a page away rather than a menu. */
   inSettings?: boolean;
@@ -132,11 +133,14 @@ function delivery(
 <template>
   <template v-for="row in rows" :key="row.key">
     <SwitchRow v-if="row.key === 'shell'" v-model="tools.shell" :name="row.name" :hint="note ?? row.hint" />
-    <div v-else class="set-row inline capability-row">
-      <span class="set-label"
-        ><span>{{ row.name }}</span
-        ><small>{{ note ?? row.hint }}</small></span
-      >
+    <div v-else class="set-row inline capability-row" :class="{ compact }" :data-tool="row.key">
+      <div v-if="$slots.label" class="capability-picker"><slot name="label" :row="row" /></div>
+      <template v-else>
+        <span class="set-label"
+          ><span>{{ row.name }}</span
+          ><small v-if="!compact || note">{{ note ?? row.hint }}</small></span
+        >
+      </template>
       <SegmentedControl
         class="tool-delivery"
         :label="`${row.name} ${tr('提供方式', 'delivery')}`"
@@ -181,8 +185,17 @@ function delivery(
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
 }
+.capability-picker,
 .capability-row .set-label {
   min-width: 0;
+}
+.capability-row.compact {
+  min-height: 52px;
+  padding: 6px 12px;
+  gap: 8px;
+}
+.compact .tool-delivery {
+  width: 132px;
 }
 @media (max-width: 640px) {
   .capability-row {

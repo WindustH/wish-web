@@ -34,6 +34,7 @@ const close = inject(closeOverlayKey)!;
     <DialogPortal :disabled="isMobile">
       <DialogOverlay v-if="!isMobile" class="overlay-window-scrim" />
       <DialogContent
+        :disable-outside-pointer-events="false"
         as-child
         :aria-describedby="undefined"
         @open-auto-focus="focus.opened"

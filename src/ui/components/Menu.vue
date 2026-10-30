@@ -94,7 +94,7 @@ const reference = {
 };
 // A long press opens the menu while the finger is still down; lifting it must not also act on
 // what was pressed, so a click right after the menu opens goes nowhere.
-let openedAt = 0;
+let openedAt = -Infinity;
 // The selected text the open menu acts on, or null for the element's own items.
 const selected = ref<string | null>(null);
 const shown = computed(() => (selected.value !== null && props.selectionItems ? props.selectionItems : props.items));

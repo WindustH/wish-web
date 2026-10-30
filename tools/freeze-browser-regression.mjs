@@ -11,7 +11,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width,initial-scale=1"><style>.route-page{height:100dvh}.sessions-split,.content-pane{height:100%;width:100%}.sessions-pane{display:none}</style><body><div id="app"></div><script type="module">
 import {createApp,h,ref,KeepAlive} from 'vue';
 import {createRouter,createMemoryHistory,RouterView,useRoute} from 'vue-router';
-import {TooltipProvider} from 'reka-ui';
+import {TooltipProvider,DialogRoot,DialogPortal,DialogOverlay,DialogContent,DialogTitle} from 'reka-ui';
 import Modal from '/src/ui/components/Modal.vue';
 import CachedPage from '/src/ui/components/CachedPage.vue';
 import ReasoningSettings from '/src/features/sessions/ReasoningSettings.vue';
@@ -26,9 +26,9 @@ const Chat={setup(){const opened=ref(false);return()=>h('div',{class:'chat'},[h(
 const Home={render:()=>h('div',{class:'home-scroll',style:'height:100%;overflow:auto'},Array.from({length:30},(_,index)=>h('button',{id:index===0?'home':undefined,style:'display:block;height:64px;width:100%'},'Session '+index)))};
 const Shell={setup(){const split=ref(null);useRecentsSheet(split);return()=>h('div',{ref:split,class:'sessions-split'},[h('div',{id:'session-list',class:'sessions-pane sheet-closed'},[h('div',{class:'sl-scroll'},'List')]),h('div',{class:'content-pane'},[h(RouterView)])]);}};
 const router=createRouter({history:createMemoryHistory(),routes:[{path:'/',component:Shell,meta:{section:'sessions'},children:[{path:'sessions',name:'sessions',component:Home},{path:'sessions/all',name:'all-sessions',component:Home},{path:'s/fixture',name:'session',component:Chat}]}]});
-const other=ref(false);window.fixture={go:path=>router.push(path),choice,other};
+const other=ref(false),settings=ref(false);window.fixture={go:path=>router.push(path),choice,other,settings};
 await router.push('/s/fixture');await router.isReady();
-createApp({setup(){useMobileNavigationMotion();return()=>h(TooltipProvider,{},()=>h('div',{class:'main-col',style:'height:100dvh'},[other.value?h(Modal,{open:true,title:'Independent dialog',onClose:()=>other.value=false},()=>h('button',{id:'other-close',onClick:()=>other.value=false},'Close')):null,h(RouterView,{}, {default:({Component,route})=>h(KeepAlive,{},()=>h(CachedPage,{view:Component,route,key:route.matched[0].path}))})]));}}).use(router).mount('#app');
+createApp({setup(){useMobileNavigationMotion();return()=>h(TooltipProvider,{},()=>h('div',{class:'main-col',style:'height:100dvh'},[settings.value?h(Modal,{open:true,page:true,title:'Session settings',onClose:()=>settings.value=false},()=>h('button',{id:'settings-close',onClick:()=>settings.value=false},'Close')):null,other.value?h(DialogRoot,{open:true},()=>h(DialogPortal,{},()=>[h(DialogOverlay,{class:'modal-overlay',style:'z-index:90'}),h(DialogContent,{class:'modal-card',style:'z-index:91','aria-describedby':undefined},()=>[h(DialogTitle,{},()=> 'Independent dialog'),h('button',{id:'other-close',onClick:()=>other.value=false},'Close')])])):null,h(RouterView,{}, {default:({Component,route})=>h(KeepAlive,{},()=>h(CachedPage,{view:Component,route,key:route.matched[0].path}))})]));}}).use(router).mount('#app');
 await router.push('/s/fixture');
 </script></body></html>
 `;
@@ -170,6 +170,30 @@ try {
     await js("fixture.go('/s/fixture')");
     await sleep(250);
   }
+  for (const wait of [0, 30, 100, 250]) {
+    await js("fixture.settings.value=true");
+    await until("!!document.querySelector('#settings-close')", 'session settings open');
+    assert.equal(await js('document.body.style.pointerEvents'), '', 'session dialog must not lock the document');
+    assert.ok(await js("document.querySelector('#app').getAttribute('aria-hidden')==='true'"), 'modal still hides background from assistive technology');
+    await js("document.querySelector('#open').focus()");
+    assert.ok(await js("!!document.activeElement.closest('.modal-card')"), 'keyboard focus remains inside modal');
+    await js("fixture.go('/sessions')");
+    await sleep(wait);
+    await js("document.querySelector('#settings-close').click()");
+    await until("!document.querySelector('#settings-close')", 'session settings close');
+    await sleep(350);
+    const state = await js(`({body:getComputedStyle(document.body).pointerEvents,page:getComputedStyle(document.querySelector('.route-page')).pointerEvents,animations:document.querySelector('.route-page').getAnimations().map(a=>a.playState)})`);
+    assert.equal(state.page, 'auto', 'route accepts input after animated entry under modal: '+JSON.stringify({wait,...state}));
+    await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 120, y: 500 }] });
+    for (let step = 1; step <= 8; step++) {
+      await send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 120, y: 500 - step * 25 }] });
+      await sleep(20);
+    }
+    await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await sleep(250);
+    assert.ok(await js("document.querySelector('.home-scroll').scrollTop>50"), 'native scroll after session settings closure');
+    await js("fixture.go('/s/fixture')");await sleep(250);
+  }
   // A separate modal retains its own pointer lock when the picker leaves.
   await openPicker();
   await js('fixture.other.value=true');
@@ -188,6 +212,8 @@ try {
         'no global picker lock',
         'selection and immediate route return',
         'native home scrolling',
+        'session dialog isolation and focus trap',
+        'native scroll after overlapping modal closure and navigation',
         'independent modal ownership',
       ],
     }),

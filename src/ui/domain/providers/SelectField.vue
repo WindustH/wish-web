@@ -109,9 +109,11 @@ watch(pageActive, (active) => {
       @click="open = true"
     >
       <span class="select-option-label"
-        ><ProviderIcon v-if="selected?.brand" :brand="selected.brand" /><span>{{
-          selected?.label || placeholder || '—'
-        }}</span></span
+        ><ProviderIcon v-if="selected?.brand" :brand="selected.brand" /><Icon
+          v-else-if="selected?.icon"
+          :name="selected.icon"
+          :size="18"
+        /><span>{{ selected?.label || placeholder || '—' }}</span></span
       ><Icon name="chevron-right" />
     </button>
     <Modal
@@ -141,7 +143,11 @@ watch(pageActive, (active) => {
             open = false;
           "
         >
-          <ProviderIcon v-if="option.brand" :brand="option.brand" /><span
+          <ProviderIcon v-if="option.brand" :brand="option.brand" /><Icon
+            v-else-if="option.icon"
+            :name="option.icon"
+            :size="18"
+          /><span
             >{{ option.label }}<small v-if="option.annotation" class="row-preview">{{ option.annotation }}</small></span
           ><Icon name="check" v-if="option.value === modelValue" :size="18" />
         </button>
@@ -160,9 +166,11 @@ watch(pageActive, (active) => {
     <SelectTrigger v-bind="$attrs" class="control-select">
       <SelectValue
         ><span class="select-option-label"
-          ><ProviderIcon v-if="selected?.brand" :brand="selected.brand" /><span>{{
-            selected?.label || placeholder
-          }}</span></span
+          ><ProviderIcon v-if="selected?.brand" :brand="selected.brand" /><Icon
+            v-else-if="selected?.icon"
+            :name="selected.icon"
+            :size="18"
+          /><span>{{ selected?.label || placeholder }}</span></span
         ></SelectValue
       >
       <SelectIcon as-child><Icon name="chevron-down" :size="16" aria-hidden="true" /></SelectIcon>
@@ -200,9 +208,11 @@ watch(pageActive, (active) => {
             class="control-select-option"
           >
             <span class="select-option-label"
-              ><ProviderIcon v-if="option.brand" :brand="option.brand" /><SelectItemText>{{
-                option.label
-              }}</SelectItemText></span
+              ><ProviderIcon v-if="option.brand" :brand="option.brand" /><Icon
+                v-else-if="option.icon"
+                :name="option.icon"
+                :size="18"
+              /><SelectItemText>{{ option.label }}</SelectItemText></span
             >
             <span class="select-option-trailing">
               <span v-if="option.annotation" class="select-option-annotation">{{ option.annotation }}</span>
@@ -274,6 +284,9 @@ watch(pageActive, (active) => {
   align-items: center;
   gap: 9px;
   min-width: 0;
+}
+.select-option-label > .icon {
+  flex: none;
 }
 .select-option-label > span:last-child {
   overflow: hidden;

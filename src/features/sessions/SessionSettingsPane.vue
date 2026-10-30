@@ -27,12 +27,7 @@ import ToolExecutionRow from '../../ui/domain/settings/ToolExecutionRow.vue';
 defineEmits<{ close: [] }>();
 const isMobile = useIsMobile();
 const extensionSelection = ref('image_generation');
-const extensionPage = ref(false);
 const extension = computed(() => extensionSections.value.find((item) => item.id === extensionSelection.value)!);
-function selectExtension(id: string) {
-  extensionSelection.value = id;
-  if (isMobile.value) extensionPage.value = true;
-}
 const snapshot = computed(() => chat.snapshot.value);
 const running = computed(() => !!snapshot.value && ['running', 'compacting', 'queued'].includes(snapshot.value.phase));
 
@@ -340,27 +335,17 @@ async function act(kind: 'compact' | 'clear') {
     <section class="set-section">
       <header class="set-section-head">
         <h3>{{ tr('扩展工具', 'Extension tools') }}</h3>
-        <p>
-          {{
-            tr(
-              '只设置当前会话的启用方式。服务与优先级在总设置的「扩展工具」中管理。',
-              'Set delivery for this session. Manage services and priority under Extension tools in Settings.',
-            )
-          }}
-        </p>
       </header>
-      <ExtensionCategoryPicker
-        :model-value="extensionSelection"
-        :pages="isMobile"
-        @update:model-value="selectExtension"
-      />
-      <fieldset v-if="!isMobile" class="set-card session-extension-switch" :disabled="running || busy">
+      <fieldset class="set-card session-extension-switch" :disabled="running || busy">
         <ToolSwitchRows
           v-model="tools"
+          compact
           :include="[extension.toolKey]"
           :search-available="searchAvailable"
           :note="running ? savedLater() : undefined"
-        />
+        >
+          <template #label><ExtensionCategoryPicker v-model="extensionSelection" /></template>
+        </ToolSwitchRows>
       </fieldset>
     </section>
 
@@ -435,34 +420,6 @@ async function act(kind: 'compact' | 'clear') {
     </template>
   </SessionPanelModal>
   <Modal
-    v-if="isMobile"
-    :open="extensionPage"
-    page
-    content-class="mobile-settings-page"
-    :title="extension.label"
-    @close="extensionPage = false"
-  >
-    <p class="session-settings-intro">
-      {{
-        tr(
-          '修改保留在当前会话的设置草稿中，返回后保存。',
-          'Changes stay in this session’s settings draft. Save after returning.',
-        )
-      }}
-    </p>
-    <fieldset class="set-card" :disabled="running || busy">
-      <ToolSwitchRows
-        v-model="tools"
-        :include="[extension.toolKey]"
-        :search-available="searchAvailable"
-        :note="running ? savedLater() : undefined"
-      />
-    </fieldset>
-    <template #footer
-      ><button class="btn primary" @click="extensionPage = false">{{ tr('完成', 'Done') }}</button></template
-    >
-  </Modal>
-  <Modal
     compact
     :open="confirmClear"
     :dismissable="!busy"
@@ -495,8 +452,14 @@ async function act(kind: 'compact' | 'clear') {
 .session-settings-window.modal-page > .modal-head {
   background: var(--bg);
 }
-.session-extension-switch {
-  margin-top: 12px;
+.session-extension-switch .capability-row.compact {
+  padding: 4px;
+  gap: 4px;
+}
+.session-extension-switch .extension-category-select {
+  border-color: transparent;
+  background: transparent;
+  min-width: 0;
 }
 .session-settings-intro {
   margin: 0 0 18px;
