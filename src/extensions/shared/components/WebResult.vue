@@ -15,6 +15,11 @@ function href(value: unknown) {
     return undefined;
   }
 }
+function source(item: Record<string, unknown> | undefined) {
+  const url = href(item?.url);
+  const site = item?.site || (url ? new URL(url).hostname : undefined);
+  return [site, item?.published].filter((value) => typeof value === 'string' && value).join(' · ');
+}
 </script>
 <template>
   <section class="web-result">
@@ -32,9 +37,7 @@ function href(value: unknown) {
       <a v-if="href(item?.url)" :href="href(item?.url)" target="_blank" rel="noopener noreferrer">{{
         item?.title || item?.url
       }}</a>
-      <small v-if="item?.site || item?.published">{{
-        [item?.site, item?.published].filter(Boolean).join(' · ')
-      }}</small>
+      <small v-if="source(item)">{{ source(item) }}</small>
       <p>{{ item?.snippet ?? item?.description ?? item?.content }}</p>
     </article>
     <p v-if="output.content || output.text">{{ output.content ?? output.text }}</p>
