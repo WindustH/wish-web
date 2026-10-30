@@ -60,6 +60,21 @@ Providers made from the OpenAI Codex preset offer **Sign in with ChatGPT**. It s
 
 The sign-in redirects to `localhost` on the server's machine. If your browser runs elsewhere, that page won't load: copy the full URL from the address bar, paste it into **Paste the localhost redirect URL**, and press **Complete sign-in**. An attempt expires after ten minutes.
 
+### Signing in to Google Antigravity
+
+Choose **Google Gemini → Antigravity · Google subscription**, then **Sign in with Google**
+in its linked account, or use the first-run setup. Wish discovers the Cloud Code
+project, saves and renews the credentials, and lists models available to that account.
+
+If authorization ends on an unreachable localhost page, paste the full URL back into
+Wish and finish sign-in. This preset uses Antigravity's unofficial subscription
+interface; model access depends on account eligibility and quota. Configure it
+separately from the Google AI Studio API key preset.
+
+Reasoning deployments share one model entry with the levels available to the account. Thinking and tiered deployments appear as enabled/adaptive modes; Lite and Image remain separate models. The backend resolves the selected mode to its real deployment, and older deployment IDs remain callable. Account usage shows each model group’s five-hour or weekly windows and reset times.
+
+Select Google Antigravity in search and image services to reuse the signed-in account. Search returns grounded source links; images use `gemini-3.1-flash-image` and support reference images. Subscription page fetching has not been verified to work; use an existing fetch service.
+
 ### Models
 
 Each provider lists its models (**Models**). **Add model** opens the **Upstream model catalog** when the provider has one; a newly added provider must be saved first. Choose **Custom** to type an ID. An ID that isn't in the catalog needs **Use this custom ID outside the catalog**.

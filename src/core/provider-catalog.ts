@@ -9,6 +9,7 @@ export interface ModelInfo {
   input_modalities?: string[] | null;
   supports_reasoning?: boolean;
   default_reasoning_effort?: string;
+  reasoning_required?: boolean;
   reasoning_efforts?: Record<string, string | number>;
   /** Configured window, preferred over the upstream catalog's `context_window`. */
   context_window_tokens?: number | null;

@@ -369,7 +369,7 @@ export function useProviderSetup({ preview = false } = {}) {
       return false;
     }
   }
-  /** After a ChatGPT or GitHub sign-in: takes the provider as saved, with its tokens, and reads its catalog. */
+  /** After a subscription sign-in: takes the provider as saved, with its tokens, and reads its catalog. */
   async function signedInWithAccount() {
     try {
       snapshot.value = await configSnapshot({ signal: controller?.signal });

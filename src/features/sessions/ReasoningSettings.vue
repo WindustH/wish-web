@@ -100,8 +100,17 @@ interface EffortItem extends PickerItem {
   effort: string;
 }
 const choices = computed<EffortItem[]>(() => {
+  const required = metadata.value?.reasoning_required;
+  const constrained = required != null;
   const items: EffortItem[] = [
-    { key: key('none'), effort: 'none', title: 'none', description: i18n.t('reasoning.none'), search: 'none' },
+    {
+      key: key('none'),
+      effort: 'none',
+      title: 'none',
+      description: i18n.t('reasoning.none'),
+      search: 'none',
+      disabled: required,
+    },
     ...levels.value.map((effort) => ({
       key: key(effort),
       effort,
@@ -111,7 +120,7 @@ const choices = computed<EffortItem[]>(() => {
     })),
   ];
   const current = snapshot.value?.reasoning_effort;
-  if (current && !items.some((item) => item.effort === current))
+  if (current && !constrained && !items.some((item) => item.effort === current))
     items.push({
       key: key(current),
       effort: current,
@@ -124,6 +133,7 @@ const choices = computed<EffortItem[]>(() => {
     custom &&
     custom.toLowerCase() !== 'auto' &&
     !unsupported.value &&
+    !constrained &&
     !items.some((item) => item.effort.toLocaleLowerCase() === custom.toLocaleLowerCase())
   ) {
     items.push({

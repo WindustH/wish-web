@@ -11,7 +11,7 @@ import Icon from '../../ui/components/Icon.vue';
 import SelectField from '../../ui/domain/providers/SelectField.vue';
 import AnimatedDetails from '../../ui/components/AnimatedDetails.vue';
 import { credentialTitle } from '../providers/preset-profile.ts';
-import { useChatgptLogin } from '../providers/useChatgptLogin.ts';
+import { useBrowserLogin } from '../providers/useBrowserLogin.ts';
 import { useCopilotLogin } from '../providers/useCopilotLogin.ts';
 import SetupChosen from './SetupChosen.vue';
 import type { SetupState } from './useProviderSetup.ts';
@@ -22,8 +22,9 @@ const reveal = ref(false);
 // A ChatGPT account can also be given as a token by hand.
 const manualToken = ref(false);
 const login = reactive(
-  useChatgptLogin(
+  useBrowserLogin(
     () => setup.id.trim(),
+    () => (setup.preset?.id === 'google_antigravity' ? 'google' : 'chatgpt'),
     setup.saveForSignIn,
     () => void setup.signedInWithAccount(),
   ),
@@ -36,6 +37,9 @@ const copilotLogin = reactive(
   ),
 );
 
+const google = computed(() => setup.preset?.id === 'google_antigravity');
+const loginName = computed(() => (google.value ? 'Google' : 'ChatGPT'));
+const browser = computed(() => codex.value || google.value);
 const codex = computed(() => !!setup.profile?.codex);
 // A Copilot session lasts half an hour, so it only comes from signing in.
 const copilot = computed(() => setup.preset?.id === 'github_copilot');
@@ -45,8 +49,8 @@ const name = computed(() =>
 );
 const keyLabel = computed(() => setup.profile?.keyLabel || 'API Key');
 const title = computed(() =>
-  codex.value
-    ? tr('登录 ChatGPT', 'Sign in to ChatGPT')
+  browser.value
+    ? tr(`登录 ${loginName.value}`, `Sign in to ${loginName.value}`)
     : copilot.value
       ? tr('登录 GitHub Copilot', 'Sign in to GitHub Copilot')
       : setup.custom
@@ -58,6 +62,11 @@ const intro = computed(() => {
     return tr(
       '使用已保存的共享账户。下一步会验证连接并读取模型列表。',
       'Use the saved shared account. Next, verify the connection and read available models.',
+    );
+  if (google.value)
+    return tr(
+      '用 Google 账户授权 Antigravity，Wish 会读取订阅可用模型并自动续期。',
+      'Authorize Antigravity with your Google account. Wish reads available models and renews the sign-in.',
     );
   if (codex.value)
     return tr(
@@ -85,10 +94,10 @@ const intro = computed(() => {
   );
 });
 const showKey = computed(
-  () => !setup.provider.credential_id && setup.usesKey && !copilot.value && (!codex.value || manualToken.value),
+  () => !setup.provider.credential_id && setup.usesKey && !copilot.value && (!browser.value || manualToken.value),
 );
 const credentials = computed(() =>
-  setup.credentialFields.filter(() => !setup.provider.credential_id && (!codex.value || manualToken.value)),
+  setup.credentialFields.filter(() => !setup.provider.credential_id && (!browser.value || manualToken.value)),
 );
 // The service address is part of a preset; only a custom or local one asks for it up front.
 const addressFirst = computed(() => setup.custom || local.value);
@@ -141,9 +150,9 @@ const placeholder = (field?: string) =>
         <SelectField v-model="setup.provider.auth" mobile-page :options="auths" />
       </label>
 
-      <div v-if="codex && !manualToken" class="setup-signin">
+      <div v-if="browser && !manualToken" class="setup-signin">
         <p v-if="setup.signedIn" class="setup-signed">
-          <Icon name="check" />{{ tr('已登录 ChatGPT', 'Signed in to ChatGPT') }}
+          <Icon name="check" />{{ tr(`已登录 ${loginName}`, `Signed in to ${loginName}`) }}
         </p>
         <template v-else>
           <button
@@ -154,8 +163,8 @@ const placeholder = (field?: string) =>
           >
             <Icon name="external-link" />{{
               login.busy
-                ? tr('重新打开 ChatGPT 登录', 'Restart ChatGPT sign-in')
-                : tr('通过 ChatGPT 登录', 'Sign in with ChatGPT')
+                ? tr(`重新打开 ${loginName} 登录`, `Restart ${loginName} sign-in`)
+                : tr(`通过 ${loginName} 登录`, `Sign in with ${loginName}`)
             }}
           </button>
           <small class="setup-hint">{{
@@ -283,7 +292,7 @@ const placeholder = (field?: string) =>
           @input="setup.setSecret(($event.target as HTMLInputElement).value, field)"
         />
       </label>
-      <p v-if="setup.profile?.note && !codex" class="setup-note"><Icon name="info" />{{ setup.profile.note }}</p>
+      <p v-if="setup.profile?.note && !browser" class="setup-note"><Icon name="info" />{{ setup.profile.note }}</p>
 
       <AnimatedDetails class="setup-advanced">
         <summary>

@@ -17,6 +17,7 @@ const protocols: Record<string, { label: string; brand: string; annotation?: str
   anthropic_messages: { label: 'Anthropic Messages', brand: 'Anthropic' },
   bedrock_converse_stream: { label: 'AWS Bedrock Converse Stream', brand: 'AWS Bedrock' },
   google_generate_content: { label: 'Google Gemini Generate Content', brand: 'Google Gemini' },
+  google_antigravity_generate_content: { label: 'Google Antigravity Generate Content', brand: 'Google Gemini' },
   google_interactions: { label: 'Google Gemini Interactions', brand: 'Google Gemini' },
   google_vertex_generate_content: { label: 'Google Vertex AI Generate Content', brand: 'Google Gemini' },
   mistral_conversations: { label: 'Mistral Conversations', brand: 'Mistral' },
@@ -39,6 +40,7 @@ const protocols: Record<string, { label: string; brand: string; annotation?: str
 const extra: Record<string, { label: string; brand: string; annotation?: string }> = {
   openai_codex_models: { label: 'OpenAI Codex Models', brand: 'OpenAI' },
   anthropic_models: { label: 'Anthropic Models', brand: 'Anthropic' },
+  google_antigravity_models: { label: 'Google Antigravity Models', brand: 'Google Gemini' },
   google_models: { label: 'Google Gemini Models', brand: 'Google Gemini' },
   qwen_models: { label: 'Qwen Models', brand: 'Qwen' },
   bedrock_models: { label: 'AWS Bedrock Models', brand: 'AWS Bedrock' },
@@ -60,6 +62,7 @@ const extra: Record<string, { label: string; brand: string; annotation?: string 
   openrouter_credits: { label: 'OpenRouter Credits', brand: 'OpenRouter' },
   hf_whoami_billing: { label: 'Hugging Face Billing', brand: 'Hugging Face Router' },
   qwen_workspace_quota: { label: 'Qwen Workspace Quota', brand: 'Qwen' },
+  google_antigravity_quota: { label: 'Google Antigravity Quota', brand: 'Google Gemini' },
   openai_codex_usage: { label: 'ChatGPT Plan Usage', brand: 'OpenAI' },
   github_copilot_usage: { label: 'GitHub Copilot Usage', brand: 'GitHub Copilot' },
   magpie_quotas: { label: 'Magpie Quotas', brand: 'Magpie' },

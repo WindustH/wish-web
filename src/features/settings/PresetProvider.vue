@@ -301,6 +301,7 @@ const optional = (items: string[]) => [{ value: '', label: tr('不使用', 'Disa
                     'openai_codex_models',
                     'anthropic_models',
                     'google_models',
+                    'google_antigravity_models',
                     'qwen_models',
                     'bedrock_models',
                     'github_copilot_models',

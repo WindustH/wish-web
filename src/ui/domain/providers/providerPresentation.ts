@@ -53,6 +53,8 @@ const billing: Record<string, [string, string]> = {
 export const providerName = (name: string) =>
   ['Z.ai', 'Z AI', 'Z.AI'].includes(name) ? 'Z.AI' : i18n.locale.value === 'zh' ? names[name] || name : name;
 export function presetDescription(preset: ProviderPreset) {
+  if (preset.id === 'google_antigravity')
+    return i18n.locale.value === 'zh' ? 'Antigravity · Google 订阅' : 'Antigravity · Google subscription';
   const zh = i18n.locale.value === 'zh';
   const region = zh ? regions[preset.region] || preset.region : englishRegions[preset.region] || preset.region;
   const plan = billing[preset.billing]?.[zh ? 0 : 1] || preset.billing;

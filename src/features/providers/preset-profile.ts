@@ -69,6 +69,17 @@ export function presetProfile(p: ProviderPreset) {
       'Browser sign-in saves the account ID and refreshes tokens. Open the callback in a browser on the Wish server machine.',
     );
     documentation = 'https://developers.openai.com/codex/auth/';
+  } else if (p.id === 'google_antigravity') {
+    keyLabel = 'Google Access Token';
+    keyHint = tr(
+      '通过 Google 登录连接 Antigravity 订阅。',
+      'Sign in with Google to connect your Antigravity subscription.',
+    );
+    note = tr(
+      '登录后自动保存 Cloud Code 项目并续期；远程使用时可粘贴完整的回调链接。',
+      'Sign-in saves the Cloud Code project and renews tokens. For remote servers, paste the complete callback URL.',
+    );
+    documentation = 'https://github.com/badrisnarayanan/antigravity-claude-proxy';
   } else if (aws) {
     note = tr(
       '此预设使用 AWS SigV4 签名。地区决定 Bedrock 服务地址；临时凭据必须同时填写 Session Token。',
@@ -199,6 +210,7 @@ export function presetProfile(p: ProviderPreset) {
 export const credentialTitle = (field: string): string | undefined =>
   (
     ({
+      project: tr('Cloud Code 项目 ID', 'Cloud Code project ID'),
       account_id: tr('账户 ID', 'Account ID'),
       region: tr('AWS 地区', 'AWS Region'),
       access_key_id: 'Access Key ID',

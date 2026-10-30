@@ -16,7 +16,7 @@ import { mapConcurrent } from '../util/mapConcurrent.ts';
 import type { ConfigCatalog, ProviderConfig } from '../provider-presets.ts';
 import type {
   BlobInfo,
-  ChatgptLogin,
+  BrowserLogin,
   ConfigSnapshot,
   CopilotDeviceCode,
   CopilotLogin,
@@ -87,8 +87,7 @@ export async function sessionsList(params: SessionsListParams = {}, opts?: Endpo
 export async function sessionCreate(body: CreateSessionBody) {
   const [{ defaults, session_config }, providers] = await Promise.all([get('/defaults'), get('/providers')]);
   const provider = providers.items.find((p: { id: string }) => p.id === body.provider);
-  await requireAvailableModel(provider, body.model);
-  const model = provider?.models?.[body.model] ?? {};
+  const model = await requireAvailableModel(provider, body.model);
   const effort = body.reasoning_effort ?? model.default_reasoning_effort ?? session_config.reasoning?.effort;
   const instructions = body.agent_custom ?? defaults.instructions;
   const config = {
@@ -204,16 +203,20 @@ export async function sessionUpdateModel(
 ) {
   const [current, providers] = await Promise.all([sessionGet(id, opts), get('/providers', opts)]);
   const provider = providers.items.find((p: { id: string }) => p.id === (body.provider ?? current.provider));
-  if ((body.model ?? current.model) !== current.model || (body.provider ?? current.provider) !== current.provider) {
-    await requireAvailableModel(provider, body.model ?? current.model);
-  }
-  const model = provider?.models?.[body.model ?? current.model];
+  const changed =
+    (body.model ?? current.model) !== current.model || (body.provider ?? current.provider) !== current.provider;
+  const model = changed
+    ? await requireAvailableModel(provider, body.model ?? current.model)
+    : provider?.models?.[body.model ?? current.model];
   // A target with no known levels resolves to `max`, the same default the reasoning picker
   // shows for it (see reasoningLabels); known levels keep the model's own default (null).
   const knownLevels = Object.keys(model?.reasoning_efforts ?? provider?.reasoning_efforts ?? {}).filter(
     (level) => level !== 'none' && level !== 'auto',
   );
-  const effort = body.reasoning_effort ?? (model?.supports_reasoning === false || knownLevels.length ? null : 'max');
+  const effort =
+    body.reasoning_effort ??
+    model?.default_reasoning_effort ??
+    (model?.supports_reasoning === false || knownLevels.length ? null : 'max');
   const config = {
     ...current.config,
     model: body.model ?? current.model,
@@ -489,34 +492,38 @@ export async function requireAvailableModel(
   provider: ModelCatalogSource | null | undefined,
   id: string,
   draft?: { provider: ProviderConfig; accounts?: Record<string, unknown> },
-): Promise<void> {
+): Promise<Record<string, any>> {
   if (!provider) throw new Error('Choose an existing provider before selecting a model.');
   const configured = provider.models?.[id];
-  if (configured?.custom_model_id) return;
+  if (configured?.custom_model_id) return configured;
   if (provider.model_list) {
     try {
       for await (const page of draft
         ? providerDraftCatalogPages(provider.id, draft.provider, undefined, draft.accounts)
         : providerCatalogPages(provider.id)) {
-        if (page.items?.some((model: { id: string }) => model.id === id)) return;
+        const model = page.items?.find((model: { id: string }) => model.id === id);
+        if (model) return { ...model, ...configured };
       }
     } catch (error) {
       // Keep already-configured models usable while an upstream catalog is unavailable.
-      if (configured && error && typeof error === 'object' && 'status' in error) return;
+      if (configured && error && typeof error === 'object' && 'status' in error) return configured;
       throw error;
     }
-  } else if (configured) return;
+  } else if (configured) return configured;
   throw new Error(`Model ID "${id}" is unavailable for provider "${provider.id}". Use the exact upstream ID.`);
 }
 // The provider's account reading (balance, plan windows), in the server's AccountState shape.
 export const providerAccount = (id: string, opts?: EndpointOptions): Promise<unknown> =>
   get(`/providers/${encodeURIComponent(id)}/account`, opts);
-const chatgptLogin = (provider: string) => `/providers/${encodeURIComponent(provider)}/chatgpt-login`;
-export const chatgptLoginStart = (provider: string): Promise<{ authorization_url: string }> =>
-  post(chatgptLogin(provider), {});
-export const chatgptLoginStatus = (provider: string): Promise<ChatgptLogin> => get(chatgptLogin(provider));
-export const chatgptLoginComplete = (provider: string, callbackUrl: string) =>
-  post(`${chatgptLogin(provider)}/complete`, { callback_url: callbackUrl });
+export type BrowserLoginKind = 'chatgpt' | 'google';
+const browserLogin = (provider: string, kind: BrowserLoginKind) =>
+  `/providers/${encodeURIComponent(provider)}/${kind}-login`;
+export const browserLoginStart = (provider: string, kind: BrowserLoginKind): Promise<{ authorization_url: string }> =>
+  post(browserLogin(provider, kind), {});
+export const browserLoginStatus = (provider: string, kind: BrowserLoginKind): Promise<BrowserLogin> =>
+  get(browserLogin(provider, kind));
+export const browserLoginComplete = (provider: string, kind: BrowserLoginKind, callbackUrl: string) =>
+  post(`${browserLogin(provider, kind)}/complete`, { callback_url: callbackUrl });
 const copilotLogin = (provider: string) => `/providers/${encodeURIComponent(provider)}/copilot-login`;
 export const copilotLoginStart = (provider: string): Promise<CopilotDeviceCode> => post(copilotLogin(provider), {});
 export const copilotLoginStatus = (provider: string): Promise<CopilotLogin> => get(copilotLogin(provider));

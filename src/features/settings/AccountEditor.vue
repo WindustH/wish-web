@@ -6,7 +6,7 @@ import SwitchRow from '../../ui/domain/settings/SwitchRow.vue';
 import SelectField from '../../ui/domain/providers/SelectField.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { configDraftKey } from './useConfigDraft.ts';
-import { useChatgptLogin } from '../providers/useChatgptLogin.ts';
+import { useBrowserLogin } from '../providers/useBrowserLogin.ts';
 import { useCopilotLogin } from '../providers/useCopilotLogin.ts';
 import { REDACTED, secretText, readSecret, writeCredential } from '../../core/secretRef.ts';
 import { useAccountCatalog } from './useAccountCatalog.ts';
@@ -17,7 +17,14 @@ const { draft, saveConfig, load } = inject(configDraftKey)!;
 const mobile = useIsMobile();
 const accountCatalog = useAccountCatalog();
 const account = computed(() => draft.value.accounts[props.id]);
-const login = reactive(useChatgptLogin(() => `account:${props.id}`, saveConfig, load));
+const login = reactive(
+  useBrowserLogin(
+    () => `account:${props.id}`,
+    () => (account.value?.preset === 'google_antigravity' ? 'google' : 'chatgpt'),
+    saveConfig,
+    load,
+  ),
+);
 const copilot = reactive(useCopilotLogin(() => `account:${props.id}`, saveConfig, load));
 // Keep saved placeholders while a replacement is typed and then erased.
 const savedSecrets = shallowRef<{ api_key?: string | null; credentials?: Record<string, string> }>({});
@@ -140,9 +147,13 @@ function field(name: string, text: string) {
             @input="field(name, ($event.target as HTMLInputElement).value)"
         /></label>
       </div>
-      <div v-if="account.preset === 'openai_codex'" class="set-card account-signin">
+      <div v-if="['openai_codex', 'google_antigravity'].includes(account.preset ?? '')" class="set-card account-signin">
         <button class="btn" :disabled="login.submitting" @click="login.start">
-          {{ tr('通过 ChatGPT 登录', 'Sign in with ChatGPT') }}
+          {{
+            account.preset === 'google_antigravity'
+              ? tr('通过 Google 登录', 'Sign in with Google')
+              : tr('通过 ChatGPT 登录', 'Sign in with ChatGPT')
+          }}
         </button>
         <a v-if="login.url" :href="login.url" target="_blank" rel="noopener noreferrer">{{
           tr('打开授权页面', 'Open authorization page')

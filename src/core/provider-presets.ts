@@ -66,6 +66,7 @@ export const MODEL_PROTOCOLS = [
   'mimo_messages',
   'tokenhub_messages',
   'google_generate_content',
+  'google_antigravity_generate_content',
   'google_vertex_generate_content',
   'google_interactions',
   'bedrock_converse',
@@ -86,6 +87,7 @@ export const ACCOUNT_PROTOCOLS = [
   'hf_whoami_billing',
   'qwen_workspace_quota',
   'openai_codex_usage',
+  'google_antigravity_quota',
   'github_copilot_usage',
   'magpie_quotas',
 ];

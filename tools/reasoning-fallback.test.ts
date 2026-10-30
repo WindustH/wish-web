@@ -7,7 +7,13 @@ import { sessionUpdateModel } from '../src/core/api/endpoints.ts';
 function snapshot(provider: string) {
   return {
     session: { id: 's1', name: '', provider, revision: 7, created_at: 0, updated_at: 0 },
-    status: { config: { model: 'old-model', reasoning: { effort: 'high' } }, metadata: {}, phase: 'Idle', running: false, queue_count: 0 },
+    status: {
+      config: { model: 'old-model', reasoning: { effort: 'high' } },
+      metadata: {},
+      phase: 'Idle',
+      running: false,
+      queue_count: 0,
+    },
   };
 }
 
@@ -21,7 +27,11 @@ async function patch(provider: object, body: Parameters<typeof sessionUpdateMode
     let value;
     if (path === '/api/sessions/s1' && options!.method === 'PATCH') {
       captured = JSON.parse(options!.body as string);
-      value = { ...snapshot('go'), status: { ...snapshot('go').status, config: captured.config }, session: { ...snapshot('go').session, revision: 8 } };
+      value = {
+        ...snapshot('go'),
+        status: { ...snapshot('go').status, config: captured.config },
+        session: { ...snapshot('go').session, revision: 8 },
+      };
     } else if (path === '/api/sessions/s1') {
       value = snapshot('go');
     } else if (path === '/api/providers') {
@@ -48,7 +58,11 @@ test('switching to a catalog model without levels defaults the effort to max', a
 
 test('switching without an explicit effort keeps null for a model with known levels', async () => {
   setBaseUrl('http://wish-test.invalid/api');
-  const provider = { id: 'go', models: { 'known-model': {} }, reasoning_efforts: { low: 'low', high: 'high', max: 'max' } };
+  const provider = {
+    id: 'go',
+    models: { 'known-model': {} },
+    reasoning_efforts: { low: 'low', high: 'high', max: 'max' },
+  };
   const { captured } = await patch(provider, { model: 'known-model' });
   assert.equal(captured().config.reasoning, null);
 });
@@ -58,4 +72,16 @@ test('an explicit effort still wins over the fallback', async () => {
   const provider = { id: 'go', models: {}, reasoning_efforts: null, model_list: 'openai_models' };
   const { captured } = await patch(provider, { model: 'catalog-model', reasoning_effort: 'low' });
   assert.equal(captured().config.reasoning.effort, 'low');
+});
+
+test('catalog reasoning choices replace unsupported saved levels', async () => {
+  const { resolvedEffort } = await import('../src/features/sessions/reasoningLabels.ts');
+  const model = {
+    reasoning_required: true,
+    default_reasoning_effort: 'medium',
+    reasoning_efforts: { low: 'low', medium: 'medium', high: 'high' },
+  };
+  assert.equal(resolvedEffort('low', model, {}), 'low');
+  assert.equal(resolvedEffort('max', model, {}), 'medium');
+  assert.equal(resolvedEffort(undefined, model, {}), 'medium');
 });

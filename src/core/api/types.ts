@@ -177,8 +177,8 @@ export interface ConfigSnapshot {
 // The shells the server can run commands in: its default and the ones installed.
 export type ShellInfo = { name: string | null; program: string; args: string[] };
 export type ShellCatalog = { default: ShellInfo; installed: ShellInfo[] };
-// Signing a Codex provider in with ChatGPT in the browser.
-export interface ChatgptLogin {
+// Browser OAuth status shared by ChatGPT and Google sign-in.
+export interface BrowserLogin {
   status: 'pending' | 'complete' | 'failed' | 'expired' | string;
   authorization_url?: string;
   error?: string;

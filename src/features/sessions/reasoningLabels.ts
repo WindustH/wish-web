@@ -11,6 +11,8 @@ export function resolvedEffort(
   model: Omit<ModelInfo, 'id'> | undefined,
   providerLevels: Record<string, string | number>,
 ) {
+  if (model?.reasoning_required != null && explicit && !Object.hasOwn(model.reasoning_efforts ?? {}, explicit))
+    explicit = undefined;
   if (explicit) return explicit;
   if (model?.default_reasoning_effort) return model.default_reasoning_effort;
   if (model?.supports_reasoning === false) return 'none';
