@@ -25,3 +25,10 @@ test('HTTP and network request errors retain useful detail', () => {
   assert.deepEqual(displayFailure({status:401,detail:'unauthorized',code:'401'}),{message:'unauthorized',family:'HTTP 401 · 401'});
   assert.equal(displayFailure(new Error('network unavailable'))!.message,'network unavailable');
 });
+
+test('credential expiry retains its error family instead of displaying a bare Unix timestamp', () => {
+  const failure = operationFailure(failed({Renewal:{expires_at:1793352045}}));
+  assert.equal(failure?.family, 'Renewal');
+  assert.match(failure!.message, /credentials expired/);
+  assert.doesNotMatch(failure!.message, /1793352045/);
+});

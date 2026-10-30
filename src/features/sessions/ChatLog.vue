@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { describeError } from '../../core/i18n/errorMessages.ts';
 import { displayFailure } from '../../core/api/failures.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
@@ -486,7 +487,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
               role="alert"
             >
               <strong>{{ i18n.t('chat.requestFailed') }}</strong>
-              <p>{{ requestFailure.message }}</p>
+              <p>{{ describeError(requestFailure.message).message }}</p>
               <small v-if="requestFailure.family">{{ requestFailure.family }}</small>
               <button class="btn ghost sm" @click="chat.reload()">{{ i18n.t('chat.reload') }}</button>
               <button class="btn ghost sm" @click="chat.error.value = null">{{ i18n.t('common.close') }}</button>
@@ -497,7 +498,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
               role="alert"
             >
               <strong>{{ i18n.t('chat.runFailed') }}</strong>
-              <p>{{ runFailure.message }}</p>
+              <p>{{ describeError(runFailure.message).message }}</p>
               <small v-if="runFailure.family">{{ runFailure.family }}</small>
               <RetryRunButton :session="sessionId" />
             </div>

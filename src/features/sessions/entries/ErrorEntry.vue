@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { describeError } from '../../../core/i18n/errorMessages.ts';
 import RetryRunButton from '../RetryRunButton.vue';
 import { i18n } from '../../../core/i18n/index.ts';
 defineProps<{ item: any; session?: string }>();
@@ -6,7 +7,7 @@ defineProps<{ item: any; session?: string }>();
 <template>
   <div class="history-error" role="alert">
     <strong>{{ i18n.t('chat.runFailed') }}</strong>
-    <p>{{ item.entry.payload.failure.message }}</p>
+    <p>{{ describeError(item.entry.payload.failure.message).message }}</p>
     <small v-if="item.entry.payload.failure.family">{{ item.entry.payload.failure.family }}</small>
     <RetryRunButton v-if="session" :session="session" :sequence="item.entry.seq" />
   </div>

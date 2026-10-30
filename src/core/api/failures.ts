@@ -9,6 +9,12 @@ export function displayFailure(value: any, family = ''): DisplayFailure | null {
   if (value == null) return null;
   if (typeof value === 'string') return { message: value, family };
   if (value.name === 'AbortError') return null;
+  if (family === 'Renewal' && typeof value.expires_at === 'number') {
+    return {
+      message: 'Account credentials expired. Resume to use refreshed credentials; sign in again if renewal fails.',
+      family,
+    };
+  }
   if (value.message || value.detail || value.reason) {
     const details = [family, value.status ? `HTTP ${value.status}` : '', value.code].filter(Boolean);
     return { message: String(value.detail || value.message || value.reason), family: details.join(' · ') };

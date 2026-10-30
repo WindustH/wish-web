@@ -225,6 +225,10 @@ const zh: Rule[] = [
   [/^ChatGPT token exchange returned HTTP (\d+)$/, (status) => `ChatGPT 令牌交换失败（HTTP ${status}）。`],
   [/^ChatGPT login did not return a Codex account ID$/, () => 'ChatGPT 登录没有返回 Codex 账户 ID。'],
   [/^access_denied$/, () => '授权已被拒绝。'],
+  [
+    /^Account credentials expired\. Resume to use refreshed credentials; sign in again if renewal fails\.$/,
+    () => '账户凭据已过期。可继续会话以使用更新后的凭据；如果续期失败，请重新登录账户。',
+  ],
   // Configuration shape errors reported by serde.
   [/^missing field `(.+)`$/, (field) => `缺少必填字段 ${field}。`],
   [/^unknown field `(.+?)`, (?:expected .+|there are no fields)$/, (field) => `不支持的字段 ${field}。`],
