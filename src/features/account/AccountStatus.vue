@@ -12,8 +12,7 @@ import {
   formatAmount,
   quotaAmounts,
   quotaLevel,
-  quotaParts,
-  quotaPercent,
+  quotaRemainingPercent,
   quotaTitle,
   resetLabel,
   type AccountState,
@@ -86,21 +85,26 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
         <div v-for="quota in row.state.quotas" :key="quota.id" class="account-quota" :class="quotaLevel(quota)">
           <div class="account-quota-head">
             <span>{{ quotaTitle(quota, row.state.protocol) }}</span>
-            <b>{{ quota.unlimited ? tr('不限量', 'Unlimited') : percentText(quotaPercent(quota)) }}</b>
+            <b>{{ quota.unlimited ? tr('不限量', 'Unlimited') : percentText(quotaRemainingPercent(quota)) }}</b>
           </div>
           <div
-            v-if="quotaPercent(quota) != null"
+            v-if="quotaRemainingPercent(quota) != null"
             class="account-meter"
             role="meter"
-            :aria-valuenow="Math.round(quotaPercent(quota)!)"
+            :aria-valuenow="Math.round(quotaRemainingPercent(quota)!)"
+            :aria-valuetext="
+              tr(
+                `剩余 ${percentText(quotaRemainingPercent(quota))}`,
+                `${percentText(quotaRemainingPercent(quota))} remaining`,
+              )
+            "
             aria-valuemin="0"
             aria-valuemax="100"
             :aria-label="quotaTitle(quota, row.state.protocol)"
           >
-            <i :style="{ width: `${quotaPercent(quota)}%` }" />
+            <i :style="{ width: `${quotaRemainingPercent(quota)}%` }" />
           </div>
           <small v-if="quotaNote(quota)">{{ quotaNote(quota) }}</small>
-          <small v-if="quotaParts(quota)">{{ quotaParts(quota) }}</small>
         </div>
         <p v-if="empty(row.state)" class="account-note">
           {{ tr('服务没有报告余额或额度。', 'The service reported no balance or allowance.') }}

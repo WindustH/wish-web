@@ -29,6 +29,7 @@ import Wordmark from '../../ui/components/Wordmark.vue';
 import { cfg } from '../../core/config.ts';
 import { useSettingsGuard } from './useSettingsGuard.ts';
 import { closeOverlayKey } from '../../ui/composables/overlay.ts';
+import { extensionSection as validExtension, settingsBackTarget } from '../shell/settingsNavigation.ts';
 
 const isMobile = useIsMobile();
 const pageActive = usePageActivity();
@@ -70,9 +71,6 @@ watch(
     else if (sections.value.some((item) => item.id === value)) desktopSection.value = String(value);
   },
 );
-function validExtension(value: unknown) {
-  return typeof value === 'string' && extensionSections.value.some((item) => item.id === value) ? value : undefined;
-}
 const mobileExtension = computed(() => validExtension(route.query.tool) ?? validExtension(route.query.section));
 const extensionSection = ref(
   validExtension(route.query.tool) ?? validExtension(route.query.section) ?? 'image_generation',
@@ -128,9 +126,7 @@ watch([tab, extensionSection, mobileExtension], () => {
 });
 
 function backToCategories() {
-  if (tab.value === 'extensions' && mobileExtension.value) {
-    void router.replace({ path: '/settings', query: { section: 'extensions' } });
-  } else void router.replace({ path: '/settings' });
+  void router.replace(settingsBackTarget(route.query) ?? '/settings');
 }
 
 const configDraft = useConfigDraft();

@@ -19,7 +19,7 @@ export function useMobileBackNavigation(router: Router, mobile: Ref<boolean>, ba
       return;
     }
     const route = router.currentRoute.value;
-    const parent = pageBackTarget(route.path, !!route.query.section, backgroundPath());
+    const parent = pageBackTarget(route.path, route.query, backgroundPath());
     if (parent) void router.replace(parent);
     else exitRequested.value = true;
   }

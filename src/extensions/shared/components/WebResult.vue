@@ -32,7 +32,9 @@ function href(value: unknown) {
       <a v-if="href(item?.url)" :href="href(item?.url)" target="_blank" rel="noopener noreferrer">{{
         item?.title || item?.url
       }}</a>
-      <small v-if="item?.site || item?.published">{{ item?.site }} {{ item?.published }}</small>
+      <small v-if="item?.site || item?.published">{{
+        [item?.site, item?.published].filter(Boolean).join(' · ')
+      }}</small>
       <p>{{ item?.snippet ?? item?.description ?? item?.content }}</p>
     </article>
     <p v-if="output.content || output.text">{{ output.content ?? output.text }}</p>
@@ -44,6 +46,16 @@ function href(value: unknown) {
   display: grid;
   gap: 12px;
   min-width: 0;
+}
+article {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+article > small {
+  color: var(--fg-subtle);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 p,
 pre {

@@ -65,14 +65,29 @@ export function quotaPercent(quota: QuotaWindow): number | null {
   if (quota.unlimited) return null;
   const reported = number(quota.used_percent);
   const used = number(quota.used),
-    limit = number(quota.limit);
-  const percent = reported ?? (used != null && limit ? (used / limit) * 100 : null);
+    limit = number(quota.limit),
+    remaining = number(quota.remaining);
+  const percent =
+    reported ??
+    (limit && limit > 0
+      ? remaining != null
+        ? (1 - remaining / limit) * 100
+        : used != null
+          ? (used / limit) * 100
+          : null
+      : null);
   // A window the service marks reached but gives no share of its own reads as full: the
   // percentage is the only thing the card shows, so "reached" has to become one. A window
   // that does report a share keeps it — on the codex endpoint the flag arrives per meter,
   // not per window, so it is stamped on a weekly window that is barely touched too.
   if (percent == null && quota.reached === true) return 100;
   return percent == null ? null : Math.min(100, Math.max(0, percent));
+}
+
+/** Account cards show what is left; missing readings must not look like a full allowance. */
+export function quotaRemainingPercent(quota: QuotaWindow): number | null {
+  const used = quotaPercent(quota);
+  return used == null ? null : 100 - used;
 }
 
 /** Same thresholds as the context gauge: plenty, getting close, nearly spent. */
@@ -145,11 +160,12 @@ const WINDOW_NOUNS: Record<string, [string, string]> = {
   'GitHubCopilotUsage:premium_interactions': ['高级请求', 'Premium requests'],
 };
 
-/** "Tokens · 5 hours", or the service's own name for a window it does not describe. */
+/** Known units describe remaining quota; upstream display names stay unchanged. */
 export function quotaTitle(quota: QuotaWindow, protocol?: string): string {
   const window = windowText(quota.window);
   const noun = WINDOW_NOUNS[`${protocol}:${quota.name}`] ?? UNIT_NOUNS[quota.unit];
-  const what = noun ? tr(noun[0], noun[1]) : quota.unit !== 'unknown' ? quota.unit : tr('用量', 'Usage');
+  const unit = noun ? tr(noun[0], noun[1]) : quota.unit !== 'unknown' ? quota.unit : null;
+  const what = unit ? tr(`剩余${unit}`, `${unit} remaining`) : tr('剩余额度', 'Remaining quota');
   if (window) return `${what} · ${window}`;
   return noun || quota.unit !== 'unknown' ? what : (quota.name ?? quota.id);
 }
@@ -185,16 +201,18 @@ export function resetLabel(value: string | null | undefined, now = Date.now()): 
   return tr(`${when} 重置`, `Resets ${when}`);
 }
 
-/** "12.4K / 100K" in the window's own unit, or what is left when that is all it says. */
+/** Remaining / total in the window's own unit, without inventing missing amounts. */
 export function quotaAmounts(quota: QuotaWindow): string | null {
   if (quota.unlimited) return tr('不限量', 'Unlimited');
   const show = (value: string | null) => {
     const n = number(value);
     return n == null ? value : compactNumber(n);
   };
-  if (quota.used != null && quota.limit != null) return `${show(quota.used)} / ${show(quota.limit)}`;
-  if (quota.remaining != null) return tr(`剩余 ${show(quota.remaining)}`, `${show(quota.remaining)} left`);
-  if (quota.used != null) return tr(`已用 ${show(quota.used)}`, `${show(quota.used)} used`);
+  const used = number(quota.used),
+    limit = number(quota.limit);
+  const remaining = quota.remaining ?? (used != null && limit != null ? String(Math.max(0, limit - used)) : null);
+  if (remaining != null && quota.limit != null) return `${show(remaining)} / ${show(quota.limit)}`;
+  if (remaining != null) return tr(`剩余 ${show(remaining)}`, `${show(remaining)} left`);
   return null;
 }
 
