@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { groupEntries, inlineChips, type GroupBlock, type GroupEntry } from '../src/features/chat/grouping.ts';
-import { albumHeight, albumPreview, imageAlbums, imageParts } from '../src/features/chat/imageAlbums.ts';
+import { groupEntries, inlineChips, type GroupBlock, type GroupEntry } from '../src/domain/chat/grouping.ts';
+import { albumHeight, albumPreview, imageAlbums, imageParts } from '../src/domain/chat/imageAlbums.ts';
 import { estimateRow } from '../src/features/sessions/rowEstimate.ts';
 import { entryView } from '../src/core/api/projections.ts';
 

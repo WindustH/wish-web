@@ -2,9 +2,9 @@
 // The MCP servers sessions can call from their shell, edited in the settings draft.
 import { computed, ref, toRef } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
-import SwitchRow from '../../ui/domain/settings/SwitchRow.vue';
+import SwitchRow from '../../domain/settings/SwitchRow.vue';
 import Modal from '../../ui/components/Modal.vue';
-import SelectField from '../../ui/domain/providers/SelectField.vue';
+import SelectField from '../../domain/providers/SelectField.vue';
 import McpServer from './McpServer.vue';
 import type { McpServerConfig, SettingsConfig } from '../../core/configTypes.ts';
 import { mcpServers, type McpServerStatus } from '../../core/api/endpoints.ts';

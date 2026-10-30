@@ -1,3 +1,4 @@
+import type { GroupEntry } from '../../../domain/chat/grouping.ts';
 // What one chip - a run of steps, or a notice the transcript left - puts on the activity rail:
 // the first act's icon, how many things it did, whether anything went wrong, where a search finds
 // it, and what it is called in a word or two. The notice faces are shared with SystemEntry's own
@@ -36,7 +37,7 @@ const SOURCE_LABELS: Record<string, string> = {
   wish_compaction_recovered: 'entry.compactionRecovered',
 };
 
-export const noticeTone = (entry: any): 'error' | 'warn' | 'system' =>
+export const noticeTone = (entry: GroupEntry): 'error' | 'warn' | 'system' =>
   entry.payload?.source === 'wish_run_failed'
     ? 'error'
     : WARN_SOURCES.has(entry.payload?.source ?? '')
@@ -44,7 +45,7 @@ export const noticeTone = (entry: any): 'error' | 'warn' | 'system' =>
       : 'system';
 
 /** Whether a background command's notice tells of its death: killed, errored, or exited otherwise than 0. */
-export function noticeFailed(entry: any): boolean {
+export function noticeFailed(entry: GroupEntry): boolean {
   const output = entry.payload?.result?.output;
   return (
     entry.payload?.result?.status === 'failed' ||
@@ -58,7 +59,7 @@ export function noticeFailed(entry: any): boolean {
 }
 
 /** What a notice is called, in the words its own window is titled with. */
-export function noticeLabel(entry: any): string {
+export function noticeLabel(entry: GroupEntry): string {
   if (entry.payload?.instruction_operation === 'remove')
     return `${entry.payload.instruction_title} · ${i18n.locale.value === 'zh' ? '已从上下文移除' : 'Removed from context'}`;
   if (entry.payload?.instruction_kind) return instructionLabel(entry.payload.instruction_kind);
@@ -80,7 +81,7 @@ export function noticeLabel(entry: any): string {
   );
 }
 
-export const noticeIconName = (entry: any): string => {
+export const noticeIconName = (entry: GroupEntry): string => {
   if (
     entry.payload?.instruction_kind ||
     entry.payload?.instruction_title ||
@@ -248,7 +249,7 @@ export function chipEvents(chip: any, resultOf: (callId: string) => any): ChipEv
 }
 
 /** What a notice says, as one line - the grey line under its title in a window's list. */
-export function noticeText(entry: any): string {
+export function noticeText(entry: GroupEntry): string {
   return (
     (entry.payload?.content ?? []).map((block: { text?: string }) => block.text ?? '').join('\n') ||
     entry.payload?.text ||

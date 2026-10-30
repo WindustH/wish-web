@@ -24,7 +24,7 @@ import FetchSettings from '/src/features/settings/FetchSettings.vue';
 import {configDraftKey} from '/src/features/settings/useConfigDraft.ts';
 import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
 import {createBackLayers,setBackLayers} from '/src/ui/backLayers.ts';
-import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/ui/domain/settings/settings.css';
+import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/domain/settings/settings.css';
 registerBrowserPlatform({ namespace: 'wish-webui', version: 1 });setBackLayers(createBackLayers(window));
 const draft=ref({accounts:{shared:{name:'Shared account',preset:'deepseek',api_key:'<redacted>',credentials:{refresh_token:'<redacted>'},credentials_env:{},proxy_enabled:true}},providers:{model:{credential_id:'shared'}},search:{providers:{}},fetch:{order:[],providers:{}}});
 const catalog=ref({presets:[{id:'deepseek',provider:'DeepSeek',required_credentials:[],optional_credentials:[]}]});

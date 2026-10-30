@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useMobileNavigationMotion } from './features/shell/useMobileNavigationMotion.ts';
-useMobileNavigationMotion();
 import Modal from './ui/components/Modal.vue';
 import { useMobileBackNavigation } from './features/shell/useMobileBackNavigation.ts';
 import HoverHintHost from './ui/components/HoverHintHost.vue';
@@ -19,13 +18,14 @@ import CachedPage from './ui/components/CachedPage.vue';
 import { i18n } from './core/i18n/index.ts';
 import { sync } from './core/state/syncSlice.ts';
 import { needRefresh, refreshApp } from './ui/pwa.ts';
-import { useProviderGate } from './ui/domain/providers/useProviderGate.ts';
+import { useProviderGate } from './domain/providers/useProviderGate.ts';
 import { tr } from './core/i18n/tr.ts';
 import { isSignedOut } from './core/connection.ts';
 import { accountDialogOpen } from './features/account/accountDialog.ts';
 import SignOutButton from './features/connection/SignOutButton.vue';
 import { closeOverlayKey } from './ui/composables/overlay.ts';
 import { useBackLayer } from './ui/composables/useBackLayer.ts';
+useMobileNavigationMotion();
 useBackLayer(
   () => onboardingPreview.value,
   closeOnboardingPreview,

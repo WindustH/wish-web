@@ -3,7 +3,7 @@
 // Closing removes the host; moving a chip between virtual rows never changes its identity.
 import { computed, ref, watch } from 'vue';
 import type { EntryView } from '../../core/api/projections.ts';
-import type { ChipItem } from '../chat/grouping.ts';
+import type { ChipItem } from '../../domain/chat/grouping.ts';
 import type { ActivityRequest } from './activityDialogs.ts';
 import QuestionDetailDialog from './entries/QuestionDetailDialog.vue';
 import ProcessGroup from './entries/ProcessGroup.vue';

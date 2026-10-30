@@ -2,8 +2,8 @@
 import { computed, inject, reactive, shallowRef, watch } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
-import SwitchRow from '../../ui/domain/settings/SwitchRow.vue';
-import SelectField from '../../ui/domain/providers/SelectField.vue';
+import SwitchRow from '../../domain/settings/SwitchRow.vue';
+import SelectField from '../../domain/providers/SelectField.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { configDraftKey } from './useConfigDraft.ts';
 import { useBrowserLogin } from '../providers/useBrowserLogin.ts';

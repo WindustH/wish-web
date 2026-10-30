@@ -42,7 +42,7 @@ const server = await createServer({ configFile: false, define:{__BUILD_ID__:JSON
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__info_search', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__info_search', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/tool-settings/ToolSwitchRows.vue'], include: ['echarts/charts', 'echarts/components', 'echarts/core', 'echarts/renderers', 'vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/domain/settings/ToolSwitchRows.vue'], include: ['echarts/charts', 'echarts/components', 'echarts/core', 'echarts/renderers', 'vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-info-search-'));
 let chrome, ws;
 try {

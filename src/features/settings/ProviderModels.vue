@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { modelLabel } from '../../ui/domain/providers/modelLabel.ts';
+import { modelLabel } from '../../domain/providers/modelLabel.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 const isMobile = useIsMobile();
 import { computed, inject, provide, nextTick, onScopeDispose, reactive, ref } from 'vue';
@@ -10,8 +10,8 @@ import { peekCached, readCached, writeCached } from '../../core/util/responseCac
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
 import Modal from '../../ui/components/Modal.vue';
-import PickerList from '../../ui/domain/providers/PickerList.vue';
-import SelectField from '../../ui/domain/providers/SelectField.vue';
+import PickerList from '../../domain/providers/PickerList.vue';
+import SelectField from '../../domain/providers/SelectField.vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { configDraftKey } from './useConfigDraft.ts';
 const configDraft = inject(configDraftKey);

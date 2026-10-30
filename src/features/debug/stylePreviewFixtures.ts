@@ -1,5 +1,5 @@
 // Local-only gallery data. No API calls, live session ids, credentials or external images.
-import { groupEntries } from '../chat/grouping.ts';
+import { groupEntries } from '../../domain/chat/grouping.ts';
 import { entryView } from '../../core/api/projections.ts';
 export type PreviewCategory = 'files' | 'messages' | 'tools' | 'sessions';
 export interface StyleSample {

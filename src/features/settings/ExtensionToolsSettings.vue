@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { extensionSwitchRows } from '../../extensions/settings.ts';
+
 import { computed, inject, ref, watch } from 'vue';
 import type { SearchProviderStatus } from '../../core/api/endpoints.ts';
 import { tr } from '../../core/i18n/tr.ts';
-import ExtensionCategoryPicker from '../tool-settings/ExtensionCategoryPicker.vue';
+import ExtensionCategoryPicker from '../../domain/settings/ExtensionCategoryPicker.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
-import ToolSwitchRows from '../tool-settings/ToolSwitchRows.vue';
+import ToolSwitchRows from '../../domain/settings/ToolSwitchRows.vue';
 import { configDraftKey } from './useConfigDraft.ts';
 import { extensionSections } from './settingsSections.ts';
 import ImageGenerationSettings from './ImageGenerationSettings.vue';
@@ -38,6 +40,7 @@ const current = computed(() => extensionSections.value.find((item) => item.id ==
 <template>
   <div class="extension-tools-settings">
     <ExtensionCategoryPicker
+      :categories="extensionSections"
       v-if="overview"
       :model-value="selected"
       pages
@@ -50,6 +53,7 @@ const current = computed(() => extensionSections.value.find((item) => item.id ==
       <fieldset v-if="draft.defaults.tools" class="settings-form extension-defaults" :disabled="busy">
         <div class="set-card">
           <ToolSwitchRows
+            :extension-rows="extensionSwitchRows"
             v-model="draft.defaults.tools"
             :compact="!mobile"
             :include="[current.toolKey]"
@@ -58,6 +62,7 @@ const current = computed(() => extensionSections.value.find((item) => item.id ==
           >
             <template v-if="!mobile" #label>
               <ExtensionCategoryPicker
+                :categories="extensionSections"
                 :model-value="selected"
                 @update:model-value="
                   selected = $event as Section;

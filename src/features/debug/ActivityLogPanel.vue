@@ -9,7 +9,7 @@ import {
   exportActivity,
   clearActivity,
   ACTIVITY_LIMIT,
-} from '../../ui/domain/diagnostics/activityStore.ts';
+} from '../../domain/diagnostics/activityStore.ts';
 const snapshot = ref(exportActivity());
 function refresh() {
   snapshot.value = exportActivity();

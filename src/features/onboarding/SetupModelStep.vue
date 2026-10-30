@@ -4,7 +4,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { compactNumber } from '../../core/util/fmt.ts';
-import { providerName } from '../../ui/domain/providers/providerPresentation.ts';
+import { providerName } from '../../domain/providers/providerPresentation.ts';
 import Icon from '../../ui/components/Icon.vue';
 import SetupChosen from './SetupChosen.vue';
 import type { SetupState } from './useProviderSetup.ts';

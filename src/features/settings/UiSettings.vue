@@ -15,9 +15,9 @@ import { clearCached } from '../../core/util/responseCache.ts';
 import { keepConnection } from '../../core/connection.ts';
 import { useMedia } from '../../ui/composables/useMedia.ts';
 import { tr } from '../../core/i18n/tr.ts';
-import SettingHint from '../../ui/domain/settings/SettingHint.vue';
+import SettingHint from '../../domain/settings/SettingHint.vue';
 import SettingsSections from './SettingsSections.vue';
-import SelectField from '../../ui/domain/providers/SelectField.vue';
+import SelectField from '../../domain/providers/SelectField.vue';
 import Modal from '../../ui/components/Modal.vue';
 
 const sections = computed(() =>

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Virtualizer, measureElement } from '@tanstack/vue-virtual';
-import { chatViewportRect, measureChatElement, observeChatRect, refreshChatViewport } from '../src/features/chat/virtualMeasurements.ts';
+import { chatViewportRect, measureChatElement, observeChatRect, refreshChatViewport } from '../src/domain/chat/virtualMeasurements.ts';
 
 function setup() {
   const viewport = { isConnected: true, offsetWidth: 736, offsetHeight: 400, scrollHeight: 1000, clientHeight: 400 };

@@ -78,6 +78,13 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
         }
         return;
       }
+      if (restoring) {
+        // Native Back can queue another pop before the first forward completes. Keep
+        // the original action and promise: a route guard may already be awaiting it.
+        event.stopImmediatePropagation();
+        browser.history.forward();
+        return;
+      }
       if (!sentinel || event.state?.[MARK] === sentinel.token) {
         const waiting = cleanup;
         cleanup = undefined;

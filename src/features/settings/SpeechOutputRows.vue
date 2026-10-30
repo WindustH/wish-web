@@ -2,7 +2,7 @@
 import type { MediaOptions } from '../../core/mediaGeneration.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import KeyValueEditor from './KeyValueEditor.vue';
-import SwitchRow from '../../ui/domain/settings/SwitchRow.vue';
+import SwitchRow from '../../domain/settings/SwitchRow.vue';
 const options = defineModel<MediaOptions>({ required: true });
 function codec(event: Event) {
   const value = (event.target as HTMLSelectElement).value as 'mp3' | 'wav' | '';

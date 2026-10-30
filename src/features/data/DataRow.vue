@@ -11,7 +11,7 @@ import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 import { fmtBytes, fmtDateTime, relTime } from '../../core/util/fmt.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
-import { modelLabel } from '../../ui/domain/providers/modelLabel.ts';
+import { modelLabel } from '../../domain/providers/modelLabel.ts';
 
 export type DataItem = ({ kind: 'session' } & SessionStorage) | ({ kind: 'group' } & GroupStorage);
 const props = defineProps<{

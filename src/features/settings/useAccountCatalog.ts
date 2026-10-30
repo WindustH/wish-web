@@ -1,8 +1,8 @@
 import { computed, inject } from 'vue';
 import { configDraftKey } from './useConfigDraft.ts';
 import { fetchAccountPresets } from './accountCompatibility.ts';
-import { providerName, presetBrand, presetDescription } from '../../ui/domain/providers/providerPresentation.ts';
-import { providerPriority } from '../../ui/domain/providers/catalogOrder.ts';
+import { providerName, presetBrand, presetDescription } from '../../domain/providers/providerPresentation.ts';
+import { providerPriority } from '../../domain/providers/catalogOrder.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
 export interface AccountPreset {

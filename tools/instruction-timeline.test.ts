@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { instructionSections } from '../src/core/instructions.ts';
-import { groupEntries } from '../src/features/chat/grouping.ts';
+import { groupEntries } from '../src/domain/chat/grouping.ts';
 const base = 'You are the agent.';
 const full = base + '\n\n# MCP servers\nUse mcp.\n\n# Skills\nUse skills.\n\n# Sessions and groups\nUse sessions.';
 test('stored instructions become independent timeline nodes without changing their source', () => {

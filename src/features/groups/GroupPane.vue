@@ -19,8 +19,8 @@ import Icon from '../../ui/components/Icon.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { toast } from '../../ui/toast.ts';
 import { sessionParent } from '../shell/sessionNavigation.ts';
-import Composer from '../chat/Composer.vue';
-import { useComposerHeight } from '../chat/useComposerHeight.ts';
+import Composer from '../../domain/chat/Composer.vue';
+import { useComposerHeight } from '../../domain/chat/useComposerHeight.ts';
 import GroupLog from './GroupLog.vue';
 import GroupMembers from './GroupMembers.vue';
 

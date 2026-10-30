@@ -1,10 +1,10 @@
 <script setup lang="ts">
 // Picks a model provider preset to add, or starts a custom one.
 import { computed } from 'vue';
-import { providerPriority } from '../../ui/domain/providers/catalogOrder.ts';
+import { providerPriority } from '../../domain/providers/catalogOrder.ts';
 import type { ConfigCatalog, ProviderPreset } from '../../core/provider-presets.ts';
-import { presetDescription, providerName } from '../../ui/domain/providers/providerPresentation.ts';
-import PickerDialog from '../../ui/domain/providers/PickerDialog.vue';
+import { presetDescription, providerName } from '../../domain/providers/providerPresentation.ts';
+import PickerDialog from '../../domain/providers/PickerDialog.vue';
 import { tr } from '../../core/i18n/tr.ts';
 const props = defineProps<{ catalog?: ConfigCatalog; title?: string; customLabel?: string }>();
 const emit = defineEmits<{ close: []; select: [preset?: ProviderPreset] }>();

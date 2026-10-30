@@ -19,7 +19,7 @@ import DraftActions from '/src/ui/components/DraftActions.vue';
 import Modal from '/src/ui/components/Modal.vue';
 import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
 import {createBackLayers,setBackLayers} from '/src/ui/backLayers.ts';
-import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/ui/domain/settings/settings.css';
+import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/domain/settings/settings.css';
 registerBrowserPlatform({ namespace: 'wish-webui', version: 1 });window.historyPushes=0;const nativePush=history.pushState;history.pushState=function(...args){window.historyPushes++;return nativePush.apply(this,args);};const layers=createBackLayers(window);setBackLayers(layers);
 const draft=ref({name:'Original'}),source=ref(JSON.stringify(draft.value)),busy=ref(false),revision=ref('1'),opened=ref(false);let saves=0,failNext=false;
 const Nested={setup(){const returns=inject(settingsReturnKey);return()=>h(Modal,{page:true,open:opened.value,title:'Nested',beforeClose:returns.confirm,onClose:()=>opened.value=false},{default:()=>h('input',{class:'input',value:draft.value.name,onInput:e=>draft.value.name=e.target.value})});}};

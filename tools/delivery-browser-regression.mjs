@@ -11,10 +11,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import {createApp,h,ref} from 'vue';import {TooltipProvider} from 'reka-ui';
 import {deliveriesList} from '/src/core/api/endpoints.ts';
-import ToolSwitchRows from '/src/features/tool-settings/ToolSwitchRows.vue';
+import ToolSwitchRows from '/src/domain/settings/ToolSwitchRows.vue';
 import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
 import {createBackLayers,setBackLayers} from '/src/ui/backLayers.ts';
-import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/ui/domain/settings/settings.css';
+import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/domain/settings/settings.css';
 registerBrowserPlatform({ namespace: 'wish-webui', version: 1 });setBackLayers(createBackLayers(window));
 const tools=ref({shell:true,ask_user:true,web_fetch:true,web_search:true,mcp:true,skills:true,sessions:true});
 createApp({setup(){return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;width:min(800px,100%);margin:auto'},[h('div',{class:'set-card'},[h(ToolSwitchRows,{modelValue:tools.value,'onUpdate:modelValue':v=>tools.value=v,searchAvailable:true})])]))}}).mount('#app');
@@ -38,7 +38,7 @@ const server = await createServer({ configFile: false, root: process.cwd(), plug
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__delivery_regression', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__delivery_regression', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/tool-settings/ToolSwitchRows.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/domain/settings/ToolSwitchRows.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-delivery-browser-'));
 let chrome, ws;
 try {

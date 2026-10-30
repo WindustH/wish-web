@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
-import { activityEnabled, activityCount, setActivityEnabled } from '../../ui/domain/diagnostics/activityStore.ts';
+import { activityEnabled, activityCount, setActivityEnabled } from '../../domain/diagnostics/activityStore.ts';
 import Modal from '../../ui/components/Modal.vue';
 import { ICONS } from '../../ui/icons.ts';
 import Icon from '../../ui/components/Icon.vue';
@@ -13,7 +13,7 @@ import { useMedia } from '../../ui/composables/useMedia.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import DebugToolRow from './DebugToolRow.vue';
 import { closeOverlayKey } from '../../ui/composables/overlay.ts';
-import { stalls } from '../../ui/domain/diagnostics/scrollStalls.ts';
+import { stalls } from '../../domain/diagnostics/scrollStalls.ts';
 
 const ConnectionDiagnostics = defineAsyncComponent(() => import('../selftest/ConnectionDiagnostics.vue'));
 const ActivityLogPanel = defineAsyncComponent(() => import('./ActivityLogPanel.vue'));

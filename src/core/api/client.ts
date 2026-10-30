@@ -1,6 +1,7 @@
 // HTTP client. DOM-free (fetch + AbortController only) so shells reuse it.
 // All errors normalize to ApiError {status, code, title, detail, retryable}.
 import { cfg } from '../config.ts';
+import { createAbortScope } from '../util/abortScope.ts';
 
 export class ApiError extends Error {
   status: number;
@@ -109,12 +110,12 @@ export function apiFetch(url: string, init: RequestInit = {}) {
 
 async function problemFromBody(body: unknown, status: number) {
   try {
-    const j = typeof body === 'string' ? JSON.parse(body) : body;
+    const problem = typeof body === 'string' ? JSON.parse(body) : body;
     return new ApiError(
       status,
       status === 409 ? 'state_conflict' : String(status),
-      j.error?.message ?? j.title ?? 'HTTP error',
-      j.error?.message ?? j.detail ?? JSON.stringify(j),
+      problem.error?.message ?? problem.title ?? 'HTTP error',
+      problem.error?.message ?? problem.detail ?? JSON.stringify(problem),
       status >= 500,
     );
   } catch {
@@ -134,35 +135,37 @@ async function request(
       if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
     }
   }
-  const h: Record<string, string> = { ...authHeaders(), ...(headers || {}) };
-  if (body !== undefined && !raw) h['content-type'] = 'application/json';
+  const requestHeaders: Record<string, string> = { ...authHeaders(), ...(headers || {}) };
+  if (body !== undefined && !raw) requestHeaders['content-type'] = 'application/json';
 
   // A request that can never settle (sleep/wake, a proxy black hole) would
   // pin every busy flag behind it forever, so every call carries the
   // configured timeout alongside the caller's signal. A timeout surfaces as
   // a retryable network error; a caller abort stays a plain AbortError.
-  const timeout = AbortSignal.timeout(timeoutMs ?? cfg.api.requestTimeoutMs);
-  let res;
+  const cancellation = createAbortScope(signal ? [signal] : [], timeoutMs ?? cfg.api.requestTimeoutMs);
   try {
-    res = await fetch(url, {
+    const response = await fetch(url, {
       method,
-      headers: h,
-      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+      headers: requestHeaders,
+      signal: cancellation.signal,
       body: raw ? (body as BodyInit) : body !== undefined ? JSON.stringify(body) : undefined,
     });
-  } catch (err: any) {
-    if (timeout.aborted) throw new ApiError(0, 'network', 'network', 'request timed out', true);
-    if (err?.name === 'AbortError') throw err;
-    throw new ApiError(0, 'network', 'network', String(err?.message || err), true);
+    if (!response.ok) {
+      const text = await response.text();
+      throw (
+        (await problemFromBody(text, response.status)) ||
+        new ApiError(response.status, 'http', response.statusText, text.slice(0, 300), response.status >= 500)
+      );
+    }
+    if (response.status === 204) return null;
+    const contentType = response.headers.get('content-type') || '';
+    return await (contentType.includes('json') ? response.json() : response.text());
+  } catch (error: unknown) {
+    if (cancellation.timedOut) throw new ApiError(0, 'network', 'network', 'request timed out', true);
+    if (signal?.aborted) throw signal.reason ?? error;
+    if (error instanceof ApiError || (error instanceof Error && error.name === 'AbortError')) throw error;
+    throw new ApiError(0, 'network', 'network', error instanceof Error ? error.message : String(error), true);
+  } finally {
+    cancellation.dispose();
   }
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw (
-      (await problemFromBody(text, res.status)) ||
-      new ApiError(res.status, 'http', res.statusText, text.slice(0, 300), res.status >= 500)
-    );
-  }
-  if (res.status === 204) return null;
-  const ct = res.headers.get('content-type') || '';
-  return ct.includes('json') ? res.json() : res.text();
 }

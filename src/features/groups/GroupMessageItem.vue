@@ -8,8 +8,8 @@ import type { GroupMessage } from '../../core/api/types.ts';
 import { groupBlob } from '../../core/api/endpoints.ts';
 import type { ContentBlock } from '../../core/api/userContent.ts';
 import Markdown from '../../ui/components/Markdown.vue';
-import MessageContext from '../chat/entries/MessageContext.vue';
-import UserEntry from '../chat/entries/UserEntry.vue';
+import MessageContext from '../../domain/chat/entries/MessageContext.vue';
+import UserEntry from '../../domain/chat/entries/UserEntry.vue';
 import { peerColor } from './peerColor.ts';
 
 const props = defineProps<{ message: GroupMessage; groupId: string; continues: boolean }>();

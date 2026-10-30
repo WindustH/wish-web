@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { blobUrl } from '../../core/api/endpoints.ts';
-import ToolImage from '../../ui/domain/media/ToolImage.vue';
+import ToolImage from '../../domain/media/ToolImage.vue';
 const props = defineProps<{ request: Record<string, unknown>; session?: string }>();
 const expanded = ref(false);
 watch(

@@ -3,10 +3,10 @@
 // lists them, and a custom one last, which stays when a search matches nothing. Choosing moves on.
 import { computed, ref } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
-import { presetBrand, presetDescription, providerName } from '../../ui/domain/providers/providerPresentation.ts';
-import { providerPriority } from '../../ui/domain/providers/catalogOrder.ts';
+import { presetBrand, presetDescription, providerName } from '../../domain/providers/providerPresentation.ts';
+import { providerPriority } from '../../domain/providers/catalogOrder.ts';
 import Icon from '../../ui/components/Icon.vue';
-import ProviderIcon from '../../ui/domain/providers/ProviderIcon.vue';
+import ProviderIcon from '../../domain/providers/ProviderIcon.vue';
 import type { SetupState } from './useProviderSetup.ts';
 
 const props = defineProps<{ setup: SetupState }>();

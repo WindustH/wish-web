@@ -11,7 +11,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0}.sessions-split{position:relative;height:100dvh}.sessions-pane,.content-pane{position:absolute;inset:0;display:flex;flex-direction:column;background:white}.sessions-pane{z-index:2}.sheet-closed,.sheet-covered{visibility:hidden}.sl-scroll,.start-chat{overflow:auto;flex:1;min-height:0}.row{display:block;height:60px}header{height:60px}</style><body><div id="app"></div><script type="module">
 import {createApp,h,ref} from 'vue';import {createRouter,createMemoryHistory,useRoute} from 'vue-router';
 import {useRecentsSheet} from '/src/features/sessions/useRecentsSheet.ts';
-import {installScrollStallLog,stalls,noteTouchAction} from '/src/ui/domain/diagnostics/scrollStalls.ts';installScrollStallLog();window.stalls=stalls;window.noteTouchAction=noteTouchAction;
+import {installScrollStallLog,stalls,noteTouchAction} from '/src/domain/diagnostics/scrollStalls.ts';installScrollStallLog();window.stalls=stalls;window.noteTouchAction=noteTouchAction;
 const Shell = {
   setup() {
     const split = ref(null), route = useRoute();

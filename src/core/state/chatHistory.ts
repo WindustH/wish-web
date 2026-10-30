@@ -2,6 +2,7 @@
 // Replacing the window invalidates both response writes and loading finalizers.
 import { shallowRef, type ShallowRef } from 'vue';
 import { mergeHistory } from './mergeHistory.ts';
+import { createAbortScope } from '../util/abortScope.ts';
 import { cfg } from '../config.ts';
 
 export interface HistoryRequestOptions {
@@ -56,10 +57,14 @@ export function createChatHistory<E extends { seq: number }>({
   let generation = 0;
   let windowController = new AbortController();
   let viewingPast = false;
+  let requestScope:
+    { parent?: AbortSignal; window: AbortController; scope: ReturnType<typeof createAbortScope> } | undefined;
   const current = (own: number) => own === generation;
   function invalidate() {
     generation++;
     windowController.abort();
+    requestScope?.scope.dispose();
+    requestScope = undefined;
     windowController = new AbortController();
     loadingOlder.value = false;
     loadingNewer.value = false;
@@ -69,7 +74,15 @@ export function createChatHistory<E extends { seq: number }>({
   // Searching or jumping cancels old context-draining requests immediately.
   function requestOptions(): { signal: AbortSignal } {
     const parent = options().signal;
-    return { signal: parent ? AbortSignal.any([parent, windowController.signal]) : windowController.signal };
+    if (!requestScope || requestScope.parent !== parent || requestScope.window !== windowController) {
+      requestScope?.scope.dispose();
+      requestScope = {
+        parent,
+        window: windowController,
+        scope: createAbortScope(parent ? [parent, windowController.signal] : [windowController.signal]),
+      };
+    }
+    return { signal: requestScope.scope.signal };
   }
   async function prepareMerge(signal: AbortSignal, beforeMerge?: () => void | Promise<void>) {
     signal.throwIfAborted();

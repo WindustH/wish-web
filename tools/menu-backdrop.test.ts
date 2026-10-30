@@ -1,38 +1,35 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import ts from 'typescript';
-import { effectScope, nextTick, reactive } from 'vue';
+import { consumeDismissalClick } from '../src/ui/consumeDismissalClick.ts';
 
-const require = createRequire(import.meta.url);
-const file = new URL('../src/ui/components/MenuBackdrop.vue', import.meta.url);
-const script = readFileSync(file, 'utf8').split('<script setup lang="ts">')[1]!.split('</script>')[0]!;
-// Execute only the setup logic with Vue's real reactivity, without needing a browser renderer.
-const compiled = ts.transpileModule(`${script.replace(/import .* from 'vue';/, 'const { ref, watch } = require(\"vue\");')}\nreturn { up, press, release, clicked };`, {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText;
-
-test('a missing pointerup cannot leave a closed menu backdrop over the page', async t => {
+function click(detail = 1, pointerId = 1) {
+  return Object.assign(new Event('click', { cancelable: true }), { detail, pointerId });
+}
+test('only the dismissing click is consumed; the next gesture answers immediately', t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
-  const props = reactive({ open: true });
-  const listeners = new Map<string, () => void>();
-  const browser = {
-    addEventListener(name: string, callback: () => void) { listeners.set(name, callback); },
-    removeEventListener(name: string) { listeners.delete(name); },
-  };
-  const scope = effectScope();
-  const backdrop = scope.run(() => new Function('require', 'defineProps', 'defineEmits', 'window', 'onBeforeUnmount', compiled)(
-    require, () => props, () => (name: string) => { if (name === 'close') props.open = false; },
-    browser, () => {},
-  )) as { up: { value: boolean }; press: () => void; release: () => void; clicked: () => void };
-  assert.equal(backdrop.up.value, true);
-  backdrop.press();
-  await nextTick();
-  assert.equal(props.open, false);
-  assert.equal(backdrop.up.value, true); // the current press is still shielded
-  t.mock.timers.tick(1500); // no pointerup or pointercancel was delivered
-  await nextTick();
-  assert.equal(backdrop.up.value, false);
-  scope.stop();
+  const browser = new EventTarget();
+  consumeDismissalClick(browser as Window, 1);
+  const dismissed = click();
+  browser.dispatchEvent(dismissed);
+  assert.equal(dismissed.defaultPrevented, true);
+  const next = click();
+  browser.dispatchEvent(next);
+  assert.equal(next.defaultPrevented, false);
+});
+test('a missing pointerup or click cannot swallow the next tap or keyboard activation', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const browser = new EventTarget();
+  consumeDismissalClick(browser as Window, 1);
+  const keyboard = click(0);
+  browser.dispatchEvent(keyboard);
+  assert.equal(keyboard.defaultPrevented, false);
+  browser.dispatchEvent(new Event('pointerdown'));
+  const next = click();
+  browser.dispatchEvent(next);
+  assert.equal(next.defaultPrevented, false);
+  consumeDismissalClick(browser as Window, 1);
+  t.mock.timers.tick(1500);
+  const later = click();
+  browser.dispatchEvent(later);
+  assert.equal(later.defaultPrevented, false);
 });

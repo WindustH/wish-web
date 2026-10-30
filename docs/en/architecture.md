@@ -111,6 +111,41 @@ With ADB connected, run `node tools/android-back-regression.mjs http://host:8790
 
 `main.ts` and the router compose features. `core` may use platform contracts but never imports UI or features. Platform adapters receive application options at registration. `pnpm lint` parses imports and rejects reversed layer dependencies and feature cycles.
 
-`features/chat` owns reusable composer/message primitives; sessions and groups depend on it. Provider setup/authentication is in `features/providers`; diagnostic previews are in `features/debug`. `ui/components` contains general primitives; `ui/domain/{chat,providers,settings,diagnostics}` explicitly contains domain-aware presentation. Shared form controls and styles do not belong to the settings route. `SessionPanelModal` owns chat anchoring; the generic modal accepts an anchor and outside-click policy. Draft actions remain a generic injected form capability, not a settings dependency.
+`domain/chat` owns reusable composer/message primitives, grouping and measurement; session pages and groups consume them. `features/sessions` assembles the conversation and its execution UI. `domain/{providers,settings,media,diagnostics}` contains shared business presentation, separate from route features and generic `ui` primitives.
+
+`ui` must not import `domain`, `features` or extensions. Shared domains must not import route features or extension implementations. Extension metadata is passed into shared settings controls by the composing page. The checker rejects cycles across both feature and domain modules. `SessionPanelModal` receives registered trigger elements through injection; it does not query chat selectors. Optional gesture observations use `ui/interactionSignals.ts`, without a UI dependency on diagnostic storage.
 
 Instruction projections carry stable semantic kinds. Display labels are localized by presentation code, and stored titles remain intact. Settings snapshots and bus events have explicit contracts; this does not imply runtime validation of every upstream field.
+
+
+## Source review follow-up
+
+- Request deadlines cover response body reads and release their listeners/timers. Caller cancellation,
+  history-window cancellation and connection checks do not require `AbortSignal.any` or `timeout`.
+- Global sync has explicit stop/restart semantics and discards late callbacks. Switching servers
+  already reloads the app, so the previous design alone did not prove a current account-switch leak.
+- Activity recording was already opt-in; stall diagnostics now use the same switch and release their
+  listeners/timers when disabled. Unhandled background rejections produce coalesced, nonmodal notices.
+- Closing a menu removes its backdrop immediately. Only the closing gesture's compatibility click is
+  consumed; the next pointer press is not blocked.
+- Overlapping native Back events keep the original restoration promise instead of orphaning a route
+  guard. The existing forward boundary remains backed by the Chromium navigation regression tests.
+- Streaming Markdown reuses sanitized block HTML and DOM. Unfinished code fences defer highlighting.
+  Parsing remains document-wide to preserve later reference definitions, lists, tables and math.
+  The pre-existing full-document cache was already bounded to two million UTF-16 code units, with separate highlight caching
+  and long-stream throttling; it was not an unbounded 500-document cache.
+- Native text and IME input no longer rebuild the editor DOM. Attachment normalization remains atomic;
+  custom Undo restores its selection. Missing or unsupported `Selection.modify` degrades conservatively.
+- Custom chat resize observers share one observer and one frame callback. Their previous callbacks
+  already had frame coalescing and teardown; a layout loop was not demonstrated.
+- Desktop/mobile overlay pages retain their existing shared instance and cancellable close timer.
+  Chromium tests cover repeated 899/900px transitions, retained drafts and rapid close/reopen.
+  Two RouterViews alone do not demonstrate double mounting. Cross-browser device coverage remains
+  separate from these source and Chromium checks.
+- Shared settings copy uses dictionary keys. Existing two-language `tr()` calls and some compatibility
+  payload `any` fields remain; this is not a claim of a complete localization or typing migration.
+
+Run `node tools/source-review-browser.mjs` for Markdown identity/semantics, input/IME/Undo, menu
+click isolation, focus restoration and opt-in diagnostics. Run `node tools/overlay-layout-browser.mjs`
+for responsive overlay and route transition regressions. Unit coverage includes abort scopes,
+sync lifecycle, overlapping Back, malformed diffs and locale dictionary parity.

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import ComposerAttachmentTray from '../chat/ComposerAttachmentTray.vue';
+import ComposerAttachmentTray from '../../domain/chat/ComposerAttachmentTray.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
 const props = defineProps<{ count: number; mixed?: boolean }>();

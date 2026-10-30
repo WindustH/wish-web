@@ -1,14 +1,15 @@
 <script setup lang="ts">
+import type { SettingsConfig } from '../../core/configTypes.ts';
 // The built-in tools new sessions start with, whether they may manage other sessions, and the shell
 // they run commands in.
-import ServerShellSettings from '../../ui/domain/settings/ServerShellSettings.vue';
-import ToolSwitchRows from '../tool-settings/ToolSwitchRows.vue';
-import ToolBackgroundRow from '../../ui/domain/settings/ToolBackgroundRow.vue';
-import ToolExecutionRow from '../../ui/domain/settings/ToolExecutionRow.vue';
+import ServerShellSettings from '../../domain/settings/ServerShellSettings.vue';
+import ToolSwitchRows from '../../domain/settings/ToolSwitchRows.vue';
+import ToolBackgroundRow from '../../domain/settings/ToolBackgroundRow.vue';
+import ToolExecutionRow from '../../domain/settings/ToolExecutionRow.vue';
 import type { ShellCatalog } from '../../core/api/endpoints.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
-defineProps<{ config: any; shells: ShellCatalog | null; busy: boolean; searchAvailable: boolean | null }>();
+defineProps<{ config: SettingsConfig; shells: ShellCatalog | null; busy: boolean; searchAvailable: boolean | null }>();
 </script>
 
 <template>

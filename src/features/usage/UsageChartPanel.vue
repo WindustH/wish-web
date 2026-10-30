@@ -9,8 +9,8 @@ import InfoHint from '../../ui/components/InfoHint.vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { fmtTokens } from '../../core/util/fmt.ts';
 import type { UsageChartData } from '../../core/usage/types.ts';
-import { modelLabel } from '../../ui/domain/providers/modelLabel.ts';
-import { useProviderTitles } from '../../ui/domain/providers/useProviderTitles.ts';
+import { modelLabel } from '../../domain/providers/modelLabel.ts';
+import { useProviderTitles } from '../../domain/providers/useProviderTitles.ts';
 import { tr } from '../../core/i18n/tr.ts';
 const props = defineProps<{
   data: UsageChartData | null;

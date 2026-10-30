@@ -10,7 +10,7 @@ import vue from '@vitejs/plugin-vue';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import {createApp,h,ref} from 'vue';import {TooltipProvider} from 'reka-ui';
-import {installScrollStallLog,stalls} from '/src/ui/domain/diagnostics/scrollStalls.ts';
+import {installScrollStallLog,stalls} from '/src/domain/diagnostics/scrollStalls.ts';
 installScrollStallLog();window.stalls=stalls;
 import Modal from '/src/ui/components/Modal.vue';
 import ActivityRail from '/src/features/sessions/ActivityRail.vue';

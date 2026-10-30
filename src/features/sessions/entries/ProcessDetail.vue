@@ -139,10 +139,10 @@ const fullText = computed(() => {
 .reasoning-document .markdown {
   font-size: inherit;
 }
-.reasoning-document .markdown > :first-child {
+.reasoning-document .markdown > .markdown-block:first-child > :first-child {
   margin-top: 0;
 }
-.reasoning-document .markdown > :last-child {
+.reasoning-document .markdown > .markdown-block:last-child > :last-child {
   margin-bottom: 0;
 }
 .tool-section {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { entryView } from '../src/core/api/projections.ts';
-import { groupEntries } from '../src/features/chat/grouping.ts';
+import { groupEntries } from '../src/domain/chat/grouping.ts';
 import { fileEdits, searchResults, stepFailed } from '../src/features/sessions/entries/processDetails.ts';
 const event = (seq:number, value:any) => entryView({record:{sequence:seq,recorded_at:'2026-10-26T00:00:00Z'}, content:{kind:'event',value:{Application:value}}},'session');
 for(const name of ['web_fetch','web_search','task','ask_user','session']) {

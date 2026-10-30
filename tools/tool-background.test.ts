@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { entryView } from '../src/core/api/projections.ts';
-import { groupEntries } from '../src/features/chat/grouping.ts';
+import { groupEntries } from '../src/domain/chat/grouping.ts';
 import { formState } from '../src/features/sessions/askUser.ts';
 import { awaitsAnswer, waitingForms } from '../src/core/questionWatch.ts';
 const project = (id:number, message:any) => entryView({record:{sequence:id,recorded_at:0},content:{kind:'message',value:{id,message}}},'s');

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import SelectField from '../../ui/domain/providers/SelectField.vue';
+import SelectField from '../../domain/providers/SelectField.vue';
 import Modal from '../../ui/components/Modal.vue';
 import { localDate, type RangeSelection, type TotalsRange } from '../../core/usage/windows.ts';
 import { tr } from '../../core/i18n/tr.ts';

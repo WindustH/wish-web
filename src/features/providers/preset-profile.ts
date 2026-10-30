@@ -1,5 +1,5 @@
 import type { ProviderPreset } from '../../core/provider-presets.ts';
-import { providerName } from '../../ui/domain/providers/providerPresentation.ts';
+import { providerName } from '../../domain/providers/providerPresentation.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
 // Presentation only: protocols, required fields and addresses come from the catalog.

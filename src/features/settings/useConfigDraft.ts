@@ -19,7 +19,7 @@ import {
 } from '../../core/api/endpoints.ts';
 import { replayConfigChanges } from '../../core/configMerge.ts';
 import { tr } from '../../core/i18n/tr.ts';
-import { providerTitles } from '../../ui/domain/providers/providerPresentation.ts';
+import { providerTitles } from '../../domain/providers/providerPresentation.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { toast } from '../../ui/toast.ts';
 import type { ConfigCatalog, ProviderPreset } from '../../core/provider-presets.ts';

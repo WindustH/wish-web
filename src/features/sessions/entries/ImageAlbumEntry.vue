@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { ImageAlbumItem } from '../../chat/imageAlbums.ts';
-import ImageGrid from '../../chat/entries/ImageGrid.vue';
-import UserBubble from '../../chat/entries/UserBubble.vue';
+import type { ImageAlbumItem } from '../../../domain/chat/imageAlbums.ts';
+import ImageGrid from '../../../domain/chat/entries/ImageGrid.vue';
+import UserBubble from '../../../domain/chat/entries/UserBubble.vue';
 import AssistantEntry from './AssistantEntry.vue';
 
 const props = defineProps<{

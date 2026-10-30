@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ToolImage from '../../ui/domain/media/ToolImage.vue';
+import ToolImage from '../../domain/media/ToolImage.vue';
 import { blobUrl } from '../../core/api/endpoints.ts';
 defineProps<{ session: string; model?: string; images: { id: string; mime_type: string; path: string }[] }>();
 </script>

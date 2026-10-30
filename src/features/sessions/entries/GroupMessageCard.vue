@@ -277,10 +277,10 @@ onBeforeUnmount(() => observer?.disconnect());
 .group-card-preview.clipped {
   mask-image: linear-gradient(to bottom, #000 60%, transparent);
 }
-.group-card-preview :deep(.markdown > :first-child) {
+.group-card-preview :deep(.markdown > .markdown-block:first-child > :first-child) {
   margin-top: 0;
 }
-.group-card-preview :deep(.markdown > :last-child) {
+.group-card-preview :deep(.markdown > .markdown-block:last-child > :last-child) {
   margin-bottom: 0;
 }
 .group-card-images {

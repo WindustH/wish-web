@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readAskResponse } from '../src/features/chat/readAskResponse.ts';
+import { readAskResponse } from '../src/domain/chat/readAskResponse.ts';
 
 function sse(chunks: string[]) {
   return new Response(new ReadableStream({

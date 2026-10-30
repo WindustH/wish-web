@@ -14,7 +14,7 @@ import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
 import { toast } from '../../ui/toast.ts';
 // The switch's look.
-import '../../ui/domain/settings/settings.css';
+import '../../domain/settings/settings.css';
 
 const props = defineProps<{ storage: StorageSnapshot }>();
 const emit = defineEmits<{ changed: [] }>();

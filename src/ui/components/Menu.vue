@@ -37,7 +37,7 @@ import Icon from './Icon.vue';
 import MenuBackdrop from './MenuBackdrop.vue';
 import { usePageActivity } from '../composables/usePageActivity.ts';
 import { covers, glyphAt, selectionCovers, SELECTABLE_TEXT } from '../textAtPoint.ts';
-import { noteSwallowedClick } from '../domain/diagnostics/scrollStalls.ts';
+import { noteSwallowedClick } from '../interactionSignals.ts';
 
 // `checked` marks the current choice of a menu that picks one of several.
 import type { MenuItem } from './menuTypes.ts';

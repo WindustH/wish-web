@@ -188,10 +188,27 @@ export function stepFailed(step: any): boolean {
 /** The session's tool results by the call they answer, for a call whose result came in another run. */
 export const toolResultsKey: InjectionKey<Ref<Map<string, any>>> = Symbol('tool results');
 // Full diffs live in the result's metadata when the model did not ask to see them.
-export function fileEdits(step: any): any[] {
+export interface FileEdit {
+  path: string;
+  diff?: string | null;
+  changed?: boolean;
+  binary?: boolean;
+  status?: string;
+  error?: string;
+}
+export function fileEdits(step: any): FileEdit[] {
   if (!['shell', 'shell_edit'].includes(step.entry?.payload?.tool_name)) return [];
   const edits = step.entry.payload?.metadata?.edits ?? toolOutput(step)?.edits;
-  return Array.isArray(edits) ? edits : [];
+  return Array.isArray(edits)
+    ? edits.filter(
+        (edit: unknown): edit is FileEdit =>
+          !!edit &&
+          typeof edit === 'object' &&
+          'path' in edit &&
+          typeof edit.path === 'string' &&
+          (!('diff' in edit) || edit.diff == null || typeof edit.diff === 'string'),
+      )
+    : [];
 }
 export interface DiffLine {
   text: string;

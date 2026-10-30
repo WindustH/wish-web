@@ -1,3 +1,4 @@
+import { createAbortScope } from './util/abortScope.ts';
 // Which Wish server this browser talks to. By default it is the server that
 // served the page, reached through its /api proxy, which adds the access token
 // itself. Connecting to another server stores its address and token here, and
@@ -89,37 +90,42 @@ export async function checkConnection(address: string, token: string) {
       ),
     );
   }
-  let response: Response;
+  const cancellation = createAbortScope([], 10_000);
   try {
-    response = await fetch(`${base}/version`, {
-      headers: token ? { authorization: `Bearer ${token}` } : {},
-      signal: AbortSignal.timeout(10_000),
-    });
-  } catch {
-    throw new Error(
-      target.origin === location.origin
-        ? tr('无法连接到服务器。请确认服务器正在运行。', 'Could not reach the server. Check that it is running.')
-        : tr(
-            '无法连接到这个地址。请确认地址正确、服务器正在运行，并且它设置了访问令牌：未设置令牌的 Wish 服务器不接受来自其他网页的连接。',
-            'Could not reach this address. Check that it is correct, that the server is running, and that it requires an access token: a Wish server without one does not accept connections from other web pages.',
-          ),
-    );
-  }
-  if (response.status === 401) {
-    throw new Error(
-      token
-        ? tr('访问令牌不正确。', 'The access token is not correct.')
-        : tr('这个服务器需要访问令牌。', 'This server requires an access token.'),
-    );
-  }
-  const identity = response.ok ? await response.json().catch(() => null) : null;
-  if (identity?.name !== 'wish') {
-    throw new Error(
-      tr(
-        `这个地址上没有找到 Wish 服务器（HTTP ${response.status}）。`,
-        `No Wish server was found at this address (HTTP ${response.status}).`,
-      ),
-    );
+    let response: Response;
+    try {
+      response = await fetch(`${base}/version`, {
+        headers: token ? { authorization: `Bearer ${token}` } : {},
+        signal: cancellation.signal,
+      });
+    } catch {
+      throw new Error(
+        target.origin === location.origin
+          ? tr('无法连接到服务器。请确认服务器正在运行。', 'Could not reach the server. Check that it is running.')
+          : tr(
+              '无法连接到这个地址。请确认地址正确、服务器正在运行，并且它设置了访问令牌：未设置令牌的 Wish 服务器不接受来自其他网页的连接。',
+              'Could not reach this address. Check that it is correct, that the server is running, and that it requires an access token: a Wish server without one does not accept connections from other web pages.',
+            ),
+      );
+    }
+    if (response.status === 401) {
+      throw new Error(
+        token
+          ? tr('访问令牌不正确。', 'The access token is not correct.')
+          : tr('这个服务器需要访问令牌。', 'This server requires an access token.'),
+      );
+    }
+    const identity = response.ok ? await response.json().catch(() => null) : null;
+    if (identity?.name !== 'wish') {
+      throw new Error(
+        tr(
+          `这个地址上没有找到 Wish 服务器（HTTP ${response.status}）。`,
+          `No Wish server was found at this address (HTTP ${response.status}).`,
+        ),
+      );
+    }
+  } finally {
+    cancellation.dispose();
   }
 }
 

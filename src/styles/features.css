@@ -677,7 +677,7 @@ button.sl-row {
 .entry.user .bubble img:first-child {
   margin-top: 0;
 }
-.entry.assistant > .body > .markdown:last-child > :last-child {
+.entry.assistant > .body > .markdown:last-child > :last-child > :last-child {
   margin-bottom: 0;
 }
 .assistant-img {

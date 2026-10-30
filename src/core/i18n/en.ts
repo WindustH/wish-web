@@ -1,5 +1,20 @@
 // English dictionary (en).
 export const en = {
+  'extension.categories': 'Extension tool categories',
+  'tools.shell.hint': 'Run commands in the working directory',
+  'tools.sessions.hint': 'View, create and message other sessions and groups',
+  'tools.history.hint': 'Search and read this session’s history',
+  'tools.ask.hint': 'Offer choices or ask you to fill in details when your call is needed',
+  'tools.command': 'Wish command',
+  'tools.direct': 'Direct tool',
+  'tools.shellOff': 'Off when Shell is off',
+  'tools.off': 'Off',
+  'tools.delivery': 'delivery',
+  'tools.taskHint': 'Manage commands, input/output and background tasks',
+  'tools.taskDelivery': 'Task delivery',
+  'common.codeCopied': 'Code copied',
+  'errors.background': 'A background operation failed. Please try again later.',
+
   'chat.requestFailed': 'Request failed',
   'chat.reload': 'Reload',
   'chat.runFailed': 'Response failed',

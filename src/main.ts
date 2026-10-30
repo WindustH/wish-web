@@ -14,6 +14,7 @@ import { initPWA } from './ui/pwa.ts';
 import { sessionSearchCommands } from './features/sessions/searchCommands.ts';
 import { installShortcuts } from './features/shell/shortcuts.ts';
 import App from './App.vue';
+import { createUnhandledRejectionReporter } from './ui/unhandledErrors.ts';
 import { showError } from './ui/errorDialog.ts';
 import { tr } from './core/i18n/tr.ts';
 import { router } from './router.ts';
@@ -31,8 +32,8 @@ import './styles/base.css';
 import './styles/layout.css';
 import './styles/components.css';
 import './styles/features.css';
-import { installActivityRecorder } from './ui/domain/diagnostics/activityRecorder.ts';
-import { installScrollStallLog } from './ui/domain/diagnostics/scrollStalls.ts';
+import { installActivityRecorder } from './domain/diagnostics/activityRecorder.ts';
+import { installScrollStallLog } from './domain/diagnostics/scrollStalls.ts';
 
 applyTokens();
 registerBrowserPlatform({ namespace: cfg.meta.storageNamespace, version: cfg.meta.storageVersion });
@@ -43,8 +44,8 @@ prefs.load();
 // should not appear on right-click or touch hold elsewhere in the UI. Parts
 // with a context menu of their own (marked data-context-menu) take the event
 // themselves, and suppress the browser's too, even where theirs does not open.
-installScrollStallLog();
-installActivityRecorder(router);
+const stopStallLog = installScrollStallLog();
+const stopActivityRecorder = installActivityRecorder(router);
 
 document.addEventListener(
   'contextmenu',
@@ -95,7 +96,7 @@ watch(
 // before the control plane starts streaming.
 // Signed out, the sign-in page picks a server first.
 if (!isSignedOut()) {
-  const { installBackgroundNotify } = await import('./ui/domain/chat/notify.ts');
+  const { installBackgroundNotify } = await import('./domain/chat/notify.ts');
   installBackgroundNotify();
   sync.start();
 }
@@ -119,9 +120,13 @@ app.config.errorHandler = (error, _instance, info) => {
   console.error('Vue error:', info, error);
   showError({ title: tr('界面发生错误', 'Interface error'), error });
 };
-window.addEventListener('unhandledrejection', (event) => {
-  if (event.reason?.name !== 'AbortError')
-    showError({ title: tr('操作未能完成', 'Operation failed'), error: event.reason });
+const reportRejection = createUnhandledRejectionReporter(() => toast(i18n.t('errors.background')));
+window.addEventListener('unhandledrejection', reportRejection);
+app.onUnmount(() => {
+  sync.stop();
+  stopStallLog();
+  stopActivityRecorder();
+  window.removeEventListener('unhandledrejection', reportRejection);
 });
 app.use(router);
 app.mount('#app');

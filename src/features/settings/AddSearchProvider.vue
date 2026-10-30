@@ -2,9 +2,9 @@
 // Picks a search service to add: the searches that come with a configured subscription first,
 // then the services that take a key of their own. The same picker as adding a model provider.
 import { computed } from 'vue';
-import PickerDialog from '../../ui/domain/providers/PickerDialog.vue';
+import PickerDialog from '../../domain/providers/PickerDialog.vue';
 import type { SearchPreset } from '../../core/api/endpoints.ts';
-import { presetBrand, providerName } from '../../ui/domain/providers/providerPresentation.ts';
+import { presetBrand, providerName } from '../../domain/providers/providerPresentation.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
 export type SearchChoice = { preset: SearchPreset; lender?: string };

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { groupEntries, type GroupEntry } from '../src/features/chat/grouping.ts';
+import { groupEntries, type GroupEntry } from '../src/domain/chat/grouping.ts';
 import { draftAnswers, emptyDraft, formState, pick, readForm } from '../src/features/sessions/askUser.ts';
 import { createQuestionWatch } from '../src/core/questionWatch.ts';
 

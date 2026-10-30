@@ -52,13 +52,13 @@ export const stats = (() => {
     error.value = null;
     const range = usageRange.value;
     pending = Promise.all([api.usageTotals({ ...options, query: rangeBounds(range) }), api.storageStatus(options)])
-      .then(([us, sg]) => {
+      .then(([usage, storage]) => {
         if (own !== epoch) return;
         // A range switched meanwhile has its own read; these totals are for the old one.
-        const snapshot: StatsSnapshot = { usage: us, usageKey: usageKey(range), storage: sg, updatedAt: Date.now() };
+        const snapshot: StatsSnapshot = { usage, usageKey: usageKey(range), storage, updatedAt: Date.now() };
         apply(snapshot);
         writeCached('stats-snapshot', snapshot);
-        writeCached(usageKey(range), us);
+        writeCached(usageKey(range), usage);
       })
       .catch((cause) => {
         if (own !== epoch) return;

@@ -28,7 +28,7 @@ after(() => {
 });
 const cache = new Map<string, ReturnType<typeof defineComponent>>();
 function component(name: string): ReturnType<typeof defineComponent> {
-  const file = name.startsWith('/') ? name : fileURLToPath(new URL(`../src/features/${['UserEntry.vue', 'UserBubble.vue', 'ImageGrid.vue', 'VirtualImageGrid.vue'].includes(name) ? 'chat' : 'sessions'}/entries/${name}`, import.meta.url));
+  const file = name.startsWith('/') ? name : fileURLToPath(new URL(`../src/${['UserEntry.vue', 'UserBubble.vue', 'ImageGrid.vue', 'VirtualImageGrid.vue'].includes(name) ? 'domain/chat' : 'features/sessions'}/entries/${name}`, import.meta.url));
   const cached = cache.get(file);
   if (cached) return cached;
   const { descriptor } = parse(readFileSync(file, 'utf8'), { filename: file });

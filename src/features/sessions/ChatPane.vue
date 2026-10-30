@@ -4,14 +4,14 @@ import { tr } from '../../core/i18n/tr.ts';
 import { sessionNaming } from '../../core/state/sessionNaming.ts';
 import SessionListAction, { type ActionTarget } from './SessionListAction.vue';
 import FadeText from '../../ui/components/FadeText.vue';
-import { modelLabel } from '../../ui/domain/providers/modelLabel.ts';
+import { modelLabel } from '../../domain/providers/modelLabel.ts';
 import { sessionParent } from '../shell/sessionNavigation.ts';
-import { sessionPanelCloseKey } from '../../ui/domain/chat/sessionPanel.ts';
+import { sessionPanelCloseKey, sessionPanelElementsKey } from '../../domain/chat/sessionPanel.ts';
 import Hint from '../../ui/components/Hint.vue';
 // Chat surface: top bar (desktop information/settings / mobile back+menu), log,
 // composer, and child-route dialogs (mobile subpages). Opening session
 // actions never rebuilds the conversation.
-import { computed, onBeforeUnmount, provide, shallowRef, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, provide, shallowRef, ref, watch, type ComponentPublicInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -19,10 +19,10 @@ import { chat } from '../../core/state/chatSlice.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
 import ChatLog from './ChatLog.vue';
-import Composer from '../chat/Composer.vue';
+import Composer from '../../domain/chat/Composer.vue';
 import QueueDock from './QueueDock.vue';
 import InfoPane from './InfoPane.vue';
-import { useComposerHeight } from '../chat/useComposerHeight.ts';
+import { useComposerHeight } from '../../domain/chat/useComposerHeight.ts';
 import SessionSettingsPane from './SessionSettingsPane.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
@@ -34,6 +34,15 @@ import { touchButton } from '../../ui/touchButton.ts';
 const backTouch = touchButton();
 const panelClose = shallowRef<(() => void) | null>(null);
 provide(sessionPanelCloseKey, panelClose);
+const panelButtons = new Map<string, HTMLElement>();
+function rememberPanelButton(key: string, element: Element | ComponentPublicInstance | null) {
+  if (element instanceof HTMLElement) panelButtons.set(key, element);
+  else panelButtons.delete(key);
+}
+provide(sessionPanelElementsKey, {
+  anchor: () => panelButtons.get(tab.value ?? '') ?? null,
+  contains: (target) => [...panelButtons.values()].some((button) => button.contains(target)),
+});
 const route = useRoute();
 const router = useRouter();
 const isMobile = useIsMobile();
@@ -205,6 +214,7 @@ const goTab = (t: SessionTab) => {
             :aria-label="item.label"
             :class="{ selected: tab === item.key }"
             :data-session-panel="item.key"
+            :ref="(element) => rememberPanelButton(item.key, element)"
             :aria-pressed="tab === item.key"
             @click="goTab(item.key as SessionTab)"
           >

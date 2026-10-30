@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import Icon from '../../ui/components/Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
-import SettingHint from '../../ui/domain/settings/SettingHint.vue';
-import { stalls, clearStalls } from '../../ui/domain/diagnostics/scrollStalls.ts';
+import SettingHint from '../../domain/settings/SettingHint.vue';
+import { stalls, clearStalls } from '../../domain/diagnostics/scrollStalls.ts';
 import { copyText } from '../../ui/clipboard.ts';
 const copyStalls = () => copyText(JSON.stringify(stalls.value, null, 2));
 const summary = (stall: (typeof stalls.value)[number]) =>

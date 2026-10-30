@@ -16,7 +16,7 @@ import {pageActivityKey} from '/src/ui/composables/usePageActivity.ts';
 import SettingsView from '/src/features/settings/SettingsView.vue';
 import {closeOverlayKey} from '/src/ui/composables/overlay.ts';
 import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
-import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/ui/domain/settings/settings.css';
+import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/domain/settings/settings.css';
 registerBrowserPlatform({namespace:'wish-nested-regression',version:1});
 const config={providers:{},accounts:{},defaults:{tools:{shell:true}},audio_transcription:{order:[],providers:{}},search:{order:[],providers:{}}};
 const replies={'/config':{config,revision:'1'},'/provider-presets':{presets:[]},'/media-presets':{presets:[{id:'fixture-asr',name:'Fixture Transcription',brand:'OpenAI',kind:'transcription',model:'fixture-model',protocol:'openai_transcription',account_presets:[],defaults:{}}]},'/proxy-environment':{variables:[]},'/search/providers':{providers:[],available:true}};

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TranscriptRow } from '../../domain/chat/transcript.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import { displayFailure } from '../../core/api/failures.ts';
 import Icon from '../../ui/components/Icon.vue';
@@ -17,8 +18,8 @@ import {
   type ChipsItem,
   type GroupItem,
   type TextItem,
-} from '../chat/grouping.ts';
-import { imageAlbums, type ImageAlbumItem } from '../chat/imageAlbums.ts';
+} from '../../domain/chat/grouping.ts';
+import { imageAlbums, type ImageAlbumItem } from '../../domain/chat/imageAlbums.ts';
 import ActivityRail from './ActivityRail.vue';
 import ActivityDialogs from './ActivityDialogs.vue';
 import { openActivityKey, type ActivityRequest } from './activityDialogs.ts';
@@ -44,7 +45,7 @@ import { useChatScroll } from './useChatScroll.ts';
 import { useSearchLocate } from './useSearchLocate.ts';
 import { useRailSwipe } from './useRailSwipe.ts';
 import { estimateRow } from './rowEstimate.ts';
-import { measureChatElement, observeChatRect, refreshChatViewport } from '../chat/virtualMeasurements.ts';
+import { measureChatElement, observeChatRect, refreshChatViewport } from '../../domain/chat/virtualMeasurements.ts';
 import { useFreshRows } from './useFreshRows.ts';
 import { awaitsAnswer } from '../../core/questionWatch.ts';
 import { toolResultsKey } from './entries/processDetails.ts';
@@ -86,13 +87,18 @@ type ChatRow =
   | TextItem<EntryView>
   | ChipsItem<EntryView>
   | ImageAlbumItem<EntryView>
-  | { type: 'status_request_error' | 'status_run_error'; key: string };
+  | { type: 'status_request_error'; key: string }
+  | { type: 'status_run_error'; key: string };
 const groups = computed(() => {
   const items: ChatRow[] = imageAlbums(inlineChips(groupEntries(chat.entries.value)));
   if (requestFailure.value) items.push({ type: 'status_request_error', key: `request-error:${props.sessionId}` });
   if (runFailure.value) items.push({ type: 'status_run_error', key: `run-error:${props.sessionId}` });
   return items;
 });
+const transcriptAt = (index: number): TranscriptRow<EntryView> | undefined => {
+  const row = groups.value[index];
+  return row && row.type !== 'status_request_error' && row.type !== 'status_run_error' ? row : undefined;
+};
 
 // A call's result may come in a later run than the call, past a question or a notice.
 const toolResults = computed(
@@ -369,52 +375,50 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
 // resize instead of vanishing on a stale measurement. The rail itself needs none of this to
 // scroll: it lives in the content and rides the native scroll with no JS on the path.
 watch(
-  [wrapEl, innerEl],
-  (elements, _, onCleanup) => {
-    const alive = elements.filter(Boolean) as HTMLElement[];
-    if (!alive.length) return;
+  [wrapEl, innerEl, scrollContentEl],
+  ([wrap, inner, content], _, cleanup) => {
+    const elements = [wrap, inner, content].filter((element): element is HTMLElement => !!element);
+    if (!elements.length) return;
     let frame = 0;
-    const measure = () => {
+    let layoutChanged = false;
+    let contentChanged = false;
+    const schedule = () => {
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        refreshVirtualMeasurements();
-        railVersion.value++;
+        const measureLayout = layoutChanged;
+        const followContent = contentChanged;
+        layoutChanged = contentChanged = false;
+        if (measureLayout) {
+          refreshVirtualMeasurements();
+          railVersion.value++;
+        }
         void ensureHistoryScrollable();
+        if (followContent && pageActive.value && stick.value && !scrollbarHeld.value) {
+          const scroll = scrollEl.value;
+          if (scroll) scroll.scrollTop = scroll.scrollHeight;
+        }
       });
     };
-    const observer = new ResizeObserver(measure);
-    for (const el of alive) observer.observe(el);
-    window.addEventListener('resize', measure);
-    onCleanup(() => {
+    const observer = new ResizeObserver((entries) => {
+      layoutChanged ||= entries.some((entry) => entry.target === wrap || entry.target === inner);
+      contentChanged ||= entries.some((entry) => entry.target === content);
+      schedule();
+    });
+    const resized = () => {
+      layoutChanged = true;
+      schedule();
+    };
+    for (const element of elements) observer.observe(element);
+    window.addEventListener('resize', resized);
+    cleanup(() => {
       observer.disconnect();
-      window.removeEventListener('resize', measure);
-      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener('resize', resized);
+      cancelAnimationFrame(frame);
     });
   },
   { immediate: true },
 );
-watch(scrollContentEl, (content, _, onCleanup) => {
-  if (!content) return;
-  let frame = 0;
-  const observer = new ResizeObserver(() => {
-    if (frame) return;
-    frame = requestAnimationFrame(() => {
-      frame = 0;
-      // Estimates can shrink after measurement or the viewport can grow. A short log
-      // still needs older pages, even when no native scroll event can fire.
-      void ensureHistoryScrollable();
-      if (!pageActive.value || !stick.value || scrollbarHeld.value) return;
-      const el = scrollEl.value;
-      if (el) el.scrollTop = el.scrollHeight;
-    });
-  });
-  observer.observe(content);
-  onCleanup(() => {
-    observer.disconnect();
-    if (frame) cancelAnimationFrame(frame);
-  });
-});
 </script>
 
 <template>
@@ -475,8 +479,8 @@ watch(scrollContentEl, (content, _, onCleanup) => {
             :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }"
           >
             <HistoryItem
-              v-if="['entry', 'image_album', 'process', 'chips', 'question'].includes(groups[v.index]?.type ?? '')"
-              :item="groups[v.index]!"
+              v-if="transcriptAt(v.index)"
+              :item="transcriptAt(v.index)!"
               :forced-keys="forcedOpen"
               :session="sessionId"
               :locate-seq="chat.pendingSeq.value ?? undefined"
@@ -507,7 +511,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
         <Transition name="live-work">
           <div v-if="workIndicator === 'run'" :key="sessionId" class="live-row" aria-live="polite">
             <div v-if="streamText" class="live-text">
-              <Markdown data-selectable-text :text="liveMarkdown" />
+              <Markdown data-selectable-text :text="liveMarkdown" streaming />
             </div>
             <ThinkingViewport
               v-else-if="streamReasoning"

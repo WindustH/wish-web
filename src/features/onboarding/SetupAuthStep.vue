@@ -5,10 +5,10 @@
 import { computed, reactive, ref } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { MODEL_PROTOCOLS } from '../../core/provider-presets.ts';
-import { protocolPresentation } from '../../ui/domain/providers/protocolPresentation.ts';
-import { providerName } from '../../ui/domain/providers/providerPresentation.ts';
+import { protocolPresentation } from '../../domain/providers/protocolPresentation.ts';
+import { providerName } from '../../domain/providers/providerPresentation.ts';
 import Icon from '../../ui/components/Icon.vue';
-import SelectField from '../../ui/domain/providers/SelectField.vue';
+import SelectField from '../../domain/providers/SelectField.vue';
 import AnimatedDetails from '../../ui/components/AnimatedDetails.vue';
 import { credentialTitle } from '../providers/preset-profile.ts';
 import { useBrowserLogin } from '../providers/useBrowserLogin.ts';

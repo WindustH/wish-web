@@ -4,7 +4,7 @@
 import { onBeforeUnmount, ref } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 import Icon from '../../ui/components/Icon.vue';
-import ProviderIcon from '../../ui/domain/providers/ProviderIcon.vue';
+import ProviderIcon from '../../domain/providers/ProviderIcon.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 import {
   balanceParts,
@@ -18,7 +18,7 @@ import {
   type AccountState,
 } from './accountState.ts';
 import type { AccountRow, ProviderSummary } from './useAccountStates.ts';
-import { useProviderTitles } from '../../ui/domain/providers/useProviderTitles.ts';
+import { useProviderTitles } from '../../domain/providers/useProviderTitles.ts';
 
 defineProps<{ rows: AccountRow[]; unconfigured: ProviderSummary[]; loading: boolean; error: string }>();
 

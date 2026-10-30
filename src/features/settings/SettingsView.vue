@@ -20,7 +20,7 @@ import SkillsSettings from './SkillsSettings.vue';
 import AccountSettings from './AccountSettings.vue';
 import { useStatuses } from './useStatuses.ts';
 import { searchProviders } from '../../core/api/endpoints.ts';
-import '../../ui/domain/settings/settings.css';
+import '../../domain/settings/settings.css';
 import { configDraftKey, useConfigDraft } from './useConfigDraft.ts';
 import SessionDefaults from './SessionDefaults.vue';
 import ProviderSettings from './ProviderSettings.vue';

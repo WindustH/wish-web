@@ -13,11 +13,11 @@ import {createApp,h,ref,provide} from 'vue';
 import {TooltipProvider} from 'reka-ui';
 import ExtensionToolsSettings from '/src/features/settings/ExtensionToolsSettings.vue';
 import {configDraftKey} from '/src/features/settings/useConfigDraft.ts';
-import SessionPanelModal from '/src/ui/domain/chat/SessionPanelModal.vue';
-import ToolSwitchRows from '/src/features/tool-settings/ToolSwitchRows.vue';
+import SessionPanelModal from '/src/domain/chat/SessionPanelModal.vue';
+import ToolSwitchRows from '/src/domain/settings/ToolSwitchRows.vue';
 import {extensionSections} from '/src/extensions/settings.ts';
-import ExtensionCategoryPicker from '/src/features/tool-settings/ExtensionCategoryPicker.vue';
-import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/ui/domain/settings/settings.css';
+import ExtensionCategoryPicker from '/src/domain/settings/ExtensionCategoryPicker.vue';
+import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/domain/settings/settings.css';
 const selection=ref('image_generation'),open=ref(true),closes=ref(0),tools=ref({shell:true});
 const mode=ref('session'),initialSection=ref('video_generation'),busy=ref(false),draft=ref({defaults:{tools:{shell:true,video_generate:false}},credentials:{}});
 window.fixture={selection,open,closes,mode,initialSection,busy,draft};
@@ -26,14 +26,14 @@ createApp({setup(){
  return()=>h(TooltipProvider,{},()=>[
  h('button',{id:'anchor',style:'position:absolute;top:20px;right:20px','data-session-panel':'settings','aria-pressed':'true',onClick:()=>open.value=true},'Settings'),
  h('button',{id:'outside',style:'position:absolute;bottom:20px;left:20px'},'Outside'),
- h(SessionPanelModal,{open:open.value,title:'Session settings',onClose:()=>{closes.value++;open.value=false;}},()=>mode.value==='global'?h(ExtensionToolsSettings,{initialSection:initialSection.value,save:async()=>true,searchAvailable:true,statuses:{},statusesKnown:true,onSelected:value=>initialSection.value=value}):h(ToolSwitchRows,{modelValue:tools.value,compact:true,include:[extensionSections.value.find(item=>item.id===selection.value).toolKey],searchAvailable:true},{label:()=>h(ExtensionCategoryPicker,{modelValue:selection.value,'onUpdate:modelValue':value=>selection.value=value})}))
+ h(SessionPanelModal,{open:open.value,title:'Session settings',onClose:()=>{closes.value++;open.value=false;}},()=>mode.value==='global'?h(ExtensionToolsSettings,{initialSection:initialSection.value,save:async()=>true,searchAvailable:true,statuses:{},statusesKnown:true,onSelected:value=>initialSection.value=value}):h(ToolSwitchRows,{extensionRows:extensionSections.value.map(item=>({key:item.toolKey,name:item.label,hint:item.description})),modelValue:tools.value,compact:true,include:[extensionSections.value.find(item=>item.id===selection.value).toolKey],searchAvailable:true},{label:()=>h(ExtensionCategoryPicker,{categories:extensionSections.value,modelValue:selection.value,'onUpdate:modelValue':value=>selection.value=value})}))
 ])}}).mount('#app');
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {
   name: 'select-dialog-regression', configureServer(server) { server.middlewares.use('/__select_dialog', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__select_dialog', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/tool-settings/ExtensionCategoryPicker.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/domain/settings/ExtensionCategoryPicker.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-select-dialog-'));
 let chrome, ws;
 try {

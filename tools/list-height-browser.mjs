@@ -31,7 +31,7 @@ const server = await createServer({ configFile: false, root: process.cwd(), plug
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__list_height', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__list_height', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/tool-settings/ToolSwitchRows.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/domain/settings/ToolSwitchRows.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-list-height-'));
 let chrome, ws;
 try {

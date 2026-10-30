@@ -10,9 +10,9 @@ import vue from '@vitejs/plugin-vue';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html><meta name="viewport" content="width=device-width, initial-scale=1"><body><button id="action">Action</button><input id="input"><img id="image"><script type="module">
 import {createRouter,createMemoryHistory} from 'vue-router';
-import {installActivityRecorder} from '/src/ui/domain/diagnostics/activityRecorder.ts';
-import * as log from '/src/ui/domain/diagnostics/activityStore.ts';
-import {installScrollStallLog,stalls,clearStalls} from '/src/ui/domain/diagnostics/scrollStalls.ts';
+import {installActivityRecorder} from '/src/domain/diagnostics/activityRecorder.ts';
+import * as log from '/src/domain/diagnostics/activityStore.ts';
+import {installScrollStallLog,stalls,clearStalls} from '/src/domain/diagnostics/scrollStalls.ts';
 installScrollStallLog();
 const router=createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{}}]});await router.push('/sessions');
 const fetchBase=window.fetch;
@@ -25,7 +25,7 @@ const server = await createServer({ configFile: false, root: process.cwd(), plug
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__activity_regression', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__activity_regression', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/ui/domain/diagnostics/activityRecorder.ts'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/domain/diagnostics/activityRecorder.ts'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-rail-touch-browser-'));
 let chrome, ws;
 try {

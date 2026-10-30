@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SettingsConfig } from '../../core/configTypes.ts';
 import { serviceOrder } from './serviceOrder.ts';
 // The search providers web_search asks, in order, edited in the settings draft.
 import { computed, ref, watch } from 'vue';
@@ -12,7 +13,7 @@ import { tr } from '../../core/i18n/tr.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
 
 const props = defineProps<{
-  config: any;
+  config: SettingsConfig;
   // Configured model providers, for the searches their subscriptions come with.
   models: { value: string; label: string; brand?: string; preset?: string }[];
   save: () => Promise<boolean>;

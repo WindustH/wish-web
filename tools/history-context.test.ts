@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { completeHistoryContext } from '../src/core/api/historyContext.ts';
 import type { EntryView } from '../src/core/api/projections.ts';
-import { groupEntries, inlineChips } from '../src/features/chat/grouping.ts';
-import { imageAlbums } from '../src/features/chat/imageAlbums.ts';
+import { groupEntries, inlineChips } from '../src/domain/chat/grouping.ts';
+import { imageAlbums } from '../src/domain/chat/imageAlbums.ts';
 
 const entry = (seq: number, kind: EntryView['kind'], content: any[] = []): EntryView => ({ seq, id: seq, created_at: 1, kind, payload: { content } });
 const image = (seq: number) => entry(seq, 'user_message', [{ type: 'image', mime_type: 'image/png', data_base64: String(seq) }]);

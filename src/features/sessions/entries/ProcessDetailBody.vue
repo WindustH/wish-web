@@ -6,7 +6,7 @@ import { fmtBytes } from '../../../core/util/fmt.ts';
 import { stepText, stepToolName, toolOutput, toolResult, fileEdits, searchResults } from './processDetails.ts';
 import FileDiff from './FileDiff.vue';
 import { extensionTool } from '../../../extensions/registry.ts';
-import ToolImage from '../../../ui/domain/media/ToolImage.vue';
+import ToolImage from '../../../domain/media/ToolImage.vue';
 import { tr } from '../../../core/i18n/tr.ts';
 // Everything a step's detail says of itself, under its heading: the command, the fields, what
 // came back - output, images, search hits, history records - the edits it made, and its raw

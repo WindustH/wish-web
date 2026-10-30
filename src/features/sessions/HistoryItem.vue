@@ -1,10 +1,12 @@
 <script setup lang="ts">
 // Virtual rows render message content and question cards. Activity windows live in ActivityDialogs.
+import type { TranscriptRow } from '../../domain/chat/transcript.ts';
+import type { EntryView } from '../../core/api/projections.ts';
 import type { Component } from 'vue';
 import { computed } from 'vue';
 import FileChangeCards from './entries/FileChangeCards.vue';
 import ErrorEntry from './entries/ErrorEntry.vue';
-import UserEntry from '../chat/entries/UserEntry.vue';
+import UserEntry from '../../domain/chat/entries/UserEntry.vue';
 import AssistantEntry from './entries/AssistantEntry.vue';
 import SystemEntry from './entries/SystemEntry.vue';
 import QuestionCard from './entries/QuestionCard.vue';
@@ -14,23 +16,29 @@ import GroupMessageEntry from './entries/GroupMessageEntry.vue';
 import ImageAlbumEntry from './entries/ImageAlbumEntry.vue';
 
 // `forcedKeys` are the groups a search holds open to show what it found.
-const props = defineProps<{ item: any; forcedKeys?: ReadonlySet<string>; session?: string; locateSeq?: number }>();
+const props = defineProps<{
+  item: TranscriptRow<EntryView>;
+  forcedKeys?: ReadonlySet<string>;
+  session?: string;
+  locateSeq?: number;
+}>();
+const entry = computed(() => ('entry' in props.item ? props.item.entry : null));
 const entryComponent = computed<Component>(() =>
   props.item.type === 'image_album'
     ? ImageAlbumEntry
     : props.item.type === 'question'
       ? QuestionCard
-      : props.item.entry?.payload?.metadata?.source === 'ask_user_answer'
+      : entry.value?.payload?.metadata?.source === 'ask_user_answer'
         ? LateAnswerEntry
-        : props.item.entry?.kind === 'group_sent'
+        : entry.value?.kind === 'group_sent'
           ? GroupSentEntry
-          : props.item.entry?.kind === 'group_message'
+          : entry.value?.kind === 'group_message'
             ? GroupMessageEntry
-            : props.item.entry?.kind === 'run_error'
+            : entry.value?.kind === 'run_error'
               ? ErrorEntry
-              : props.item.entry?.kind === 'user_message'
+              : entry.value?.kind === 'user_message'
                 ? UserEntry
-                : props.item.entry?.kind === 'assistant_message'
+                : entry.value?.kind === 'assistant_message'
                   ? AssistantEntry
                   : SystemEntry,
 );
@@ -41,9 +49,9 @@ const entryProps = computed(() =>
     ? { item: props.item, session: props.session }
     : props.item.type === 'image_album'
       ? { item: props.item, forcedKeys: props.forcedKeys, session: props.session, locateSeq: props.locateSeq }
-      : props.item.entry?.kind === 'assistant_message'
+      : entry.value?.kind === 'assistant_message'
         ? { item: props.item, forcedKeys: props.forcedKeys, session: props.session, locateSeq: props.locateSeq }
-        : { item: props.item, ...(props.item.entry?.kind === 'run_error' ? { session: props.session } : {}) },
+        : { item: props.item, ...(entry.value?.kind === 'run_error' ? { session: props.session } : {}) },
 );
 </script>
 

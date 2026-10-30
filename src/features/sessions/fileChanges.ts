@@ -1,9 +1,9 @@
 // File cards are projections of durable tool results, never inferred from shell text.
-import { fileEdits, diffCounts, parseDiff } from './entries/processDetails.ts';
+import { fileEdits, diffCounts, parseDiff, type FileEdit } from './entries/processDetails.ts';
 import { cfg } from '../../core/config.ts';
 export interface FileChange {
   path: string;
-  edits: any[];
+  edits: FileEdit[];
   added: number;
   removed: number;
 }

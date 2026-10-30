@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import SessionHistorySearch from './SessionHistorySearch.vue';
-import SelectField from '../../ui/domain/providers/SelectField.vue';
+import SelectField from '../../domain/providers/SelectField.vue';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 const errorDetail = (error: unknown) => describeError(error).message;
-import Modal from '../../ui/domain/chat/SessionPanelModal.vue';
+import Modal from '../../domain/chat/SessionPanelModal.vue';
 // Session details and usage; requests belong to this mounted session.
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
 import * as api from '../../core/api/endpoints.ts';
@@ -13,12 +13,12 @@ import { tr } from '../../core/i18n/tr.ts';
 import { fmtDateTime, fmtTokens } from '../../core/util/fmt.ts';
 import type { UsageSnapshot } from '../../core/state/statsSlice.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
-import { providerTitlesRead, useProviderTitles } from '../../ui/domain/providers/useProviderTitles.ts';
-import { modelLabel } from '../../ui/domain/providers/modelLabel.ts';
-import { presetBrand } from '../../ui/domain/providers/providerPresentation.ts';
-import ProviderIcon from '../../ui/domain/providers/ProviderIcon.vue';
+import { providerTitlesRead, useProviderTitles } from '../../domain/providers/useProviderTitles.ts';
+import { modelLabel } from '../../domain/providers/modelLabel.ts';
+import { presetBrand } from '../../domain/providers/providerPresentation.ts';
+import ProviderIcon from '../../domain/providers/ProviderIcon.vue';
 import { contextGauge } from './contextUsage.ts';
-import { useModelCatalog } from '../../ui/domain/providers/useModelCatalog.ts';
+import { useModelCatalog } from '../../domain/providers/useModelCatalog.ts';
 import { useSessionRequests } from './useSessionRequests.ts';
 import { RouterLink } from 'vue-router';
 import Icon from '../../ui/components/Icon.vue';

@@ -2,8 +2,8 @@
 // The provider chosen in the first step, shown above the later ones with the way back to change it.
 import { computed } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
-import { presetDescription, providerName } from '../../ui/domain/providers/providerPresentation.ts';
-import ProviderIcon from '../../ui/domain/providers/ProviderIcon.vue';
+import { presetDescription, providerName } from '../../domain/providers/providerPresentation.ts';
+import ProviderIcon from '../../domain/providers/ProviderIcon.vue';
 import type { SetupState } from './useProviderSetup.ts';
 
 const props = defineProps<{ setup: SetupState }>();

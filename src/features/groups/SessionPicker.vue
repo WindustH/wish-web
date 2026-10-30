@@ -8,7 +8,7 @@ import { tr } from '../../core/i18n/tr.ts';
 import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Spinner from '../../ui/components/Spinner.vue';
-import { modelLabel } from '../../ui/domain/providers/modelLabel.ts';
+import { modelLabel } from '../../domain/providers/modelLabel.ts';
 
 const props = defineProps<{ excluded?: string[] }>();
 const chosen = defineModel<string[]>({ required: true });

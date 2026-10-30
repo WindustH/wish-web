@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shortcutDeletion } from '../src/features/chat/editorShortcuts.ts';
+import { shortcutDeletion } from '../src/domain/chat/editorShortcuts.ts';
 
 test('Ctrl+C copies a selection and clears only an unselected draft', () => {
   assert.equal(shortcutDeletion('c', 'draft', 1, 3), undefined);

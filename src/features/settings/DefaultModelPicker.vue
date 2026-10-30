@@ -1,16 +1,18 @@
 <script setup lang="ts">
+import type { ModelInfo } from '../../core/provider-catalog.ts';
+import type { SettingsConfig } from '../../core/configTypes.ts';
 import { computed, effectScope, onScopeDispose, ref, shallowRef, watch, type EffectScope } from 'vue';
-import { modelLabel } from '../../ui/domain/providers/modelLabel.ts';
+import { modelLabel } from '../../domain/providers/modelLabel.ts';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
-import PickerList from '../../ui/domain/providers/PickerList.vue';
+import PickerList from '../../domain/providers/PickerList.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import Spinner from '../../ui/components/Spinner.vue';
 import { errorText } from '../../core/errors.ts';
-import { useModelCatalog } from '../../ui/domain/providers/useModelCatalog.ts';
-import type { SelectOption } from '../../ui/domain/providers/types.ts';
-const props = defineProps<{ config: any; providers: SelectOption[]; efforts: SelectOption[] }>();
+import { useModelCatalog } from '../../domain/providers/useModelCatalog.ts';
+import type { SelectOption } from '../../domain/providers/types.ts';
+const props = defineProps<{ config: SettingsConfig; providers: SelectOption[]; efforts: SelectOption[] }>();
 const effortQuery = ref('');
 const open = ref<'model' | 'effort' | ''>('');
 const defaults = computed(() => props.config.defaults);
@@ -31,9 +33,9 @@ watch(
 onScopeDispose(() => scope?.stop());
 const choices = computed(() =>
   props.providers.flatMap((provider) => {
-    const configured: Record<string, any> = props.config.providers[provider.value]?.models ?? {};
+    const configured: Record<string, Partial<ModelInfo>> = props.config.providers[provider.value]?.models ?? {};
     const upstream = catalog.value?.groups.value.find((group) => group.provider.id === provider.value)?.models ?? [];
-    const models = new Map<string, any>(
+    const models = new Map<string, Partial<ModelInfo>>(
       Object.entries(configured).map(([id, meta]) => [id, { ...upstream.find((model) => model.id === id), ...meta }]),
     );
     for (const model of upstream) if (!models.has(model.id)) models.set(model.id, model);

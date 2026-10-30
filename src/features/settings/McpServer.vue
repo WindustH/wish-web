@@ -4,7 +4,7 @@ import { computed, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
-import SelectField from '../../ui/domain/providers/SelectField.vue';
+import SelectField from '../../domain/providers/SelectField.vue';
 import AnimatedDetails from '../../ui/components/AnimatedDetails.vue';
 import KeyValueEditor from './KeyValueEditor.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';

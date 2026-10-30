@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { extensionSwitchRows } from '../../extensions/settings.ts';
+
 // Settings that belong to this session alone: context compaction, its optional tools and its shell.
 // New sessions keep taking the defaults from Settings.
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -6,23 +8,23 @@ import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import * as api from '../../core/api/endpoints.ts';
 import { chat } from '../../core/state/chatSlice.ts';
 import { tr } from '../../core/i18n/tr.ts';
-import SessionPanelModal from '../../ui/domain/chat/SessionPanelModal.vue';
+import SessionPanelModal from '../../domain/chat/SessionPanelModal.vue';
 import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { toast } from '../../ui/toast.ts';
-import CompactionRows from '../../ui/domain/settings/CompactionRows.vue';
+import CompactionRows from '../../domain/settings/CompactionRows.vue';
 import type { ToolSwitches } from '../../core/api/projections.ts';
-import ServerShellSettings from '../../ui/domain/settings/ServerShellSettings.vue';
+import ServerShellSettings from '../../domain/settings/ServerShellSettings.vue';
 import type { ShellCatalog } from '../../core/api/endpoints.ts';
-import '../../ui/domain/settings/settings.css';
-import ToolSwitchRows from '../tool-settings/ToolSwitchRows.vue';
-import ExtensionCategoryPicker from '../tool-settings/ExtensionCategoryPicker.vue';
+import '../../domain/settings/settings.css';
+import ToolSwitchRows from '../../domain/settings/ToolSwitchRows.vue';
+import ExtensionCategoryPicker from '../../domain/settings/ExtensionCategoryPicker.vue';
 import { extensionSections } from '../../extensions/settings.ts';
-import SwitchRow from '../../ui/domain/settings/SwitchRow.vue';
-import ToolBackgroundRow from '../../ui/domain/settings/ToolBackgroundRow.vue';
-import ToolExecutionRow from '../../ui/domain/settings/ToolExecutionRow.vue';
+import SwitchRow from '../../domain/settings/SwitchRow.vue';
+import ToolBackgroundRow from '../../domain/settings/ToolBackgroundRow.vue';
+import ToolExecutionRow from '../../domain/settings/ToolExecutionRow.vue';
 
 defineEmits<{ close: [] }>();
 const isMobile = useIsMobile();
@@ -323,6 +325,7 @@ async function act(kind: 'compact' | 'clear') {
         <ToolExecutionRow v-model="execution" :disabled="running || busy" :note="running ? savedLater() : undefined" />
         <ToolBackgroundRow v-model="backgroundTools" :disabled="running || busy" />
         <ToolSwitchRows
+          :extension-rows="extensionSwitchRows"
           v-if="snapshot"
           v-model="tools"
           :include="['shell', 'sessions', 'history_search', 'ask_user']"
@@ -338,13 +341,16 @@ async function act(kind: 'compact' | 'clear') {
       </header>
       <fieldset class="set-card session-extension-switch" :disabled="running || busy">
         <ToolSwitchRows
+          :extension-rows="extensionSwitchRows"
           v-model="tools"
           compact
           :include="[extension.toolKey]"
           :search-available="searchAvailable"
           :note="running ? savedLater() : undefined"
         >
-          <template #label><ExtensionCategoryPicker v-model="extensionSelection" /></template>
+          <template #label
+            ><ExtensionCategoryPicker :categories="extensionSections" v-model="extensionSelection"
+          /></template>
         </ToolSwitchRows>
       </fieldset>
     </section>

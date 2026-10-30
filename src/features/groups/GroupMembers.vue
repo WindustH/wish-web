@@ -11,7 +11,7 @@ import { tr } from '../../core/i18n/tr.ts';
 import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 import { fmtDateTime } from '../../core/util/fmt.ts';
 import Icon from '../../ui/components/Icon.vue';
-import SessionPanelModal from '../../ui/domain/chat/SessionPanelModal.vue';
+import SessionPanelModal from '../../domain/chat/SessionPanelModal.vue';
 import Modal from '../../ui/components/Modal.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import SessionPicker from './SessionPicker.vue';

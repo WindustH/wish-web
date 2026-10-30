@@ -5,7 +5,7 @@ import { computed, inject, ref, watch } from 'vue';
 import * as api from '../../../core/api/endpoints.ts';
 import { chat } from '../../../core/state/chatSlice.ts';
 import { tr, intlLocale } from '../../../core/i18n/tr.ts';
-import { useQuestionClock } from '../../../ui/domain/chat/useQuestionClock.ts';
+import { useQuestionClock } from '../../../domain/chat/useQuestionClock.ts';
 import Icon from '../../../ui/components/Icon.vue';
 import Markdown from '../../../ui/components/Markdown.vue';
 import { showError } from '../../../ui/errorDialog.ts';
@@ -20,7 +20,7 @@ import {
   pick,
   readForm,
 } from '../askUser.ts';
-import type { QuestionItem } from '../../chat/grouping.ts';
+import type { QuestionItem } from '../../../domain/chat/grouping.ts';
 import type { EntryView } from '../../../core/api/projections.ts';
 import { openActivityKey } from '../activityDialogs.ts';
 import AnswerSummary from './AnswerSummary.vue';

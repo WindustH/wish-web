@@ -45,12 +45,13 @@ function harness(canArm = () => true) {
   // popstate targets Window: capture does not make a later listener precede an earlier one.
   const stack = createBackLayers(browser, canArm);
   browser.addEventListener('popstate', () => { routed.push(browser.location.href); }, false);
-  const flush = () => { while (pending.length) pending.shift()!(); };
+  const flushOne = () => pending.shift()?.();
+  const flush = () => { for (let n = 0; pending.length; n++) { if(n > 100) throw Error('history traversal loop'); flushOne(); } };
   const back = () => { browser.history.back(); flush(); };
   // The sentinel a dismissed window pushed is popped one task later, so a navigation starting in
   // the same click can take that entry over instead of being cancelled by a rival popstate.
   const tick = async () => { await new Promise(done => setTimeout(done, 0)); flush(); };
-  return { stack, browser, pages, routed, flush, back, tick,
+  return { stack, browser, pages, routed, flush, flushOne, back, tick,
     get pushes() { return pushes; },
     nativeBack() { if (skippable) routed.push('outside Wish'); else back(); },
     get index() { return index; } };
@@ -266,4 +267,21 @@ test('removing a replaced page boundary preserves the route visible to the route
   await released;
   assert.equal(h.browser.location.href, 'https://wish.test/#/settings');
   assert.deepEqual(h.routed, []);
+});
+
+test('overlapping Back traversals preserve the promise awaited by a concurrent route navigation', async () => {
+  const h = harness();
+  let closed = 0;
+  const release = h.stack.add(() => { closed++; release(); });
+  h.browser.history.back();
+  h.browser.history.back();
+  h.flushOne();
+  let navigated = false;
+  const navigation = h.stack.beforeNavigation().then(ticket => { navigated = true; return ticket; });
+  h.flush();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(navigated, true, 'the first restoration waiter must not be orphaned by a second pop');
+  assert.equal(closed, 1);
+  h.stack.afterNavigation(false, await navigation);
 });

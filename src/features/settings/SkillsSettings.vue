@@ -14,7 +14,7 @@ import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
 import Markdown from '../../ui/components/Markdown.vue';
 import DirectoryPicker from '../../ui/components/DirectoryPicker.vue';
-import SwitchRow from '../../ui/domain/settings/SwitchRow.vue';
+import SwitchRow from '../../domain/settings/SwitchRow.vue';
 import { foldersOf, skillRows, skillsIn, skillTree, type SkillFolder, type SkillRow } from './skillTree.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';

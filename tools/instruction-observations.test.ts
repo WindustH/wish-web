@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { entryView } from '../src/core/api/projections.ts';
-import { groupEntries } from '../src/features/chat/grouping.ts';
+import { groupEntries } from '../src/domain/chat/grouping.ts';
 
 function note(seq: number, title: string, text: string) {
   return entryView({ record: { sequence: seq, recorded_at: 0 }, content: { kind: 'event', value: {

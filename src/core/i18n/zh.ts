@@ -1,5 +1,20 @@
 // Chinese dictionary (zh). Keys are flat dot-namespaced for grep-ability.
 export const zh = {
+  'extension.categories': '扩展工具分类',
+  'tools.shell.hint': '在工作目录中执行命令',
+  'tools.sessions.hint': '查看、创建和联系其他会话与群组',
+  'tools.history.hint': '搜索和读取当前会话的历史记录',
+  'tools.ask.hint': '需要你决定时，给出选项或请你填写',
+  'tools.command': 'Wish 命令',
+  'tools.direct': '直接工具',
+  'tools.shellOff': '随 Shell 关闭',
+  'tools.off': '关闭',
+  'tools.delivery': '提供方式',
+  'tools.taskHint': '管理命令、输入输出及后台任务',
+  'tools.taskDelivery': 'Task 提供方式',
+  'common.codeCopied': '代码已复制',
+  'errors.background': '后台操作未能完成，请稍后重试。',
+
   'chat.requestFailed': '请求失败',
   'chat.reload': '重新加载',
   'chat.runFailed': '回复失败',

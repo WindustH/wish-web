@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import SelectField from '../../ui/domain/providers/SelectField.vue';
+import SelectField from '../../domain/providers/SelectField.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { REDACTED } from '../../core/secretRef.ts';
 

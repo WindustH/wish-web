@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { diffCounts, parseDiff } from './processDetails.ts';
+import { diffCounts, parseDiff, type FileEdit } from './processDetails.ts';
 import CopyButton from '../../../ui/components/CopyButton.vue';
 import { tr } from '../../../core/i18n/tr.ts';
-const props = defineProps<{ edit: any; flat?: boolean }>();
+const props = defineProps<{ edit: FileEdit; flat?: boolean }>();
 const lines = computed(() => parseDiff(props.edit.diff ?? ''));
 const counts = computed(() => diffCounts(lines.value));
 const page = ref(0);

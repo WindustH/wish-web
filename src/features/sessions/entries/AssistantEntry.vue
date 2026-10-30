@@ -5,10 +5,10 @@ import { i18n } from '../../../core/i18n/index.ts';
 import { blobUrl } from '../../../core/api/endpoints.ts';
 import { fmtTokens } from '../../../core/util/fmt.ts';
 import Markdown from '../../../ui/components/Markdown.vue';
-import MessageContext from '../../chat/entries/MessageContext.vue';
+import MessageContext from '../../../domain/chat/entries/MessageContext.vue';
 import ApiImage from '../../../ui/components/ApiImage.vue';
-import ImageGrid from '../../chat/entries/ImageGrid.vue';
-import { imageParts } from '../../chat/imageAlbums.ts';
+import ImageGrid from '../../../domain/chat/entries/ImageGrid.vue';
+import { imageParts } from '../../../domain/chat/imageAlbums.ts';
 
 const props = defineProps<{ item: any; session?: string; forcedKeys?: ReadonlySet<string>; locateSeq?: number }>();
 const texts = computed(() => (props.item.blocks || []).filter((b: any) => b.type === 'text'));

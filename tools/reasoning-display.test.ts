@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { entryView } from '../src/core/api/projections.ts';
 import { createEmptyStream, createStreamProcessor } from '../src/core/state/chatStream.ts';
-import { groupEntries } from '../src/features/chat/grouping.ts';
+import { groupEntries } from '../src/domain/chat/grouping.ts';
 import { chipEvents, resultLookup } from '../src/features/sessions/entries/railMeta.ts';
 import { stepText } from '../src/features/sessions/entries/processDetails.ts';
 import { generationText } from '../src/features/sessions/generationText.ts';

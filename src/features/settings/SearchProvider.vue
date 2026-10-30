@@ -6,7 +6,7 @@ import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
 import AccountPicker from './AccountPicker.vue';
 import { searchAccountPreset } from './useAccountCatalog.ts';
-import ProviderIcon from '../../ui/domain/providers/ProviderIcon.vue';
+import ProviderIcon from '../../domain/providers/ProviderIcon.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { searchCheck, type SearchPreset, type SearchProviderStatus } from '../../core/api/endpoints.ts';
 import { showError } from '../../ui/errorDialog.ts';
