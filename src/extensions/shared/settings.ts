@@ -7,7 +7,10 @@ export const categoryDefinitions = () =>
       icon: 'image',
       label: tr('图片生成', 'Image generation'),
       summary: tr('生图服务、模型与账户', 'Image services, models and accounts'),
-      description: tr('生成图片并保存到会话 blob。', 'Generate images into session blob storage.'),
+      description: tr(
+        '生成或编辑图片，结果保存到会话。',
+        'Generate or edit images and save the results to the session.',
+      ),
     },
     {
       id: 'video_generation',
@@ -42,7 +45,7 @@ export const categoryDefinitions = () =>
       icon: 'web-reader',
       label: tr('网页读取', 'Web fetch'),
       summary: tr('网页内容读取服务', 'Page reading services'),
-      description: tr('独立选择网页读取提供商及其账户。', 'Configure webpage readers and their accounts.'),
+      description: tr('读取网页内容，用于回答与资料整理。', 'Read webpages for answers and research.'),
     },
     {
       id: 'search',
@@ -50,10 +53,7 @@ export const categoryDefinitions = () =>
       icon: 'web-search',
       label: tr('联网搜索', 'Web search'),
       summary: tr('Web Search 用哪些搜索服务', 'The services Web Search asks'),
-      description: tr(
-        'Web Search 工具按顺序询问这些搜索提供商。各服务可以复用公共账户池中的凭据。',
-        'The Web Search tool asks these providers in order. Services can share credentials from the account pool.',
-      ),
+      description: tr('搜索互联网并获取相关来源。', 'Search the web and retrieve relevant sources.'),
     },
   ] as const;
 

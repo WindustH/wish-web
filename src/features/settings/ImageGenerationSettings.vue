@@ -4,6 +4,7 @@ import { computed, inject, ref } from 'vue';
 import { configDraftKey } from './useConfigDraft.ts';
 import AccountPicker from './AccountPicker.vue';
 import SettingsItemCard from './SettingsItemCard.vue';
+import OrderedSettingsList from './OrderedSettingsList.vue';
 import PickerDialog from '../../ui/domain/providers/PickerDialog.vue';
 import ProviderIcon from '../../ui/domain/providers/ProviderIcon.vue';
 import Modal from '../../ui/components/Modal.vue';
@@ -16,7 +17,12 @@ import { showError } from '../../ui/errorDialog.ts';
 const { draft, imageCatalog } = inject(configDraftKey)!;
 const mobile = useIsMobile();
 const config = computed(() => (draft.value.image_generation ??= { order: [], providers: {} }));
-const ids = computed(() => serviceOrder(config.value.order, config.value.providers));
+const order = computed<string[]>({
+  get: () => serviceOrder(config.value.order, config.value.providers),
+  set: (ids) => {
+    config.value.order = ids;
+  },
+});
 const adding = ref(false),
   editing = ref('');
 const current = computed(() => config.value.providers[editing.value]);
@@ -51,9 +57,6 @@ function remove(id: string) {
   delete config.value.providers[id];
   config.value.order = config.value.order.filter((key) => key !== id);
 }
-function setPreferred(id: string) {
-  config.value.order = [id, ...config.value.order.filter((key) => key !== id)];
-}
 function parameters(event: Event) {
   const input = event.target as HTMLTextAreaElement;
   try {
@@ -69,32 +72,44 @@ function parameters(event: Event) {
 </script>
 <template>
   <section class="set-section image-generation-settings">
-    <p class="hint">
-      {{
-        tr(
-          '默认使用第一个启用的服务。生成后保存到会话的 blob，并向模型返回本地路径。',
-          'Uses the first enabled service by default. Generated images are stored as session blobs and local paths are returned to the model.',
-        )
-      }}
-    </p>
+    <header class="set-section-head">
+      <h3>{{ tr('图片生成提供商', 'Image providers') }}</h3>
+      <p>
+        {{
+          tr(
+            '默认使用第一个启用且支持当前用途的服务，可以复用已有账户。拖动可以调整顺序。',
+            'Uses the first enabled service supporting the request. Services can share existing accounts. Drag to reorder.',
+          )
+        }}
+      </p>
+    </header>
     <div class="image-services">
-      <SettingsItemCard
-        v-for="(id, index) in ids"
-        :key="id"
-        :title="spec(config.providers[id].preset)?.name || id"
-        :summary="`${config.providers[id].model} · ${draft.accounts[config.providers[id].credential_id]?.name || tr('未关联账户', 'No account')}`"
-        :edit-hint="tr('编辑服务', 'Edit service')"
-        :remove-hint="tr('删除服务', 'Delete service')"
-        @open="editing = id"
-        @remove="remove(id)"
+      <OrderedSettingsList
+        v-if="order.length"
+        v-model="order"
+        @open="editing = $event"
+        v-slot="{ id, index, open, grab, move }"
       >
-        <template #mark><ProviderIcon :brand="spec(config.providers[id].preset)?.brand" fallback="image" /></template>
-        <template #actions
-          ><button v-if="index" class="btn sm ghost" @click.stop="setPreferred(id)">
-            {{ tr('设为首选', 'Use by default') }}
-          </button></template
+        <SettingsItemCard
+          draggable
+          :title="spec(config.providers[id].preset)?.name || id"
+          :summary="`${config.providers[id].model} · ${draft.accounts[config.providers[id].credential_id]?.name || tr('未关联账户', 'No account')}`"
+          :position="index + 1"
+          :state="{
+            kind: config.providers[id].enabled ? 'ok' : 'disabled',
+            text: config.providers[id].enabled ? tr('已启用', 'Enabled') : tr('已停用', 'Disabled'),
+          }"
+          :edit-hint="tr('编辑服务', 'Edit service')"
+          :remove-hint="tr('删除服务', 'Delete service')"
+          @open="open"
+          @remove="remove(id)"
+          @grab="grab"
+          @move="move"
         >
-      </SettingsItemCard>
+          <template #mark><ProviderIcon :brand="spec(config.providers[id].preset)?.brand" fallback="image" /></template>
+        </SettingsItemCard>
+      </OrderedSettingsList>
+      <p v-else class="provider-list-empty">{{ tr('还没有配置服务。', 'No services configured yet.') }}</p>
       <button class="provider-add" @click="adding = true">
         <span class="provider-add-icon"><Icon name="plus" /></span>{{ tr('添加生图服务', 'Add image service') }}
       </button>
@@ -119,7 +134,8 @@ function parameters(event: Event) {
       v-if="current"
       :open="true"
       :page="mobile"
-      content-class="settings-editor"
+      compact
+      :content-class="mobile ? 'settings-editor mobile-settings-page' : 'settings-editor'"
       :title="spec(current.preset)?.name || current.preset"
       @close="editing = ''"
     >
@@ -227,9 +243,6 @@ function parameters(event: Event) {
         >
       </div>
       <template #footer>
-        <button v-if="mobile && config.order[0] !== editing" class="btn ghost" @click="setPreferred(editing)">
-          {{ tr('设为首选', 'Use by default') }}
-        </button>
         <button v-if="mobile" class="btn danger ghost" @click="remove(editing)">
           {{ tr('删除服务', 'Delete service') }}
         </button>
@@ -242,7 +255,7 @@ function parameters(event: Event) {
 .image-services,
 .image-editor {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
 }
 .hint {

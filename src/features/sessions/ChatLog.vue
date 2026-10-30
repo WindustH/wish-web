@@ -38,7 +38,7 @@ import ThinkingViewport from './ThinkingViewport.vue';
 import RetryRunButton from './RetryRunButton.vue';
 import RetryStatus from './RetryStatus.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
-import { useLiveBlocks } from './useLiveBlocks.ts';
+import { useLiveMarkdown } from './useLiveMarkdown.ts';
 import { useChatScroll } from './useChatScroll.ts';
 import { useSearchLocate } from './useSearchLocate.ts';
 import { useRailSwipe } from './useRailSwipe.ts';
@@ -234,8 +234,8 @@ const standbyPreparing = computed(() => {
   return chat.stream.value?.standbyPreparing || chat.snapshot.value?.standby_preparing;
 });
 
-// Live stream markdown splitting & throttling
-const { liveBlocks } = useLiveBlocks(streamText);
+// The live and saved answer share one Markdown document and typography.
+const { liveMarkdown } = useLiveMarkdown(streamText);
 
 // Rows that just arrived slide in. A reply's text is excluded: it was already
 // on screen while it streamed, and must not appear a second time.
@@ -500,11 +500,7 @@ watch(scrollContentEl, (content, _, onCleanup) => {
         <Transition name="live-work">
           <div v-if="workIndicator === 'run'" :key="sessionId" class="live-row" aria-live="polite">
             <div v-if="streamText" class="live-text">
-              <Markdown v-for="(b, i) in liveBlocks.stable" :key="i" :text="b" /><Markdown
-                v-if="liveBlocks.tail"
-                :key="'tail'"
-                :text="liveBlocks.tail"
-              />
+              <Markdown data-selectable-text :text="liveMarkdown" />
             </div>
             <ThinkingViewport
               v-else-if="streamReasoning"

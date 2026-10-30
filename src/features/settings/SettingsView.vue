@@ -47,7 +47,11 @@ function openFirstResult() {
   const first = visibleSections.value[0];
   if (first) selectSection(first.id);
 }
-const current = computed(() => sections.value.find((item) => item.id === tab.value));
+const current = computed(() =>
+  isMobile.value && mobileExtension.value
+    ? extensionSections.value.find((item) => item.id === mobileExtension.value)
+    : sections.value.find((item) => item.id === tab.value),
+);
 // Whether some search provider could answer now, for the Web Search switch's hint.
 
 const route = useRoute();
@@ -69,6 +73,7 @@ watch(
 function validExtension(value: unknown) {
   return typeof value === 'string' && extensionSections.value.some((item) => item.id === value) ? value : undefined;
 }
+const mobileExtension = computed(() => validExtension(route.query.tool) ?? validExtension(route.query.section));
 const extensionSection = ref(
   validExtension(route.query.tool) ?? validExtension(route.query.section) ?? 'image_generation',
 );
@@ -82,7 +87,7 @@ watch(
 function selectExtension(id: string) {
   if (!validExtension(id)) return;
   extensionSection.value = id;
-  if (isMobile.value) void router.replace({ path: '/settings', query: { section: 'extensions', tool: id } });
+  if (isMobile.value) void router.push({ path: '/settings', query: { section: 'extensions', tool: id } });
 }
 const mobileSection = computed(() =>
   extensionSections.value.some((item) => item.id === route.query.section)
@@ -102,7 +107,7 @@ function selectSection(id: string) {
       path: '/settings',
       query: {
         section: id,
-        ...(id === 'extensions' && extensionSection.value ? { tool: extensionSection.value } : {}),
+        ...(id === 'extensions' && searchQuery.value.trim() ? { tool: extensionSection.value } : {}),
       },
     });
   else desktopSection.value = id;
@@ -118,12 +123,14 @@ function showSidebarScrollbar() {
   sidebarScrollTimer = setTimeout(() => (sidebarScrolling.value = false), 600);
 }
 onScopeDispose(() => clearTimeout(sidebarScrollTimer));
-watch([tab, extensionSection], () => {
+watch([tab, extensionSection, mobileExtension], () => {
   if (content.value) content.value.scrollTop = 0;
 });
 
 function backToCategories() {
-  router.replace({ path: '/settings' });
+  if (tab.value === 'extensions' && mobileExtension.value) {
+    void router.replace({ path: '/settings', query: { section: 'extensions' } });
+  } else void router.replace({ path: '/settings' });
 }
 
 const configDraft = useConfigDraft();
@@ -257,7 +264,9 @@ onActivated(() => {
               <button
                 v-if="isMobile"
                 class="btn ghost icon-only"
-                :aria-label="tr('返回设置', 'Back to settings')"
+                :aria-label="
+                  mobileExtension ? tr('返回扩展工具', 'Back to extension tools') : tr('返回设置', 'Back to settings')
+                "
                 @click="backToCategories"
               >
                 <Icon name="arrow-left" />
@@ -296,7 +305,7 @@ onActivated(() => {
                 />
                 <ExtensionToolsSettings
                   v-else-if="tab === 'extensions'"
-                  :initial-section="extensionSection"
+                  :initial-section="isMobile ? mobileExtension : extensionSection"
                   @selected="selectExtension"
                   :save="save"
                   :search-available="searchAvailable"

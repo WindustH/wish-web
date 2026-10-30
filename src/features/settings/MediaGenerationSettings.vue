@@ -5,6 +5,7 @@ import { computed, inject, ref } from 'vue';
 import { configDraftKey } from './useConfigDraft.ts';
 import AccountPicker from './AccountPicker.vue';
 import SettingsItemCard from './SettingsItemCard.vue';
+import OrderedSettingsList from './OrderedSettingsList.vue';
 import PickerDialog from '../../ui/domain/providers/PickerDialog.vue';
 import ProviderIcon from '../../ui/domain/providers/ProviderIcon.vue';
 import Modal from '../../ui/components/Modal.vue';
@@ -67,7 +68,12 @@ const choices = computed(() =>
 const icon = computed(() =>
   props.section === 'video_generation' ? 'video' : props.section === 'audio_transcription' ? 'mic' : 'audio',
 );
-const ids = computed(() => serviceOrder(config.value.order, config.value.providers));
+const order = computed<string[]>({
+  get: () => serviceOrder(config.value.order, config.value.providers),
+  set: (ids) => {
+    config.value.order = ids;
+  },
+});
 function add(id: string) {
   const preset = spec(id);
   if (!preset) return;
@@ -89,18 +95,6 @@ function remove(id: string) {
   delete config.value.providers[id];
   config.value.order = config.value.order.filter((key) => key !== id);
 }
-function move(id: string, direction: number) {
-  const order = [...ids.value],
-    index = order.indexOf(id);
-  if (index < 0) {
-    order.push(id);
-  } else {
-    const next = index + direction;
-    if (next < 0 || next >= order.length) return;
-    [order[index], order[next]] = [order[next]!, order[index]!];
-  }
-  config.value.order = order;
-}
 function applyDurationInput(event: Event) {
   if (current.value) {
     const value = (event.target as HTMLInputElement).value;
@@ -109,46 +103,53 @@ function applyDurationInput(event: Event) {
 }
 </script>
 <template>
-  <section class="media-settings">
-    <p class="hint">
-      {{
-        tr(
-          '按列表顺序优先使用支持当前用途的服务。模型也可指定服务，或查询当前可用列表。',
-          'The first enabled service supporting the requested purpose is preferred. Models can also choose a service or inspect the current provider list.',
-        )
-      }}
-    </p>
+  <section class="set-section media-settings">
+    <header class="set-section-head">
+      <h3>
+        {{
+          section === 'video_generation'
+            ? tr('视频生成提供商', 'Video providers')
+            : section === 'audio_generation'
+              ? tr('音频生成提供商', 'Audio providers')
+              : tr('语音转写提供商', 'Transcription providers')
+        }}
+      </h3>
+      <p>
+        {{
+          tr(
+            '默认使用第一个启用且支持当前用途的服务，可以复用已有账户。拖动可以调整顺序。',
+            'Uses the first enabled service supporting the request. Services can share existing accounts. Drag to reorder.',
+          )
+        }}
+      </p>
+    </header>
     <div class="services">
-      <SettingsItemCard
-        v-for="id in ids"
-        :key="id"
-        :title="spec(config.providers[id].preset)?.name || id"
-        :summary="`${config.providers[id].model} · ${draft.accounts[config.providers[id].credential_id]?.name || tr('未关联账户', 'No account')}`"
-        :edit-hint="tr('编辑服务', 'Edit service')"
-        :remove-hint="tr('删除服务', 'Delete service')"
-        @open="editing = id"
-        @remove="remove(id)"
+      <OrderedSettingsList
+        v-if="order.length"
+        v-model="order"
+        @open="editing = $event"
+        v-slot="{ id, index, open, grab, move }"
       >
-        <template #mark><ProviderIcon :brand="spec(config.providers[id].preset)?.brand" :fallback="icon" /></template>
-        <template #actions>
-          <button
-            class="btn ghost icon-only"
-            :disabled="config.order.indexOf(id) === 0"
-            :aria-label="tr('提高优先级', 'Move up')"
-            @click.stop="move(id, -1)"
-          >
-            <Icon name="chevron-up" />
-          </button>
-          <button
-            class="btn ghost icon-only"
-            :disabled="config.order.indexOf(id) === config.order.length - 1"
-            :aria-label="tr('降低优先级', 'Move down')"
-            @click.stop="move(id, 1)"
-          >
-            <Icon name="chevron-down" />
-          </button>
-        </template>
-      </SettingsItemCard>
+        <SettingsItemCard
+          draggable
+          :title="spec(config.providers[id].preset)?.name || id"
+          :summary="`${config.providers[id].model} · ${draft.accounts[config.providers[id].credential_id]?.name || tr('未关联账户', 'No account')}`"
+          :position="index + 1"
+          :state="{
+            kind: config.providers[id].enabled ? 'ok' : 'disabled',
+            text: config.providers[id].enabled ? tr('已启用', 'Enabled') : tr('已停用', 'Disabled'),
+          }"
+          :edit-hint="tr('编辑服务', 'Edit service')"
+          :remove-hint="tr('删除服务', 'Delete service')"
+          @open="open"
+          @remove="remove(id)"
+          @grab="grab"
+          @move="move"
+        >
+          <template #mark><ProviderIcon :brand="spec(config.providers[id].preset)?.brand" :fallback="icon" /></template>
+        </SettingsItemCard>
+      </OrderedSettingsList>
+      <p v-else class="provider-list-empty">{{ tr('还没有配置服务。', 'No services configured yet.') }}</p>
       <button class="provider-add" @click="adding = true">
         <span class="provider-add-icon"><Icon name="plus" /></span>{{ tr('添加服务', 'Add service') }}
       </button>
@@ -178,7 +179,8 @@ function applyDurationInput(event: Event) {
       v-if="current"
       :open="true"
       :page="mobile"
-      content-class="settings-editor"
+      compact
+      :content-class="mobile ? 'settings-editor mobile-settings-page' : 'settings-editor'"
       :title="currentSpec?.name || current.preset"
       @close="editing = ''"
     >
@@ -328,14 +330,6 @@ function applyDurationInput(event: Event) {
             }}</small>
           </div>
         </div>
-        <div v-if="mobile" class="media-order">
-          <button class="btn sm" :disabled="ids.indexOf(editing) === 0" @click="move(editing, -1)">
-            {{ tr('上移', 'Move up') }}
-          </button>
-          <button class="btn sm" :disabled="ids.indexOf(editing) === ids.length - 1" @click="move(editing, 1)">
-            {{ tr('下移', 'Move down') }}
-          </button>
-        </div>
         <p class="hint">
           {{ tr('服务 ID', 'Service ID') }}: <code>{{ editing }}</code>
         </p>
@@ -356,7 +350,7 @@ function applyDurationInput(event: Event) {
 .services,
 .media-editor {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
 }
 .hint,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { serviceOrder } from './serviceOrder.ts';
 import { computed, inject, ref } from 'vue';
-import { ReorderGroup, ReorderItem, useDragControls } from 'motion-v';
+import OrderedSettingsList from './OrderedSettingsList.vue';
 import { post } from '../../core/api/client.ts';
 import Modal from '../../ui/components/Modal.vue';
 import PickerDialog from '../../ui/domain/providers/PickerDialog.vue';
@@ -27,12 +27,6 @@ const order = computed<string[]>({
     config.value.order = ids;
   },
 });
-let suppressOpenUntil = 0;
-const open = (id: string) => {
-  if (Date.now() > suppressOpenUntil) editing.value = id;
-};
-const controls = new Map<string, ReturnType<typeof useDragControls>>();
-const controlsOf = (id: string) => controls.get(id) ?? controls.set(id, useDragControls()).get(id)!;
 const editing = ref(''),
   adding = ref(false),
   checking = ref('');
@@ -69,14 +63,7 @@ function add(preset: string) {
   adding.value = false;
   editing.value = id;
 }
-function move(id: string, delta: number) {
-  const order = config.value.order;
-  const i = order.indexOf(id),
-    j = i + delta;
-  if (i >= 0 && j >= 0 && j < order.length) [order[i], order[j]] = [order[j], order[i]];
-}
 function remove(id: string) {
-  controls.delete(id);
   delete config.value.providers[id];
   config.value.order = config.value.order.filter((v: string) => v !== id);
   if (editing.value === id) editing.value = '';
@@ -108,43 +95,37 @@ async function check(id: string) {
       </p>
     </header>
     <div class="fetch-list">
-      <ReorderGroup v-if="order.length" v-model:values="order" as="div" axis="y" class="fetch-reorder">
-        <ReorderItem
-          v-for="(id, index) in order"
-          :key="id"
-          :value="id"
-          as="div"
-          :drag-listener="!mobile"
-          :drag-controls="controlsOf(id)"
-          @drag-start="suppressOpenUntil = Infinity"
-          @drag-end="suppressOpenUntil = Date.now() + 250"
+      <OrderedSettingsList
+        v-if="order.length"
+        v-model="order"
+        @open="editing = $event"
+        v-slot="{ id, index, open, grab, move }"
+      >
+        <SettingsItemCard
+          draggable
+          :title="name(config.providers[id].preset)"
+          :summary="
+            draft.accounts?.[config.providers[id].credential_id ?? '']?.name || tr('未关联账户', 'No linked account')
+          "
+          :position="Number(index) + 1"
+          :state="{
+            kind: config.providers[id].enabled ? 'ok' : 'disabled',
+            text: config.providers[id].enabled ? tr('已启用', 'Enabled') : tr('已停用', 'Disabled'),
+          }"
+          :edit-hint="tr('编辑', 'Edit')"
+          :remove-hint="tr('删除', 'Delete')"
+          :check-hint="tr('测试读取', 'Test fetch')"
+          :checking="checking === id"
+          :busy="!!checking"
+          @open="open"
+          @remove="remove(id)"
+          @check="check(id)"
+          @grab="grab"
+          @move="move"
         >
-          <SettingsItemCard
-            draggable
-            :title="name(config.providers[id].preset)"
-            :summary="
-              draft.accounts?.[config.providers[id].credential_id ?? '']?.name || tr('未关联账户', 'No linked account')
-            "
-            :position="Number(index) + 1"
-            :state="{
-              kind: config.providers[id].enabled ? 'ok' : 'disabled',
-              text: config.providers[id].enabled ? tr('已启用', 'Enabled') : tr('已停用', 'Disabled'),
-            }"
-            :edit-hint="tr('编辑', 'Edit')"
-            :remove-hint="tr('删除', 'Delete')"
-            :check-hint="tr('测试读取', 'Test fetch')"
-            :checking="checking === id"
-            :busy="!!checking"
-            @open="open(id)"
-            @remove="remove(id)"
-            @check="check(id)"
-            @grab="controlsOf(id).start($event)"
-            @move="move(id, $event)"
-          >
-            <template #mark><ProviderIcon :brand="brand(config.providers[id].preset)" fallback="globe" /></template>
-          </SettingsItemCard>
-        </ReorderItem>
-      </ReorderGroup>
+          <template #mark><ProviderIcon :brand="brand(config.providers[id].preset)" fallback="globe" /></template>
+        </SettingsItemCard>
+      </OrderedSettingsList>
       <p v-if="!order.length" class="provider-list-empty">
         {{ tr('还没有网页读取提供商。', 'No webpage readers yet.') }}
       </p>
@@ -210,8 +191,7 @@ async function check(id: string) {
   </section>
 </template>
 <style scoped>
-.fetch-list,
-.fetch-reorder {
+.fetch-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
@@ -222,8 +202,7 @@ async function check(id: string) {
   gap: 16px;
 }
 @media (max-width: 899px) {
-  .fetch-list,
-  .fetch-reorder {
+  .fetch-list {
     gap: 10px;
   }
 }
