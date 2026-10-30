@@ -113,6 +113,7 @@ export type EntryKind =
 export interface EntryPayload {
   via?: 'command';
   instruction_title?: string;
+  instruction_observation?: boolean;
   instruction_kind?: InstructionKind;
   instruction_sections?: InstructionSection[];
   instruction_supplemental?: boolean;
@@ -233,6 +234,7 @@ export function entryView(item: any, sessionId: string): EntryView {
         kind: 'system_message',
         payload: {
           instruction_title: note.title,
+          instruction_observation: true,
           content: [{ type: 'text', text }],
           instruction_sections: instructionSections(text).length > 1 ? instructionSections(text) : undefined,
         },

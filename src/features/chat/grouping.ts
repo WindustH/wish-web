@@ -116,7 +116,13 @@ export function groupEntries<E extends GroupEntry>(entries: readonly E[]): Group
     group = null;
   };
 
+  const instructionObservations = new Set<string>();
   for (const entry of entries) {
+    if (payloadOf(entry).instruction_observation) {
+      const key = JSON.stringify([payloadOf(entry).instruction_title, payloadOf(entry).content]);
+      if (instructionObservations.has(key)) continue;
+      instructionObservations.add(key);
+    }
     if (entry.kind === 'history_event') continue;
     const sections = payloadOf(entry).instruction_sections;
     if (sections?.length) {
