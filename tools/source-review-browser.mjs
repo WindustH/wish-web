@@ -94,7 +94,7 @@ await browserFixture(html, async ({ send, js, until, click }) => {
   for (const streaming of [true, false]) {
     await setMarkdown(socketText, streaming);
     assert.equal(await js(`document.querySelector('.markdown strong')?.textContent`), 'Socket（套接字）');
-    assert.equal(await js(`getComputedStyle(document.querySelector('.markdown strong')).fontWeight`), '600');
+    assert.equal(await js(`getComputedStyle(document.querySelector('.markdown strong')).fontWeight`), '776');
     assert.equal(await js(`socketPrefix===document.querySelector('.markdown p')`), true);
   }
   await js(

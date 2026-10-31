@@ -466,7 +466,7 @@
   font-size: 1em;
 }
 .markdown strong {
-  font-weight: 600;
+  font-weight: var(--weight-latin-bold);
 }
 /* Lists: items close together; a loose list's paragraphs no further apart than its items. */
 .markdown ul,
