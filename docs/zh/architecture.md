@@ -28,6 +28,24 @@ wish            HTTP API · 会话 · 提供商 · SQLite   （wish-core）
 
 ## 实时更新
 
+### 右侧浮岛与会话库
+
+`ChatPane` 的标题栏横跨对话与右侧栏，最右侧按钮独立切换浮岛；「库」按钮打开 Library。
+对话输入区与消息列表保持挂载，侧栏开关不重建草稿或流式输出。`ui/components/IslandSidebar`
+只提供容器、标题与操作插槽，不依赖文件业务，后续内容可复用。
+
+`features/sessions/SessionLibrary` 使用 `GET …/blobs` 分页读取当前会话目录，文件是否出现在库中
+不依赖已加载的历史页。历史中的附件名称只补充展示名称。列表含图片缩略图、类型筛选与手动刷新；
+未分页且列表可见时每 15 秒更新一次。关闭或切换会话取消请求与计时器，列表按会话隔离。
+
+图片、音视频和 PDF 复用短期单文件播放授权，避免给媒体元素暴露账户访问令牌；音视频保留原生
+控件和 Range 请求。文本最多读取前 256 KiB 并以纯文本显示。PDF.js 与 Worker 按需加载，
+`domain/media/PdfPreview` 仅渲染当前页并限制画布像素，提供翻页与缩放，关闭时取消渲染和加载。
+PDF.js 的字体、字符映射和 WASM 从依赖生成到构建产物，不把二进制文件提交至源码仓库。
+
+桌面栏与对话并排，手机上显示为覆盖浮岛；系统返回先退出文件预览，再关闭浮岛，随后才返回会话列表。
+验证入口：相邻 `wish-test` 中的 `tests.test_wish_library` 与 `web/check-library.mjs`。
+
 | 通道 | 用途 |
 | --- | --- |
 | `GET /api/events`（始终连接） | `snapshot` 和 `gap`：重新读取会话列表。`session_changed`：重新读取该会话。`session_deleted`：移除该会话。`configuration_changed`：重新读取起始页的默认模型和模型目录，并重新检查是否有可用的提供商。连接断开期间显示“离线模式: API 不可用”横幅。 |

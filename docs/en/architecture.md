@@ -26,6 +26,24 @@ wish            HTTP API · sessions · providers · SQLite   (wish-core)
 
 ## Live updates
 
+### Right sidebar and session Library
+
+The chat toolbar spans the conversation and right sidebar. The rightmost toggle controls a
+floating island; Library opens its file browser. The generic `IslandSidebar` owns presentation
+slots only, while `features/sessions/SessionLibrary` owns session files and preview selection.
+Opening it preserves the mounted conversation and composer. On mobile, Back leaves a preview,
+then closes the island before navigating away from the conversation.
+
+The paged `GET …/blobs` catalog includes uploads and generated files independently of loaded
+history. History attachment names only enrich labels. Requests and refresh timers are released
+when the session changes or the sidebar closes. Image, audio, video and PDF previews use the
+existing short-lived single-file grants; native media retains range-based playback. Text is
+escaped and limited to 256 KiB. PDF.js loads on demand and renders one bounded canvas at a time
+with page and zoom controls. Its worker, fonts, CMaps and WASM are generated from the dependency
+at build time; third-party binary resources are not checked into source control.
+
+Real-browser and catalog coverage lives in the adjacent test repository's `tests.test_wish_library`.
+
 | Channel | Used for |
 | --- | --- |
 | `GET /api/events` (always open) | `snapshot` and `gap`: re-read the session list. `session_changed`: re-read that session. `session_deleted`: drop it. `configuration_changed`: reload the start page's default model and model catalog, and repeat the provider check. While it is down, the **Offline: API unavailable** banner shows. |

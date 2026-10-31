@@ -148,6 +148,14 @@ export interface BlobInfo {
   mime_type: string;
   byte_count: number;
 }
+export interface LibraryBlob extends BlobInfo {
+  modified_at: number;
+}
+export interface BlobPage {
+  items: LibraryBlob[];
+  next: number | null;
+  total: number;
+}
 export interface UploadedBlob extends BlobInfo {
   sha256: string;
 }

@@ -437,6 +437,11 @@ export const uploadDraftBlob = async (
   return { ...blob, sha256: blob.id };
 };
 export const blobMetadata = (reference: string): Promise<BlobInfo> => get(`${blobPath(reference)}/meta`);
+export const sessionBlobs = (
+  session: string,
+  start = 0,
+  opts?: EndpointOptions,
+): Promise<import('./types.ts').BlobPage> => get(`${path(session)}/blobs`, { query: { start, limit: 80 }, ...opts });
 export const blobUrl = (reference: string) => `${getBaseUrl()}${blobPath(reference)}`;
 
 // Providers.

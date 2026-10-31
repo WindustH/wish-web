@@ -30,6 +30,7 @@ import { useResolvedEffort } from './useResolvedEffort.ts';
 import { effortLabel } from './reasoningLabels.ts';
 import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 import { touchButton } from '../../ui/touchButton.ts';
+import SessionLibrary from './SessionLibrary.vue';
 
 const backTouch = touchButton();
 const panelClose = shallowRef<(() => void) | null>(null);
@@ -127,10 +128,17 @@ const onQueueEdit = (text: string, attachments?: any[]) => composerRef.value?.fi
 const { effort, error: effortError } = useResolvedEffort(snapshot);
 const modelOpen = ref(false);
 const reasoningOpen = ref(false);
+const sidebarOpen = ref(false);
+const libraryRevision = ref(0);
+function openLibrary() {
+  libraryRevision.value++;
+  sidebarOpen.value = true;
+}
 watch(id, () => {
   modelOpen.value = false;
   reasoningOpen.value = false;
   desktopTab.value = null;
+  sidebarOpen.value = false;
 });
 
 const closeTab = (ownerPath = route.fullPath) => {
@@ -156,7 +164,7 @@ const goTab = (t: SessionTab) => {
 </script>
 
 <template>
-  <div class="chat-pane" ref="paneEl">
+  <div class="chat-workspace">
     <div class="chatbar">
       <button
         v-if="isMobile"
@@ -224,33 +232,87 @@ const goTab = (t: SessionTab) => {
       <Menu v-else :items="tabs" :label="i18n.t('chatbar.more')" @select="goTab($event as SessionTab)">
         <Icon name="ellipsis-vertical" />
       </Menu>
+      <Hint :text="i18n.t('library.title')"
+        ><button
+          class="btn ghost icon-only"
+          :aria-label="i18n.t('library.title')"
+          aria-controls="session-sidebar"
+          :aria-expanded="sidebarOpen"
+          @click="openLibrary"
+        >
+          <Icon name="library" /></button
+      ></Hint>
+      <Hint :text="i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar')"
+        ><button
+          class="btn ghost icon-only"
+          :aria-label="i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar')"
+          aria-controls="session-sidebar"
+          :aria-expanded="sidebarOpen"
+          @click="sidebarOpen = !sidebarOpen"
+        >
+          <Icon name="panel-right" /></button
+      ></Hint>
     </div>
-    <ChatLog :session-id="id" :mobile="isMobile" />
-    <Composer ref="composerRef" :owner="id" :mobile="isMobile">
-      <template #tools>
-        <Transition name="queue-dock" appear>
-          <div v-if="queued.length > 0" class="queue-dock-slot">
-            <QueueDock :items="queued" :refill="onQueueEdit" />
-          </div>
-        </Transition>
-      </template>
-    </Composer>
-    <RouterView v-slot="{ Component, route: panelRoute }">
-      <component :is="Component" v-if="isMobile" :key="panelRoute.fullPath" @close="closeTab(panelRoute.fullPath)" />
-    </RouterView>
-    <InfoPane
-      v-if="!isMobile && desktopTab === 'info'"
-      :initial-section="infoInitialSection"
-      @close="desktopTab = null"
-    />
-    <SessionSettingsPane v-if="!isMobile && desktopTab === 'settings'" @close="desktopTab = null" />
-    <SessionListAction v-if="renameTarget" :target="renameTarget" kind="rename" @close="renameTarget = null" />
-    <ModelSettings v-if="modelOpen" :session-id="id" @close="modelOpen = false" />
-    <ReasoningSettings v-if="reasoningOpen" :session-id="id" @close="reasoningOpen = false" />
+    <div class="chat-workspace-body">
+      <div class="chat-pane" ref="paneEl">
+        <ChatLog :session-id="id" :mobile="isMobile" />
+        <Composer ref="composerRef" :owner="id" :mobile="isMobile">
+          <template #tools>
+            <Transition name="queue-dock" appear>
+              <div v-if="queued.length > 0" class="queue-dock-slot">
+                <QueueDock :items="queued" :refill="onQueueEdit" />
+              </div>
+            </Transition>
+          </template>
+        </Composer>
+        <RouterView v-slot="{ Component, route: panelRoute }">
+          <component
+            :is="Component"
+            v-if="isMobile"
+            :key="panelRoute.fullPath"
+            @close="closeTab(panelRoute.fullPath)"
+          />
+        </RouterView>
+        <InfoPane
+          v-if="!isMobile && desktopTab === 'info'"
+          :initial-section="infoInitialSection"
+          @close="desktopTab = null"
+        />
+        <SessionSettingsPane v-if="!isMobile && desktopTab === 'settings'" @close="desktopTab = null" />
+        <SessionListAction v-if="renameTarget" :target="renameTarget" kind="rename" @close="renameTarget = null" />
+        <ModelSettings v-if="modelOpen" :session-id="id" @close="modelOpen = false" />
+        <ReasoningSettings v-if="reasoningOpen" :session-id="id" @close="reasoningOpen = false" />
+      </div>
+      <SessionLibrary
+        v-if="sidebarOpen && id"
+        :key="id"
+        :session="id"
+        :mobile="isMobile"
+        :entries="chat.entries.value"
+        :library-revision="libraryRevision"
+        @close="sidebarOpen = false"
+      />
+    </div>
   </div>
 </template>
 
 <style scoped>
+.chat-workspace {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.chat-workspace-body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
 /* Reserve the button's width gradually, so its arrival does not jerk the toolbar. */
 .queue-dock-slot {
   display: flex;

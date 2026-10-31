@@ -15,6 +15,7 @@ const webBuildId = `${buildId}-${Date.now().toString(36)}`;
 import vue from '@vitejs/plugin-vue';
 import pxtorem from 'postcss-pxtorem';
 import { VitePWA } from 'vite-plugin-pwa';
+import { pdfAssets } from './tools/pdf-assets.ts';
 
 export default defineConfig({
   cacheDir: '.cache/vite',
@@ -37,6 +38,7 @@ export default defineConfig({
   pxtorem({ rootValue: 16, propList: ['font', 'font-size', 'line-height', 'letter-spacing', '--message-size'], minPixelValue: 2 }),
   ] } },
   plugins: [
+    pdfAssets(),
     // Kept out of Workbox's precache (which only includes HTML/CSS/JS/images).
     // Fetching this file therefore asks the live server even from an old tab.
     { name: 'wish-build-info',
@@ -58,6 +60,7 @@ export default defineConfig({
       workbox: {
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
+        globIgnores: ['pdfjs/**'],
         // Requests the auth proxy in front of the app must answer itself: the service worker's
         // shell would otherwise stand in for a login page (and for a logout that redirects).
         navigateFallbackDenylist: [/^\/api(?:\/|$)/, /^\/healthz$/, /^\/login(?:\/|\?|$)/, /^\/logout(?:\/|\?|$)/],
