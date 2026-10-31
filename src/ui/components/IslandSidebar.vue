@@ -44,13 +44,10 @@ const focus = useDialogFocus();
   flex: 0 0 clamp(320px, 34vw, 460px);
   min-width: 0;
   min-height: 0;
-  margin: 12px 12px 12px 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: var(--bg-raised);
-  box-shadow: var(--shadow-pop);
+  border-left: 1px solid var(--line);
+  background: var(--bg);
   overflow: hidden;
   outline: none;
 }
@@ -89,8 +86,8 @@ const focus = useDialogFocus();
 }
 .island-overlay {
   position: absolute;
-  inset: 8px;
-  margin: 0;
+  inset: 0;
+  border-left: none;
 }
 @media (prefers-reduced-motion: no-preference) {
   .island-sidebar {

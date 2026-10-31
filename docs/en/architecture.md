@@ -29,10 +29,10 @@ wish            HTTP API · sessions · providers · SQLite   (wish-core)
 ### Right sidebar and session Library
 
 The chat toolbar spans the conversation and right sidebar. The rightmost toggle controls a
-floating island; Library opens its file browser. The generic `IslandSidebar` owns presentation
+sidebar separated by a single border, without outer margins, rounded corners or shadows; Library opens its file browser. The generic `IslandSidebar` owns presentation
 slots only, while `features/sessions/SessionLibrary` owns session files and preview selection.
 Opening it preserves the mounted conversation and composer. On mobile, Back leaves a preview,
-then closes the island before navigating away from the conversation.
+then closes the sidebar before navigating away from the conversation.
 
 The paged `GET …/blobs` catalog includes uploads and generated files independently of loaded
 history. History attachment names only enrich labels. Requests and refresh timers are released
