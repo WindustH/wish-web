@@ -4,6 +4,7 @@ import DOMPurify from 'dompurify';
 import { tex } from '@mdit/plugin-tex';
 import temml from 'temml';
 import { createBoundedCache } from '../core/util/boundedCache.ts';
+import { cjkEmphasis } from './markdownEmphasis.ts';
 
 const markdown = new MarkdownIt({
   html: false,
@@ -12,6 +13,7 @@ const markdown = new MarkdownIt({
   typographer: true,
   highlight: highlightCode,
 });
+markdown.use(cjkEmphasis);
 markdown.use(tex, {
   render: (content, displayMode) =>
     temml.renderToString(content, {

@@ -88,6 +88,15 @@ await browserFixture(html, async ({ send, js, until, click }) => {
     `(async()=>{const prefix=Array.from({length:300},(_,i)=>'Paragraph '+i+' **stable text**.').join('\\n\\n')+'\\n\\n';fixture.markdown.value=prefix+'Tail';await fixture.nextTick();const first=document.querySelector('.markdown p');const start=performance.now();for(let i=0;i<40;i++){fixture.markdown.value=prefix+'Tail '+i;await fixture.nextTick();}return {stable:first===document.querySelector('.markdown p'),milliseconds:Math.round(performance.now()-start),updates:40,paragraphs:300};})()`,
   );
   assert.equal(longStream.stable, true, 'large stream retains its completed prefix across repeated updates');
+  await setMarkdown('前言。\n\n**Socket（套接字）');
+  await js(`window.socketPrefix=document.querySelector('.markdown p');`);
+  const socketText = '前言。\n\n**Socket（套接字）**是计算机网络通信的核心概念。';
+  for (const streaming of [true, false]) {
+    await setMarkdown(socketText, streaming);
+    assert.equal(await js(`document.querySelector('.markdown strong')?.textContent`), 'Socket（套接字）');
+    assert.equal(await js(`getComputedStyle(document.querySelector('.markdown strong')).fontWeight`), '600');
+    assert.equal(await js(`socketPrefix===document.querySelector('.markdown p')`), true);
+  }
   await js(
     `(()=>{const editor=document.querySelector('[contenteditable=true]');window.nativeText=editor.firstChild;window.rebuilds=0;const replace=editor.replaceChildren.bind(editor);editor.replaceChildren=(...nodes)=>{window.rebuilds++;return replace(...nodes);};editor.focus();const range=document.createRange();range.setStart(editor.firstChild,3);range.collapse(true);getSelection().removeAllRanges();getSelection().addRange(range);})()`,
   );
