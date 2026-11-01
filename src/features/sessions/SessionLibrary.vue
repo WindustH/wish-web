@@ -276,6 +276,8 @@ watch(
   color: var(--fg-muted);
 }
 .library-card {
+  width: 100%;
+  max-width: 180px;
   position: relative;
   min-width: 0;
 }
@@ -295,7 +297,7 @@ watch(
 }
 .library-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 112px), 1fr));
   gap: 18px 12px;
 }
 .library-item {
