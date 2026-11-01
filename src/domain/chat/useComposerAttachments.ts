@@ -1,18 +1,17 @@
-import { imageFormat, supportedImageMime } from '../../core/imageFormat.ts';
+import { imageFormat, supportedImageMime, supportedModelImageMime } from '../../core/imageFormat.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { shouldAttachPastedText, pastedTextFile } from '../../core/pastedText.ts';
 import { attachmentDigest } from '../../core/attachmentDigest.ts';
 import { ref, watch, onBeforeUnmount, type Ref } from 'vue';
 import {
   attachmentDraftsFor,
-  hasImagePreview,
   saveAttachmentDrafts as storeAttachmentDrafts,
   type AttachmentInput,
   type StoredAttachmentReference,
   type PickedAttachment,
 } from '../../core/attachments.ts';
 import { fmtBytes } from '../../core/util/fmt.ts';
-import { blobUrl } from '../../core/api/endpoints.ts';
+import { blobUrl, imagePreviewUrl } from '../../core/api/endpoints.ts';
 import { createAbortScope } from '../../core/util/abortScope.ts';
 import { apiFetch } from '../../core/api/client.ts';
 import { platform } from '../../platform/index.ts';
@@ -79,7 +78,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
 
   async function referenceAttachment(reference: StoredAttachmentReference, inserted: (token: string) => void) {
     if (reference.owner !== attachmentsOwnerId.value) return;
-    const kind = hasImagePreview(reference.mime) ? 'image' : 'file';
+    const kind = supportedModelImageMime(reference.mime) ? 'image' : 'file';
     const existing = attachments.value.find(
       (item) => item.stored?.owner === reference.owner && item.stored.id === reference.id,
     );
@@ -88,48 +87,41 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
       return;
     }
     const file = { kind, name: reference.name, mime: reference.mime, size: reference.size } as const;
-    if (kind === 'file') {
-      if (!hasAttachmentSpace(kind)) return;
-      const placeholder = `<file-${reference.id}>`;
+    if (!attachmentAccepted(file)) return;
+    const placeholder = `<${kind}-${reference.id}>`;
+    const epoch = attachmentEpoch;
+    const controller = new AbortController();
+    const scope = createAbortScope([controller.signal], 60000);
+    pendingReferences.add(controller);
+    let localUrl = '';
+    let previewBlob: Blob | undefined;
+    try {
+      if (kind === 'image') {
+        const response = await apiFetch(imagePreviewUrl(blobUrl(`${reference.owner}/${reference.id}`), 384, false), {
+          signal: scope.signal,
+        });
+        if (response.ok) {
+          previewBlob = await response.blob();
+          localUrl = URL.createObjectURL(previewBlob);
+        }
+      }
+      if (epoch !== attachmentEpoch || controller.signal.aborted || reference.owner !== attachmentsOwnerId.value) {
+        if (localUrl) URL.revokeObjectURL(localUrl);
+        return;
+      }
       attachments.value = [
         ...attachments.value,
         {
           ...file,
           bytes: new ArrayBuffer(0),
-          localUrl: '',
+          previewBlob,
+          localUrl,
           placeholder,
           stored: { owner: reference.owner, id: reference.id },
         },
       ];
       saveAttachmentDrafts(attachmentsOwnerId.value, attachments.value);
       inserted(placeholder);
-      return;
-    }
-    if (!attachmentAccepted(file)) return;
-    const controller = new AbortController();
-    const scope = createAbortScope([controller.signal], 60000);
-    pendingReferences.add(controller);
-    try {
-      await readAttachments(
-        [
-          {
-            ...file,
-            read: async () => {
-              const response = await apiFetch(blobUrl(`${reference.owner}/${reference.id}`), { signal: scope.signal });
-              if (!response.ok) throw new Error(`HTTP ${response.status}`);
-              return response.arrayBuffer();
-            },
-          },
-        ],
-        (token) => {
-          const attachment = attachments.value.find((item) => item.placeholder === token);
-          if (attachment) {
-            attachment.stored = { owner: reference.owner, id: reference.id };
-            saveAttachmentDrafts(attachmentsOwnerId.value, attachments.value);
-          }
-          inserted(token);
-        },
-      );
     } finally {
       scope.dispose();
       pendingReferences.delete(controller);
@@ -161,12 +153,11 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
             saveAttachmentDrafts(attachmentsOwnerId.value, attachments.value);
             continue;
           }
-          if (item.byte_count > MAX_BUFFERED_ATTACHMENT) throw new Error('Image exceeds editor memory limit');
-          const response = await apiFetch(blobUrl(item.blob_id));
+          const response = await apiFetch(imagePreviewUrl(blobUrl(item.blob_id), 384, false));
           if (!response.ok) throw new Error(`blob ${item.blob_id}: ${response.status}`);
-          const bytes = await response.arrayBuffer();
+          const previewBlob = await response.blob();
           if (epoch !== attachmentEpoch || !hasAttachmentSpace(item.kind)) continue;
-          const mime = item.mime_type || response.headers.get('content-type') || 'application/octet-stream';
+          const mime = item.mime_type || 'image/png';
           attachments.value = [
             ...attachments.value,
             {
@@ -175,8 +166,10 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
               mime,
               stored: { owner: item.blob_id.split('/')[0], id: item.blob_id.split('/').at(-1) },
               placeholder: item.placeholder,
-              bytes,
-              localUrl: URL.createObjectURL(new Blob([bytes], { type: mime })),
+              bytes: new ArrayBuffer(0),
+              size: item.byte_count,
+              previewBlob,
+              localUrl: URL.createObjectURL(previewBlob),
             },
           ];
           saveAttachmentDrafts(attachmentsOwnerId.value, attachments.value);
@@ -214,7 +207,9 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
     revokeAll(attachments.value);
     attachments.value = items.map((item) => ({
       ...item,
-      localUrl: item.unavailable ? '' : URL.createObjectURL(new Blob([item.bytes], { type: item.mime })),
+      localUrl: item.unavailable
+        ? ''
+        : URL.createObjectURL(item.previewBlob ?? new Blob([item.bytes], { type: item.mime })),
     }));
     saveAttachmentDrafts(attachmentsOwnerId.value, attachments.value);
   }
@@ -224,7 +219,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
     try {
       const picked = await platform('fs').pickFiles({
         multiple: true,
-        accept: kind === 'image' ? 'image/png,image/jpeg,image/gif,image/webp' : '',
+        accept: kind === 'image' ? 'image/png,image/jpeg,image/gif,image/webp,image/bmp,image/tiff,.tif,.tiff' : '',
       });
       if (epoch !== attachmentEpoch) return;
       await readAttachments(
@@ -239,7 +234,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
   async function onPaste(event: ClipboardEvent, inserted?: (placeholder: string) => void) {
     const text = event.clipboardData?.getData('text/plain') ?? '';
     const files: PickedAttachment[] = Array.from(event.clipboardData?.files ?? []).map((file) => ({
-      kind: hasImagePreview(file.type) ? 'image' : 'file',
+      kind: supportedModelImageMime(file.type) ? 'image' : 'file',
       name: file.name || undefined,
       mime: file.type || 'application/octet-stream',
       size: file.size,
@@ -342,7 +337,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
           ...attachment,
           localUrl: attachment.unavailable
             ? ''
-            : URL.createObjectURL(new Blob([attachment.bytes], { type: attachment.mime })),
+            : URL.createObjectURL(attachment.previewBlob ?? new Blob([attachment.bytes], { type: attachment.mime })),
         });
         deletedAttachments.delete(token);
         restored = true;

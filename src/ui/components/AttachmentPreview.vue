@@ -125,6 +125,13 @@ watch(attachmentPreview, async (item) => {
   loading.value = false;
   const request = new AbortController();
   controller = request;
+  if (item.kind === 'image' && item.mime === 'image/tiff' && item.bytes) {
+    error.value = tr(
+      '此图片将在发送时自动转换；可在库中查看预览。',
+      'This image will be converted when sent; preview it in the Library.',
+    );
+    return;
+  }
   if (item.kind === 'image') {
     image.value = item.bytes
       ? (ownedUrl = URL.createObjectURL(new Blob([item.bytes], { type: item.mime || 'image/png' })))

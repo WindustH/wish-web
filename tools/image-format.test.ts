@@ -18,3 +18,9 @@ test('first input preserves binary bytes and placeholders, but a title never con
   assert.equal(input.attachments[0]!.placeholder, '<image-hash>');
   assert.equal(initialSessionName('See <image-hash>', [attachment]), 'See photo.png');
 });
+
+test('BMP and TIFF are accepted for server-side model normalization', () => {
+  assert.equal(supportedImageMime(new Uint8Array([66,77,0,0]).buffer), 'image/bmp');
+  assert.equal(supportedImageMime(new Uint8Array([73,73,42,0]).buffer), 'image/tiff');
+  assert.equal(supportedImageMime(new Uint8Array([77,77,0,42]).buffer), 'image/tiff');
+});

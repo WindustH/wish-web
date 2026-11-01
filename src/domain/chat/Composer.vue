@@ -224,6 +224,7 @@ function openAttachmentPreview(item: Attachment, event: Event) {
       ...(item.stored && item.size !== undefined && !item.bytes.byteLength
         ? { bytes: undefined, url: blobUrl(`${item.stored.owner}/${item.stored.id}`) }
         : {}),
+      ...(item.previewBlob ? { bytes: undefined, url: item.localUrl } : {}),
       editText: item.pastedText
         ? (value) => {
             if (owner !== attachmentsOwnerId.value || !attachments.value.includes(item)) return;
@@ -506,7 +507,7 @@ function onKeydown(e: KeyboardEvent) {
             >{{ img.name }} · {{ tr('附件不可用，请移除或重新添加', 'Unavailable; remove or attach again') }}</span
           >
         </div>
-        <Hint v-else-if="img.kind === 'image'" :text="img.name"
+        <Hint v-else-if="img.kind === 'image' && (img.mime !== 'image/tiff' || !!img.stored)" :text="img.name"
           ><img
             role="button"
             tabindex="0"
@@ -531,7 +532,7 @@ function onKeydown(e: KeyboardEvent) {
           @keydown.enter.prevent="openAttachmentPreview(img, $event)"
           @keydown.space.prevent="openAttachmentPreview(img, $event)"
         >
-          <Icon :name="img.pastedText ? 'clipboard' : 'paperclip'" />
+          <Icon :name="img.pastedText ? 'clipboard' : img.kind === 'image' ? 'image' : 'paperclip'" />
           <div class="attachment-file-label">
             <span>{{ img.name || i18n.t('chat.attachment') }}</span
             ><small>{{ fmtBytes(img.size ?? img.bytes.byteLength) }}</small>

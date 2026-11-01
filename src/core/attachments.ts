@@ -21,6 +21,8 @@ export interface AttachmentInput {
   mime: string;
   bytes: ArrayBuffer;
   localUrl?: string;
+  /** Optional bounded preview for a stored image; never uploaded as source bytes. */
+  previewBlob?: Blob;
 }
 export interface PickedAttachment {
   kind: 'image' | 'file';
@@ -45,7 +47,6 @@ export interface UploadedAttachmentBlock {
 }
 
 // The selected entry point decides the message kind; MIME only describes bytes.
-export const hasImagePreview = (mime: string) => ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(mime);
 // `capabilities` is the session's raw capability report, if any.
 export const attachmentLimits = (capabilities?: any): AttachmentLimits => ({
   imageBytes: capabilities?.images?.max_image_bytes ?? cfg.composer.maxImageBytes,
