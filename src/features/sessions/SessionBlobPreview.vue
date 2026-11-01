@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingState from '../../ui/components/LoadingState.vue';
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue';
 import type { LibraryBlob } from '../../core/api/types.ts';
 import { blobUrl, mediaPlayback } from '../../core/api/endpoints.ts';
@@ -65,9 +66,7 @@ function failed() {
 
 <template>
   <div class="blob-preview" :class="`blob-preview-${kind}`" :aria-label="name">
-    <div v-if="loading" class="library-state" role="status">
-      <Icon name="loader-circle" class="spin" />{{ i18n.t('common.loading') }}
-    </div>
+    <LoadingState v-if="loading" :label="i18n.t('common.loading')" />
     <div v-else-if="error" class="library-state" role="alert">
       <p>{{ error }}</p>
       <button class="btn sm" @click="revision++">{{ i18n.t('common.retry') }}</button>

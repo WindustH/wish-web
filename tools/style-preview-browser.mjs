@@ -49,7 +49,7 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/__style_preview`});
-  await until('document.querySelectorAll(".preview-sample").length===22','all gallery samples');
+  await until('document.querySelectorAll(".preview-sample").length===23','all gallery samples');
   await until('document.querySelectorAll("#group-link-probe a").length===2','mounted group card retains author and group links');
   await js('window.groupPreview.value=true');
   await until('document.querySelectorAll("#group-link-probe a").length===0','preview prop suppresses navigation');
@@ -137,8 +137,23 @@ try {
   await js('document.querySelector("[data-preview=session-send] button").click()');
   await until('!!document.querySelector(".proc-event")','session operation timeline');
   await close();
+  await js('document.querySelector("select").value="loading";document.querySelector("select").dispatchEvent(new Event("change",{bubbles:true}))');
+  await until('document.querySelectorAll("[data-loading]").length===6', 'loading gallery scenarios');
+  for (const theme of ['dark', 'light']) {
+    await js(`document.documentElement.dataset.theme='${theme}'`);
+    for (const width of [390, 1100]) {
+      await send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width===390});
+      await js('window.scrollTo(0,0)');
+      await sleep(150);
+      assert.ok(await js('document.documentElement.scrollWidth <= innerWidth'), 'loading gallery fits viewport');
+      assert.equal(await js('document.querySelectorAll(".loading-state[role=status]").length'),4);
+      await mkdir('/tmp/wish-loading-preview',{recursive:true});
+      const shot=await send('Page.captureScreenshot',{captureBeyondViewport:true});
+      await writeFile(`/tmp/wish-loading-preview/${theme}-${width}.png`,Buffer.from(shot.data,'base64'));
+    }
+  }
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['22 real-component samples','desktop/mobile dark/light','six-file dialog','category filter','syntax colours and exact copy','safe fallback and streaming','group details without navigation','session operation timeline']}));
+  console.log(JSON.stringify({ok:true,checks:['23 real-component samples','desktop/mobile dark/light','six-file dialog','category filter','syntax colours and exact copy','safe fallback and streaming','group details without navigation','session operation timeline']}));
 
 } finally {
   ws?.close();

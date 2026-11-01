@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, provide, ref } from 'vue';
 import RetryStatus from '../sessions/RetryStatus.vue';
+import LoadingPreview from './LoadingPreview.vue';
 import CodeHighlightPreview from './CodeHighlightPreview.vue';
 import ComposerAttachmentPreview from './ComposerAttachmentPreview.vue';
 import { tr } from '../../core/i18n/tr.ts';
@@ -13,9 +14,10 @@ import GroupMessageCard from '../sessions/entries/GroupMessageCard.vue';
 import ActivityDialogs from '../sessions/ActivityDialogs.vue';
 import { openActivityKey, type ActivityRequest } from '../sessions/activityDialogs.ts';
 const samples = stylePreviewFixtures();
-const category = ref<PreviewCategory | 'all' | 'composer' | 'code'>('all');
+const category = ref<PreviewCategory | 'all' | 'composer' | 'code' | 'loading'>('all');
 const narrow = ref(false);
 const categories = computed(() => [
+  { id: 'loading', label: tr('加载状态', 'Loading states') },
   { id: 'code', label: tr('代码高亮', 'Code highlighting') },
   { id: 'composer', label: tr('输入框附件', 'Composer attachments') },
   { id: 'all', label: tr('全部', 'All') },
@@ -54,6 +56,10 @@ provide(openActivityKey, (value) => {
       <label><input v-model="narrow" type="checkbox" /> {{ tr('窄栏预览（390px）', 'Narrow column (390px)') }}</label>
     </div>
     <div class="preview-canvas" :class="{ narrow }">
+      <section v-if="category === 'all' || category === 'loading'" class="preview-sample" data-preview="loading-states">
+        <h3>{{ tr('加载状态', 'Loading states') }}</h3>
+        <LoadingPreview />
+      </section>
       <section v-if="category === 'all' || category === 'code'" class="preview-sample" data-preview="code-highlighting">
         <h3>{{ tr('代码高亮', 'Code highlighting') }}</h3>
         <CodeHighlightPreview />

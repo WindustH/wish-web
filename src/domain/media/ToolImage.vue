@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingState from '../../ui/components/LoadingState.vue';
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import { imagePreviewUrl } from '../../core/api/endpoints.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
@@ -114,7 +115,7 @@ function loaded(event: Event) {
       <img :src="url" :alt="path" loading="lazy" decoding="async" @load="loaded" @error="failed" />
     </button>
     <p v-if="error" role="status">{{ tr('图片暂时无法加载。', 'Image could not be loaded.') }}</p>
-    <p v-else-if="!url">{{ tr('正在读取图片…', 'Loading image…') }}</p>
+    <LoadingState v-else-if="!url" variant="inline" :label="tr('正在读取图片…', 'Loading image…')" />
     <figcaption>
       <span>{{ path }}</span
       ><span>{{ size }}</span>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingState from '../../ui/components/LoadingState.vue';
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -157,7 +158,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="pdf-preview" :aria-busy="loading || painting">
     <p v-if="error" role="alert" class="pdf-message">{{ error }}</p>
-    <p v-else-if="loading || painting" role="status" class="pdf-status">{{ i18n.t('common.loading') }}</p>
+    <LoadingState v-else-if="loading || painting" variant="overlay" :label="i18n.t('common.loading')" />
     <div v-if="document" class="pdf-toolbar">
       <button
         class="btn ghost icon-only"
@@ -228,16 +229,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.pdf-status {
-  position: absolute;
-  top: 40px;
-  left: 12px;
-  z-index: 1;
-  background: var(--bg);
-  padding: 4px 8px;
-  border-radius: 6px;
-  color: var(--fg-muted);
-}
 .pdf-preview {
   position: relative;
   display: flex;
