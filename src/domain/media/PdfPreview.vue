@@ -16,6 +16,10 @@ const page = ref(1),
   width = ref(300),
   loading = ref(true),
   error = ref('');
+const painting = ref(false),
+  painted = ref(false),
+  outlineLoading = ref(false);
+let outlineLoaded = false;
 type Bookmark = { title: string; depth: number; dest: string | unknown[] | null };
 const bookmarks = ref<Bookmark[]>([]),
   outlineOpen = ref(false);
@@ -77,6 +81,10 @@ watch(
       void destroy?.().catch(() => {});
     });
     document.value = undefined;
+    painted.value = false;
+    painting.value = false;
+    outlineLoaded = false;
+    outlineLoading.value = false;
     bookmarks.value = [];
     outlineOpen.value = false;
     jumpRevision++;
@@ -90,6 +98,7 @@ watch(
       pdf.GlobalWorkerOptions.workerSrc = workerUrl;
       const resources = new URL(`${import.meta.env.BASE_URL}pdfjs/`, location.href);
       const request = pdf.getDocument({
+        rangeChunkSize: 256 * 1024,
         disableAutoFetch: true,
         disableStream: true,
         url: src,
@@ -102,17 +111,6 @@ watch(
       destroy = () => request.destroy();
       const loaded = await request.promise;
       if (alive) document.value = loaded;
-      const outline = await loaded.getOutline().catch(() => null);
-      if (!alive) return;
-      const rows: Bookmark[] = [];
-      function flatten(items: NonNullable<typeof outline>, depth = 0) {
-        for (const item of items) {
-          rows.push({ title: item.title, depth, dest: item.dest });
-          flatten(item.items, depth + 1);
-        }
-      }
-      if (outline) flatten(outline);
-      bookmarks.value = rows;
     } catch (cause) {
       if (alive) error.value = describeError(cause).message;
     } finally {
@@ -121,6 +119,30 @@ watch(
   },
   { immediate: true },
 );
+
+watch(outlineOpen, async (open) => {
+  const pdf = document.value;
+  if (!open || !pdf || outlineLoaded || outlineLoading.value) return;
+  outlineLoading.value = true;
+  try {
+    const outline = await pdf.getOutline();
+    if (document.value !== pdf) return;
+    const rows: Bookmark[] = [];
+    function flatten(items: NonNullable<typeof outline>, depth = 0) {
+      for (const item of items) {
+        rows.push({ title: item.title, depth, dest: item.dest });
+        flatten(item.items, depth + 1);
+      }
+    }
+    if (outline) flatten(outline);
+    bookmarks.value = rows;
+    outlineLoaded = true;
+  } catch {
+    // Reading remains available even if the outline is malformed.
+  } finally {
+    if (document.value === pdf) outlineLoading.value = false;
+  }
+});
 
 watch(
   [document, page, zoom, width, canvas],
@@ -132,6 +154,8 @@ watch(
     const pdf = document.value,
       element = canvas.value;
     if (!pdf || !element || own !== epoch) return;
+    painting.value = true;
+    error.value = '';
     try {
       const sheet = await pdf.getPage(page.value);
       if (own !== epoch) return;
@@ -140,14 +164,23 @@ watch(
         scale: Math.min((width.value / base.width) * zoom.value, 4096 / Math.max(base.width, base.height)),
       });
       const density = Math.min(devicePixelRatio || 1, 2, Math.sqrt(16_000_000 / (view.width * view.height)));
-      element.width = Math.ceil(view.width * density);
-      element.height = Math.ceil(view.height * density);
+      // Never clear the visible page while a replacement is still rendering.
+      const buffer = window.document.createElement('canvas');
+      buffer.width = Math.ceil(view.width * density);
+      buffer.height = Math.ceil(view.height * density);
+      task = sheet.render({ canvas: buffer, viewport: view, transform: [density, 0, 0, density, 0, 0] });
+      await task.promise;
+      if (own !== epoch) return;
+      element.width = buffer.width;
+      element.height = buffer.height;
       element.style.width = `${view.width}px`;
       element.style.height = `${view.height}px`;
-      task = sheet.render({ canvas: element, viewport: view, transform: [density, 0, 0, density, 0, 0] });
-      await task.promise;
+      element.getContext('2d')!.drawImage(buffer, 0, 0);
+      painted.value = true;
     } catch (cause) {
       if (own === epoch) error.value = describeError(cause).message;
+    } finally {
+      if (own === epoch) painting.value = false;
     }
   },
   { flush: 'post' },
@@ -156,9 +189,15 @@ watch(page, () => {
   if (viewport.value) viewport.value.scrollTop = 0;
 });
 let observer: ResizeObserver | undefined;
+let resizeTimer: ReturnType<typeof setTimeout> | undefined;
 onMounted(() => {
   observer = new ResizeObserver(([entry]) => {
-    if (entry && entry.contentRect.width > 0) width.value = Math.max(100, entry.contentRect.width - 16);
+    if (!entry || entry.contentRect.width <= 0) return;
+    const next = Math.max(100, Math.floor(entry.contentRect.width));
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      width.value = next;
+    }, 80);
   });
   if (viewport.value) observer.observe(viewport.value);
 });
@@ -166,13 +205,14 @@ onBeforeUnmount(() => {
   epoch++;
   task?.cancel();
   observer?.disconnect();
+  clearTimeout(resizeTimer);
 });
 </script>
 
 <template>
-  <div class="pdf-preview">
+  <div class="pdf-preview" :aria-busy="loading || painting">
     <p v-if="error" role="alert" class="pdf-message">{{ error }}</p>
-    <p v-else-if="loading" role="status" class="pdf-message">{{ i18n.t('common.loading') }}</p>
+    <p v-else-if="loading || painting" role="status" class="pdf-status">{{ i18n.t('common.loading') }}</p>
     <div v-if="document" class="pdf-toolbar">
       <button
         class="btn ghost icon-only"
@@ -218,7 +258,8 @@ onBeforeUnmount(() => {
       </button>
     </div>
     <nav v-if="outlineOpen" class="pdf-bookmarks" :aria-label="tr('书签', 'Bookmarks')">
-      <p v-if="!bookmarks.length">{{ tr('此 PDF 没有书签', 'This PDF has no bookmarks') }}</p>
+      <p v-if="outlineLoading">{{ i18n.t('common.loading') }}</p>
+      <p v-else-if="!bookmarks.length">{{ tr('此 PDF 没有书签', 'This PDF has no bookmarks') }}</p>
       <button
         v-for="(bookmark, index) in bookmarks"
         :key="index"
@@ -231,13 +272,30 @@ onBeforeUnmount(() => {
       </button>
     </nav>
     <div ref="viewport" class="pdf-viewport" @wheel="wheel">
-      <canvas v-if="document" ref="canvas" role="img" :aria-label="i18n.t('library.pdfPage', { page })" />
+      <canvas
+        v-if="document"
+        v-show="painted"
+        ref="canvas"
+        role="img"
+        :aria-label="i18n.t('library.pdfPage', { page })"
+      />
     </div>
   </div>
 </template>
 
 <style scoped>
+.pdf-status {
+  position: absolute;
+  top: 40px;
+  left: 12px;
+  z-index: 1;
+  background: var(--bg);
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--fg-muted);
+}
 .pdf-preview {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -275,6 +333,7 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
   padding: 8px;
   background: var(--bg-sunken);
   border-radius: 10px;

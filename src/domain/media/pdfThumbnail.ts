@@ -9,6 +9,7 @@ export async function pdfThumbnail(url: string, signal: AbortSignal): Promise<Bl
   const resources = new URL(`${import.meta.env.BASE_URL}pdfjs/`, location.href);
   const request = pdf.getDocument({
     url,
+    rangeChunkSize: 256 * 1024,
     disableAutoFetch: true,
     disableStream: true,
     useSystemFonts: true,
