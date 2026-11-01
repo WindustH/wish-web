@@ -36,6 +36,8 @@ export interface PickFilesOptions {
   accept?: string;
 }
 export interface PickedFile {
+  /** Native upload body, avoiding a whole-file copy into JavaScript memory. */
+  body?: Blob;
   name: string;
   mime: string;
   size: number;

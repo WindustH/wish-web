@@ -1,6 +1,11 @@
 // English dictionary (en).
 export const en = {
   'common.loading': 'Loading…',
+  'library.linkFile': 'Link local file',
+  'library.localPath': 'Absolute file path',
+  'library.linkHint':
+    'Store a path on the computer running Wish without copying the file. Moving or deleting the original makes it unavailable.',
+  'library.unavailable': 'File unavailable',
   'library.upload': 'Upload files',
   'library.mention': 'Mention in chat',
   'library.fileActions': 'File actions',

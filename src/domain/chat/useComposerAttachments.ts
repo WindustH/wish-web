@@ -85,6 +85,23 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
       return;
     }
     const file = { kind, name: reference.name, mime: reference.mime, size: reference.size } as const;
+    if (kind === 'file') {
+      if (!hasAttachmentSpace(kind)) return;
+      const placeholder = `<file-${reference.id}>`;
+      attachments.value = [
+        ...attachments.value,
+        {
+          ...file,
+          bytes: new ArrayBuffer(0),
+          localUrl: '',
+          placeholder,
+          stored: { owner: reference.owner, id: reference.id },
+        },
+      ];
+      saveAttachmentDrafts(attachmentsOwnerId.value, attachments.value);
+      inserted(placeholder);
+      return;
+    }
     if (!attachmentAccepted(file)) return;
     const controller = new AbortController();
     const scope = createAbortScope([controller.signal], 60000);

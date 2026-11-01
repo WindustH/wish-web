@@ -39,6 +39,8 @@ watch(
       pdf.GlobalWorkerOptions.workerSrc = workerUrl;
       const resources = new URL(`${import.meta.env.BASE_URL}pdfjs/`, location.href);
       const request = pdf.getDocument({
+        disableAutoFetch: true,
+        disableStream: true,
         url: src,
         useSystemFonts: true,
         cMapUrl: new URL('cmaps/', resources).href,

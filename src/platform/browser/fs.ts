@@ -28,6 +28,7 @@ export const browserFs = {
               name: file.name,
               mime: file.type || 'application/octet-stream',
               size: file.size,
+              body: file,
               read: () => file.arrayBuffer(),
             })),
           ),

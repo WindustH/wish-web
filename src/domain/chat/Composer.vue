@@ -531,7 +531,7 @@ function onKeydown(e: KeyboardEvent) {
           <Icon :name="img.pastedText ? 'clipboard' : 'paperclip'" />
           <div class="attachment-file-label">
             <span>{{ img.name || i18n.t('chat.attachment') }}</span
-            ><small>{{ fmtBytes(img.bytes.byteLength) }}</small>
+            ><small>{{ fmtBytes(img.size ?? img.bytes.byteLength) }}</small>
           </div>
         </div>
         <button class="rm" :aria-label="i18n.t('common.remove')" @click="removeAttachment(i)">

@@ -11,6 +11,7 @@ export interface StoredAttachmentReference {
 }
 
 export interface AttachmentInput {
+  size?: number;
   unavailable?: boolean;
   stored?: { owner: string; id: string };
   kind: 'image' | 'file';
@@ -110,16 +111,19 @@ export async function uploadAttachments(
     }
     if (attachment.kind !== 'image' && attachment.kind !== 'file') throw new Error('Invalid attachment kind');
     let stored = attachment.stored?.owner === owner ? attachment.stored : undefined;
+    if (!stored && attachment.stored && attachment.size !== undefined && !attachment.bytes.byteLength)
+      throw new Error('Referenced file belongs to another conversation');
     if (stored) {
       try {
         await verifyStored(`${owner}/${stored.id}`);
       } catch (error) {
         if ((error as { status?: number }).status !== 404) throw error;
+        if (attachment.size !== undefined && !attachment.bytes.byteLength) throw error;
         stored = undefined; // Cleanup removed it; the restored draft still owns the original bytes.
       }
     }
     const blob = stored
-      ? { sha256: stored.id, byte_count: attachment.bytes.byteLength, mime_type: attachment.mime }
+      ? { sha256: stored.id, byte_count: attachment.size ?? attachment.bytes.byteLength, mime_type: attachment.mime }
       : await upload(owner, attachment.bytes, { signal });
     if (attachment.kind === 'image') images++;
     else files++;

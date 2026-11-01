@@ -47,9 +47,9 @@ export const cfg = Object.freeze({
     desktopMaxRows: 12,
     maxHeightVh: 0.3,
     maxImages: 4,
-    maxImageBytes: 20 * 1024 * 1024,
+    maxImageBytes: 100 * 1024 * 1024,
     maxAttachments: 16,
-    maxAttachmentBytes: 20 * 1024 * 1024,
+    maxAttachmentBytes: 1024 * 1024 * 1024,
     sendOnEnter: true, // desktop default; user preference
   },
 

@@ -149,6 +149,10 @@ export interface BlobInfo {
   byte_count: number;
 }
 export interface LibraryBlob extends BlobInfo {
+  linked?: boolean;
+  available?: boolean;
+  name?: string | null;
+  local_path?: string | null;
   modified_at: number;
 }
 export interface BlobPage {

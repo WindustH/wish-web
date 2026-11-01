@@ -41,6 +41,7 @@ export const ICONS: Record<string, string> = {
   minus: '<path d="M6 12h12"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h10"/>',
   'ellipsis-vertical': `<path d="${dot(12, 5.5)}${dot(12, 12)}${dot(12, 18.5)}" stroke-width="3"/>`,
+  link: '<path d="M10 13a5 5 0 0 0 7 .1l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7-.1l-3 3a5 5 0 0 0 7 7l2-2"/>',
   'external-link': '<path d="M10 5H7a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3v-3M14 4h6v6m0-6-8.5 8.5"/>',
   'log-out': `<path d="M10 4H7a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h3Z" ${SOFT} stroke="none"/><path d="M10 4H7a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h3m5.5-12.5 4.5 4.5-4.5 4.5M20 12H9.5"/>`,
   // The sidebar: its column in shade.

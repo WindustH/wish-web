@@ -1,6 +1,10 @@
 // Chinese dictionary (zh). Keys are flat dot-namespaced for grep-ability.
 export const zh = {
   'common.loading': '加载中…',
+  'library.linkFile': '链接本地文件',
+  'library.localPath': '文件绝对路径',
+  'library.linkHint': '只记录运行 Wish 的电脑上的本地路径，不复制文件。原文件移动或删除后将无法读取。',
+  'library.unavailable': '文件不可用',
   'library.upload': '上传文件',
   'library.mention': '引用',
   'library.fileActions': '文件操作',

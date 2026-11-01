@@ -183,13 +183,14 @@ export const groupPost = (
   post(`${groupPath(id)}/messages`, { text: body.content ?? '', attachments: inputAttachments(body.blocks) });
 export const uploadGroupBlob = async (
   gid: string,
-  bytes: ArrayBuffer | Uint8Array,
+  bytes: ArrayBuffer | Uint8Array | Blob,
   opts?: EndpointOptions,
 ): Promise<UploadedBlob> => {
   const blob = await api('POST', `${groupPath(gid)}/blobs`, {
     body: bytes,
     raw: true,
     headers: { 'content-type': 'application/octet-stream' },
+    timeoutMs: 10 * 60 * 1000,
     ...opts,
   });
   return { ...blob, sha256: blob.id };
@@ -412,30 +413,34 @@ const blobPath = (reference: string) => {
 export const groupBlob = (gid: string, hash: string) => `group:${gid}/${hash}`;
 export const uploadSessionBlob = async (
   sid: string,
-  bytes: ArrayBuffer | Uint8Array,
+  bytes: ArrayBuffer | Uint8Array | Blob,
   opts?: EndpointOptions,
 ): Promise<UploadedBlob> => {
   const blob = await api('POST', `${path(sid)}/blobs`, {
     body: bytes,
     raw: true,
     headers: { 'content-type': 'application/octet-stream' },
+    timeoutMs: 10 * 60 * 1000,
     ...opts,
   });
   return { ...blob, sha256: blob.id };
 };
 export const uploadDraftBlob = async (
   requestId: string,
-  bytes: ArrayBuffer | Uint8Array,
+  bytes: ArrayBuffer | Uint8Array | Blob,
   opts?: EndpointOptions,
 ): Promise<UploadedBlob> => {
   const blob = await api('POST', `/session-drafts/${encodeURIComponent(requestId)}/blobs`, {
     body: bytes,
     raw: true,
     headers: { 'content-type': 'application/octet-stream' },
+    timeoutMs: 10 * 60 * 1000,
     ...opts,
   });
   return { ...blob, sha256: blob.id };
 };
+export const linkSessionFile = (session: string, localPath: string): Promise<BlobInfo> =>
+  post(`${path(session)}/blobs/link`, { path: localPath });
 export const blobMetadata = (reference: string): Promise<BlobInfo> => get(`${blobPath(reference)}/meta`);
 export const sessionBlobs = (
   session: string,

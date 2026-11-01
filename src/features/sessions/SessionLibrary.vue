@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { sessionBlobs, blobUrl, uploadSessionBlob } from '../../core/api/endpoints.ts';
+import { sessionBlobs, blobUrl, uploadSessionBlob, linkSessionFile } from '../../core/api/endpoints.ts';
 import type { LibraryBlob } from '../../core/api/types.ts';
 import type { EntryView } from '../../core/api/projections.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -11,6 +11,7 @@ import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { downloadApiFile } from '../../ui/download.ts';
 import IslandSidebar from '../../ui/components/IslandSidebar.vue';
 import Menu from '../../ui/components/Menu.vue';
+import Modal from '../../ui/components/Modal.vue';
 import LibraryThumbnail from './LibraryThumbnail.vue';
 import SelectField from '../../domain/providers/SelectField.vue';
 import { platform } from '../../platform/index.ts';
@@ -33,6 +34,30 @@ const active = usePageActivity();
 const uploadedNames = ref(new Map<string, string>());
 const names = computed(() => new Map([...attachmentNames(props.entries), ...uploadedNames.value]));
 const uploading = ref(false);
+const linkOpen = ref(false),
+  localPath = ref(''),
+  linking = ref(false),
+  linkError = ref('');
+async function addLink() {
+  if (!localPath.value.trim() || linking.value) return;
+  const owner = props.session;
+  linking.value = true;
+  linkError.value = '';
+  try {
+    await linkSessionFile(owner, localPath.value.trim());
+    if (owner !== props.session) return;
+    linkOpen.value = false;
+    localPath.value = '';
+    controller?.abort();
+    loading.value = false;
+    await load();
+  } catch (cause) {
+    linkError.value = describeError(cause).message;
+  } finally {
+    linking.value = false;
+  }
+}
+
 let uploadController: AbortController | undefined;
 onBeforeUnmount(() => uploadController?.abort());
 async function upload() {
@@ -45,9 +70,9 @@ async function upload() {
     const files = await platform('fs').pickFiles({ multiple: true });
     for (const file of files) {
       if (request.signal.aborted || props.session !== owner) return;
-      if (file.size > cfg.composer.maxAttachmentBytes)
-        throw new Error(i18n.t('library.tooLarge', { size: fmtBytes(cfg.composer.maxAttachmentBytes) }));
-      const bytes = await file.read();
+      const limit = file.mime.startsWith('image/') ? cfg.composer.maxImageBytes : cfg.composer.maxAttachmentBytes;
+      if (file.size > limit) throw new Error(i18n.t('library.tooLarge', { size: fmtBytes(limit) }));
+      const bytes = file.body ?? (await file.read());
       if (request.signal.aborted || props.session !== owner) return;
       const blob = await uploadSessionBlob(owner, bytes, { signal: request.signal });
       if (request.signal.aborted || props.session !== owner) return;
@@ -178,6 +203,17 @@ watch(
     <template #actions>
       <button
         v-if="!selected"
+        class="btn ghost icon-only library-link"
+        :aria-label="i18n.t('library.linkFile')"
+        @click="
+          linkError = '';
+          linkOpen = true;
+        "
+      >
+        <Icon name="link" />
+      </button>
+      <button
+        v-if="!selected"
         class="btn ghost icon-only library-upload"
         :disabled="uploading"
         :aria-label="i18n.t('library.upload')"
@@ -227,10 +263,19 @@ watch(
         <div class="library-grid">
           <Menu v-for="blob in shown" :key="blob.id" context :items="menuItems" @select="mention(blob)">
             <div class="library-card">
-              <button class="library-item" :data-blob-id="blob.id" @click="selected = blob">
+              <button
+                class="library-item"
+                :data-blob-id="blob.id"
+                :title="blob.local_path || undefined"
+                @click="selected = blob"
+              >
                 <LibraryThumbnail :session="session" :blob="blob" />
                 <span class="library-filename" :title="filename(blob)">{{ filename(blob) }}</span>
-                <span class="library-filesize">{{ fmtBytes(blob.byte_count) }}</span>
+                <span class="library-filesize"
+                  ><Icon v-if="blob.linked" name="link" :size="12" />{{
+                    blob.available === false ? i18n.t('library.unavailable') : fmtBytes(blob.byte_count)
+                  }}</span
+                >
               </button>
               <Menu :items="menuItems" :label="i18n.t('library.fileActions')" @select="mention(blob)">
                 <template #trigger>
@@ -248,6 +293,23 @@ watch(
       </div>
     </template>
   </IslandSidebar>
+  <Modal :open="linkOpen" :title="i18n.t('library.linkFile')" @close="linkOpen = false">
+    <form class="library-link-form" @submit.prevent="addLink">
+      <p>{{ i18n.t('library.linkHint') }}</p>
+      <input
+        v-model="localPath"
+        class="input"
+        data-initial-focus
+        :aria-label="i18n.t('library.localPath')"
+        :placeholder="i18n.t('library.localPath')"
+        :disabled="linking"
+      />
+      <p v-if="linkError" role="alert">{{ linkError }}</p>
+      <button type="submit" class="btn primary" :disabled="linking || !localPath.trim()">
+        {{ linking ? i18n.t('common.loading') : i18n.t('library.linkFile') }}
+      </button>
+    </form>
+  </Modal>
 </template>
 
 <style scoped>
@@ -321,7 +383,18 @@ watch(
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.library-link-form {
+  display: grid;
+  gap: 12px;
+}
+.library-link-form p {
+  margin: 0;
+  color: var(--fg-muted);
+}
 .library-filesize {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   padding: 0 2px;
   font-size: 11px;
   color: var(--fg-muted);

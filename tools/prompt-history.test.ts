@@ -84,3 +84,16 @@ test('a cleaned-up stored reference is reuploaded from draft bytes, but other er
   await assert.rejects(uploadAttachments('A',[{...file,unavailable:true}],{upload}),/unavailable/);
   assert.equal(uploads,1);
 });
+
+test('file-only references preserve their size and never upload empty fallback bytes', async () => {
+  let uploads = 0;
+  const upload = async () => { uploads++; throw new Error('unexpected upload'); };
+  const file: AttachmentInput = { kind: 'file', name: 'book.pdf', mime: 'application/pdf', size: 800 * 1024 * 1024,
+    bytes: new ArrayBuffer(0), stored: { owner: 'A', id: 'existing' } };
+  const result = await uploadAttachments('A', [file], {upload, verifyStored: async () => ({})});
+  assert.equal(result.blocks[0]!.byte_count, file.size);
+  assert.equal(result.blocks[0]!.blob_id, 'existing');
+  await assert.rejects(uploadAttachments('A', [file], {upload, verifyStored: async () => {throw {status:404};}}));
+  await assert.rejects(uploadAttachments('B', [file], {upload}), /another conversation/);
+  assert.equal(uploads, 0);
+});

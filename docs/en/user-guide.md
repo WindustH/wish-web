@@ -58,7 +58,8 @@ Answered cards keep what you chose; skipped, stopped and timed-out cards list th
 
 - Use **Image** and **Attach files**, or paste images and files. Each attachment is inserted at the cursor, so it arrives at that point in your message.
 - Images are sent to the model as images. A model that is not configured for image input gets a note with the file's server path instead. Other files are stored on the server and handed to the agent's shell by path.
-- Per message: up to 4 images and 16 files, 20 MB each.
+- Per message: up to 4 images and 16 files; each image may be up to 100 MiB and each file up to 1 GiB. Library uploads stream to disk; PDF previews read pages on demand.
+- “Link local file” registers an absolute path on the computer running the Wish backend without copying it. Later reads reflect source changes; moved/deleted files are marked unavailable. Mentioning an existing file does not download or upload it again.
 - Pasted text longer than 128 lines or 1,024 characters becomes a **Pasted Text N** chip instead of filling the editor. Click it to read or edit it. When you send, its text is placed inline in the message; it is not uploaded as a file.
 - Your unsent text is saved in the browser for each session. Unsent attachments survive switching between sessions, but not a page reload.
 

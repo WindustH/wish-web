@@ -28,7 +28,7 @@ export const blobIcon = (kind: BlobKind) =>
     kind
   ];
 export function blobName(blob: LibraryBlob, names: ReadonlyMap<string, string>) {
-  return names.get(blob.id) || `${blob.id.slice(0, 12)}.${extensions[blob.mime_type] ?? 'bin'}`;
+  return blob.name || names.get(blob.id) || `${blob.id.slice(0, 12)}.${extensions[blob.mime_type] ?? 'bin'}`;
 }
 /** Names are display metadata; the catalog, never the loaded history window, owns membership. */
 export function attachmentNames(entries: EntryView[]) {
