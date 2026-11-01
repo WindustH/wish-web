@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
+import { tr } from '../../core/i18n/tr.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import Icon from '../../ui/components/Icon.vue';
@@ -15,6 +16,53 @@ const page = ref(1),
   width = ref(300),
   loading = ref(true),
   error = ref('');
+type Bookmark = { title: string; depth: number; dest: string | unknown[] | null };
+const bookmarks = ref<Bookmark[]>([]),
+  outlineOpen = ref(false);
+let jumpRevision = 0;
+async function jump(bookmark: Bookmark) {
+  const pdf = document.value,
+    own = ++jumpRevision;
+  if (!pdf || !bookmark.dest) return;
+  try {
+    const destination = typeof bookmark.dest === 'string' ? await pdf.getDestination(bookmark.dest) : bookmark.dest;
+    if (!destination) return;
+    const target = destination[0];
+    const index = typeof target === 'number' ? target : await pdf.getPageIndex(target as { num: number; gen: number });
+    if (document.value !== pdf || own !== jumpRevision || index < 0 || index >= pdf.numPages) return;
+    page.value = index + 1;
+    if (viewport.value) viewport.value.scrollTop = 0;
+    outlineOpen.value = false;
+  } catch {
+    // A malformed bookmark must not prevent reading the document.
+  }
+}
+let wheelTotal = 0,
+  lastWheel = 0,
+  lastTurn = 0;
+function wheel(event: WheelEvent) {
+  if (event.ctrlKey || event.metaKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+  const box = viewport.value,
+    pdf = document.value;
+  if (!box || !pdf || !event.deltaY) return;
+  const down = event.deltaY > 0;
+  if (down ? box.scrollTop + box.clientHeight < box.scrollHeight - 2 : box.scrollTop > 2) {
+    wheelTotal = 0;
+    return;
+  }
+  event.preventDefault();
+  const now = performance.now();
+  if (now - lastWheel > 200 || Math.sign(wheelTotal) !== Math.sign(event.deltaY)) wheelTotal = 0;
+  lastWheel = now;
+  if (now - lastTurn < 350) return;
+  wheelTotal += event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? box.clientHeight : 1);
+  if (Math.abs(wheelTotal) < 50) return;
+  const next = Math.max(1, Math.min(pdf.numPages, page.value + (down ? 1 : -1)));
+  wheelTotal = 0;
+  if (next === page.value) return;
+  lastTurn = now;
+  page.value = next;
+}
 let task: RenderTask | undefined,
   epoch = 0;
 watch(
@@ -29,6 +77,9 @@ watch(
       void destroy?.().catch(() => {});
     });
     document.value = undefined;
+    bookmarks.value = [];
+    outlineOpen.value = false;
+    jumpRevision++;
     page.value = 1;
     zoom.value = 1;
     loading.value = true;
@@ -51,6 +102,17 @@ watch(
       destroy = () => request.destroy();
       const loaded = await request.promise;
       if (alive) document.value = loaded;
+      const outline = await loaded.getOutline().catch(() => null);
+      if (!alive) return;
+      const rows: Bookmark[] = [];
+      function flatten(items: NonNullable<typeof outline>, depth = 0) {
+        for (const item of items) {
+          rows.push({ title: item.title, depth, dest: item.dest });
+          flatten(item.items, depth + 1);
+        }
+      }
+      if (outline) flatten(outline);
+      bookmarks.value = rows;
     } catch (cause) {
       if (alive) error.value = describeError(cause).message;
     } finally {
@@ -90,6 +152,9 @@ watch(
   },
   { flush: 'post' },
 );
+watch(page, () => {
+  if (viewport.value) viewport.value.scrollTop = 0;
+});
 let observer: ResizeObserver | undefined;
 onMounted(() => {
   observer = new ResizeObserver(([entry]) => {
@@ -109,6 +174,14 @@ onBeforeUnmount(() => {
     <p v-if="error" role="alert" class="pdf-message">{{ error }}</p>
     <p v-else-if="loading" role="status" class="pdf-message">{{ i18n.t('common.loading') }}</p>
     <div v-if="document" class="pdf-toolbar">
+      <button
+        class="btn ghost icon-only"
+        :aria-label="tr('书签', 'Bookmarks')"
+        :aria-expanded="outlineOpen"
+        @click="outlineOpen = !outlineOpen"
+      >
+        <Icon name="bookmark" />
+      </button>
       <button
         class="btn ghost icon-only"
         :disabled="page <= 1"
@@ -144,7 +217,20 @@ onBeforeUnmount(() => {
         <Icon name="plus" />
       </button>
     </div>
-    <div ref="viewport" class="pdf-viewport">
+    <nav v-if="outlineOpen" class="pdf-bookmarks" :aria-label="tr('书签', 'Bookmarks')">
+      <p v-if="!bookmarks.length">{{ tr('此 PDF 没有书签', 'This PDF has no bookmarks') }}</p>
+      <button
+        v-for="(bookmark, index) in bookmarks"
+        :key="index"
+        class="btn ghost"
+        :disabled="!bookmark.dest"
+        :style="{ paddingLeft: `${8 + Math.min(bookmark.depth, 8) * 12}px` }"
+        @click="jump(bookmark)"
+      >
+        {{ bookmark.title }}
+      </button>
+    </nav>
+    <div ref="viewport" class="pdf-viewport" @wheel="wheel">
       <canvas v-if="document" ref="canvas" role="img" :aria-label="i18n.t('library.pdfPage', { page })" />
     </div>
   </div>
@@ -157,6 +243,23 @@ onBeforeUnmount(() => {
   flex: 1;
   min-width: 0;
   min-height: 0;
+}
+.pdf-bookmarks {
+  flex: none;
+  max-height: 40%;
+  overflow: auto;
+  border-bottom: 1px solid var(--line);
+  padding-block: 6px;
+}
+.pdf-bookmarks button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  white-space: normal;
+}
+.pdf-bookmarks p {
+  padding: 8px;
+  color: var(--fg-muted);
 }
 .pdf-toolbar {
   display: flex;

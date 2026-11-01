@@ -7,6 +7,7 @@ import { i18n } from '../../core/i18n/index.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import Icon from '../../ui/components/Icon.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import ImagePreview from '../../domain/media/ImagePreview.vue';
 import { blobKind } from './libraryFiles.ts';
 
 const PdfPreview = defineAsyncComponent(() => import('../../domain/media/PdfPreview.vue'));
@@ -72,7 +73,7 @@ function failed() {
       <button class="btn sm" @click="revision++">{{ i18n.t('common.retry') }}</button>
     </div>
     <template v-else>
-      <img v-if="kind === 'image' && source" :src="source" :alt="name" @error="failed" />
+      <ImagePreview v-if="kind === 'image' && source" :src="source" :alt="name" @error="failed" />
       <video
         v-else-if="kind === 'video' && source"
         ref="player"

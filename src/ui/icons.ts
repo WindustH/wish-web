@@ -47,6 +47,7 @@ export const ICONS: Record<string, string> = {
   // The sidebar: its column in shade.
   'panel-left': `<path d="M9.5 4H6.5A3.5 3.5 0 0 0 3 7.5v9A3.5 3.5 0 0 0 6.5 20h3Z" ${SOFT} stroke="none"/><rect x="3" y="4" width="18" height="16" rx="3.5"/><path d="M9.5 4v16"/>`,
   'panel-right': `<path d="M14.5 4h3A3.5 3.5 0 0 1 21 7.5v9a3.5 3.5 0 0 1-3.5 3.5h-3Z" ${SOFT} stroke="none"/><rect x="3" y="4" width="18" height="16" rx="3.5"/><path d="M14.5 4v16"/>`,
+  bookmark: `<path d="M6 4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17l-6-4-6 4Z"/>`,
   library: `<rect x="3" y="4" width="4" height="16" rx="1" ${SOFT}/><rect x="9" y="4" width="4" height="16" rx="1"/><path d="m15 5 3.5-1 3.5 15-3.5 1Z" ${SOFT}/><path d="M3 8h4M9 8h4"/>`,
   // Track and progress.
   'loader-circle': '<circle cx="12" cy="12" r="8.5" stroke-opacity=".22"/><path d="M20.5 12A8.5 8.5 0 0 0 12 3.5"/>',
