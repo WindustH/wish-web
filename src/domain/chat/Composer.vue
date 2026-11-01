@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useKeyboardScope } from '../../ui/composables/useKeyboardScope.ts';
-import { historyPage } from '../../core/api/endpoints.ts';
+import { historyPage, blobUrl } from '../../core/api/endpoints.ts';
 import { cfg } from '../../core/config.ts';
 import { createPromptHistory, sessionPrompts, type HistoricalPrompt } from './promptHistory.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
@@ -221,6 +221,9 @@ function openAttachmentPreview(item: Attachment, event: Event) {
   previewAttachment(
     {
       ...item,
+      ...(item.stored && item.size !== undefined && !item.bytes.byteLength
+        ? { bytes: undefined, url: blobUrl(`${item.stored.owner}/${item.stored.id}`) }
+        : {}),
       editText: item.pastedText
         ? (value) => {
             if (owner !== attachmentsOwnerId.value || !attachments.value.includes(item)) return;

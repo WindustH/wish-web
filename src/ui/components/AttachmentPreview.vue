@@ -135,6 +135,8 @@ watch(attachmentPreview, async (item) => {
   try {
     let bytes = item.bytes;
     if (!bytes) {
+      if (item.size !== undefined && item.size > 256 * 1024)
+        throw new Error(tr('文件较大，请在库中预览。', 'Open this large file in the Library to preview it.'));
       const response = await apiFetch(item.url || item.localUrl || '', { signal: request.signal });
       if (!response.ok)
         throw new Error(tr(`无法读取附件（${response.status}）`, `Could not read the attachment (${response.status})`));

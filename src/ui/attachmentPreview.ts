@@ -4,6 +4,7 @@ export type PreviewAttachment = {
   name?: string;
   mime?: string;
   bytes?: ArrayBuffer;
+  size?: number;
   localUrl?: string;
   url?: string;
   pastedText?: boolean;
