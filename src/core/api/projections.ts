@@ -275,7 +275,11 @@ export function entryView(item: any, sessionId: string): EntryView {
   };
   const blocks = (content: any[] | undefined): ContentBlock[] =>
     (content ?? []).map((block) =>
-      block.Text ? { type: 'text', text: block.Text.text } : { type: 'image', ...block.Image },
+      block.Text
+        ? { type: 'text', text: block.Text.text }
+        : block.ImageRef
+          ? { type: 'image', ...block.ImageRef, blob_id: `${sessionId}/${block.ImageRef.blob_id}` }
+          : { type: 'image', ...block.Image },
     );
   switch (type) {
     case 'Developer':

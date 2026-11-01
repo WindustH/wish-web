@@ -19,6 +19,7 @@ const element = ref<HTMLImageElement>();
 const visible = ref(attrs.loading !== 'lazy');
 const url = ref('');
 const preview = computed(() => imagePreviewUrl(props.src, props.previewWidth, prefs.originalImages.value));
+let loadedOriginal: { src: string; bytes: Blob } | undefined;
 let observer: IntersectionObserver | undefined;
 onMounted(() => {
   if (typeof IntersectionObserver === 'undefined') {
@@ -42,6 +43,10 @@ async function onOpen() {
   if (!props.zoom || opening.value) return;
   const src = props.src,
     alt = String(attrs.alt ?? '');
+  if (loadedOriginal?.src === src) {
+    openImageLightbox(src, alt, loadedOriginal.bytes);
+    return;
+  }
   if (!needsAccessToken(src)) {
     openImageLightbox(src, alt);
     return;
@@ -69,6 +74,7 @@ watch(
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     });
     url.value = '';
+    loadedOriginal = undefined;
     if (!shown) return;
     if (src === props.src && !needsAccessToken(src)) {
       url.value = src;
@@ -80,7 +86,10 @@ watch(
       const response = await apiFetch(src, { signal: controller.signal });
       if (!response.ok) return;
       const bytes = await response.blob();
-      if (!controller.signal.aborted) url.value = objectUrl = URL.createObjectURL(bytes);
+      if (!controller.signal.aborted) {
+        if (src === props.src) loadedOriginal = { src, bytes };
+        url.value = objectUrl = URL.createObjectURL(bytes);
+      }
     } catch {
       /* Keep the original available through the detail action. */
     } finally {

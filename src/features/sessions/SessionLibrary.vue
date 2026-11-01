@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useVirtualGrid } from '../../ui/composables/useVirtualGrid.ts';
 import { computed, onBeforeUnmount, provide, ref, watch } from 'vue';
 import { sessionBlobs, blobUrl, uploadSessionBlob, linkSessionFile } from '../../core/api/endpoints.ts';
 import type { LibraryBlob } from '../../core/api/types.ts';
@@ -13,7 +14,7 @@ import IslandSidebar from '../../ui/components/IslandSidebar.vue';
 import Menu from '../../ui/components/Menu.vue';
 import Modal from '../../ui/components/Modal.vue';
 import LibraryThumbnail from './LibraryThumbnail.vue';
-import SelectField from '../../domain/providers/SelectField.vue';
+import SelectField from '../../ui/components/SelectField.vue';
 import { platform } from '../../platform/index.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import { cfg } from '../../core/config.ts';
@@ -80,16 +81,23 @@ async function upload() {
   uploading.value = true;
   try {
     const files = await platform('fs').pickFiles({ multiple: true });
+    const failures: string[] = [];
     for (const file of files) {
-      if (request.signal.aborted || props.session !== owner) return;
-      const limit = file.mime.startsWith('image/') ? cfg.composer.maxImageBytes : cfg.composer.maxAttachmentBytes;
-      if (file.size > limit) throw new Error(i18n.t('library.tooLarge', { size: fmtBytes(limit) }));
-      const bytes = file.body ?? (await file.read());
-      if (request.signal.aborted || props.session !== owner) return;
-      const blob = await uploadSessionBlob(owner, bytes, { signal: request.signal });
-      if (request.signal.aborted || props.session !== owner) return;
-      if (file.name) uploadedNames.value.set(blob.id, file.name);
+      try {
+        if (request.signal.aborted || props.session !== owner) return;
+        const limit = file.mime.startsWith('image/') ? cfg.composer.maxImageBytes : cfg.composer.maxAttachmentBytes;
+        if (file.size > limit) throw new Error(i18n.t('library.tooLarge', { size: fmtBytes(limit) }));
+        const bytes = file.body ?? (await file.read());
+        if (request.signal.aborted || props.session !== owner) return;
+        const blob = await uploadSessionBlob(owner, bytes, { signal: request.signal });
+        if (request.signal.aborted || props.session !== owner) return;
+        if (file.name) uploadedNames.value.set(blob.id, file.name);
+      } catch (cause) {
+        if (request.signal.aborted || props.session !== owner) return;
+        failures.push(`${file.name}: ${describeError(cause).message}`);
+      }
     }
+    if (failures.length) toast(failures.join('\n'));
   } catch (cause) {
     if (!request.signal.aborted) toast(describeError(cause).message);
   } finally {
@@ -112,6 +120,14 @@ function mention(blob: LibraryBlob) {
 const filename = (blob: LibraryBlob) => blobName(blob, names.value);
 const title = computed(() => (selected.value ? filename(selected.value) : i18n.t('library.title')));
 const shown = computed(() => items.value.filter((blob) => filter.value === 'all' || blobKind(blob) === filter.value));
+const gridViewport = ref<HTMLElement>();
+const grid = useVirtualGrid(
+  gridViewport,
+  computed(() => shown.value.length),
+);
+const visibleItems = computed(() => shown.value.slice(grid.start.value, grid.end.value));
+watch(filter, grid.reset);
+watch(() => props.session, grid.reset);
 const filters = ['all', 'image', 'video', 'audio', 'pdf', 'text', 'file'] as const;
 const filterOptions = computed(() =>
   filters.map((kind) => ({
@@ -277,7 +293,7 @@ watch(
       />
     </template>
     <template v-else>
-      <div class="library-scroll">
+      <div ref="gridViewport" class="library-scroll">
         <div v-if="error" class="library-empty" role="alert">
           <p>{{ error }}</p>
           <button class="btn sm" @click="load()">{{ i18n.t('common.retry') }}</button>
@@ -286,8 +302,8 @@ watch(
         <p v-else-if="!shown.length" class="library-empty">
           {{ i18n.t(items.length ? 'library.noMatches' : 'library.empty') }}
         </p>
-        <div class="library-grid">
-          <Menu v-for="blob in shown" :key="blob.id" context :items="menuItems" @select="mention(blob)">
+        <div class="library-grid" :style="grid.style.value">
+          <Menu v-for="blob in visibleItems" :key="blob.id" context :items="menuItems" @select="mention(blob)">
             <div class="library-card">
               <button
                 class="library-item"
@@ -405,6 +421,7 @@ watch(
   width: 100%;
   padding: 0 2px;
   font-size: 12px;
+  line-height: 18px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -423,6 +440,7 @@ watch(
   gap: 4px;
   padding: 0 2px;
   font-size: 11px;
+  line-height: 16px;
   color: var(--fg-muted);
 }
 .library-item:hover :deep(.library-thumbnail) {

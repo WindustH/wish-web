@@ -1,8 +1,6 @@
 import { createAbortScope } from '../util/abortScope.ts';
-import { previewCache } from '../util/previewCache.ts';
 // One function per server endpoint, grouped by what they act on. Most are thin; the few that
 // combine requests say so. The shapes they take and return are in types.ts.
-import { peekCached, writeCached } from '../util/responseCache.ts';
 import { get, post, patch, put, del, api, getBaseUrl, apiFetch, isApiUrl } from './client.ts';
 import {
   sessionView,
@@ -722,17 +720,7 @@ export const mediaPlayback = async (
   blob: string,
   opts?: EndpointOptions,
 ): Promise<{ path: string; expires_at: number }> => {
-  opts?.signal?.throwIfAborted();
-  const key = `playback:${session}/${blob}`;
-  const cached = peekCached<{ path: string; expires_at: number }>(key);
-  if (cached && cached.expires_at > Date.now() / 1000 + 60) return cached;
-  const grant: { path: string; expires_at: number } = await post(
-    `${path(session)}/blobs/${encodeURIComponent(blob)}/playback`,
-    {},
-    opts,
-  );
-  writeCached(key, grant, { persist: false });
-  return grant;
+  return post(`${path(session)}/blobs/${encodeURIComponent(blob)}/playback`, {}, opts);
 };
 
 export interface PdfInfo {
@@ -743,25 +731,15 @@ export interface PdfInfo {
 export const pdfInfo = (session: string, blob: string, signal: AbortSignal): Promise<PdfInfo> =>
   get(`/sessions/${encodeURIComponent(session)}/blobs/${encodeURIComponent(blob)}/pdf`, { signal, timeoutMs: 60_000 });
 
-export async function pdfPage(
-  session: string,
-  blob: string,
-  page: number,
-  signal: AbortSignal,
-  version?: string,
-): Promise<Blob> {
+export async function pdfPage(session: string, blob: string, page: number, signal: AbortSignal): Promise<Blob> {
   const path = `${blobUrl(`${session}/${blob}`)}/pdf/page?page=${page}`;
-  const key = `${path}:${version}`;
   signal.throwIfAborted();
-  const cached = version === undefined ? undefined : previewCache.get(key);
-  if (cached) return cached;
   const scope = createAbortScope([signal], 60_000);
   try {
     const response = await apiFetch(path, { signal: scope.signal });
     if (!response.ok) throw new Error(`PDF preview: HTTP ${response.status}`);
     const bytes = await response.blob();
     scope.signal.throwIfAborted();
-    if (version !== undefined) previewCache.set(key, bytes);
     return bytes;
   } finally {
     scope.dispose();

@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { mediaPlayback } from '../../domain/media/requests.ts';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { LibraryBlob } from '../../core/api/types.ts';
-import { blobUrl, mediaPlayback } from '../../core/api/endpoints.ts';
+import { blobUrl } from '../../core/api/endpoints.ts';
 import { absUrl } from '../../core/api/client.ts';
 import { pdfThumbnail } from '../../domain/media/pdfThumbnail.ts';
 import { previewCache } from '../../core/util/previewCache.ts';
@@ -36,7 +37,7 @@ onMounted(() => {
 });
 onBeforeUnmount(() => observer?.disconnect());
 watch(
-  () => [props.session, props.blob.id, visible.value] as const,
+  () => [props.session, props.blob.id, props.blob.modified_at, props.blob.byte_count, visible.value] as const,
   async (_, __, onCleanup) => {
     const controller = new AbortController();
     let objectUrl = '';
@@ -47,7 +48,7 @@ watch(
     source.value = '';
     if (!visible.value || !['audio', 'video', 'pdf'].includes(kind.value)) return;
     const key = absUrl(blobUrl(`${props.session}/${props.blob.id}`));
-    const cacheable = !props.blob.linked && ['audio', 'video'].includes(kind.value);
+    const cacheable = !props.blob.linked;
     const cached = cacheable ? previewCache.get(key) : undefined;
     if (cached !== undefined) {
       if (cached) source.value = objectUrl = URL.createObjectURL(cached);

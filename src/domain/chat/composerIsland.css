@@ -81,7 +81,7 @@ div.chat-pane > .composer.mobile:focus-within {
    Animating padding/min-height preserves the editable node and the text selection. */
 div.chat-pane > .composer.mobile:not(.composer-start) {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 34px;
+  grid-template-columns: max-content minmax(0, 1fr) 34px;
   align-items: end;
   column-gap: 8px;
   padding: 8px 12px;
@@ -141,4 +141,12 @@ div.chat-pane
   div.chat-pane > .composer.mobile:not(.composer-start) .composer-input {
     transition: none;
   }
+}
+
+/* Keep the queued-message control outside the collapsed editor's text column. */
+div.chat-pane
+  > .composer.mobile.composer-empty:not(.composer-start):not(:has(.composer-input:focus)):not(:has(.caps-error))
+  .composer-input {
+  grid-column: 2;
+  padding-inline: 4px;
 }

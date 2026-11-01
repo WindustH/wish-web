@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { mediaPlayback } from '../../domain/media/requests.ts';
 import LoadingState from '../../ui/components/LoadingState.vue';
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue';
 import type { LibraryBlob } from '../../core/api/types.ts';
-import { blobUrl, mediaPlayback } from '../../core/api/endpoints.ts';
+import { blobUrl } from '../../core/api/endpoints.ts';
 import { absUrl, apiFetch } from '../../core/api/client.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';

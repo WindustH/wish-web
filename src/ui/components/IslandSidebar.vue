@@ -22,7 +22,7 @@ const width = computed(() =>
 );
 let observer: ResizeObserver | undefined;
 let drag: { id: number; x: number; width: number; preferred: number; target: HTMLElement } | undefined;
-function finish(commit = false) {
+function finishResize(commit = false) {
   if (!drag) return;
   const previous = drag;
   drag = undefined;
@@ -30,9 +30,9 @@ function finish(commit = false) {
   if (previous.target.hasPointerCapture(previous.id)) previous.target.releasePointerCapture(previous.id);
   if (!commit) preferredWidth.value = previous.preferred;
 }
-function start(event: PointerEvent) {
+function onResizeStart(event: PointerEvent) {
   if (event.button !== 0) return;
-  finish();
+  finishResize();
   event.preventDefault();
   const target = event.currentTarget as HTMLElement;
   target.focus({ preventScroll: true });
@@ -40,26 +40,26 @@ function start(event: PointerEvent) {
   drag = { id: event.pointerId, x: event.clientX, width: width.value, preferred: preferredWidth.value, target };
   document.documentElement.classList.add('resizing');
 }
-function move(event: PointerEvent) {
+function onResizeMove(event: PointerEvent) {
   if (!drag || drag.id !== event.pointerId) return;
   preferredWidth.value = Math.round(Math.min(maximum.value, Math.max(minimum, drag.width + drag.x - event.clientX)));
 }
-function end(event: PointerEvent) {
+function onResizeEnd(event: PointerEvent) {
   if (drag?.id !== event.pointerId) return;
-  move(event);
-  finish(true);
+  onResizeMove(event);
+  finishResize(true);
 }
-function keyboard(event: KeyboardEvent) {
+function onResizeKeydown(event: KeyboardEvent) {
   const next = { ArrowLeft: width.value + 16, ArrowRight: width.value - 16, Home: minimum, End: maximum.value }[
     event.key
   ];
   if (next === undefined) return;
   event.preventDefault();
-  finish();
+  finishResize();
   preferredWidth.value = Math.min(maximum.value, Math.max(minimum, next));
 }
-function cancel() {
-  finish();
+function cancelResize() {
+  finishResize();
 }
 function observeContainer() {
   observer?.disconnect();
@@ -72,16 +72,16 @@ function observeContainer() {
   observer.observe(container);
 }
 watch(handle, observeContainer);
-watch(() => props.overlay, cancel);
-watch(() => props.open, cancel);
+watch(() => props.overlay, cancelResize);
+watch(() => props.open, cancelResize);
 onMounted(() => {
   observeContainer();
-  window.addEventListener('blur', cancel);
+  window.addEventListener('blur', cancelResize);
 });
 onBeforeUnmount(() => {
-  cancel();
+  cancelResize();
   observer?.disconnect();
-  window.removeEventListener('blur', cancel);
+  window.removeEventListener('blur', cancelResize);
 });
 </script>
 
@@ -111,12 +111,12 @@ onBeforeUnmount(() => {
         :aria-valuemin="minimum"
         :aria-valuemax="maximum"
         :aria-valuenow="width"
-        @pointerdown="start"
-        @pointermove="move"
-        @pointerup="end"
-        @pointercancel="cancel"
-        @lostpointercapture="cancel"
-        @keydown="keyboard"
+        @pointerdown="onResizeStart"
+        @pointermove="onResizeMove"
+        @pointerup="onResizeEnd"
+        @pointercancel="cancelResize"
+        @lostpointercapture="cancelResize"
+        @keydown="onResizeKeydown"
       />
       <header class="island-heading">
         <slot name="leading" />
@@ -155,7 +155,7 @@ onBeforeUnmount(() => {
   outline: none;
 }
 /* Match the session list divider: a wide invisible hit area, with only a
-   one-pixel line gaining accent color on hover, keyboard focus, or drag. */
+   one-pixel line gaining accent color on hover, onResizeKeydown focus, or drag. */
 .island-resize-handle::after {
   content: '';
   position: absolute;

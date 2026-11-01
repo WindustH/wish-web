@@ -13,7 +13,7 @@ import ts from 'typescript';
 const standIns: Record<string, unknown> = {
   'Modal.vue': defineComponent({ props: ['open'], setup: (props, { slots }) => () => props.open ? h('section', { 'data-popup': '' }, slots.default?.()) : null }),
   'UserBubble.vue': defineComponent({ props: ['block'], setup: () => () => h('img', { alt: '' }) }),
-  'ApiImage.vue': defineComponent({ props: ['src'], setup: () => () => h('img', { alt: '' }) }),
+  'BlobImage.vue': defineComponent({ props: ['src'], setup: () => () => h('img', { alt: '' }) }),
   'MessageContext.vue': defineComponent({ inheritAttrs: false, setup: (_, { slots }) => () => h('div', slots.default?.()) }),
   'Markdown.vue': defineComponent({ setup: () => () => null }),
   'Icon.vue': defineComponent({ setup: () => () => h('span') }),

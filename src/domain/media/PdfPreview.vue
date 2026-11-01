@@ -2,12 +2,12 @@
 import { renderPdfPage } from './nativePdf.ts';
 import './nativePdf.css';
 import LoadingState from '../../ui/components/LoadingState.vue';
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
-import { pdfInfo, pdfPage, type PdfInfo } from '../../core/api/endpoints.ts';
+import { pdfInfo, pdfPage, type PdfInfo } from './requests.ts';
 import Icon from '../../ui/components/Icon.vue';
 
 const props = defineProps<{ session: string; blob: string }>();
@@ -23,6 +23,19 @@ const page = ref(1),
   error = ref('');
 const active = usePageActivity();
 let lastPaint = '';
+const paintedWidth = ref(0),
+  paintedHeight = ref(0);
+const displayScale = computed(() => (paintedWidth.value ? (width.value * zoom.value) / paintedWidth.value : 1));
+const pageStyle = computed(() =>
+  paintedWidth.value
+    ? {
+        width: `${paintedWidth.value * displayScale.value}px`,
+        height: `${paintedHeight.value * displayScale.value}px`,
+        '--preview-scale': String(displayScale.value),
+      }
+    : undefined,
+);
+let arriveAtBottom: number | undefined;
 let releasePage: (() => Promise<void>) | undefined;
 const outlineOpen = ref(false);
 const bookmarks = computed(() => document.value?.bookmarks ?? []);
@@ -64,7 +77,10 @@ function wheel(event: WheelEvent) {
   if (Math.abs(wheelTotal) < 100) return;
   edgeGesture = false;
   wheelTotal = 0;
-  page.value = Math.max(1, Math.min(pdf.pages, page.value + direction));
+  const nextPage = Math.max(1, Math.min(pdf.pages, page.value + direction));
+  if (nextPage === page.value) return;
+  arriveAtBottom = direction < 0 ? nextPage : undefined;
+  page.value = nextPage;
 }
 
 watch(
@@ -74,6 +90,8 @@ watch(
     onCleanup(() => controller.abort());
     document.value = undefined;
     lastPaint = '';
+    paintedWidth.value = 0;
+    arriveAtBottom = undefined;
     void releasePage?.();
     releasePage = undefined;
     painted.value = false;
@@ -110,9 +128,10 @@ watch(
     painting.value = true;
     error.value = '';
     const targetPage = page.value;
+    const targetWidth = width.value * zoom.value;
     try {
       const bytes = await pdfPage(props.session, props.blob, targetPage, controller.signal, pdf.version);
-      const rendered = await renderPdfPage(bytes, width.value * zoom.value, controller.signal, true);
+      const rendered = await renderPdfPage(bytes, targetWidth, controller.signal, true);
       if (controller.signal.aborted) {
         await rendered.dispose();
         return;
@@ -121,7 +140,16 @@ watch(
       element.replaceChildren(rendered.surface);
       void releasePage?.();
       releasePage = rendered.dispose;
+      paintedWidth.value = targetWidth;
+      paintedHeight.value = parseFloat(rendered.surface.style.height);
       lastPaint = paintKey;
+      if (arriveAtBottom === targetPage && viewport.value) {
+        await nextTick();
+        if (!controller.signal.aborted && arriveAtBottom === targetPage) {
+          viewport.value.scrollTop = viewport.value.scrollHeight;
+          arriveAtBottom = undefined;
+        }
+      }
       painted.value = true;
       painting.value = false;
       // Current page always wins; cancel background reads on navigation/close.
@@ -139,7 +167,10 @@ watch(
   { flush: 'post' },
 );
 watch(page, () => {
-  if (viewport.value) viewport.value.scrollTop = 0;
+  if (arriveAtBottom !== page.value) {
+    arriveAtBottom = undefined;
+    if (viewport.value) viewport.value.scrollTop = 0;
+  }
 });
 let observer: ResizeObserver | undefined;
 let resizeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -228,6 +259,7 @@ onBeforeUnmount(() => {
         v-show="painted"
         ref="surface"
         class="pdf-page-host"
+        :style="pageStyle"
         role="group"
         :aria-label="i18n.t('library.pdfPage', { page })"
       />
@@ -236,6 +268,12 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.pdf-page-host :deep(.native-pdf-page) {
+  transform: scale(var(--preview-scale, 1));
+  transform-origin: top left;
+  margin: 0;
+}
+
 .pdf-preview {
   position: relative;
   display: flex;

@@ -1,3 +1,4 @@
+import type { SelectOption as BaseSelectOption } from '../../ui/selectTypes.ts';
 export interface PickerItem {
   key: string;
   title: string;
@@ -10,12 +11,6 @@ export interface PickerItem {
   alwaysVisible?: boolean;
   disabled?: boolean;
 }
-export interface SelectOption {
-  value: string;
-  label: string;
-  icon?: string;
+export interface SelectOption extends BaseSelectOption {
   brand?: string;
-  annotation?: string;
-  description?: string;
-  disabled?: boolean;
 }

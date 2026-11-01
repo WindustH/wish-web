@@ -1,4 +1,4 @@
-import { pdfInfo, pdfPage } from '../../core/api/endpoints.ts';
+import { pdfInfo, pdfPage } from './requests.ts';
 import { previewCache } from '../../core/util/previewCache.ts';
 import { renderPdfPage } from './nativePdf.ts';
 

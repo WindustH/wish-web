@@ -16,12 +16,15 @@ export async function videoThumbnail(src: string, signal: AbortSignal): Promise<
       timer = setTimeout(() => reject(new Error('Video thumbnail timed out')), 15_000);
       video.onerror = () => reject(new Error('Video thumbnail unavailable'));
       video.onloadeddata = () => {
-        if (Number.isFinite(video.duration) && video.duration > 0)
+        if (Number.isFinite(video.duration) && video.duration > 0) {
           video.currentTime = Math.min(0.1, video.duration / 2);
-        else capture();
+          if (!video.seeking) capture();
+        } else capture();
       };
+      let capturing = false;
       const capture = () => {
-        if (signal.aborted) return;
+        if (signal.aborted || capturing) return;
+        capturing = true;
         const canvas = document.createElement('canvas');
         const scale = Math.min(1, 384 / Math.max(video.videoWidth, video.videoHeight));
         canvas.width = Math.max(1, Math.round(video.videoWidth * scale));

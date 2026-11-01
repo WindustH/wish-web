@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { mediaPlayback } from '../../../domain/media/requests.ts';
 import { mediaJob as validMediaJob } from '../validation.ts';
 import { computed, ref, watch, onBeforeUnmount } from 'vue';
-import { blobUrl, mediaJobStatus, mediaPlayback } from '../../../core/api/endpoints.ts';
+import { blobUrl, mediaJobStatus } from '../../../core/api/endpoints.ts';
 import { absUrl } from '../../../core/api/client.ts';
 import type { MediaJob } from '../../../core/mediaGeneration.ts';
 import { tr } from '../../../core/i18n/tr.ts';
