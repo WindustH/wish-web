@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { LibraryBlob } from '../../core/api/types.ts';
 import { blobUrl, mediaPlayback } from '../../core/api/endpoints.ts';
 import { absUrl } from '../../core/api/client.ts';
+import { pdfThumbnail } from '../../domain/media/pdfThumbnail.ts';
 import { audioCover } from '../../domain/media/audioCover.ts';
 import { acquireImageLoad } from '../../domain/media/imageLoad.ts';
 import ApiImage from '../../ui/components/ApiImage.vue';
@@ -38,7 +39,7 @@ watch(
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     });
     source.value = '';
-    if (!visible.value || !['audio', 'video'].includes(kind.value)) return;
+    if (!visible.value || !['audio', 'video', 'pdf'].includes(kind.value)) return;
     let release: (() => void) | undefined;
     try {
       release = await acquireImageLoad(controller.signal);
@@ -52,7 +53,11 @@ watch(
         if (cover && !controller.signal.aborted) source.value = objectUrl = URL.createObjectURL(cover);
       } else {
         const grant = await mediaPlayback(props.session, props.blob.id, { signal: controller.signal });
-        if (!controller.signal.aborted) source.value = absUrl(grant.path);
+        if (controller.signal.aborted) return;
+        if (kind.value === 'pdf') {
+          const cover = await pdfThumbnail(absUrl(grant.path), controller.signal);
+          if (cover && !controller.signal.aborted) source.value = objectUrl = URL.createObjectURL(cover);
+        } else source.value = absUrl(grant.path);
       }
     } catch {
       // Thumbnails are optional: unsupported codecs and missing covers retain the type icon.
@@ -82,7 +87,7 @@ function seekFrame(event: Event) {
       @loadedmetadata="seekFrame"
       @error="source = ''"
     />
-    <img v-else-if="kind === 'audio' && source" :src="source" alt="" @error="source = ''" />
+    <img v-else-if="(kind === 'audio' || kind === 'pdf') && source" :src="source" alt="" @error="source = ''" />
     <Icon v-else :name="blobIcon(kind)" :size="kind === 'audio' ? 48 : 32" />
     <span v-if="kind === 'video'" class="library-play"><Icon name="play" :size="24" /></span>
     <Icon v-if="kind === 'pdf'" name="file-pdf" class="library-pdf-icon" :size="26" />
@@ -109,6 +114,9 @@ video {
   height: 100%;
   object-fit: cover;
   pointer-events: none;
+}
+.library-thumbnail.pdf img {
+  object-fit: contain;
 }
 .library-play {
   position: absolute;

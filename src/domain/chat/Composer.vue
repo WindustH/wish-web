@@ -571,9 +571,11 @@ function onKeydown(e: KeyboardEvent) {
         :placeholder="
           btwMode
             ? tr('顺便问一下…', 'By the way…')
-            : running
-              ? i18n.t('chat.placeholderRunning')
-              : i18n.t('chat.placeholder')
+            : start
+              ? 'Wish your dreams come true ...'
+              : running
+                ? i18n.t('chat.placeholderRunning')
+                : i18n.t('chat.placeholder')
         "
         :label="btwMode ? tr('顺便问一下', 'By the way') : i18n.t('chat.placeholder')"
         :text="editorText"

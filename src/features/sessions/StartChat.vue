@@ -491,6 +491,9 @@ async function send(text: string, attachments: AttachmentInput[]) {
   :deep(.composer-start .composer-mobile-actions) {
     margin-bottom: 12px;
   }
+  :deep(.composer-start.mobile .composer-input) {
+    font-size: 15px;
+  }
   :deep(.composer-start.mobile .composer-editor),
   :deep(.composer-start.mobile .composer-input) {
     min-height: 72px;
