@@ -295,7 +295,8 @@ onBeforeUnmount(() => {
             :class="{ 'menu-danger': item.danger }"
             @select="emit('select', item.key, selected ?? undefined)"
           >
-            <Icon v-if="item.icon" :name="item.icon" /><span class="menu-item-label">{{ item.label }}</span
+            <Icon v-if="item.icon" :name="item.icon" /><span class="menu-item-label"
+              ><slot name="label" :item="item">{{ item.label }}</slot></span
             ><kbd v-if="item.shortcut" class="menu-shortcut">{{ item.shortcut }}</kbd
             ><Icon v-if="item.checked" name="check" class="menu-check" />
           </DropdownMenuItem>

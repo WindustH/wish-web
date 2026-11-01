@@ -134,9 +134,9 @@ const composerActions = computed(() => [
   {
     key: 'model',
     icon: 'bot',
-    label: `${i18n.t('model.chipTitle')} · ${modelLabel(snapshot.value?.model || '') || '—'}`,
+    label: modelLabel(snapshot.value?.model || '') || '—',
   },
-  { key: 'reasoning', icon: 'thinking', label: `${i18n.t('reasoning.title')} · ${effortLabel(effort.value)}` },
+  { key: 'reasoning', icon: 'thinking', label: effortLabel(effort.value).toUpperCase() },
 ]);
 const queued = computed(() => chat.deliveries.value);
 const composerRef = ref<{

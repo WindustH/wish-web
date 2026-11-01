@@ -46,7 +46,9 @@ Library keeps its filter, count and upload controls in one header row. Uploads u
 session blob endpoint; mentioning a file appends a stored attachment to the current draft without
 submitting it. Context menus and the visible file-actions button expose the same action on desktop
 and touch. Mobile moves Library into the chat menu and model/reasoning selection into the composer's
-action menu alongside attachments and BTW.
+action menu alongside attachments and temporary chat. The menu shows only the current model and
+reasoning option, using the header chip typography. Empty, unfocused mobile conversation composers
+use one row; focus or a draft expands the same editor above its actions, preserving caret and IME state.
 
 Media thumbnails load near the viewport. Videos show a paused frame and play glyph; audio covers
 are extracted with lazy-loaded music-metadata and ranged tag reads (4 MiB / 32 requests / 10 seconds),

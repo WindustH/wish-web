@@ -56,7 +56,7 @@ const mobileMenuItems = computed<MenuItem[]>(() => [
   ...(!btwMode.value
     ? [
         { key: 'image', icon: 'image', label: i18n.t('chat.image') },
-        { key: 'file', icon: 'paperclip', label: i18n.t('chat.attach') },
+        { key: 'file', icon: 'paperclip', label: i18n.t('chat.attachment') },
       ]
     : []),
   ...(live.value
@@ -64,7 +64,7 @@ const mobileMenuItems = computed<MenuItem[]>(() => [
         {
           key: 'btw',
           icon: 'chat',
-          label: tr('BTW · 临时对话', 'BTW · Temporary chat'),
+          label: tr('临时对话', 'Temporary chat'),
           checked: btwOpen.value,
         },
       ]
@@ -453,7 +453,10 @@ function onKeydown(e: KeyboardEvent) {
     ref="composerEl"
     class="composer"
     @click="focusComposerBlank"
-    :class="[mobile ? 'mobile' : 'desktop', { 'composer-start': start }]"
+    :class="[
+      mobile ? 'mobile' : 'desktop',
+      { 'composer-start': start, 'composer-empty': !editorText && !attachments.length && !btwMode },
+    ]"
   >
     <div v-if="!mobile" class="composer-toolbar">
       <Hint :text="i18n.t('chat.image')"
@@ -542,6 +545,11 @@ function onKeydown(e: KeyboardEvent) {
     </div>
     <div v-if="mobile" class="composer-mobile-actions">
       <Menu :items="mobileMenuItems" :label="i18n.t('chatbar.more')" side="top" align="start" @select="mobileAction">
+        <template #label="{ item }">
+          <span :class="{ 'composer-option-value': item.key === 'model' || item.key === 'reasoning' }">{{
+            item.label
+          }}</span>
+        </template>
         <template #trigger>
           <button ref="btwButton" class="btn ghost icon-only composer-menu" :aria-label="i18n.t('chatbar.more')">
             <Icon name="plus" />
@@ -633,6 +641,13 @@ function onKeydown(e: KeyboardEvent) {
   </div>
 </template>
 <style scoped>
+.composer-option-value {
+  font-size: 12px;
+  font-weight: var(--weight-latin-semibold);
+  color: var(--fg-muted);
+  text-transform: uppercase;
+}
+
 .composer-footer-start {
   margin-right: auto;
   min-width: 0;
