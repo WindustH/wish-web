@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { tr } from '../../core/i18n/tr.ts';
+import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
 import { useVirtualGrid } from '../../ui/composables/useVirtualGrid.ts';
-import { computed, onBeforeUnmount, provide, ref, watch } from 'vue';
-import { sessionBlobs, blobUrl, uploadSessionBlob, linkSessionFile } from '../../core/api/endpoints.ts';
+import { computed, nextTick, onBeforeUnmount, provide, ref, useId, watch } from 'vue';
+import { sessionBlobs, blobUrl, uploadSessionBlob, linkSessionFile, blobMetadata } from '../../core/api/endpoints.ts';
 import type { LibraryBlob } from '../../core/api/types.ts';
 import type { EntryView } from '../../core/api/projections.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -12,6 +14,7 @@ import { pageActivityKey, usePageActivity } from '../../ui/composables/usePageAc
 import { downloadApiFile } from '../../ui/download.ts';
 import IslandSidebar from '../../ui/components/IslandSidebar.vue';
 import Menu from '../../ui/components/Menu.vue';
+import DirectoryPicker from '../../ui/components/DirectoryPicker.vue';
 import Modal from '../../ui/components/Modal.vue';
 import LibraryThumbnail from './LibraryThumbnail.vue';
 import SelectField from '../../ui/components/SelectField.vue';
@@ -23,6 +26,7 @@ import Icon from '../../ui/components/Icon.vue';
 import SessionBlobPreview from './SessionBlobPreview.vue';
 import { attachmentNames, blobKind, blobIcon, blobName, type BlobKind } from './libraryFiles.ts';
 
+const linkFormId = useId();
 const props = defineProps<{
   session: string;
   mobile: boolean;
@@ -37,7 +41,19 @@ const next = ref<number | null>(null),
   total = ref(0),
   loading = ref(false),
   error = ref('');
+const saved = useWorkspaceState('library', () => props.session, {
+  filter: 'all',
+  selected: '',
+  name: '',
+  scroll: 0,
+  loaded: 0,
+});
 const filter = ref<BlobKind | 'all'>('all');
+function choose(blob: LibraryBlob | null) {
+  selected.value = blob;
+  saved.value.selected = blob?.id ?? '';
+  saved.value.name = blob ? filename(blob) : '';
+}
 const parentActive = usePageActivity();
 const active = computed(() => parentActive.value && props.open);
 provide(pageActivityKey, active);
@@ -126,8 +142,22 @@ const grid = useVirtualGrid(
   computed(() => shown.value.length),
 );
 const visibleItems = computed(() => shown.value.slice(grid.start.value, grid.end.value));
-watch(filter, grid.reset);
+watch(filter, (value) => {
+  grid.reset();
+  saved.value.filter = value;
+  saved.value.scroll = 0;
+});
 watch(() => props.session, grid.reset);
+function rememberGrid() {
+  if (gridViewport.value?.clientHeight && active.value) saved.value.scroll = gridViewport.value.scrollTop;
+}
+function restoreGrid() {
+  if (gridViewport.value) {
+    gridViewport.value.scrollTop = Math.max(0, saved.value.scroll);
+    gridViewport.value.dispatchEvent(new Event('scroll'));
+  }
+}
+watch(gridViewport, restoreGrid, { flush: 'post' });
 const filters = ['all', 'image', 'video', 'audio', 'pdf', 'text', 'file'] as const;
 const filterOptions = computed(() =>
   filters.map((kind) => ({
@@ -141,7 +171,7 @@ function selectFilter(value: string) {
   if (kind) filter.value = kind;
 }
 function back() {
-  if (selected.value) selected.value = null;
+  if (selected.value) choose(null);
   else emit('close');
 }
 useBackLayer(
@@ -152,14 +182,14 @@ useBackLayer(
 useBackLayer(
   () => props.open && props.mobile && !!selected.value,
   () => {
-    selected.value = null;
+    choose(null);
   },
   () => 46,
 );
 watch(
   () => props.libraryRevision,
   () => {
-    selected.value = null;
+    choose(null);
   },
 );
 let controller: AbortController | undefined;
@@ -178,6 +208,7 @@ async function load(more = false, quiet = false) {
     items.value = [...known.values()];
     next.value = page.next;
     total.value = page.total;
+    saved.value.loaded = items.value.length;
     error.value = '';
   } catch (cause) {
     if (!request.signal.aborted && !quiet) error.value = describeError(cause).message;
@@ -191,6 +222,8 @@ async function load(more = false, quiet = false) {
 watch(
   () => props.session,
   (_, __, onCleanup) => {
+    const owner = props.session;
+    let disposed = false;
     controller?.abort();
     uploadController?.abort();
     uploading.value = false;
@@ -200,13 +233,48 @@ watch(
     selected.value = null;
     next.value = null;
     total.value = 0;
-    filter.value = 'all';
-    void load();
+    const restored = { ...saved.value };
+    filter.value = filters.includes(restored.filter as (typeof filters)[number])
+      ? (restored.filter as (typeof filters)[number])
+      : 'all';
+    void (async () => {
+      await load();
+      if (disposed) return;
+      while (
+        !disposed &&
+        props.session === owner &&
+        next.value !== null &&
+        items.value.length < Math.min(restored.loaded, 2000)
+      ) {
+        const before = items.value.length;
+        await load(true);
+        if (items.value.length === before) break;
+      }
+      if (disposed || props.session !== owner) return;
+      saved.value.scroll = restored.scroll;
+      if (restored.selected) {
+        try {
+          const blob = items.value.find((item) => item.id === restored.selected) ?? {
+            ...(await blobMetadata(`${owner}/${restored.selected}`)),
+            modified_at: 0,
+            name: restored.name,
+          };
+          if (!disposed && props.session === owner && saved.value.selected === restored.selected) selected.value = blob;
+        } catch {
+          if (!disposed && props.session === owner) {
+            saved.value.selected = '';
+          }
+        }
+      }
+      await nextTick();
+      restoreGrid();
+    })();
     const timer = setInterval(() => {
       if (active.value && document.visibilityState !== 'hidden' && !selected.value && next.value === null)
         void load(false, true);
     }, 15000);
     onCleanup(() => {
+      disposed = true;
       clearInterval(timer);
       controller?.abort();
     });
@@ -226,8 +294,13 @@ watch(
     @back="back"
   >
     <template #leading>
-      <button v-if="selected || mobile" class="btn ghost icon-only" :aria-label="i18n.t('library.back')" @click="back">
-        <Icon name="arrow-left" />
+      <button
+        v-if="selected || mobile"
+        class="btn ghost icon-only"
+        :aria-label="selected ? i18n.t('library.back') : tr('关闭侧栏', 'Close sidebar')"
+        @click="back"
+      >
+        <Icon :name="selected ? 'arrow-left' : 'chevron-right'" />
       </button>
     </template>
     <template v-if="!selected" #title>
@@ -284,7 +357,9 @@ watch(
       </button>
     </template>
     <template v-if="selected">
-      <div class="library-file-meta">{{ selected.mime_type }} · {{ fmtBytes(selected.byte_count) }}</div>
+      <div v-if="selected.mime_type !== 'application/pdf'" class="library-file-meta">
+        {{ selected.mime_type }} · {{ fmtBytes(selected.byte_count) }}
+      </div>
       <SessionBlobPreview
         :key="`${session}/${selected.id}`"
         :session="session"
@@ -293,7 +368,7 @@ watch(
       />
     </template>
     <template v-else>
-      <div ref="gridViewport" class="library-scroll">
+      <div ref="gridViewport" class="library-scroll" @scroll.passive="rememberGrid">
         <div v-if="error" class="library-empty" role="alert">
           <p>{{ error }}</p>
           <button class="btn sm" @click="load()">{{ i18n.t('common.retry') }}</button>
@@ -309,7 +384,7 @@ watch(
                 class="library-item"
                 :data-blob-id="blob.id"
                 :title="blob.local_path || undefined"
-                @click="selected = blob"
+                @click="choose(blob)"
               >
                 <LibraryThumbnail :session="session" :blob="blob" />
                 <span class="library-filename" :title="filename(blob)">{{ filename(blob) }}</span>
@@ -335,26 +410,57 @@ watch(
       </div>
     </template>
   </IslandSidebar>
-  <Modal :open="linkOpen" :title="i18n.t('library.linkFile')" @close="linkOpen = false">
-    <form class="library-link-form" @submit.prevent="addLink">
+  <Modal compact :open="linkOpen" :dismissable="!linking" :title="i18n.t('library.linkFile')" @close="linkOpen = false">
+    <form :id="linkFormId" class="library-link-form" @submit.prevent="addLink">
       <p>{{ i18n.t('library.linkHint') }}</p>
-      <input
-        v-model="localPath"
-        class="input"
-        data-initial-focus
-        :aria-label="i18n.t('library.localPath')"
-        :placeholder="i18n.t('library.localPath')"
-        :disabled="linking"
-      />
+      <div class="library-path-picker">
+        <input
+          v-model="localPath"
+          class="input"
+          data-initial-focus
+          :aria-label="i18n.t('library.localPath')"
+          :placeholder="i18n.t('library.localPath')"
+          :disabled="linking"
+        />
+        <DirectoryPicker v-model="localPath" mode="file" side="bottom" :disabled="linking">
+          <template #trigger
+            ><button
+              type="button"
+              class="btn ghost icon-only"
+              :disabled="linking"
+              :aria-label="i18n.t('library.browseFiles')"
+              :title="i18n.t('library.browseFiles')"
+            >
+              <Icon name="folder" /></button
+          ></template>
+        </DirectoryPicker>
+      </div>
       <p v-if="linkError" role="alert">{{ linkError }}</p>
-      <button type="submit" class="btn primary" :disabled="linking || !localPath.trim()">
+    </form>
+    <template #footer>
+      <button type="button" class="btn ghost" :disabled="linking" @click="linkOpen = false">
+        {{ tr('取消', 'Cancel') }}
+      </button>
+      <button :form="linkFormId" type="submit" class="btn primary" :disabled="linking || !localPath.trim()">
         {{ linking ? i18n.t('common.loading') : i18n.t('library.linkFile') }}
       </button>
-    </form>
+    </template>
   </Modal>
 </template>
 
 <style scoped>
+.library-path-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.library-path-picker .input {
+  flex: 1;
+  min-width: 0;
+}
+.library-path-picker .btn {
+  flex: none;
+}
 .library-title-controls {
   display: flex;
   align-items: center;
@@ -431,6 +537,8 @@ watch(
   gap: 12px;
 }
 .library-link-form p {
+  font-size: 12px;
+  line-height: 1.6;
   margin: 0;
   color: var(--fg-muted);
 }

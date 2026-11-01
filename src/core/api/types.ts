@@ -218,6 +218,7 @@ export interface DirectoryListing {
   path: string;
   parent: string | null;
   directories: string[];
+  files?: string[];
 }
 
 // MCP servers.

@@ -2,13 +2,16 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
+import { zoomAt } from './imageTransform.ts';
 import Icon from '../../ui/components/Icon.vue';
 
-defineProps<{ src: string; alt: string }>();
+const props = defineProps<{ src: string; alt: string; stateKey: string }>();
+const saved = useWorkspaceState('image', () => props.stateKey, { zoom: 1, x: 0, y: 0 });
 const emit = defineEmits<{ error: [] }>();
 const surface = ref<HTMLElement>(),
   picture = ref<HTMLImageElement>();
-const zoom = ref(1),
+const zoom = ref(Math.max(1, Math.min(8, saved.value.zoom))),
   x = ref(0),
   y = ref(0);
 const style = computed(() => ({ transform: `translate(${x.value}px, ${y.value}px) scale(${zoom.value})` }));
@@ -21,13 +24,33 @@ function clamp() {
   x.value = Math.max(-maxX, Math.min(maxX, x.value));
   y.value = Math.max(-maxY, Math.min(maxY, y.value));
 }
-function scale(next: number) {
-  zoom.value = Math.max(1, Math.min(8, next));
+function remember() {
+  const image = picture.value;
+  if (!image?.offsetWidth || !image.offsetHeight || !surface.value?.clientHeight) return;
+  saved.value = { zoom: zoom.value, x: x.value / image.offsetWidth, y: y.value / image.offsetHeight };
+}
+function loaded() {
+  x.value = saved.value.x * (picture.value?.offsetWidth ?? 0);
+  y.value = saved.value.y * (picture.value?.offsetHeight ?? 0);
   clamp();
+}
+function scale(next: number, anchorX = 0, anchorY = 0) {
+  const value = zoomAt(zoom.value, x.value, y.value, next, anchorX, anchorY);
+  zoom.value = value.zoom;
+  x.value = value.x;
+  y.value = value.y;
+  clamp();
+  remember();
 }
 function wheel(event: WheelEvent) {
   event.preventDefault();
-  scale(zoom.value * Math.exp(-event.deltaY * (event.deltaMode === 1 ? 0.05 : 0.002)));
+  const bounds = surface.value?.getBoundingClientRect();
+  if (!bounds) return;
+  scale(
+    zoom.value * Math.exp(-event.deltaY * (event.deltaMode === 1 ? 0.05 : 0.002)),
+    event.clientX - bounds.left - bounds.width / 2,
+    event.clientY - bounds.top - bounds.height / 2,
+  );
 }
 let drag: { id: number; x: number; y: number; target: HTMLElement } | undefined;
 function start(event: PointerEvent) {
@@ -44,6 +67,7 @@ function move(event: PointerEvent) {
   drag.x = event.clientX;
   drag.y = event.clientY;
   clamp();
+  remember();
 }
 function stop() {
   const previous = drag;
@@ -55,7 +79,7 @@ watch(usePageActivity(), (active) => {
 });
 let observer: ResizeObserver | undefined;
 onMounted(() => {
-  observer = new ResizeObserver(clamp);
+  observer = new ResizeObserver(loaded);
   if (surface.value) observer.observe(surface.value);
 });
 onBeforeUnmount(() => {
@@ -97,7 +121,7 @@ onBeforeUnmount(() => {
       @lostpointercapture="stop"
       @dblclick="scale(1)"
     >
-      <img ref="picture" :src="src" :alt="alt" :style="style" draggable="false" @load="clamp" @error="emit('error')" />
+      <img ref="picture" :src="src" :alt="alt" :style="style" draggable="false" @load="loaded" @error="emit('error')" />
     </div>
   </div>
 </template>

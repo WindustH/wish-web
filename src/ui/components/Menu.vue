@@ -55,6 +55,7 @@ const props = withDefaults(
     within?: string;
     selectsText?: boolean;
     selectionItems?: MenuItem[];
+    selectionText?: (range: Range, root: Element, fallback: string) => string;
   }>(),
   { side: 'bottom', align: 'end' },
 );
@@ -69,6 +70,7 @@ function setOpen(value: boolean) {
 }
 const close = () => {
   cancelPress();
+  cancelSelection();
   setOpen(false);
 };
 // No Back stop of its own. A menu is almost always dismissed *by* choosing something in it, and
@@ -98,6 +100,17 @@ let openedAt = -Infinity;
 // The selected text the open menu acts on, or null for the element's own items.
 const selected = ref<string | null>(null);
 const shown = computed(() => (selected.value !== null && props.selectionItems ? props.selectionItems : props.items));
+function dismissBackdrop(event: PointerEvent | MouseEvent | WheelEvent) {
+  // The backdrop consumes the press, so native text selection cannot collapse
+  // itself. Clear this menu's selection on an outside press, but retain it when
+  // scrolling dismisses the menu so the reader can continue selecting text.
+  const element = anchor.value?.element;
+  if (event.type !== 'wheel' && selected.value !== null && element) {
+    const selection = element.ownerDocument.getSelection();
+    if (selection?.rangeCount && selection.getRangeAt(0).intersectsNode(element)) selection.removeAllRanges();
+  }
+  close();
+}
 function openAt(element: HTMLElement, x: number, y: number, selection: string | null) {
   if (props.disabled && selection === null) return;
   const box = element.getBoundingClientRect();
@@ -152,8 +165,49 @@ let pressedAt = -HELD_MS;
 let touchPress = false;
 let blankPress = true;
 let pressSelection: string | null = null;
+let selectionFrame = 0;
+let selectionRelease: ((event: PointerEvent) => void) | undefined;
+function cancelSelection() {
+  cancelAnimationFrame(selectionFrame);
+  if (selectionRelease) window.removeEventListener('pointerup', selectionRelease, true);
+  window.removeEventListener('pointercancel', cancelSelection, true);
+  selectionRelease = undefined;
+}
+function followMouseSelection(event: PointerEvent) {
+  cancelSelection();
+  if (event.pointerType !== 'mouse' || event.button !== 0 || !props.selectsText || !props.selectionItems?.length)
+    return;
+  if ((event.target as Element)?.closest('input, textarea, [contenteditable="true"]')) return;
+  const root = event.currentTarget as HTMLElement;
+  const part = pressed(event);
+  if (!part) return;
+  const previous = selectionAt(root) ?? '';
+  const startX = event.clientX,
+    startY = event.clientY;
+  selectionRelease = (released) => {
+    if (released.pointerId !== event.pointerId) return;
+    cancelSelection();
+    // Wait until the native selection and the release's click have settled.
+    selectionFrame = requestAnimationFrame(() => {
+      const text = selectionAt(root);
+      if (!pageActive.value || !root.isConnected || !text?.trim()) return;
+      if (text === previous && Math.hypot(released.clientX - startX, released.clientY - startY) < 3) return;
+      const seen = sightOf(part, clipsOf(part));
+      if (!seen) return;
+      openAt(
+        part,
+        Math.max(seen.left, Math.min(released.clientX, seen.right - 1)),
+        Math.max(seen.top, Math.min(released.clientY, seen.bottom - 1)),
+        text,
+      );
+    });
+  };
+  window.addEventListener('pointerup', selectionRelease, true);
+  window.addEventListener('pointercancel', cancelSelection, true);
+}
 function onPointerDown(event: PointerEvent) {
   if (!event.isPrimary) return;
+  followMouseSelection(event);
   const element = event.currentTarget as Element;
   const x = event.clientX,
     y = event.clientY;
@@ -193,7 +247,8 @@ function selectionAt(root: Element, x?: number, y?: number): string | null {
   const range = selection.getRangeAt(0);
   if (!range.intersectsNode(root)) return null;
   if (x !== undefined && y !== undefined && !selectionCovers(range, x, y)) return null;
-  return selection.toString() || null;
+  const text = selection.toString();
+  return text ? (props.selectionText?.(range, root, text) ?? text) : null;
 }
 function onPointerMove(event: PointerEvent) {
   if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) cancelPress();
@@ -248,6 +303,7 @@ watch(open, (isOpen) => {
 });
 onBeforeUnmount(() => {
   cancelPress();
+  cancelSelection();
   cancelAnimationFrame(watching);
   closers.delete(close);
 });
@@ -304,5 +360,5 @@ onBeforeUnmount(() => {
       </DropdownMenuContent>
     </DropdownMenuPortal>
   </DropdownMenuRoot>
-  <MenuBackdrop :open="open" @close="setOpen(false)" />
+  <MenuBackdrop :open="open" @close="dismissBackdrop" />
 </template>

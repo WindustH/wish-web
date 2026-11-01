@@ -4,10 +4,22 @@ import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
 
-const props = defineProps<{ title: string; overlay?: boolean; open: boolean }>();
+const props = withDefaults(
+  defineProps<{ title: string; overlay?: boolean; open: boolean; retainContent?: boolean }>(),
+  { retainContent: true },
+);
 const emit = defineEmits<{ close: []; back: [] }>();
 const focus = useDialogFocus();
 const handle = ref<HTMLElement>();
+// A nested touch picker can retarget its compatibility click to this scrim.
+let pressTarget: EventTarget | null = null;
+function rememberPress(event: PointerEvent) {
+  pressTarget = event.target;
+}
+function closeFromScrim(event: MouseEvent) {
+  if (event.target === event.currentTarget && pressTarget === event.currentTarget) emit('close');
+  pressTarget = null;
+}
 const preferredWidth = defineModel<number>('width', { default: 0 });
 const available = ref(window.innerWidth);
 const minimum = 280;
@@ -78,23 +90,30 @@ watch(() => props.overlay, cancelResize);
 watch(() => props.open, cancelResize);
 onMounted(() => {
   observeContainer();
+  window.addEventListener('pointerdown', rememberPress, true);
   window.addEventListener('blur', cancelResize);
 });
 onBeforeUnmount(() => {
   cancelResize();
   observer?.disconnect();
   window.removeEventListener('blur', cancelResize);
+  window.removeEventListener('pointerdown', rememberPress, true);
 });
 </script>
 
 <template>
-  <DialogRoot :modal="!!overlay" :open="open" :unmount-on-hide="false" @update:open="!$event && emit('close')">
-    <DialogOverlay v-if="overlay && open" class="island-scrim" @click="emit('close')" />
+  <DialogRoot
+    :modal="!!overlay"
+    :open="open"
+    :unmount-on-hide="retainContent === false"
+    @update:open="!$event && emit('close')"
+  >
+    <DialogOverlay v-if="overlay" class="island-scrim" @click="closeFromScrim" />
     <DialogContent
       id="session-sidebar"
       class="island-sidebar"
       :class="{ 'island-overlay': overlay }"
-      :style="!overlay ? { flexBasis: `${width}px` } : undefined"
+      :style="!overlay ? { flexBasis: `${width}px`, '--sidebar-width': `${width}px` } : undefined"
       :aria-describedby="undefined"
       :disable-outside-pointer-events="false"
       @open-auto-focus="focus.opened"
@@ -215,13 +234,58 @@ onBeforeUnmount(() => {
   box-shadow: none;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .island-sidebar {
-    animation: island-in 180ms var(--ease-out);
+  .island-sidebar[data-state='open'] {
+    animation: island-in var(--dur) var(--ease-out);
+  }
+  .island-sidebar[data-state='closed'] {
+    pointer-events: none;
+    animation: island-out var(--dur) var(--ease-out) both;
+  }
+  .island-sidebar:not(.island-overlay) > :not(.island-resize-handle) {
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    box-sizing: border-box;
+  }
+  .island-overlay[data-state='open'] {
+    animation-name: island-overlay-in;
+  }
+  @keyframes island-overlay-in {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+  .island-overlay[data-state='closed'] {
+    animation-name: island-overlay-out;
+  }
+  .island-scrim[data-state='closed'] {
+    animation: island-scrim-out var(--dur) var(--ease-out) both;
+  }
+  @keyframes island-out {
+    from {
+      flex-basis: var(--sidebar-width);
+      opacity: 1;
+    }
+    to {
+      flex-basis: 0;
+      opacity: 0;
+    }
+  }
+  @keyframes island-overlay-out {
+    to {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+  @keyframes island-scrim-out {
+    to {
+      opacity: 0;
+    }
   }
   @keyframes island-in {
     from {
+      flex-basis: 0;
       opacity: 0;
-      transform: translateX(12px);
     }
   }
 }

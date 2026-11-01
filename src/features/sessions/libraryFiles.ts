@@ -9,6 +9,7 @@ const extensions: Record<string, string> = {
   'image/gif': 'gif',
   'video/mp4': 'mp4',
   'video/webm': 'webm',
+  'video/x-matroska': 'mkv',
   'video/quicktime': 'mov',
   'audio/mpeg': 'mp3',
   'audio/wav': 'wav',

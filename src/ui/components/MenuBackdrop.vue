@@ -3,10 +3,10 @@
 // disappears with the menu instead of blocking subsequent gestures for a fixed delay.
 import { consumeDismissalClick } from '../consumeDismissalClick.ts';
 defineProps<{ open: boolean }>();
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: [event: PointerEvent | MouseEvent | WheelEvent] }>();
 function dismiss(event: PointerEvent | MouseEvent) {
   consumeDismissalClick(window, 'pointerId' in event ? event.pointerId : undefined);
-  emit('close');
+  emit('close', event);
 }
 </script>
 
@@ -18,7 +18,7 @@ function dismiss(event: PointerEvent | MouseEvent) {
       aria-hidden="true"
       @pointerdown.prevent="dismiss"
       @contextmenu.prevent="dismiss"
-      @wheel.passive="emit('close')"
+      @wheel.passive="emit('close', $event)"
     />
   </Teleport>
 </template>

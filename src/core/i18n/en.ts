@@ -1,10 +1,11 @@
 // English dictionary (en).
 export const en = {
   'common.loading': 'Loading…',
+  'library.browseFiles': 'Browse files',
   'library.linkFile': 'Link local file',
   'library.localPath': 'Absolute file path',
   'library.linkHint':
-    'Store a path on the computer running Wish without copying the file. Moving or deleting the original makes it unavailable.',
+    'Link a file on the computer running Wish without copying it. Moving or deleting the original breaks the link.',
   'library.unavailable': 'File unavailable',
   'library.upload': 'Upload files',
   'library.mention': 'Mention in chat',
@@ -30,6 +31,8 @@ export const en = {
   'library.more': 'Load more files',
   'library.refresh': 'Refresh Library',
   'library.download': 'Download file',
+  'library.videoUnsupported':
+    'The browser cannot decode this video track or format (for example, 10-bit H.264). Download the file or open the original in a local player.',
   'library.previewFailed': 'Could not load this preview. Try again or download the file.',
   'library.noPreview': 'Preview is not available for this file type. You can download it above.',
   'library.truncated': 'Showing the first 256 KiB. Download the file to read all of it.',

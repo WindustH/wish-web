@@ -49,7 +49,11 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/__style_preview`});
-  await until('document.querySelectorAll(".preview-sample").length===23','all gallery samples');
+  await until('document.querySelectorAll(".preview-sample").length===24','all gallery samples');
+  await js('document.querySelector("[data-preview=account-services] button").click()');
+  await until('document.querySelectorAll(".service-option").length===5','account services gallery dialog');
+  await js('document.querySelector("[role=dialog]:has(.account-services-dialog) .primary").click()');
+  await until('!!document.querySelector("[data-preview=account-services] [role=status]")','account services local preview result');
   await until('document.querySelectorAll("#group-link-probe a").length===2','mounted group card retains author and group links');
   await js('window.groupPreview.value=true');
   await until('document.querySelectorAll("#group-link-probe a").length===0','preview prop suppresses navigation');
@@ -153,7 +157,7 @@ try {
     }
   }
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['23 real-component samples','desktop/mobile dark/light','six-file dialog','category filter','syntax colours and exact copy','safe fallback and streaming','group details without navigation','session operation timeline']}));
+  console.log(JSON.stringify({ok:true,checks:['24 real-component samples','account services confirmation preview','desktop/mobile dark/light','six-file dialog','category filter','syntax colours and exact copy','safe fallback and streaming','group details without navigation','session operation timeline']}));
 
 } finally {
   ws?.close();

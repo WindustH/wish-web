@@ -26,6 +26,7 @@ import SwitchRow from '../../domain/settings/SwitchRow.vue';
 import ToolBackgroundRow from '../../domain/settings/ToolBackgroundRow.vue';
 import ToolExecutionRow from '../../domain/settings/ToolExecutionRow.vue';
 
+const props = withDefaults(defineProps<{ sidebar?: boolean; open?: boolean }>(), { open: true });
 defineEmits<{ close: [] }>();
 const isMobile = useIsMobile();
 const extensionSelection = ref('image_generation');
@@ -214,6 +215,12 @@ async function save() {
 
 // Context actions that used to live in the management window.
 const confirmClear = ref(false);
+watch(
+  () => props.open,
+  (open) => {
+    if (!open) confirmClear.value = false;
+  },
+);
 async function act(kind: 'compact' | 'clear') {
   const id = chat.sessionId.value;
   if (!id || busy.value) return;
@@ -244,7 +251,8 @@ async function act(kind: 'compact' | 'clear') {
 
 <template>
   <SessionPanelModal
-    :open="true"
+    :open="open"
+    :sidebar="sidebar"
     :back-layer="!isMobile"
     content-class="session-window session-settings-window"
     :title="tr('会话设置', 'Session settings')"
@@ -413,7 +421,33 @@ async function act(kind: 'compact' | 'clear') {
       </div>
     </section>
 
-    <template #footer>
+    <template v-if="sidebar" #actions>
+      <span class="visually-hidden" role="status">{{
+        dirty ? tr('有未保存的修改', 'Unsaved changes') : tr('没有未保存的修改', 'No unsaved changes')
+      }}</span>
+      <button
+        type="button"
+        class="btn ghost icon-only"
+        :disabled="busy || !dirty"
+        :aria-label="tr('放弃修改', 'Discard changes')"
+        :title="tr('放弃修改', 'Discard changes')"
+        @click="reset"
+      >
+        <Icon name="undo" />
+      </button>
+      <button
+        type="button"
+        class="btn ghost icon-only"
+        :class="{ 'settings-save-pending': dirty }"
+        :disabled="busy || !dirty"
+        :aria-label="tr('保存', 'Save')"
+        :title="tr('保存', 'Save')"
+        @click="save"
+      >
+        <Icon :name="busy ? 'loader-circle' : 'save'" :class="{ spin: busy }" />
+      </button>
+    </template>
+    <template v-if="!sidebar" #footer>
       <span class="session-settings-status">{{
         dirty ? tr('有未保存的修改', 'Unsaved changes') : tr('没有未保存的修改', 'No unsaved changes')
       }}</span>
@@ -451,18 +485,41 @@ async function act(kind: 'compact' | 'clear') {
 .modal-card.session-settings-window:not(.modal-page) {
   width: min(92vw, 30rem);
 }
-/* On a phone the page is the settings page's, under the same grouped rows. */
-.modal-card.session-settings-window.modal-page {
-  background: var(--bg-sunken);
+/* Mobile palette overrides must not replace the desktop settings rules. */
+@media (max-width: 899px) {
+  .modal-card.session-settings-window.modal-page,
+  .session-sidebar-content.session-settings-window {
+    background: var(--bg);
+  }
+  .session-settings-window .set-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .session-settings-window .set-row {
+    background: transparent;
+    background-clip: border-box;
+  }
+  .session-settings-window .set-row + .set-row {
+    border-top: 1px solid var(--line);
+  }
 }
 .session-settings-window.modal-page > .modal-head {
   background: var(--bg);
+}
+.btn.ghost.settings-save-pending {
+  color: var(--accent);
 }
 .session-settings-intro {
   margin: 0 0 18px;
   font-size: 12px;
   line-height: 1.6;
   color: var(--fg-subtle);
+}
+.session-settings-window fieldset.set-card {
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
 }
 .session-settings-window .set-row.inline {
   grid-template-columns: minmax(0, 1fr) auto;

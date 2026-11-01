@@ -63,7 +63,9 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
       extraCssText: 'max-width:calc(100% - 24px);white-space:normal;box-sizing:border-box;pointer-events:none;',
       textStyle: { color: style.foreground, fontFamily: style.font, fontSize: 12 },
       formatter: (params: any) => {
-        const actual = (Array.isArray(params) ? params : [params]).filter((point: any) => !point.data?.virtual);
+        const actual = (Array.isArray(params) ? params : [params]).filter(
+          (point: any) => !point.data?.virtual && !(unit === 'Token' && point.value?.[1] === 0),
+        );
         if (!actual.length) return '';
         const content = document.createElement('div');
         const time = document.createElement('div');

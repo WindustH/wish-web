@@ -550,7 +550,8 @@ export const proxyEnvironment = (
   opts?: EndpointOptions,
 ): Promise<{ variables: { name: string; value: string; redacted: boolean }[] }> => get('/proxy-environment', opts);
 export const shellCatalog = (opts?: EndpointOptions): Promise<ShellCatalog> => get('/shells', opts);
-export const directoriesList = (path: string): Promise<DirectoryListing> => get('/directories', { query: { path } });
+export const directoriesList = (path: string, includeFiles = false): Promise<DirectoryListing> =>
+  get('/directories', { query: { path, ...(includeFiles ? { include_files: true } : {}) } });
 // Combines requests: saves the default model into the configuration, reading it again when a
 // concurrent save moved its revision.
 export async function rememberDefaultModel(value: DefaultModel): Promise<void> {

@@ -9,7 +9,7 @@ import { sessionParent } from '../shell/sessionNavigation.ts';
 import { sessionPanelCloseKey, sessionPanelElementsKey } from '../../domain/chat/sessionPanel.ts';
 import Hint from '../../ui/components/Hint.vue';
 // Chat surface: top bar (desktop information/settings / mobile back+menu), log,
-// composer, and child-route dialogs (mobile subpages). Opening session
+// composer, and a shared sidebar for session actions. Opening session
 // actions never rebuilds the conversation.
 import {
   computed,
@@ -39,6 +39,9 @@ import { useResolvedEffort } from './useResolvedEffort.ts';
 import { effortLabel } from './reasoningLabels.ts';
 import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 import { touchButton } from '../../ui/touchButton.ts';
+import { prefersReducedMotion } from '../../ui/motion/reducedMotion.ts';
+import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
+import SessionTasks from './SessionTasks.vue';
 import SessionLibrary from './SessionLibrary.vue';
 import type { StoredAttachmentReference } from '../../core/attachments.ts';
 import type { LibraryBlob } from '../../core/api/types.ts';
@@ -67,22 +70,9 @@ const routeTab = computed<SessionTab | null>(() => {
   const n = route.name as string;
   return n === 'chat-info' || n === 'chat-search' ? 'info' : n === 'chat-settings' ? 'settings' : null;
 });
-const desktopTab = ref<SessionTab | null>(null);
 const infoInitialSection = ref<'overview' | 'search'>('overview');
-const tab = computed(() => (isMobile.value ? routeTab.value : desktopTab.value));
-
-// Existing mobile/deep links still open the right panel. On desktop the
-// panel is local UI state, so normalize a child URL to the session URL once.
-watch(
-  [isMobile, routeTab, id, () => route.name],
-  ([mobile, child, sessionId, routeName]) => {
-    if (!mobile && child && sessionId) {
-      infoInitialSection.value = routeName === 'chat-search' ? 'search' : 'overview';
-      desktopTab.value = child;
-      void router.replace({ name: 'chat', params: { id: sessionId } });
-    }
-  },
-  { immediate: true },
+const tab = computed(() =>
+  sidebarOpen.value && (sidebarKind.value === 'info' || sidebarKind.value === 'settings') ? sidebarKind.value : null,
 );
 
 let openedSession: string | undefined;
@@ -129,8 +119,9 @@ const tabs = computed(() => [
 const mobileActions = computed(() => [
   ...tabs.value,
   { key: 'library', icon: 'library', label: i18n.t('library.title') },
+  { key: 'tasks', icon: 'terminal', label: tr('后台任务', 'Background tasks') },
 ]);
-const composerActions = computed(() => [
+const modelActions = computed(() => [
   {
     key: 'model',
     icon: 'bot',
@@ -138,6 +129,30 @@ const composerActions = computed(() => [
   },
   { key: 'reasoning', icon: 'thinking', label: effortLabel(effort.value).toUpperCase() },
 ]);
+const chatbar = ref<HTMLElement>();
+const toolbarWidth = ref(Infinity);
+watch(chatbar, (element, _, onCleanup) => {
+  if (!element) return;
+  const observer = new ResizeObserver(([entry]) => {
+    if (entry) toolbarWidth.value = entry.contentRect.width;
+  });
+  observer.observe(element);
+  onCleanup(() => observer.disconnect());
+});
+const compactActions = computed(() => isMobile.value || toolbarWidth.value < 620);
+const compactModel = computed(() => isMobile.value || toolbarWidth.value < 420);
+const headerActions = computed(() =>
+  compactModel.value
+    ? [...modelActions.value, ...mobileActions.value.map((item, index) => ({ ...item, separator: index === 0 }))]
+    : mobileActions.value,
+);
+function headerAction(key: string) {
+  if (key === 'model') modelOpen.value = true;
+  else if (key === 'reasoning') reasoningOpen.value = true;
+  else if (key === 'library') openLibrary();
+  else if (key === 'tasks') openTasks();
+  else if (key === 'info' || key === 'settings') goTab(key);
+}
 const queued = computed(() => chat.deliveries.value);
 const composerRef = ref<{
   fill: (v: string, attachments?: any[]) => void;
@@ -160,182 +175,305 @@ const onQueueEdit = (text: string, attachments?: any[]) => composerRef.value?.fi
 const { effort, error: effortError } = useResolvedEffort(snapshot);
 const modelOpen = ref(false);
 const reasoningOpen = ref(false);
-const sidebarOpen = ref(false);
-const sidebarMounted = ref(false);
+const sidebarState = useWorkspaceState('library-open', () => id.value, { open: false, view: 'library' });
+const sidebarKind = computed(() =>
+  ['info', 'settings', 'tasks'].includes(sidebarState.value.view) ? sidebarState.value.view : 'library',
+);
+const sidebarOpen = computed({
+  get: () => sidebarState.value.open,
+  set: (value) => {
+    sidebarState.value.open = value;
+  },
+});
+const sidebarToggle = ref<HTMLButtonElement>();
+watch(
+  [sidebarOpen, id],
+  ([, session], [, previousSession], onCleanup) => {
+    if (session !== previousSession) return;
+    const button = sidebarToggle.value;
+    if (!button || prefersReducedMotion()) return;
+    const duration = getComputedStyle(button).getPropertyValue('--dur').trim();
+    const milliseconds = parseFloat(duration) * (duration.endsWith('ms') ? 1 : 1000);
+    const hold = Number.isFinite(milliseconds) ? milliseconds : 240;
+    const animation = button.animate(
+      [{ opacity: 0 }, { opacity: 0, offset: hold / (hold + 120), easing: 'ease-out' }, { opacity: 1 }],
+      {
+        duration: hold + 120,
+        easing: 'ease-out',
+      },
+    );
+    onCleanup(() => animation.cancel());
+  },
+  { flush: 'post' },
+);
+const sidebarRestoring = ref(sidebarOpen.value);
+watch([id, sidebarOpen], ([session, open], [previousSession]) => {
+  sidebarRestoring.value = session !== previousSession && open;
+});
+// Keep the current panel in place until its contents have faded out.
+const sidebarDisplayedKind = ref(sidebarKind.value);
+const sidebarFading = ref(false);
+const sidebarSwitching = ref(false);
+const sidebarSwitched = ref(false);
+watch([sidebarKind, sidebarOpen, id], ([kind, open, session], previous, onCleanup) => {
+  let cancelled = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let frame = 0;
+  onCleanup(() => {
+    cancelled = true;
+    clearTimeout(timer);
+    cancelAnimationFrame(frame);
+  });
+  sidebarFading.value = false;
+  sidebarSwitching.value = false;
+  if (!open || !previous?.[1] || session !== previous[2]) sidebarSwitched.value = false;
+  if (
+    !open ||
+    !previous?.[1] ||
+    session !== previous[2] ||
+    prefersReducedMotion() ||
+    kind === sidebarDisplayedKind.value
+  ) {
+    sidebarDisplayedKind.value = kind;
+    return;
+  }
+  sidebarSwitching.value = true;
+  sidebarSwitched.value = true;
+  sidebarFading.value = true;
+  timer = setTimeout(async () => {
+    sidebarDisplayedKind.value = kind;
+    await nextTick();
+    if (cancelled) return;
+    frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        if (cancelled) return;
+        sidebarFading.value = false;
+        timer = setTimeout(() => {
+          sidebarSwitching.value = false;
+        }, 140);
+      });
+    });
+  }, 100);
+});
+const sidebarMounted = ref(sidebarOpen.value);
+const infoMounted = ref(false),
+  settingsMounted = ref(false);
+watch(
+  [sidebarOpen, sidebarDisplayedKind, id],
+  ([open, kind, session], previous) => {
+    if (previous && session !== previous[2]) {
+      infoMounted.value = false;
+      settingsMounted.value = false;
+    }
+    if (open && kind === 'info') infoMounted.value = true;
+    if (open && kind === 'settings') settingsMounted.value = true;
+  },
+  { immediate: true },
+);
 watch(sidebarOpen, (open) => {
   if (open) sidebarMounted.value = true;
 });
 const libraryRevision = ref(0);
 function openLibrary() {
-  if (sidebarOpen.value) libraryRevision.value++;
+  if (sidebarOpen.value && sidebarKind.value === 'library') libraryRevision.value++;
+  sidebarState.value.view = 'library';
+  sidebarOpen.value = true;
+}
+function openTasks() {
+  sidebarState.value.view = 'tasks';
   sidebarOpen.value = true;
 }
 watch(id, () => {
-  sidebarMounted.value = false;
+  sidebarMounted.value = sidebarOpen.value;
   modelOpen.value = false;
   reasoningOpen.value = false;
-  desktopTab.value = null;
-  sidebarOpen.value = false;
 });
 
-const closeTab = (ownerPath = route.fullPath) => {
-  if (!isMobile.value) {
-    desktopTab.value = null;
-    return;
-  }
-  if (router.currentRoute.value.fullPath !== ownerPath) return;
-  return router.push({ name: 'chat', params: { id: id.value } });
+const goTab = (kind: SessionTab) => {
+  infoInitialSection.value = 'overview';
+  sidebarState.value.view = kind;
+  sidebarOpen.value = true;
 };
-const goTab = (t: SessionTab) => {
-  if (!isMobile.value) {
-    if (desktopTab.value === t) {
-      if (panelClose.value) panelClose.value();
-      else desktopTab.value = null;
-    } else {
-      infoInitialSection.value = 'overview';
-      desktopTab.value = t;
-    }
-  } else if (routeTab.value === t) closeTab();
-  else void router.push({ name: `chat-${t}`, params: { id: id.value } });
-};
+// Preserve existing links, while all devices now use the same sidebar host.
+watch(
+  [routeTab, id, () => route.name],
+  ([child, session, routeName]) => {
+    if (!child || !session) return;
+    infoInitialSection.value = routeName === 'chat-search' ? 'search' : 'overview';
+    sidebarState.value.view = child;
+    sidebarOpen.value = true;
+    void router.replace({ name: 'chat', params: { id: session } });
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
-  <div class="chat-workspace">
-    <div class="chatbar">
-      <button
-        v-if="isMobile"
+  <div class="chat-workspace" :class="{ 'sidebar-open': sidebarOpen }">
+    <Hint :text="i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar')"
+      ><button
         class="btn ghost icon-only"
-        :aria-label="i18n.t('chatbar.back')"
-        @click="backTouch.acceptsClick($event) && router.push(sessionParent)"
-        @touchstart.passive="backTouch.start"
-        @touchmove.passive="backTouch.move"
-        @touchend="backTouch.end"
-        @touchcancel="backTouch.cancel"
+        ref="sidebarToggle"
+        data-sidebar-toggle
+        :aria-label="i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar')"
+        aria-controls="session-sidebar"
+        :aria-expanded="sidebarOpen"
+        @click="sidebarOpen = !sidebarOpen"
       >
-        <Icon name="arrow-left" />
-      </button>
-      <div class="chat-title">
-        <span
-          v-if="!snapshot"
-          class="chat-skeleton title-skeleton"
-          :aria-label="i18n.t('sessions.loading')"
-          role="status"
-        /><Menu v-else :key="snapshot.id" context :items="titleActions" @select="titleAction">
-          <FadeText
-            class="name"
-            :text="sessionTitle(snapshot)"
-            tabindex="0"
-            aria-haspopup="menu"
-            :aria-label="tr('会话名称菜单', 'Session title menu')"
-          />
-        </Menu>
-        <template v-if="!isMobile">
-          <span v-if="!snapshot" class="chat-skeleton model-skeleton" aria-hidden="true" /><span
-            v-else
-            class="model-selection"
-          >
-            <Hint :text="i18n.t('model.chipTitle')"
-              ><button class="model-chip" :aria-expanded="modelOpen" @click="modelOpen = true">
-                <span>{{ modelLabel(snapshot?.model || '') || '—' }}</span>
-              </button></Hint
-            >
-            <span class="selection-dot" aria-hidden="true">·</span>
-            <Hint :text="effortError ? describeError(effortError).message : i18n.t('reasoning.title')"
-              ><button
-                class="reasoning-chip"
-                :aria-expanded="reasoningOpen"
-                :aria-label="`${i18n.t('reasoning.title')}: ${effortLabel(effort)}`"
-                @click="reasoningOpen = true"
-              >
-                <span>{{ effortLabel(effort).toUpperCase() }}</span>
-              </button></Hint
-            >
-          </span>
-        </template>
-      </div>
-      <template v-if="!isMobile">
-        <Hint v-for="item in tabs" :key="item.key" :text="item.label"
-          ><button
-            class="btn ghost icon-only"
-            :aria-label="item.label"
-            :class="{ selected: tab === item.key }"
-            :data-session-panel="item.key"
-            :ref="(element) => rememberPanelButton(item.key, element)"
-            :aria-pressed="tab === item.key"
-            @click="goTab(item.key as SessionTab)"
-          >
-            <Icon :name="item.icon" /></button
-        ></Hint>
-      </template>
-      <Menu
-        v-else
-        :items="mobileActions"
-        :label="i18n.t('chatbar.more')"
-        @select="$event === 'library' ? openLibrary() : goTab($event as SessionTab)"
-      >
-        <Icon name="ellipsis-vertical" />
-      </Menu>
-      <Hint v-if="!isMobile" :text="i18n.t('library.title')"
-        ><button
-          class="btn ghost icon-only"
-          :aria-label="i18n.t('library.title')"
-          aria-controls="session-sidebar"
-          :aria-expanded="sidebarOpen"
-          @click="openLibrary"
-        >
-          <Icon name="library" /></button
-      ></Hint>
-      <Hint :text="i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar')"
-        ><button
-          class="btn ghost icon-only"
-          data-sidebar-toggle
-          :aria-label="i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar')"
-          aria-controls="session-sidebar"
-          :aria-expanded="sidebarOpen"
-          @click="sidebarOpen = !sidebarOpen"
-        >
-          <Icon name="panel-right" /></button
-      ></Hint>
-    </div>
-    <div class="chat-workspace-body">
-      <div class="chat-pane" ref="paneEl">
-        <ChatLog :session-id="id" :mobile="isMobile" />
-        <Composer
-          ref="composerRef"
-          :owner="id"
-          :mobile="isMobile"
-          :mobile-actions="composerActions"
-          @mobile-action="$event === 'model' ? (modelOpen = true) : (reasoningOpen = true)"
-        >
-          <template #tools>
-            <Transition name="queue-dock" appear>
-              <div v-if="queued.length > 0" class="queue-dock-slot">
-                <QueueDock :items="queued" :refill="onQueueEdit" />
-              </div>
-            </Transition>
-          </template>
-        </Composer>
-        <RouterView v-slot="{ Component, route: panelRoute }">
-          <component
-            :is="Component"
+        <Icon name="panel-right" /></button
+    ></Hint>
+    <div
+      class="chat-workspace-body"
+      :class="{
+        'sidebar-switching': sidebarSwitching,
+        'sidebar-restoring': sidebarRestoring,
+        'sidebar-switched': sidebarSwitched,
+        'sidebar-fading': sidebarFading,
+      }"
+    >
+      <div class="chat-main">
+        <div ref="chatbar" class="chatbar">
+          <button
             v-if="isMobile"
-            :key="panelRoute.fullPath"
-            @close="closeTab(panelRoute.fullPath)"
-          />
-        </RouterView>
-        <InfoPane
-          v-if="!isMobile && desktopTab === 'info'"
-          :initial-section="infoInitialSection"
-          @close="desktopTab = null"
-        />
-        <SessionSettingsPane v-if="!isMobile && desktopTab === 'settings'" @close="desktopTab = null" />
-        <SessionListAction v-if="renameTarget" :target="renameTarget" kind="rename" @close="renameTarget = null" />
-        <ModelSettings v-if="modelOpen" :session-id="id" @close="modelOpen = false" />
-        <ReasoningSettings v-if="reasoningOpen" :session-id="id" @close="reasoningOpen = false" />
+            class="btn ghost icon-only"
+            :aria-label="i18n.t('chatbar.back')"
+            @click="backTouch.acceptsClick($event) && router.push(sessionParent)"
+            @touchstart.passive="backTouch.start"
+            @touchmove.passive="backTouch.move"
+            @touchend="backTouch.end"
+            @touchcancel="backTouch.cancel"
+          >
+            <Icon name="arrow-left" />
+          </button>
+          <div class="chat-title">
+            <span
+              v-if="!snapshot"
+              class="chat-skeleton title-skeleton"
+              :aria-label="i18n.t('sessions.loading')"
+              role="status"
+            /><Menu v-else :key="snapshot.id" context :items="titleActions" @select="titleAction">
+              <FadeText
+                class="name"
+                :text="sessionTitle(snapshot)"
+                tabindex="0"
+                aria-haspopup="menu"
+                :aria-label="tr('会话名称菜单', 'Session title menu')"
+              />
+            </Menu>
+            <template v-if="!compactModel">
+              <span v-if="!snapshot" class="chat-skeleton model-skeleton" aria-hidden="true" /><span
+                v-else
+                class="model-selection"
+              >
+                <Hint :text="i18n.t('model.chipTitle')"
+                  ><button class="model-chip" :aria-expanded="modelOpen" @click="modelOpen = true">
+                    <span>{{ modelLabel(snapshot?.model || '') || '—' }}</span>
+                  </button></Hint
+                >
+                <span class="selection-dot" aria-hidden="true">·</span>
+                <Hint :text="effortError ? describeError(effortError).message : i18n.t('reasoning.title')"
+                  ><button
+                    class="reasoning-chip"
+                    :aria-expanded="reasoningOpen"
+                    :aria-label="`${i18n.t('reasoning.title')}: ${effortLabel(effort)}`"
+                    @click="reasoningOpen = true"
+                  >
+                    <span>{{ effortLabel(effort).toUpperCase() }}</span>
+                  </button></Hint
+                >
+              </span>
+            </template>
+          </div>
+          <template v-if="!compactActions">
+            <Hint v-for="item in tabs" :key="item.key" :text="item.label"
+              ><button
+                class="btn ghost icon-only"
+                :aria-label="item.label"
+                :class="{ selected: tab === item.key }"
+                :data-session-panel="item.key"
+                :ref="(element) => rememberPanelButton(item.key, element)"
+                :aria-pressed="tab === item.key"
+                aria-controls="session-sidebar"
+                :aria-expanded="tab === item.key"
+                @click="goTab(item.key as SessionTab)"
+              >
+                <Icon :name="item.icon" /></button
+            ></Hint>
+          </template>
+          <Menu v-else :items="headerActions" :label="i18n.t('chatbar.more')" @select="headerAction">
+            <template #label="{ item }"
+              ><span :class="{ 'header-model-value': item.key === 'model' || item.key === 'reasoning' }">{{
+                item.label
+              }}</span></template
+            >
+            <Icon name="ellipsis-vertical" />
+          </Menu>
+          <Hint v-if="!compactActions" :text="i18n.t('library.title')"
+            ><button
+              class="btn ghost icon-only"
+              :aria-label="i18n.t('library.title')"
+              aria-controls="session-sidebar"
+              :aria-expanded="sidebarOpen && sidebarKind === 'library'"
+              :class="{ selected: sidebarOpen && sidebarKind === 'library' }"
+              @click="openLibrary"
+            >
+              <Icon name="library" /></button
+          ></Hint>
+          <Hint v-if="!compactActions" :text="tr('后台任务', 'Background tasks')">
+            <button
+              class="btn ghost icon-only"
+              data-background-tasks
+              :aria-label="tr('后台任务', 'Background tasks')"
+              aria-controls="session-sidebar"
+              :aria-expanded="sidebarOpen && sidebarKind === 'tasks'"
+              :class="{ selected: sidebarOpen && sidebarKind === 'tasks' }"
+              @click="openTasks"
+            >
+              <Icon name="terminal" />
+            </button>
+          </Hint>
+        </div>
+        <div class="chat-pane" ref="paneEl">
+          <ChatLog :session-id="id" :mobile="isMobile" />
+          <Composer ref="composerRef" :owner="id" :mobile="isMobile">
+            <template #tools>
+              <Transition name="queue-dock" appear>
+                <div v-if="queued.length > 0" class="queue-dock-slot">
+                  <QueueDock :items="queued" :refill="onQueueEdit" />
+                </div>
+              </Transition>
+            </template>
+          </Composer>
+          <SessionListAction v-if="renameTarget" :target="renameTarget" kind="rename" @close="renameTarget = null" />
+          <ModelSettings v-if="modelOpen" :session-id="id" @close="modelOpen = false" />
+          <ReasoningSettings v-if="reasoningOpen" :session-id="id" @close="reasoningOpen = false" />
+        </div>
       </div>
+      <InfoPane
+        v-if="infoMounted && id"
+        :key="`info:${id}`"
+        sidebar
+        :open="sidebarOpen && sidebarDisplayedKind === 'info'"
+        :initial-section="infoInitialSection"
+        @close="sidebarOpen = false"
+      />
+      <SessionSettingsPane
+        v-if="settingsMounted && id"
+        :key="`settings:${id}`"
+        sidebar
+        :open="sidebarOpen && sidebarDisplayedKind === 'settings'"
+        @close="sidebarOpen = false"
+      />
+      <SessionTasks
+        v-if="sidebarMounted && id && sidebarDisplayedKind === 'tasks'"
+        :key="id"
+        :session="id"
+        :open="sidebarOpen"
+        :mobile="isMobile"
+        @close="sidebarOpen = false"
+      />
       <SessionLibrary
-        v-if="sidebarMounted && id"
+        v-if="sidebarMounted && id && sidebarDisplayedKind === 'library'"
         :open="sidebarOpen"
         :key="id"
         :session="id"
@@ -359,12 +497,53 @@ const goTab = (t: SessionTab) => {
   min-height: 0;
   overflow: hidden;
 }
+.header-model-value {
+  font-size: 12px;
+  font-weight: var(--weight-latin-semibold);
+  text-transform: uppercase;
+}
+.chat-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.chat-workspace :deep([data-sidebar-toggle]) {
+  position: absolute;
+  top: calc((var(--h-topbar) - 36px) / 2);
+  right: 12px;
+  z-index: 22;
+}
+.chat-workspace:not(.sidebar-open) .chatbar {
+  padding-right: 56px;
+}
+.chat-workspace :deep(.island-heading) {
+  height: var(--h-topbar);
+  min-height: var(--h-topbar);
+  padding-right: 56px;
+  box-sizing: border-box;
+}
 .chat-workspace-body {
   position: relative;
   display: flex;
   flex: 1;
   min-width: 0;
   min-height: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar-restoring > :deep(.island-sidebar[data-state='open']),
+  .sidebar-switched > :deep(.island-sidebar[data-state='open']) {
+    animation: none;
+  }
+  .sidebar-switching > :deep(.island-sidebar) {
+    animation: none;
+    transition: opacity 100ms ease;
+  }
+  .sidebar-fading > :deep(.island-sidebar) {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 /* Reserve the button's width gradually, so its arrival does not jerk the toolbar. */
 .queue-dock-slot {

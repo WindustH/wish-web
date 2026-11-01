@@ -1,108 +1,142 @@
 <script setup lang="ts">
-import { renderPdfPage } from './nativePdf.ts';
 import './nativePdf.css';
+import PdfScrollPage from './PdfScrollPage.vue';
 import LoadingState from '../../ui/components/LoadingState.vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
+import { pdfInfo, type PdfInfo } from './requests.ts';
+import { pdfLayout, pdfPageAt, pdfWindow } from './pdfLayout.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
-import { pdfInfo, pdfPage, type PdfInfo } from './requests.ts';
+import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
 import Icon from '../../ui/components/Icon.vue';
 
 const props = defineProps<{ session: string; blob: string }>();
+const saved = useWorkspaceState('pdf', () => `${props.session}/${props.blob}`, {
+  zoom: 1,
+  index: 0,
+  fraction: 0,
+  left: 0,
+  outline: false,
+  version: '',
+});
+let pendingRestore: { index: number; fraction: number; left: number } | undefined;
 const document = shallowRef<PdfInfo>();
-const surface = ref<HTMLElement | null>(null),
-  viewport = ref<HTMLElement | null>(null);
-const page = ref(1),
-  zoom = ref(1),
-  width = ref(300),
-  loading = ref(true),
-  painting = ref(false),
-  painted = ref(false),
-  error = ref('');
+const viewport = ref<HTMLElement>();
 const active = usePageActivity();
-let lastPaint = '';
-const paintedWidth = ref(0),
-  paintedHeight = ref(0);
-const displayScale = computed(() => (paintedWidth.value ? (width.value * zoom.value) / paintedWidth.value : 1));
-const pageStyle = computed(() =>
-  paintedWidth.value
-    ? {
-        width: `${paintedWidth.value * displayScale.value}px`,
-        height: `${paintedHeight.value * displayScale.value}px`,
-        '--preview-scale': String(displayScale.value),
-      }
-    : undefined,
-);
-let arriveAtBottom: number | undefined;
-let releasePage: (() => Promise<void>) | undefined;
-const outlineOpen = ref(false);
+const zoom = ref(1),
+  width = ref(300),
+  height = ref(600),
+  offset = ref(0);
+const loading = ref(true),
+  error = ref(''),
+  outlineOpen = ref(false);
+const ratios = shallowRef<ReadonlyMap<number, number>>(new Map());
+const pageWidth = computed(() => Math.max(100, width.value) * zoom.value);
+const layout = computed(() => pdfLayout(document.value?.pages ?? 0, pageWidth.value, ratios.value));
+const visible = computed(() => pdfWindow(layout.value.starts, offset.value, height.value));
+const page = computed(() => pdfPageAt(layout.value.starts, offset.value + height.value / 2) + 1);
 const bookmarks = computed(() => document.value?.bookmarks ?? []);
+watch(outlineOpen, (value) => {
+  saved.value.outline = value;
+});
+function scroll() {
+  if (active.value && viewport.value?.clientHeight) {
+    offset.value = viewport.value.scrollTop;
+    if (!pendingRestore && document.value && layout.value.starts.length) {
+      const index = pdfPageAt(layout.value.starts, offset.value);
+      saved.value = {
+        zoom: zoom.value,
+        index,
+        fraction: (offset.value - layout.value.starts[index]!) / layout.value.heights[index]!,
+        left: viewport.value.scrollLeft,
+        outline: outlineOpen.value,
+        version: document.value.version,
+      };
+    }
+  }
+}
+watch(active, (visible) => {
+  if (visible) void nextTick(scroll);
+});
+function goTo(value: number) {
+  if (!document.value || !Number.isFinite(value)) return;
+  const index = Math.max(0, Math.min(document.value.pages - 1, Math.round(value) - 1));
+  if (viewport.value) viewport.value.scrollTop = layout.value.starts[index] ?? 0;
+  scroll();
+}
+function enterPage(event: Event) {
+  const input = event.target as HTMLInputElement;
+  goTo(Number(input.value));
+  input.value = String(page.value);
+}
 function jump(bookmark: PdfInfo['bookmarks'][number]) {
-  if (!bookmark.page || !document.value || bookmark.page < 1 || bookmark.page > document.value.pages) return;
-  page.value = bookmark.page;
-  if (viewport.value) viewport.value.scrollTop = 0;
+  if (!bookmark.page) return;
+  goTo(bookmark.page);
   outlineOpen.value = false;
 }
-let wheelTotal = 0,
-  lastWheel = -Infinity,
-  wheelDirection = 0,
-  edgeGesture = false;
-function wheel(event: WheelEvent) {
-  if (event.ctrlKey || event.metaKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
-  const box = viewport.value,
-    pdf = document.value;
-  if (!box || !pdf || !event.deltaY) return;
-  const now = performance.now(),
-    direction = Math.sign(event.deltaY);
-  const newGesture = now - lastWheel > 180 || direction !== wheelDirection;
-  lastWheel = now;
-  wheelDirection = direction;
-  const atEdge = direction > 0 ? box.scrollTop + box.clientHeight >= box.scrollHeight - 2 : box.scrollTop <= 2;
-  if (!atEdge) {
-    wheelTotal = 0;
-    edgeGesture = false;
-    return;
-  }
-  event.preventDefault();
-  // Reaching the edge during a scrolling gesture must not turn the page through inertia.
-  // Require a fresh gesture at the edge, and allow at most one turn per gesture.
-  if (newGesture) {
-    edgeGesture = true;
-    wheelTotal = 0;
-  }
-  if (!edgeGesture) return;
-  wheelTotal += event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? box.clientHeight : 1);
-  if (Math.abs(wheelTotal) < 100) return;
-  edgeGesture = false;
-  wheelTotal = 0;
-  const nextPage = Math.max(1, Math.min(pdf.pages, page.value + direction));
-  if (nextPage === page.value) return;
-  arriveAtBottom = direction < 0 ? nextPage : undefined;
-  page.value = nextPage;
+function measured(index: number, ratio: number) {
+  if (!Number.isFinite(ratio) || ratio <= 0 || Math.abs((ratios.value.get(index) ?? 0) - ratio) < 0.001) return;
+  ratios.value = new Map(ratios.value).set(index, ratio);
 }
+// Preserve the reading position when a newly measured page above it changes height,
+// or when zoom / sidebar width changes. Browser scroll anchoring is disabled below.
+watch(
+  layout,
+  (next, previous) => {
+    const box = viewport.value;
+    if (!box || !next.starts.length) return;
+    if (pendingRestore) {
+      const restore = pendingRestore;
+      const index = Math.max(0, Math.min(next.starts.length - 1, Math.floor(restore.index)));
+      const top = next.starts[index]! + Math.max(0, Math.min(1, restore.fraction)) * next.heights[index]!;
+      offset.value = top;
+      void nextTick(() => {
+        if (layout.value !== next || pendingRestore !== restore) return;
+        box.scrollTop = top;
+        box.scrollLeft = restore.left;
+        pendingRestore = undefined;
+        scroll();
+      });
+      return;
+    }
+    if (!previous.starts.length) return;
+    const index = Math.min(next.starts.length - 1, pdfPageAt(previous.starts, box.scrollTop));
+    const fraction = (box.scrollTop - previous.starts[index]!) / previous.heights[index]!;
+    const top = next.starts[index]! + fraction * next.heights[index]!;
+    offset.value = top;
+    void nextTick(() => {
+      if (viewport.value === box && layout.value === next) {
+        box.scrollTop = top;
+        scroll();
+      }
+    });
+  },
+  { flush: 'pre' },
+);
 
 watch(
   () => [props.session, props.blob] as const,
-  async (_, __, onCleanup) => {
+  async (_, __, cleanup) => {
     const controller = new AbortController();
-    onCleanup(() => controller.abort());
+    cleanup(() => controller.abort());
     document.value = undefined;
-    lastPaint = '';
-    paintedWidth.value = 0;
-    arriveAtBottom = undefined;
-    void releasePage?.();
-    releasePage = undefined;
-    painted.value = false;
-    outlineOpen.value = false;
-    page.value = 1;
-    zoom.value = 1;
+    ratios.value = new Map();
+    zoom.value = Math.max(0.75, Math.min(2.5, saved.value.zoom));
+    pendingRestore = { index: saved.value.index, fraction: saved.value.fraction, left: saved.value.left };
+    offset.value = 0;
+    if (viewport.value) viewport.value.scrollTop = 0;
+    outlineOpen.value = saved.value.outline;
     loading.value = true;
     error.value = '';
     try {
       const info = await pdfInfo(props.session, props.blob, controller.signal);
-      if (!controller.signal.aborted) document.value = info;
+      if (!controller.signal.aborted) {
+        if (saved.value.version && saved.value.version !== info.version)
+          pendingRestore = { index: 0, fraction: 0, left: 0 };
+        document.value = info;
+      }
     } catch (cause) {
       if (!controller.signal.aborted) error.value = describeError(cause).message;
     } finally {
@@ -111,92 +145,30 @@ watch(
   },
   { immediate: true },
 );
-
-watch(
-  [document, page, zoom, width, surface, active],
-  async (_, __, onCleanup) => {
-    const controller = new AbortController();
-    onCleanup(() => controller.abort());
-    const pdf = document.value,
-      element = surface.value;
-    if (!pdf || !element || !active.value) return;
-    const paintKey = `${props.session}:${props.blob}:${pdf.version}:${page.value}:${width.value}:${zoom.value}`;
-    if (lastPaint === paintKey && element.childElementCount) {
-      painting.value = false;
-      return;
-    }
-    painting.value = true;
-    error.value = '';
-    const targetPage = page.value;
-    const targetWidth = width.value * zoom.value;
-    try {
-      const bytes = await pdfPage(props.session, props.blob, targetPage, controller.signal, pdf.version);
-      const rendered = await renderPdfPage(bytes, targetWidth, controller.signal, true);
-      if (controller.signal.aborted) {
-        await rendered.dispose();
-        return;
-      }
-      // Swap a fully rendered canvas and text layer together; retain the old page during loading.
-      element.replaceChildren(rendered.surface);
-      void releasePage?.();
-      releasePage = rendered.dispose;
-      paintedWidth.value = targetWidth;
-      paintedHeight.value = parseFloat(rendered.surface.style.height);
-      lastPaint = paintKey;
-      painted.value = true;
-      painting.value = false;
-      if (arriveAtBottom === targetPage && viewport.value) {
-        await nextTick();
-        if (!controller.signal.aborted && arriveAtBottom === targetPage && viewport.value) {
-          viewport.value.scrollTop = viewport.value.scrollHeight;
-          arriveAtBottom = undefined;
-        }
-      }
-      if (controller.signal.aborted) return;
-      // Current page always wins; cancel background reads on navigation/close.
-      void Promise.allSettled(
-        [targetPage + 1, targetPage - 1]
-          .filter((neighbor) => neighbor >= 1 && neighbor <= pdf.pages && !controller.signal.aborted)
-          .map((neighbor) => pdfPage(props.session, props.blob, neighbor, controller.signal, pdf.version)),
-      );
-    } catch (cause) {
-      if (!controller.signal.aborted) error.value = describeError(cause).message;
-    } finally {
-      if (!controller.signal.aborted) painting.value = false;
-    }
-  },
-  { flush: 'post' },
-);
-watch(page, () => {
-  if (arriveAtBottom !== page.value) {
-    arriveAtBottom = undefined;
-    if (viewport.value) viewport.value.scrollTop = 0;
-  }
-});
 let observer: ResizeObserver | undefined;
 let resizeTimer: ReturnType<typeof setTimeout> | undefined;
 onMounted(() => {
   observer = new ResizeObserver(([entry]) => {
     if (!entry || entry.contentRect.width <= 0) return;
-    const next = Math.max(100, Math.floor(entry.contentRect.width));
+    height.value = entry.contentRect.height;
+    scroll();
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      width.value = next;
+      width.value = Math.floor(entry.contentRect.width);
     }, 80);
   });
   if (viewport.value) observer.observe(viewport.value);
 });
 onBeforeUnmount(() => {
-  void releasePage?.();
   observer?.disconnect();
   clearTimeout(resizeTimer);
 });
 </script>
 
 <template>
-  <div class="pdf-preview" :aria-busy="loading || painting">
+  <div class="pdf-preview" :aria-busy="loading">
     <p v-if="error" role="alert" class="pdf-message">{{ error }}</p>
-    <LoadingState v-else-if="loading || painting" variant="overlay" :label="i18n.t('common.loading')" />
+    <LoadingState v-else-if="loading" variant="overlay" :label="i18n.t('common.loading')" />
     <div v-if="document" class="pdf-toolbar">
       <button
         class="btn ghost icon-only"
@@ -210,16 +182,27 @@ onBeforeUnmount(() => {
         class="btn ghost icon-only"
         :disabled="page <= 1"
         :aria-label="i18n.t('library.previousPage')"
-        @click="page--"
+        @click="goTo(page - 1)"
       >
         <Icon name="chevron-left" />
       </button>
-      <span>{{ page }} / {{ document.pages }}</span>
+      <label class="pdf-page-number">
+        <input
+          type="number"
+          min="1"
+          :max="document.pages"
+          :value="page"
+          :aria-label="i18n.t('library.pdfPage', { page })"
+          @change="enterPage"
+          @keydown.enter="($event.target as HTMLInputElement).blur()"
+        />
+        <span>/ {{ document.pages }}</span>
+      </label>
       <button
         class="btn ghost icon-only"
         :disabled="page >= document.pages"
         :aria-label="i18n.t('library.nextPage')"
-        @click="page++"
+        @click="goTo(page + 1)"
       >
         <Icon name="chevron-right" />
       </button>
@@ -254,27 +237,29 @@ onBeforeUnmount(() => {
         {{ bookmark.title }}
       </button>
     </nav>
-    <div ref="viewport" class="pdf-viewport" @wheel="wheel">
-      <div
-        v-if="document"
-        v-show="painted"
-        ref="surface"
-        class="pdf-page-host"
-        :style="pageStyle"
-        role="group"
-        :aria-label="i18n.t('library.pdfPage', { page })"
-      />
+    <div ref="viewport" class="pdf-viewport" @scroll.passive="scroll">
+      <div v-if="document" class="pdf-scroll" :style="{ height: `${layout.total}px`, width: `${pageWidth}px` }">
+        <div
+          v-for="index in visible"
+          :key="`${session}:${blob}:${document.version}:${index}`"
+          class="pdf-page-host"
+          :style="{ top: `${layout.starts[index]}px`, height: `${layout.heights[index]}px` }"
+        >
+          <PdfScrollPage
+            :session="session"
+            :blob="blob"
+            :version="document.version"
+            :page="index + 1"
+            :width="pageWidth"
+            @measured="measured(index, $event)"
+          />
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.pdf-page-host :deep(.native-pdf-page) {
-  transform: scale(var(--preview-scale, 1));
-  transform-origin: top left;
-  margin: 0;
-}
-
 .pdf-preview {
   position: relative;
   display: flex;
@@ -283,12 +268,61 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
 }
-.pdf-bookmarks {
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
   flex: none;
-  max-height: 40%;
+  height: 34px;
+  padding: 0 2px;
+  font: 12px/1.5 var(--font);
+}
+.pdf-toolbar .btn {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 4px;
+}
+.pdf-page-number {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  color: var(--fg-muted);
+}
+.pdf-page-number input {
+  width: 4ch;
+  min-width: 0;
+  height: 26px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  text-align: center;
+  font: inherit;
+  appearance: textfield;
+}
+.pdf-page-number input::-webkit-inner-spin-button,
+.pdf-page-number input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+.pdf-spacer {
+  flex: 1;
+}
+.pdf-bookmarks {
+  position: absolute;
+  top: 34px;
+  inset-inline: 0;
+  z-index: 3;
+  max-height: 60%;
   overflow: auto;
-  border-bottom: 1px solid var(--line);
-  padding-block: 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  box-shadow: 0 6px 20px #0002;
+  padding-block: 4px;
 }
 .pdf-bookmarks button {
   display: block;
@@ -300,27 +334,27 @@ onBeforeUnmount(() => {
   padding: 8px;
   color: var(--fg-muted);
 }
-.pdf-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex: none;
-  font: 12px/1.5 var(--font);
-}
-.pdf-spacer {
-  flex: 1;
-}
 .pdf-viewport {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overflow-anchor: none;
   scrollbar-gutter: stable;
-  padding: 8px;
+  padding: 0 8px;
   background: var(--bg-sunken);
-  border-radius: 10px;
+  border-radius: 6px;
+}
+.pdf-scroll {
+  position: relative;
+  margin-inline: auto;
+}
+.pdf-page-host {
+  position: absolute;
+  left: 0;
+  width: 100%;
 }
 .pdf-message {
-  padding: 12px;
+  padding: 8px;
   color: var(--fg-muted);
 }
 </style>

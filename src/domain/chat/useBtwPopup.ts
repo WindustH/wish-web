@@ -57,7 +57,7 @@ export function useBtwPopup(
     btwOpen.value = !btwOpen.value;
     if (btwOpen.value && mobile.value) ta.value?.blur();
   }
-  watch(btwOpen, (open, _, onCleanup) => {
+  watch([btwOpen, mobile, composerEl, btwButton], ([open], _, onCleanup) => {
     if (!open) return;
     btwHidden.value = false;
     void nextTick(() => {
@@ -65,16 +65,24 @@ export function useBtwPopup(
       positionBtw();
       if (!mobile.value) btwBubble.value?.querySelector('textarea')?.focus();
     });
+    // Opening BTW expands the mobile composer over several frames. Follow its
+    // actual bounds throughout that transition and subsequent multiline edits.
+    const observer = new ResizeObserver(schedulePosition);
+    if (composerEl.value) observer.observe(composerEl.value);
+    if (btwButton.value) observer.observe(btwButton.value);
     document.addEventListener('pointerdown', onBtwOutside);
     window.addEventListener('resize', schedulePosition);
     window.addEventListener('scroll', onBtwScroll, true);
     window.visualViewport?.addEventListener('resize', schedulePosition);
+    window.visualViewport?.addEventListener('scroll', schedulePosition);
     onCleanup(() => {
+      observer.disconnect();
       cancelAnimationFrame(frame);
       document.removeEventListener('pointerdown', onBtwOutside);
       window.removeEventListener('resize', schedulePosition);
       window.removeEventListener('scroll', onBtwScroll, true);
       window.visualViewport?.removeEventListener('resize', schedulePosition);
+      window.visualViewport?.removeEventListener('scroll', schedulePosition);
     });
   });
 

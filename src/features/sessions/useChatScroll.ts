@@ -185,6 +185,21 @@ export function useChatScroll(options: UseChatScrollOptions) {
     else armScrollbarRelease();
   }
 
+  // Native text selection can auto-scroll without wheel/touch input. Release
+  // tail-follow before virtual row measurements pull that selection back down.
+  watch(scrollEl, (el, _, cleanup) => {
+    const doc = el?.ownerDocument;
+    if (!doc) return;
+    const selectionChanged = () => {
+      const selection = doc.getSelection();
+      if (!pageActive.value || !selection || selection.isCollapsed || !el.contains(selection.anchorNode)) return;
+      cancelGlide();
+      scrollIntent('history');
+    };
+    doc.addEventListener('selectionchange', selectionChanged);
+    cleanup(() => doc.removeEventListener('selectionchange', selectionChanged));
+  });
+
   watch(scrollEl, (el, _, cleanup) => {
     if (!el) return;
     window.addEventListener('pointerup', releaseScrollbar, true);

@@ -21,6 +21,7 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>();
 const { draft } = inject(configDraftKey)!;
 const editing = ref('');
+const created = ref('');
 const accountCatalog = useAccountCatalog();
 const options = computed(() =>
   compatibleAccounts(draft.value.accounts ?? {}, props.allowed ?? (props.preset ? [props.preset] : undefined)).map(
@@ -54,6 +55,7 @@ function add() {
   };
   emit('update:modelValue', id);
   editing.value = id;
+  created.value = id;
 }
 </script>
 <template>
@@ -77,7 +79,15 @@ function add() {
         <Icon name="x" /></button
     ></Hint>
   </div>
-  <AccountEditor v-if="editing" :id="editing" @close="editing = ''" />
+  <AccountEditor
+    v-if="editing"
+    :id="editing"
+    :suggest-services="editing === created"
+    @close="
+      editing = '';
+      created = '';
+    "
+  />
 </template>
 <style scoped>
 .account-picker {

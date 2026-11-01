@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, provide, ref } from 'vue';
+import AccountServicesPreview from './AccountServicesPreview.vue';
 import RetryStatus from '../sessions/RetryStatus.vue';
 import LoadingPreview from './LoadingPreview.vue';
 import CodeHighlightPreview from './CodeHighlightPreview.vue';
@@ -14,9 +15,10 @@ import GroupMessageCard from '../sessions/entries/GroupMessageCard.vue';
 import ActivityDialogs from '../sessions/ActivityDialogs.vue';
 import { openActivityKey, type ActivityRequest } from '../sessions/activityDialogs.ts';
 const samples = stylePreviewFixtures();
-const category = ref<PreviewCategory | 'all' | 'composer' | 'code' | 'loading'>('all');
+const category = ref<PreviewCategory | 'all' | 'composer' | 'code' | 'loading' | 'accounts'>('all');
 const narrow = ref(false);
 const categories = computed(() => [
+  { id: 'accounts', label: tr('账户服务弹窗', 'Account services dialog') },
   { id: 'loading', label: tr('加载状态', 'Loading states') },
   { id: 'code', label: tr('代码高亮', 'Code highlighting') },
   { id: 'composer', label: tr('输入框附件', 'Composer attachments') },
@@ -56,6 +58,14 @@ provide(openActivityKey, (value) => {
       <label><input v-model="narrow" type="checkbox" /> {{ tr('窄栏预览（390px）', 'Narrow column (390px)') }}</label>
     </div>
     <div class="preview-canvas" :class="{ narrow }">
+      <section
+        v-if="category === 'all' || category === 'accounts'"
+        class="preview-sample"
+        data-preview="account-services"
+      >
+        <h3>{{ tr('新增账户 · 添加服务配置', 'New account · Add service configurations') }}</h3>
+        <AccountServicesPreview />
+      </section>
       <section v-if="category === 'all' || category === 'loading'" class="preview-sample" data-preview="loading-states">
         <h3>{{ tr('加载状态', 'Loading states') }}</h3>
         <LoadingPreview />

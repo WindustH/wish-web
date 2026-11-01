@@ -9,6 +9,7 @@ import Menu from '../../../ui/components/Menu.vue';
 import type { MenuItem } from '../../../ui/components/menuTypes.ts';
 import { toast } from '../../../ui/toast.ts';
 import { tr } from '../../../core/i18n/tr.ts';
+import { markdownSelection } from '../../../ui/markdownSelection.ts';
 import { copyText } from '../../../ui/clipboard.ts';
 import { saveBlob } from '../../../ui/download.ts';
 
@@ -23,6 +24,18 @@ const selectionItems: MenuItem[] = [{ key: 'copy-selection', icon: 'copy', label
 function choose(key: string, selection?: string) {
   if (key === 'copy-selection') void copyText(selection ?? '');
   else void (key === 'save' ? saveImage() : copyMessage());
+}
+
+function copySelection(event: ClipboardEvent) {
+  const root = event.currentTarget as HTMLElement;
+  if ((event.target as Element)?.closest('input, textarea, [contenteditable="true"]')) return;
+  const selection = root.ownerDocument.getSelection();
+  if (!selection?.rangeCount || selection.isCollapsed || !event.clipboardData) return;
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.commonAncestorContainer)) return;
+  const text = markdownSelection(range, root, selection.toString());
+  event.clipboardData.setData('text/plain', text);
+  event.preventDefault();
 }
 
 async function saveImage() {
@@ -57,11 +70,12 @@ const copyMessage = () => copyText(props.text);
     selects-text
     :items="items"
     :selection-items="selectionItems"
+    :selection-text="markdownSelection"
     :disabled="!hasMenu"
     :within="kind === 'user' ? '.bubble' : '.body'"
     @select="choose"
   >
-    <div class="message-context" :class="kind" :tabindex="hasMenu ? 0 : undefined">
+    <div class="message-context" :class="kind" :tabindex="hasMenu ? 0 : undefined" @copy="copySelection">
       <slot />
     </div>
   </Menu>

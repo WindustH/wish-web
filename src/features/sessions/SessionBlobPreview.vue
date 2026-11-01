@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
 import { mediaPlayback } from '../../domain/media/requests.ts';
 import LoadingState from '../../ui/components/LoadingState.vue';
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue';
@@ -9,11 +10,32 @@ import { i18n } from '../../core/i18n/index.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import Icon from '../../ui/components/Icon.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import VideoPlayer from '../../domain/media/VideoPlayer.vue';
 import ImagePreview from '../../domain/media/ImagePreview.vue';
 import { blobKind } from './libraryFiles.ts';
 
 const PdfPreview = defineAsyncComponent(() => import('../../domain/media/PdfPreview.vue'));
 const props = defineProps<{ session: string; blob: LibraryBlob; name: string }>();
+const saved = useWorkspaceState('file', () => `${props.session}/${props.blob.id}`, { time: 0, scroll: 0 });
+function restorePlayback() {
+  if (kind.value === 'video') checkVideo();
+  if (player.value && Number.isFinite(player.value.duration))
+    player.value.currentTime = Math.max(0, Math.min(saved.value.time, player.value.duration));
+}
+function rememberPlayback() {
+  if (player.value && !player.value.seeking && player.value.readyState > 0) saved.value.time = player.value.currentTime;
+}
+const textViewport = ref<HTMLElement>();
+watch(
+  textViewport,
+  (element) => {
+    if (element) element.scrollTop = Math.max(0, saved.value.scroll);
+  },
+  { flush: 'post' },
+);
+function rememberText() {
+  if (textViewport.value?.clientHeight) saved.value.scroll = textViewport.value.scrollTop;
+}
 const kind = computed(() => blobKind(props.blob));
 const player = ref<HTMLMediaElement | null>(null);
 onBeforeUnmount(() => player.value?.pause());
@@ -60,8 +82,18 @@ watch(
   },
   { immediate: true },
 );
+function checkVideo() {
+  const video = player.value;
+  if (video instanceof HTMLVideoElement && video.readyState >= 1 && (!video.videoWidth || !video.videoHeight)) {
+    video.pause();
+    error.value = i18n.t('library.videoUnsupported');
+  }
+}
 function failed() {
-  error.value = i18n.t('library.previewFailed');
+  const code = player.value?.error?.code;
+  error.value = i18n.t(
+    kind.value === 'video' && (code === 3 || code === 4) ? 'library.videoUnsupported' : 'library.previewFailed',
+  );
 }
 </script>
 
@@ -73,15 +105,24 @@ function failed() {
       <button class="btn sm" @click="revision++">{{ i18n.t('common.retry') }}</button>
     </div>
     <template v-else>
-      <ImagePreview v-if="kind === 'image' && source" :src="source" :alt="name" @error="failed" />
-      <video
+      <ImagePreview
+        v-if="kind === 'image' && source"
+        :src="source"
+        :alt="name"
+        :state-key="`${session}/${blob.id}`"
+        @error="failed"
+      />
+      <VideoPlayer
         v-else-if="kind === 'video' && source"
-        ref="player"
+        @ready="player = $event"
+        :label="name"
         :key="source"
         :src="source"
-        controls
-        playsinline
-        preload="metadata"
+        @loadedmetadata="restorePlayback"
+        @loadeddata="checkVideo"
+        @playing="checkVideo"
+        @timeupdate="rememberPlayback"
+        @pause="rememberPlayback"
         @error="failed"
       />
       <div v-else-if="kind === 'audio' && source" class="audio-preview">
@@ -90,12 +131,15 @@ function failed() {
           :key="source"
           :src="source"
           controls
+          @loadedmetadata="restorePlayback"
+          @timeupdate="rememberPlayback"
+          @pause="rememberPlayback"
           preload="metadata"
           @error="failed"
         />
       </div>
       <PdfPreview v-else-if="kind === 'pdf'" :session="session" :blob="blob.id" />
-      <div v-else-if="kind === 'text'" class="text-preview">
+      <div v-else-if="kind === 'text'" ref="textViewport" class="text-preview" @scroll.passive="rememberText">
         <pre>{{ text }}</pre>
         <p v-if="truncated" class="muted">{{ i18n.t('library.truncated') }}</p>
       </div>
@@ -115,6 +159,9 @@ function failed() {
   min-width: 0;
   overflow: auto;
   padding: 12px;
+}
+.blob-preview-pdf {
+  padding: 0 6px 6px;
 }
 .blob-preview-image,
 .blob-preview-video {
@@ -142,6 +189,7 @@ audio {
 }
 .text-preview {
   width: 100%;
+  overflow: auto;
   user-select: text;
 }
 .text-preview pre {

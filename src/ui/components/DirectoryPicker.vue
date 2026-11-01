@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Browses the server's directories and picks one: a session's working directory, or a folder to
-// read skills from. The trigger shows the chosen folder unless a `trigger` slot replaces it.
+// Browse server paths. Directory mode selects working / skills directories; file mode
+// chooses a regular file for linking. Neither mode reads file contents.
 import { computed, nextTick, ref, watch } from 'vue';
 import { PopoverRoot, PopoverTrigger, PopoverPortal, PopoverContent, PopoverArrow } from 'reka-ui';
 import { directoriesList } from '../../core/api/endpoints.ts';
@@ -9,19 +9,43 @@ import { usePageActivity } from '../composables/usePageActivity.ts';
 import Icon from './Icon.vue';
 import BubbleSurface from './BubbleSurface.vue';
 import { tr } from '../../core/i18n/tr.ts';
+import { useDialogLayer } from '../composables/useDialogLayer.ts';
 import { useBackLayer } from '../composables/useBackLayer.ts';
 
 const props = withDefaults(
-  defineProps<{ modelValue: string; disabled?: boolean; title?: string; side?: 'top' | 'bottom' }>(),
-  { title: undefined, side: 'top' },
+  defineProps<{
+    modelValue: string;
+    disabled?: boolean;
+    title?: string;
+    side?: 'top' | 'bottom';
+    mode?: 'directory' | 'file';
+  }>(),
+  { title: undefined, side: 'top', mode: 'directory' },
 );
-const label = computed(() => props.title ?? tr('选择工作目录', 'Choose working directory'));
+const label = computed(
+  () =>
+    props.title ??
+    (props.mode === 'file' ? tr('选择本地文件', 'Choose local file') : tr('选择工作目录', 'Choose working directory')),
+);
 const emit = defineEmits<{ 'update:modelValue': [path: string] }>();
 type DirectoryListing = Awaited<ReturnType<typeof directoriesList>>;
 const folderName = computed(
   () => props.modelValue.split('/').filter(Boolean).at(-1) || (props.modelValue.startsWith('/') ? '/' : ''),
 );
 const active = usePageActivity();
+const layer = useDialogLayer(() => 75);
+function childPath(parent: string, name: string) {
+  const separator = parent.includes('\\') ? '\\' : '/';
+  return parent.replace(/[\\/]+$/, '') + separator + name;
+}
+function initialPath() {
+  if (props.mode !== 'file') return props.modelValue || '/';
+  const value = props.modelValue;
+  const index = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
+  if (index < 0) return '~';
+  return value.slice(0, index + 1) || '/';
+}
+
 const open = ref(false),
   pending = ref(false),
   error = ref(''),
@@ -31,7 +55,7 @@ useBackLayer(
   () => {
     open.value = false;
   },
-  () => 75,
+  () => layer.value,
 );
 const listing = ref<DirectoryListing>();
 const sidebarListing = ref<DirectoryListing>();
@@ -42,13 +66,20 @@ const showHidden = ref(false);
 const directories = computed(() =>
   (listing.value?.directories ?? []).filter((name) => showHidden.value || !name.startsWith('.')),
 );
+const files = computed(() => (listing.value?.files ?? []).filter((name) => showHidden.value || !name.startsWith('.')));
+function selectFile(name: string) {
+  if (props.mode !== 'file' || pending.value || error.value || !listing.value || path.value !== listing.value.path)
+    return;
+  emit('update:modelValue', childPath(listing.value.path, name));
+  open.value = false;
+}
 const siblings = computed(() => {
   const current = listing.value;
   if (!current) return [];
   if (!current.parent) return [{ name: '/', path: '/' }];
   if (sidebarListing.value?.path !== current.parent) return [];
   return sidebarListing.value.directories
-    .map((name) => ({ name, path: (current.parent === '/' ? '' : current.parent) + '/' + name }))
+    .map((name) => ({ name, path: childPath(current.parent!, name) }))
     .filter((item) => showHidden.value || !item.name.startsWith('.') || item.path === current.path);
 });
 let generation = 0;
@@ -81,7 +112,7 @@ async function browse(target: string) {
   pending.value = true;
   error.value = '';
   try {
-    const result = await directoriesList(target);
+    const result = await directoriesList(target, props.mode === 'file');
     if (current !== generation) return;
     listing.value = result;
     path.value = result.path;
@@ -103,7 +134,7 @@ watch(open, (value) => {
   if (value) {
     listing.value = undefined;
     sidebarListing.value = undefined;
-    void browse(props.modelValue || '/');
+    void browse(initialPath());
   } else {
     ++generation;
     pending.value = false;
@@ -127,16 +158,17 @@ function select() {
       v-else
       class="cwd-trigger"
       :disabled="disabled"
-      :data-hint="tr('工作目录：', 'Working directory: ') + modelValue"
+      :data-hint="label + ': ' + modelValue"
       :aria-label="label"
     >
-      <Icon name="folder" />
+      <Icon :name="mode === 'file' ? 'paperclip' : 'folder'" />
       <span>{{ folderName || label }}</span>
       <Icon name="chevron-down" />
     </PopoverTrigger>
     <PopoverPortal>
       <PopoverContent
         class="directory-picker"
+        :style="{ zIndex: layer }"
         :aria-label="label"
         :side="side"
         align="start"
@@ -207,13 +239,27 @@ function select() {
                   v-for="name in directories"
                   :key="name"
                   class="directory-row"
-                  @click="browse((listing!.path === '/' ? '' : listing!.path) + '/' + name)"
+                  @click="browse(childPath(listing!.path, name))"
                 >
                   <Icon name="folder" class="directory-folder" /><span>{{ name }}</span
                   ><Icon name="chevron-right" class="directory-enter" />
                 </button>
-                <p v-if="!directories.length" class="hint">
-                  {{ tr('没有可显示的子目录', 'No visible subdirectories') }}
+                <button
+                  v-for="name in files"
+                  :key="'file:' + name"
+                  type="button"
+                  class="directory-row file-row"
+                  :disabled="path !== listing?.path"
+                  @click="selectFile(name)"
+                >
+                  <Icon name="paperclip" class="directory-folder" /><span>{{ name }}</span>
+                </button>
+                <p v-if="!directories.length && !files.length" class="hint">
+                  {{
+                    mode === 'file'
+                      ? tr('没有可显示的文件或目录', 'No visible files or directories')
+                      : tr('没有可显示的子目录', 'No visible subdirectories')
+                  }}
                 </p>
               </template>
             </div>
@@ -221,9 +267,12 @@ function select() {
         </div>
         <div class="directory-footer">
           <label class="directory-hidden"
-            ><input v-model="showHidden" type="checkbox" />{{ tr('显示隐藏目录', 'Show hidden directories') }}</label
+            ><input v-model="showHidden" type="checkbox" />{{
+              mode === 'file' ? tr('显示隐藏文件', 'Show hidden files') : tr('显示隐藏目录', 'Show hidden directories')
+            }}</label
           >
           <button
+            v-if="mode === 'directory'"
             class="btn primary icon-only"
             :aria-label="tr('使用此目录', 'Use this directory')"
             :data-hint="tr('使用此目录', 'Use this directory')"
@@ -290,6 +339,9 @@ function select() {
   color: var(--fg);
   isolation: isolate;
   transform-origin: var(--reka-popover-content-transform-origin);
+}
+:global(.directory-picker[data-side='bottom']) {
+  --bubble-surface: var(--bg-control);
 }
 :global(.directory-tail-anchor) {
   display: block;

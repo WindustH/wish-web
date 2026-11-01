@@ -1,9 +1,10 @@
 // Chinese dictionary (zh). Keys are flat dot-namespaced for grep-ability.
 export const zh = {
   'common.loading': '加载中…',
+  'library.browseFiles': '浏览文件',
   'library.linkFile': '链接本地文件',
   'library.localPath': '文件绝对路径',
-  'library.linkHint': '只记录运行 Wish 的电脑上的本地路径，不复制文件。原文件移动或删除后将无法读取。',
+  'library.linkHint': '链接 Wish 所在电脑的文件，不复制内容。移动或删除原文件后，链接将失效。',
   'library.unavailable': '文件不可用',
   'library.upload': '上传文件',
   'library.mention': '引用',
@@ -29,6 +30,8 @@ export const zh = {
   'library.more': '加载更多文件',
   'library.refresh': '刷新库',
   'library.download': '下载文件',
+  'library.videoUnsupported':
+    '浏览器无法解码此视频的画面或编码格式（例如 H.264 10-bit）。请下载文件或使用本地播放器打开原文件。',
   'library.previewFailed': '预览加载失败，请重试或下载文件。',
   'library.noPreview': '此类型暂不支持预览，可以通过上方按钮下载文件。',
   'library.truncated': '仅展示前 256 KiB，下载文件可查看完整内容。',

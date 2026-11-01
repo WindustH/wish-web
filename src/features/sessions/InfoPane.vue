@@ -24,7 +24,10 @@ import { RouterLink } from 'vue-router';
 import Icon from '../../ui/components/Icon.vue';
 import type { GroupView } from '../../core/api/types.ts';
 
-const props = withDefaults(defineProps<{ initialSection?: 'overview' | 'search' }>(), { initialSection: 'overview' });
+const props = withDefaults(
+  defineProps<{ initialSection?: 'overview' | 'search'; sidebar?: boolean; open?: boolean }>(),
+  { initialSection: 'overview', open: true },
+);
 const section = ref(props.initialSection);
 watch(
   () => props.initialSection,
@@ -35,6 +38,12 @@ watch(
 
 const GenerationInspector = defineAsyncComponent(() => import('./GenerationInspector.vue'));
 const inspectOpen = ref(false);
+watch(
+  () => props.open,
+  (open) => {
+    if (!open) inspectOpen.value = false;
+  },
+);
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 defineEmits<{ close: [] }>();
 const isMobile = useIsMobile();
@@ -118,7 +127,8 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
 
 <template>
   <Modal
-    :open="true"
+    :open="open"
+    :sidebar="sidebar"
     :back-layer="!isMobile"
     :content-class="`session-window usage-info-window${section === 'search' ? ' history-search-window' : ''}`"
     :title="i18n.t('info.title')"

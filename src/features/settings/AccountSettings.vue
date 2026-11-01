@@ -23,6 +23,7 @@ const accountChoices = computed(() =>
     search: p.id,
   })),
 );
+const created = ref('');
 const editing = ref(''),
   adding = ref(false);
 function add(preset?: AccountPreset) {
@@ -37,6 +38,7 @@ function add(preset?: AccountPreset) {
   };
   adding.value = false;
   editing.value = id;
+  created.value = id;
 }
 const accountUses = computed(() => {
   const links = new Map<string, string[]>();
@@ -126,10 +128,14 @@ function confirmRemoval() {
     <AccountEditor
       v-if="editing"
       :id="editing"
+      :suggest-services="editing === created"
       :allow-remove="true"
       :linked="uses(editing).length > 0"
       @remove="remove(editing)"
-      @close="editing = ''"
+      @close="
+        editing = '';
+        created = '';
+      "
     />
     <Modal
       compact

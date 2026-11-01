@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, inject, reactive, shallowRef, watch } from 'vue';
+import { computed, inject, reactive, ref, shallowRef, watch } from 'vue';
+import AccountServicesDialog from '../../domain/settings/AccountServicesDialog.vue';
+import { accountServices } from './accountServices.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
 import SwitchRow from '../../domain/settings/SwitchRow.vue';
@@ -11,9 +13,28 @@ import { useCopilotLogin } from '../providers/useCopilotLogin.ts';
 import { REDACTED, secretText, readSecret, writeCredential } from '../../core/secretRef.ts';
 import { useAccountCatalog } from './useAccountCatalog.ts';
 import { tr } from '../../core/i18n/tr.ts';
-const props = defineProps<{ id: string; allowRemove?: boolean; linked?: boolean }>();
+const props = defineProps<{ id: string; allowRemove?: boolean; linked?: boolean; suggestServices?: boolean }>();
 const emit = defineEmits<{ close: []; remove: [] }>();
-const { draft, saveConfig, load } = inject(configDraftKey)!;
+const { draft, saveConfig, load, catalog, searchCatalog, fetchCatalog, imageCatalog, mediaCatalog } =
+  inject(configDraftKey)!;
+const suggesting = ref(false);
+const services = computed(() =>
+  accountServices(draft.value, props.id, {
+    models: catalog.value,
+    search: searchCatalog.value,
+    fetch: fetchCatalog.value,
+    image: imageCatalog.value,
+    media: mediaCatalog.value,
+  }),
+);
+function done() {
+  if (props.suggestServices && services.value.length) suggesting.value = true;
+  else emit('close');
+}
+function addServices(keys: string[]) {
+  for (const choice of services.value) if (keys.includes(choice.key)) choice.add();
+  emit('close');
+}
 const mobile = useIsMobile();
 const accountCatalog = useAccountCatalog();
 const account = computed(() => draft.value.accounts[props.id]);
@@ -66,7 +87,7 @@ function field(name: string, text: string) {
 <template>
   <Modal
     v-if="account"
-    :open="true"
+    :open="!suggesting"
     :page="mobile"
     :content-class="mobile ? 'settings-editor mobile-settings-page account-editor' : 'settings-editor account-editor'"
     :title="tr('账户', 'Account')"
@@ -199,9 +220,17 @@ function field(name: string, text: string) {
         @click="emit('remove')"
       >
         <Icon :name="allowRemove && !linked ? 'trash-2' : 'trash-off'" /></button
-      ><button class="btn primary" @click="emit('close')">{{ tr('完成', 'Done') }}</button></template
+      ><button class="btn primary" @click="done">{{ tr('完成', 'Done') }}</button></template
     >
   </Modal>
+  <AccountServicesDialog
+    v-if="account"
+    :open="suggesting"
+    :account-name="account.name || id"
+    :options="services"
+    @close="emit('close')"
+    @confirm="addServices"
+  />
 </template>
 <style scoped>
 .account-form {
