@@ -46,7 +46,7 @@ watch(
         if (controller.signal.aborted) return;
         truncated.value = props.blob.byte_count > bytes.byteLength;
         text.value = new TextDecoder('utf-8', { fatal: true }).decode(bytes, { stream: truncated.value });
-      } else if (kind.value !== 'file') {
+      } else if (kind.value !== 'file' && kind.value !== 'pdf') {
         const grant = await mediaPlayback(props.session, props.blob.id, { signal: controller.signal });
         if (!controller.signal.aborted) source.value = absUrl(grant.path);
       }
@@ -94,7 +94,7 @@ function failed() {
           @error="failed"
         />
       </div>
-      <PdfPreview v-else-if="kind === 'pdf' && source" :src="source" />
+      <PdfPreview v-else-if="kind === 'pdf'" :session="session" :blob="blob.id" />
       <div v-else-if="kind === 'text'" class="text-preview">
         <pre>{{ text }}</pre>
         <p v-if="truncated" class="muted">{{ i18n.t('library.truncated') }}</p>

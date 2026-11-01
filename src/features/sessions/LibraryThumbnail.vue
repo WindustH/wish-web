@@ -62,16 +62,15 @@ watch(
           if (cacheable) previewCache.set(key, cover);
           if (cover) source.value = objectUrl = URL.createObjectURL(cover);
         }
+      } else if (kind.value === 'pdf') {
+        const cover = await pdfThumbnail(props.session, props.blob.id, controller.signal);
+        if (!controller.signal.aborted) {
+          if (cacheable) previewCache.set(key, cover);
+          if (cover) source.value = objectUrl = URL.createObjectURL(cover);
+        }
       } else {
         const grant = await mediaPlayback(props.session, props.blob.id, { signal: controller.signal });
-        if (controller.signal.aborted) return;
-        if (kind.value === 'pdf') {
-          const cover = await pdfThumbnail(absUrl(grant.path), controller.signal);
-          if (!controller.signal.aborted) {
-            if (cacheable) previewCache.set(key, cover);
-            if (cover) source.value = objectUrl = URL.createObjectURL(cover);
-          }
-        } else source.value = absUrl(grant.path);
+        if (!controller.signal.aborted) source.value = absUrl(grant.path);
       }
     } catch {
       // Thumbnails are optional: unsupported codecs and missing covers retain the type icon.
