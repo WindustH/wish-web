@@ -15,6 +15,7 @@ import Modal from '../../ui/components/Modal.vue';
 import LibraryThumbnail from './LibraryThumbnail.vue';
 import SelectField from '../../domain/providers/SelectField.vue';
 import { platform } from '../../platform/index.ts';
+import { prefs } from '../../core/state/prefsSlice.ts';
 import { cfg } from '../../core/config.ts';
 import { toast } from '../../ui/toast.ts';
 import Icon from '../../ui/components/Icon.vue';
@@ -92,8 +93,11 @@ async function upload() {
   } catch (cause) {
     if (!request.signal.aborted) toast(describeError(cause).message);
   } finally {
-    if (!request.signal.aborted && owner === props.session) {
+    if (uploadController === request) {
+      uploadController = undefined;
       uploading.value = false;
+    }
+    if (!request.signal.aborted && owner === props.session) {
       // Replace an in-flight stale catalog response after the upload completes.
       controller?.abort();
       loading.value = false;
@@ -162,7 +166,10 @@ async function load(more = false, quiet = false) {
   } catch (cause) {
     if (!request.signal.aborted && !quiet) error.value = describeError(cause).message;
   } finally {
-    if (!request.signal.aborted) loading.value = false;
+    if (controller === request) {
+      controller = undefined;
+      loading.value = false;
+    }
   }
 }
 watch(
@@ -193,9 +200,17 @@ watch(
 </script>
 
 <template>
-  <IslandSidebar :open="open" :title="title" :overlay="mobile" @close="emit('close')" @back="back">
+  <IslandSidebar
+    :width="prefs.rightSidebarWidth.value"
+    @update:width="prefs.setRightSidebarWidth"
+    :open="open"
+    :title="title"
+    :overlay="mobile"
+    @close="emit('close')"
+    @back="back"
+  >
     <template #leading>
-      <button v-if="selected" class="btn ghost icon-only" :aria-label="i18n.t('library.back')" @click="selected = null">
+      <button v-if="selected || mobile" class="btn ghost icon-only" :aria-label="i18n.t('library.back')" @click="back">
         <Icon name="arrow-left" />
       </button>
     </template>

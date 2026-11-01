@@ -19,6 +19,9 @@ import { platform } from '../../platform/index.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { toast } from '../../ui/toast.ts';
 
+// Keep browser memory bounded; large documents can be uploaded directly to the Library and referenced.
+const MAX_BUFFERED_ATTACHMENT = 50 * 1024 * 1024;
+
 export interface Attachment extends AttachmentInput {
   localUrl: string;
 }
@@ -143,6 +146,22 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
     try {
       for (const item of items) {
         try {
+          if (item.kind === 'file') {
+            if (!hasAttachmentSpace('file')) continue;
+            attachments.value.push({
+              kind: 'file',
+              name: item.filename,
+              placeholder: item.placeholder,
+              size: item.byte_count,
+              mime: item.mime_type || 'application/octet-stream',
+              stored: { owner: item.blob_id.split('/')[0], id: item.blob_id.split('/').at(-1) },
+              bytes: new ArrayBuffer(0),
+              localUrl: '',
+            });
+            saveAttachmentDrafts(attachmentsOwnerId.value, attachments.value);
+            continue;
+          }
+          if (item.byte_count > MAX_BUFFERED_ATTACHMENT) throw new Error('Image exceeds editor memory limit');
           const response = await apiFetch(blobUrl(item.blob_id));
           if (!response.ok) throw new Error(`blob ${item.blob_id}: ${response.status}`);
           const bytes = await response.arrayBuffer();
@@ -254,6 +273,15 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
             tr(
               `附件超过大小限制（${fmtBytes(Math.max(limits.value.imageBytes, limits.value.fileBytes))}）`,
               `Attachment exceeds size limit (${fmtBytes(Math.max(limits.value.imageBytes, limits.value.fileBytes))})`,
+            ),
+          );
+          continue;
+        }
+        if (file.size > MAX_BUFFERED_ATTACHMENT) {
+          toast(
+            tr(
+              '超过 50 MiB 的附件请上传到库，再引用到消息中。',
+              'Upload attachments larger than 50 MiB to the Library, then reference them in the message.',
             ),
           );
           continue;

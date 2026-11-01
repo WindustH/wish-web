@@ -3,7 +3,7 @@ import MessageContext from './MessageContext.vue';
 import { attachmentPreview, previewAttachment } from '../../../ui/attachmentPreview.ts';
 import Hint from '../../../ui/components/Hint.vue';
 import Icon from '../../../ui/components/Icon.vue';
-import ApiImage from '../../../ui/components/ApiImage.vue';
+import BlobImage from '../../../domain/media/BlobImage.vue';
 import { downloadApiFile } from '../../../ui/download.ts';
 import { blobMetadata, blobUrl } from '../../../core/api/endpoints.ts';
 import { ref, watch } from 'vue';
@@ -55,7 +55,7 @@ const imageSrc = () =>
       >
         <div v-if="block.type === 'text'">{{ block.text }}</div>
         <figure v-else-if="block.type === 'image'" class="message-image">
-          <ApiImage :src="imageSrc()" :alt="block.filename || block.placeholder || ''" loading="lazy" />
+          <BlobImage :src="imageSrc()" :alt="block.filename || block.placeholder || ''" loading="lazy" />
           <figcaption v-if="block.filename">{{ block.filename }}</figcaption>
         </figure>
         <div v-else class="attachment-file message-file">

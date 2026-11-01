@@ -6,7 +6,7 @@ import { blobUrl } from '../../../core/api/endpoints.ts';
 import { fmtTokens } from '../../../core/util/fmt.ts';
 import Markdown from '../../../ui/components/Markdown.vue';
 import MessageContext from '../../../domain/chat/entries/MessageContext.vue';
-import ApiImage from '../../../ui/components/ApiImage.vue';
+import BlobImage from '../../../domain/media/BlobImage.vue';
 import ImageGrid from '../../../domain/chat/entries/ImageGrid.vue';
 import { imageParts } from '../../../domain/chat/imageAlbums.ts';
 
@@ -44,7 +44,7 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
               class="entry-anchor"
               :data-seq="item.imageSeqs?.[start + index]"
             >
-              <ApiImage
+              <BlobImage
                 v-if="blobSrc(image)"
                 :src="blobSrc(image)!"
                 :alt="image.filename || ''"
@@ -54,7 +54,7 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
             </div>
           </ImageGrid>
           <Markdown data-selectable-text v-else-if="part.block.type === 'text'" :text="part.block.text" />
-          <ApiImage
+          <BlobImage
             v-else-if="part.block.type === 'image' && blobSrc(part.block)"
             class="assistant-img"
             :src="blobSrc(part.block)!"

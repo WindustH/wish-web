@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setBaseUrl } from '../src/core/api/client.ts';
-import { imagePreviewUrl } from '../src/core/mediaPreview.ts';
+import { imagePreviewUrl } from '../src/core/api/endpoints.ts';
 
 test('blob image scenes use requested preview sizes and the original preference bypasses them', () => {
   setBaseUrl('https://wish.test/api');
@@ -13,4 +13,28 @@ test('blob image scenes use requested preview sizes and the original preference 
   assert.equal(imagePreviewUrl('data:image/png;base64,abc',768,false),'data:image/png;base64,abc');
   const external = original.replace('wish.test','other.test');
   assert.equal(imagePreviewUrl(external,768,false),external);
+});
+
+test('PDF page cache distinguishes source revisions and resolutions and honors cancellation', async (t) => {
+  const { pdfPage } = await import('../src/core/api/endpoints.ts');
+  const { previewCache } = await import('../src/core/util/previewCache.ts');
+  previewCache.clear();
+  setBaseUrl('https://wish.test/api');
+  let requests = 0;
+  t.mock.method(globalThis, 'fetch', async () => {
+    requests++;
+    return new Response(new Blob(['rendered page'], {type:'image/png'}));
+  });
+  const signal = new AbortController().signal;
+  const first = await pdfPage('s', 'blob', 1, 384, signal, 'v1');
+  assert.equal(await pdfPage('s', 'blob', 1, 384, signal, 'v1'), first);
+  assert.equal(requests, 1);
+  await pdfPage('s', 'blob', 1, 768, signal, 'v1');
+  await pdfPage('s', 'blob', 1, 384, signal, 'v2');
+  assert.equal(requests, 3);
+  const cancelled = new AbortController();
+  cancelled.abort();
+  await assert.rejects(pdfPage('s', 'blob', 1, 384, cancelled.signal, 'v1'), {name:'AbortError'});
+  assert.equal(requests, 3);
+  previewCache.clear();
 });

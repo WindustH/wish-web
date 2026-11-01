@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
-import { imagePreviewUrl } from '../../core/mediaPreview.ts';
+import { imagePreviewUrl } from '../../core/api/endpoints.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import { cfg } from '../../core/config.ts';
 import { acquireImageLoad } from '../../core/util/imageLoad.ts';

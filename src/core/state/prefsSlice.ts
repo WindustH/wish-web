@@ -30,8 +30,15 @@ export const prefs = (() => {
   const TEXT_SIZE = 'pref.textSize';
   const textSize = shallowRef(1);
   const loaded = shallowRef(false);
+  const rightSidebarWidth = shallowRef(0);
+  function setRightSidebarWidth(width: number) {
+    rightSidebarWidth.value = Number.isFinite(width) && width >= 280 ? width : 0;
+    platform('storage').set('pref.rightSidebarWidth', String(rightSidebarWidth.value));
+  }
 
   function load() {
+    const width = Number(platform('storage').get('pref.rightSidebarWidth'));
+    rightSidebarWidth.value = Number.isFinite(width) && width >= 280 ? width : 0;
     for (const pref of [sendOnEnter, keepAwake, notifyOnFailure, sessionListCollapsed, originalImages]) pref.load();
     const size = Number(platform('storage').get(TEXT_SIZE));
     textSize.value = size >= 0.8 && size <= 1.4 ? size : 1;
@@ -46,6 +53,8 @@ export const prefs = (() => {
   }
 
   return {
+    rightSidebarWidth,
+    setRightSidebarWidth,
     originalImages: originalImages.value,
     setOriginalImages: originalImages.set,
     sendOnEnter: sendOnEnter.value,

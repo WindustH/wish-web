@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { DialogRoot, DialogContent, DialogOverlay, DialogTitle } from 'reka-ui';
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
-import { tryPlatform } from '../../platform/index.ts';
-import Icon from './Icon.vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
 
@@ -10,8 +8,7 @@ const props = defineProps<{ title: string; overlay?: boolean; open: boolean }>()
 const emit = defineEmits<{ close: []; back: [] }>();
 const focus = useDialogFocus();
 const handle = ref<HTMLElement>();
-const savedWidth = Number(tryPlatform('storage')?.get('pref.rightSidebarWidth'));
-const preferredWidth = ref(Number.isFinite(savedWidth) && savedWidth >= 280 ? savedWidth : 0);
+const preferredWidth = defineModel<number>('width', { default: 0 });
 const available = ref(window.innerWidth);
 const minimum = 280;
 const maximum = computed(() => Math.max(minimum, available.value - 320));
@@ -25,17 +22,13 @@ const width = computed(() =>
 );
 let observer: ResizeObserver | undefined;
 let drag: { id: number; x: number; width: number; preferred: number; target: HTMLElement } | undefined;
-function save() {
-  tryPlatform('storage')?.set('pref.rightSidebarWidth', String(preferredWidth.value));
-}
 function finish(commit = false) {
   if (!drag) return;
   const previous = drag;
   drag = undefined;
   document.documentElement.classList.remove('resizing');
   if (previous.target.hasPointerCapture(previous.id)) previous.target.releasePointerCapture(previous.id);
-  if (commit) save();
-  else preferredWidth.value = previous.preferred;
+  if (!commit) preferredWidth.value = previous.preferred;
 }
 function start(event: PointerEvent) {
   if (event.button !== 0) return;
@@ -64,7 +57,6 @@ function keyboard(event: KeyboardEvent) {
   event.preventDefault();
   finish();
   preferredWidth.value = Math.min(maximum.value, Math.max(minimum, next));
-  save();
 }
 function cancel() {
   finish();
@@ -132,9 +124,6 @@ onBeforeUnmount(() => {
           ><slot name="title">{{ title }}</slot></DialogTitle
         >
         <div class="island-actions"><slot name="actions" /></div>
-        <button class="btn ghost icon-only" :aria-label="i18n.t('common.close')" @click="emit('close')">
-          <Icon name="x" />
-        </button>
       </header>
       <div class="island-body"><slot /></div>
       <slot name="footer" />

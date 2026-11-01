@@ -148,6 +148,10 @@ export interface BlobInfo {
   mime_type: string;
   byte_count: number;
 }
+export interface LinkedBlob extends BlobInfo {
+  path: string;
+  linked: boolean;
+}
 export interface LibraryBlob extends BlobInfo {
   linked?: boolean;
   available?: boolean;

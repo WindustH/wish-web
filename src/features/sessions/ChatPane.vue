@@ -289,6 +289,7 @@ const goTab = (t: SessionTab) => {
       <Hint :text="i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar')"
         ><button
           class="btn ghost icon-only"
+          data-sidebar-toggle
           :aria-label="i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar')"
           aria-controls="session-sidebar"
           :aria-expanded="sidebarOpen"

@@ -4,7 +4,7 @@ import { tr } from '../../core/i18n/tr.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
-import { pdfInfo, pdfPage, type PdfInfo } from './pdfPages.ts';
+import { pdfInfo, pdfPage, type PdfInfo } from '../../core/api/endpoints.ts';
 import Icon from '../../ui/components/Icon.vue';
 
 const props = defineProps<{ session: string; blob: string }>();
@@ -28,30 +28,38 @@ function jump(bookmark: PdfInfo['bookmarks'][number]) {
   outlineOpen.value = false;
 }
 let wheelTotal = 0,
-  lastWheel = 0,
-  lastTurn = 0;
+  lastWheel = -Infinity,
+  wheelDirection = 0,
+  edgeGesture = false;
 function wheel(event: WheelEvent) {
   if (event.ctrlKey || event.metaKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
   const box = viewport.value,
     pdf = document.value;
   if (!box || !pdf || !event.deltaY) return;
-  const down = event.deltaY > 0;
-  if (down ? box.scrollTop + box.clientHeight < box.scrollHeight - 2 : box.scrollTop > 2) {
+  const now = performance.now(),
+    direction = Math.sign(event.deltaY);
+  const newGesture = now - lastWheel > 180 || direction !== wheelDirection;
+  lastWheel = now;
+  wheelDirection = direction;
+  const atEdge = direction > 0 ? box.scrollTop + box.clientHeight >= box.scrollHeight - 2 : box.scrollTop <= 2;
+  if (!atEdge) {
     wheelTotal = 0;
+    edgeGesture = false;
     return;
   }
   event.preventDefault();
-  const now = performance.now();
-  if (now - lastWheel > 200 || Math.sign(wheelTotal) !== Math.sign(event.deltaY)) wheelTotal = 0;
-  lastWheel = now;
-  if (now - lastTurn < 350) return;
+  // Reaching the edge during a scrolling gesture must not turn the page through inertia.
+  // Require a fresh gesture at the edge, and allow at most one turn per gesture.
+  if (newGesture) {
+    edgeGesture = true;
+    wheelTotal = 0;
+  }
+  if (!edgeGesture) return;
   wheelTotal += event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? box.clientHeight : 1);
-  if (Math.abs(wheelTotal) < 50) return;
-  const next = Math.max(1, Math.min(pdf.pages, page.value + (down ? 1 : -1)));
+  if (Math.abs(wheelTotal) < 100) return;
+  edgeGesture = false;
   wheelTotal = 0;
-  if (next === page.value) return;
-  lastTurn = now;
-  page.value = next;
+  page.value = Math.max(1, Math.min(pdf.pages, page.value + direction));
 }
 
 watch(
@@ -110,10 +118,11 @@ watch(
       painted.value = true;
       painting.value = false;
       // Current page always wins; cancel background reads on navigation/close.
-      for (const neighbor of [targetPage + 1, targetPage - 1]) {
-        if (neighbor < 1 || neighbor > pdf.pages || controller.signal.aborted) continue;
-        await pdfPage(props.session, props.blob, neighbor, resolution, controller.signal, pdf.version).catch(() => {});
-      }
+      void Promise.allSettled(
+        [targetPage + 1, targetPage - 1]
+          .filter((neighbor) => neighbor >= 1 && neighbor <= pdf.pages && !controller.signal.aborted)
+          .map((neighbor) => pdfPage(props.session, props.blob, neighbor, resolution, controller.signal, pdf.version)),
+      );
     } catch (cause) {
       if (!controller.signal.aborted) error.value = describeError(cause).message;
     } finally {

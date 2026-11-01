@@ -5,9 +5,10 @@ import { blobUrl, mediaPlayback } from '../../core/api/endpoints.ts';
 import { absUrl } from '../../core/api/client.ts';
 import { pdfThumbnail } from '../../domain/media/pdfThumbnail.ts';
 import { previewCache } from '../../core/util/previewCache.ts';
+import { videoThumbnail } from '../../domain/media/videoThumbnail.ts';
 import { audioCover } from '../../domain/media/audioCover.ts';
 import { acquireImageLoad } from '../../core/util/imageLoad.ts';
-import ApiImage from '../../ui/components/ApiImage.vue';
+import BlobImage from '../../domain/media/BlobImage.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { blobIcon, blobKind } from './libraryFiles.ts';
 
@@ -18,6 +19,10 @@ const surface = ref<HTMLElement>(),
   source = ref('');
 let observer: IntersectionObserver | undefined;
 onMounted(() => {
+  if (typeof IntersectionObserver === 'undefined') {
+    visible.value = true;
+    return;
+  }
   observer = new IntersectionObserver(
     (entries) => {
       if (entries.some((entry) => entry.isIntersecting)) {
@@ -42,7 +47,7 @@ watch(
     source.value = '';
     if (!visible.value || !['audio', 'video', 'pdf'].includes(kind.value)) return;
     const key = absUrl(blobUrl(`${props.session}/${props.blob.id}`));
-    const cacheable = !props.blob.linked && ['audio', 'pdf'].includes(kind.value);
+    const cacheable = !props.blob.linked && ['audio', 'video'].includes(kind.value);
     const cached = cacheable ? previewCache.get(key) : undefined;
     if (cached !== undefined) {
       if (cached) source.value = objectUrl = URL.createObjectURL(cached);
@@ -70,7 +75,11 @@ watch(
         }
       } else {
         const grant = await mediaPlayback(props.session, props.blob.id, { signal: controller.signal });
-        if (!controller.signal.aborted) source.value = absUrl(grant.path);
+        const cover = await videoThumbnail(absUrl(grant.path), controller.signal);
+        if (!controller.signal.aborted) {
+          if (cacheable) previewCache.set(key, cover);
+          source.value = objectUrl = URL.createObjectURL(cover);
+        }
       }
     } catch {
       // Thumbnails are optional: unsupported codecs and missing covers retain the type icon.
@@ -80,15 +89,11 @@ watch(
   },
   { immediate: true },
 );
-function seekFrame(event: Event) {
-  const video = event.target as HTMLVideoElement;
-  if (Number.isFinite(video.duration)) video.currentTime = Math.min(0.1, video.duration / 2);
-}
 </script>
 
 <template>
   <span ref="surface" class="library-thumbnail" :class="kind">
-    <ApiImage
+    <BlobImage
       v-if="kind === 'image'"
       :src="blobUrl(`${session}/${blob.id}`)"
       :zoom="false"
@@ -96,18 +101,7 @@ function seekFrame(event: Event) {
       alt=""
       loading="lazy"
     />
-    <video
-      v-else-if="kind === 'video' && source"
-      :src="source"
-      muted
-      playsinline
-      preload="metadata"
-      tabindex="-1"
-      aria-hidden="true"
-      @loadedmetadata="seekFrame"
-      @error="source = ''"
-    />
-    <img v-else-if="(kind === 'audio' || kind === 'pdf') && source" :src="source" alt="" @error="source = ''" />
+    <img v-else-if="['audio', 'video', 'pdf'].includes(kind) && source" :src="source" alt="" @error="source = ''" />
     <Icon v-else :name="blobIcon(kind)" :size="kind === 'audio' ? 48 : 32" />
     <span v-if="kind === 'video'" class="library-play"><Icon name="play" :size="24" /></span>
     <Icon v-if="kind === 'pdf'" name="file-pdf" class="library-pdf-icon" :size="26" />

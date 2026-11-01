@@ -1,7 +1,9 @@
+import { createAbortScope } from '../util/abortScope.ts';
+import { previewCache } from '../util/previewCache.ts';
 // One function per server endpoint, grouped by what they act on. Most are thin; the few that
 // combine requests say so. The shapes they take and return are in types.ts.
 import { peekCached, writeCached } from '../util/responseCache.ts';
-import { get, post, patch, put, del, api, getBaseUrl } from './client.ts';
+import { get, post, patch, put, del, api, getBaseUrl, apiFetch, isApiUrl } from './client.ts';
 import {
   sessionView,
   entryView,
@@ -17,6 +19,7 @@ import { mapConcurrent } from '../util/mapConcurrent.ts';
 import type { ConfigCatalog, ProviderConfig } from '../provider-presets.ts';
 import type {
   BlobInfo,
+  LinkedBlob,
   BrowserLogin,
   ConfigSnapshot,
   CopilotDeviceCode,
@@ -440,7 +443,7 @@ export const uploadDraftBlob = async (
   });
   return { ...blob, sha256: blob.id };
 };
-export const linkSessionFile = (session: string, localPath: string): Promise<BlobInfo> =>
+export const linkSessionFile = (session: string, localPath: string): Promise<LinkedBlob> =>
   post(`${path(session)}/blobs/link`, { path: localPath });
 export const blobMetadata = (reference: string): Promise<BlobInfo> => get(`${blobPath(reference)}/meta`);
 export const sessionBlobs = (
@@ -731,3 +734,46 @@ export const mediaPlayback = async (
   writeCached(key, grant, { persist: false });
   return grant;
 };
+
+export interface PdfInfo {
+  pages: number;
+  version: string;
+  bookmarks: { title: string; depth: number; page: number | null }[];
+}
+export const pdfInfo = (session: string, blob: string, signal: AbortSignal): Promise<PdfInfo> =>
+  get(`/sessions/${encodeURIComponent(session)}/blobs/${encodeURIComponent(blob)}/pdf`, { signal, timeoutMs: 60_000 });
+
+export async function pdfPage(
+  session: string,
+  blob: string,
+  page: number,
+  width: number,
+  signal: AbortSignal,
+  version?: string,
+): Promise<Blob> {
+  const path = `${blobUrl(`${session}/${blob}`)}/pdf/page?page=${page}&width=${width}`;
+  const key = `${path}:${version}`;
+  signal.throwIfAborted();
+  const cached = version === undefined ? undefined : previewCache.get(key);
+  if (cached) return cached;
+  const scope = createAbortScope([signal], 60_000);
+  try {
+    const response = await apiFetch(path, { signal: scope.signal });
+    if (!response.ok) throw new Error(`PDF preview: HTTP ${response.status}`);
+    const bytes = await response.blob();
+    scope.signal.throwIfAborted();
+    if (version !== undefined) previewCache.set(key, bytes);
+    return bytes;
+  } finally {
+    scope.dispose();
+  }
+}
+
+export function imagePreviewUrl(src: string, width: 384 | 768 | 1536, original: boolean): string {
+  if (original || !isApiUrl(src)) return src;
+  const parsed = new URL(src, globalThis.location?.href);
+  if (!/\/(?:sessions|groups)\/[^/]+\/blobs\/[a-f0-9]{64}$/.test(parsed.pathname)) return src;
+  parsed.pathname += '/image';
+  parsed.search = `?width=${width}`;
+  return parsed.href;
+}
