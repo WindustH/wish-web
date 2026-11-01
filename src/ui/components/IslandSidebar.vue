@@ -150,7 +150,7 @@ onBeforeUnmount(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--line);
+  box-shadow: inset 1px 0 var(--line);
   background: var(--bg);
   overflow: hidden;
   outline: none;
@@ -158,16 +158,31 @@ onBeforeUnmount(() => {
 .island-resize-handle {
   position: absolute;
   inset: 0 auto 0 0;
-  width: 6px;
+  width: 7px;
   z-index: 3;
   cursor: col-resize;
   touch-action: none;
   outline: none;
 }
-.island-resize-handle:hover,
-.island-resize-handle:focus-visible {
-  background: var(--accent-soft);
-  border-left: 2px solid var(--accent);
+/* Match the session list divider: a wide invisible hit area, with only a
+   one-pixel line gaining accent color on hover, keyboard focus, or drag. */
+.island-resize-handle::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 1px;
+  background: transparent;
+  transition: background var(--dur-fast);
+}
+html.resizing .island-resize-handle::after,
+.island-resize-handle:focus-visible::after {
+  background: var(--accent);
+}
+@media (hover: hover) {
+  .island-resize-handle:hover::after {
+    background: var(--accent);
+  }
 }
 .island-heading {
   flex: none;
@@ -205,7 +220,7 @@ onBeforeUnmount(() => {
 .island-overlay {
   position: absolute;
   inset: 0;
-  border-left: none;
+  box-shadow: none;
 }
 @media (prefers-reduced-motion: no-preference) {
   .island-sidebar {
