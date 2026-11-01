@@ -1,5 +1,6 @@
 // One function per server endpoint, grouped by what they act on. Most are thin; the few that
 // combine requests say so. The shapes they take and return are in types.ts.
+import { peekCached, writeCached } from '../util/responseCache.ts';
 import { get, post, patch, put, del, api, getBaseUrl } from './client.ts';
 import {
   sessionView,
@@ -713,9 +714,20 @@ export const mediaJobStatus = (
   opts?: EndpointOptions,
 ): Promise<import('../mediaGeneration.ts').MediaJob> =>
   post(`${path(session)}/media/${kind}/${encodeURIComponent(job)}/status`, {}, { timeoutMs: 610_000, ...opts });
-export const mediaPlayback = (
+export const mediaPlayback = async (
   session: string,
   blob: string,
   opts?: EndpointOptions,
-): Promise<{ path: string; expires_at: number }> =>
-  post(`${path(session)}/blobs/${encodeURIComponent(blob)}/playback`, {}, opts);
+): Promise<{ path: string; expires_at: number }> => {
+  opts?.signal?.throwIfAborted();
+  const key = `playback:${session}/${blob}`;
+  const cached = peekCached<{ path: string; expires_at: number }>(key);
+  if (cached && cached.expires_at > Date.now() / 1000 + 60) return cached;
+  const grant: { path: string; expires_at: number } = await post(
+    `${path(session)}/blobs/${encodeURIComponent(blob)}/playback`,
+    {},
+    opts,
+  );
+  writeCached(key, grant, { persist: false });
+  return grant;
+};

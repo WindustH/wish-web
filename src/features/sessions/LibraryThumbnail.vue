@@ -4,6 +4,7 @@ import type { LibraryBlob } from '../../core/api/types.ts';
 import { blobUrl, mediaPlayback } from '../../core/api/endpoints.ts';
 import { absUrl } from '../../core/api/client.ts';
 import { pdfThumbnail } from '../../domain/media/pdfThumbnail.ts';
+import { previewCache } from '../../core/util/previewCache.ts';
 import { audioCover } from '../../domain/media/audioCover.ts';
 import { acquireImageLoad } from '../../domain/media/imageLoad.ts';
 import ApiImage from '../../ui/components/ApiImage.vue';
@@ -40,6 +41,13 @@ watch(
     });
     source.value = '';
     if (!visible.value || !['audio', 'video', 'pdf'].includes(kind.value)) return;
+    const key = absUrl(blobUrl(`${props.session}/${props.blob.id}`));
+    const cacheable = !props.blob.linked && ['audio', 'pdf'].includes(kind.value);
+    const cached = cacheable ? previewCache.get(key) : undefined;
+    if (cached !== undefined) {
+      if (cached) source.value = objectUrl = URL.createObjectURL(cached);
+      return;
+    }
     let release: (() => void) | undefined;
     try {
       release = await acquireImageLoad(controller.signal);
@@ -50,13 +58,19 @@ watch(
           props.blob.mime_type,
           controller.signal,
         );
-        if (cover && !controller.signal.aborted) source.value = objectUrl = URL.createObjectURL(cover);
+        if (!controller.signal.aborted) {
+          if (cacheable) previewCache.set(key, cover);
+          if (cover) source.value = objectUrl = URL.createObjectURL(cover);
+        }
       } else {
         const grant = await mediaPlayback(props.session, props.blob.id, { signal: controller.signal });
         if (controller.signal.aborted) return;
         if (kind.value === 'pdf') {
           const cover = await pdfThumbnail(absUrl(grant.path), controller.signal);
-          if (cover && !controller.signal.aborted) source.value = objectUrl = URL.createObjectURL(cover);
+          if (!controller.signal.aborted) {
+            if (cacheable) previewCache.set(key, cover);
+            if (cover) source.value = objectUrl = URL.createObjectURL(cover);
+          }
         } else source.value = absUrl(grant.path);
       }
     } catch {

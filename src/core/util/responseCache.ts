@@ -1,6 +1,7 @@
 // Last good responses, kept in memory and in IndexedDB, so pages open with the
 // previous data at once and swap in fresh responses when they arrive. Only
 // plain API results belong here (never Vue proxies: IndexedDB clones values).
+import { previewCache } from './previewCache.ts';
 import { getBaseUrl } from '../api/client.ts';
 
 const DATABASE = 'wish-response-cache';
@@ -77,6 +78,7 @@ export function writeCached(key: string, value: unknown, { persist = true } = {}
 }
 
 export async function clearCached() {
+  previewCache.clear();
   memory.clear();
   persistedAt.clear();
   const db = await open();
