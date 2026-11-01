@@ -12,12 +12,13 @@ import { downloadApiFile } from '../../ui/download.ts';
 import IslandSidebar from '../../ui/components/IslandSidebar.vue';
 import Menu from '../../ui/components/Menu.vue';
 import LibraryThumbnail from './LibraryThumbnail.vue';
+import SelectField from '../../domain/providers/SelectField.vue';
 import { platform } from '../../platform/index.ts';
 import { cfg } from '../../core/config.ts';
 import { toast } from '../../ui/toast.ts';
 import Icon from '../../ui/components/Icon.vue';
 import SessionBlobPreview from './SessionBlobPreview.vue';
-import { attachmentNames, blobKind, blobName, type BlobKind } from './libraryFiles.ts';
+import { attachmentNames, blobKind, blobIcon, blobName, type BlobKind } from './libraryFiles.ts';
 
 const props = defineProps<{ session: string; mobile: boolean; entries: EntryView[]; libraryRevision: number }>();
 const emit = defineEmits<{ close: []; mention: [blob: LibraryBlob, name: string] }>();
@@ -72,6 +73,17 @@ const filename = (blob: LibraryBlob) => blobName(blob, names.value);
 const title = computed(() => (selected.value ? filename(selected.value) : i18n.t('library.title')));
 const shown = computed(() => items.value.filter((blob) => filter.value === 'all' || blobKind(blob) === filter.value));
 const filters = ['all', 'image', 'video', 'audio', 'pdf', 'text', 'file'] as const;
+const filterOptions = computed(() =>
+  filters.map((kind) => ({
+    value: kind,
+    label: kind === 'all' ? i18n.t('library.title') : i18n.t(`library.kind.${kind}`),
+    icon: kind === 'all' ? 'library' : kind === 'pdf' ? 'file-pdf' : blobIcon(kind),
+  })),
+);
+function selectFilter(value: string) {
+  const kind = filters.find((kind) => kind === value);
+  if (kind) filter.value = kind;
+}
 function back() {
   if (selected.value) selected.value = null;
   else emit('close');
@@ -150,15 +162,16 @@ watch(
       <button v-if="selected" class="btn ghost icon-only" :aria-label="i18n.t('library.back')" @click="selected = null">
         <Icon name="arrow-left" />
       </button>
-      <Icon v-else name="library" class="library-heading-icon" />
     </template>
     <template v-if="!selected" #title>
       <span class="library-title-controls">
-        <select v-model="filter" class="library-filter-select" :aria-label="i18n.t('library.filter')">
-          <option v-for="kind in filters" :key="kind" :value="kind">
-            {{ kind === 'all' ? i18n.t('library.title') : i18n.t(`library.kind.${kind}`) }}
-          </option>
-        </select>
+        <SelectField
+          :model-value="filter"
+          :options="filterOptions"
+          class="library-filter-select"
+          :aria-label="i18n.t('library.filter')"
+          @update:model-value="selectFilter"
+        />
         <span class="library-count" :title="i18n.t('library.count', { count: total })">{{ total }}</span>
       </span>
     </template>
@@ -238,21 +251,19 @@ watch(
 </template>
 
 <style scoped>
-.library-heading-icon {
-  color: var(--accent);
-  margin-right: 4px;
-}
 .library-title-controls {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
 }
-.library-filter-select {
+.library-title-controls :deep(.library-filter-select) {
   width: auto;
   max-width: 100%;
   min-width: 0;
-  padding: 4px 20px 4px 0;
+  padding: 4px 6px;
+  min-height: 32px;
+  gap: 8px;
   border: 0;
   background-color: transparent;
   font: inherit;
