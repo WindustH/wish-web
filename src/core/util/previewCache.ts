@@ -1,4 +1,4 @@
-// Decoded preview artifacts only, never entire media files or expiring URLs.
+// Bounded preview artifacts and extracted PDF pages, never entire source media or expiring URLs.
 export class PreviewCache {
   private entries = new Map<string, { value: Blob | null; at: number }>();
   private bytes = 0;

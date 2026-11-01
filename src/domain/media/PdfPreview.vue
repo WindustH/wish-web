@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { renderPdfPage } from './nativePdf.ts';
+import './nativePdf.css';
 import LoadingState from '../../ui/components/LoadingState.vue';
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
@@ -10,7 +12,7 @@ import Icon from '../../ui/components/Icon.vue';
 
 const props = defineProps<{ session: string; blob: string }>();
 const document = shallowRef<PdfInfo>();
-const canvas = ref<HTMLCanvasElement | null>(null),
+const surface = ref<HTMLElement | null>(null),
   viewport = ref<HTMLElement | null>(null);
 const page = ref(1),
   zoom = ref(1),
@@ -20,6 +22,8 @@ const page = ref(1),
   painted = ref(false),
   error = ref('');
 const active = usePageActivity();
+let lastPaint = '';
+let releasePage: (() => Promise<void>) | undefined;
 const outlineOpen = ref(false);
 const bookmarks = computed(() => document.value?.bookmarks ?? []);
 function jump(bookmark: PdfInfo['bookmarks'][number]) {
@@ -69,6 +73,9 @@ watch(
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     document.value = undefined;
+    lastPaint = '';
+    void releasePage?.();
+    releasePage = undefined;
     painted.value = false;
     outlineOpen.value = false;
     page.value = 1;
@@ -88,46 +95,44 @@ watch(
 );
 
 watch(
-  [document, page, zoom, width, canvas, active],
+  [document, page, zoom, width, surface, active],
   async (_, __, onCleanup) => {
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     const pdf = document.value,
-      element = canvas.value;
+      element = surface.value;
     if (!pdf || !element || !active.value) return;
+    const paintKey = `${props.session}:${props.blob}:${pdf.version}:${page.value}:${width.value}:${zoom.value}`;
+    if (lastPaint === paintKey && element.childElementCount) {
+      painting.value = false;
+      return;
+    }
     painting.value = true;
     error.value = '';
     const targetPage = page.value;
-    const resolution = Math.min(
-      2048,
-      Math.max(384, Math.ceil((width.value * zoom.value * Math.min(devicePixelRatio || 1, 2)) / 256) * 256),
-    );
-    let objectUrl = '';
     try {
-      const image = new Image();
-      const bytes = await pdfPage(props.session, props.blob, targetPage, resolution, controller.signal, pdf.version);
-      if (controller.signal.aborted) return;
-      image.src = objectUrl = URL.createObjectURL(bytes);
-      await image.decode();
-      if (controller.signal.aborted) return;
-      // Commit only a complete page, keeping the last frame visible while loading.
-      element.width = image.naturalWidth;
-      element.height = image.naturalHeight;
-      element.style.width = `${width.value * zoom.value}px`;
-      element.style.height = `${(width.value * zoom.value * image.naturalHeight) / image.naturalWidth}px`;
-      element.getContext('2d')!.drawImage(image, 0, 0);
+      const bytes = await pdfPage(props.session, props.blob, targetPage, controller.signal, pdf.version);
+      const rendered = await renderPdfPage(bytes, width.value * zoom.value, controller.signal, true);
+      if (controller.signal.aborted) {
+        await rendered.dispose();
+        return;
+      }
+      // Swap a fully rendered canvas and text layer together; retain the old page during loading.
+      element.replaceChildren(rendered.surface);
+      void releasePage?.();
+      releasePage = rendered.dispose;
+      lastPaint = paintKey;
       painted.value = true;
       painting.value = false;
       // Current page always wins; cancel background reads on navigation/close.
       void Promise.allSettled(
         [targetPage + 1, targetPage - 1]
           .filter((neighbor) => neighbor >= 1 && neighbor <= pdf.pages && !controller.signal.aborted)
-          .map((neighbor) => pdfPage(props.session, props.blob, neighbor, resolution, controller.signal, pdf.version)),
+          .map((neighbor) => pdfPage(props.session, props.blob, neighbor, controller.signal, pdf.version)),
       );
     } catch (cause) {
       if (!controller.signal.aborted) error.value = describeError(cause).message;
     } finally {
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
       if (!controller.signal.aborted) painting.value = false;
     }
   },
@@ -150,6 +155,7 @@ onMounted(() => {
   if (viewport.value) observer.observe(viewport.value);
 });
 onBeforeUnmount(() => {
+  void releasePage?.();
   observer?.disconnect();
   clearTimeout(resizeTimer);
 });
@@ -217,11 +223,12 @@ onBeforeUnmount(() => {
       </button>
     </nav>
     <div ref="viewport" class="pdf-viewport" @wheel="wheel">
-      <canvas
+      <div
         v-if="document"
         v-show="painted"
-        ref="canvas"
-        role="img"
+        ref="surface"
+        class="pdf-page-host"
+        role="group"
         :aria-label="i18n.t('library.pdfPage', { page })"
       />
     </div>
@@ -272,11 +279,6 @@ onBeforeUnmount(() => {
   padding: 8px;
   background: var(--bg-sunken);
   border-radius: 10px;
-}
-canvas {
-  display: block;
-  margin: 0 auto;
-  background: white;
 }
 .pdf-message {
   padding: 12px;

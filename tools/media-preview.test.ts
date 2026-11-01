@@ -15,7 +15,7 @@ test('blob image scenes use requested preview sizes and the original preference 
   assert.equal(imagePreviewUrl(external,768,false),external);
 });
 
-test('PDF page cache distinguishes source revisions and resolutions and honors cancellation', async (t) => {
+test('PDF page cache distinguishes source revisions and page numbers and honors cancellation', async (t) => {
   const { pdfPage } = await import('../src/core/api/endpoints.ts');
   const { previewCache } = await import('../src/core/util/previewCache.ts');
   previewCache.clear();
@@ -23,18 +23,18 @@ test('PDF page cache distinguishes source revisions and resolutions and honors c
   let requests = 0;
   t.mock.method(globalThis, 'fetch', async () => {
     requests++;
-    return new Response(new Blob(['rendered page'], {type:'image/png'}));
+    return new Response(new Blob(['%PDF-page'], {type:'application/pdf'}));
   });
   const signal = new AbortController().signal;
-  const first = await pdfPage('s', 'blob', 1, 384, signal, 'v1');
-  assert.equal(await pdfPage('s', 'blob', 1, 384, signal, 'v1'), first);
+  const first = await pdfPage('s', 'blob', 1, signal, 'v1');
+  assert.equal(await pdfPage('s', 'blob', 1, signal, 'v1'), first);
   assert.equal(requests, 1);
-  await pdfPage('s', 'blob', 1, 768, signal, 'v1');
-  await pdfPage('s', 'blob', 1, 384, signal, 'v2');
+  await pdfPage('s', 'blob', 2, signal, 'v1');
+  await pdfPage('s', 'blob', 1, signal, 'v2');
   assert.equal(requests, 3);
   const cancelled = new AbortController();
   cancelled.abort();
-  await assert.rejects(pdfPage('s', 'blob', 1, 384, cancelled.signal, 'v1'), {name:'AbortError'});
+  await assert.rejects(pdfPage('s', 'blob', 1, cancelled.signal, 'v1'), {name:'AbortError'});
   assert.equal(requests, 3);
   previewCache.clear();
 });

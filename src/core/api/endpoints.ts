@@ -747,11 +747,10 @@ export async function pdfPage(
   session: string,
   blob: string,
   page: number,
-  width: number,
   signal: AbortSignal,
   version?: string,
 ): Promise<Blob> {
-  const path = `${blobUrl(`${session}/${blob}`)}/pdf/page?page=${page}&width=${width}`;
+  const path = `${blobUrl(`${session}/${blob}`)}/pdf/page?page=${page}`;
   const key = `${path}:${version}`;
   signal.throwIfAborted();
   const cached = version === undefined ? undefined : previewCache.get(key);

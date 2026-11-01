@@ -1,0 +1,48 @@
+/* PDF.js text-layer positioning, scoped to our page surface (no viewer UI styles). */
+.native-pdf-page {
+  position: relative;
+  margin: 0 auto;
+  background: white;
+  color-scheme: only light;
+}
+.native-pdf-page canvas {
+  display: block;
+}
+.native-pdf-page .textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  text-align: initial;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.native-pdf-page .textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+.native-pdf-page .textLayer > :not(.markedContent),
+.native-pdf-page .textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.native-pdf-page .textLayer .markedContent {
+  display: contents;
+}
+.native-pdf-page .textLayer ::selection {
+  background: #6099ee66;
+}
