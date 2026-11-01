@@ -25,7 +25,9 @@ const focus = useDialogFocus();
     >
       <header class="island-heading">
         <slot name="leading" />
-        <DialogTitle class="island-title">{{ title }}</DialogTitle>
+        <DialogTitle class="island-title"
+          ><slot name="title">{{ title }}</slot></DialogTitle
+        >
         <div class="island-actions"><slot name="actions" /></div>
         <button class="btn ghost icon-only" :aria-label="i18n.t('common.close')" @click="emit('close')">
           <Icon name="x" />
@@ -56,8 +58,8 @@ const focus = useDialogFocus();
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 56px;
-  padding: 8px 10px 8px 16px;
+  min-height: 44px;
+  padding: 4px 8px 4px 12px;
 }
 .island-title {
   flex: 1;

@@ -42,6 +42,16 @@ escaped and limited to 256 KiB. PDF.js loads on demand and renders one bounded c
 with page and zoom controls. Its worker, fonts, CMaps and WASM are generated from the dependency
 at build time; third-party binary resources are not checked into source control.
 
+Library keeps its filter, count and upload controls in one header row. Uploads use the existing
+session blob endpoint; mentioning a file appends a stored attachment to the current draft without
+submitting it. Context menus and the visible file-actions button expose the same action on desktop
+and touch. Mobile moves Library into the chat menu and model/reasoning selection into the composer's
+action menu alongside attachments and BTW.
+
+Media thumbnails load near the viewport. Videos show a paused frame and play glyph; audio covers
+are extracted with lazy-loaded music-metadata and ranged tag reads (4 MiB / 32 requests / 10 seconds),
+falling back to a music icon. PDF uses a corner glyph; images have no type badge.
+
 Real-browser and catalog coverage lives in the adjacent test repository's `tests.test_wish_library`.
 
 | Channel | Used for |

@@ -165,3 +165,11 @@ Shell 和 Session 操作仍保留时间轴记录，文件卡片不会替代工�
 - 配置、消息分组、历史行和文件 diff 的关键接口补上了类型；旧 diff 数据增加运行时筛选。其他上游兼容字段仍有 `any`，没有宣称已完成全仓严格类型迁移。
 
 验证入口：`tools/source-review-browser.mjs`、`tools/overlay-layout-browser.mjs`、`tools/abort-scope.test.ts`、`tools/sync-lifecycle.test.ts`、`tools/back-layers.test.ts`、`tools/menu-backdrop.test.ts` 和 `tools/i18n-catalog.test.ts`，以及现有会话、输入历史、活动记录和设置导航浏览器回归。
+
+库的分类、数量、上传和刷新集中在一行。上传复用会话 blob 接口；右键或文件操作菜单的「引用到对话」
+追加已存储附件到现有草稿，不自动发送。移动端将库放进顶栏菜单，将模型、思考等级与图片、附件、BTW
+集中到输入框的操作菜单。
+
+媒体缩略图进入视口附近才加载：视频显示静止画面与播放图标；音频通过按需加载的 music-metadata
+及 Range 请求读取内嵌封面（最多 4 MiB、32 次请求、10 秒），缺失或失败时使用音乐图标。
+PDF 使用角落图标，图片不再叠加类型文字。

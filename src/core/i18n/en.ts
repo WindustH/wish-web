@@ -1,6 +1,10 @@
 // English dictionary (en).
 export const en = {
   'common.loading': 'Loading…',
+  'library.upload': 'Upload files',
+  'library.mention': 'Mention in chat',
+  'library.fileActions': 'File actions',
+  'library.tooLarge': 'File exceeds upload limit ({size})',
   'library.title': 'Library',
   'library.sessionFiles': 'Files in this session',
   'library.count': '{count} files',

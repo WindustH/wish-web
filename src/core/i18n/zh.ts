@@ -1,6 +1,10 @@
 // Chinese dictionary (zh). Keys are flat dot-namespaced for grep-ability.
 export const zh = {
   'common.loading': '加载中…',
+  'library.upload': '上传文件',
+  'library.mention': '引用到对话',
+  'library.fileActions': '文件操作',
+  'library.tooLarge': '文件超过上传限制（{size}）',
   'library.title': '库',
   'library.sessionFiles': '当前会话的文件',
   'library.count': '{count} 个文件',

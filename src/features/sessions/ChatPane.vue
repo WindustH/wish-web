@@ -11,7 +11,16 @@ import Hint from '../../ui/components/Hint.vue';
 // Chat surface: top bar (desktop information/settings / mobile back+menu), log,
 // composer, and child-route dialogs (mobile subpages). Opening session
 // actions never rebuilds the conversation.
-import { computed, onBeforeUnmount, provide, shallowRef, ref, watch, type ComponentPublicInstance } from 'vue';
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  provide,
+  shallowRef,
+  ref,
+  watch,
+  type ComponentPublicInstance,
+} from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -31,6 +40,8 @@ import { effortLabel } from './reasoningLabels.ts';
 import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 import { touchButton } from '../../ui/touchButton.ts';
 import SessionLibrary from './SessionLibrary.vue';
+import type { StoredAttachmentReference } from '../../core/attachments.ts';
+import type { LibraryBlob } from '../../core/api/types.ts';
 
 const backTouch = touchButton();
 const panelClose = shallowRef<(() => void) | null>(null);
@@ -115,8 +126,23 @@ const tabs = computed(() => [
   { key: 'info', icon: 'info', label: i18n.t('chatbar.info') },
   { key: 'settings', icon: 'tune', label: i18n.t('chatbar.settings') },
 ]);
+const mobileActions = computed(() => [
+  ...tabs.value,
+  { key: 'library', icon: 'library', label: i18n.t('library.title') },
+]);
+const composerActions = computed(() => [
+  {
+    key: 'model',
+    icon: 'bot',
+    label: `${i18n.t('model.chipTitle')} · ${modelLabel(snapshot.value?.model || '') || '—'}`,
+  },
+  { key: 'reasoning', icon: 'thinking', label: `${i18n.t('reasoning.title')} · ${effortLabel(effort.value)}` },
+]);
 const queued = computed(() => chat.deliveries.value);
-const composerRef = ref<{ fill: (v: string, attachments?: any[]) => void } | null>(null);
+const composerRef = ref<{
+  fill: (v: string, attachments?: any[]) => void;
+  mention: (reference: StoredAttachmentReference) => Promise<void>;
+} | null>(null);
 // The composer floats over the log's foot, so the pane tells its styles how tall that island is:
 // the log keeps its last line clear of it, the fade above it and the jump button stand on its top.
 const paneEl = ref<HTMLElement | null>(null);
@@ -124,6 +150,12 @@ useComposerHeight(paneEl, isMobile);
 onBeforeUnmount(() => {
   if (chat.sessionId.value === openedSession) chat.close();
 });
+async function mentionBlob(blob: LibraryBlob, name: string) {
+  const reference = { owner: id.value, id: blob.id, mime: blob.mime_type, name, size: blob.byte_count };
+  if (isMobile.value) sidebarOpen.value = false;
+  await nextTick();
+  await composerRef.value?.mention(reference);
+}
 const onQueueEdit = (text: string, attachments?: any[]) => composerRef.value?.fill(text, attachments);
 const { effort, error: effortError } = useResolvedEffort(snapshot);
 const modelOpen = ref(false);
@@ -193,27 +225,29 @@ const goTab = (t: SessionTab) => {
             :aria-label="tr('会话名称菜单', 'Session title menu')"
           />
         </Menu>
-        <span v-if="!snapshot" class="chat-skeleton model-skeleton" aria-hidden="true" /><span
-          v-else
-          class="model-selection"
-        >
-          <Hint :text="i18n.t('model.chipTitle')"
-            ><button class="model-chip" :aria-expanded="modelOpen" @click="modelOpen = true">
-              <span>{{ modelLabel(snapshot?.model || '') || '—' }}</span>
-            </button></Hint
+        <template v-if="!isMobile">
+          <span v-if="!snapshot" class="chat-skeleton model-skeleton" aria-hidden="true" /><span
+            v-else
+            class="model-selection"
           >
-          <span class="selection-dot" aria-hidden="true">·</span>
-          <Hint :text="effortError ? describeError(effortError).message : i18n.t('reasoning.title')"
-            ><button
-              class="reasoning-chip"
-              :aria-expanded="reasoningOpen"
-              :aria-label="`${i18n.t('reasoning.title')}: ${effortLabel(effort)}`"
-              @click="reasoningOpen = true"
+            <Hint :text="i18n.t('model.chipTitle')"
+              ><button class="model-chip" :aria-expanded="modelOpen" @click="modelOpen = true">
+                <span>{{ modelLabel(snapshot?.model || '') || '—' }}</span>
+              </button></Hint
             >
-              <span>{{ effortLabel(effort).toUpperCase() }}</span>
-            </button></Hint
-          >
-        </span>
+            <span class="selection-dot" aria-hidden="true">·</span>
+            <Hint :text="effortError ? describeError(effortError).message : i18n.t('reasoning.title')"
+              ><button
+                class="reasoning-chip"
+                :aria-expanded="reasoningOpen"
+                :aria-label="`${i18n.t('reasoning.title')}: ${effortLabel(effort)}`"
+                @click="reasoningOpen = true"
+              >
+                <span>{{ effortLabel(effort).toUpperCase() }}</span>
+              </button></Hint
+            >
+          </span>
+        </template>
       </div>
       <template v-if="!isMobile">
         <Hint v-for="item in tabs" :key="item.key" :text="item.label"
@@ -229,10 +263,15 @@ const goTab = (t: SessionTab) => {
             <Icon :name="item.icon" /></button
         ></Hint>
       </template>
-      <Menu v-else :items="tabs" :label="i18n.t('chatbar.more')" @select="goTab($event as SessionTab)">
+      <Menu
+        v-else
+        :items="mobileActions"
+        :label="i18n.t('chatbar.more')"
+        @select="$event === 'library' ? openLibrary() : goTab($event as SessionTab)"
+      >
         <Icon name="ellipsis-vertical" />
       </Menu>
-      <Hint :text="i18n.t('library.title')"
+      <Hint v-if="!isMobile" :text="i18n.t('library.title')"
         ><button
           class="btn ghost icon-only"
           :aria-label="i18n.t('library.title')"
@@ -256,7 +295,13 @@ const goTab = (t: SessionTab) => {
     <div class="chat-workspace-body">
       <div class="chat-pane" ref="paneEl">
         <ChatLog :session-id="id" :mobile="isMobile" />
-        <Composer ref="composerRef" :owner="id" :mobile="isMobile">
+        <Composer
+          ref="composerRef"
+          :owner="id"
+          :mobile="isMobile"
+          :mobile-actions="composerActions"
+          @mobile-action="$event === 'model' ? (modelOpen = true) : (reasoningOpen = true)"
+        >
           <template #tools>
             <Transition name="queue-dock" appear>
               <div v-if="queued.length > 0" class="queue-dock-slot">
@@ -291,6 +336,7 @@ const goTab = (t: SessionTab) => {
         :entries="chat.entries.value"
         :library-revision="libraryRevision"
         @close="sidebarOpen = false"
+        @mention="mentionBlob"
       />
     </div>
   </div>

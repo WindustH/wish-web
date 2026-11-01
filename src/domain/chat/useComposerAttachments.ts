@@ -8,10 +8,12 @@ import {
   hasImagePreview,
   saveAttachmentDrafts as storeAttachmentDrafts,
   type AttachmentInput,
+  type StoredAttachmentReference,
   type PickedAttachment,
 } from '../../core/attachments.ts';
 import { fmtBytes } from '../../core/util/fmt.ts';
 import { blobUrl } from '../../core/api/endpoints.ts';
+import { createAbortScope } from '../../core/util/abortScope.ts';
 import { apiFetch } from '../../core/api/client.ts';
 import { platform } from '../../platform/index.ts';
 import { showError } from '../../ui/errorDialog.ts';
@@ -30,6 +32,7 @@ export interface AttachmentLimits {
 
 export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<AttachmentLimits>) {
   let attachmentEpoch = 0;
+  const pendingReferences = new Set<AbortController>();
   let pastedTextNumber = 0;
   const attachmentsOwnerId = ref(sessionId.value);
 
@@ -61,7 +64,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
     return true;
   }
 
-  function attachmentAccepted(file: PickedAttachment) {
+  function attachmentAccepted(file: Pick<PickedAttachment, 'kind' | 'size'>) {
     const isImage = file.kind === 'image';
     const bytes = isImage ? limits.value.imageBytes : limits.value.fileBytes;
     if (file.size > bytes) {
@@ -69,6 +72,48 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
       return false;
     }
     return hasAttachmentSpace(file.kind);
+  }
+
+  async function referenceAttachment(reference: StoredAttachmentReference, inserted: (token: string) => void) {
+    if (reference.owner !== attachmentsOwnerId.value) return;
+    const kind = hasImagePreview(reference.mime) ? 'image' : 'file';
+    const existing = attachments.value.find(
+      (item) => item.stored?.owner === reference.owner && item.stored.id === reference.id,
+    );
+    if (existing?.placeholder) {
+      inserted(existing.placeholder);
+      return;
+    }
+    const file = { kind, name: reference.name, mime: reference.mime, size: reference.size } as const;
+    if (!attachmentAccepted(file)) return;
+    const controller = new AbortController();
+    const scope = createAbortScope([controller.signal], 60000);
+    pendingReferences.add(controller);
+    try {
+      await readAttachments(
+        [
+          {
+            ...file,
+            read: async () => {
+              const response = await apiFetch(blobUrl(`${reference.owner}/${reference.id}`), { signal: scope.signal });
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              return response.arrayBuffer();
+            },
+          },
+        ],
+        (token) => {
+          const attachment = attachments.value.find((item) => item.placeholder === token);
+          if (attachment) {
+            attachment.stored = { owner: reference.owner, id: reference.id };
+            saveAttachmentDrafts(attachmentsOwnerId.value, attachments.value);
+          }
+          inserted(token);
+        },
+      );
+    } finally {
+      scope.dispose();
+      pendingReferences.delete(controller);
+    }
   }
 
   async function refillAttachments(items: any[]) {
@@ -283,6 +328,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
       deletedAttachments.clear();
       pastedTextNumber = 0;
       attachmentEpoch++;
+      for (const request of pendingReferences) request.abort();
       readingAttachments.value = 0;
       saveAttachmentDrafts(attachmentsOwnerId.value, attachments.value);
       attachmentsOwnerId.value = id;
@@ -293,6 +339,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
 
   onBeforeUnmount(() => {
     attachmentEpoch++;
+    for (const request of pendingReferences) request.abort();
   });
 
   return {
@@ -303,6 +350,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
     onPaste,
     removeAttachment,
     refillAttachments,
+    referenceAttachment,
     replaceAttachments,
     syncAttachmentTags,
     clearAttachmentUndo: () => deletedAttachments.clear(),

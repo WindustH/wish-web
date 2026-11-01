@@ -14,6 +14,7 @@ import Hint from '../../ui/components/Hint.vue';
 import {
   attachmentDraftsFor,
   attachmentLimits,
+  type StoredAttachmentReference,
   saveAttachmentDrafts,
   type AttachmentInput,
 } from '../../core/attachments.ts';
@@ -32,6 +33,8 @@ import { useBtwPopup } from './useBtwPopup.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { isSendKey } from '../../ui/sendKey.ts';
 import ComposerSendButtons from './ComposerSendButtons.vue';
+import Menu from '../../ui/components/Menu.vue';
+import type { MenuItem } from '../../ui/components/menuTypes.ts';
 import ComposerAttachmentTray from './ComposerAttachmentTray.vue';
 import { useAutoGrow } from './useAutoGrow.ts';
 import './composerIsland.css';
@@ -40,12 +43,41 @@ const props = defineProps<{
   /** Whose drafts these are: the open session's id, a group's, or the start page's own key. */
   owner: string;
   mobile: boolean;
+  mobileActions?: MenuItem[];
   /** The start page's composer, laid out larger with its send button in a footer. */
   start?: boolean;
   disabled?: boolean;
   /** Where the message goes when it is not the open session: a new session, or a group. */
   sendMessage?: (text: string, attachments: AttachmentInput[]) => Promise<string>;
 }>();
+
+const emit = defineEmits<{ mobileAction: [key: string] }>();
+const mobileMenuItems = computed<MenuItem[]>(() => [
+  ...(!btwMode.value
+    ? [
+        { key: 'image', icon: 'image', label: i18n.t('chat.image') },
+        { key: 'file', icon: 'paperclip', label: i18n.t('chat.attach') },
+      ]
+    : []),
+  ...(live.value
+    ? [
+        {
+          key: 'btw',
+          icon: 'chat',
+          label: tr('BTW · 临时对话', 'BTW · Temporary chat'),
+          checked: btwOpen.value,
+        },
+      ]
+    : []),
+  ...(props.mobileActions ?? []),
+]);
+function mobileAction(key: string) {
+  if (key === 'btw') toggleBtw();
+  else if (key === 'image' || key === 'file') {
+    const insertion = ta.value?.createInsertion();
+    void attach(key, (token) => insertion?.insert(token)).finally(() => insertion?.dispose());
+  } else emit('mobileAction', key);
+}
 
 // Writing to the open session: the composer follows its run, can stop it and ask it aside.
 const live = computed(() => !props.sendMessage);
@@ -90,7 +122,19 @@ function fill(v: string, attachmentsToFill?: any[]) {
   void refillAttachments(attachmentsToFill ?? []);
 }
 
-defineExpose({ focus: () => ta.value?.focus(), fill });
+async function mention(reference: StoredAttachmentReference) {
+  if (reference.owner !== props.owner) return;
+  if (btwOpen.value) toggleBtw();
+  await nextTick();
+  const insertion = ta.value?.createInsertion();
+  try {
+    await referenceAttachment(reference, (token) => insertion?.insert(token));
+    if (reference.owner === props.owner) await nextTick(() => ta.value?.focus());
+  } finally {
+    insertion?.dispose();
+  }
+}
+defineExpose({ focus: () => ta.value?.focus(), fill, mention });
 
 const capsFailed = computed(() => caps.value?.status === 'error');
 const capsData = computed(() => (caps.value?.status === 'ok' ? caps.value.data : null));
@@ -105,6 +149,7 @@ const {
   onPaste,
   removeAttachment: discardAttachment,
   refillAttachments,
+  referenceAttachment,
   replaceAttachments,
   syncAttachmentTags,
   clearAttachmentUndo,
@@ -496,35 +541,13 @@ function onKeydown(e: KeyboardEvent) {
       <button class="btn ghost sm" @click="() => chat.reloadCapabilities()">{{ i18n.t('common.retry') }}</button>
     </div>
     <div v-if="mobile" class="composer-mobile-actions">
-      <Hint v-if="!btwMode" :text="i18n.t('chat.image')"
-        ><button
-          class="btn ghost icon-only"
-          :aria-label="i18n.t('chat.image')"
-          @click="pickAttachment('image', $event)"
-        >
-          <Icon name="image" /></button
-      ></Hint>
-      <Hint v-if="!btwMode" :text="i18n.t('chat.attach')"
-        ><button
-          class="btn ghost icon-only"
-          :aria-label="i18n.t('chat.attach')"
-          @click="pickAttachment('file', $event)"
-        >
-          <Icon name="paperclip" /></button
-      ></Hint>
-      <button
-        v-if="live"
-        ref="btwButton"
-        type="button"
-        class="btn ghost composer-btw"
-        :aria-label="tr('BTW · 临时对话', 'BTW · Temporary chat')"
-        :aria-expanded="btwOpen"
-        aria-haspopup="dialog"
-        aria-controls="btw-bubble"
-        @click="toggleBtw"
-      >
-        BTW
-      </button>
+      <Menu :items="mobileMenuItems" :label="i18n.t('chatbar.more')" side="top" align="start" @select="mobileAction">
+        <template #trigger>
+          <button ref="btwButton" class="btn ghost icon-only composer-menu" :aria-label="i18n.t('chatbar.more')">
+            <Icon name="plus" />
+          </button>
+        </template>
+      </Menu>
       <slot v-if="!btwMode" name="tools" />
       <div v-if="start" class="composer-start-selection"><slot name="selection" /></div>
       <div v-else class="grow" />

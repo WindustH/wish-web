@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { sessionBlobs, blobUrl } from '../../core/api/endpoints.ts';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { sessionBlobs, blobUrl, uploadSessionBlob } from '../../core/api/endpoints.ts';
 import type { LibraryBlob } from '../../core/api/types.ts';
 import type { EntryView } from '../../core/api/projections.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -10,13 +10,17 @@ import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { downloadApiFile } from '../../ui/download.ts';
 import IslandSidebar from '../../ui/components/IslandSidebar.vue';
-import ApiImage from '../../ui/components/ApiImage.vue';
+import Menu from '../../ui/components/Menu.vue';
+import LibraryThumbnail from './LibraryThumbnail.vue';
+import { platform } from '../../platform/index.ts';
+import { cfg } from '../../core/config.ts';
+import { toast } from '../../ui/toast.ts';
 import Icon from '../../ui/components/Icon.vue';
 import SessionBlobPreview from './SessionBlobPreview.vue';
-import { attachmentNames, blobIcon, blobKind, blobName, type BlobKind } from './libraryFiles.ts';
+import { attachmentNames, blobKind, blobName, type BlobKind } from './libraryFiles.ts';
 
 const props = defineProps<{ session: string; mobile: boolean; entries: EntryView[]; libraryRevision: number }>();
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: []; mention: [blob: LibraryBlob, name: string] }>();
 const items = ref<LibraryBlob[]>([]),
   selected = ref<LibraryBlob | null>(null);
 const next = ref<number | null>(null),
@@ -25,7 +29,45 @@ const next = ref<number | null>(null),
   error = ref('');
 const filter = ref<BlobKind | 'all'>('all');
 const active = usePageActivity();
-const names = computed(() => attachmentNames(props.entries));
+const uploadedNames = ref(new Map<string, string>());
+const names = computed(() => new Map([...attachmentNames(props.entries), ...uploadedNames.value]));
+const uploading = ref(false);
+let uploadController: AbortController | undefined;
+onBeforeUnmount(() => uploadController?.abort());
+async function upload() {
+  if (uploading.value) return;
+  const owner = props.session;
+  const request = new AbortController();
+  uploadController = request;
+  uploading.value = true;
+  try {
+    const files = await platform('fs').pickFiles({ multiple: true });
+    for (const file of files) {
+      if (request.signal.aborted || props.session !== owner) return;
+      if (file.size > cfg.composer.maxAttachmentBytes)
+        throw new Error(i18n.t('library.tooLarge', { size: fmtBytes(cfg.composer.maxAttachmentBytes) }));
+      const bytes = await file.read();
+      if (request.signal.aborted || props.session !== owner) return;
+      const blob = await uploadSessionBlob(owner, bytes, { signal: request.signal });
+      if (request.signal.aborted || props.session !== owner) return;
+      if (file.name) uploadedNames.value.set(blob.id, file.name);
+    }
+  } catch (cause) {
+    if (!request.signal.aborted) toast(describeError(cause).message);
+  } finally {
+    if (!request.signal.aborted && owner === props.session) {
+      uploading.value = false;
+      // Replace an in-flight stale catalog response after the upload completes.
+      controller?.abort();
+      loading.value = false;
+      await load();
+    }
+  }
+}
+const menuItems = computed(() => [{ key: 'mention', label: i18n.t('library.mention'), icon: 'at-sign' }]);
+function mention(blob: LibraryBlob) {
+  emit('mention', blob, filename(blob));
+}
 const filename = (blob: LibraryBlob) => blobName(blob, names.value);
 const title = computed(() => (selected.value ? filename(selected.value) : i18n.t('library.title')));
 const shown = computed(() => items.value.filter((blob) => filter.value === 'all' || blobKind(blob) === filter.value));
@@ -79,6 +121,9 @@ watch(
   () => props.session,
   (_, __, onCleanup) => {
     controller?.abort();
+    uploadController?.abort();
+    uploading.value = false;
+    uploadedNames.value.clear();
     loading.value = false;
     items.value = [];
     selected.value = null;
@@ -107,7 +152,27 @@ watch(
       </button>
       <Icon v-else name="library" class="library-heading-icon" />
     </template>
+    <template v-if="!selected" #title>
+      <span class="library-title-controls">
+        <select v-model="filter" class="library-filter-select" :aria-label="i18n.t('library.filter')">
+          <option v-for="kind in filters" :key="kind" :value="kind">
+            {{ kind === 'all' ? i18n.t('library.title') : i18n.t(`library.kind.${kind}`) }}
+          </option>
+        </select>
+        <span class="library-count" :title="i18n.t('library.count', { count: total })">{{ total }}</span>
+      </span>
+    </template>
     <template #actions>
+      <button
+        v-if="!selected"
+        class="btn ghost icon-only library-upload"
+        :disabled="uploading"
+        :aria-label="i18n.t('library.upload')"
+        :title="i18n.t('library.upload')"
+        @click="upload"
+      >
+        <Icon :name="uploading ? 'loader-circle' : 'upload'" :class="{ spin: uploading }" />
+      </button>
       <a
         v-if="selected"
         class="btn ghost icon-only"
@@ -137,21 +202,6 @@ watch(
       />
     </template>
     <template v-else>
-      <div class="library-overview">
-        <span>{{ i18n.t('library.sessionFiles') }}</span
-        ><span>{{ i18n.t('library.count', { count: total }) }}</span>
-      </div>
-      <div class="library-filters" :aria-label="i18n.t('library.filter')">
-        <button
-          v-for="kind in filters"
-          :key="kind"
-          class="library-filter"
-          :aria-pressed="filter === kind"
-          @click="filter = kind"
-        >
-          {{ i18n.t(`library.kind.${kind}`) }}
-        </button>
-      </div>
       <div class="library-scroll">
         <div v-if="error" class="library-empty" role="alert">
           <p>{{ error }}</p>
@@ -162,27 +212,22 @@ watch(
           {{ i18n.t(items.length ? 'library.noMatches' : 'library.empty') }}
         </p>
         <div class="library-grid">
-          <button
-            v-for="blob in shown"
-            :key="blob.id"
-            class="library-item"
-            :data-blob-id="blob.id"
-            @click="selected = blob"
-          >
-            <span class="library-thumbnail" :class="blobKind(blob)">
-              <ApiImage
-                v-if="blobKind(blob) === 'image'"
-                :src="blobUrl(`${session}/${blob.id}`)"
-                :zoom="false"
-                alt=""
-                loading="lazy"
-              />
-              <Icon v-else :name="blobIcon(blobKind(blob))" :size="32" />
-              <span class="library-file-kind">{{ i18n.t(`library.kind.${blobKind(blob)}`) }}</span>
-            </span>
-            <span class="library-filename" :title="filename(blob)">{{ filename(blob) }}</span>
-            <span class="library-filesize">{{ fmtBytes(blob.byte_count) }}</span>
-          </button>
+          <Menu v-for="blob in shown" :key="blob.id" context :items="menuItems" @select="mention(blob)">
+            <div class="library-card">
+              <button class="library-item" :data-blob-id="blob.id" @click="selected = blob">
+                <LibraryThumbnail :session="session" :blob="blob" />
+                <span class="library-filename" :title="filename(blob)">{{ filename(blob) }}</span>
+                <span class="library-filesize">{{ fmtBytes(blob.byte_count) }}</span>
+              </button>
+              <Menu :items="menuItems" :label="i18n.t('library.fileActions')" @select="mention(blob)">
+                <template #trigger>
+                  <button class="library-item-menu btn ghost icon-only" :aria-label="i18n.t('library.fileActions')">
+                    <Icon name="ellipsis-vertical" :size="16" />
+                  </button>
+                </template>
+              </Menu>
+            </div>
+          </Menu>
         </div>
         <button v-if="next !== null" class="btn library-more" :disabled="loading" @click="load(true)">
           {{ i18n.t(loading ? 'common.loading' : 'library.more') }}
@@ -197,34 +242,38 @@ watch(
   color: var(--accent);
   margin-right: 4px;
 }
-.library-overview {
+.library-title-controls {
   display: flex;
-  justify-content: space-between;
-  padding: 0 18px 14px;
-  gap: 12px;
-  color: var(--fg-muted);
-  font-size: 12px;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
-.library-filters {
-  display: flex;
-  flex: none;
-  gap: 4px;
-  padding: 0 12px 12px;
-  flex-wrap: wrap;
-}
-.library-filter {
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 5px 8px;
-  font-size: 12px;
+.library-filter-select {
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  padding: 4px 20px 4px 0;
+  border: 0;
+  background-color: transparent;
+  font: inherit;
+  color: var(--fg);
   cursor: pointer;
-  color: var(--fg-subtle);
 }
-.library-filter[aria-pressed='true'] {
-  background: var(--accent-soft);
-  border-color: var(--line);
-  color: var(--accent);
+.library-count {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--fg-muted);
+}
+.library-card {
+  position: relative;
+  min-width: 0;
+}
+.library-item-menu {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 28px;
+  height: 28px;
 }
 .library-scroll {
   flex: 1;
@@ -243,42 +292,13 @@ watch(
   flex-direction: column;
   gap: 5px;
   min-width: 0;
+  width: 100%;
   padding: 0;
   border: 0;
   background: none;
   text-align: left;
   cursor: pointer;
   border-radius: 12px;
-}
-.library-thumbnail {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--bg-sunken);
-  color: var(--fg-subtle);
-  overflow: hidden;
-}
-.library-thumbnail img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.library-thumbnail.pdf {
-  color: var(--accent);
-}
-.library-file-kind {
-  position: absolute;
-  bottom: 6px;
-  right: 6px;
-  font-size: 10px;
-  background: var(--bg-raised);
-  border-radius: 5px;
-  padding: 2px 5px;
 }
 .library-filename {
   width: 100%;
@@ -293,7 +313,7 @@ watch(
   font-size: 11px;
   color: var(--fg-muted);
 }
-.library-item:hover .library-thumbnail {
+.library-item:hover :deep(.library-thumbnail) {
   border-color: var(--accent);
 }
 .library-empty {

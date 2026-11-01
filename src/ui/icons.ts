@@ -14,6 +14,11 @@ const BUBBLE =
   'M3 7.5A3.5 3.5 0 0 1 6.5 4h11A3.5 3.5 0 0 1 21 7.5v6a3.5 3.5 0 0 1-3.5 3.5H10.5L6 20.5V17h-.5A2.5 2.5 0 0 1 3 14.5Z';
 
 export const ICONS: Record<string, string> = {
+  'at-sign': '<circle cx="12" cy="12" r="4"/><path d="M16 8v6a2 2 0 0 0 4 0v-2a8 8 0 1 0-3 6.2"/>',
+  play: `<path d="m8 5 11 7-11 7Z" ${SOLID}/>`,
+  music: `<path d="M9 17V5l11-2v12M9 8l11-2"/><ellipse cx="6" cy="17" rx="3" ry="2.5" ${SOFT}/><ellipse cx="17" cy="15" rx="3" ry="2.5" ${SOFT}/>`,
+  upload: '<path d="M12 16V3m-5 5 5-5 5 5M4 15v5h16v-5"/>',
+  'file-pdf': `<path d="M14 2H5v20h14V7Z" ${SOFT}/><path d="M14 2v5h5M8 17c3-3 5-8 3-8s0 7 5 7-2-4-8 1Z"/>`,
   video: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m10 8 6 4-6 4z"/>',
   audio: '<path d="M4 10v4m4-7v10m4-13v16m4-13v10m4-7v4"/>',
   mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>',

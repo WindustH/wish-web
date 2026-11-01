@@ -24,7 +24,7 @@ export function blobKind(blob: LibraryBlob): BlobKind {
   return blob.mime_type === 'application/pdf' ? 'pdf' : 'file';
 }
 export const blobIcon = (kind: BlobKind) =>
-  ({ image: 'image', video: 'video', audio: 'audio', pdf: 'instruction', text: 'instruction', file: 'paperclip' })[
+  ({ image: 'image', video: 'video', audio: 'music', pdf: 'instruction', text: 'instruction', file: 'paperclip' })[
     kind
   ];
 export function blobName(blob: LibraryBlob, names: ReadonlyMap<string, string>) {

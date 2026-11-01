@@ -2,6 +2,14 @@ import { attachmentDigest } from './attachmentDigest.ts';
 import * as api from './api/endpoints.ts';
 import { cfg } from './config.ts';
 
+export interface StoredAttachmentReference {
+  owner: string;
+  id: string;
+  mime: string;
+  name: string;
+  size: number;
+}
+
 export interface AttachmentInput {
   unavailable?: boolean;
   stored?: { owner: string; id: string };
