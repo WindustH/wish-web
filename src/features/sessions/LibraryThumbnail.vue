@@ -6,7 +6,7 @@ import { absUrl } from '../../core/api/client.ts';
 import { pdfThumbnail } from '../../domain/media/pdfThumbnail.ts';
 import { previewCache } from '../../core/util/previewCache.ts';
 import { audioCover } from '../../domain/media/audioCover.ts';
-import { acquireImageLoad } from '../../domain/media/imageLoad.ts';
+import { acquireImageLoad } from '../../core/util/imageLoad.ts';
 import ApiImage from '../../ui/components/ApiImage.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { blobIcon, blobKind } from './libraryFiles.ts';
@@ -88,7 +88,14 @@ function seekFrame(event: Event) {
 
 <template>
   <span ref="surface" class="library-thumbnail" :class="kind">
-    <ApiImage v-if="kind === 'image'" :src="blobUrl(`${session}/${blob.id}`)" :zoom="false" alt="" loading="lazy" />
+    <ApiImage
+      v-if="kind === 'image'"
+      :src="blobUrl(`${session}/${blob.id}`)"
+      :zoom="false"
+      :preview-width="384"
+      alt=""
+      loading="lazy"
+    />
     <video
       v-else-if="kind === 'video' && source"
       :src="source"

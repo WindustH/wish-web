@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { imagePreviewUrl } from '../../core/mediaPreview.ts';
+import { prefs } from '../../core/state/prefsSlice.ts';
 import { cfg } from '../../core/config.ts';
-import { acquireImageLoad } from './imageLoad.ts';
+import { acquireImageLoad } from '../../core/util/imageLoad.ts';
 import { apiFetch, needsAccessToken } from '../../core/api/client.ts';
 import { tr } from '../../core/i18n/tr.ts';
 const props = defineProps<{ src: string; mime: string; path: string }>();
@@ -35,7 +37,7 @@ function failed() {
   releaseImage();
 }
 watch(
-  () => [props.src, visible.value] as const,
+  () => [imagePreviewUrl(props.src, 768, zoom.value || prefs.originalImages.value), visible.value] as const,
   async ([src, ready], _, onCleanup) => {
     const controller = new AbortController();
     let objectUrl = '';
@@ -56,9 +58,8 @@ watch(
     url.value = '';
     error.value = false;
     size.value = '';
-    zoom.value = false;
     if (!ready) return;
-    if (!needsAccessToken(src)) {
+    if (src === props.src && !needsAccessToken(src)) {
       url.value = src;
       return;
     }
@@ -76,7 +77,8 @@ watch(
       if (controller.signal.aborted) return;
       objectUrl = URL.createObjectURL(
         new Blob([bytes], {
-          type: (props.mime && !props.mime.includes('*') ? props.mime : response.headers.get('content-type')) || '',
+          type:
+            response.headers.get('content-type') || (props.mime && !props.mime.includes('*') ? props.mime : '') || '',
         }),
       );
       url.value = objectUrl;
@@ -88,6 +90,12 @@ watch(
     }
   },
   { immediate: true },
+);
+watch(
+  () => props.src,
+  () => {
+    zoom.value = false;
+  },
 );
 function loaded(event: Event) {
   const img = event.target as HTMLImageElement;

@@ -30,7 +30,7 @@ const sections = computed(() =>
 const desktop = useMedia(`(min-width: ${cfg.breakpoints.desktop}px)`);
 const { mode } = theme;
 const { choice: localeChoice } = i18n;
-const { sendOnEnter, notifyOnFailure, keepAwake, textSize } = prefs;
+const { sendOnEnter, notifyOnFailure, keepAwake, textSize, originalImages } = prefs;
 // Shares of this device's standard text size; a phone's standard is a step larger than a desktop's.
 const textSizes = computed(() => [
   { value: '0.9', label: tr('小', 'Small') },
@@ -129,6 +129,28 @@ function clearPreferences() {
     <SettingsSections prefix="ui" :sections="sections">
       <template #default="{ section }">
         <template v-if="section === 'appearance'">
+          <div class="setting-row">
+            <div>
+              <label for="original-images">{{ tr('总是使用原图', 'Always use original images') }}</label>
+            </div>
+            <SettingHint
+              id="original-images-hint"
+              :text="
+                tr(
+                  '关闭时，对话和库使用较小的预览图，查看详情时加载原图。',
+                  'When off, chat and Library use smaller previews; opening details loads the original.',
+                )
+              "
+            />
+            <SwitchRoot
+              id="original-images"
+              aria-describedby="original-images-hint"
+              :model-value="originalImages"
+              class="cfg-switch"
+              @update:model-value="prefs.setOriginalImages"
+              ><SwitchThumb class="cfg-switch-thumb"
+            /></SwitchRoot>
+          </div>
           <div class="setting-row">
             <div>
               <label for="ui-theme">{{ tr('主题', 'Theme') }}</label>

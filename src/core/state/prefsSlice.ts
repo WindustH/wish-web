@@ -21,6 +21,7 @@ function toggle(key: string, fallback: boolean) {
 }
 
 export const prefs = (() => {
+  const originalImages = toggle('pref.originalImages', false);
   const sendOnEnter = toggle('pref.sendOnEnter', cfg.composer.sendOnEnter);
   const keepAwake = toggle('pref.keepAwake', false);
   const notifyOnFailure = toggle('pref.notifyOnFailure', false); // decisions 22: default OFF
@@ -31,7 +32,7 @@ export const prefs = (() => {
   const loaded = shallowRef(false);
 
   function load() {
-    for (const pref of [sendOnEnter, keepAwake, notifyOnFailure, sessionListCollapsed]) pref.load();
+    for (const pref of [sendOnEnter, keepAwake, notifyOnFailure, sessionListCollapsed, originalImages]) pref.load();
     const size = Number(platform('storage').get(TEXT_SIZE));
     textSize.value = size >= 0.8 && size <= 1.4 ? size : 1;
     applyTextSize();
@@ -45,6 +46,8 @@ export const prefs = (() => {
   }
 
   return {
+    originalImages: originalImages.value,
+    setOriginalImages: originalImages.set,
     sendOnEnter: sendOnEnter.value,
     keepAwake: keepAwake.value,
     notifyOnFailure: notifyOnFailure.value,
