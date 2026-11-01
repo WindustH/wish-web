@@ -77,14 +77,17 @@ div.chat-pane > .composer.mobile:focus-within {
 /* Browsers without masks keep the old hard edge; the island itself needs no fallback, since 90%
    of --bg-raised over --bg stays legible either way. */
 
-/* The phone keeps one editable DOM node: an empty, unfocused field fits between
-   the menu and send buttons; editing moves it above the same controls. */
+/* Keep the editor and controls in the same grid row while its clearance grows.
+   Animating padding/min-height preserves the editable node and the text selection. */
 .composer.mobile:not(.composer-start) {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: 32px minmax(0, 1fr) 34px;
   align-items: end;
   column-gap: 8px;
   padding: 8px 12px;
+}
+.composer.mobile:not(.composer-start):has(.send-btn ~ .send-btn) {
+  grid-template-columns: 32px minmax(0, 1fr) 34px 34px;
 }
 .composer.mobile:not(.composer-start) .composer-editor {
   display: contents;
@@ -100,29 +103,45 @@ div.chat-pane > .composer.mobile:focus-within {
 .composer.mobile:not(.composer-start) .composer-input {
   grid-column: 1 / -1;
   grid-row: 3;
-  min-height: 68px;
+  min-height: 104px;
+  padding: 6.75px 4px 44px;
+  transition:
+    min-height 220ms var(--ease-out),
+    padding 220ms var(--ease-out);
 }
 .composer.mobile:not(.composer-start) .composer-mobile-actions {
   grid-column: 1;
-  grid-row: 4;
+  grid-row: 3;
+  align-self: end;
+  z-index: 1;
+  height: 36px;
+}
+.composer.mobile:not(.composer-start) .composer-menu {
+  width: 32px;
+  height: 34px;
+  min-height: 0;
+  padding: 0;
 }
 .composer.mobile:not(.composer-start) .send-btn {
-  grid-row: 4;
+  grid-column: -2;
+  grid-row: 3;
+  align-self: end;
+  margin-bottom: 1px;
+  z-index: 1;
 }
-.composer.mobile.composer-empty:not(.composer-start):not(:has(.composer-input:focus)):not(:has(.caps-error)) {
-  grid-template-columns: 32px minmax(0, 1fr) auto auto;
-  align-items: center;
-  border-radius: 28px;
+.composer.mobile:not(.composer-start) .send-btn:has(~ .send-btn) {
+  grid-column: -3;
 }
 .composer.mobile.composer-empty:not(.composer-start):not(:has(.composer-input:focus)):not(:has(.caps-error))
   .composer-input {
-  grid-column: 2;
-  grid-row: 1;
   min-height: 36px;
   height: 36px !important;
+  padding: calc(18px - 0.75em) 44px;
+  white-space: nowrap;
+  overflow: hidden;
 }
-.composer.mobile.composer-empty:not(.composer-start):not(:has(.composer-input:focus)):not(:has(.caps-error))
-  .composer-mobile-actions,
-.composer.mobile.composer-empty:not(.composer-start):not(:has(.composer-input:focus)):not(:has(.caps-error)) .send-btn {
-  grid-row: 1;
+@media (prefers-reduced-motion: reduce) {
+  .composer.mobile:not(.composer-start) .composer-input {
+    transition: none;
+  }
 }
