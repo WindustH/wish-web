@@ -6,6 +6,7 @@ import ts from 'typescript';
 
 function setup() {
   const classes = new Set<string>();
+  const handleClasses = new Set<string>();
   const widths = new Map<string, string>();
   const saved = new Map<string, string>();
   const document = Object.assign(new EventTarget(), {
@@ -19,6 +20,7 @@ function setup() {
   const window = new EventTarget();
   const target = Object.assign(new EventTarget(), {
     held: false,
+    classList: { add: (value: string) => handleClasses.add(value), remove: (value: string) => handleClasses.delete(value) },
     setPointerCapture() { this.held = true; },
     hasPointerCapture() { return this.held; },
     releasePointerCapture(this: EventTarget & { held: boolean }) { this.held = false; this.dispatchEvent(new Event('lostpointercapture')); },
@@ -34,16 +36,18 @@ function setup() {
   const start = () => result.onListResizePointerDown({ button: 0, currentTarget: target,
     pointerId: 4, clientX: 400, preventDefault() {} });
   const event = (kind: string, values = {}) => window.dispatchEvent(Object.assign(new Event(kind), { pointerId: 4, clientX: 440, buttons: 1, ...values }));
-  return { ...result, document, target, window, classes, widths, saved, start, event };
+  return { ...result, document, target, window, classes, handleClasses, widths, saved, start, event };
 }
 
 test('lost pointer capture releases resize state and restores scroll interaction', () => {
   const h = setup();
   h.start(); assert.ok(h.classes.has('resizing'));
+  assert.ok(h.handleClasses.has('is-resizing'));
   h.event('pointermove'); assert.equal(h.widths.get('--w-list'), '390px');
   h.target.held = false;
   h.target.dispatchEvent(new Event('lostpointercapture'));
   assert.equal(h.classes.has('resizing'), false);
+  assert.equal(h.handleClasses.has('is-resizing'), false);
   assert.equal(h.widths.get('--w-list'), '350px');
   assert.equal(h.saved.size, 0);
 });
@@ -52,9 +56,12 @@ test('window blur and page departure cancel a drag; ordinary release saves it', 
   const h = setup();
   h.start(); h.window.dispatchEvent(new Event('blur'));
   assert.equal(h.classes.has('resizing'), false);
+  assert.equal(h.handleClasses.has('is-resizing'), false);
   h.start(); h.cancelListResize();
   assert.equal(h.classes.has('resizing'), false);
+  assert.equal(h.handleClasses.has('is-resizing'), false);
   h.start(); h.event('pointerup');
   assert.equal(h.classes.has('resizing'), false);
+  assert.equal(h.handleClasses.has('is-resizing'), false);
   assert.equal(h.saved.get('pref.listWidth'), '390');
 });

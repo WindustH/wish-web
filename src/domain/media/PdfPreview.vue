@@ -143,15 +143,16 @@ watch(
       paintedWidth.value = targetWidth;
       paintedHeight.value = parseFloat(rendered.surface.style.height);
       lastPaint = paintKey;
+      painted.value = true;
+      painting.value = false;
       if (arriveAtBottom === targetPage && viewport.value) {
         await nextTick();
-        if (!controller.signal.aborted && arriveAtBottom === targetPage) {
+        if (!controller.signal.aborted && arriveAtBottom === targetPage && viewport.value) {
           viewport.value.scrollTop = viewport.value.scrollHeight;
           arriveAtBottom = undefined;
         }
       }
-      painted.value = true;
-      painting.value = false;
+      if (controller.signal.aborted) return;
       // Current page always wins; cancel background reads on navigation/close.
       void Promise.allSettled(
         [targetPage + 1, targetPage - 1]

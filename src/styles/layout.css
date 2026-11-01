@@ -107,7 +107,7 @@
   transition: background var(--dur-fast);
 }
 /* Resize feedback belongs to the divider. */
-html.resizing .session-list-edge {
+.session-list-edge:has(.list-resize.is-resizing) {
   --edge-line: var(--accent);
   --edge-tab: var(--accent);
   --edge-icon: var(--accent-fg);
@@ -150,7 +150,7 @@ html.resizing * {
     opacity var(--dur) var(--ease-out),
     visibility 0s var(--dur);
 }
-html.resizing .shell .sessions-pane {
+.shell:has(.list-resize.is-resizing) .sessions-pane {
   transition: none;
 }
 

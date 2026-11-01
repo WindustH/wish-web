@@ -26,6 +26,7 @@ function finishResize(commit = false) {
   if (!drag) return;
   const previous = drag;
   drag = undefined;
+  previous.target.classList.remove('is-resizing');
   document.documentElement.classList.remove('resizing');
   if (previous.target.hasPointerCapture(previous.id)) previous.target.releasePointerCapture(previous.id);
   if (!commit) preferredWidth.value = previous.preferred;
@@ -39,6 +40,7 @@ function onResizeStart(event: PointerEvent) {
   target.setPointerCapture(event.pointerId);
   drag = { id: event.pointerId, x: event.clientX, width: width.value, preferred: preferredWidth.value, target };
   document.documentElement.classList.add('resizing');
+  target.classList.add('is-resizing');
 }
 function onResizeMove(event: PointerEvent) {
   if (!drag || drag.id !== event.pointerId) return;
@@ -165,7 +167,7 @@ onBeforeUnmount(() => {
   background: transparent;
   transition: background var(--dur-fast);
 }
-html.resizing .island-resize-handle::after,
+.island-resize-handle.is-resizing::after,
 .island-resize-handle:focus-visible::after {
   background: var(--accent);
 }

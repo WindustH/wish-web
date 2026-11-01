@@ -73,3 +73,10 @@ test('persisted image references resolve to session URLs in their original conte
   const projected = entryView({record:{sequence:1,recorded_at:0}, content:{kind:'message',value:{id:1,message:{Assistant:{content:[{Text:{text:'before'}},{ImageRef:image},{Text:{text:'after'}}]}}}}}, 'session');
   assert.deepEqual(projected.payload.content, [{type:'text',text:'before'},{type:'image',...image,blob_id:`session/${image.blob_id}`},{type:'text',text:'after'}]);
 });
+
+test('relative image URLs without browser location remain unchanged', () => {
+  setBaseUrl('https://wish.test/api');
+  const src = `/api/sessions/session/blobs/${'a'.repeat(64)}`;
+  assert.equal(globalThis.location, undefined);
+  assert.equal(imagePreviewUrl(src, 384, false), src);
+});

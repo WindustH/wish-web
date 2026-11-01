@@ -44,7 +44,12 @@ export function useVirtualGrid(viewport: Ref<HTMLElement | undefined>, count: Re
       element.scrollTop = offset.value;
       element.addEventListener('scroll', onScroll, { passive: true });
       if (typeof ResizeObserver !== 'undefined') {
-        observer = new ResizeObserver(measure);
+        observer = new ResizeObserver(([entry]) => {
+          if (!entry?.contentRect.width || !entry.contentRect.height) return;
+          width.value = entry.contentRect.width;
+          // Virtual rows use the full scroll viewport, including its vertical padding.
+          height.value = element.clientHeight;
+        });
         observer.observe(element);
       }
       cleanup(() => {

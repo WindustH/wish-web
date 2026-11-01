@@ -46,6 +46,7 @@ export function onListResizePointerDown(e: PointerEvent) {
   const target = e.currentTarget as HTMLElement;
   target.setPointerCapture(e.pointerId);
   document.documentElement.classList.add('resizing');
+  target.classList.add('is-resizing');
   const startX = e.clientX;
   const startW = document.querySelector('.sessions-pane')?.getBoundingClientRect().width ?? cfg.design.sessionListWidth;
   const widthAt = (ev: PointerEvent) => clamp(startW + (ev.clientX - startX));
@@ -54,6 +55,7 @@ export function onListResizePointerDown(e: PointerEvent) {
     if (!cancelActiveResize) return;
     cancelActiveResize = undefined;
     document.documentElement.classList.remove('resizing');
+    target.classList.remove('is-resizing');
     window.removeEventListener('pointermove', move, true);
     window.removeEventListener('pointerup', end, true);
     window.removeEventListener('pointercancel', pointerCancel, true);
