@@ -93,7 +93,7 @@ watch(
 let observer: ResizeObserver | undefined;
 onMounted(() => {
   observer = new ResizeObserver(([entry]) => {
-    if (entry) width.value = Math.max(100, entry.contentRect.width - 16);
+    if (entry && entry.contentRect.width > 0) width.value = Math.max(100, entry.contentRect.width - 16);
   });
   if (viewport.value) observer.observe(viewport.value);
 });

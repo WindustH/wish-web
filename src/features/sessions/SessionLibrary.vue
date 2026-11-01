@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, provide, ref, watch } from 'vue';
 import { sessionBlobs, blobUrl, uploadSessionBlob, linkSessionFile } from '../../core/api/endpoints.ts';
 import type { LibraryBlob } from '../../core/api/types.ts';
 import type { EntryView } from '../../core/api/projections.ts';
@@ -7,7 +7,7 @@ import { i18n } from '../../core/i18n/index.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import { fmtBytes } from '../../core/util/fmt.ts';
 import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
-import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import { pageActivityKey, usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { downloadApiFile } from '../../ui/download.ts';
 import IslandSidebar from '../../ui/components/IslandSidebar.vue';
 import Menu from '../../ui/components/Menu.vue';
@@ -21,7 +21,13 @@ import Icon from '../../ui/components/Icon.vue';
 import SessionBlobPreview from './SessionBlobPreview.vue';
 import { attachmentNames, blobKind, blobIcon, blobName, type BlobKind } from './libraryFiles.ts';
 
-const props = defineProps<{ session: string; mobile: boolean; entries: EntryView[]; libraryRevision: number }>();
+const props = defineProps<{
+  session: string;
+  mobile: boolean;
+  open: boolean;
+  entries: EntryView[];
+  libraryRevision: number;
+}>();
 const emit = defineEmits<{ close: []; mention: [blob: LibraryBlob, name: string] }>();
 const items = ref<LibraryBlob[]>([]),
   selected = ref<LibraryBlob | null>(null);
@@ -30,7 +36,12 @@ const next = ref<number | null>(null),
   loading = ref(false),
   error = ref('');
 const filter = ref<BlobKind | 'all'>('all');
-const active = usePageActivity();
+const parentActive = usePageActivity();
+const active = computed(() => parentActive.value && props.open);
+provide(pageActivityKey, active);
+watch(active, (visible) => {
+  if (!visible) linkOpen.value = false;
+});
 const uploadedNames = ref(new Map<string, string>());
 const names = computed(() => new Map([...attachmentNames(props.entries), ...uploadedNames.value]));
 const uploading = ref(false);
@@ -114,12 +125,12 @@ function back() {
   else emit('close');
 }
 useBackLayer(
-  () => props.mobile,
+  () => props.open && props.mobile,
   () => emit('close'),
   () => 45,
 );
 useBackLayer(
-  () => props.mobile && !!selected.value,
+  () => props.open && props.mobile && !!selected.value,
   () => {
     selected.value = null;
   },
@@ -182,7 +193,7 @@ watch(
 </script>
 
 <template>
-  <IslandSidebar :title="title" :overlay="mobile" @close="emit('close')" @back="back">
+  <IslandSidebar :open="open" :title="title" :overlay="mobile" @close="emit('close')" @back="back">
     <template #leading>
       <button v-if="selected" class="btn ghost icon-only" :aria-label="i18n.t('library.back')" @click="selected = null">
         <Icon name="arrow-left" />

@@ -161,12 +161,17 @@ const { effort, error: effortError } = useResolvedEffort(snapshot);
 const modelOpen = ref(false);
 const reasoningOpen = ref(false);
 const sidebarOpen = ref(false);
+const sidebarMounted = ref(false);
+watch(sidebarOpen, (open) => {
+  if (open) sidebarMounted.value = true;
+});
 const libraryRevision = ref(0);
 function openLibrary() {
-  libraryRevision.value++;
+  if (sidebarOpen.value) libraryRevision.value++;
   sidebarOpen.value = true;
 }
 watch(id, () => {
+  sidebarMounted.value = false;
   modelOpen.value = false;
   reasoningOpen.value = false;
   desktopTab.value = null;
@@ -329,7 +334,8 @@ const goTab = (t: SessionTab) => {
         <ReasoningSettings v-if="reasoningOpen" :session-id="id" @close="reasoningOpen = false" />
       </div>
       <SessionLibrary
-        v-if="sidebarOpen && id"
+        v-if="sidebarMounted && id"
+        :open="sidebarOpen"
         :key="id"
         :session="id"
         :mobile="isMobile"

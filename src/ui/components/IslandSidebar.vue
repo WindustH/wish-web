@@ -6,7 +6,7 @@ import Icon from './Icon.vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
 
-const props = defineProps<{ title: string; overlay?: boolean }>();
+const props = defineProps<{ title: string; overlay?: boolean; open: boolean }>();
 const emit = defineEmits<{ close: []; back: [] }>();
 const focus = useDialogFocus();
 const handle = ref<HTMLElement>();
@@ -81,6 +81,7 @@ function observeContainer() {
 }
 watch(handle, observeContainer);
 watch(() => props.overlay, cancel);
+watch(() => props.open, cancel);
 onMounted(() => {
   observeContainer();
   window.addEventListener('blur', cancel);
@@ -93,8 +94,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <DialogRoot :modal="!!overlay" :open="true" @update:open="!$event && emit('close')">
-    <DialogOverlay v-if="overlay" class="island-scrim" @click="emit('close')" />
+  <DialogRoot :modal="!!overlay" :open="open" :unmount-on-hide="false" @update:open="!$event && emit('close')">
+    <DialogOverlay v-if="overlay && open" class="island-scrim" @click="emit('close')" />
     <DialogContent
       id="session-sidebar"
       class="island-sidebar"

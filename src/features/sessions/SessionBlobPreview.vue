@@ -6,6 +6,7 @@ import { absUrl, apiFetch } from '../../core/api/client.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import Icon from '../../ui/components/Icon.vue';
+import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { blobKind } from './libraryFiles.ts';
 
 const PdfPreview = defineAsyncComponent(() => import('../../domain/media/PdfPreview.vue'));
@@ -13,6 +14,9 @@ const props = defineProps<{ session: string; blob: LibraryBlob; name: string }>(
 const kind = computed(() => blobKind(props.blob));
 const player = ref<HTMLMediaElement | null>(null);
 onBeforeUnmount(() => player.value?.pause());
+watch(usePageActivity(), (active) => {
+  if (!active) player.value?.pause();
+});
 const source = ref(''),
   text = ref(''),
   error = ref('');
