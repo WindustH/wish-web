@@ -5,6 +5,7 @@ export const en = {
   'library.mention': 'Mention in chat',
   'library.fileActions': 'File actions',
   'library.tooLarge': 'File exceeds upload limit ({size})',
+  'sidebar.resize': 'Resize right sidebar',
   'library.title': 'Library',
   'library.sessionFiles': 'Files in this session',
   'library.count': '{count} files',
