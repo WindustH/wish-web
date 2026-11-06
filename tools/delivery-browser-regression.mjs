@@ -17,7 +17,7 @@ import {createBackLayers,setBackLayers} from '/src/ui/backLayers.ts';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/domain/settings/settings.css';
 registerBrowserPlatform({ namespace: 'wish-webui', version: 1 });setBackLayers(createBackLayers(window));
 const tools=ref({shell:true,ask_user:true,web_fetch:true,web_search:true,mcp:true,skills:true,sessions:true});
-createApp({setup(){return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;width:min(800px,100%);margin:auto'},[h('div',{class:'set-card'},[h(ToolSwitchRows,{modelValue:tools.value,'onUpdate:modelValue':v=>tools.value=v,searchAvailable:true})])]))}}).mount('#app');
+createApp({setup(){return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;width:min(800px,100%);margin:auto'},[h('div',{class:'set-card'},[h(ToolSwitchRows,{modelValue:tools.value,'onUpdate:modelValue':v=>tools.value=v,searchAvailable:true,extensionRows:[{key:'web_fetch',name:'Web Fetch',hint:'Read a web page'},{key:'web_search',name:'Web Search',hint:'Search the web'}]})])]))}}).mount('#app');
 window.fixture={tools};
 window.readQueue=async()=>{
  const original=window.fetch,calls=[];

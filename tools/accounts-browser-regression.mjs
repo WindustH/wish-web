@@ -27,11 +27,11 @@ import {createBackLayers,setBackLayers} from '/src/ui/backLayers.ts';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/domain/settings/settings.css';
 registerBrowserPlatform({ namespace: 'wish-webui', version: 1 });setBackLayers(createBackLayers(window));
 const draft=ref({accounts:{shared:{name:'Shared account',preset:'deepseek',api_key:'<redacted>',credentials:{refresh_token:'<redacted>'},credentials_env:{},proxy_enabled:true}},providers:{model:{credential_id:'shared'}},search:{providers:{}},fetch:{order:[],providers:{}}});
-const catalog=ref({presets:[{id:'deepseek',provider:'DeepSeek',required_credentials:[],optional_credentials:[]}]});
+const catalog=ref({presets:[{id:'deepseek',provider:'DeepSeek',protocols:['deepseek_chat'],variants:{deepseek_chat:{protocol:'deepseek_chat',base_url:'https://api.deepseek.com'}},required_credentials:[],optional_credentials:[]}]});
 const searchCatalog=ref([{id:'tavily',name:'Tavily',brand:'Tavily',key:'required'},{id:'jina',name:'Jina',brand:'Jina',key:'required'},{id:'tavily_keyless',name:'Tavily Free',key:'none'}]);
 const imageCatalog=ref(${JSON.stringify(JSON.parse(await readFile(new URL('./fixtures/image-presets.json', import.meta.url),'utf8')))});
 const mediaCatalog=ref(${JSON.stringify(JSON.parse(await readFile(new URL('./fixtures/media-presets.json', import.meta.url),'utf8')))});
-const mode=ref('accounts');const saveConfig=async()=>true;
+const mode=ref('accounts'),extensionSection=ref('');const saveConfig=async()=>true;
 const fetchCatalog=ref([{id:'deepseek_fetch',name:'DeepSeek',key:'required',base_url:'https://api.deepseek.com'},{id:'zai_reader',name:'Z.AI',key:'required'},{id:'jina_reader',name:'Jina Reader',key:'optional'},{id:'codex_fetch',name:'ChatGPT / Codex',key:'required'}]);
 function mediaPreview(){const binding=extensionTool('audio_generate').result({tool:'audio_generate',session:'fixture',arguments:{},metadata:null,output:{job_id:'job',kind:'music',provider:'mock',model:'fixture',status:'running',artifacts:[]}});return h(binding.component,binding.props);}
 function novelaiPreview(){return h(ProcessDetailBody,{session:'fixture',step:{kind:'block',block:{type:'tool_call',name:'novelai_generate',arguments:{prompt:'A referenced character in a snowy forest',service:'novelai-main',source_image:'b'.repeat(64),references:[{image:'c'.repeat(64),kind:'character',strength:0.8,fidelity:1},{image:'d'.repeat(64),kind:'style',strength:0.4,fidelity:0.7}],parameters:{width:1024,negative_prompt:'blur, low quality',sampler:'k_euler_ancestral',noise_schedule:'karras',cfg_rescale:0,dynamic_thresholding:false,character_prompts:[{prompt:'girl, red coat',negative_prompt:'blue coat',centers:[{x:0.25,y:0.5}]},{prompt:'girl, blue coat',centers:[{x:0.75,y:0.5}]}]}}}},relatedResult:{kind:'entry',entry:{payload:{tool_name:'novelai_generate',result:{status:'success',output:{model:'nai-diffusion-4-5-full',images:[{id:'a'.repeat(64),mime_type:'image/png',path:'/fixture/result.png'}]}}}}}});}
@@ -42,8 +42,8 @@ function runwayVideoPreview(prores=false,archive=false){return h(ProcessDetailBo
 function xaiVideoPreview(){return h(ProcessDetailBody,{session:'fixture',step:{kind:'block',block:{type:'tool_call',name:'xai_video',arguments:{action:'generate',prompt:'A cinematic scene, <AUDIO_0> speaks',generate_audio:false,image:{blob:'b'.repeat(64)},last_frame:{blob:'c'.repeat(64)},reference_images:[{url:'https://example.com/reference.png'}],keyframes:[{image:{blob:'d'.repeat(64)},timestamp_s:2}],reference_voices:['eve'],duration:6,resolution:'720p'}}},relatedResult:{kind:'entry',entry:{payload:{tool_name:'xai_video',result:{status:'success',output:{job_id:'xai-video-job',kind:'video',provider:'xai',model:'grok-imagine-video-1.5',status:'succeeded',artifacts:[{id:'a'.repeat(64),mime_type:'video/mp4',path:'/fixture/generated.mp4',byte_count:100}]}}}}}});}
 function xaiSpeechPreview(){return h(ProcessDetailBody,{session:'fixture',step:{kind:'block',block:{type:'tool_call',name:'xai_speech',arguments:{action:'run',text:'Welcome to Wish.',voice_id:'eve',language:'en',speed:1.1,output_format:{codec:'wav',sample_rate:24000},with_timestamps:true,text_normalization:false,replace:{Wish:'wish'}}}},relatedResult:{kind:'entry',entry:{payload:{tool_name:'xai_speech',result:{status:'success',output:{job_id:'xai-job',kind:'speech',provider:'xai',model:'grok-voice',status:'succeeded',artifacts:[{id:'a'.repeat(64),mime_type:'audio/wav',path:'/fixture/speech.wav',byte_count:3244}],timestamps:{id:'e'.repeat(64),mime_type:'application/json',path:'/fixture/timestamps.json',byte_count:100}}}}}}});}
 function xaiTranscriptionPreview(){return h(ProcessDetailBody,{session:'fixture',step:{kind:'block',block:{type:'tool_call',name:'xai_transcribe',arguments:{audio:'b'.repeat(64),language:'en',diarize:true,format:true,multichannel:true,filler_words:false,vad_threshold:0,keyterms:['Wish','小云雀']}}},relatedResult:{kind:'entry',entry:{payload:{tool_name:'xai_transcribe',result:{status:'success',output:{text:'Hello speakers. Welcome to Wish.',model:'grok-voice-transcribe-2.0',language:'en',word_timestamps:true,transcript:{id:'e'.repeat(64),mime_type:'application/json',path:'/fixture/transcript.json',byte_count:100}}}}}}});}
-createApp({setup(){provide(configDraftKey,{draft,busy:ref(false),serverDirty:ref(false),providerOptions:ref([]),catalog,searchCatalog,fetchCatalog,imageCatalog,mediaCatalog,saveConfig,load:async()=>{}});return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;width:min(800px,100vw);margin:auto'},[h('h1','Settings fixture'),mode.value==='extensions'?h(ExtensionToolsSettings,{save:saveConfig,searchAvailable:true,statuses:{},statusesKnown:true}):mode.value==='builtin-tools'?h(ToolSettings,{config:draft.value,shells:null,busy:false,searchAvailable:true}):mode.value==='runway-zip'?runwayVideoPreview(false,true):mode.value==='runway-prores'?runwayVideoPreview(true):mode.value==='runway-video'?runwayVideoPreview():mode.value==='xai-video'?xaiVideoPreview():mode.value==='xai-speech'?xaiSpeechPreview():mode.value==='xai-transcription'?xaiTranscriptionPreview():mode.value==='minimax-jobs'?minimaxListPreview():mode.value==='minimax-mixed'?minimaxPreview(true):mode.value==='minimax'?minimaxPreview():mode.value.startsWith('bfl:')?bflPreview(mode.value==='bfl:fill'):mode.value==='novelai'?novelaiPreview():mode.value==='player'?mediaPreview():mode.value.startsWith('media:')?h(MediaGenerationSettings,{section:mode.value.slice(6)}):mode.value==='images'?h(ImageGenerationSettings):mode.value==='accounts'?h(AccountSettings):mode.value==='search'?h(SearchSettings,{config:draft.value,models:[],presets:[{id:'chatgpt',name:'ChatGPT',brand:'OpenAI'}],statuses:{chatgpt:{available:true}},statusesKnown:true,save:saveConfig,busy:false,dirty:false}):h(FetchSettings,{save:saveConfig})]));}}).use(createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]})).mount('#app');
-window.fixture={draft,mode};
+createApp({setup(){provide(configDraftKey,{draft,busy:ref(false),serverDirty:ref(false),providerOptions:ref([]),catalog,searchCatalog,fetchCatalog,imageCatalog,mediaCatalog,saveConfig,load:async()=>{}});return()=>h(TooltipProvider,{},()=>h('main',{style:'padding:16px;width:min(800px,100vw);margin:auto'},[h('h1','Settings fixture'),mode.value==='extensions'?h(ExtensionToolsSettings,{initialSection:extensionSection.value,onSelected:value=>extensionSection.value=value,save:saveConfig,searchAvailable:true,statuses:{},statusesKnown:true}):mode.value==='builtin-tools'?h(ToolSettings,{config:draft.value,shells:null,busy:false,searchAvailable:true}):mode.value==='runway-zip'?runwayVideoPreview(false,true):mode.value==='runway-prores'?runwayVideoPreview(true):mode.value==='runway-video'?runwayVideoPreview():mode.value==='xai-video'?xaiVideoPreview():mode.value==='xai-speech'?xaiSpeechPreview():mode.value==='xai-transcription'?xaiTranscriptionPreview():mode.value==='minimax-jobs'?minimaxListPreview():mode.value==='minimax-mixed'?minimaxPreview(true):mode.value==='minimax'?minimaxPreview():mode.value.startsWith('bfl:')?bflPreview(mode.value==='bfl:fill'):mode.value==='novelai'?novelaiPreview():mode.value==='player'?mediaPreview():mode.value.startsWith('media:')?h(MediaGenerationSettings,{section:mode.value.slice(6)}):mode.value==='images'?h(ImageGenerationSettings):mode.value==='accounts'?h(AccountSettings):mode.value==='search'?h(SearchSettings,{config:draft.value,models:[],presets:[{id:'chatgpt',name:'ChatGPT',brand:'OpenAI'}],statuses:{chatgpt:{available:true}},statusesKnown:true,save:saveConfig,busy:false,dirty:false}):h(FetchSettings,{save:saveConfig})]));}}).use(createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]})).mount('#app');
+window.fixture={draft,mode,extensionSection};
 </script></body></html>`;
 const wav=Buffer.alloc(3244);wav.write('RIFF');wav.writeUInt32LE(3236,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(16000,24);wav.writeUInt32LE(32000,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(3200,40);
 let rangeRequests=0;
@@ -53,7 +53,7 @@ const server = await createServer({ configFile: false, root: process.cwd(), plug
   load(id) { if(id==='\0fixture-pwa-register') return 'export const registerSW = () => async () => {};'; },
   configureServer(server) {
     server.middlewares.use('/api', (req,res,next)=>{
-      if(/^\/sessions\/fixture\/blobs\/[a-f0-9]{64}$/.test(req.url ?? '')) {res.setHeader('Content-Type','image/png');res.end(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/a9sAAAAASUVORK5CYII=','base64'));return;}
+      if(/^\/sessions\/fixture\/blobs\/[a-f0-9]{64}(?:\/image\?width=(?:384|768|1536))?$/.test(req.url ?? '')) {res.setHeader('Content-Type','image/png');res.end(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/a9sAAAAASUVORK5CYII=','base64'));return;}
       if(req.url==='/sessions/fixture/media/audio/job/status' || req.url==='/sessions/fixture/media/audio/minimax-job/status') {res.setHeader('Content-Type','application/json');res.end(JSON.stringify({job_id:req.url.includes('minimax-job')?'minimax-job':'job',kind:req.url.includes('minimax-job')?'speech':'music',provider:req.url.includes('minimax-job')?'minimax':'mock',model:'fixture',status:'succeeded',timestamps:req.url.includes('minimax-job')?{id:'e'.repeat(64),mime_type:'application/json',path:'/fixture/subtitles.json',byte_count:100}:null,artifacts:[{id:'a'.repeat(64),path:'/session/generated.wav',mime_type:'audio/wav',byte_count:wav.length}]}));return;}
       if(req.url?.endsWith('/playback')) {res.setHeader('Content-Type','application/json');res.end(JSON.stringify({path:'/fixture-audio',expires_at:9999999999}));return;}
       if(req.url==='/fixture-audio') {res.setHeader('Content-Type','audio/wav');res.setHeader('Accept-Ranges','bytes');if(req.headers.range){rangeRequests++;res.statusCode=206;res.setHeader('Content-Range',`bytes 0-${wav.length-1}/${wav.length}`);}res.setHeader('Content-Length',wav.length);res.end(wav);return;}
@@ -62,7 +62,7 @@ const server = await createServer({ configFile: false, root: process.cwd(), plug
     server.middlewares.use('/__accounts_regression', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__accounts_regression', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/settings/AccountSettings.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/settings/AccountSettings.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'highlight.js/lib/common', 'highlight.js/lib/languages/dockerfile', 'highlight.js/lib/languages/powershell', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-accounts-browser-'));
 let chrome, ws;
 try {
@@ -212,9 +212,14 @@ try {
         const otherId=preset+'-priority-other';
         const beforeCount=await js('Object.keys(fixture.draft.value['+JSON.stringify(section)+'].providers).length');
         await js('(()=>{const c=fixture.draft.value['+JSON.stringify(section)+'];const id=c.order.at(-1);const other='+JSON.stringify(otherId)+';c.providers[other]=structuredClone(JSON.parse(JSON.stringify(c.providers[id])));c.order.push(other);})()');
-        await sleep(50);
-        await js('Array.from(document.querySelectorAll(".media-order button")).find(b=>/下移|Move down/.test(b.textContent)).click()');
-        assert.equal(await js('fixture.draft.value['+JSON.stringify(section)+'].order.at(-2)'),otherId,'mobile move changes priority');
+        await js('history.back()');
+        await until('!document.querySelector(".media-editor")','close editor before changing priority');
+        await js('Array.from(document.querySelectorAll(".media-settings .settings-item-grip")).at(-2).focus()');
+        await send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowDown',code:'ArrowDown',windowsVirtualKeyCode:40});
+        await send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowDown',code:'ArrowDown',windowsVirtualKeyCode:40});
+        await until('fixture.draft.value['+JSON.stringify(section)+'].order.at(-2)==='+JSON.stringify(otherId),'mobile move changes priority');
+        await js('Array.from(document.querySelectorAll(".media-settings .settings-item-row")).at(-1).click()');
+        await until('!!document.querySelector(".media-editor")','reopen reordered media service');
         await js('Array.from(document.querySelectorAll("button")).find(b=>/^(删除服务|Delete service)$/.test(b.textContent.trim())).click()');
         await until('!document.querySelector(".media-editor")','mobile delete closes editor');
         assert.equal(await js('Object.keys(fixture.draft.value['+JSON.stringify(section)+'].providers).length'),beforeCount,'mobile service deleted');
@@ -265,10 +270,10 @@ try {
     await js('history.back()');
     await until('!document.querySelector(".fetch-form")','back closes fetch editor');
     await js('fixture.draft.value.fetch={order:["first","second"],providers:{first:{preset:"deepseek_fetch",enabled:true,proxy_enabled:true},second:{preset:"codex_fetch",enabled:true,proxy_enabled:true}}}');
-    await until('document.querySelectorAll(".fetch-reorder .settings-item").length===2','sortable readers');
+    await until('document.querySelectorAll(".fetch-list .ordered-settings-list .settings-item").length===2','sortable readers');
     await sleep(400);
     const selector=width<900?'.settings-item-grip':'.settings-item-heading';
-    const points=await js(`Array.from(document.querySelectorAll('.fetch-reorder ${selector}')).map(el=>{const r=el.getBoundingClientRect();return {x:widthPlaceholder<900?r.x+r.width/2:r.x+90,y:r.y+r.height/2};})`.replace('widthPlaceholder',String(width)));
+    const points=await js(`Array.from(document.querySelectorAll('.fetch-list .ordered-settings-list ${selector}')).map(el=>{const r=el.getBoundingClientRect();return {x:widthPlaceholder<900?r.x+r.width/2:r.x+90,y:r.y+r.height/2};})`.replace('widthPlaceholder',String(width)));
     const [from,to]=points;
     if(width<900) await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[from]});
     else { await send('Input.dispatchMouseEvent',{type:'mouseMoved',...from}); await send('Input.dispatchMouseEvent',{type:'mousePressed',...from,button:'left',clickCount:1}); }
@@ -451,11 +456,20 @@ try {
   for(const width of [390,1100]) {
     await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<700});
     await js('fixture.draft.value.defaults={tools:{shell:true}};fixture.mode.value="extensions"');
-    await until('document.querySelectorAll(".extension-categories button").length===6','six extension categories');
     const keys=['image_generate','video_generate','audio_generate','audio_transcribe','web_fetch','web_search'];
+    const sections=['image_generation','video_generation','audio_generation','audio_transcription','fetch','search'];
     for(let i=0;i<keys.length;i++) {
-      await js(`document.querySelectorAll('.extension-categories button')[${i}].click()`);
-      await until(`document.querySelectorAll('.extension-categories button')[${i}].getAttribute('aria-pressed')==='true'`,'selected extension');
+      if(width<700) {
+        await js('fixture.extensionSection.value=""');
+        await until('document.querySelectorAll(".extension-categories button").length===6','six extension categories');
+        await js(`document.querySelectorAll('.extension-categories button')[${i}].click()`);
+      } else {
+        await until('!!document.querySelector(".extension-category-select")','extension category picker');
+        await js('document.querySelector(".extension-category-select").dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowDown",bubbles:true}))');
+        await until(`!!document.querySelector('.control-select-option[data-value="${sections[i]}"]')`,'extension category option');
+        await js(`document.querySelector('.control-select-option[data-value="${sections[i]}"]').dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",bubbles:true}))`);
+      }
+      await until(`!!document.querySelector('.extension-defaults [data-tool="${keys[i]}"]')`,'selected extension');
       assert.equal(await js('document.querySelectorAll(".extension-defaults .capability-row").length'),1);
       await js(`document.querySelector('.extension-defaults input[value="tool"]').click()`);
       assert.equal(await js(`fixture.draft.value.defaults.tools.${keys[i]}`),true);
