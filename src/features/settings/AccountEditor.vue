@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref, shallowRef, watch } from 'vue';
 import AccountServicesDialog from '../../domain/settings/AccountServicesDialog.vue';
-import { accountServices } from './accountServices.ts';
+import { accountServices } from '../../domain/settings/accountServices.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
 import SwitchRow from '../../domain/settings/SwitchRow.vue';

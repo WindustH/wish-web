@@ -61,7 +61,11 @@ export function createChatDeliveries({
     sentRun.value = null;
     deliveries.value = [];
   }
-  async function send(text: string, attachments: DeliveryAttachment[] = []): Promise<string | null> {
+  async function send(
+    text: string,
+    attachments: DeliveryAttachment[] = [],
+    metadata?: unknown,
+  ): Promise<string | null> {
     const own = generation;
     const id = sessionId.value;
     if (!id || sending.value) return null;
@@ -75,7 +79,11 @@ export function createChatDeliveries({
       const requestOptions = options();
       const { blocks } = await upload(id, attachments, requestOptions);
       if (!current(own)) return null;
-      const result = await requests.messageSend(id, { content: text, blocks }, requestOptions);
+      const result = await requests.messageSend(
+        id,
+        { content: text, blocks, ...(metadata ? { metadata } : {}) },
+        requestOptions,
+      );
 
       if (result.first_user_message) void nameFirstMessage(id, result.entry);
 

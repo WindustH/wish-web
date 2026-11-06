@@ -10,6 +10,7 @@ import vue from '@vitejs/plugin-vue';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import {createApp,h,ref} from 'vue';import {TooltipProvider} from 'reka-ui';
+window.previewApiCalls=0;const originalFetch=window.fetch;window.fetch=(input,options)=>{if(new URL(String(input),location.href).pathname.startsWith('/api/'))window.previewApiCalls++;return originalFetch(input,options)};
 import {createRouter,createMemoryHistory} from 'vue-router';
 import {use} from '/src/platform/index.ts';
 use('clipboard',{writeText:async text=>{window.copiedCode=text}});
@@ -49,7 +50,14 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/__style_preview`});
-  await until('document.querySelectorAll(".preview-sample").length===24','all gallery samples');
+  await until('document.querySelectorAll(".preview-sample").length===26','all gallery samples');
+  assert.equal(await js('document.querySelector("[data-preview=manual-retry-ready] .retry-run").disabled'),false);
+  assert.equal(await js('document.querySelector("[data-preview=manual-retry-busy] .retry-run").disabled'),true);
+  await js('document.querySelector("[data-preview=manual-retry-ready] .retry-run").click()');
+  await until('document.querySelector("[data-preview=manual-retry-ready] .retry-run").disabled','preview shows pending retry');
+  await until('document.querySelector("[data-preview=manual-retry-ready] [role=status]")','preview retry completes locally');
+  assert.equal(await js('document.querySelector("[data-preview=manual-retry-ready] .retry-run").disabled'),false);
+  assert.equal(await js('window.previewApiCalls'),0,'retry preview does not contact the server');
   await js('document.querySelector("[data-preview=account-services] button").click()');
   await until('document.querySelectorAll(".service-option").length===5','account services gallery dialog');
   await js('document.querySelector("[role=dialog]:has(.account-services-dialog) .primary").click()');
@@ -157,7 +165,7 @@ try {
     }
   }
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['24 real-component samples','account services confirmation preview','desktop/mobile dark/light','six-file dialog','category filter','syntax colours and exact copy','safe fallback and streaming','group details without navigation','session operation timeline']}));
+  console.log(JSON.stringify({ok:true,checks:['26 real-component samples','account services confirmation preview','desktop/mobile dark/light','six-file dialog','category filter','syntax colours and exact copy','safe fallback and streaming','group details without navigation','session operation timeline']}));
 
 } finally {
   ws?.close();

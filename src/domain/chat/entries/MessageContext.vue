@@ -3,7 +3,10 @@
 // save the image. On a touch screen a long press on the words selects them instead (TouchSelection),
 // and one on the blank of the message opens the menu. A right click on a selection acts on what was
 // selected.
-import { computed } from 'vue';
+import { computed, inject, ref } from 'vue';
+import { replyContextKey } from '../../references/context.ts';
+import { markdownSelectionPieces } from '../../../ui/markdownSelection.ts';
+import { replyReferenceId, type ReplyReference } from '../../../core/replyReferences.ts';
 import { apiFetch } from '../../../core/api/client.ts';
 import Menu from '../../../ui/components/Menu.vue';
 import type { MenuItem } from '../../../ui/components/menuTypes.ts';
@@ -20,9 +23,64 @@ const items = computed<MenuItem[]>(() =>
     ? [{ key: 'save', icon: 'download', label: tr('保存图片', 'Save image') }]
     : [{ key: 'copy', icon: 'copy', label: tr('复制消息', 'Copy message') }],
 );
-const selectionItems: MenuItem[] = [{ key: 'copy-selection', icon: 'copy', label: tr('复制', 'Copy') }];
-function choose(key: string, selection?: string) {
-  if (key === 'copy-selection') void copyText(selection ?? '');
+const replies = inject(replyContextKey, undefined);
+let selectedReferences: ReplyReference[] = [];
+const canReply = ref(false);
+const selectionItems = computed<MenuItem[]>(() => [
+  { key: 'copy-selection', icon: 'copy', label: tr('复制', 'Copy') },
+  ...(replies && canReply.value ? [{ key: 'reply', icon: 'reply', label: tr('回复', 'Reply') }] : []),
+]);
+function captureSelection(range: Range, root: Element, fallback: string) {
+  selectedReferences = [];
+  const pieces = markdownSelectionPieces(range, root);
+  for (const piece of pieces) {
+    const host = piece.owner.closest<HTMLElement>('[data-reply-seq]');
+    if (!host || !replies) continue;
+    selectedReferences.push({
+      id: replyReferenceId(),
+      session: replies.session.value,
+      source: `message_${host.dataset.replySeq}`,
+      seq: Number(host.dataset.replySeq),
+      block: Number(host.dataset.replyBlock),
+      start: piece.start,
+      end: piece.end,
+      text: piece.source.slice(piece.start, piece.end),
+      label: fallback.replace(/\s+/g, ' ').slice(0, 70),
+    });
+  }
+  // Plain user bubbles have one text node; capture offsets without searching its value.
+  if (!pieces.length && replies && root.contains(range.commonAncestorContainer)) {
+    const host = range.startContainer.parentElement?.closest<HTMLElement>('[data-reply-seq]');
+    const text = host?.querySelector('[data-reply-plain]');
+    if (host && text?.contains(range.commonAncestorContainer)) {
+      const prefix = range.cloneRange();
+      prefix.selectNodeContents(text);
+      prefix.setEnd(range.startContainer, range.startOffset);
+      const start = prefix.toString().length;
+      selectedReferences.push({
+        id: replyReferenceId(),
+        session: replies.session.value,
+        source: `message_${host.dataset.replySeq}`,
+        seq: Number(host.dataset.replySeq),
+        block: Number(host.dataset.replyBlock),
+        start,
+        end: start + range.toString().length,
+        text: range.toString(),
+        label: range.toString().replace(/\s+/g, ' ').slice(0, 70),
+      });
+    }
+  }
+  canReply.value = selectedReferences.length > 0;
+  return markdownSelection(range, root, fallback);
+}
+async function choose(key: string, selection?: string) {
+  if (key === 'reply') {
+    if (!selectedReferences.length) {
+      toast(tr('请选择同一消息中的文本', 'Select text within one message'));
+      return;
+    }
+    for (const reference of [...selectedReferences]) await replies?.add(reference);
+  } else if (key === 'copy-selection') void copyText(selection ?? '');
   else void (key === 'save' ? saveImage() : copyMessage());
 }
 
@@ -70,7 +128,7 @@ const copyMessage = () => copyText(props.text);
     selects-text
     :items="items"
     :selection-items="selectionItems"
-    :selection-text="markdownSelection"
+    :selection-text="captureSelection"
     :disabled="!hasMenu"
     :within="kind === 'user' ? '.bubble' : '.body'"
     @select="choose"

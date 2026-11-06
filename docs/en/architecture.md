@@ -34,20 +34,31 @@ slots only, while `features/sessions/SessionLibrary` owns session files and prev
 Opening it preserves the mounted conversation and composer. On mobile, Back leaves a preview,
 then closes the sidebar before navigating away from the conversation.
 
-The paged `GET …/blobs` catalog includes uploads and generated files independently of loaded
-history. History attachment names only enrich labels. Requests and refresh timers are released
+The activity timeline floats beside the transcript when the conversation pane has enough margin.
+On phones or crowded desktop panes it uses the same sliding drawer, based on the pane's actual
+layout width rather than the window width. Opening it translates the content without rewrapping
+messages; desktop users have a toggle button, leaving mouse text selection available.
+
+The paged `GET …/blobs` catalog defaults to persisted user-visible membership, independently of loaded
+history. All files adds `include_hidden=true`; model artifacts and region-reply crops default to hidden.
+Context menus show/hide, pin/unpin or delete blobs. Pinning precedes server pagination and implies visibility;
+deletion is refused by the server for images required by current/standby contexts or pending input.
+History attachment names only enrich labels. Requests and refresh timers are released
 when the session changes or the sidebar closes. Image, audio, video and PDF previews use the
 existing short-lived single-file grants; native media retains range-based playback. Text is
-escaped and limited to 256 KiB. PDF.js loads on demand and renders one bounded canvas at a time
-with page and zoom controls. Its worker, fonts, CMaps and WASM are generated from the dependency
+escaped and limited to 256 KiB. PDF.js loads on demand and renders bounded canvases for the visible
+page window, with page and zoom controls. Its worker, fonts, CMaps and WASM are generated from the dependency
 at build time; third-party binary resources are not checked into source control.
 
 Library keeps its filter, count and upload controls in one header row. Uploads use the existing
 session blob endpoint; mentioning a file appends a stored attachment to the current draft without
-submitting it. Context menus and the visible file-actions button expose the same action on desktop
-and touch. Mobile moves Library into the chat menu and model/reasoning selection into the composer's
-action menu alongside attachments and temporary chat. The menu shows only the current model and
-reasoning option, using the header chip typography. Empty, unfocused mobile conversation composers
+submitting it. Model `wish blob mention` results appear as file cards; `wish://blob/...` links and
+Markdown local absolute paths use the same sidebar opener, with optional PDF page and media time.
+The UI only parses reference coordinates while rendering. A local path is registered on activation,
+with `temporary:true`, preserving the separation between storage and the displayed Library.
+Context menus and the visible file-actions button expose the same actions on desktop and touch.
+Mobile keeps model/reasoning selection in the header menu, using the header chip typography.
+Empty, unfocused mobile conversation composers
 use one row; focus or a draft expands the same editor above its actions, preserving caret and IME state.
 
 Media thumbnails load near the viewport. Videos show a paused frame and play glyph; audio covers
@@ -179,3 +190,29 @@ Run `node tools/source-review-browser.mjs` for Markdown identity/semantics, inpu
 click isolation, focus restoration and opt-in diagnostics. Run `node tools/overlay-layout-browser.mjs`
 for responsive overlay and route transition regressions. Unit coverage includes abort scopes,
 sync lifecycle, overlapping Back, malformed diffs and locale dictionary parity.
+
+
+### Reply references
+
+Selection Reply captures parser-owned Markdown offsets (no text search) and original message/block identity.
+Atomic composer tokens share attachment pointer dragging and Undo behavior. Text references expand to quoted
+source for model input; image/PDF regions attach a bounded crop and original top-left coordinates (pixels or
+page viewport points), with file and one-based page identity. Region encoding happens only on Reply, never
+on pointermove; Shift-drag retains native PDF text selection and image panning, and middle-drag pans images.
+The input metadata retains display tokens and source references. The history backlink endpoint resolves
+only completed replies from durable history. Mounted source blocks load bounded backlink pages; response
+text is fetched on hover and cached in a bounded session cache. Parser maps also drive underline geometry,
+without mutating rendered Markdown or searching repeated words. Cross-domain interaction contracts live
+in `domain/references`, avoiding a chat/media dependency cycle.
+
+File activation lives in `domain/references/ReferenceMarkdown`; generic `ui/Markdown` emits
+link-click events and handles code copying. Library navigation is a pending target consumed by
+the mounted panel, without a mount deadline. File and reference requests share cancellation
+ownership, including closing/reopening during a request.
+
+Backlink refresh normally invalidates only sources referenced by newly loaded inputs. A run
+whose inputs are outside the loaded history window uses a conservative full refresh. Hover
+geometry is read at most once per animation frame and skipped entirely without backlinks.
+Only a PDF page with an active region gesture/selection owns global selection listeners;
+sidebar width dragging defers page rasterization. Dropping below two touches releases pinch
+ownership while suppressing the compatibility click.

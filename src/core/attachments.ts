@@ -1,3 +1,4 @@
+import type { ReplyReference } from './replyReferences.ts';
 import { attachmentDigest } from './attachmentDigest.ts';
 import * as api from './api/endpoints.ts';
 import { cfg } from './config.ts';
@@ -11,6 +12,7 @@ export interface StoredAttachmentReference {
 }
 
 export interface AttachmentInput {
+  reply?: ReplyReference;
   size?: number;
   unavailable?: boolean;
   stored?: { owner: string; id: string };
@@ -125,7 +127,10 @@ export async function uploadAttachments(
     }
     const blob = stored
       ? { sha256: stored.id, byte_count: attachment.size ?? attachment.bytes.byteLength, mime_type: attachment.mime }
-      : await upload(owner, attachment.bytes, { signal });
+      : await upload(owner, attachment.bytes, {
+          signal,
+          query: { ...(attachment.reply?.region ? { temporary: true } : {}), name: attachment.name },
+        });
     if (attachment.kind === 'image') images++;
     else files++;
     if (images > limits.imageCount || files > limits.fileCount) throw new Error('Too many attachments');

@@ -1,29 +1,26 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useDocumentVisible } from '../../ui/composables/useDocumentVisible.ts';
+import { computed, nextTick, ref, watch } from 'vue';
 import IslandSidebar from '../../ui/components/IslandSidebar.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
 import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
-import { sessionTasks, taskOutput, type BackgroundTask } from '../../core/api/tasks.ts';
+import { sessionTasks, taskOutput, terminateTask, type BackgroundTask } from '../../core/api/endpoints.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import { fmtDateTime } from '../../core/util/fmt.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
 const props = defineProps<{ session: string; open: boolean; mobile: boolean }>();
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: []; count: [count: number] }>();
 const parentActive = usePageActivity();
-const visible = ref(document.visibilityState !== 'hidden');
-function visibility() {
-  visible.value = document.visibilityState !== 'hidden';
-}
-onMounted(() => document.addEventListener('visibilitychange', visibility));
-onBeforeUnmount(() => document.removeEventListener('visibilitychange', visibility));
+const visible = useDocumentVisible();
 const active = computed(() => props.open && parentActive.value && visible.value);
 const saved = useWorkspaceState('tasks', () => props.session, { selected: '' });
 const tasks = ref<BackgroundTask[]>([]);
 const current = computed(() => tasks.value.find((task) => task.task_id === saved.value.selected));
+const loaded = ref(false);
 const loading = ref(false),
   error = ref(''),
   outputError = ref(''),
@@ -31,6 +28,28 @@ const loading = ref(false),
   truncated = ref(false);
 const revision = ref(0),
   outputBox = ref<HTMLElement>();
+const terminating = ref(false);
+const actionError = ref('');
+watch([() => props.session, () => saved.value.selected], () => (actionError.value = ''));
+async function terminate(mode: 'graceful' | 'force') {
+  const task = current.value;
+  if (!task || task.process.status !== 'running' || terminating.value) return;
+  const session = props.session;
+  terminating.value = true;
+  actionError.value = '';
+  try {
+    const result = await terminateTask(session, task.task_id, mode);
+    if (props.session !== session) return;
+    const listed = tasks.value.find((item) => item.task_id === task.task_id);
+    if (listed) listed.process = result.process;
+    revision.value++;
+  } catch (cause) {
+    if (props.session === session && saved.value.selected === task.task_id)
+      actionError.value = describeError(cause).message;
+  } finally {
+    terminating.value = false;
+  }
+}
 const running = computed(() => tasks.value.filter((task) => task.process.status === 'running').length);
 const label = (task: BackgroundTask) =>
   ({
@@ -39,7 +58,7 @@ const label = (task: BackgroundTask) =>
     killed: tr('已终止', 'Terminated'),
     interrupted: tr('已中断', 'Interrupted'),
     unknown: tr('状态未知', 'Unknown'),
-  })[task.process.status];
+  })[task.process.status] ?? task.process.status;
 function back() {
   if (saved.value.selected) saved.value.selected = '';
   else emit('close');
@@ -54,6 +73,8 @@ watch(
   () => {
     tasks.value = [];
     output.value = '';
+    error.value = '';
+    loaded.value = false;
   },
 );
 watch(
@@ -73,6 +94,7 @@ watch(
         const result = await sessionTasks(session, controller.signal);
         if (controller.signal.aborted) return;
         tasks.value = result.tasks.filter((task) => task.background);
+        emit('count', tasks.value.filter((task) => task.process.status === 'running').length);
         error.value = '';
         if (saved.value.selected && !tasks.value.some((task) => task.task_id === saved.value.selected))
           saved.value.selected = '';
@@ -81,6 +103,7 @@ watch(
       } finally {
         if (!controller.signal.aborted) {
           loading.value = false;
+          loaded.value = true;
           timer = setTimeout(refresh, 2500);
         }
       }
@@ -166,6 +189,15 @@ watch(
               · {{ tr('退出码', 'Exit code') }} {{ current.process.exit_code }}</template
             ></span
           >
+          <div v-if="current.process.status === 'running'" class="task-controls" :aria-busy="terminating">
+            <button class="btn sm" :disabled="terminating" @click="terminate('graceful')">
+              {{ terminating ? tr('正在结束…', 'Stopping…') : tr('终止', 'Terminate') }}
+            </button>
+            <button class="btn sm danger" :disabled="terminating" @click="terminate('force')">
+              {{ tr('强制结束', 'Force kill') }}
+            </button>
+          </div>
+          <p v-if="actionError" role="alert">{{ actionError }}</p>
           <code>{{ current.command }}</code>
           <small>{{ fmtDateTime(current.started_at) }}</small>
           <p v-if="current.process.error" role="alert">{{ current.process.error }}</p>
@@ -183,7 +215,11 @@ watch(
           {{ tr('运行中', 'Running') }} {{ running }} · {{ tr('全部', 'Total') }} {{ tasks.length }}
         </p>
         <p v-if="!tasks.length && !error" class="task-message">
-          {{ loading ? tr('正在读取…', 'Loading…') : tr('此会话暂无后台任务', 'No background tasks in this session') }}
+          {{
+            !loaded && loading
+              ? tr('正在读取…', 'Loading…')
+              : tr('此会话暂无后台任务', 'No background tasks in this session')
+          }}
         </p>
         <div class="task-list">
           <button v-for="task in tasks" :key="task.task_id" class="task-card" @click="saved.selected = task.task_id">
@@ -253,6 +289,11 @@ watch(
   padding: 12px;
   border-bottom: 1px solid var(--line);
   font-size: 12px;
+}
+.task-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .task-details code {
   white-space: pre-wrap;

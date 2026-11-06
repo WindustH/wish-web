@@ -1,0 +1,54 @@
+// Source-reference navigation through the real virtual transcript, without a live backend.
+import assert from 'node:assert/strict';
+import {browserFixture} from './browserFixture.mjs';
+const html=`<!doctype html><html data-theme="dark"><body><div id="app"></div><script type="module">
+import {createApp,h,ref,provide} from 'vue';
+import {TooltipProvider} from 'reka-ui';
+import {createRouter,createMemoryHistory} from 'vue-router';
+import ChatLog from '/src/features/sessions/ChatLog.vue';
+import {chat} from '/src/core/state/chatSlice.ts';
+import {replyContextKey} from '/src/domain/references/context.ts';
+import {registerBrowserPlatform} from '/src/platform/browser/index.ts';
+import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/features.css';
+registerBrowserPlatform({namespace:'reply-history',version:1});
+const quote='**Referenced words**', prefix=('Earlier paragraph with enough text for wrapping. '.repeat(12)+'\\n\\n').repeat(12);
+const source=prefix+quote+' at the end of a long message.';
+const reference={id:'a'.repeat(64),session:'s',source:'message_40',seq:40,block:0,start:prefix.length,end:prefix.length+quote.length,text:quote,label:'Referenced words'};
+const focus=ref();
+chat.sessionId.value='s';chat.loadingInitial.value=false;
+chat.entries.value=Array.from({length:80},(_,i)=>({seq:i+1,id:i+1,created_at:0,kind:'assistant_message',payload:{content:[{type:'text',text:i===39?source:'Message '+(i+1)+' '+ 'Variable height paragraph. '.repeat(i%8+1)}]}}));
+chat.entries.value.push({seq:81,id:81,created_at:0,kind:'user_message',payload:{content:[{type:'reply',reference},{type:'text',text:'Reply to these words'}]}});
+const original=chat.entries.value;
+window.fixture={chat,focus,original};
+const router=createRouter({history:createMemoryHistory(),routes:[{path:'/',component:{render:()=>null}}]});
+createApp({setup(){provide(replyContextKey,{session:ref('s'),revision:ref(0),focus,add:async()=>{},locate:async ref=>{focus.value=ref;chat.pendingSeq.value=ref.seq},links:async()=>[],preview:async()=>'',jump:()=>{}});
+return()=>h(TooltipProvider,{},()=>h('main',{style:'height:100vh;display:flex;flex-direction:column'},[h(ChatLog,{sessionId:'s',mobile:false})]));}}).use(router).mount('#app');
+</script></body></html>`;
+await browserFixture(html,async({js,until,click,send,exceptions})=>{
+ await until('document.querySelector(".reply-message-chip")','quote at transcript tail');
+ assert.equal(await js(`document.querySelector('.reply-message-chip .icon').innerHTML.includes('M10 11H4')`),true,'quote uses quotation marks');
+ await click('.reply-message-chip');
+ await until('document.querySelector("[data-reply-focus]")','source text highlighted').catch(async error=>{console.log(await js(`JSON.stringify({focus:fixture.focus.value,pending:fixture.chat.pendingSeq.value,rows:[...document.querySelectorAll('.reply-text')].map(e=>({seq:e.dataset.replySeq,block:e.dataset.replyBlock,focus:e.className,text:e.textContent.slice(-80)})),top:document.querySelector('.chatlog').scrollTop})`));throw error});
+ await new Promise(r=>setTimeout(r,600));
+ assert.equal(await js('fixture.chat.entries.value===fixture.original'),true,'quote does not replace the loaded history');
+ const geometry=await js(`(()=>{const mark=document.querySelector('[data-reply-focus]'),box=mark.getBoundingClientRect(),view=document.querySelector('.chatlog').getBoundingClientRect();return {top:box.top,bottom:box.bottom,viewTop:view.top,viewBottom:view.bottom,decorations:[...document.querySelectorAll('.reply-focused .markdown')].map(e=>({animation:getComputedStyle(e).animationName,shadow:getComputedStyle(e).boxShadow}))}})()`);
+ assert.ok(geometry.top>=geometry.viewTop && geometry.bottom<=geometry.viewBottom,JSON.stringify(geometry));
+ assert.equal(await js(`!!document.querySelector('.reply-focused').closest('.history-target')`),false,'source jump does not highlight the whole virtual row');
+ assert.ok(geometry.decorations.every(s=>s.animation==='none'&&s.shadow==='none'),'no nested whole-message highlight boxes');
+ const top=await js('document.querySelector(".chatlog").scrollTop');
+ await js(`fixture.chat.entries.value=[...fixture.chat.entries.value,{seq:82,id:82,created_at:0,kind:'assistant_message',payload:{content:[{type:'text',text:'New model reply after reference navigation'}]}}]`);
+ await new Promise(r=>setTimeout(r,250));
+ assert.ok(Math.abs(await js('document.querySelector(".chatlog").scrollTop')-top)<3,'incoming message does not move reference reading position');
+ await click('.jump-latest');
+ await until('[...document.querySelectorAll(".reply-text")].some(e=>e.textContent.includes("New model reply after reference navigation"))','new reply remains reachable');
+ // Jumping back to the model's reply highlights exactly one content surface.
+ await js('fixture.focus.value=undefined;fixture.chat.pendingSeq.value=82');
+ await until(`document.querySelector('.history-target [data-seq="82"]')`,'reply is located');
+ const layers=await js(`(()=>{const row=document.querySelector('.history-target');return {row:getComputedStyle(row).animationName,rowShadow:getComputedStyle(row).boxShadow,body:getComputedStyle(row.querySelector('.entry.assistant > .body'), '::after').animationName,markdown:[...row.querySelectorAll('.markdown')].map(e=>({animation:getComputedStyle(e).animationName,shadow:getComputedStyle(e).boxShadow}))}})()`);
+ assert.equal(layers.row,'none','album component must not animate the entire virtual row');
+ assert.equal(layers.rowShadow,'none');assert.equal(layers.body,'located-message');
+ assert.ok(layers.markdown.every(s=>s.animation==='none'&&s.shadow==='none'),'Markdown wrappers do not add nested highlight frames');
+ await until('!document.querySelector(".history-target")','reply highlight expires');
+ assert.deepEqual(exceptions,[]);
+ console.log('Virtual transcript quote navigation, precise highlight, quotation icon, stable reading position and new replies passed');
+});

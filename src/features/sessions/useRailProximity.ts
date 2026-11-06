@@ -3,12 +3,12 @@
 import { watch, type Ref } from 'vue';
 import { useMedia } from '../../ui/composables/useMedia.ts';
 
-export function useRailProximity(rail: Ref<HTMLElement | undefined>) {
+export function useRailProximity(rail: Ref<HTMLElement | undefined>, enabled?: Readonly<Ref<boolean>>) {
   const desktopMouse = useMedia('(min-width: 900px)');
   watch(
-    [rail, desktopMouse],
-    ([element, enabled], _, cleanup) => {
-      if (!element || !enabled) return;
+    [rail, desktopMouse, () => enabled?.value ?? true],
+    ([element, desktop, enabled], _, cleanup) => {
+      if (!element || !desktop || !enabled) return;
       const frame = element.closest<HTMLElement>('.chatlog-wrap');
       if (!frame) return;
       let pending = 0;

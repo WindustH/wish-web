@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import type { AttachmentContent } from '../../../core/api/userContent.ts';
 import type { ImageAlbumItem } from '../../../domain/chat/imageAlbums.ts';
 import ImageGrid from '../../../domain/chat/entries/ImageGrid.vue';
 import UserBubble from '../../../domain/chat/entries/UserBubble.vue';
@@ -14,7 +15,7 @@ const props = defineProps<{
 const images = computed(() =>
   props.item.items.flatMap((item) =>
     item.blocks.map((block, index) => ({
-      block,
+      block: { ...block, type: 'image' } satisfies AttachmentContent,
       seq: item.entry.seq,
       key: `${item.key}i${index}`,
     })),

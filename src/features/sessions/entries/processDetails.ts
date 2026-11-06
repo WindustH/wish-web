@@ -52,6 +52,7 @@ const TOOL_TITLES: Record<string, string> = {
   shell_edit: 'Edit Files',
   shell: 'Shell',
   task: 'Task',
+  blob: 'Blob',
   session: 'Session',
   history_search: 'Search History',
   history_read: 'Read History',
@@ -69,6 +70,7 @@ export function toolIcon(name?: string): string {
   // a window's rows, a step's heading.
   if (name === 'shell_edit') return 'file-diff';
   if (name === 'task') return 'tasks';
+  if (name === 'blob') return 'library';
   if (name === 'session') return 'users';
   if (name?.startsWith('shell')) return 'terminal';
   if (name === 'view_image') return 'image';

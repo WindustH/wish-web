@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { inject } from 'vue';
+import type { ContentBlock } from '../../../core/api/userContent.ts';
+import { replyContextKey } from '../../references/context.ts';
+import ReplyText from '../ReplyText.vue';
 import MessageContext from './MessageContext.vue';
 import { attachmentPreview, previewAttachment } from '../../../ui/attachmentPreview.ts';
 import Hint from '../../../ui/components/Hint.vue';
@@ -10,10 +14,11 @@ import { ref, watch } from 'vue';
 import { fmtBytes } from '../../../core/util/fmt.ts';
 import { i18n } from '../../../core/i18n/index.ts';
 import { tr } from '../../../core/i18n/tr.ts';
-const props = defineProps<{ block: any }>();
+const props = defineProps<{ block: ContentBlock; seq?: number; blockIndex?: number }>();
+const replies = inject(replyContextKey, undefined);
 const fileBytes = ref<number | null>(null);
 watch(
-  () => [props.block.blob_id, props.block.byte_count],
+  () => (props.block.type === 'file' ? [props.block.blob_id, props.block.byte_count] : []),
   async ([reference, known], _, onCleanup) => {
     fileBytes.value = typeof known === 'number' ? known : null;
     if (props.block.type !== 'file' || fileBytes.value != null || typeof reference !== 'string') return;
@@ -35,16 +40,22 @@ const copyText = () =>
     ? props.block.text
     : props.block.type === 'image'
       ? `[Image sha256:${props.block.image_id || props.block.blob_id?.split('/').at(-1) || ''}]`
-      : props.block.filename || '';
+      : props.block.type === 'file'
+        ? props.block.filename || ''
+        : props.block.type === 'reply'
+          ? props.block.reference.text
+          : '';
 const imageSrc = () =>
-  props.block.blob_id
-    ? blobUrl(props.block.blob_id)
-    : `data:${props.block.mime_type};base64,${props.block.data_base64}`;
+  props.block.type !== 'image'
+    ? ''
+    : props.block.blob_id
+      ? blobUrl(props.block.blob_id)
+      : `data:${props.block.mime_type};base64,${props.block.data_base64}`;
 </script>
 <template>
   <MessageContext
     :text="copyText()"
-    :image="block.type === 'image' ? { src: imageSrc(), filename: block.filename } : undefined"
+    :image="block.type === 'image' ? { src: imageSrc(), filename: block.filename ?? undefined } : undefined"
     kind="user"
   >
     <div class="entry user">
@@ -53,12 +64,21 @@ const imageSrc = () =>
         class="bubble"
         :class="{ 'image-bubble': block.type === 'image', 'attachment-bubble': block.type !== 'text' }"
       >
-        <div v-if="block.type === 'text'">{{ block.text }}</div>
+        <ReplyText v-if="block.type === 'text'" :seq="seq" :block="blockIndex ?? 0" :text="block.text" plain
+          ><div data-reply-plain>{{ block.text }}</div></ReplyText
+        >
+        <button
+          v-else-if="block.type === 'reply'"
+          class="btn ghost reply-message-chip"
+          @click="replies?.locate(block.reference)"
+        >
+          <Icon name="quote" />{{ block.reference.label }}
+        </button>
         <figure v-else-if="block.type === 'image'" class="message-image">
           <BlobImage :src="imageSrc()" :alt="block.filename || block.placeholder || ''" loading="lazy" />
           <figcaption v-if="block.filename">{{ block.filename }}</figcaption>
         </figure>
-        <div v-else class="attachment-file message-file">
+        <div v-else-if="block.type === 'file' && block.blob_id" class="attachment-file message-file">
           <button
             type="button"
             class="message-file-preview"
@@ -66,7 +86,12 @@ const imageSrc = () =>
             aria-haspopup="dialog"
             :aria-expanded="attachmentPreview?.anchor?.dataset.blobId === block.blob_id"
             :data-blob-id="block.blob_id"
-            @click="previewAttachment({ kind: 'file', name: block.filename, url: blobUrl(block.blob_id) }, $event)"
+            @click="
+              previewAttachment(
+                { kind: 'file', name: block.filename ?? undefined, url: blobUrl(block.blob_id) },
+                $event,
+              )
+            "
           >
             <Icon name="paperclip" /><span class="attachment-file-label"
               ><span>{{ block.filename || i18n.t('chat.attachment') }}</span

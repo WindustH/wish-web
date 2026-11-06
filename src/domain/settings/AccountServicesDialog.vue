@@ -4,13 +4,7 @@ import Modal from '../../ui/components/Modal.vue';
 import ProviderIcon from '../providers/ProviderIcon.vue';
 import { tr } from '../../core/i18n/tr.ts';
 
-export interface AccountServiceOption {
-  key: string;
-  title: string;
-  category: string;
-  detail?: string;
-  brand?: string;
-}
+import type { AccountServiceOption } from './accountServiceTypes.ts';
 const props = defineProps<{ open: boolean; accountName: string; options: AccountServiceOption[] }>();
 const emit = defineEmits<{ close: []; confirm: [keys: string[]] }>();
 const selected = ref<string[]>([]);

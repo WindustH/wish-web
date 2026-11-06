@@ -677,7 +677,8 @@ button.sl-row {
 .entry.user .bubble img:first-child {
   margin-top: 0;
 }
-.entry.assistant > .body > .markdown:last-child > :last-child > :last-child {
+.entry.assistant > .body > .markdown:last-child > :last-child > :last-child,
+.entry.assistant > .body > .reply-text:last-child > .markdown > :last-child > :last-child {
   margin-bottom: 0;
 }
 .assistant-img {
@@ -900,7 +901,7 @@ button.sl-row {
   visibility: hidden;
 }
 @media (min-width: 900px) {
-  .rail-clip.rail-proximity {
+  .chatlog-wrap:not(.rail-drawer) .rail-clip.rail-proximity {
     opacity: var(--rail-proximity, 0);
     transition: opacity 100ms linear;
   }
@@ -920,17 +921,38 @@ button.sl-row {
   background: var(--line);
   pointer-events: none;
 }
-/* The lane a narrow writing desk buys: the words yield 40px of padding and the rail stands in it,
-   left of the content box - padding scrolls with the log, so nothing is clipped away. */
-.chatlog.rail-lane .rail-clip {
-  left: -40px;
+/* Phones and crowded desktop panes share a drawer. Only translation changes: opening it
+   must not rewrap messages or alter the geometry used to decide whether the rail fits. */
+.rail-drawer .chatlog {
+  touch-action: pan-y;
+  overflow-x: hidden;
+  overscroll-behavior-x: contain;
 }
-/* A writing desk too narrow to float the rail in its margin buys a lane instead: the words yield
-   40px and the rail stands at x 24 - on a desk the rail is always somewhere, never hidden. */
-@media (min-width: 900px) {
-  .chatlog.rail-lane {
-    padding-left: calc(24px + 40px);
-  }
+.rail-drawer .chatlog-content {
+  transform: translate3d(0, 0, 0);
+}
+.rail-drawer .chatlog.rail-gesture .chatlog-content,
+.rail-drawer .chatlog.rail-settling .chatlog-content {
+  will-change: transform;
+}
+.rail-drawer .chatlog.rail-gesture .chatlog-content {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.rail-drawer .chatlog.rail-settling .chatlog-content {
+  transition: transform 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+/* At 44px open, the rail occupies x=8..32 (24px padding + 44px slide - 60px).
+   Closed, it is clipped beyond the left edge and absent from hit-testing. */
+.rail-drawer .chatlog-content .rail-clip {
+  left: -60px;
+}
+.rail-drawer.rail-out .rail-clip {
+  opacity: 1;
+  visibility: visible;
+}
+.rail-drawer.rail-settling .rail-clip {
+  transition: opacity 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 /* The list a gathered node opens: one line per thing done, leading to its own window. */
 /* The timeline: each step's mark on a thin line, its title and one line of what it did beside. */
@@ -1088,15 +1110,28 @@ button.sl-row {
 .history-target .entry.user .bubble {
   animation: located-bubble 3s ease-out;
 }
+.history-target .entry.assistant > .body::after {
+  content: '';
+  position: absolute;
+  inset: -10px -12px;
+  z-index: -1;
+  pointer-events: none;
+  animation: located-message 3s ease-out;
+  border-radius: 10px;
+}
 /* A step or notice found is marked on its own, wherever it shows. */
-.history-target .entry.assistant .body > .markdown,
-.history-target .entry.assistant .assistant-img,
 .history-chip-host.located > .history-chip,
 .proc-event-button.located {
   animation: located-content 3s ease-out;
 }
-.history-target .entry.assistant .body > .markdown {
-  border-radius: 6px;
+@keyframes located-message {
+  0%,
+  30% {
+    background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
 }
 @keyframes located-bubble {
   0%,
@@ -1125,8 +1160,10 @@ button.sl-row {
     animation: none;
     box-shadow: 0 0 0 2px var(--accent);
   }
-  .history-target .entry.assistant .body > .markdown,
-  .history-target .entry.assistant .assistant-img,
+  .history-target .entry.assistant > .body::after {
+    animation: none;
+    background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
   .history-chip-host.located > .history-chip,
   .proc-event-button.located {
     animation: none;
@@ -1681,43 +1718,11 @@ button.sl-row {
     padding: 3px;
     font-size: 10px;
   }
-  /* The phone's rail drawer, all translation and never a reflow: the conversation is a panel with
-     the rail hidden under its left edge; a rightward drag slides the panel aside (transform), the
-     words' far right clipped away by the log's own overflow, no line ever re-wrapped and no
-     padding ever changed. The rail fades in under the reveal; closed, it is wholly gone. Vertical
-     drags stay the browser's: touch-action keeps pan-y for it. */
   .chatlog {
     padding: 20px 24px;
     touch-action: pan-y;
     overflow-x: hidden;
     overscroll-behavior-x: contain;
-  }
-  .chatlog-content {
-    transform: translate3d(0, 0, 0);
-  }
-  .chatlog.rail-gesture .chatlog-content,
-  .chatlog.rail-settling .chatlog-content {
-    will-change: transform;
-  }
-  .chatlog.rail-gesture .chatlog-content {
-    user-select: none;
-    -webkit-user-select: none;
-  }
-  .chatlog.rail-settling .chatlog-content {
-    transition: transform 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
-  }
-  /* The drawer's rail rides the content's own translate: with the panel slid 44 aside it stands
-     at 8..32 of the frame (24 padding + 44 slide - 60 = 8; its line at 20). Closed, it waits at
-     -36 of the frame, outside the log's edge, clipped and invisible. */
-  .chatlog-content .rail-clip {
-    left: -60px;
-  }
-  .chatlog-wrap.rail-out .rail-clip {
-    opacity: 1;
-    visibility: visible;
-  }
-  .chatlog-wrap.rail-settling .rail-clip {
-    transition: opacity 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
   }
   .entry {
     padding-bottom: 20px;

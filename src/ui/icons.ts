@@ -14,6 +14,8 @@ const BUBBLE =
   'M3 7.5A3.5 3.5 0 0 1 6.5 4h11A3.5 3.5 0 0 1 21 7.5v6a3.5 3.5 0 0 1-3.5 3.5H10.5L6 20.5V17h-.5A2.5 2.5 0 0 1 3 14.5Z';
 
 export const ICONS: Record<string, string> = {
+  reply: `<path d="m9 10-5 5 5 5M4 15h10a6 6 0 0 0 0-12h-2"/>`,
+  quote: `<path d="M10 11H4V5h6v8a6 6 0 0 1-6 6M20 11h-6V5h6v8a6 6 0 0 1-6 6"/>`,
   'at-sign': '<circle cx="12" cy="12" r="4"/><path d="M16 8v6a2 2 0 0 0 4 0v-2a8 8 0 1 0-3 6.2"/>',
   pause: `<path d="M8 5v14M16 5v14" stroke-width="4"/>`,
   volume: `<path d="m11 5-6 4H2v6h3l6 4Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>`,

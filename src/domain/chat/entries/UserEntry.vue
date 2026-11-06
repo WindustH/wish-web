@@ -39,7 +39,7 @@ const groups = computed(() => {
       <div v-else-if="group.files" class="file-group">
         <UserBubble v-for="(file, fileIndex) in group.files" :key="fileIndex" :block="file" />
       </div>
-      <UserBubble v-else :block="group.block" />
+      <UserBubble v-else :block="group.block" :seq="item?.entry?.seq" :block-index="bubbles.indexOf(group.block)" />
     </template>
   </div>
 </template>

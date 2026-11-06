@@ -1,4 +1,4 @@
-// The phone's rail drawer: the conversation is a panel with the rail hidden under its left edge;
+// The compact rail drawer: the conversation is a panel with the rail hidden under its left edge;
 // a rightward drag slides the whole panel aside - on a transform, so not one line of it reflows -
 // and the words' far right is simply clipped away while it is open. Letting go settles the slide
 // at closed (0) or open (44). A vertical drag is the browser's to scroll: the gesture yields the
@@ -22,6 +22,7 @@ export function useRailSwipe(options: {
   scroll: Ref<HTMLElement | null>;
   content: Ref<HTMLElement | null>;
   enabled: Ref<boolean>;
+  allowMouse?: Readonly<Ref<boolean>>;
 }) {
   /** Whether the drawer stands open. Kept across session switches, a pane-level preference. */
   const open = ref(false);
@@ -93,6 +94,7 @@ export function useRailSwipe(options: {
 
   function onDown(event: PointerEvent) {
     if (!options.enabled.value || event.button !== 0) return;
+    if (event.pointerType === 'mouse' && options.allowMouse?.value === false) return;
     pointers.add(event.pointerId);
     if (pointers.size > 1) {
       bail();
@@ -198,5 +200,12 @@ export function useRailSwipe(options: {
     clearTimeout(settling);
   });
 
-  return { open };
+  function toggle() {
+    if (!options.enabled.value) return;
+    end();
+    pointers.clear();
+    settle(!open.value);
+  }
+
+  return { open, toggle };
 }

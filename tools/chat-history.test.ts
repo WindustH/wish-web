@@ -114,3 +114,47 @@ test('failed or missing search targets preserve latest-window reconciliation', a
     assert.equal(h.pendingSeq.value, null);
   }
 });
+
+test('locating a loaded quote preserves the full window and live reconciliation', async () => {
+  let requests = 0;
+  const h = setup(async () => { requests++; return {items: [], has_more: false}; });
+  h.entries.value = [{seq: 1}, {seq: 2}, {seq: 3}]; h.bounds();
+  const original = h.entries.value;
+  assert.equal(await h.locate('a', 2), true);
+  assert.equal(h.entries.value, original);
+  assert.equal(requests, 0);
+  assert.equal(h.pendingSeq.value, 2);
+  assert.equal(h.viewingPast(), false);
+});
+
+test('locating an unloaded quote at the tail remains live', async () => {
+  const h = setup(async () => ({items: [{seq: 20}], has_more: false}));
+  assert.equal(await h.locate('a', 20), true);
+  assert.equal(h.viewingPast(), false);
+});
+
+test('reading from a located past window to the tail resumes live history', async () => {
+  let calls = 0;
+  const h = setup(async () => {
+    calls++;
+    return calls <= 2 ? {items: [{seq: 20}], has_more: true} : {items: [{seq: 21}], has_more: false};
+  });
+  assert.equal(await h.locate('a', 20), true);
+  assert.equal(h.viewingPast(), true);
+  assert.equal((await h.fetchNewer()).drained, true);
+  assert.equal(h.hasMoreAfter.value, false);
+  assert.equal(h.viewingPast(), false);
+  assert.deepEqual(h.entries.value, [{seq: 20}, {seq: 21}]);
+});
+
+test('a loaded reference supersedes an in-flight remote locate', async () => {
+  const response = deferred();
+  const h = setup(() => response.promise);
+  h.entries.value = [{seq: 100}]; h.bounds();
+  const old = h.locate('a', 10);
+  assert.equal(await h.locate('a', 100), true);
+  response.resolve({items:[{seq:10}],has_more:true});
+  assert.equal(await old, false);
+  assert.deepEqual(h.entries.value, [{seq:100}]);
+  assert.equal(h.pendingSeq.value,100);
+});

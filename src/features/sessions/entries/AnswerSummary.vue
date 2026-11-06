@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The questions an ask_user form asked, each with the answer it got; before any answer, the
 // questions alone, compact.
-import Markdown from '../../../ui/components/Markdown.vue';
+import Markdown from '../../../domain/references/ReferenceMarkdown.vue';
 import { answerText, type AnswerRecord } from '../askUser.ts';
 import { tr } from '../../../core/i18n/tr.ts';
 

@@ -59,7 +59,8 @@ let from = { x: 0, y: 0 };
 let origin = { x: 0, y: 0 };
 let moved = false;
 function onPointerDown(event: PointerEvent) {
-  if (!zoomed.value || event.button !== 0 || event.pointerType !== 'mouse') return;
+  if (!zoomed.value || (event.button !== 0 && event.button !== 1) || event.pointerType !== 'mouse') return;
+  event.preventDefault();
   dragging = true;
   moved = false;
   dragId = event.pointerId;

@@ -7,7 +7,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import CopyButton from '../../../ui/components/CopyButton.vue';
 import Icon from '../../../ui/components/Icon.vue';
-import Markdown from '../../../ui/components/Markdown.vue';
+import Markdown from '../../../domain/references/ReferenceMarkdown.vue';
 import Modal from '../../../ui/components/Modal.vue';
 import { i18n } from '../../../core/i18n/index.ts';
 import { tr } from '../../../core/i18n/tr.ts';

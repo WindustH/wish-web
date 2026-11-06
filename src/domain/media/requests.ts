@@ -19,13 +19,17 @@ export async function pdfPage(
   previewCache.set(key, bytes);
   return bytes;
 }
-export async function mediaPlayback(...args: Parameters<typeof fetchPlayback>) {
-  const [session, blob, opts] = args;
+export async function mediaPlayback(
+  session: string,
+  blob: string,
+  opts?: Parameters<typeof fetchPlayback>[2],
+  version = '',
+) {
   opts?.signal?.throwIfAborted();
-  const key = `playback:${session}/${blob}`;
+  const key = `playback:${session}/${blob}:${version}`;
   const cached = peekCached<{ path: string; expires_at: number }>(key);
   if (cached && cached.expires_at > Date.now() / 1000 + 60) return cached;
-  const grant = await fetchPlayback(...args);
+  const grant = await fetchPlayback(session, blob, opts);
   opts?.signal?.throwIfAborted();
   writeCached(key, grant, { persist: false });
   return grant;

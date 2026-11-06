@@ -1,17 +1,19 @@
 <script setup lang="ts">
+import { useDocumentVisible } from '../../ui/composables/useDocumentVisible.ts';
 import SessionHistorySearch from './SessionHistorySearch.vue';
 import SelectField from '../../domain/providers/SelectField.vue';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 const errorDetail = (error: unknown) => describeError(error).message;
-import Modal from '../../domain/chat/SessionPanelModal.vue';
+import SessionPanelModal from '../../domain/chat/SessionPanelModal.vue';
 // Session details and usage; requests belong to this mounted session.
-import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import * as api from '../../core/api/endpoints.ts';
 import { chat } from '../../core/state/chatSlice.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { fmtDateTime, fmtTokens } from '../../core/util/fmt.ts';
 import type { UsageSnapshot } from '../../core/state/statsSlice.ts';
+import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { providerTitlesRead, useProviderTitles } from '../../domain/providers/useProviderTitles.ts';
 import { modelLabel } from '../../domain/providers/modelLabel.ts';
@@ -60,7 +62,7 @@ async function refresh() {
   const current = requests.begin(id);
   err.value = null;
   try {
-    const usagePage = await api.sessionUsage(id);
+    const usagePage = await api.sessionUsage(id, { signal: current.signal });
     if (!current()) return;
     usage.value = usagePage;
   } catch (e) {
@@ -68,14 +70,32 @@ async function refresh() {
     err.value = e; // failures surface with a retry — never a fake empty list
   }
 }
-onMounted(refresh);
-// Component reuse across sessions: refetch and discard stale usage.
+const pageActive = usePageActivity();
+const documentVisible = useDocumentVisible();
 watch(
   () => chat.sessionId.value,
   () => {
     usage.value = null;
-    refresh();
   },
+);
+watch(
+  [() => chat.sessionId.value, () => props.open, pageActive, documentVisible],
+  ([id, open, active, visible], _, cleanup) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
+    cleanup(() => {
+      stopped = true;
+      clearTimeout(timer);
+      requests.invalidate();
+    });
+    if (!id || !open || !active || !visible) return;
+    async function poll() {
+      await refresh();
+      if (!stopped) timer = setTimeout(poll, 5000);
+    }
+    void poll();
+  },
+  { immediate: true },
 );
 
 const tokens = computed(() => usage.value?.statistics.totals.tokens ?? null);
@@ -126,7 +146,7 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
 </script>
 
 <template>
-  <Modal
+  <SessionPanelModal
     :open="open"
     :sidebar="sidebar"
     :back-layer="!isMobile"
@@ -295,7 +315,7 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
       </section>
       <UsageCharts v-if="chat.sessionId.value" :session-id="chat.sessionId.value" />
     </template>
-  </Modal>
+  </SessionPanelModal>
   <GenerationInspector v-if="inspectOpen && snapshot" :session-id="snapshot.id" @close="inspectOpen = false" />
 </template>
 

@@ -42,7 +42,7 @@ const Sheet={setup(){const root=ref(null);useRecentsSheet(root);return()=>h('div
 const handled={region:0,parent:0};
 const Region={setup(){const root=ref(null);useKeyboardScope(root,event=>{if(event.key!=='Escape')return false;handled.region++;return true;});return()=>h('div',{ref:root,id:'other-region',tabindex:-1},[h('input',{id:'consuming-control',onKeydown:event=>event.preventDefault()})]);}};
 const Parent={setup(){const root=ref(null);useKeyboardScope(root,()=>{handled.parent++;return true;});return()=>h('div',{ref:root},[h(Region)]);}};
-window.fixture={router,chat,sessions,handled,retries,async loadMany(){sessionCount=45;await sessions.refresh();},get runs(){return runs;}};
+window.fixture={router,chat,sessions,handled,retries,setFailure(outcome){chat.entries.value=[entryView({record:{sequence:29,item:{Event:24},recorded_at:0},content:{kind:'event',value:{Finished:outcome}}},'s1')];},async loadMany(){sessionCount=45;await sessions.refresh();},get runs(){return runs;}};
 createApp({render:()=>h(TooltipProvider,null,{default:()=>[
  h(Parent),
  h(Sheet),
@@ -124,6 +124,32 @@ try {
   await js(`fixture.retries.value=[{requestId:'r',operation:'model',retry:1,maxRetries:5,phase:'waiting',retryAt:Date.now(),failure:{message:'New request'}}]`);
   await until(`!!document.querySelector('.retry-reason-toggle')`,'next request rendered');
   assert.equal(await js(`document.querySelector('.retry-reason-toggle').getAttribute('aria-expanded')`),'false','completed request leaves no expansion state');
+  const outcomes=[
+    {Failed:{Transport:{retryable:false,message:'Read body interrupted'}}},
+    {Failed:{Upstream:{status:null,code:'server_is_overloaded',message:'Overloaded'}}},
+    ...[401,403,429,500,503].map(status=>({Failed:{Upstream:{status,code:'test',message:'Upstream failure'}}})),
+    {Failed:{Build:'Invalid request'}},
+    {Failed:{Unsupported:{feature:'count',subject:'model',reason:'Unsupported capability'}}},
+    {Failed:{Malformed:'Invalid response'}},
+    {Failed:{Renewal:{expires_at:1}}},
+    {StreamFailed:{reason:{Failed:{Upstream:{status:null,code:'server_is_overloaded',message:'Stream overloaded'}}}}},
+    {ModelStopped:{stop_reason:'ContentFiltered'}},
+    'ToolOutcomeUnknown',
+  ];
+  for(const outcome of outcomes){
+    await js(`fixture.setFailure(${JSON.stringify(outcome)})`);
+    await sleep(30);
+    assert.equal(await js('!!document.querySelector(".retry-run")'),true,'manual retry available for '+JSON.stringify(outcome));
+  }
+  assert.equal(await js('fixture.runs'),0,'showing an error never starts a run automatically');
+  await js('fixture.chat.retryingRun.value=true');
+  await until('document.querySelector(".retry-run")?.disabled','pending request disables retry');
+  await js('document.querySelector(".retry-run").click()');
+  assert.equal(await js('fixture.runs'),0,'disabled retry does not dispatch another run');
+  await js('fixture.chat.retryingRun.value=false;fixture.chat.stream.value={...fixture.chat.stream.value,active:true}');
+  await until('!document.querySelector(".retry-run")','active stream hides retry');
+  await js('fixture.chat.stream.value={...fixture.chat.stream.value,active:false}');
+  await until('!!document.querySelector(".retry-run")','retry returns after stream stops');
   await js('document.querySelector(".retry-run").click()');
   await until('!document.querySelector(".retry-run")','running session hides retry');
   assert.equal(await js('fixture.runs'),1);

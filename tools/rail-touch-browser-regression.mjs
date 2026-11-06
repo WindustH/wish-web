@@ -11,6 +11,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const html = `<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div><script type="module">
 import {createApp,h,ref} from 'vue';import {TooltipProvider} from 'reka-ui';
 import {installScrollStallLog,stalls} from '/src/domain/diagnostics/scrollStalls.ts';
+import {activityEnabled} from '/src/domain/diagnostics/activityStore.ts';
+activityEnabled.value=true;
 installScrollStallLog();window.stalls=stalls;
 import Modal from '/src/ui/components/Modal.vue';
 import ActivityRail from '/src/features/sessions/ActivityRail.vue';
@@ -19,9 +21,9 @@ import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/style
 window.opened=0;
 createApp({setup(){const wrap=ref(null),scroll=ref(null),content=ref(null);useRailSwipe({wrap,scroll,content,enabled:ref(true)});
  const rows=ref([{top:100,height:400,events:[{chipKey:'one',stepKey:'one',icon:'terminal',failed:false,warn:false,tip:'Shell'}]}]);window.railRows=rows;
- return()=>h(TooltipProvider,{},()=>h('div',{ref:wrap,class:'chatlog-wrap',style:'height:600px;width:390px'},[
+ return()=>h(TooltipProvider,{},()=>h('div',{ref:wrap,class:'chatlog-wrap rail-drawer',style:'height:600px;width:390px'},[
  h('div',{ref:scroll,class:'chatlog',style:'height:600px;overflow:auto'},[
- h('div',{ref:content,class:'chatlog-content',style:'height:1800px'},[h(ActivityRail,{rows:rows.value,total:1800,visible:true,onOpen:()=>window.opened++})])])]))}}).mount('#app');
+ h('div',{ref:content,class:'chatlog-content',style:'height:1800px'},[h(ActivityRail,{rows:rows.value,total:1800,visible:true,drawer:true,onOpen:()=>window.opened++})])])]))}}).mount('#app');
 const mount=document.createElement('div');document.body.append(mount);
 const dialogOpen=ref(false);window.dialogOpen=dialogOpen;
 createApp({setup(){return()=>h(Modal,{open:dialogOpen.value,title:'Close lifecycle',onClose:()=>dialogOpen.value=false},()=>h('p','Dialog content'))}}).mount(mount);

@@ -89,35 +89,81 @@ function selectedBlock(block: Element, range: Range, source: string): [number, n
       intersection.setStart(range.startContainer, range.startOffset);
     if (range.compareBoundaryPoints(Range.END_TO_END, content) < 0)
       intersection.setEnd(range.endContainer, range.endOffset);
-    if (intersection.toString() === content.toString()) {
-      from = Math.min(from, mapping(element)!.start);
-      to = Math.max(to, mapping(element)!.end);
+    const mapped = mapping(element);
+    if (mapped && intersection.toString() === content.toString()) {
+      from = Math.min(from, mapped.start);
+      to = Math.max(to, mapped.end);
     }
   }
   return [from - base, to - base];
 }
 
-export function markdownSelection(range: Range, root: Element, fallback: string): string {
-  if (!root.contains(range.commonAncestorContainer)) return fallback;
+export function markdownSelectionPieces(range: Range, root: Element) {
+  if (!root.contains(range.commonAncestorContainer)) return [];
   const pieces: { owner: Element; source: string; start: number; end: number }[] = [];
   for (const block of root.querySelectorAll<HTMLElement>('.markdown-block')) {
     if (!range.intersectsNode(block)) continue;
     const owner = block.closest('.markdown');
     const source = owner && sources.get(owner)?.source;
-    if (!owner || source == null) return fallback;
+    if (!owner || source == null) return [];
     const start = Number(block.dataset.sourceStart),
       end = Number(block.dataset.sourceEnd);
     const local = selectedBlock(block, range, source.slice(start, end));
     if (local === null) continue;
-    if (!local) return fallback;
+    if (!local) return [];
     pieces.push({ owner, source, start: start + local[0], end: start + local[1] });
   }
-  if (!pieces.length) return fallback;
+  if (!pieces.length) return [];
   const groups: typeof pieces = [];
   for (const piece of pieces) {
     const last = groups.at(-1);
     if (last?.owner === piece.owner) last.end = piece.end;
     else groups.push({ ...piece });
   }
-  return groups.map((piece) => piece.source.slice(piece.start, piece.end)).join('\n\n');
+  return groups;
+}
+
+export function markdownSelection(range: Range, root: Element, fallback: string): string {
+  const pieces = markdownSelectionPieces(range, root);
+  return pieces.length ? pieces.map((p) => p.source.slice(p.start, p.end)).join('\n\n') : fallback;
+}
+/** Inverse parser map for highlighting a durable source interval. No text matching. */
+export function markdownSourceRanges(root: Element, from: number, to: number): Range[] {
+  const ranges: Range[] = [];
+  for (const element of root.querySelectorAll('[data-md]')) {
+    const record = mapping(element);
+    if (!record || (!record.runs && !record.atomic)) continue;
+    const spans: [number, number][] = [];
+    let offset = 0;
+    if (record.atomic) {
+      if (record.start < to && record.end > from) spans.push([0, element.textContent?.length ?? 0]);
+    } else
+      for (const run of record.runs ?? []) {
+        if (run.start < to && run.end > from)
+          spans.push([
+            offset + (run.atomic ? 0 : Math.max(0, from - run.start)),
+            offset + (run.atomic ? run.length : Math.min(run.length, to - run.start)),
+          ]);
+        offset += run.length;
+      }
+    if (!spans.length) continue;
+    const walker = element.ownerDocument.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    const nodes: { node: Node; start: number; end: number }[] = [];
+    let length = 0;
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const end = length + (node.textContent?.length ?? 0);
+      nodes.push({ node, start: length, end });
+      length = end;
+    }
+    for (const [a, b] of spans) {
+      const first = nodes.find((n) => n.end > a),
+        last = nodes.find((n) => n.end >= b);
+      if (!first || !last || b <= a) continue;
+      const range = element.ownerDocument.createRange();
+      range.setStart(first.node, a - first.start);
+      range.setEnd(last.node, b - last.start);
+      ranges.push(range);
+    }
+  }
+  return ranges;
 }

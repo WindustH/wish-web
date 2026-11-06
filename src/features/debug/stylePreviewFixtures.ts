@@ -7,7 +7,7 @@ export interface StyleSample {
   category: PreviewCategory;
   zh: string;
   en: string;
-  kind: 'files' | 'history' | 'process' | 'group' | 'retry';
+  kind: 'files' | 'history' | 'process' | 'group' | 'retry' | 'manual-retry';
   item: any;
 }
 const diff =
@@ -46,6 +46,33 @@ const success = (output: any) => ({ status: 'success', output });
 export function stylePreviewFixtures(): StyleSample[] {
   const group = { id: 'preview-only', name: 'Wish 开发协作 · Development' };
   const samples: StyleSample[] = [
+    {
+      id: 'manual-retry-ready',
+      category: 'messages',
+      zh: '回复失败 · 从断点重试',
+      en: 'Reply failure · Retry from checkpoint',
+      kind: 'manual-retry',
+      item: {
+        failure: {
+          family: 'Upstream · server_is_overloaded',
+          message: 'Our servers are currently overloaded. Please try again later.',
+        },
+      },
+    },
+    {
+      id: 'manual-retry-busy',
+      category: 'messages',
+      zh: '回复失败 · 正在重试',
+      en: 'Reply failure · Retrying',
+      kind: 'manual-retry',
+      item: {
+        busy: true,
+        failure: {
+          family: 'Upstream · server_is_overloaded',
+          message: 'Our servers are currently overloaded. Please try again later.',
+        },
+      },
+    },
     {
       id: 'retry-waiting',
       category: 'messages',

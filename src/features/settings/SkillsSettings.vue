@@ -12,7 +12,7 @@ import { skillContent, skillsList } from '../../core/api/endpoints.ts';
 import type { SkillContent, SkillEntry, SkillsSnapshot } from '../../core/api/types.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
-import Markdown from '../../ui/components/Markdown.vue';
+import Markdown from '../../domain/references/ReferenceMarkdown.vue';
 import DirectoryPicker from '../../ui/components/DirectoryPicker.vue';
 import SwitchRow from '../../domain/settings/SwitchRow.vue';
 import { foldersOf, skillRows, skillsIn, skillTree, type SkillFolder, type SkillRow } from './skillTree.ts';

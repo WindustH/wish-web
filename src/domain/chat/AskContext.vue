@@ -3,7 +3,7 @@ import { nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { absUrl, apiFetch } from '../../core/api/client.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import Icon from '../../ui/components/Icon.vue';
-import Markdown from '../../ui/components/Markdown.vue';
+import Markdown from '../../domain/references/ReferenceMarkdown.vue';
 import MessageContext from './entries/MessageContext.vue';
 import { readAskResponse } from './readAskResponse.ts';
 import { tr } from '../../core/i18n/tr.ts';

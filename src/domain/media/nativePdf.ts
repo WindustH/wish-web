@@ -35,7 +35,7 @@ export async function renderPdfPage(bytes: Blob, width: number, signal: AbortSig
     const original = page.getViewport({ scale: 1 });
     const viewport = page.getViewport({ scale: width / original.width });
     // Bound canvas memory independently of CSS zoom / display density.
-    const ratio = Math.min(devicePixelRatio || 1, 2, 4096 / Math.max(viewport.width, viewport.height));
+    const ratio = Math.min(devicePixelRatio || 1, 4096 / Math.max(viewport.width, viewport.height));
     const canvas = window.document.createElement('canvas');
     canvas.width = Math.max(1, Math.ceil(viewport.width * ratio));
     canvas.height = Math.max(1, Math.ceil(viewport.height * ratio));
@@ -59,7 +59,12 @@ export async function renderPdfPage(bytes: Blob, width: number, signal: AbortSig
       signal.throwIfAborted();
     }
     retained = text;
-    return { surface, canvas, dispose: () => task.destroy().catch(() => {}) };
+    return {
+      surface,
+      canvas,
+      dimensions: { width: original.width, height: original.height },
+      dispose: () => task.destroy().catch(() => {}),
+    };
   } finally {
     signal.removeEventListener('abort', cancel);
     if (!retained) await task.destroy();

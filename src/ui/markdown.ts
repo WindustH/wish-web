@@ -1,4 +1,4 @@
-import MarkdownIt from 'markdown-it';
+import MarkdownIt, { type Token } from 'markdown-it';
 import { highlightCode } from './codeHighlight.ts';
 import DOMPurify from 'dompurify';
 import { tex } from '@mdit/plugin-tex';
@@ -12,6 +12,7 @@ import {
   type SourceMapping,
 } from './markdownSourceMap.ts';
 import { cjkEmphasis } from './markdownEmphasis.ts';
+import { parseFileMention } from '../core/blobMentions.ts';
 
 const markdown = new MarkdownIt({
   html: false,
@@ -31,8 +32,23 @@ markdown.use(tex, {
     }),
   delimiters: 'all',
 });
+const validateLink = markdown.validateLink;
+markdown.validateLink = (href) => !!parseFileMention(href) || validateLink(href);
+const fileIcon =
+  '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>';
 markdown.renderer.rules.link_open = (tokens, index, options, _env, renderer) => {
+  const href = String(tokens[index]!.attrGet('href') ?? '');
+  if (parseFileMention(href))
+    return `<a href="#" class="file-mention" data-file-mention="${markdown.utils.escapeHtml(href)}">${fileIcon}`;
   return renderer.renderToken(tokens, index, options).replace('<a ', '<a target="_blank" rel="noopener noreferrer" ');
+};
+const renderImage = markdown.renderer.rules.image!;
+markdown.renderer.rules.image = (tokens, index, options, env, renderer) => {
+  const token = tokens[index]!;
+  const href = String(token.attrGet('src') ?? '');
+  if (!parseFileMention(href)) return renderImage(tokens, index, options, env, renderer);
+  const label = renderer.renderInlineAsText(token.children ?? [], options, env) || href.split(/[\\/]/).at(-1)!;
+  return `<a href="#" class="file-mention" data-file-mention="${markdown.utils.escapeHtml(href)}">${fileIcon}${markdown.utils.escapeHtml(label)}</a>`;
 };
 const fence = markdown.renderer.rules.fence!;
 // A fenced block gets a head: the language it names, and a button that copies it.
@@ -66,9 +82,14 @@ export interface MarkdownBlock {
  * Parsing remains document-wide: a later reference definition can change an earlier link.
  * Unchanged blocks reuse both sanitized HTML and their Vue-owned DOM nodes.
  */
+interface CachedBlock {
+  fingerprint: string;
+  children: (Token[] | null)[];
+  block: MarkdownBlock;
+}
 export function createMarkdownBlocks() {
   const sourceCache: SourceCache = { previous: new Map(), next: new Map() };
-  let previous = new Map<string, { fingerprint: string; block: MarkdownBlock }>();
+  let previous = new Map<string, CachedBlock>();
   return (text: string, copyLabel: string, streaming = false): MarkdownBlock[] => {
     const removed: number[] = [];
     for (let i = 0; i < text.length; i++)
@@ -87,7 +108,7 @@ export function createMarkdownBlocks() {
     const environment = { copyLabel, originalAt, sourceCache, sourceEntries: [] as SourceMapping[] };
     const tokens = markdown.parse(text, environment);
     sourceCache.previous = sourceCache.next;
-    const current = new Map<string, { fingerprint: string; block: MarkdownBlock }>();
+    const current = new Map<string, CachedBlock>();
     const blocks: MarkdownBlock[] = [];
     let group: ReturnType<typeof markdown.parse> = [];
     const lines = text.replace(/\r\n?/g, '\n').split('\n');
@@ -100,7 +121,7 @@ export function createMarkdownBlocks() {
       const key = `${first.map?.[0] ?? blocks.length}:${first.type}`;
       // A growing, unclosed code fence is escaped now and highlighted once it closes.
       const closingLine = first.map ? (lines[first.map[1] - 1]?.trim() ?? '') : '';
-      const plain =
+      const unclosedFence =
         streaming &&
         first.type === 'fence' &&
         !(
@@ -112,19 +133,23 @@ export function createMarkdownBlocks() {
       const normalizedEnd = Math.min(text.length - removed.length, offsets[first.map?.[1] ?? lines.length]!);
       const start = originalAt(normalizedStart);
       const end = originalAt(normalizedEnd);
+      // Inline parsing already reuses immutable child arrays only when content,
+      // source positions and references match. Compare those identities instead
+      // of serializing the same child AST and source runs on every stream update.
+      const children = group.map((token) => token.children);
       const fingerprint = JSON.stringify([
         copyLabel,
-        plain,
+        unclosedFence,
         start,
         end,
-        group,
-        group.map((token) => [sourceLocation(token), token.children?.map(sourceLocation)]),
+        group.map(({ children, content, ...fields }) => ({ ...fields, ...(children ? {} : { content }) })),
+        group.map(sourceLocation),
         removed.slice(start - normalizedStart, end - normalizedEnd),
       ]);
       const cached = previous.get(key);
       environment.sourceEntries = [];
       const block =
-        cached?.fingerprint === fingerprint
+        cached?.fingerprint === fingerprint && children.every((value, index) => value === cached.children[index])
           ? cached.block
           : {
               key,
@@ -134,12 +159,12 @@ export function createMarkdownBlocks() {
               html: sanitize(
                 markdown.renderer.render(
                   group,
-                  plain ? { ...markdown.options, highlight: null } : markdown.options,
+                  unclosedFence ? { ...markdown.options, highlight: null } : markdown.options,
                   environment,
                 ),
               ),
             };
-      current.set(key, { fingerprint, block });
+      current.set(key, { fingerprint, children, block });
       blocks.push(block);
       group = [];
     }
@@ -148,6 +173,7 @@ export function createMarkdownBlocks() {
   };
 }
 
+/** Whole-document renderer for browser review fixtures; views use createMarkdownBlocks. */
 export function renderMarkdown(text: string, copyLabel: string): string {
   const cacheKey = `${copyLabel}\0${text}`;
   const cached = RENDER_CACHE.get(cacheKey);

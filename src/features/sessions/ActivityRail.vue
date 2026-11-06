@@ -18,12 +18,15 @@ import { summarizeSteps, toolResultsKey } from './entries/processDetails.ts';
 import VirtualRows from '../../ui/components/VirtualRows.vue';
 import { useRailProximity } from './useRailProximity.ts';
 
-const props = defineProps<{ rows: RailRow[]; total: number; visible: boolean; session?: string }>();
+const props = defineProps<{ rows: RailRow[]; total: number; visible: boolean; session?: string; drawer?: boolean }>();
 const emit = defineEmits<{ open: [request: { chipKey: string; stepKey: string | null; solo?: boolean }] }>();
 const isMobile = useIsMobile();
 const touch = touchButton();
 const railElement = ref<HTMLElement>();
-useRailProximity(railElement);
+useRailProximity(
+  railElement,
+  computed(() => !props.drawer),
+);
 const rail = computed(() => layoutRail(props.rows, props.total));
 // Keep one decorative element; gradients fade empty spans without introducing scroll work.
 const railLineStyle = computed(() => {

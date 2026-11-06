@@ -206,6 +206,9 @@ function followMouseSelection(event: PointerEvent) {
   window.addEventListener('pointercancel', cancelSelection, true);
 }
 function onPointerDown(event: PointerEvent) {
+  // A new press after dismissal is a new gesture, even within the long-press click guard.
+  // In particular, selecting Reply must not swallow the next click on referenced text.
+  if (!open.value) openedAt = -Infinity;
   if (!event.isPrimary) return;
   followMouseSelection(event);
   const element = event.currentTarget as Element;
@@ -254,7 +257,7 @@ function onPointerMove(event: PointerEvent) {
   if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) cancelPress();
 }
 function dropClickAfterPress(event: MouseEvent) {
-  if (performance.now() - openedAt > 800) return;
+  if (event.detail === 0 || performance.now() - openedAt > 800) return;
   event.preventDefault();
   event.stopPropagation();
   noteSwallowedClick('menu: lifting the finger that opened it');

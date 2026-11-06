@@ -11,6 +11,7 @@ const emit = defineEmits<{
   playing: [];
   timeupdate: [];
   pause: [];
+  seeked: [];
   error: [];
 }>();
 const surface = ref<HTMLElement>(),
@@ -45,7 +46,14 @@ function sync() {
   buffered.value =
     duration.value && el.buffered.length ? (el.buffered.end(el.buffered.length - 1) / duration.value) * 100 : 0;
 }
+let clickTimer: ReturnType<typeof setTimeout> | undefined;
+function activateSurface(event: MouseEvent) {
+  clearTimeout(clickTimer);
+  if (event.detail === 0) void toggle();
+  else if (event.detail < 2) clickTimer = setTimeout(() => void toggle(), 250);
+}
 async function toggle() {
+  clearTimeout(clickTimer);
   const el = video.value;
   if (!el) return;
   notice.value = '';
@@ -58,7 +66,16 @@ async function toggle() {
     }
 }
 function seek(event: Event) {
-  if (video.value && duration.value) video.value.currentTime = Number((event.target as HTMLInputElement).value);
+  seekTo(Number((event.target as HTMLInputElement).value));
+}
+function seekTo(seconds: number) {
+  const el = video.value;
+  if (el && duration.value) {
+    el.currentTime = Math.max(0, Math.min(duration.value, seconds));
+    // The browser queues timeupdate/seeked. Publish the accepted position before
+    // releasing the drag preview, otherwise one frame shows the previous time.
+    time.value = el.currentTime;
+  }
   draft.value = null;
 }
 function setVolume(event: Event) {
@@ -70,6 +87,7 @@ function speed(value: string) {
   if (video.value) video.value.playbackRate = Number(value);
 }
 async function fullscreen() {
+  clearTimeout(clickTimer);
   notice.value = '';
   const el = video.value as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | undefined;
   try {
@@ -88,7 +106,7 @@ function keyboard(event: KeyboardEvent) {
     void toggle();
   } else if (['ArrowLeft', 'ArrowRight'].includes(event.key) && video.value && duration.value) {
     event.preventDefault();
-    video.value.currentTime = Math.max(0, Math.min(duration.value, time.value + (event.key === 'ArrowLeft' ? -5 : 5)));
+    seekTo(time.value + (event.key === 'ArrowLeft' ? -5 : 5));
   } else if (event.key === 'f') {
     event.preventDefault();
     void fullscreen();
@@ -96,6 +114,7 @@ function keyboard(event: KeyboardEvent) {
 }
 watch(video, (element) => emit('ready', element ?? null), { flush: 'post' });
 onBeforeUnmount(() => {
+  clearTimeout(clickTimer);
   video.value?.pause();
   emit('ready', null);
 });
@@ -109,7 +128,7 @@ onBeforeUnmount(() => {
       playsinline
       preload="metadata"
       :aria-label="label"
-      @click="toggle"
+      @click="activateSurface"
       @dblclick="fullscreen"
       @loadedmetadata="
         sync();
@@ -127,6 +146,10 @@ onBeforeUnmount(() => {
       @pause="
         sync();
         emit('pause');
+      "
+      @seeked="
+        sync();
+        emit('seeked');
       "
       @ended="sync"
       @durationchange="sync"

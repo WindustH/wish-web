@@ -3,7 +3,7 @@ import type { QuestionDetail } from '../activityDialogs.ts';
 import { answerText } from '../askUser.ts';
 import Modal from '../../../ui/components/Modal.vue';
 import Icon from '../../../ui/components/Icon.vue';
-import Markdown from '../../../ui/components/Markdown.vue';
+import Markdown from '../../../domain/references/ReferenceMarkdown.vue';
 import { tr } from '../../../core/i18n/tr.ts';
 defineProps<{ detail: QuestionDetail }>();
 defineEmits<{ close: [] }>();

@@ -37,3 +37,13 @@ export const taskOutput = (
     },
     { signal },
   );
+
+export const terminateTask = (
+  session: string,
+  taskId: string,
+  mode: 'graceful' | 'force',
+): Promise<{ execution_id: string; process: TaskProcess }> =>
+  post(path(session), {
+    action: 'execute',
+    operation: { operation: 'kill', execution_id: taskId, mode },
+  });

@@ -11,11 +11,11 @@ class Element extends EventTarget {
   setPointerCapture() {}
   releasePointerCapture() {}
 }
-function pointer(target: EventTarget, type: string, id = 1, x = 0, primary = true) {
+function pointer(target: EventTarget, type: string, id = 1, x = 0, primary = true, pointerType = 'touch') {
   const event = new Event(type, { cancelable: true });
   Object.defineProperties(event, {
     pointerId: { value: id }, clientX: { value: x }, clientY: { value: 0 },
-    isPrimary: { value: primary }, button: { value: 0 },
+    isPrimary: { value: primary }, button: { value: 0 }, pointerType: { value: pointerType },
   });
   target.dispatchEvent(event);
 }
@@ -35,7 +35,8 @@ test('rail gestures coalesce frames, recover outside releases, cancel multitouch
   try {
     const wrap = new Element(), scroll = new Element(), content = new Element();
     const enabled = shallowRef(true);
-    const rail = scope.run(() => useRailSwipe({ wrap: shallowRef(wrap as any), scroll: shallowRef(scroll as any), content: shallowRef(content as any), enabled }))!;
+    const allowMouse = shallowRef(true);
+    const rail = scope.run(() => useRailSwipe({ wrap: shallowRef(wrap as any), scroll: shallowRef(scroll as any), content: shallowRef(content as any), enabled, allowMouse }))!;
     pointer(wrap, 'pointerdown');
     pointer(win, 'pointerup'); // Release outside before capture; next gesture must still work.
     pointer(wrap, 'pointerdown');
@@ -54,6 +55,21 @@ test('rail gestures coalesce frames, recover outside releases, cancel multitouch
     assert.equal(rail.open.value, false);
     assert.equal(content.style.transform, 'translate3d(0px, 0, 0)');
     assert.equal(scroll.classes.size, 0);
+    rail.toggle();
+    assert.equal(rail.open.value, false, 'disabled drawers ignore the toggle');
+    enabled.value = true; allowMouse.value = false; await nextTick();
+    pointer(wrap, 'pointerdown', 1, 0, true, 'mouse');
+    pointer(wrap, 'pointermove', 1, 44, true, 'mouse');
+    pointer(win, 'pointerup', 1, 44, true, 'mouse');
+    assert.equal(rail.open.value, false, 'desktop text selection must not open the drawer');
+    assert.equal(frames.size, 0);
+    rail.toggle();
+    assert.equal(rail.open.value, true, 'the desktop button opens the same drawer');
+    assert.equal(content.style.transform, 'translate3d(44px, 0, 0)');
+    rail.toggle();
+    assert.equal(rail.open.value, false);
+    pointer(wrap, 'pointerdown'); pointer(wrap, 'pointermove', 1, 44); pointer(win, 'pointerup', 1, 44);
+    assert.equal(rail.open.value, true, 'touch remains available on a crowded desktop');
   } finally {
     scope.stop();
     for (const [key, descriptor] of saved) {

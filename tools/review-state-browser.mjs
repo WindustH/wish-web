@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import {browserFixture} from './browserFixture.mjs';
+const html=`<!doctype html><html><body><div id="app"></div><script type="module">
+import {createApp,h,ref} from 'vue';
+import Tasks from '/src/features/sessions/SessionTasks.vue';
+import {useWorkspaceState} from '/src/ui/composables/useWorkspaceState.ts';
+import {use} from '/src/platform/index.ts';
+import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';
+const values=new Map();window.writes=[];
+use('storage',{get:k=>values.get(k)??null,set:(k,v)=>{values.set(k,v);window.writes.push(JSON.parse(v))},remove:k=>values.delete(k),keys:()=>[...values.keys()],clear:()=>values.clear()});
+window.calls=0;
+window.fetch=async()=>{window.calls++;if(window.calls===1)return Response.json({tasks:[]});return new Promise(resolve=>window.release=tasks=>resolve(Response.json({tasks})))};
+window.app=createApp({setup(){window.saved=useWorkspaceState('playback-test',()=> 'a',{time:0},{throttleMs:5000});return()=>h(Tasks,{session:'fixture',open:true,mobile:false});}});
+window.app.mount('#app');window.fixture=true;
+</script></body></html>`;
+await browserFixture(html,async({js,until})=>{
+ await until('document.body.textContent.includes("No background tasks")||document.body.textContent.includes("暂无后台任务")','empty tasks loaded');
+ await js('(async()=>{for(let i=1;i<=8;i++){window.saved.value.time=i;await new Promise(r=>setTimeout(r,200));}})()');
+ assert.equal(await js('window.writes.length'),0,'time updates do not write every 150ms');
+ await until('window.calls===2','background poll starts');
+ assert.equal(await js('/No background tasks|暂无后台任务/.test(document.body.textContent)'),true,'pending silent poll retains empty state');
+ assert.equal(await js('/Loading…|正在读取/.test(document.body.textContent)'),false,'no loading flicker');
+ await js('window.release([{task_id:"a",command:"future task",started_at:1,background:true,process:{status:"suspended",exit_code:null,error:null}}])');
+ await until('document.querySelector(".task-state")?.textContent==="suspended"','unknown status remains visible');
+ await until('window.writes.length===1','periodic save runs while playing');
+ assert.equal(await js('window.writes[0].find(([k])=>k.includes("playback-test"))[1].time'),8);
+ await js('window.saved.value.time=9;window.saved.flush()');
+ assert.equal(await js('window.writes.length'),2,'explicit pause/seek flush is immediate');
+ await js('window.saved.value.time=10;window.dispatchEvent(new Event("pagehide"))');
+ assert.equal(await js('window.writes.length'),3,'pagehide flushes latest progress');
+ await js('window.saved.value.time=11;window.app.unmount()');
+ assert.equal(await js('window.writes.length'),4,'unmount flushes latest progress');
+ assert.equal(await js('window.writes.at(-1).find(([k])=>k.includes("playback-test"))[1].time'),11);
+ console.log('Silent task refresh, unknown status, throttled persistence and pause/pagehide/unmount flushing passed');
+});

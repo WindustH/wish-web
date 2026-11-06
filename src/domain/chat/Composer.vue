@@ -1,12 +1,21 @@
 <script setup lang="ts">
+import { inject } from 'vue';
+import type { QueuedAttachment } from '../../core/api/types.ts';
+import { replyContextKey } from '../references/context.ts';
+import { referenceDescription, type ReplyReference } from '../../core/replyReferences.ts';
 import { useKeyboardScope } from '../../ui/composables/useKeyboardScope.ts';
 import { historyPage, blobUrl } from '../../core/api/endpoints.ts';
 import { cfg } from '../../core/config.ts';
-import { createPromptHistory, sessionPrompts, type HistoricalPrompt } from './promptHistory.ts';
+import {
+  createPromptHistory,
+  sessionPrompts,
+  type HistoricalPrompt,
+  type HistoricalAttachment,
+} from './promptHistory.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 const errorDetail = (error: unknown) => describeError(error).message;
 import { attachmentPreview, previewAttachment } from '../../ui/attachmentPreview.ts';
-import { attachmentDigestFallback } from '../../core/attachmentDigest.ts';
+import { attachmentDigest, attachmentDigestFallback } from '../../core/attachmentDigest.ts';
 import { expandPastedText } from '../../core/pastedText.ts';
 import InlineMessageEditor from './InlineMessageEditor.vue';
 import { attachmentsForMessage } from '../../core/attachmentPlaceholders.ts';
@@ -115,7 +124,7 @@ function focusComposerBlank(event: MouseEvent) {
   }
 }
 
-function fill(v: string, attachmentsToFill?: any[]) {
+function fill(v: string, attachmentsToFill?: QueuedAttachment[]) {
   resetPromptHistory();
   setTextOwned(v);
   void nextTick(() => ta.value?.focus());
@@ -134,7 +143,49 @@ async function mention(reference: StoredAttachmentReference) {
     insertion?.dispose();
   }
 }
-defineExpose({ focus: () => ta.value?.focus(), fill, mention });
+const replies = inject(replyContextKey, undefined);
+async function reference(reference: ReplyReference, image?: Blob) {
+  if (reference.session !== props.owner || !live.value) return;
+  if (attachments.value.filter((a) => a.reply).length >= 8 || reference.text.length > 16000) {
+    toast(tr('引用过多或选区过长，请缩小范围', 'Too many references or selection too long'));
+    return;
+  }
+  const owner = props.owner;
+  const bytes = image ? await image.arrayBuffer() : new ArrayBuffer(0);
+  if (owner !== props.owner) return;
+  if (
+    image &&
+    (bytes.byteLength > limits.value.imageBytes ||
+      attachments.value.filter((a) => a.kind === 'image').length >= limits.value.imageCount)
+  ) {
+    toast(tr('选区图片超过附件限制', 'Selected image exceeds attachment limits'));
+    return;
+  }
+  if (image) reference = { ...reference, imageId: await attachmentDigest(bytes) };
+  if (owner !== props.owner) return;
+  const placeholder = `<reply-${reference.id}>`;
+  attachments.value.push({
+    reply: reference,
+    kind: image ? 'image' : 'file',
+    name: reference.label,
+    mime: image?.type ?? 'text/plain',
+    bytes,
+    localUrl: image ? URL.createObjectURL(image) : '',
+    placeholder,
+  });
+  saveAttachmentDrafts(owner, attachments.value);
+  if (btwOpen.value) toggleBtw();
+  await nextTick();
+  const insertion = ta.value?.createInsertion();
+  insertion?.insert(placeholder);
+  insertion?.dispose();
+  ta.value?.focus();
+}
+function locateReference(token: string) {
+  const ref = attachments.value.find((a) => a.placeholder === token)?.reply;
+  if (ref) replies?.locate(ref);
+}
+defineExpose({ focus: () => ta.value?.focus(), fill, mention, reference });
 
 const capsFailed = computed(() => caps.value?.status === 'error');
 const capsData = computed(() => (caps.value?.status === 'ok' ? caps.value.data : null));
@@ -294,12 +345,53 @@ async function submit() {
   const owner = props.owner;
   const payload = text.value;
   const submittedAttachments = attachments.value;
-  const sent = expandPastedText(payload, attachmentsForMessage(payload, submittedAttachments));
+  const chosen = attachmentsForMessage(payload, submittedAttachments);
+  if (
+    [...payload.matchAll(/<reply-[a-f0-9]{64}>/g)].some(
+      (match) => !chosen.some((a) => a.reply && a.placeholder === match[0]),
+    )
+  ) {
+    toast(
+      tr(
+        '引用草稿已不可用，请移除标签后重新引用',
+        'Reference draft unavailable; remove the token and select the source again',
+      ),
+    );
+    return;
+  }
+  const references = chosen.filter((a) => a.reply).map((a) => a.reply!);
+  let expanded = payload;
+  for (const item of chosen)
+    if (item.reply && item.placeholder) {
+      expanded = expanded.replaceAll(
+        item.placeholder,
+        referenceDescription(item.reply) + (item.kind === 'image' ? `\n<image-${item.reply.imageId}>` : '') + '\n',
+      );
+    }
+  const outgoing = chosen
+    .filter((a) => !a.reply || a.kind === 'image')
+    .map((a) => (a.reply ? { ...a, placeholder: `<image-${a.reply.imageId}>` } : a));
+  const unique = outgoing.filter(
+    (item, index, items) =>
+      !item.placeholder || items.findIndex((other) => other.placeholder === item.placeholder) === index,
+  );
+  const sent = expandPastedText(expanded, unique);
+  const metadata = references.length
+    ? {
+        reply_references: references,
+        reply_sources: Object.fromEntries(references.map((r) => [r.source, true])),
+        reply_draft: expandPastedText(payload, chosen).text,
+      }
+    : undefined;
+  if (metadata && new TextEncoder().encode(JSON.stringify(metadata)).length > 60000) {
+    toast(tr('引用内容过长，请减少引用', 'References are too large; remove some'));
+    return;
+  }
   submitting.value = true;
   try {
     const receipt = await (props.sendMessage
       ? props.sendMessage(sent.text, sent.attachments)
-      : chat.send(sent.text, sent.attachments));
+      : chat.send(sent.text, sent.attachments, metadata));
     if (!receipt) return;
     if (attachmentsOwnerId.value !== owner) {
       chat.setDraft('', owner);
@@ -410,7 +502,8 @@ async function browsePromptHistory(direction: -1 | 1) {
     if (attachmentPreview.value?.anchor && composerEl.value?.contains(attachmentPreview.value.anchor))
       attachmentPreview.value = null;
     setTextOwned(prompt.text);
-    if (prompt.attachments.some((item) => 'blob_id' in item)) await refillAttachments(prompt.attachments);
+    if (prompt.attachments.every((item): item is HistoricalAttachment => 'blob_id' in item))
+      await refillAttachments(prompt.attachments);
     else replaceAttachments(prompt.attachments as AttachmentInput[]);
     await nextTick();
     if (!signal.aborted && owner === props.owner) ta.value?.moveCaretToEnd();
@@ -502,7 +595,13 @@ function onKeydown(e: KeyboardEvent) {
         :key="img.localUrl || img.placeholder || img.stored?.id"
         class="attach-thumb"
       >
-        <div v-if="img.unavailable" class="attachment-file" role="status">
+        <button v-if="img.reply" class="attachment-file reply-card" @click="replies?.locate(img.reply)">
+          <img v-if="img.kind === 'image' && img.localUrl" :src="img.localUrl" alt="" /><Icon
+            v-else
+            name="reply"
+          /><span>{{ img.reply.label }}</span>
+        </button>
+        <div v-else-if="img.unavailable" class="attachment-file" role="status">
           <Icon name="triangle-alert" /><span
             >{{ img.name }} · {{ tr('附件不可用，请移除或重新添加', 'Unavailable; remove or attach again') }}</span
           >
@@ -569,6 +668,7 @@ function onKeydown(e: KeyboardEvent) {
         ref="ta"
         :scope="`${owner}:${btwMode}`"
         :attachments="btwMode ? [] : attachments"
+        @reference="locateReference"
         :placeholder="
           btwMode
             ? tr('顺便问一下…', 'By the way…')
@@ -647,6 +747,33 @@ function onKeydown(e: KeyboardEvent) {
   </div>
 </template>
 <style scoped>
+.reply-card {
+  font: inherit;
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 10px;
+  max-width: 240px;
+  cursor: pointer;
+  text-align: left;
+}
+.reply-card > img {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.reply-card > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reply-card:hover {
+  background: var(--bg-hover);
+}
 .composer-option-value {
   font-size: 12px;
   font-weight: var(--weight-latin-semibold);

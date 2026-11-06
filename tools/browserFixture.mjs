@@ -8,7 +8,7 @@ import { createServer } from 'vite';
 import vue from '@vitejs/plugin-vue';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function browserFixture(html, run) {
+export async function browserFixture(html, run, { middleware } = {}) {
   const server = await createServer({
     configFile: false,
     root: process.cwd(),
@@ -23,6 +23,7 @@ export async function browserFixture(html, run) {
           if (id === '\0review-pwa') return 'export const registerSW=()=>async()=>{}';
         },
         configureServer(server) {
+          if (middleware) server.middlewares.use(middleware);
           server.middlewares.use('/__review', async (_, response) => {
             response.setHeader('content-type', 'text/html');
             response.end(await server.transformIndexHtml('/__review', html));

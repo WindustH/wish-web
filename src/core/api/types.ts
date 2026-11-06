@@ -128,6 +128,7 @@ export interface MessageBlock {
 // An attachment reference carried by a queued delivery (blob ids are session-qualified).
 export interface QueuedAttachment {
   kind: string;
+  mime_type?: string;
   blob_id: string;
   filename?: string | null;
   byte_count?: number;
@@ -148,11 +149,19 @@ export interface BlobInfo {
   mime_type: string;
   byte_count: number;
 }
+export interface BlobMetadata extends BlobInfo {
+  version: string;
+  visible?: boolean;
+  pinned?: boolean;
+  name?: string | null;
+}
 export interface LinkedBlob extends BlobInfo {
   path: string;
   linked: boolean;
 }
 export interface LibraryBlob extends BlobInfo {
+  visible?: boolean;
+  pinned?: boolean;
   linked?: boolean;
   available?: boolean;
   name?: string | null;

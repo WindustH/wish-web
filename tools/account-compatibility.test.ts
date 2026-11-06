@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {compatibleAccounts,defaultAccount,fetchAccountPresets} from '../src/features/settings/accountCompatibility.ts';
+import {compatibleAccounts,defaultAccount,fetchAccountPresets} from '../src/domain/settings/accountCompatibility.ts';
 test('reader accounts match platform rather than credential format',()=>{
  const accounts={anthropic:{preset:'anthropic',api_key:'<redacted>'},cn:{preset:'zhipu_coding_cn',api_key:'<redacted>'},empty:{preset:'zai_global'},zai:{preset:'zai_global',api_key_env:'ZAI_KEY'}};
  const allowed=fetchAccountPresets('zai_reader');

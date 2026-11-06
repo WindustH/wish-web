@@ -1,12 +1,23 @@
 <script setup lang="ts">
+import { tr } from '../../core/i18n/tr.ts';
+import RegionSelection from './RegionSelection.vue';
+import type { ReplyReference } from '../../core/replyReferences.ts';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
 import { zoomAt } from './imageTransform.ts';
+import { usePinchZoom } from '../../ui/composables/usePinchZoom.ts';
 import Icon from '../../ui/components/Icon.vue';
 
-const props = defineProps<{ src: string; alt: string; stateKey: string }>();
+const props = defineProps<{
+  src: string;
+  alt: string;
+  stateKey: string;
+  reference?: { session: string; blob: string };
+  focus?: ReplyReference;
+  toolbar?: HTMLElement;
+}>();
 const saved = useWorkspaceState('image', () => props.stateKey, { zoom: 1, x: 0, y: 0 });
 const emit = defineEmits<{ error: [] }>();
 const surface = ref<HTMLElement>(),
@@ -54,7 +65,15 @@ function wheel(event: WheelEvent) {
 }
 let drag: { id: number; x: number; y: number; target: HTMLElement } | undefined;
 function start(event: PointerEvent) {
-  if (event.button !== 0 || zoom.value <= 1) return;
+  if (
+    !event.isPrimary ||
+    pinching.value ||
+    zoom.value <= 1 ||
+    (props.reference && event.pointerType === 'mouse'
+      ? event.button !== 1 && !(event.button === 0 && event.shiftKey)
+      : event.button !== 0 && event.button !== 1)
+  )
+    return;
   event.preventDefault();
   const target = event.currentTarget as HTMLElement;
   target.setPointerCapture(event.pointerId);
@@ -74,6 +93,18 @@ function stop() {
   drag = undefined;
   if (previous?.target.hasPointerCapture(previous.id)) previous.target.releasePointerCapture(previous.id);
 }
+const pinching = usePinchZoom(
+  surface,
+  (ratio, from, to) => {
+    const box = surface.value!.getBoundingClientRect();
+    scale(zoom.value * ratio, from.x - box.left - box.width / 2, from.y - box.top - box.height / 2);
+    x.value += to.x - from.x;
+    y.value += to.y - from.y;
+    clamp();
+    remember();
+  },
+  stop,
+);
 watch(usePageActivity(), (active) => {
   if (!active) stop();
 });
@@ -90,29 +121,33 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="image-preview">
-    <div class="image-toolbar">
-      <button
-        class="btn ghost icon-only"
-        :aria-label="i18n.t('library.zoomOut')"
-        :disabled="zoom <= 1"
-        @click="scale(zoom / 1.25)"
-      >
-        <Icon name="minus" />
-      </button>
-      <button class="btn ghost sm" @click="scale(1)">{{ Math.round(zoom * 100) }}%</button>
-      <button
-        class="btn ghost icon-only"
-        :aria-label="i18n.t('library.zoomIn')"
-        :disabled="zoom >= 8"
-        @click="scale(zoom * 1.25)"
-      >
-        <Icon name="plus" />
-      </button>
-    </div>
+    <Teleport :to="toolbar ?? 'body'" :disabled="!toolbar">
+      <div class="image-toolbar">
+        <button
+          class="btn ghost icon-only"
+          :aria-label="i18n.t('library.zoomOut')"
+          :disabled="zoom <= 1"
+          @click="scale(zoom / 1.25)"
+        >
+          <Icon name="minus" />
+        </button>
+        <button class="btn ghost sm" :title="tr('恢复为适合窗口', 'Reset to fit view')" @click="scale(1)">
+          {{ Math.round(zoom * 100) }}%
+        </button>
+        <button
+          class="btn ghost icon-only"
+          :aria-label="i18n.t('library.zoomIn')"
+          :disabled="zoom >= 8"
+          @click="scale(zoom * 1.25)"
+        >
+          <Icon name="plus" />
+        </button>
+      </div>
+    </Teleport>
     <div
       ref="surface"
       class="image-viewport"
-      :class="{ zoomed: zoom > 1 }"
+      :class="{ zoomed: zoom > 1, selecting: !!reference }"
       @wheel="wheel"
       @pointerdown="start"
       @pointermove="move"
@@ -121,8 +156,26 @@ onBeforeUnmount(() => {
       @lostpointercapture="stop"
       @dblclick="scale(1)"
     >
-      <img ref="picture" :src="src" :alt="alt" :style="style" draggable="false" @load="loaded" @error="emit('error')" />
+      <img
+        crossorigin="anonymous"
+        ref="picture"
+        :src="src"
+        :alt="alt"
+        :style="style"
+        draggable="false"
+        @load="loaded"
+        @error="emit('error')"
+      />
     </div>
+    <RegionSelection
+      v-if="reference"
+      :target="picture"
+      :session="reference.session"
+      :blob="reference.blob"
+      :name="alt"
+      :focus="focus"
+      @selecting="(selecting) => selecting && stop()"
+    />
   </div>
 </template>
 
@@ -154,6 +207,9 @@ onBeforeUnmount(() => {
 }
 .image-viewport.zoomed:active {
   cursor: grabbing;
+}
+.image-viewport.selecting {
+  cursor: crosshair;
 }
 img {
   display: block;

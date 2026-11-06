@@ -15,6 +15,7 @@ const emit = defineEmits<{
   'update:text': [text: string];
   keydown: [event: KeyboardEvent];
   paste: [event: ClipboardEvent];
+  reference: [token: string];
 }>();
 const el = ref<HTMLDivElement | null>(null);
 const composing = ref(false);
@@ -75,14 +76,17 @@ function render(text: string, restore?: Selection) {
     if (part.type === 'text') fragment.append(document.createTextNode(part.text));
     else {
       const isImage = part.attachment!.kind === 'image';
-      const label = isImage
-        ? `Image ${props.attachments.filter((a) => a.kind === 'image').indexOf(part.attachment!) + 1}`
-        : part.attachment!.name || 'File';
+      const label = part.attachment?.reply
+        ? part.attachment.reply.label
+        : isImage
+          ? `Image ${props.attachments.filter((a) => a.kind === 'image').indexOf(part.attachment!) + 1}`
+          : part.attachment!.name || 'File';
       const chip = document.createElement('span');
       chip.contentEditable = 'false';
       chip.draggable = false;
       chip.dataset.attachmentToken = part.text;
       chip.className = 'inline-attachment-token';
+      if (part.attachment?.reply) chip.classList.add('reply-reference-token');
       if (part.attachment?.pastedText) chip.classList.add('pasted-text-token');
       const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       icon.setAttribute('viewBox', '0 0 24 24');
@@ -93,21 +97,23 @@ function render(text: string, restore?: Selection) {
       icon.setAttribute('stroke-linejoin', 'round');
       icon.setAttribute('aria-hidden', 'true');
       icon.style.cssText = 'width:1em;height:1em;vertical-align:-.15em;margin-right:5px;pointer-events:none';
-      const shapes: [string, Record<string, string>][] = isImage
-        ? [
-            ['rect', { x: '3', y: '3', width: '18', height: '18', rx: '2', ry: '2' }],
-            ['circle', { cx: '9', cy: '9', r: '2' }],
-            ['path', { d: 'm21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21' }],
-          ]
-        : part.attachment?.pastedText
+      const shapes: [string, Record<string, string>][] = part.attachment?.reply
+        ? [['path', { d: 'm9 10-5 5 5 5M4 15h10a6 6 0 0 0 0-12h-2' }]]
+        : isImage
           ? [
-              ['rect', { x: '8', y: '2', width: '8', height: '4', rx: '1', ry: '1' }],
-              ['path', { d: 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2' }],
+              ['rect', { x: '3', y: '3', width: '18', height: '18', rx: '2', ry: '2' }],
+              ['circle', { cx: '9', cy: '9', r: '2' }],
+              ['path', { d: 'm21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21' }],
             ]
-          : [
-              ['path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z' }],
-              ['path', { d: 'M14 2v6h6' }],
-            ];
+          : part.attachment?.pastedText
+            ? [
+                ['rect', { x: '8', y: '2', width: '8', height: '4', rx: '1', ry: '1' }],
+                ['path', { d: 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2' }],
+              ]
+            : [
+                ['path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z' }],
+                ['path', { d: 'M14 2v6h6' }],
+              ];
       for (const [tag, attributes] of shapes) {
         const shape = document.createElementNS(icon.namespaceURI, tag);
         for (const [name, value] of Object.entries(attributes)) shape.setAttribute(name, value);
@@ -296,6 +302,9 @@ const tokenDrag = useAttachmentTokenDrag(
     setSelection(caret);
   },
   () => render(value),
+  (token) => {
+    if (props.attachments.some((a) => a.placeholder === token && a.reply)) emit('reference', token);
+  },
 );
 function createInsertion() {
   const mark = { ...selection() },
@@ -444,5 +453,18 @@ defineExpose({
   -webkit-touch-callout: none;
   cursor: grab;
   touch-action: none;
+}
+</style>
+
+<style scoped>
+.composer-input :deep(.reply-reference-token) {
+  max-width: min(280px, 85%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--bg));
 }
 </style>

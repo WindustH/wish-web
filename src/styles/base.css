@@ -11,6 +11,12 @@ body {
 html {
   overscroll-behavior-y: none;
 }
+/* Touch zoom belongs to media viewers; ordinary UI keeps native one-finger scrolling. */
+@media (pointer: coarse) {
+  :where(body, body *) {
+    touch-action: pan-x pan-y;
+  }
+}
 /* Every font size is rem (written as px, converted at build), so this is the text size setting;
    it follows the browser's own default size, and phones read a step larger. */
 html {
@@ -155,7 +161,7 @@ html {
   textarea,
   [contenteditable]:not([contenteditable='false']),
   .entry.user .bubble,
-  .entry.assistant .body > .markdown,
+  .entry.assistant .body .markdown,
   .live-text .markdown,
   .live-reasoning,
   .reasoning-document .markdown,
@@ -179,8 +185,8 @@ html {
 /* On a touch screen Wish selects a message's words itself (TouchSelection), so the platform may
    not; a caret is read under `reading-caret`, for that moment only. */
 @media (pointer: coarse) {
-  html.touch-selection :is(.entry.user .bubble, .entry.assistant .body > .markdown),
-  html.touch-selection :is(.entry.user .bubble, .entry.assistant .body > .markdown) * {
+  html.touch-selection :is(.entry.user .bubble, .entry.assistant .body .markdown),
+  html.touch-selection :is(.entry.user .bubble, .entry.assistant .body .markdown) * {
     -webkit-user-select: none;
     user-select: none;
   }

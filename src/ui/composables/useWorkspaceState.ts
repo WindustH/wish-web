@@ -6,6 +6,7 @@ export function useWorkspaceState<T extends Record<string, string | number | boo
   scope: string,
   owner: () => string,
   defaults: T,
+  options: { throttleMs?: number | (() => number | undefined) } = {},
 ) {
   let key = '',
     dirty = false;
@@ -13,9 +14,11 @@ export function useWorkspaceState<T extends Record<string, string | number | boo
   const state = ref({ ...defaults }) as Ref<T>;
   function flush() {
     clearTimeout(timer);
+    timer = undefined;
     if (dirty && key) writeWorkspaceState(key, state.value);
     dirty = false;
   }
+  // Server changes reload the application; the base URL is stable for this scope.
   watch(
     () => JSON.stringify([getBaseUrl(), scope, owner()]),
     (next) => {
@@ -30,8 +33,13 @@ export function useWorkspaceState<T extends Record<string, string | number | boo
     state,
     () => {
       dirty = true;
-      clearTimeout(timer);
-      timer = setTimeout(flush, 150);
+      const throttleMs = typeof options.throttleMs === 'function' ? options.throttleMs() : options.throttleMs;
+      if (throttleMs !== undefined) {
+        if (timer === undefined) timer = setTimeout(flush, throttleMs);
+      } else {
+        clearTimeout(timer);
+        timer = setTimeout(flush, 150);
+      }
     },
     { deep: true, flush: 'sync' },
   );
@@ -40,5 +48,7 @@ export function useWorkspaceState<T extends Record<string, string | number | boo
     flush();
     window.removeEventListener('pagehide', flush);
   });
-  return state as Ref<{ [K in keyof T]: T[K] extends boolean ? boolean : T[K] extends number ? number : string }>;
+  return Object.assign(state, { flush }) as Ref<{
+    [K in keyof T]: T[K] extends boolean ? boolean : T[K] extends number ? number : string;
+  }> & { flush: () => void };
 }

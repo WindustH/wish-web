@@ -120,7 +120,12 @@ function mapRules<T>(read: (chain: string) => T[], transform: (rule: T) => T): (
 /** Capture positions at the parser's consumption points. No rendered/source text
  * search or alignment is used. Installed after syntax plugins, before parsing.
  */
+// markdown-it 15: State constructors, ruler.getRules and fragments_join must retain
+// their parser consumption semantics. Re-run source-map fixtures before upgrading.
+const installed = new WeakSet<MarkdownIt>();
 export function markdownSourceMap(md: MarkdownIt) {
+  if (installed.has(md)) return;
+  installed.add(md);
   const blockLines = new WeakMap<StateBlock, { text: string; runs: SourceRun[] }>();
   const blockStarts = new WeakMap<StateBlock, number[]>();
   const Block = md.block.State;
@@ -205,7 +210,6 @@ export function markdownSourceMap(md: MarkdownIt) {
     return wrapped;
   });
 
-  let inlineBase: SourceRun[] = [];
   const pending = new WeakMap<StateInline, number>();
   const Inline = md.inline.State;
   md.inline.State = class extends Inline {
@@ -316,7 +320,7 @@ export function markdownSourceMap(md: MarkdownIt) {
     const references = JSON.stringify(state.env.references ?? {});
     for (const token of state.tokens) {
       if (token.type !== 'inline') continue;
-      inlineBase = locations.get(token)?.runs ?? [];
+      const inlineBase = locations.get(token)?.runs ?? [];
       const key = inlineBase[0]?.start ?? -1;
       const signature = JSON.stringify(inlineBase) + references;
       cacheKeys.set(token, { key, signature });
@@ -398,7 +402,8 @@ function sourceLinkify(state: StateCore) {
         next.level = token.level;
         if (location?.runs) {
           const runs = sliceRuns(location.runs, from, to);
-          setRuns(next, content.length === to - from ? runs : atom(runs[0]!.start, runs.at(-1)!.end, content.length));
+          if (runs.length)
+            setRuns(next, content.length === to - from ? runs : atom(runs[0]!.start, runs.at(-1)!.end, content.length));
         }
         output.push(next);
       };

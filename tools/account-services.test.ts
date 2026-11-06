@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SettingsConfig } from '../src/core/configTypes.ts';
-import type { ServiceCatalogs } from '../src/features/settings/accountServices.ts';
-import { accountServices } from '../src/features/settings/accountServices.ts';
+import type { ServiceCatalogs } from '../src/domain/settings/accountServices.ts';
+import { accountServices } from '../src/domain/settings/accountServices.ts';
 
 function fixture() {
   const config = {

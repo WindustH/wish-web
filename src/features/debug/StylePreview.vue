@@ -2,6 +2,7 @@
 import { computed, provide, ref } from 'vue';
 import AccountServicesPreview from './AccountServicesPreview.vue';
 import RetryStatus from '../sessions/RetryStatus.vue';
+import RunRetryPreview from './RunRetryPreview.vue';
 import LoadingPreview from './LoadingPreview.vue';
 import CodeHighlightPreview from './CodeHighlightPreview.vue';
 import ComposerAttachmentPreview from './ComposerAttachmentPreview.vue';
@@ -107,6 +108,7 @@ provide(openActivityKey, (value) => {
         </div>
         <GroupMessageCard v-else-if="sample.kind === 'group'" v-bind="sample.item" preview />
         <RetryStatus v-else-if="sample.kind === 'retry'" :retries="sample.item" />
+        <RunRetryPreview v-else-if="sample.kind === 'manual-retry'" v-bind="sample.item" />
         <HistoryItem v-else :item="sample.item" />
       </section>
     </div>

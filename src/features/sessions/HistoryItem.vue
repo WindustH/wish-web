@@ -14,6 +14,8 @@ import LateAnswerEntry from './entries/LateAnswerEntry.vue';
 import GroupSentEntry from './entries/GroupSentEntry.vue';
 import GroupMessageEntry from './entries/GroupMessageEntry.vue';
 import ImageAlbumEntry from './entries/ImageAlbumEntry.vue';
+import BlobMentionCard from '../../domain/references/BlobMentionCard.vue';
+import { rowBlobMentions } from './rowBlobMentions.ts';
 
 // `forcedKeys` are the groups a search holds open to show what it found.
 const props = defineProps<{
@@ -23,6 +25,7 @@ const props = defineProps<{
   locateSeq?: number;
 }>();
 const entry = computed(() => ('entry' in props.item ? props.item.entry : null));
+const fileMentions = computed(() => rowBlobMentions(props.item));
 const entryComponent = computed<Component>(() =>
   props.item.type === 'image_album'
     ? ImageAlbumEntry
@@ -57,9 +60,20 @@ const entryProps = computed(() =>
 
 <template>
   <FileChangeCards :item="item" />
+  <div v-if="fileMentions.length" class="blob-mention-cards">
+    <BlobMentionCard v-for="file in fileMentions" :key="file.key" :mention="file.mention" />
+  </div>
   <div v-if="item.type === 'entry' && item.entry?.seq != null" class="entry-anchor" :data-seq="item.entry.seq">
     <component :is="entryComponent" v-bind="entryProps" />
   </div>
   <div v-else-if="item.type === 'chips' || item.type === 'process'" class="history-chip-row" />
   <component :is="entryComponent" v-else v-bind="entryProps" />
 </template>
+<style scoped>
+.blob-mention-cards {
+  display: grid;
+  gap: 8px;
+  padding: 6px 0 12px;
+  min-width: 0;
+}
+</style>

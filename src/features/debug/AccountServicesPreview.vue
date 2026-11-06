@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import AccountServicesDialog, { type AccountServiceOption } from '../../domain/settings/AccountServicesDialog.vue';
+import AccountServicesDialog from '../../domain/settings/AccountServicesDialog.vue';
+import type { AccountServiceOption } from '../../domain/settings/accountServiceTypes.ts';
 import { tr } from '../../core/i18n/tr.ts';
 const open = ref(false);
 const result = ref('');

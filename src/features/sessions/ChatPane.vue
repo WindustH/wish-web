@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { replyContextKey } from '../../domain/references/context.ts';
+import { validReference, type ReplyReference, type ReplyLink } from '../../core/replyReferences.ts';
+import { replyLinks, replyMessage, linkSessionFile } from '../../core/api/endpoints.ts';
+import { fileMentionKey } from '../../domain/references/useFileMention.ts';
+import { toast } from '../../ui/toast.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { sessionNaming } from '../../core/state/sessionNaming.ts';
@@ -42,8 +47,10 @@ import { touchButton } from '../../ui/touchButton.ts';
 import { prefersReducedMotion } from '../../ui/motion/reducedMotion.ts';
 import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
 import SessionTasks from './SessionTasks.vue';
+import { useBackgroundTaskCount } from './useBackgroundTaskCount.ts';
 import SessionLibrary from './SessionLibrary.vue';
 import type { StoredAttachmentReference } from '../../core/attachments.ts';
+import type { LibraryTarget } from './libraryTarget.ts';
 import type { LibraryBlob } from '../../core/api/types.ts';
 
 const backTouch = touchButton();
@@ -65,7 +72,13 @@ const isMobile = useIsMobile();
 const id = computed(() =>
   ['chat', 'chat-info', 'chat-search', 'chat-settings'].includes(String(route.name)) ? (route.params.id as string) : '',
 );
+const taskPanelOpen = ref(false);
+const backgroundTaskCount = useBackgroundTaskCount(id, () => taskPanelOpen.value);
+const backgroundTaskLabel = computed(
+  () => tr('后台任务', 'Background tasks') + (backgroundTaskCount.value ? ` (${backgroundTaskCount.value})` : ''),
+);
 type SessionTab = 'info' | 'settings';
+type SidebarView = SessionTab | 'library' | 'tasks';
 const routeTab = computed<SessionTab | null>(() => {
   const n = route.name as string;
   return n === 'chat-info' || n === 'chat-search' ? 'info' : n === 'chat-settings' ? 'settings' : null;
@@ -119,7 +132,7 @@ const tabs = computed(() => [
 const mobileActions = computed(() => [
   ...tabs.value,
   { key: 'library', icon: 'library', label: i18n.t('library.title') },
-  { key: 'tasks', icon: 'terminal', label: tr('后台任务', 'Background tasks') },
+  { key: 'tasks', icon: 'terminal', label: backgroundTaskLabel.value },
 ]);
 const modelActions = computed(() => [
   {
@@ -149,13 +162,12 @@ const headerActions = computed(() =>
 function headerAction(key: string) {
   if (key === 'model') modelOpen.value = true;
   else if (key === 'reasoning') reasoningOpen.value = true;
-  else if (key === 'library') openLibrary();
-  else if (key === 'tasks') openTasks();
-  else if (key === 'info' || key === 'settings') goTab(key);
+  else if (['library', 'tasks', 'info', 'settings'].includes(key)) openSidebar(key as SidebarView);
 }
 const queued = computed(() => chat.deliveries.value);
 const composerRef = ref<{
-  fill: (v: string, attachments?: any[]) => void;
+  fill: InstanceType<typeof Composer>['fill'];
+  reference: (reference: ReplyReference, image?: Blob) => Promise<void>;
   mention: (reference: StoredAttachmentReference) => Promise<void>;
 } | null>(null);
 // The composer floats over the log's foot, so the pane tells its styles how tall that island is:
@@ -171,10 +183,155 @@ async function mentionBlob(blob: LibraryBlob, name: string) {
   await nextTick();
   await composerRef.value?.mention(reference);
 }
-const onQueueEdit = (text: string, attachments?: any[]) => composerRef.value?.fill(text, attachments);
+
+const libraryTarget = shallowRef<LibraryTarget>();
+let openingFile = 0;
+provide(fileMentionKey, async (file) => {
+  const request = ++openingFile;
+  const sourceSession = id.value;
+  const blob =
+    file.kind === 'local'
+      ? { ...file, owner: sourceSession, id: (await linkSessionFile(sourceSession, file.path, true)).id }
+      : file;
+  if (request !== openingFile || sourceSession !== id.value) return;
+  if (blob.owner !== id.value) await router.push({ name: 'chat', params: { id: blob.owner } });
+  if (request !== openingFile || blob.owner !== id.value) return;
+  sidebarState.value.view = 'library';
+  sidebarOpen.value = true;
+  libraryTarget.value = { request, target: blob };
+});
+const replyRevision = ref(0);
+const focusedReference = ref<ReplyReference>();
+let focusTimer: ReturnType<typeof setTimeout> | undefined;
+onBeforeUnmount(() => clearTimeout(focusTimer));
+const replyCache = new Map<string, Promise<ReplyLink[]>>();
+const previewCache = new Map<number, string>();
+const replyVersions = ref(new Map<string, number>());
+let replyHighWater = -1;
+let observedReplyInput = false;
+const pendingReplySources = new Set<string>();
+watch(
+  [id, () => chat.snapshot.value?.running, () => chat.entries.value.at(-1)?.seq],
+  ([session, running], previous) => {
+    if (session !== previous?.[0]) {
+      replyHighWater = -1;
+      observedReplyInput = false;
+      pendingReplySources.clear();
+      replyVersions.value.clear();
+    }
+    for (const entry of chat.entries.value) {
+      if (entry.seq <= replyHighWater || entry.kind !== 'user_message') continue;
+      observedReplyInput = true;
+      const references = entry.payload.metadata?.custom?.reply_references;
+      if (Array.isArray(references))
+        for (const reference of references)
+          if (validReference(reference) && reference.session === session) pendingReplySources.add(reference.source);
+    }
+    replyHighWater = Math.max(replyHighWater, chat.entries.value.at(-1)?.seq ?? -1);
+    if (!running) {
+      for (const source of pendingReplySources) {
+        replyCache.delete(source);
+        replyVersions.value.set(source, (replyVersions.value.get(source) ?? 0) + 1);
+      }
+      // A history jump can hide the new inputs. Preserve correctness when their sources
+      // are unavailable; ordinary runs invalidate only the sources actually referenced.
+      if (previous?.[1]) {
+        if (chat.hasMoreAfter.value || !observedReplyInput) {
+          replyCache.clear();
+          replyRevision.value++;
+        }
+      }
+      pendingReplySources.clear();
+      observedReplyInput = false;
+    }
+  },
+);
+watch(id, () => {
+  libraryTarget.value = undefined;
+  focusedReference.value = undefined;
+  clearTimeout(focusTimer);
+  replyCache.clear();
+  previewCache.clear();
+});
+provide(replyContextKey, {
+  session: id,
+  revision: replyRevision,
+  version: (source) => (replyVersions.value.get(source) ?? 0) + replyRevision.value,
+  focus: focusedReference,
+  async add(reference, image) {
+    if (reference.session !== id.value) return;
+    if (isMobile.value) sidebarOpen.value = false;
+    await composerRef.value?.reference(reference, image);
+  },
+  async locate(reference) {
+    if (reference.session !== id.value) return;
+    if (reference.seq !== undefined) {
+      focusedReference.value = { ...reference };
+      if (await chat.locate(id.value, reference.seq)) {
+        clearTimeout(focusTimer);
+        focusTimer = setTimeout(() => (focusedReference.value = undefined), 4000);
+      } else {
+        focusedReference.value = undefined;
+        toast(tr('原消息已不可用', 'Message is no longer available'));
+      }
+      return;
+    }
+    if (reference.blob) {
+      sidebarState.value.view = 'library';
+      sidebarOpen.value = true;
+      libraryTarget.value = { request: ++openingFile, target: reference };
+    }
+  },
+  async links(source, signal) {
+    const session = id.value;
+    let pending = replyCache.get(source);
+    if (!pending) {
+      pending = (async () => {
+        const result: ReplyLink[] = [];
+        let cursor: unknown;
+        do {
+          const page = await replyLinks(session, source, cursor);
+          result.push(...page.items);
+          cursor = page.next;
+        } while (cursor && session === id.value);
+        return result;
+      })();
+      replyCache.set(source, pending);
+      if (replyCache.size > 128) replyCache.delete(replyCache.keys().next().value!);
+      pending.catch(() => {
+        if (replyCache.get(source) === pending) replyCache.delete(source);
+      });
+    }
+    const result = await pending;
+    return signal.aborted || session !== id.value ? [] : result;
+  },
+  async preview(seq, signal) {
+    if (previewCache.has(seq)) return previewCache.get(seq)!;
+    const session = id.value;
+    const message = await replyMessage(session, seq, { signal });
+    const text = (message?.payload.content ?? [])
+      .filter((b) => b.type === 'text')
+      .map((b) => (b.type === 'text' ? b.text : ''))
+      .join('\n\n');
+    if (!signal.aborted && session === id.value) {
+      previewCache.set(seq, text);
+      if (previewCache.size > 24) previewCache.delete(previewCache.keys().next().value!);
+    }
+    return text;
+  },
+  jump(seq) {
+    void chat.locate(id.value, seq).then((ok) => {
+      if (!ok) toast(tr('原消息已不可用', 'Message is no longer available'));
+    });
+  },
+});
+
+const onQueueEdit = (text: string, attachments?: Parameters<InstanceType<typeof Composer>['fill']>[1]) =>
+  composerRef.value?.fill(text, attachments);
 const { effort, error: effortError } = useResolvedEffort(snapshot);
 const modelOpen = ref(false);
 const reasoningOpen = ref(false);
+// Keep the original storage scope so existing sidebar preferences survive this expansion.
 const sidebarState = useWorkspaceState('library-open', () => id.value, { open: false, view: 'library' });
 const sidebarKind = computed(() =>
   ['info', 'settings', 'tasks'].includes(sidebarState.value.view) ? sidebarState.value.view : 'library',
@@ -212,6 +369,13 @@ watch([id, sidebarOpen], ([session, open], [previousSession]) => {
 });
 // Keep the current panel in place until its contents have faded out.
 const sidebarDisplayedKind = ref(sidebarKind.value);
+watch(
+  [sidebarOpen, sidebarDisplayedKind],
+  ([open, kind]) => {
+    taskPanelOpen.value = open && kind === 'tasks';
+  },
+  { immediate: true },
+);
 const sidebarFading = ref(false);
 const sidebarSwitching = ref(false);
 const sidebarSwitched = ref(false);
@@ -274,13 +438,10 @@ watch(sidebarOpen, (open) => {
   if (open) sidebarMounted.value = true;
 });
 const libraryRevision = ref(0);
-function openLibrary() {
-  if (sidebarOpen.value && sidebarKind.value === 'library') libraryRevision.value++;
-  sidebarState.value.view = 'library';
-  sidebarOpen.value = true;
-}
-function openTasks() {
-  sidebarState.value.view = 'tasks';
+function openSidebar(kind: SidebarView) {
+  if (kind === 'info') infoInitialSection.value = 'overview';
+  if (kind === 'library' && sidebarOpen.value && sidebarKind.value === kind) libraryRevision.value++;
+  sidebarState.value.view = kind;
   sidebarOpen.value = true;
 }
 watch(id, () => {
@@ -289,11 +450,6 @@ watch(id, () => {
   reasoningOpen.value = false;
 });
 
-const goTab = (kind: SessionTab) => {
-  infoInitialSection.value = 'overview';
-  sidebarState.value.view = kind;
-  sidebarOpen.value = true;
-};
 // Preserve existing links, while all devices now use the same sidebar host.
 watch(
   [routeTab, id, () => route.name],
@@ -395,7 +551,7 @@ watch(
                 :aria-pressed="tab === item.key"
                 aria-controls="session-sidebar"
                 :aria-expanded="tab === item.key"
-                @click="goTab(item.key as SessionTab)"
+                @click="openSidebar(item.key as SessionTab)"
               >
                 <Icon :name="item.icon" /></button
             ></Hint>
@@ -415,21 +571,24 @@ watch(
               aria-controls="session-sidebar"
               :aria-expanded="sidebarOpen && sidebarKind === 'library'"
               :class="{ selected: sidebarOpen && sidebarKind === 'library' }"
-              @click="openLibrary"
+              @click="openSidebar('library')"
             >
               <Icon name="library" /></button
           ></Hint>
-          <Hint v-if="!compactActions" :text="tr('后台任务', 'Background tasks')">
+          <Hint v-if="!compactActions" :text="backgroundTaskLabel">
             <button
-              class="btn ghost icon-only"
+              class="btn ghost icon-only task-count-button"
               data-background-tasks
-              :aria-label="tr('后台任务', 'Background tasks')"
+              :aria-label="backgroundTaskLabel"
               aria-controls="session-sidebar"
               :aria-expanded="sidebarOpen && sidebarKind === 'tasks'"
               :class="{ selected: sidebarOpen && sidebarKind === 'tasks' }"
-              @click="openTasks"
+              @click="openSidebar('tasks')"
             >
               <Icon name="terminal" />
+              <span v-if="backgroundTaskCount" class="task-count-badge" aria-hidden="true">{{
+                backgroundTaskCount
+              }}</span>
             </button>
           </Hint>
         </div>
@@ -465,6 +624,7 @@ watch(
         @close="sidebarOpen = false"
       />
       <SessionTasks
+        @count="backgroundTaskCount = $event"
         v-if="sidebarMounted && id && sidebarDisplayedKind === 'tasks'"
         :key="id"
         :session="id"
@@ -480,6 +640,12 @@ watch(
         :mobile="isMobile"
         :entries="chat.entries.value"
         :library-revision="libraryRevision"
+        :pending-target="libraryTarget"
+        @target-handled="
+          (request) => {
+            if (libraryTarget?.request === request) libraryTarget = undefined;
+          }
+        "
         @close="sidebarOpen = false"
         @mention="mentionBlob"
       />
@@ -577,5 +743,25 @@ watch(
   .queue-dock-leave-active {
     transition: none;
   }
+}
+.task-count-button {
+  position: relative;
+}
+.task-count-badge {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  pointer-events: none;
 }
 </style>

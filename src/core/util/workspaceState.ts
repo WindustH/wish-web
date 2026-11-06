@@ -1,3 +1,4 @@
+// Bounded, platform-backed persistence for UI workspace state; no Vue dependency.
 import { tryPlatform } from '../../platform/index.ts';
 
 type Fields = Record<string, string | number | boolean>;

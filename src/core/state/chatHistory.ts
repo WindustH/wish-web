@@ -171,7 +171,12 @@ export function createChatHistory<E extends { seq: number }>({
         merge(page.items);
         added += entries.value.length - before;
         hasMoreAfter.value = page.has_more;
-        if (!page.has_more) return { ok: true, drained: true, added };
+        if (!page.has_more) {
+          // A located window becomes live again once its newer pages reach the tail.
+          // Otherwise polling and turn completion keep skipping history forever.
+          viewingPast = false;
+          return { ok: true, drained: true, added };
+        }
       }
       return { ok: true, drained: false, added };
     } catch (cause) {
@@ -189,6 +194,14 @@ export function createChatHistory<E extends { seq: number }>({
     if (sessionId.value !== id) await open(id);
     if (sessionId.value !== id) return false;
 
+    // Referencing text already on screen must not discard the surrounding history
+    // or switch a live conversation into a separate historical window.
+    if (entries.value.some((entry) => entry.seq === seq)) {
+      invalidate();
+      pendingSeq.value = seq;
+      return true;
+    }
+
     invalidate();
     const own = generation;
     const opts = requestOptions();
@@ -205,7 +218,7 @@ export function createChatHistory<E extends { seq: number }>({
       if (!window.some((entry) => entry.seq === seq)) return false;
       // Commit browse mode with the replacement, not before the request. A failed
       // search must not silently disable reconciliation of the visible latest window.
-      viewingPast = true;
+      viewingPast = after.has_more;
       entries.value = window;
       bounds();
       hasMoreBefore.value = before.has_more;

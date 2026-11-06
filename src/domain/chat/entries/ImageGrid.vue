@@ -147,13 +147,11 @@ watch(
   outline: 2px solid var(--focus-ring);
   outline-offset: -3px;
 }
-.album-thumbnails :deep(.entry-anchor.located),
-:global(.history-target) .image-grid {
+.album-thumbnails :deep(.entry-anchor.located) {
   animation: located-content 3s ease-out;
 }
 @media (prefers-reduced-motion: reduce) {
-  .album-thumbnails :deep(.entry-anchor.located),
-  :global(.history-target) .image-grid {
+  .album-thumbnails :deep(.entry-anchor.located) {
     animation: none;
     box-shadow: 0 0 0 2px var(--accent-soft);
   }

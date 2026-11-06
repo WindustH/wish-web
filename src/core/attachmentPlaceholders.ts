@@ -14,7 +14,7 @@ export function splitAttachmentText<T extends Placeheld>(text: string, attachmen
   const tokens = new Map(attachments.filter((a) => a.placeholder).map((a) => [a.placeholder, a]));
   const parts: AttachmentTextPart<T>[] = [];
   let offset = 0;
-  for (const match of text.matchAll(/<(?:image|file|paste)-[a-f0-9]{64}>/g)) {
+  for (const match of text.matchAll(/<(?:image|file|paste|reply)-[a-f0-9]{64}>/g)) {
     const attachment = tokens.get(match[0]);
     if (!attachment) continue;
     if (match.index > offset) parts.push({ type: 'text', text: text.slice(offset, match.index), start: offset });

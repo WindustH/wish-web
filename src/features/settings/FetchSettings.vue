@@ -12,7 +12,7 @@ import AccountPicker from './AccountPicker.vue';
 import SwitchRow from '../../domain/settings/SwitchRow.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { configDraftKey } from './useConfigDraft.ts';
-import { fetchAccountPresets } from './accountCompatibility.ts';
+import { fetchAccountPresets } from '../../domain/settings/accountCompatibility.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { showError } from '../../ui/errorDialog.ts';

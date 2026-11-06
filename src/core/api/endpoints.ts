@@ -1,3 +1,11 @@
+export {
+  sessionTasks,
+  taskOutput,
+  terminateTask,
+  type BackgroundTask,
+  type TaskProcess,
+  type TaskOutput,
+} from './tasks.ts';
 import { createAbortScope } from '../util/abortScope.ts';
 // One function per server endpoint, grouped by what they act on. Most are thin; the few that
 // combine requests say so. The shapes they take and return are in types.ts.
@@ -16,7 +24,7 @@ import type { SeriesQuery, DailyQuery, UsageSeriesResponse, UsageDailyResponse }
 import { mapConcurrent } from '../util/mapConcurrent.ts';
 import type { ConfigCatalog, ProviderConfig } from '../provider-presets.ts';
 import type {
-  BlobInfo,
+  BlobMetadata,
   LinkedBlob,
   BrowserLogin,
   ConfigSnapshot,
@@ -180,9 +188,13 @@ export const groupMessages = (
 /** The user's post: text, and the images and files uploaded to the group for it. */
 export const groupPost = (
   id: string,
-  body: { content?: string; blocks?: readonly MessageBlock[] },
+  body: { content?: string; blocks?: readonly MessageBlock[]; metadata?: unknown },
 ): Promise<{ message: GroupMessage; woken: string[] }> =>
-  post(`${groupPath(id)}/messages`, { text: body.content ?? '', attachments: inputAttachments(body.blocks) });
+  post(`${groupPath(id)}/messages`, {
+    text: body.content ?? '',
+    attachments: inputAttachments(body.blocks),
+    ...(body.metadata ? { metadata: body.metadata } : {}),
+  });
 export const uploadGroupBlob = async (
   gid: string,
   bytes: ArrayBuffer | Uint8Array | Blob,
@@ -332,12 +344,16 @@ const inputAttachments = (blocks: readonly MessageBlock[] = []) =>
   }));
 export const messageSend = async (
   id: string,
-  body: { content?: string; blocks?: readonly MessageBlock[] },
+  body: { content?: string; blocks?: readonly MessageBlock[]; metadata?: unknown },
   opts?: EndpointOptions,
 ): Promise<{ id: string; entry: number; first_user_message?: boolean }> => {
   const result = await post(
     `${path(id)}/input`,
-    { text: body.content ?? '', attachments: inputAttachments(body.blocks) },
+    {
+      text: body.content ?? '',
+      attachments: inputAttachments(body.blocks),
+      ...(body.metadata ? { metadata: body.metadata } : {}),
+    },
     opts,
   );
   return { id: String(result.entry), entry: result.entry, first_user_message: result.first_user_message === true };
@@ -441,15 +457,23 @@ export const uploadDraftBlob = async (
   });
   return { ...blob, sha256: blob.id };
 };
-export const linkSessionFile = (session: string, localPath: string): Promise<LinkedBlob> =>
-  post(`${path(session)}/blobs/link`, { path: localPath });
-export const blobMetadata = (reference: string): Promise<BlobInfo> => get(`${blobPath(reference)}/meta`);
+export const linkSessionFile = (session: string, localPath: string, temporary = false): Promise<LinkedBlob> =>
+  post(`${path(session)}/blobs/link`, { path: localPath, temporary });
+export const blobMetadata = (reference: string, opts?: EndpointOptions): Promise<BlobMetadata> =>
+  get(`${blobPath(reference)}/meta`, opts);
 export const sessionBlobs = (
   session: string,
   start = 0,
   opts?: EndpointOptions,
-): Promise<import('./types.ts').BlobPage> => get(`${path(session)}/blobs`, { query: { start, limit: 80 }, ...opts });
+): Promise<import('./types.ts').BlobPage> =>
+  get(`${path(session)}/blobs`, { ...opts, query: { start, limit: 80, ...opts?.query } });
+export const updateBlobLibrary = (
+  reference: string,
+  changes: { visible?: boolean; pinned?: boolean },
+): Promise<{ visible: boolean; pinned: boolean; name?: string | null }> =>
+  patch(`${blobPath(reference)}/library`, changes);
 export const blobUrl = (reference: string) => `${getBaseUrl()}${blobPath(reference)}`;
+export const deleteBlob = (reference: string) => del(blobPath(reference));
 
 // Providers.
 export const providerConfigs = async (opts?: EndpointOptions): Promise<{ providers: ProviderView[] }> => ({
@@ -603,7 +627,7 @@ export const searchCheck = (id: string): Promise<{ results: SearchHit[]; warning
 
 // Usage and storage.
 export const usageTotals = (opts?: EndpointOptions): Promise<UsageSnapshot> => get('/usage', opts);
-export const sessionUsage = (id: string) => get(`${path(id)}/usage`);
+export const sessionUsage = (id: string, options?: { signal?: AbortSignal }) => get(`${path(id)}/usage`, options);
 export const usageSeries = (
   id: string | undefined,
   params: SeriesQuery,
@@ -754,4 +778,16 @@ export function imagePreviewUrl(src: string, width: 384 | 768 | 1536, original: 
   parsed.pathname += '/image';
   parsed.search = `?width=${width}`;
   return parsed.href;
+}
+
+export const replyLinks = (
+  id: string,
+  source: string,
+  cursor?: unknown,
+  opts?: EndpointOptions,
+): Promise<{ items: import('../replyReferences.ts').ReplyLink[]; next: unknown }> =>
+  post(`${path(id)}/history/replies`, { source, cursor }, opts);
+export async function replyMessage(id: string, seq: number, opts?: EndpointOptions): Promise<EntryView | undefined> {
+  const result = await get(`${path(id)}/history/${seq}`, opts);
+  return result.map((item: unknown) => entryView(item, id)).find((item: EntryView) => item.seq === seq);
 }

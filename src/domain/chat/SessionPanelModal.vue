@@ -9,7 +9,17 @@ import { tr } from '../../core/i18n/tr.ts';
 import Modal from '../../ui/components/Modal.vue';
 import { sessionPanelCloseKey, sessionPanelElementsKey } from './sessionPanel.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
-const props = defineProps<{ open: boolean; title: string; page?: boolean; sidebar?: boolean; contentClass?: string }>();
+const props = withDefaults(
+  defineProps<{
+    open: boolean;
+    title: string;
+    page?: boolean;
+    sidebar?: boolean;
+    contentClass?: string;
+    backLayer?: boolean;
+  }>(),
+  { backLayer: true },
+);
 const emit = defineEmits<{ close: [] }>();
 const modal = ref<InstanceType<typeof Modal>>();
 const panelClose = inject(sessionPanelCloseKey, null);
@@ -69,6 +79,7 @@ defineExpose({ close });
     :title="title"
     :content-class="contentClass"
     :page="page"
+    :back-layer="backLayer"
     :anchor="anchor"
     :ignore-outside="ignoreOutside"
     @close="emit('close')"

@@ -4,6 +4,7 @@
 // small, so scrolling up through history stays steady. The numbers come from
 // measuring real conversations at desktop and phone widths.
 import { fileCardsHeight } from './fileChanges.ts';
+import { rowBlobMentions } from './rowBlobMentions.ts';
 import type { GroupBlock, GroupItem } from '../../domain/chat/grouping.ts';
 import { albumHeight, imageParts, type ImageAlbumItem } from '../../domain/chat/imageAlbums.ts';
 
@@ -51,7 +52,8 @@ const mediaHeight = (blocks: readonly GroupBlock[], width: number) =>
 
 /** `width` is the conversation column's; below 600px the phone layout's sizes apply. */
 export function estimateRow(row: GroupItem | ImageAlbumItem | { type: string }, width: number): number {
-  return fileCardsHeight(row) + estimateContent(row, width);
+  const mentions = rowBlobMentions(row);
+  return fileCardsHeight(row) + (mentions.length ? 18 + mentions.length * 58 : 0) + estimateContent(row, width);
 }
 function estimateContent(row: GroupItem | ImageAlbumItem | { type: string }, width: number): number {
   const compact = width < 600;

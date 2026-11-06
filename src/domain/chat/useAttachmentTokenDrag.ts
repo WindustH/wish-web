@@ -8,6 +8,7 @@ export function useAttachmentTokenDrag(
   root: Ref<HTMLElement | null>,
   commit: (text: string, caret: number) => void,
   restore: () => void,
+  activate?: (token: string) => void,
 ) {
   let active:
     | {
@@ -87,6 +88,11 @@ export function useAttachmentTokenDrag(
       borderRadius: style.borderRadius,
       boxSizing: 'border-box',
       width: `${drag.source.getBoundingClientRect().width}px`,
+      // The clone lives under body, outside the editor's scoped token styles.
+      display: 'inline-block',
+      maxWidth: 'calc(100vw - 16px)',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
       whiteSpace: 'nowrap',
       boxShadow: '0 4px 14px #0003',
       willChange: 'transform',
@@ -229,7 +235,9 @@ export function useAttachmentTokenDrag(
     const drag = active;
     if (!drag || drag.pointer !== event.pointerId) return;
     if (!drag.started) {
+      const token = drag.source.dataset.attachmentToken!;
       cleanup();
+      activate?.(token);
       return;
     }
     drag.x = event.clientX;

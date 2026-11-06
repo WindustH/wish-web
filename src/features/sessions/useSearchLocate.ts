@@ -12,6 +12,7 @@ export function useSearchLocate(
   owns: (gen: number) => boolean,
   getEpoch: () => number,
   onLocated: (toward: 'history') => void,
+  sourceSeq: () => number | undefined = () => undefined,
 ) {
   const targetSeq = ref<number | null>(null);
   const forcedOpen = ref(new Set<string>());
@@ -79,12 +80,21 @@ export function useSearchLocate(
           document.querySelector(
             `${selector}[data-seq="${seq}"], ${selector}[data-result-seq="${seq}"]`,
           ) as HTMLElement | null;
-        const node =
-          hold('.proc-event-button') ??
-          hold('.history-rail-node') ??
-          hold('.history-chip-host') ??
-          hold('.entry-anchor') ??
-          (document.querySelector(`[data-seq="${seq}"], [data-result-seq="${seq}"]`) as HTMLElement | null);
+        // A text reference targets the message itself. Its rail button may already
+        // be mounted while the virtual message is absent; that is not a landing.
+        const row = groups.value[idx];
+        const messageTarget =
+          sourceSeq() === seq ||
+          (row?.type === 'entry' &&
+            row.entry?.seq === seq &&
+            ['assistant_message', 'user_message'].includes(row.entry?.kind));
+        const node = messageTarget
+          ? hold('.entry-anchor')
+          : (hold('.proc-event-button') ??
+            hold('.history-rail-node') ??
+            hold('.history-chip-host') ??
+            hold('.entry-anchor') ??
+            (document.querySelector(`[data-seq="${seq}"], [data-result-seq="${seq}"]`) as HTMLElement | null));
         if (!node) {
           if (idx < 0) break;
           forcedOpen.value.add(groups.value[idx]!.key);
@@ -93,7 +103,18 @@ export function useSearchLocate(
           await nextFrame();
           continue;
         }
-        node.scrollIntoView({ block: 'center' });
+        // Commit source-range markers before landing. A separate delayed scroll in
+        // the message races virtual row measurement and index reconciliation.
+        await nextTick();
+        await nextFrame();
+        if (!current()) return;
+        const range = node.querySelector<HTMLElement>('[data-reply-focus]');
+        const viewport = virtualizer.value.scrollElement;
+        if (viewport && node.classList.contains('entry-anchor')) {
+          const box = (range ?? node).getBoundingClientRect();
+          const offset = viewport.scrollTop + box.top - viewport.getBoundingClientRect().top;
+          virtualizer.value.scrollToOffset(offset - Math.max(0, (viewport.clientHeight - box.height) / 2));
+        } else node.scrollIntoView({ block: 'center' });
         // A step in a run's window, or a notice's button, shows itself as the one found.
         if (!node.classList.contains('entry-anchor')) {
           node.classList.remove('located');

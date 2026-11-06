@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // A text segment of an assistant entry, with its preceding steps and notices on a quiet left rail.
+import ReplyText from '../../../domain/chat/ReplyText.vue';
 import { computed } from 'vue';
 import { i18n } from '../../../core/i18n/index.ts';
 import { blobUrl } from '../../../core/api/endpoints.ts';
 import { fmtTokens } from '../../../core/util/fmt.ts';
-import Markdown from '../../../ui/components/Markdown.vue';
+import Markdown from '../../../domain/references/ReferenceMarkdown.vue';
 import MessageContext from '../../../domain/chat/entries/MessageContext.vue';
 import BlobImage from '../../../domain/media/BlobImage.vue';
 import ImageGrid from '../../../domain/chat/entries/ImageGrid.vue';
@@ -53,7 +54,14 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
               />
             </div>
           </ImageGrid>
-          <Markdown data-selectable-text v-else-if="part.block.type === 'text'" :text="part.block.text" />
+          <ReplyText
+            v-else-if="part.block.type === 'text'"
+            :seq="item.entry?.seq"
+            :block="item.entry?.payload?.content?.indexOf(part.block) ?? -1"
+            :text="part.block.text"
+          >
+            <Markdown data-selectable-text :text="part.block.text" />
+          </ReplyText>
           <BlobImage
             v-else-if="part.block.type === 'image' && blobSrc(part.block)"
             class="assistant-img"

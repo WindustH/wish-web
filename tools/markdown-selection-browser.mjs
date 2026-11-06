@@ -59,5 +59,14 @@ await browserFixture(html,async({js})=>{
  assert.equal(await js('extract("p",2,3)'),'&amp;');
  await js('window.update("A &#x26; B &amp; C")');
  assert.equal(await js('extract("p",2,3)'),'&#x26;');
+ await js('window.update("before **bold** after")');
+ await js('document.querySelector("strong").setAttribute("data-md","999999")');
+ assert.equal(await js('extract("strong")'),'bold','stale structural mapping does not throw');
+ await js('window.update("before **cold** after")');
+ assert.equal(await js('extract("strong")'),'**cold**','same-length edits invalidate rendered content');
+ await js('window.update("[label][ref]\\n\\n[ref]: https://a.test")');
+ assert.equal(await js('document.querySelector("a").getAttribute("href")'),'https://a.test');
+ await js('window.update("[label][ref]\\n\\n[ref]: https://b.test")');
+ assert.equal(await js('document.querySelector("a").getAttribute("href")'),'https://b.test','reference changes invalidate unchanged labels');
  console.log('Markdown selection: heading, inline formatting, partial word, link, repeated text, code fence, list, entire message passed');
 });

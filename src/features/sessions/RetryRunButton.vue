@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { chat } from '../../core/state/chatSlice.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { showError } from '../../ui/errorDialog.ts';
-import Icon from '../../ui/components/Icon.vue';
+import RunRetryButton from '../../domain/chat/RunRetryButton.vue';
 const props = defineProps<{ session: string; sequence?: number }>();
 const available = computed(() => {
   const snapshot = chat.snapshot.value;
@@ -13,7 +13,8 @@ const available = computed(() => {
   if (outcomeId == null) return false;
   const outcome = chat.entries.value.find((entry) => entry.event_id === outcomeId);
   const failure = outcome?.payload.failure;
-  if (!failure || !/transport|streamfailed/i.test(failure.family)) return false;
+  // A user-requested run may retry any failed outcome, independently of automatic retry policy.
+  if (!failure) return false;
   return props.sequence == null || outcome?.seq === props.sequence;
 });
 async function retry() {
@@ -25,26 +26,5 @@ async function retry() {
 }
 </script>
 <template>
-  <button v-if="available" class="btn sm retry-run" :disabled="chat.retryingRun.value" @click="retry">
-    <Icon :name="chat.retryingRun.value ? 'loader-circle' : 'refresh-cw'" />
-    {{ tr('从断点重试', 'Retry from checkpoint') }}
-  </button>
+  <RunRetryButton v-if="available" :busy="chat.retryingRun.value" @retry="retry" />
 </template>
-<style scoped>
-.retry-run {
-  display: flex;
-  margin: 12px 0 0 auto;
-  color: var(--err);
-  background: transparent;
-  border-color: var(--err-border);
-}
-@media (hover: hover) {
-  .retry-run:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--err) 10%, transparent);
-  }
-}
-.retry-run:focus-visible {
-  outline: 2px solid var(--err);
-  outline-offset: 2px;
-}
-</style>

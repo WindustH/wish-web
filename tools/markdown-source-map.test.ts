@@ -3,6 +3,15 @@ import assert from 'node:assert/strict';
 import MarkdownIt from 'markdown-it';
 import {markdownSourceMap,sourceLocation} from '../src/ui/markdownSourceMap.ts';
 import {cjkEmphasis} from '../src/ui/markdownEmphasis.ts';
+test('installing source mapping twice preserves offsets and rendering', () => {
+ const mapped = new MarkdownIt().use(markdownSourceMap);
+ const source = '> repeated **words** &amp; text';
+ const before = mapped.render(source);
+ const runs = mapped.parse(source, {}).flatMap(token => token.children ?? []).map(sourceLocation);
+ mapped.use(markdownSourceMap);
+ assert.equal(mapped.render(source), before);
+ assert.deepEqual(mapped.parse(source, {}).flatMap(token => token.children ?? []).map(sourceLocation), runs);
+});
 const cases=[
  '# Heading\n\nParagraph **bold** _italic_ ~~strike~~.',
  'Escaped \\* &amp; &#x1F600; and ` code ` and ``a`b``.',
@@ -38,4 +47,15 @@ test('many escapes and line offsets use bounded, indexed source runs',()=>{
  assert.equal(tokens.length,3);
  assert.ok(elapsed<2000,`mapping ${source.length} characters took ${elapsed}ms`);
  console.log(`source-map stress: ${source.length} chars, ${elapsed.toFixed(1)}ms`);
+});
+
+test('link normalization tolerates missing source runs',()=>{
+ const mapped=new MarkdownIt({linkify:true}).use(markdownSourceMap);
+ mapped.normalizeLinkText=()=> 'normalized';
+ mapped.core.ruler.after('inline','incomplete_mapping',state=>{
+  for(const block of state.tokens) for(const child of block.children??[]) {
+   const location=sourceLocation(child);if(location)location.runs=[];
+  }
+ });
+ assert.doesNotThrow(()=>mapped.render('www.example.com'));
 });

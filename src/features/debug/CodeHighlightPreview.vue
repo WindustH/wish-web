@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Markdown from '../../ui/components/Markdown.vue';
+import Markdown from '../../domain/references/ReferenceMarkdown.vue';
 const samples = [
   [
     'typescript',

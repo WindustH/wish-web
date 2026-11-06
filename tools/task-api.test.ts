@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setBaseUrl } from '../src/core/api/client.ts';
-import { sessionTasks, taskOutput } from '../src/core/api/tasks.ts';
+import { sessionTasks, taskOutput } from '../src/core/api/endpoints.ts';
 
 test('task viewing uses session-scoped list and nonblocking bounded output reads', async (t) => {
   setBaseUrl('https://wish.test/api');

@@ -1,3 +1,4 @@
+import type { QueuedAttachment } from '../../core/api/types.ts';
 import { imageFormat, supportedImageMime, supportedModelImageMime } from '../../core/imageFormat.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { shouldAttachPastedText, pastedTextFile } from '../../core/pastedText.ts';
@@ -54,7 +55,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
   function hasAttachmentSpace(kind: 'image' | 'file') {
     const isImage = kind === 'image';
     const count = isImage ? limits.value.imageCount : limits.value.fileCount;
-    if (attachments.value.filter((item) => item.kind === kind).length >= count) {
+    if (attachments.value.filter((item) => item.kind === kind && !(item.reply && kind === 'file')).length >= count) {
       toast(
         tr(
           `最多添加 ${count} 个${isImage ? '图片' : '文件'}附件`,
@@ -128,7 +129,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
     }
   }
 
-  async function refillAttachments(items: any[]) {
+  async function refillAttachments(items: QueuedAttachment[]) {
     deletedAttachments.clear();
     const epoch = ++attachmentEpoch;
     revokeAll(attachments.value);
@@ -137,16 +138,18 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
     readingAttachments.value = 1;
     try {
       for (const item of items) {
+        const kind = item.kind;
+        if (kind !== 'image' && kind !== 'file') continue;
         try {
-          if (item.kind === 'file') {
+          if (kind === 'file') {
             if (!hasAttachmentSpace('file')) continue;
             attachments.value.push({
               kind: 'file',
-              name: item.filename,
+              name: item.filename ?? undefined,
               placeholder: item.placeholder,
               size: item.byte_count,
               mime: item.mime_type || 'application/octet-stream',
-              stored: { owner: item.blob_id.split('/')[0], id: item.blob_id.split('/').at(-1) },
+              stored: { owner: item.blob_id.split('/')[0], id: item.blob_id.split('/').at(-1)! },
               bytes: new ArrayBuffer(0),
               localUrl: '',
             });
@@ -156,15 +159,15 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
           const response = await apiFetch(imagePreviewUrl(blobUrl(item.blob_id), 384, false));
           if (!response.ok) throw new Error(`blob ${item.blob_id}: ${response.status}`);
           const previewBlob = await response.blob();
-          if (epoch !== attachmentEpoch || !hasAttachmentSpace(item.kind)) continue;
+          if (epoch !== attachmentEpoch || !hasAttachmentSpace(kind)) continue;
           const mime = item.mime_type || 'image/png';
           attachments.value = [
             ...attachments.value,
             {
-              kind: item.kind,
-              name: item.filename,
+              kind,
+              name: item.filename ?? undefined,
               mime,
-              stored: { owner: item.blob_id.split('/')[0], id: item.blob_id.split('/').at(-1) },
+              stored: { owner: item.blob_id.split('/')[0], id: item.blob_id.split('/').at(-1)! },
               placeholder: item.placeholder,
               bytes: new ArrayBuffer(0),
               size: item.byte_count,
@@ -176,10 +179,10 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
         } catch (error) {
           if (epoch === attachmentEpoch) {
             attachments.value.push({
-              kind: item.kind,
-              name: item.filename,
+              kind,
+              name: item.filename ?? undefined,
               placeholder: item.placeholder,
-              stored: { owner: item.blob_id.split('/')[0], id: item.blob_id.split('/').at(-1) },
+              stored: { owner: item.blob_id.split('/')[0], id: item.blob_id.split('/').at(-1)! },
               mime: item.mime_type || 'application/octet-stream',
               bytes: new ArrayBuffer(0),
               localUrl: '',

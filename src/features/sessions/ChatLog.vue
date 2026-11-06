@@ -4,7 +4,8 @@ import { describeError } from '../../core/i18n/errorMessages.ts';
 import { displayFailure } from '../../core/api/failures.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
-import { computed, nextTick, onUnmounted, provide, ref, watch } from 'vue';
+import { computed, inject, nextTick, onUnmounted, provide, ref, watch } from 'vue';
+import { replyContextKey } from '../../domain/references/context.ts';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { chat } from '../../core/state/chatSlice.ts';
 import { chatWorkIndicator } from './phaseIndicator.ts';
@@ -35,7 +36,7 @@ import {
 } from './entries/railMeta.ts';
 import type { EntryView } from '../../core/api/projections.ts';
 import HistoryItem from './HistoryItem.vue';
-import Markdown from '../../ui/components/Markdown.vue';
+import Markdown from '../../domain/references/ReferenceMarkdown.vue';
 import ThinkingViewport from './ThinkingViewport.vue';
 import RetryRunButton from './RetryRunButton.vue';
 import RetryStatus from './RetryStatus.vue';
@@ -189,36 +190,35 @@ const rowEvents = (row: ChatRow): RailEvent[] => {
 // virtual range change must not parse thousands of tool calls and previews again.
 const railEvents = computed(() => groups.value.map(rowEvents));
 
-// Where the rail stands. It lives inside the scrolling content, so its own y needs no thought -
-// rows and nodes share one origin. On a phone, a drawer a rightward drag reveals (useRailSwipe):
-// the panel translates aside and the rail rides with it, hidden wholly from hits until opened.
-// On a writing desk it never hides: with margin to spare it floats in it beside the words; when
-// the margin cannot hold a node (24), its badge (7) and air (9) there, the log itself yields a
-// lane (.rail-lane, +40px of padding) and the rail stands in it. The lane is judged on the
-// margin the words would have without it, so granting it cannot oscillate.
+// The rail shares the transcript's scrolling origin. It floats in spare desktop margin;
+// phones and crowded desktop panes reveal it as a drawer without narrowing the words.
 const wrapEl = ref<HTMLElement | null>(null);
 const innerEl = ref<HTMLElement | null>(null);
 const railVersion = ref(0);
 const railTotal = computed(() => Math.max(36, virtualizer.value.getTotalSize()));
-// The phone's lane gesture lives on the frame, never on the scroll container; its state outlives
-// a session switch - it is the pane's preference, not the conversation's.
+const railDrawer = computed(() => {
+  if (props.mobile) return true;
+  void railVersion.value;
+  const inner = innerEl.value;
+  const scroll = scrollEl.value;
+  if (!inner || !scroll) return false;
+  // Layout widths exclude the drawer's translation. Opening it must never change
+  // the decision to collapse it, even when a sidebar is resized at the same time.
+  const margin = (scroll.clientWidth - inner.offsetWidth) / 2;
+  return margin < 64; // 24px outer gutter plus 40px for the rail and separation.
+});
+// Drawer preference survives session switches. Desktop mouse users get a button so
+// horizontal text selection remains available; touch uses the same swipe as a phone.
 const railSwipe = useRailSwipe({
   wrap: wrapEl,
   scroll: scrollEl,
   content: scrollContentEl,
-  enabled: computed(() => props.mobile),
+  enabled: railDrawer,
+  allowMouse: computed(() => props.mobile),
 });
-const railPlace = computed(() => {
-  if (props.mobile) return { visible: railSwipe.open.value, lane: false };
-  void railVersion.value;
-  const wrap = wrapEl.value;
-  const inner = innerEl.value;
-  const scroll = scrollEl.value;
-  if (!wrap || !inner) return { visible: true, lane: false };
-  const lane = scroll?.classList.contains('rail-lane') ?? false;
-  const wordsLeft = inner.getBoundingClientRect().left - wrap.getBoundingClientRect().left - (lane ? 40 : 0);
-  return { visible: true, lane: wordsLeft - 24 < 40 };
-});
+const railToggleLabel = computed(() =>
+  railSwipe.open.value ? tr('收起时间线', 'Hide timeline') : tr('展开时间线', 'Show timeline'),
+);
 
 const workIndicator = computed(() =>
   chatWorkIndicator({
@@ -318,15 +318,26 @@ const {
 });
 
 // Search locate & virtual item expansion
-const { targetSeq, forcedOpen } = useSearchLocate(chat, groups, virtualizer, owns, getEpoch, (toward) => {
-  scrollIntent(toward);
-  measureScroll();
-});
+const replies = inject(replyContextKey, undefined);
+const { targetSeq, forcedOpen } = useSearchLocate(
+  chat,
+  groups,
+  virtualizer,
+  owns,
+  getEpoch,
+  (toward) => {
+    scrollIntent(toward);
+    measureScroll();
+  },
+  () => replies?.focus?.value?.seq,
+);
 // Whether a row is itself the history entry a search result points at; a step or notice found
 // among a reply's buttons is marked on its own (useSearchLocate).
 function holdsTarget(row: ChatRow | undefined): boolean {
   const seq = targetSeq.value;
   if (seq == null || !row) return false;
+  // Source-range references paint only their words; no whole-row search decoration.
+  if (replies?.focus?.value?.seq === seq && replies.focus.value.start !== undefined) return false;
   if (row.type === 'entry') return row.entry.seq === seq;
   if (row.type === 'image_album') return row.items.some((item) => item.entry.seq === seq);
   if (row.type === 'question') return row.entry.seq === seq || row.result?.seq === seq;
@@ -369,10 +380,10 @@ watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().leng
 
 // Initial estimates can settle after the first tail landing. Follow late
 // content growth only while the reader still wants the latest.
-// The rail's lane is read from the layout around it - the frame, the words' column, the window -
+// The rail's available margin is read from the frame, the words' column and the window,
 // so every one of them is watched: a sidebar opening, the composer growing, the window resized.
-// Each change is re-read a frame later, when the new layout has settled, so the lane follows a
-// resize instead of vanishing on a stale measurement. The rail itself needs none of this to
+// Each change is re-read a frame later, when the new layout has settled, so the drawer follows
+// the available space. The rail itself needs none of this to
 // scroll: it lives in the content and rides the native scroll with no JS on the path.
 watch(
   [wrapEl, innerEl, scrollContentEl],
@@ -425,6 +436,7 @@ watch(
   <div
     ref="wrapEl"
     class="chatlog-wrap"
+    :class="{ 'rail-drawer': railDrawer }"
     @wheel.passive="onWheel"
     @touchstart.passive="onTouchStart"
     @touchmove="onTouchMove"
@@ -438,7 +450,6 @@ watch(
       ref="scrollEl"
       data-selection-viewport
       class="chatlog"
-      :class="{ 'rail-lane': railPlace.lane }"
       data-scroll-preserve
       :data-following="stick"
       tabindex="0"
@@ -562,12 +573,24 @@ watch(
           :key="sessionId"
           :rows="railRows"
           :total="railTotal"
-          :visible="railPlace.visible"
+          :visible="!railDrawer || railSwipe.open.value"
+          :drawer="railDrawer"
           :session="sessionId"
           @open="openActivity"
         />
       </div>
     </div>
+    <Hint v-if="railDrawer && !mobile && activityChips.length" :text="railToggleLabel">
+      <button
+        type="button"
+        class="rail-drawer-toggle btn ghost icon-only"
+        :aria-label="railToggleLabel"
+        :aria-expanded="railSwipe.open.value"
+        @click="railSwipe.toggle"
+      >
+        <Icon :name="railSwipe.open.value ? 'chevron-left' : 'chevron-right'" :size="16" />
+      </button>
+    </Hint>
     <ActivityDialogs
       :key="sessionId"
       :chips="activityChips"
@@ -589,6 +612,17 @@ watch(
 </template>
 
 <style scoped>
+.rail-drawer-toggle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 24px;
+  height: 28px;
+  min-height: 28px;
+  padding: 4px;
+  color: var(--fg-subtle);
+}
 .font-warmup {
   position: absolute;
   left: 0;

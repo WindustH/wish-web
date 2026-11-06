@@ -1,9 +1,18 @@
 <script setup lang="ts">
+import type { LibraryTarget } from './libraryTarget.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
 import { useVirtualGrid } from '../../ui/composables/useVirtualGrid.ts';
 import { computed, nextTick, onBeforeUnmount, provide, ref, useId, watch } from 'vue';
-import { sessionBlobs, blobUrl, uploadSessionBlob, linkSessionFile, blobMetadata } from '../../core/api/endpoints.ts';
+import {
+  sessionBlobs,
+  blobUrl,
+  uploadSessionBlob,
+  linkSessionFile,
+  blobMetadata,
+  updateBlobLibrary,
+  deleteBlob,
+} from '../../core/api/endpoints.ts';
 import type { LibraryBlob } from '../../core/api/types.ts';
 import type { EntryView } from '../../core/api/projections.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -26,6 +35,25 @@ import Icon from '../../ui/components/Icon.vue';
 import SessionBlobPreview from './SessionBlobPreview.vue';
 import { attachmentNames, blobKind, blobIcon, blobName, type BlobKind } from './libraryFiles.ts';
 
+const previewRef = ref<InstanceType<typeof SessionBlobPreview>>();
+const mediaToolbar = ref<HTMLElement>();
+let opening = 0;
+async function openTarget(target: LibraryTarget['target']) {
+  const owner = 'owner' in target ? target.owner : target.session;
+  const id = 'owner' in target ? target.id : target.blob;
+  if (!id || owner !== props.session) return;
+  const request = ++opening;
+  const blob = await blobMetadata(`${owner}/${id}`);
+  if (request !== opening || owner !== props.session) return;
+  const name = 'owner' in target ? target.name : (target.fileName ?? target.label);
+  if (name) uploadedNames.value.set(blob.id, name);
+  selectBlob({ ...blob, modified_at: 0 });
+  await nextTick();
+  if (request !== opening || owner !== props.session) return;
+  if ('owner' in target) previewRef.value?.locateFile(target);
+  else previewRef.value?.locate(target);
+}
+
 const linkFormId = useId();
 const props = defineProps<{
   session: string;
@@ -33,8 +61,9 @@ const props = defineProps<{
   open: boolean;
   entries: EntryView[];
   libraryRevision: number;
+  pendingTarget?: LibraryTarget;
 }>();
-const emit = defineEmits<{ close: []; mention: [blob: LibraryBlob, name: string] }>();
+const emit = defineEmits<{ close: []; targetHandled: [request: number]; mention: [blob: LibraryBlob, name: string] }>();
 const items = ref<LibraryBlob[]>([]),
   selected = ref<LibraryBlob | null>(null);
 const next = ref<number | null>(null),
@@ -49,7 +78,9 @@ const saved = useWorkspaceState('library', () => props.session, {
   loaded: 0,
 });
 const filter = ref<BlobKind | 'all'>('all');
-function choose(blob: LibraryBlob | null) {
+const showAll = ref(false);
+const updating = ref(new Set<string>());
+function selectBlob(blob: LibraryBlob | null) {
   selected.value = blob;
   saved.value.selected = blob?.id ?? '';
   saved.value.name = blob ? filename(blob) : '';
@@ -77,9 +108,7 @@ async function addLink() {
     if (owner !== props.session) return;
     linkOpen.value = false;
     localPath.value = '';
-    controller?.abort();
-    loading.value = false;
-    await load();
+    await reload();
   } catch (cause) {
     linkError.value = describeError(cause).message;
   } finally {
@@ -105,7 +134,7 @@ async function upload() {
         if (file.size > limit) throw new Error(i18n.t('library.tooLarge', { size: fmtBytes(limit) }));
         const bytes = file.body ?? (await file.read());
         if (request.signal.aborted || props.session !== owner) return;
-        const blob = await uploadSessionBlob(owner, bytes, { signal: request.signal });
+        const blob = await uploadSessionBlob(owner, bytes, { signal: request.signal, query: { name: file.name } });
         if (request.signal.aborted || props.session !== owner) return;
         if (file.name) uploadedNames.value.set(blob.id, file.name);
       } catch (cause) {
@@ -123,13 +152,50 @@ async function upload() {
     }
     if (!request.signal.aborted && owner === props.session) {
       // Replace an in-flight stale catalog response after the upload completes.
-      controller?.abort();
-      loading.value = false;
-      await load();
+      await reload();
     }
   }
 }
-const menuItems = computed(() => [{ key: 'mention', label: i18n.t('library.mention'), icon: 'at-sign' }]);
+const menuItems = (blob: LibraryBlob) => [
+  { key: 'mention', label: i18n.t('library.mention'), icon: 'at-sign' },
+  {
+    key: 'visible',
+    label: blob.visible === false ? tr('加入展示库', 'Show in Library') : tr('从库中隐藏', 'Hide from Library'),
+    icon: blob.visible === false ? 'eye' : 'eye-off',
+  },
+  {
+    key: 'pin',
+    label: blob.pinned ? tr('取消置顶', 'Unpin') : tr('置顶', 'Pin to top'),
+    icon: 'pin',
+    checked: !!blob.pinned,
+  },
+  { key: 'delete', label: tr('删除文件', 'Delete file'), icon: 'trash-2', danger: true, separator: true },
+];
+async function act(key: string, blob: LibraryBlob) {
+  if (key === 'mention') return mention(blob);
+  if (updating.value.has(blob.id)) return;
+  const owner = props.session;
+  updating.value.add(blob.id);
+  try {
+    if (key === 'delete') {
+      await deleteBlob(`${owner}/${blob.id}`);
+      if (owner !== props.session) return;
+      if (selected.value?.id === blob.id) selectBlob(null);
+    } else {
+      const state = await updateBlobLibrary(
+        `${owner}/${blob.id}`,
+        key === 'pin' ? { pinned: !blob.pinned } : { visible: blob.visible === false },
+      );
+      if (owner !== props.session) return;
+      if (selected.value?.id === blob.id) selected.value = { ...selected.value, ...state };
+    }
+    await reload(true);
+  } catch (cause) {
+    toast(describeError(cause).message);
+  } finally {
+    updating.value.delete(blob.id);
+  }
+}
 function mention(blob: LibraryBlob) {
   emit('mention', blob, filename(blob));
 }
@@ -148,6 +214,16 @@ watch(filter, (value) => {
   saved.value.scroll = 0;
 });
 watch(() => props.session, grid.reset);
+watch(showAll, () => {
+  controller?.abort();
+  loading.value = false;
+  items.value = [];
+  next.value = null;
+  total.value = 0;
+  grid.reset();
+  saved.value.scroll = 0;
+  void load();
+});
 function rememberGrid() {
   if (gridViewport.value?.clientHeight && active.value) saved.value.scroll = gridViewport.value.scrollTop;
 }
@@ -171,7 +247,7 @@ function selectFilter(value: string) {
   if (kind) filter.value = kind;
 }
 function back() {
-  if (selected.value) choose(null);
+  if (selected.value) selectBlob(null);
   else emit('close');
 }
 useBackLayer(
@@ -182,17 +258,22 @@ useBackLayer(
 useBackLayer(
   () => props.open && props.mobile && !!selected.value,
   () => {
-    choose(null);
+    selectBlob(null);
   },
   () => 46,
 );
 watch(
   () => props.libraryRevision,
   () => {
-    choose(null);
+    selectBlob(null);
   },
 );
 let controller: AbortController | undefined;
+function reload(quiet = false) {
+  controller?.abort();
+  loading.value = false;
+  return load(false, quiet);
+}
 async function load(more = false, quiet = false) {
   if (loading.value) return;
   const request = new AbortController();
@@ -201,7 +282,10 @@ async function load(more = false, quiet = false) {
   loading.value = true;
   if (!quiet) error.value = '';
   try {
-    const page = await sessionBlobs(owner, more ? (next.value ?? 0) : 0, { signal: request.signal });
+    const page = await sessionBlobs(owner, more ? (next.value ?? 0) : 0, {
+      signal: request.signal,
+      query: { include_hidden: showAll.value },
+    });
     if (request.signal.aborted || owner !== props.session) return;
     const known = new Map((more ? items.value : []).map((blob) => [blob.id, blob]));
     for (const blob of page.items) known.set(blob.id, blob);
@@ -261,7 +345,7 @@ watch(
           };
           if (!disposed && props.session === owner && saved.value.selected === restored.selected) selected.value = blob;
         } catch {
-          if (!disposed && props.session === owner) {
+          if (!disposed && props.session === owner && saved.value.selected === restored.selected) {
             saved.value.selected = '';
           }
         }
@@ -280,6 +364,25 @@ watch(
     });
   },
   { immediate: true },
+);
+watch(
+  [() => props.pendingTarget, () => props.open],
+  async ([pending, open], _, cleanup) => {
+    if (!pending || !open) return;
+    let current = true;
+    cleanup(() => {
+      current = false;
+      opening++;
+    });
+    try {
+      await openTarget(pending.target);
+    } catch (cause) {
+      if (current) toast(describeError(cause).message);
+    } finally {
+      if (current) emit('targetHandled', pending.request);
+    }
+  },
+  { immediate: true, flush: 'post' },
 );
 </script>
 
@@ -303,8 +406,8 @@ watch(
         <Icon :name="selected ? 'arrow-left' : 'chevron-right'" />
       </button>
     </template>
-    <template v-if="!selected" #title>
-      <span class="library-title-controls">
+    <template #title>
+      <span v-if="!selected" class="library-title-controls">
         <SelectField
           :model-value="filter"
           :options="filterOptions"
@@ -314,8 +417,30 @@ watch(
         />
         <span class="library-count" :title="i18n.t('library.count', { count: total })">{{ total }}</span>
       </span>
+      <span
+        v-else
+        class="library-file-title"
+        :title="`${filename(selected)} · ${selected.mime_type} · ${fmtBytes(selected.byte_count)}`"
+      >
+        <span>{{ filename(selected) }}</span>
+        <small v-if="selected.mime_type !== 'application/pdf'"
+          >{{ selected.mime_type }} · {{ fmtBytes(selected.byte_count) }}</small
+        >
+      </span>
     </template>
+    <template v-if="selected" #toolbar><div ref="mediaToolbar" class="library-media-toolbar" /></template>
     <template #actions>
+      <button
+        v-if="!selected"
+        class="btn ghost icon-only library-all"
+        :class="{ active: showAll }"
+        :aria-pressed="showAll"
+        :aria-label="showAll ? tr('返回展示库', 'Return to Library') : tr('查看全部文件', 'Show all files')"
+        :title="showAll ? tr('返回展示库', 'Return to Library') : tr('查看全部文件', 'Show all files')"
+        @click="showAll = !showAll"
+      >
+        <Icon name="eye" />
+      </button>
       <button
         v-if="!selected"
         class="btn ghost icon-only library-link"
@@ -357,18 +482,25 @@ watch(
       </button>
     </template>
     <template v-if="selected">
-      <div v-if="selected.mime_type !== 'application/pdf'" class="library-file-meta">
-        {{ selected.mime_type }} · {{ fmtBytes(selected.byte_count) }}
-      </div>
       <SessionBlobPreview
+        ref="previewRef"
         :key="`${session}/${selected.id}`"
         :session="session"
         :blob="selected"
         :name="filename(selected)"
+        :toolbar="mediaToolbar"
+        @metadata="
+          (metadata) => {
+            if (selected?.id === metadata.id) selected = { ...selected, ...metadata };
+          }
+        "
       />
     </template>
     <template v-else>
       <div ref="gridViewport" class="library-scroll" @scroll.passive="rememberGrid">
+        <p v-if="showAll" class="library-all-hint">
+          {{ tr('全部文件 · 可将需要的文件加入展示库', 'All files · Add files you need to your Library') }}
+        </p>
         <div v-if="error" class="library-empty" role="alert">
           <p>{{ error }}</p>
           <button class="btn sm" @click="load()">{{ i18n.t('common.retry') }}</button>
@@ -378,13 +510,26 @@ watch(
           {{ i18n.t(items.length ? 'library.noMatches' : 'library.empty') }}
         </p>
         <div class="library-grid" :style="grid.style.value">
-          <Menu v-for="blob in visibleItems" :key="blob.id" context :items="menuItems" @select="mention(blob)">
-            <div class="library-card">
+          <Menu
+            v-for="blob in visibleItems"
+            :key="blob.id"
+            context
+            :items="menuItems(blob)"
+            :disabled="updating.has(blob.id)"
+            @select="act($event, blob)"
+          >
+            <div class="library-card" :class="{ 'library-hidden': blob.visible === false }">
+              <div v-if="blob.pinned || blob.visible === false" class="library-badges">
+                <span v-if="blob.pinned" :title="tr('已置顶', 'Pinned')"><Icon name="pin" :size="13" /></span>
+                <span v-if="blob.visible === false" :title="tr('未在库中展示', 'Hidden from Library')"
+                  ><Icon name="eye-off" :size="13"
+                /></span>
+              </div>
               <button
                 class="library-item"
                 :data-blob-id="blob.id"
                 :title="blob.local_path || undefined"
-                @click="choose(blob)"
+                @click="selectBlob(blob)"
               >
                 <LibraryThumbnail :session="session" :blob="blob" />
                 <span class="library-filename" :title="filename(blob)">{{ filename(blob) }}</span>
@@ -394,7 +539,12 @@ watch(
                   }}</span
                 >
               </button>
-              <Menu :items="menuItems" :label="i18n.t('library.fileActions')" @select="mention(blob)">
+              <Menu
+                :items="menuItems(blob)"
+                :disabled="updating.has(blob.id)"
+                :label="i18n.t('library.fileActions')"
+                @select="act($event, blob)"
+              >
                 <template #trigger>
                   <button class="library-item-menu btn ghost icon-only" :aria-label="i18n.t('library.fileActions')">
                     <Icon name="ellipsis-vertical" :size="16" />
@@ -491,6 +641,33 @@ watch(
   position: relative;
   min-width: 0;
 }
+.library-all.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.library-all-hint {
+  color: var(--fg-muted);
+  font-size: 11px;
+  padding: 0 2px 12px;
+}
+.library-badges {
+  position: absolute;
+  inset: 6px auto auto 6px;
+  display: flex;
+  gap: 4px;
+  z-index: 1;
+  pointer-events: none;
+}
+.library-badges span {
+  display: flex;
+  padding: 4px;
+  border-radius: 5px;
+  background: var(--bg-raised);
+  color: var(--fg-muted);
+}
+.library-hidden :deep(.library-thumbnail) {
+  opacity: 0.65;
+}
 .library-item-menu {
   position: absolute;
   bottom: 0;
@@ -564,11 +741,30 @@ watch(
   display: flex;
   margin: 20px auto 0;
 }
-.library-file-meta {
+.library-media-toolbar {
   flex: none;
-  padding: 0 18px 8px;
+  display: flex;
+  align-items: center;
+}
+.library-file-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.library-file-title > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.library-file-title small {
+  flex: none;
   font-size: 11px;
+  font-weight: 400;
   color: var(--fg-muted);
-  overflow-wrap: anywhere;
+}
+@container (max-width: 600px) {
+  .library-file-title small {
+    display: none;
+  }
 }
 </style>

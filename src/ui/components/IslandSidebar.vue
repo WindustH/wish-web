@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { DialogRoot, DialogContent, DialogOverlay, DialogTitle } from 'reka-ui';
-import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onMounted, onBeforeUnmount, provide, ref, watch } from 'vue';
+import { sidebarResizingKey } from '../composables/useSidebarResize.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
 
@@ -10,6 +11,8 @@ const props = withDefaults(
 );
 const emit = defineEmits<{ close: []; back: [] }>();
 const focus = useDialogFocus();
+const resizing = ref(false);
+provide(sidebarResizingKey, resizing);
 const handle = ref<HTMLElement>();
 // A nested touch picker can retarget its compatibility click to this scrim.
 let pressTarget: EventTarget | null = null;
@@ -38,6 +41,7 @@ function finishResize(commit = false) {
   if (!drag) return;
   const previous = drag;
   drag = undefined;
+  resizing.value = false;
   previous.target.classList.remove('is-resizing');
   document.documentElement.classList.remove('resizing');
   if (previous.target.hasPointerCapture(previous.id)) previous.target.releasePointerCapture(previous.id);
@@ -51,6 +55,7 @@ function onResizeStart(event: PointerEvent) {
   target.focus({ preventScroll: true });
   target.setPointerCapture(event.pointerId);
   drag = { id: event.pointerId, x: event.clientX, width: width.value, preferred: preferredWidth.value, target };
+  resizing.value = true;
   document.documentElement.classList.add('resizing');
   target.classList.add('is-resizing');
 }
@@ -144,6 +149,7 @@ onBeforeUnmount(() => {
         <DialogTitle class="island-title"
           ><slot name="title">{{ title }}</slot></DialogTitle
         >
+        <slot name="toolbar" />
         <div class="island-actions"><slot name="actions" /></div>
       </header>
       <div class="island-body"><slot /></div>
@@ -196,6 +202,7 @@ onBeforeUnmount(() => {
   }
 }
 .island-heading {
+  container-type: inline-size;
   flex: none;
   display: flex;
   align-items: center;

@@ -7,7 +7,7 @@ import { chat } from '../../../core/state/chatSlice.ts';
 import { tr, intlLocale } from '../../../core/i18n/tr.ts';
 import { useQuestionClock } from '../../../domain/chat/useQuestionClock.ts';
 import Icon from '../../../ui/components/Icon.vue';
-import Markdown from '../../../ui/components/Markdown.vue';
+import Markdown from '../../../domain/references/ReferenceMarkdown.vue';
 import { showError } from '../../../ui/errorDialog.ts';
 import { toast } from '../../../ui/toast.ts';
 import {

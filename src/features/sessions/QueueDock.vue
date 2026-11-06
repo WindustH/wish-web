@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { QueuedAttachment } from '../../core/api/types.ts';
 // Messages waiting for the running loop's next turn boundary. The composer's toolbar shows how many
 // wait - a clock and a count - and pressing it opens them in a bubble above, like BTW's. Rows reorder
 // by dragging, edit, or go. The protocol has no in-place edit, so edit cancels the queued delivery and
@@ -24,7 +25,7 @@ import { awaitsAnswer } from '../../core/questionWatch.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
 
-const props = defineProps<{ items: any[]; refill: (text: string, attachments?: any[]) => void }>();
+const props = defineProps<{ items: any[]; refill: (text: string, attachments?: QueuedAttachment[]) => void }>();
 
 // Attachment indicator: queued rows carry per-item references from the
 // control-plane projection; the dock only consumes "has an image" (files do

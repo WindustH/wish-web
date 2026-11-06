@@ -7,7 +7,7 @@ import { RouterLink } from 'vue-router';
 import type { GroupMessage } from '../../core/api/types.ts';
 import { groupBlob } from '../../core/api/endpoints.ts';
 import type { ContentBlock } from '../../core/api/userContent.ts';
-import Markdown from '../../ui/components/Markdown.vue';
+import Markdown from '../../domain/references/ReferenceMarkdown.vue';
 import MessageContext from '../../domain/chat/entries/MessageContext.vue';
 import UserEntry from '../../domain/chat/entries/UserEntry.vue';
 import { peerColor } from './peerColor.ts';

@@ -92,3 +92,26 @@ test('retry resumes the session once without sending another user message', asyn
     await chat.retryRun('other');assert.equal(runs,1);
   } finally {chat.close();}
 });
+
+test('new model messages keep appearing after quoting loaded or paged history', async t => {
+  t.mock.timers.enable({apis:['setTimeout','setInterval']});
+  const entry=(seq:number)=>({seq,id:seq,created_at:0,kind:'assistant_message' as const,payload:{content:[{type:'text' as const,text:'answer '+seq}]}});
+  for (const target of [100, 10]) {
+    let initial = true, latest = 100;
+    const {chat} = setup({historyPage: async (_, params) => {
+      if (initial) { initial = false; return {items:[entry(100)],has_more:true,next_cursor:100}; }
+      if (params.before != null) return {items:[],has_more:false,next_cursor:null};
+      if (params.after === 9) return {items:[entry(10)],has_more:true,next_cursor:10};
+      return {items:latest > (params.after ?? 0) ? [entry(latest)] : [],has_more:false,next_cursor:null};
+    }});
+    try {
+      await chat.open('a');
+      assert.equal(await chat.locate('a',target),true);
+      if (target === 10) await chat.fetchNewer();
+      chat.clearPendingSeq();
+      latest = 101;
+      t.mock.timers.tick(5000); t.mock.timers.tick(250); await flush();
+      assert.equal(chat.entries.value.at(-1)?.seq,101,'completed reply is reconciled without a reload');
+    } finally {chat.close();}
+  }
+});

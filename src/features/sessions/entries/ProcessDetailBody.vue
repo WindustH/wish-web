@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import Markdown from '../../../ui/components/Markdown.vue';
+import Markdown from '../../../domain/references/ReferenceMarkdown.vue';
 import { blobUrl } from '../../../core/api/endpoints.ts';
 import { fmtBytes } from '../../../core/util/fmt.ts';
 import { stepText, stepToolName, toolOutput, toolResult, fileEdits, searchResults } from './processDetails.ts';
@@ -8,6 +8,8 @@ import FileDiff from './FileDiff.vue';
 import { extensionTool } from '../../../extensions/registry.ts';
 import ToolImage from '../../../domain/media/ToolImage.vue';
 import { tr } from '../../../core/i18n/tr.ts';
+import BlobMentionCard from '../../../domain/references/BlobMentionCard.vue';
+import { readBlobMention } from '../../../core/blobMentions.ts';
 // Everything a step's detail says of itself, under its heading: the command, the fields, what
 // came back - output, images, search hits, history records - the edits it made, and its raw
 // text. Shared by the detail's two homes: a window of its own, or a panel inside a run's window.
@@ -27,6 +29,7 @@ const name = computed(() => stepToolName(props.step));
 // What came back: the step itself when it is a result, or the result of the call it shows.
 const res = computed(() => (isResult.value ? props.step : (props.relatedResult ?? null)));
 const output = computed(() => (res.value ? toolOutput(res.value) : null));
+const blobMention = computed(() => (name.value === 'blob' ? readBlobMention(output.value?.mention) : undefined));
 const result = computed(() => (res.value ? toolResult(res.value) : null));
 const resultText = computed(() => (res.value ? stepText(res.value) : ''));
 const resultEdits = computed(() => (res.value ? fileEdits(res.value) : []));
@@ -169,6 +172,7 @@ const fieldName = (key: string) =>
         </section>
         <p v-if="output.process.error" class="tool-error">{{ output.process.error }}</p>
       </template>
+      <BlobMentionCard v-else-if="blobMention" :mention="blobMention" />
       <component v-else-if="extensionResult" :is="extensionResult.component" v-bind="extensionResult.props" />
       <template v-else-if="name === 'view_image' && result?.status === 'success'">
         <ToolImage v-if="imageSrc" :src="imageSrc" :mime="output.mime_type" :path="output.path" />
