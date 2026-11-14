@@ -675,7 +675,8 @@ watch(
     linkError.value = '';
     loading.value = false;
     items.value = [];
-    selected.value = null;
+    // Reopening refreshes the listing while retaining the mounted media viewer.
+    if (ownerChanged || folder.value !== previous?.[1]) selected.value = null;
     next.value = null;
     total.value = 0;
     const restored = { ...saved.value };
