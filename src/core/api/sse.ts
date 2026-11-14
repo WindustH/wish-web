@@ -122,8 +122,8 @@ export function createSse({ url, onFrame, onState, connectTimeoutMs, headers: ex
         return;
       }
       if (res.status === 409) {
-        const problem = await res.json();
-        if (problem.title === 'run_not_streaming') {
+        const problem = await res.json().catch(() => null);
+        if (problem?.title === 'run_not_streaming') {
           terminal = true;
           emitState('disabled');
           return;

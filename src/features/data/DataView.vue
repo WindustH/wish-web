@@ -1,9 +1,6 @@
 <script setup lang="ts">
-// Every session and group and what it keeps, and the usage records: a window over the app on a
-// desktop, a page of its own on a phone. Each is a row with what it stores - a session's history,
-// attachments and command output, a group's messages and files. Clicking a row chooses it; the
-// chosen ones are deleted together, and the chosen sessions cleared of old history; each row's
-// menu opens, renames or deletes that one, and a session's also tags or clears it.
+// Session storage and usage records: a window on desktop, a page on mobile.
+// Rows show history, attachments and command output; selections support bulk deletion/pruning.
 import { computed, onActivated, onDeactivated, onBeforeUnmount, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import Icon from '../../ui/components/Icon.vue';
@@ -30,7 +27,6 @@ const router = useRouter();
 type Snapshot = {
   items: DataItem[];
   sessions: number;
-  groups: number;
   bytes: SessionBytes;
   storage: StorageSnapshot | null;
   at: number;
@@ -42,20 +38,16 @@ const reading = createCachedResource(
       api.sessionsStorage({ signal }),
       api.storageStatus({ signal }).catch(() => null),
     ]);
-    const items: DataItem[] = [
-      ...found.sessions.map((item) => ({ kind: 'session' as const, ...item })),
-      ...found.groups.map((item) => ({ kind: 'group' as const, ...item })),
-    ];
+    const items: DataItem[] = [...found.sessions.map((item) => ({ kind: 'session' as const, ...item }))];
     return {
       items,
       sessions: found.sessions.length,
-      groups: found.groups.length,
       bytes: found.bytes,
       storage,
       at: Date.now(),
     };
   },
-  () => ({ key: 'data-conversations', persist: true }),
+  () => ({ key: 'data-sessions-v2', persist: true }),
 );
 const snapshot = computed(() => reading.data.value ?? undefined);
 const loading = reading.loading;
@@ -112,7 +104,7 @@ const parts = computed(() => [
   { key: 'shell' as const, label: tr('命令输出', 'Command output'), color: 'var(--chart-3)' },
 ]);
 
-// Opening, and the single actions the session list has too; a group is only renamed or deleted.
+// Opening and the same single-session actions available in the session list.
 const sessionActions = computed<MenuItem[]>(() => [
   { key: 'open', icon: 'external-link', label: tr('打开', 'Open') },
   { key: 'rename', icon: 'pencil', label: i18n.t('manage.rename') },
@@ -120,14 +112,9 @@ const sessionActions = computed<MenuItem[]>(() => [
   { key: 'prune', icon: 'eraser', label: tr('清理历史', 'Clear history') },
   { key: 'delete', icon: 'trash-2', label: i18n.t('sessions.delete'), danger: true, separator: true },
 ]);
-const groupActions = computed<MenuItem[]>(() => [
-  { key: 'open', icon: 'external-link', label: tr('打开', 'Open') },
-  { key: 'rename', icon: 'pencil', label: i18n.t('manage.rename') },
-  { key: 'delete', icon: 'trash-2', label: tr('删除群组', 'Delete group'), danger: true, separator: true },
-]);
 const action = ref<{ target: ActionTarget; kind: 'rename' | 'tags' | 'delete' }>();
 function act(item: DataItem, key: string) {
-  if (key === 'open') void router.push(`/${item.kind === 'group' ? 'g' : 's'}/${item.id}`);
+  if (key === 'open') void router.push(`/s/${item.id}`);
   else if (key === 'prune') clearing.value = { targets: [{ id: item.id, name: sessionTitle(item) }] };
   else
     action.value = {
@@ -142,6 +129,15 @@ function actionClosed() {
 
 // Choosing: a click on a card adds it or takes it out; what is chosen is acted on together.
 const chosen = ref(new Set<string>());
+watch(
+  () => snapshot.value?.items,
+  (items) => {
+    if (!items) return;
+    const present = new Set(items.map((item) => item.id));
+    const retained = new Set([...chosen.value].filter((id) => present.has(id)));
+    if (retained.size !== chosen.value.size) chosen.value = retained;
+  },
+);
 function clearChosen() {
   chosen.value = new Set();
 }
@@ -193,8 +189,8 @@ function deleted() {
               <span
                 >{{
                   tr(
-                    `${snapshot.sessions} 个会话 · ${snapshot.groups} 个群组`,
-                    `${snapshot.sessions} session${snapshot.sessions === 1 ? '' : 's'} · ${snapshot.groups} group${snapshot.groups === 1 ? '' : 's'}`,
+                    `${snapshot.sessions} 个会话`,
+                    `${snapshot.sessions} session${snapshot.sessions === 1 ? '' : 's'}`,
                   )
                 }}<template v-if="snapshot.storage">
                   ·
@@ -242,7 +238,7 @@ function deleted() {
               v-model="query"
               type="search"
               :placeholder="tr('搜索名称或标签', 'Search names or tags')"
-              :aria-label="tr('搜索会话和群组', 'Search sessions and groups')"
+              :aria-label="tr('搜索会话', 'Search sessions')"
           /></label>
           <Menu :items="orders" :label="tr('排序', 'Order')" @select="(key) => (order = key)">
             <template #trigger
@@ -255,9 +251,7 @@ function deleted() {
 
         <p v-if="!shown.length" class="data-empty">
           {{
-            snapshot.items.length
-              ? tr('没有符合的会话或群组。', 'Nothing matches.')
-              : tr('还没有会话。', 'No sessions yet.')
+            snapshot.items.length ? tr('没有符合的会话。', 'Nothing matches.') : tr('还没有会话。', 'No sessions yet.')
           }}
         </p>
         <nav v-if="pageCount > 1" class="data-pagination" :aria-label="tr('分页', 'Pagination')">
@@ -272,7 +266,7 @@ function deleted() {
             :item="item"
             :parts="parts"
             :scale="scale"
-            :actions="item.kind === 'group' ? groupActions : sessionActions"
+            :actions="sessionActions"
             :chosen="chosen.has(item.id)"
             @toggle="toggle(item)"
             @act="(key) => act(item, key)"
@@ -285,12 +279,7 @@ function deleted() {
     <!-- Floats over the bottom of the window while anything is chosen. -->
     <template #overlay>
       <Transition name="data-float">
-        <div
-          v-if="chosen.size"
-          class="data-selection"
-          role="toolbar"
-          :aria-label="tr('已选的会话和群组', 'Chosen sessions and groups')"
-        >
+        <div v-if="chosen.size" class="data-selection" role="toolbar" :aria-label="tr('已选的会话', 'Chosen sessions')">
           <button
             type="button"
             class="btn ghost icon-only"
@@ -333,7 +322,7 @@ function deleted() {
   />
   <DeleteSessionsDialog
     v-if="confirming"
-    :targets="chosenItems.map((item) => ({ id: item.id, name: sessionTitle(item), group: item.kind === 'group' }))"
+    :targets="chosenItems.map((item) => ({ id: item.id, name: sessionTitle(item) }))"
     :bytes="chosenBytes"
     @close="confirming = false"
     @deleted="deleted"

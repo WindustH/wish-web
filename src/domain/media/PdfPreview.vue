@@ -41,9 +41,18 @@ const viewport = ref<HTMLElement>();
 const active = usePageActivity();
 watch(
   [() => props.focus, () => props.location, () => document.value],
-  () => {
+  (_, __, cleanup) => {
     const page = props.focus?.page ?? props.location?.page;
-    if (page && document.value) void nextTick(() => jump({ page } as PdfInfo['bookmarks'][number]));
+    if (!page || !document.value) return;
+    pendingRestore = undefined;
+    const revision = ++jumpRevision;
+    let current = true;
+    cleanup(() => {
+      current = false;
+    });
+    void nextTick(() => {
+      if (current && revision === jumpRevision) jump({ page } as PdfInfo['bookmarks'][number]);
+    });
   },
   { flush: 'post' },
 );
@@ -139,7 +148,10 @@ function scroll() {
 watch(active, (visible) => {
   if (visible) void nextTick(scroll);
 });
+let jumpRevision = 0;
 function goTo(value: number) {
+  pendingRestore = undefined;
+  jumpRevision++;
   if (!document.value || !Number.isFinite(value)) return;
   const index = Math.max(0, Math.min(document.value.pages - 1, Math.round(value) - 1));
   if (viewport.value) viewport.value.scrollTop = layout.value.starts[index] ?? 0;
@@ -165,6 +177,7 @@ watch(
   layout,
   (next, previous) => {
     const box = viewport.value;
+    const revision = jumpRevision;
     if (!box || !next.starts.length) return;
     if (pendingRestore) {
       const restore = pendingRestore;
@@ -191,7 +204,7 @@ watch(
     const top = next.starts[index]! + fraction * next.heights[index]!;
     offset.value = top;
     void nextTick(() => {
-      if (viewport.value === box && layout.value === next) {
+      if (viewport.value === box && layout.value === next && revision === jumpRevision) {
         box.scrollTop = top;
         scroll();
       }

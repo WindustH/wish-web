@@ -2,8 +2,9 @@
 // The image, whole: as large as the window allows, on a dimmed page. The wheel zooms in on the
 // point the pointer is over, a drag moves the magnified picture, a double click or the zoom-out
 // button puts it back; a click on the dimmed page or Escape closes it at any size.
+import { useMiddleButtonGuard } from '../composables/useMiddleButtonGuard.ts';
 import { useKeyboardScope } from '../composables/useKeyboardScope.ts';
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import Icon from './Icon.vue';
 import { closeImageLightbox, imageLightbox } from '../imageLightbox.ts';
 import { tr } from '../../core/i18n/tr.ts';
@@ -17,6 +18,7 @@ useBackLayer(
 const MAX_SCALE = 8;
 const step = 1.25;
 const frame = ref<HTMLElement | null>(null);
+useMiddleButtonGuard(frame);
 const closeButton = ref<HTMLElement | null>(null);
 const scale = ref(1);
 const x = ref(0);
@@ -58,10 +60,13 @@ let dragId: number | null = null;
 let from = { x: 0, y: 0 };
 let origin = { x: 0, y: 0 };
 let moved = false;
+let clearMoved: ReturnType<typeof setTimeout> | undefined;
+onBeforeUnmount(() => clearTimeout(clearMoved));
 function onPointerDown(event: PointerEvent) {
   if (!zoomed.value || (event.button !== 0 && event.button !== 1) || event.pointerType !== 'mouse') return;
   event.preventDefault();
   dragging = true;
+  clearTimeout(clearMoved);
   moved = false;
   dragId = event.pointerId;
   from = { x: event.clientX, y: event.clientY };
@@ -80,6 +85,9 @@ function onPointerUp(event: PointerEvent) {
   if (event.pointerId !== dragId) return;
   dragging = false;
   dragId = null;
+  clearMoved = setTimeout(() => {
+    moved = false;
+  }, 0);
   (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
 }
 // A click on the page closes; so does a click on a picture shown at its own size. A click on a
@@ -140,7 +148,7 @@ watch(
   async (image, previous) => {
     reset();
     if (image) {
-      returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      if (!previous) returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       await nextTick();
       closeButton.value?.focus();
       return;

@@ -1,5 +1,15 @@
 export type InstructionKind =
-  'base' | 'supplemental' | 'mcp' | 'skills' | 'sessions-groups' | 'upstream-compaction' | 'summary' | 'initial-tools';
+  | 'base'
+  | 'supplemental'
+  | 'mcp'
+  | 'skills'
+  | 'sessions-groups'
+  | 'upstream-compaction'
+  | 'summary'
+  | 'compaction'
+  | 'image-delivery'
+  | 'image-input'
+  | 'initial-tools';
 export interface InstructionSection {
   kind: InstructionKind;
   content: string;

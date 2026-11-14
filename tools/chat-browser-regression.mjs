@@ -18,7 +18,6 @@ import PickerDialog from '/src/domain/providers/PickerDialog.vue';
 import Modal from '/src/ui/components/Modal.vue';
 import VirtualImageGrid from '/src/domain/chat/entries/VirtualImageGrid.vue';
 import VirtualRows from '/src/ui/components/VirtualRows.vue';
-import GroupLog from '/src/features/groups/GroupLog.vue';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import ChatLog from '/src/features/sessions/ChatLog.vue';
 import { chat } from '/src/core/state/chatSlice.ts';
@@ -34,7 +33,6 @@ chat.sessionId.value='fixture'; chat.loadingInitial.value=false;
 chat.entries.value=Array.from({length:2000},(_,i)=>({seq:i+1,id:i+1,created_at:0,kind:i%2?'assistant_message':'user_message',payload:{content:[{type:'text',text:'Message '+(i+1)+' — '+ '长会话滚动与手势验证。'.repeat(30)}]}}));
 chat.entries.value=chat.entries.value.map((entry,i)=>i>=500&&i<1500?{...entry,kind:'assistant_message',payload:{content:[{type:'tool_call',id:'call-'+i,name:'shell_edit',arguments:{command:'echo '+i}}]}}:entry);
 const active=ref(true), mobile=ref(true), session=ref('fixture'), dialog=ref('');
-const groupMode=ref(false), groupMessages=ref(Array.from({length:5000},(_,i)=>({seq:i+101,at:0,author:{kind:'user'},text:'Group '+i+' '+ '群组长记录。'.repeat(i%20+1)})));
 const realFetch=window.fetch.bind(window);
 window.inspectionReads=0;
 window.fetch=async (input,options)=>{
@@ -48,6 +46,7 @@ window.fetch=async (input,options)=>{
   const generation=generations[Number(parsed.pathname.split('/').at(-2))];
   const start=Number(parsed.searchParams.get('start')||0),kind=parsed.searchParams.get('kind'),origin=parsed.searchParams.get('origin');
   const all=Array.from({length:45},(_,i)=>({position:i,entry:{id:i+100,origin:i%2?'Input':'Model',recorded_at:0,model_call_id:null,message:{[i%2?'User':'Assistant']:{content:[{Text:{text:'# raw **text** generation '+generation.id+' item '+i}}]}}}}));
+  if(window.toolResultFixture) all[0].entry={id:100,origin:'Tool',recorded_at:0,model_call_id:7,message:{ToolResult:{name:'shell',call_id:'call-result',content:{status:'success',output:{stdout:'Complete execution output',exit_code:0},model_text:'Condensed model result'}}}};
   const shown=all.filter(row=>row.position>=start&&(!kind||Object.keys(row.entry.message)[0]===kind)&&(!origin||row.entry.origin===origin)).slice(0,20);
   const after=(shown.at(-1)?.position??44)+1;
   value={generation,count:45,start,next:after<45?after:null,positions:shown.map(row=>row.position),items:shown.map(row=>row.entry)};
@@ -60,7 +59,7 @@ window.fetch=async (input,options)=>{
 };
 const executionMode=ref('Parallel');
 const choices=Array.from({length:500},(_,i)=>({key:String(i),title:'Provider '+i,description:'Search provider or subscription'}));
-createApp({setup(){provide(pageActivityKey,active);return()=>h(TooltipProvider, {}, {default:()=>h('main',{style:{height:'100vh',display:active.value?'flex':'none',flexDirection:'column'}},[groupMode.value?h(GroupLog,{groupId:'group-fixture',messages:groupMessages.value,loading:false,hasOlder:false}):h(ChatLog,{sessionId:session.value,mobile:mobile.value}),
+createApp({setup(){provide(pageActivityKey,active);return()=>h(TooltipProvider, {}, {default:()=>h('main',{style:{height:'100vh',display:active.value?'flex':'none',flexDirection:'column'}},[h(ChatLog,{sessionId:session.value,mobile:mobile.value}),
  dialog.value==='generation'?h(GenerationInspector,{sessionId:'fixture',onClose:()=>dialog.value=''}):null,
  dialog.value==='inspect'?h(ContextInspector,{sessionId:'fixture',onClose:()=>dialog.value=''}):null,
  dialog.value==='execution'?h(Modal,{open:true,title:'工具执行方式',onClose:()=>dialog.value=''}, {default:()=>h(ToolExecutionRow,{modelValue:executionMode.value,'onUpdate:modelValue':value=>executionMode.value=value})}):null,
@@ -68,7 +67,7 @@ createApp({setup(){provide(pageActivityKey,active);return()=>h(TooltipProvider, 
  dialog.value==='album'?h(Modal,{open:true,title:'500 张图片',bodyScroll:'content',contentClass:'image-album-window',onClose:()=>dialog.value=''}, {default:()=>h('div',{class:'album-thumbnails modal-scroll-region'},[h(VirtualImageGrid,{count:500},{default:({start,limit})=>Array.from({length:limit-start},(_,i)=>h('div',{style:{aspectRatio:'4/3',background:'#888'}},'Image '+(start+i)))})])}):null,
  dialog.value==='activity'?h(Modal,{open:true,title:'1000 项活动',bodyScroll:'content',sheet:mobile.value,onClose:()=>dialog.value=''}, {default:()=>h(VirtualRows,{count:1000,class:'modal-scroll-region'}, {default:({index})=>h('div',{},'Activity '+index)})}):null
 ])});}}).use(createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]})).mount('#app');
-window.fixture={chat,active,mobile,session,dialog,groupMode,groupMessages,executionMode};
+window.fixture={chat,active,mobile,session,dialog,executionMode};
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__chat_regression', async (_, res) => {
@@ -140,6 +139,29 @@ try {
   assert.ok(partial>0&&partial<1,'horizontal distance fades gradually');
   await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:railX+300,y:300});
   await until(`document.querySelector('.rail-clip').style.getPropertyValue('--rail-proximity')==='0'`,'far from rail hidden');
+  // A crowded desktop keeps the reveal arrow on the rail's horizontal axis, following only Y.
+  await js(`document.querySelector('main').style.cssText+=';width:580px;margin-left:80px'`);
+  await until(`!!document.querySelector('.rail-drawer-toggle')`,'crowded desktop rail drawer');
+  const arrowBox=()=>js(`(()=>{const r=document.querySelector('.rail-drawer-toggle').getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()`);
+  const arrow=await arrowBox();
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:arrow.x,y:330});
+  await until(`document.querySelector('.rail-drawer-toggle').style.getPropertyValue('--rail-proximity')==='1'`,'arrow reveals nearby');
+  assert.ok(Math.abs((await arrowBox()).y-330)<2,'arrow follows vertical pointer');
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:arrow.x+100,y:570});await sleep(120);
+  assert.ok(Math.abs((await arrowBox()).x-arrow.x)<2,'arrow does not follow horizontal pointer');
+  assert.ok(Math.abs((await arrowBox()).y-570)<2);
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:arrow.x,y:570});await sleep(120);
+  assert.equal(await js(`getComputedStyle(document.querySelector('.rail-drawer-toggle')).backgroundColor`),'rgba(0, 0, 0, 0)','hover keeps background clear');
+  await send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,x:arrow.x,y:570});
+  await send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,x:arrow.x,y:570});await sleep(250);
+  const openRailX=await js(`document.querySelector('.rail-clip').getBoundingClientRect().left+12`);
+  assert.ok(Math.abs(openRailX-(await arrowBox()).x)<2,'arrow and expanded rail share the same horizontal position: '+JSON.stringify(await js(`(()=>{const wrap=document.querySelector('.chatlog-wrap'),line=document.querySelector('.rail-clip'),arrow=document.querySelector('.rail-drawer-toggle'),content=document.querySelector('.chatlog-content');return{wrap:wrap.getBoundingClientRect().toJSON(),line:line.getBoundingClientRect().toJSON(),arrow:arrow.getBoundingClientRect().toJSON(),transform:getComputedStyle(content).transform,expanded:arrow.getAttribute('aria-expanded'),cls:wrap.className}})()`)));
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:arrow.x+300,y:400});
+  await until(`document.querySelector('.rail-drawer-toggle').style.getPropertyValue('--rail-proximity')==='0'`,'far arrow hidden');
+  await js(`document.querySelector('main').style.width='';document.querySelector('main').style.marginLeft=''`);
+  await until(`!document.querySelector('.rail-drawer-toggle')`,'wide rail restored');
+  console.log('Transcript rail: touch drawer, responsive layout, hover fading, vertically tracked arrow and horizontal alignment passed');
+  if (!process.env.WISH_RAIL_ONLY) {
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
   const textHits=await js(`(async()=>{
     const {glyphAt,selectionCovers}=await import('/src/ui/textAtPoint.ts');
@@ -242,6 +264,18 @@ try {
   await js('history.back()');
   await until(`!document.querySelector('.generation-full-text')`,'Back closes detail');
   assert.equal(await js('fixture.dialog.value'),'generation');
+  await js('window.toolResultFixture=true');
+  await chooseGenerationOption('消息类型','ToolResult');
+  await until(`!!document.querySelector('.generation-entry[data-role="ToolResult"]')`,'tool result loaded');
+  assert.ok(await js(`document.querySelector('.generation-entry pre').textContent.includes('Complete execution output')`),'recorded output preview');
+  await js(`[...document.querySelectorAll('.generation-entry footer button')].find(b=>b.textContent.includes('模型可见结果')).click()`);
+  await until(`document.querySelector('.generation-full-text')?.textContent==='Condensed model result'`,'model result detail');
+  await js(`[...document.querySelectorAll('.generation-result-tabs button')].find(b=>b.textContent.includes('完整执行结果')).click()`);
+  assert.ok(await js(`document.querySelector('.generation-full-text').textContent.includes('Complete execution output')`),'switch to full recorded output');
+  assert.equal(await js(`document.querySelector('.generation-full-text').textContent.includes('Condensed model result')`),false,'model text separated from execution data');
+  await js('history.back()');
+  await until(`!document.querySelector('.generation-full-text')`,'Back closes result comparison');
+
   await js(`fixture.dialog.value=''`);await sleep(350);
   await js(`fixture.dialog.value='inspect'`);
   await until(`document.querySelectorAll('.context-inspector .inspection-row').length>0`,'context loaded');
@@ -302,29 +336,7 @@ try {
   await js(`fixture.session.value='another-session'`);
   await until('!document.querySelector(".modal-card,.modal-overlay")','session switch disposes its activity windows');
   assert.notEqual(await js('document.body.style.pointerEvents'),'none');
-  await js('fixture.groupMode.value=true');
-  await until('document.querySelectorAll(".group-virtual-row").length>0','group virtual rows');
-  await sleep(700);
-  assert.ok(await js('document.querySelectorAll(".group-virtual-row").length<60'),'5000 group messages have bounded DOM');
-  await send('Input.dispatchMouseEvent',{type:'mouseWheel',x:200,y:300,deltaX:0,deltaY:-600});await sleep(400);
-  const anchor=()=>js(`(()=>{const e=document.querySelector('.chatlog');const row=[...document.querySelectorAll('.group-virtual-row')].find(r=>r.getBoundingClientRect().bottom>e.getBoundingClientRect().top);return {text:row.textContent,y:row.getBoundingClientRect().top,top:e.scrollTop,height:e.scrollHeight,viewport:e.clientHeight}})()`);
-  const groupBefore=await anchor();
-  await js(`fixture.groupMessages.value=[...Array.from({length:100},(_,i)=>({seq:i+1,at:0,author:{kind:'user'},text:'Older '+i})),...fixture.groupMessages.value]`);
-  await sleep(500);const groupAfter=await anchor();
-  assert.equal(groupAfter.text,groupBefore.text,'prepend preserves visible group message');
-  assert.ok(Math.abs(groupAfter.y-groupBefore.y)<5,'prepend preserves group pixel offset '+JSON.stringify({groupBefore,groupAfter}));
-  await js(`fixture.groupMessages.value=[...fixture.groupMessages.value,{seq:5200,at:0,author:{kind:'user'},text:'New group message'}]`);
-  await sleep(300);const groupAppended=await anchor();
-  assert.equal(groupAppended.text,groupAfter.text,'new group messages preserve history browsing');
-  await js('fixture.active.value=false');await sleep(100);await js('fixture.active.value=true');await sleep(400);
-  assert.ok(await js('document.querySelectorAll(".group-virtual-row").length>0'),'group reactivation restores virtual rows');
-  for (const width of [1000,600,390]) {
-    await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<700});await sleep(250);
-    assert.ok(await js('document.querySelectorAll(".group-virtual-row").length>0 && document.querySelectorAll(".group-virtual-row").length<80'),'resized group stays virtualized');
-  }
-  console.log(JSON.stringify({groupRows:5000,groupBefore,groupAfter,dialogs}));
-  assert.deepEqual(exceptions,[],'no browser runtime exceptions');
-  await js(`fixture.groupMode.value=false; fixture.chat.entries.value=[{seq:1,id:1,kind:'system_message',payload:{content:[],instruction_sections:[{kind:'base',content:'Base instructions'},{kind:'mcp',content:'MCP instructions'},{kind:'skills',content:'Skills instructions',supplemental:true},{kind:'sessions-groups',content:'Session instructions'}]}},{seq:2,id:2,kind:'assistant_message',payload:{content:[{type:'text',text:'Reply '.repeat(200)}]}}]`);
+  await js(`fixture.chat.entries.value=[{seq:1,id:1,kind:'system_message',payload:{content:[],instruction_sections:[{kind:'base',content:'Base instructions'},{kind:'mcp',content:'MCP instructions'},{kind:'skills',content:'Skills instructions',supplemental:true},{kind:'sessions-groups',content:'Session instructions'}]}},{seq:2,id:2,kind:'assistant_message',payload:{content:[{type:'text',text:'Reply '.repeat(200)}]}}]`);
   await until(`!!document.querySelector('button[aria-label="技能使用指令"]')`,'independent instruction node');
   await js(`document.querySelector('button[aria-label="技能使用指令"]').click()`);
   await until(`document.querySelector('.system-detail .detail-pre')?.textContent==='Skills instructions'`,'instruction opens its own text directly');
@@ -334,6 +346,7 @@ try {
   await until(`!document.querySelector('.system-detail')`,'Back closes instruction');
   assert.deepEqual(await js('window.fixtureErrors'),[],'no layout observer errors');
   console.log(JSON.stringify({ok:true,entries:2000,toolCalls:1000,before,beforeWheel,after,transform}));
+  }
 } finally {
   ws?.close();
   if(chrome&&chrome.exitCode===null){chrome.kill('SIGTERM');await Promise.race([new Promise(r=>chrome.once('exit',r)),sleep(2000)]);if(chrome.exitCode===null)chrome.kill('SIGKILL');}

@@ -212,8 +212,10 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
         fontSize: 10,
         hideOverlap: true,
         interval: Math.max(0, Math.ceil(columns / 5) - 1),
-        formatter: (column: string) =>
-          date(heat.buckets[Number(column) * rows]!.start_ms, heat.buckets.length * heat.bucketMs <= 86_400_000),
+        formatter: (column: string) => {
+          const bucket = heat.buckets[Number(column) * rows];
+          return bucket ? date(bucket.start_ms, heat.buckets.length * heat.bucketMs <= 86_400_000) : '';
+        },
       },
     },
     yAxis: { type: 'category', inverse: true, data: Array.from({ length: rows }, (_, i) => i), show: false },

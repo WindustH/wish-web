@@ -83,6 +83,9 @@ function preventDragClick(event: MouseEvent) {
   }
 }
 const controls = new Map<string, ReturnType<typeof useDragControls>>();
+watch(order, (ids) => {
+  for (const id of controls.keys()) if (!ids.includes(id)) controls.delete(id);
+});
 const controlsOf = (id: string) => controls.get(id) ?? controls.set(id, useDragControls()).get(id)!;
 </script>
 

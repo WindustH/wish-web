@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { replyContextKey } from '../../domain/references/context.ts';
 import { validReference, type ReplyReference, type ReplyLink } from '../../core/replyReferences.ts';
-import { replyLinks, replyMessage, linkSessionFile } from '../../core/api/endpoints.ts';
+import { replyLinks, replyMessage, linkSessionFile, sessionEnvironment } from '../../core/api/endpoints.ts';
+import { resolveEnvironmentMention } from '../../core/blobMentions.ts';
 import { fileMentionKey } from '../../domain/references/useFileMention.ts';
 import { toast } from '../../ui/toast.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
@@ -51,7 +52,6 @@ import { useBackgroundTaskCount } from './useBackgroundTaskCount.ts';
 import SessionLibrary from './SessionLibrary.vue';
 import type { StoredAttachmentReference } from '../../core/attachments.ts';
 import type { LibraryTarget } from './libraryTarget.ts';
-import type { LibraryBlob } from '../../core/api/types.ts';
 
 const backTouch = touchButton();
 const panelClose = shallowRef<(() => void) | null>(null);
@@ -177,11 +177,15 @@ useComposerHeight(paneEl, isMobile);
 onBeforeUnmount(() => {
   if (chat.sessionId.value === openedSession) chat.close();
 });
-async function mentionBlob(blob: LibraryBlob, name: string) {
-  const reference = { owner: id.value, id: blob.id, mime: blob.mime_type, name, size: blob.byte_count };
+async function mentionBlobs(files: StoredAttachmentReference[]) {
+  const owner = id.value;
   if (isMobile.value) sidebarOpen.value = false;
   await nextTick();
-  await composerRef.value?.mention(reference);
+  // Each insertion awaits its caret update before placing the next attachment token.
+  for (const reference of files) {
+    if (owner !== id.value) return;
+    await composerRef.value?.mention(reference);
+  }
 }
 
 const libraryTarget = shallowRef<LibraryTarget>();
@@ -189,6 +193,12 @@ let openingFile = 0;
 provide(fileMentionKey, async (file) => {
   const request = ++openingFile;
   const sourceSession = id.value;
+  if (file.kind === 'environment') {
+    const resolved = resolveEnvironmentMention(file.href, await sessionEnvironment(sourceSession), sourceSession);
+    if (!resolved) throw new Error(tr('此会话没有对应的文件变量', 'This session has no matching file variable'));
+    file = resolved;
+  }
+  if (request !== openingFile || sourceSession !== id.value) return;
   const blob =
     file.kind === 'local'
       ? { ...file, owner: sourceSession, id: (await linkSessionFile(sourceSession, file.path, true)).id }
@@ -466,13 +476,15 @@ watch(
 
 <template>
   <div class="chat-workspace" :class="{ 'sidebar-open': sidebarOpen }">
-    <Hint :text="i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar')"
+    <Hint :text="`${i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar')} · Tab`"
       ><button
+        type="button"
         class="btn ghost icon-only"
         ref="sidebarToggle"
         data-sidebar-toggle
         :aria-label="i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar')"
         aria-controls="session-sidebar"
+        aria-keyshortcuts="Tab"
         :aria-expanded="sidebarOpen"
         @click="sidebarOpen = !sidebarOpen"
       >
@@ -647,7 +659,7 @@ watch(
           }
         "
         @close="sidebarOpen = false"
-        @mention="mentionBlob"
+        @mention="mentionBlobs"
       />
     </div>
   </div>

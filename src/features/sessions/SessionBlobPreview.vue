@@ -12,6 +12,8 @@ import Icon from '../../ui/components/Icon.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import VideoPlayer from '../../domain/media/VideoPlayer.vue';
 import ImagePreview from '../../domain/media/ImagePreview.vue';
+import SourcePreview from '../../domain/media/SourcePreview.vue';
+import { sourcePreviewKind } from '../../ui/codeLanguage.ts';
 import { blobKind } from './libraryFiles.ts';
 import type { BlobLocation } from '../../core/blobMentions.ts';
 
@@ -58,19 +60,12 @@ function savePlayback() {
   saved.flush();
 }
 window.addEventListener('pagehide', savePlayback);
-const textViewport = ref<HTMLElement>();
-watch(
-  textViewport,
-  (element) => {
-    if (element) element.scrollTop = Math.max(0, saved.value.scroll);
-  },
-  { flush: 'post' },
-);
-function rememberText() {
-  if (textViewport.value?.clientHeight) saved.value.scroll = textViewport.value.scrollTop;
-}
 const metadata = shallowRef<BlobMetadata>();
-const kind = computed(() => blobKind({ ...props.blob, ...metadata.value }));
+const kind = computed(() =>
+  sourcePreviewKind(props.name, metadata.value?.mime_type ?? props.blob.mime_type)
+    ? 'text'
+    : blobKind({ ...props.blob, ...metadata.value }),
+);
 const player = ref<HTMLMediaElement | null>(null);
 onBeforeUnmount(() => {
   player.value?.pause();
@@ -226,10 +221,20 @@ async function handleLoadFailure(cause?: unknown) {
         :toolbar="toolbar"
         @error="handleLoadFailure"
       />
-      <div v-else-if="kind === 'text'" ref="textViewport" class="text-preview" @scroll.passive="rememberText">
-        <pre>{{ text }}</pre>
-        <p v-if="truncated" class="muted">{{ i18n.t('library.truncated') }}</p>
-      </div>
+      <SourcePreview
+        v-else-if="kind === 'text'"
+        :text="text"
+        :name="name"
+        :mime="metadata?.mime_type ?? blob.mime_type"
+        :session="session"
+        :blob="blob.id"
+        :version="metadata?.version"
+        :scroll="saved.scroll"
+        :truncated="truncated"
+        :focus="focusReference"
+        :toolbar="toolbar"
+        @scroll="saved.scroll = $event"
+      />
       <div v-else class="library-state">
         <Icon name="paperclip" :size="40" />
         <p>{{ i18n.t('library.noPreview') }}</p>
@@ -274,17 +279,6 @@ async function handleLoadFailure(cause?: unknown) {
 audio {
   width: 100%;
 }
-.text-preview {
-  width: 100%;
-  overflow: auto;
-  user-select: text;
-}
-.text-preview pre {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  margin: 0;
-  font: 13px/1.7 var(--mono);
-}
 .library-state {
   margin: auto;
   display: flex;
@@ -297,9 +291,5 @@ audio {
 }
 .library-state p {
   margin: 0;
-}
-.muted {
-  color: var(--fg-muted);
-  font-size: 12px;
 }
 </style>

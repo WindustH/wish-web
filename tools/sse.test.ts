@@ -107,6 +107,17 @@ test('a refused stream stays terminal and visible', async () => {
   });
 });
 
+test('a non-JSON conflict preserves its HTTP error instead of leaking a JSON parse failure', async () => {
+  await withFetch(async () => new Response('<h1>Conflict</h1>', { status: 409 }), async () => {
+    const sse = createSse({ url: 'http://sse.test/events' });
+    try {
+      const event = await waitState(sse, 'reconnecting');
+      assert.equal(event.err?.status, 409);
+      assert.equal(event.err?.message, 'SSE 409');
+    } finally { sse.close(); }
+  });
+});
+
 test('only real failures surface, state by state', () => {
   assert.equal(shouldSurfaceSseError('connecting'), false);
   assert.equal(shouldSurfaceSseError('open'), false);

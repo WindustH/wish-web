@@ -93,7 +93,15 @@ const lateAnswer = (entry: GroupEntry) =>
     ? (payloadOf(entry).metadata.call_id as string)
     : null;
 const failed = (entry: GroupEntry | undefined) => payloadOf(entry ?? ({} as GroupEntry)).result?.status === 'failed';
-const entryId = (e: GroupEntry) => (e.seq != null ? `s${e.seq}` : `o${e.localId ?? e.id ?? Math.random()}`);
+const anonymousIds = new WeakMap<GroupEntry, number>();
+let nextAnonymousId = 0;
+const entryId = (entry: GroupEntry) => {
+  if (entry.seq != null) return `s${entry.seq}`;
+  if (entry.localId != null || entry.id != null) return `o${entry.localId ?? entry.id}`;
+  // Incomplete optimistic entries keep an identity until the server supplies one.
+  if (!anonymousIds.has(entry)) anonymousIds.set(entry, ++nextAnonymousId);
+  return `anonymous-${anonymousIds.get(entry)}`;
+};
 
 export function groupEntries<E extends GroupEntry>(entries: readonly E[]): GroupItem<E>[] {
   const items: GroupItem<E>[] = [];
@@ -124,24 +132,9 @@ export function groupEntries<E extends GroupEntry>(entries: readonly E[]): Group
     group = null;
   };
 
-  const instructionObservations = new Map<string, string>();
   for (const entry of entries) {
-    const payload = payloadOf(entry);
-    if (payload.instruction_observation) {
-      const title = payload.instruction_title ?? '';
-      const text = payload.content?.find((block: GroupBlock) => block.type === 'text')?.text ?? '';
-      const key = payload.instruction_key ?? (title === '图片输入说明' ? text.split(']')[0] : title);
-      const value = JSON.stringify(payload.content);
-      if (payload.instruction_operation === 'remove') instructionObservations.delete(key);
-      else {
-        // New records are explicit deltas. Fold only legacy repeated observations,
-        // comparing the latest state so A -> B -> A remains visible in history.
-        const repeated = !payload.instruction_operation && instructionObservations.get(key) === value;
-        instructionObservations.set(key, value);
-        if (repeated) continue;
-      }
-    }
-    if (entry.kind === 'history_event') continue;
+    // Ignore model-request projections, including already-cached legacy view entries.
+    if (entry.kind === 'history_event' || payloadOf(entry).instruction_observation) continue;
     const sections = payloadOf(entry).instruction_sections;
     if (sections?.length) {
       flushGroup();
@@ -247,7 +240,7 @@ export function groupEntries<E extends GroupEntry>(entries: readonly E[]): Group
 
 // The entries the transcript tells of in passing: a notice, an interruption, a background command
 // done, an instruction - everything that is not a turn of the conversation itself.
-const TURNS = new Set(['user_message', 'assistant_message', 'run_error', 'group_sent', 'group_message']);
+const TURNS = new Set(['user_message', 'assistant_message', 'run_error', 'peer_sent', 'peer_message']);
 /** Whether an entry is a notice, shown as a button beside the reply rather than as a row. */
 export const isNotice = (entry: GroupEntry) =>
   !TURNS.has(entry.kind) && payloadOf(entry).metadata?.source !== 'ask_user_answer';

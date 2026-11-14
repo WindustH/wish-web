@@ -7,6 +7,7 @@ import { describeError } from '../../core/i18n/errorMessages.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import Icon from '../../ui/components/Icon.vue';
 const props = defineProps<{ mention: BlobMention }>();
+const emit = defineEmits<{ opened: [] }>();
 const open = useFileMention();
 const busy = ref(false);
 async function show() {
@@ -14,6 +15,7 @@ async function show() {
   busy.value = true;
   try {
     await open({ kind: 'blob', ...props.mention });
+    emit('opened');
   } catch (error) {
     toast(describeError(error).message);
   } finally {
@@ -66,10 +68,12 @@ async function show() {
   white-space: nowrap;
 }
 .blob-mention-label small {
-  color: var(--muted);
+  color: var(--fg-subtle);
   font-size: 11px;
 }
-.blob-mention-card:hover {
-  border-color: var(--line-strong);
+@media (hover: hover) {
+  .blob-mention-card:hover {
+    border-color: var(--line-strong);
+  }
 }
 </style>

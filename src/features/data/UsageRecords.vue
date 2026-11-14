@@ -7,6 +7,8 @@ import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import * as api from '../../core/api/endpoints.ts';
 import type { StorageSnapshot } from '../../core/api/types.ts';
 import { errorText } from '../../core/errors.ts';
+import { saveConfigEdits } from '../../core/configEdits.ts';
+import { bus } from '../../core/bus.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { fmtBytes } from '../../core/util/fmt.ts';
@@ -42,8 +44,12 @@ async function saveLimit() {
   failed.value = '';
   try {
     const snapshot = await api.configSnapshot();
-    snapshot.config.usage = { ...snapshot.config.usage, stream_sample_limit: limited.value ? limit.value : null };
-    await api.configSave(snapshot);
+    const config = {
+      ...snapshot.config,
+      usage: { ...snapshot.config.usage, stream_sample_limit: limited.value ? limit.value : null },
+    };
+    await saveConfigEdits(snapshot, config);
+    bus.emit('configuration.changed', {});
     editing.value = false;
     toast(tr('已保存采样点上限', 'Sample limit saved'));
     emit('changed');

@@ -15,7 +15,7 @@ import { createServer, request as httpRequest } from 'node:http';
 import type { IncomingMessage, OutgoingHttpHeaders, ServerResponse } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { readFile, stat } from 'node:fs/promises';
-import { extname, join, normalize } from 'node:path';
+import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.env.PORT || 8790);
@@ -82,10 +82,13 @@ const server = createServer(async (req, res) => {
     if (backend) return proxyApi(req, res, url, backend);
 
     // ── static ────────────────────────────────────────────────────────────
-    let path = normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, '');
+    let decoded: string;
+    try { decoded = decodeURIComponent(url.pathname); }
+    catch { return reject(res, 400, 'invalid path encoding'); }
+    let path = normalize(decoded).replace(/^(\.\.[/\\])+/, '');
     if (path === '/' || path === '') path = '/index.html';
     const file = join(ROOT, path);
-    if (!file.startsWith(ROOT)) { res.writeHead(403); return res.end('forbidden'); }
+    if (file !== ROOT && !file.startsWith(ROOT + sep)) { res.writeHead(403); return res.end('forbidden'); }
     try {
       const st = await stat(file);
       if (st.isDirectory()) throw new Error('dir');
@@ -101,7 +104,7 @@ const server = createServer(async (req, res) => {
       if (!extname(path)) {
         const index = await readFile(join(ROOT, 'index.html'));
         res.writeHead(200, { 'content-type': MIME['.html'], 'cache-control': 'no-cache' });
-        return res.end(index);
+        return res.end(req.method === 'HEAD' ? undefined : index);
       }
       res.writeHead(404, { 'content-type': 'text/plain' });
       return res.end('not found');

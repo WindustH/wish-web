@@ -17,12 +17,12 @@ use('clipboard',{writeText:async text=>{window.copiedCode=text}});
 import {renderMarkdown} from '/src/ui/markdown.ts';
 window.renderMarkdown=renderMarkdown;
 import '/src/styles/codeHighlight.css';
-import GroupMessageCard from '/src/features/sessions/entries/GroupMessageCard.vue';
-const groupPreview=ref(false);window.groupPreview=groupPreview;
+import PeerMessageCard from '/src/features/sessions/entries/PeerMessageCard.vue';
+const peerPreview=ref(false);window.peerPreview=peerPreview;
 import StylePreview from '/src/features/debug/StylePreview.vue';
 import '/src/styles/tokens.css';import '/src/styles/base.css';import '/src/styles/components.css';import '/src/styles/features.css';
 const router=createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]});
-createApp({render:()=>h(TooltipProvider,{},()=>h('main',{style:'max-width:736px;margin:24px auto;padding:16px'},[h(StylePreview),h('div',{id:'group-link-probe'},h(GroupMessageCard,{preview:groupPreview.value,author:{name:'Author',color:'#789',to:'/s/author'},verb:'in',group:{id:'group',name:'Group'},text:'A message with text'}))]))}).use(router).mount('#app');
+createApp({render:()=>h(TooltipProvider,{},()=>h('main',{style:'max-width:736px;margin:24px auto;padding:16px'},[h(StylePreview),h('div',{id:'peer-link-probe'},h(PeerMessageCard,{preview:peerPreview.value,author:{name:'Author',color:'#789',to:'/s/author'},verb:'sent a message',text:'A message with text'}))]))}).use(router).mount('#app');
 </script></body></html>`;
 const server = await createServer({ configFile: false, root: process.cwd(), plugins: [vue(), {
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__style_preview', async (_, res) => {
@@ -62,12 +62,12 @@ try {
   await until('document.querySelectorAll(".service-option").length===5','account services gallery dialog');
   await js('document.querySelector("[role=dialog]:has(.account-services-dialog) .primary").click()');
   await until('!!document.querySelector("[data-preview=account-services] [role=status]")','account services local preview result');
-  await until('document.querySelectorAll("#group-link-probe a").length===2','mounted group card retains author and group links');
-  await js('window.groupPreview.value=true');
-  await until('document.querySelectorAll("#group-link-probe a").length===0','preview prop suppresses navigation');
-  await js('window.groupPreview.value=false');
-  await until('document.querySelectorAll("#group-link-probe a").length===2','leaving preview restores links');
-  await js('window.groupPreview.value=true;document.querySelector("#group-link-probe").style.display="none"');
+  await until('document.querySelectorAll("#peer-link-probe a").length===1','mounted peer card retains sender link');
+  await js('window.peerPreview.value=true');
+  await until('document.querySelectorAll("#peer-link-probe a").length===0','preview prop suppresses navigation');
+  await js('window.peerPreview.value=false');
+  await until('document.querySelectorAll("#peer-link-probe a").length===1','leaving preview restores links');
+  await js('window.peerPreview.value=true;document.querySelector("#peer-link-probe").style.display="none"');
   for (const id of ['retry-waiting','retry-attempting']) {
     await js(`document.querySelector('[data-preview=${id}] .retry-reason-toggle').click()`);
     assert.equal(await js(`document.querySelector('[data-preview=${id}] .retry-reason-toggle').getAttribute('aria-expanded')`),'true');
@@ -140,12 +140,13 @@ try {
   await close();
   await js('document.querySelector("select").value="sessions";document.querySelector("select").dispatchEvent(new Event("change",{bubbles:true}))');
   await until('document.querySelectorAll(".preview-sample").length===6','session category');
-  assert.equal(await js('document.querySelectorAll(".group-card a").length'),0,'preview must not navigate to fabricated groups');
-  await js('document.querySelector("[data-preview=group-received] .group-card-open").click()');
-  await until('!!document.querySelector("[role=dialog]")','group detail opens');
-  assert.equal(await js('document.querySelectorAll(".group-card-detail a").length'),0);
-  await js('document.querySelector(".group-card-actions button:last-child").click()');
-  await until('!document.querySelector("[role=dialog]")','group close button');
+  assert.equal(await js('/群消息|群组|唤醒成员|Woke.*members|No other session there/.test(document.querySelector(".style-preview")?.textContent ?? document.body.textContent)'),false,'no retired group examples');
+  assert.equal(await js('document.querySelectorAll(".peer-card a").length'),0,'preview must not navigate to fabricated sessions');
+  await js('document.querySelector("[data-preview=peer-received] .peer-card-open").click()');
+  await until('!!document.querySelector("[role=dialog]")','peer detail opens');
+  assert.equal(await js('document.querySelectorAll(".peer-card-detail a").length'),0);
+  await js('document.querySelector(".peer-card-actions button:last-child").click()');
+  await until('!document.querySelector("[role=dialog]")','peer close button');
   await js('document.querySelector("[data-preview=session-send] button").click()');
   await until('!!document.querySelector(".proc-event")','session operation timeline');
   await close();
@@ -165,7 +166,7 @@ try {
     }
   }
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['26 real-component samples','account services confirmation preview','desktop/mobile dark/light','six-file dialog','category filter','syntax colours and exact copy','safe fallback and streaming','group details without navigation','session operation timeline']}));
+  console.log(JSON.stringify({ok:true,checks:['26 real-component samples','account services confirmation preview','desktop/mobile dark/light','six-file dialog','category filter','syntax colours and exact copy','safe fallback and streaming','peer details without navigation','session operation timeline']}));
 
 } finally {
   ws?.close();

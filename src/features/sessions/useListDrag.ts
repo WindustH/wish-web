@@ -10,7 +10,7 @@
 // and lifting drops where the finger is. A finger that sets off up or down before the press is
 // held scrolls the list. The places are marked `data-drop-place` - a folder's id, or `/` for the
 // root - and `data-drop-opens` on a folder the drag may open.
-import { onBeforeUnmount, shallowRef } from 'vue';
+import { nextTick, onBeforeUnmount, shallowRef } from 'vue';
 import { closeMenus } from '../../ui/components/Menu.vue';
 
 const TYPE = 'application/x-wish-entries';
@@ -36,7 +36,7 @@ export function useListDrag(move: (ids: string[], into: Place) => void, open: (f
     dragging.value = { ids, from };
     data.effectAllowed = 'move';
     data.setData(TYPE, ids.join('\n'));
-    // Dropped on the browser's tabs, a session or group opens there.
+    // Dropped on the browser's tabs, a session opens there.
     if (link) data.setData('text/uri-list', link);
     if (ids.length > 1) {
       const badge = document.createElement('div');
@@ -132,11 +132,19 @@ export function useListDrag(move: (ids: string[], into: Place) => void, open: (f
       }
       dragging.value = { ids: press.ids, from: press.from };
       closeMenus();
+      // The context menu's backdrop still covers the destination until Vue commits
+      // its dismissal. Recheck even if the finger stops on this first movement.
+      void nextTick(() => {
+        if (ghost.value) touchTarget(ghost.value.x, ghost.value.y);
+      });
     }
     // The page holds still while the finger drags.
     event.preventDefault();
     ghost.value = { x: touch.clientX, y: touch.clientY, label: press.label };
-    const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest<HTMLElement>('[data-drop-place]');
+    touchTarget(touch.clientX, touch.clientY);
+  }
+  function touchTarget(x: number, y: number) {
+    const target = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop-place]');
     const place = target ? (target.dataset.dropPlace === '/' ? null : target.dataset.dropPlace!) : undefined;
     const next = place !== undefined && takes(place) ? place : undefined;
     if (next === over.value) return;
@@ -169,5 +177,18 @@ export function useListDrag(move: (ids: string[], into: Place) => void, open: (f
     clearTimeout(spring);
   });
 
-  return { dragging, over, ghost, start, hover, leave, drop, press: beginPress };
+  return {
+    dragging,
+    over,
+    ghost,
+    start,
+    hover,
+    leave,
+    drop,
+    press: beginPress,
+    cancel: () => {
+      release();
+      end();
+    },
+  };
 }

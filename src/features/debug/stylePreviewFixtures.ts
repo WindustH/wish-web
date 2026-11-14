@@ -7,7 +7,7 @@ export interface StyleSample {
   category: PreviewCategory;
   zh: string;
   en: string;
-  kind: 'files' | 'history' | 'process' | 'group' | 'retry' | 'manual-retry';
+  kind: 'files' | 'history' | 'process' | 'peer' | 'retry' | 'manual-retry';
   item: any;
 }
 const diff =
@@ -44,7 +44,7 @@ function tool(id: string, name: string, args: any, result?: any) {
 }
 const success = (output: any) => ({ status: 'success', output });
 export function stylePreviewFixtures(): StyleSample[] {
-  const group = { id: 'preview-only', name: 'Wish 开发协作 · Development' };
+  const peer = { id: 'preview-reviewer', name: '审查助手 · Reviewer' };
   const samples: StyleSample[] = [
     {
       id: 'manual-retry-ready',
@@ -249,14 +249,14 @@ export function stylePreviewFixtures(): StyleSample[] {
     {
       id: 'session-send',
       category: 'sessions',
-      zh: 'Session：发送群消息',
+      zh: 'Session：发送会话消息',
       en: 'Session: send',
       kind: 'process',
       item: tool(
         'session-send',
         'session',
-        { action: 'send', target: group.name, text: '实现已完成，请协助审查。' },
-        success({ group, woken: ['preview-reviewer', 'preview-tester'] }),
+        { action: 'send', target: peer.id, input: { text: '实现已完成，请协助审查。' } },
+        success({ sent: true, to: peer, queued: 1 }),
       ),
     },
     {
@@ -268,51 +268,48 @@ export function stylePreviewFixtures(): StyleSample[] {
       item: tool(
         'session-denied',
         'session',
-        { action: 'send', target: 'Restricted group' },
+        { action: 'send', target: 'missing-session', input: { text: '请协助审查。' } },
         { status: 'failed', message: 'Session access denied (preview).' },
       ),
     },
     {
-      id: 'group-received',
+      id: 'peer-received',
       category: 'sessions',
-      zh: '收到群消息',
-      en: 'Received group message',
-      kind: 'group',
+      zh: '收到会话消息',
+      en: 'Received session message',
+      kind: 'peer',
       item: {
         author: { name: '审查助手 · Reviewer', color: 'var(--ok)' },
-        verb: '在 / in',
-        group,
-        text: '### 审查结果\n\n实现已检查，建议补充 **移动端换行测试**。\n\n- 普通卡片\n- 堆叠卡片\n- 群消息详情',
-        note: '2 个文件 / 2 files',
+        verb: '发来的消息 / sent a message',
+        text: '### 审查结果\n\n实现已检查，建议补充 **移动端换行测试**。\n\n- 普通卡片\n- 堆叠卡片\n- 会话消息详情',
       },
     },
     {
-      id: 'group-sent',
+      id: 'peer-sent',
       category: 'sessions',
-      zh: '已发送群消息 / 唤醒成员',
-      en: 'Sent / members woken',
-      kind: 'group',
-      item: {
-        verb: '发到 / Sent to',
-        group,
-        text: '测试已通过，请继续审查。\n\nChecks passed; please continue the review.',
-        note: '唤醒了 2 个成员 / Woke 2 members',
-      },
+      zh: '会话消息：发送成功',
+      en: 'Session message: delivered',
+      kind: 'process',
+      item: tool(
+        'peer-sent',
+        'session',
+        { action: 'send', target: peer.id, input: { text: '测试已通过，请继续审查。' } },
+        success({ sent: true, to: peer, queued: 2 }),
+      ),
     },
     {
-      id: 'group-long',
+      id: 'peer-long',
       category: 'sessions',
-      zh: '长群消息 / 无其他成员',
-      en: 'Long message / no peers',
-      kind: 'group',
+      zh: '长会话消息 / 截断与展开',
+      en: 'Long message / expand preview',
+      kind: 'peer',
       item: {
-        verb: '发到 / Sent to',
-        group,
+        author: { name: peer.name, color: 'var(--ok)' },
+        verb: '发来的消息 / sent a message',
         text: Array.from(
           { length: 12 },
           (_, i) => `${i + 1}. 这是用于检查截断和展开效果的长消息。 Long preview message.`,
         ).join('\n'),
-        note: '群里没有其他会话 / No other session there',
       },
     },
   ];

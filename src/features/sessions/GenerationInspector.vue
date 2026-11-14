@@ -7,7 +7,7 @@ import Modal from '../../ui/components/Modal.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import SelectField from '../../domain/providers/SelectField.vue';
 import CopyButton from '../../ui/components/CopyButton.vue';
-import { generationText } from './generationText.ts';
+import { generationText, generationToolResult } from './generationText.ts';
 import { measureChatElement, observeChatRect } from '../../domain/chat/virtualMeasurements.ts';
 const props = defineProps<{ sessionId: string }>();
 const isMobile = useIsMobile();
@@ -20,7 +20,19 @@ const selected = ref<number>(),
 const busy = ref(false),
   error = ref(''),
   scroll = ref<HTMLElement>();
-const detail = ref<{ title: string; text: string } | null>(null);
+const detail = ref<{
+  title: string;
+  text: string;
+  result?: NonNullable<ReturnType<typeof generationToolResult>>;
+} | null>(null);
+const resultView = ref<'execution' | 'model'>('execution');
+const detailText = computed(() => detail.value?.result?.[resultView.value] ?? detail.value?.text ?? '');
+function showToolResult(entry: api.GenerationStructure['items'][number], view: 'execution' | 'model') {
+  const result = generationToolResult(entry.message);
+  if (!result) return;
+  resultView.value = view;
+  detail.value = { title: `ToolResult · Entry ${entry.id}`, text: '', result };
+}
 const kinds = [
   'Tools',
   'System',
@@ -100,6 +112,7 @@ const visible = computed(() =>
     return {
       ...card,
       row,
+      result: generationToolResult(card.entry.message),
       text: card.tools ? JSON.stringify(card.entry.message.Tools, null, 2) : generationText(card.entry.message),
     };
   }),
@@ -340,9 +353,24 @@ onBeforeUnmount(() => {
                 tr('压缩游标', 'Compaction cursor')
               }}</span>
             </header>
-            <pre>{{ card.text.length > 6000 ? card.text.slice(0, 6000) + '\n…' : card.text }}</pre>
+            <p v-if="card.result" class="generation-result-label">
+              {{ tr('完整执行结果（已保存）', 'Full execution result (recorded)') }}
+            </p>
+            <pre v-if="card.result">{{
+              card.result.execution.length > 6000 ? card.result.execution.slice(0, 6000) + '\n…' : card.result.execution
+            }}</pre>
+            <pre v-else>{{ card.text.length > 6000 ? card.text.slice(0, 6000) + '\n…' : card.text }}</pre>
             <footer>
+              <template v-if="card.result">
+                <button class="btn ghost sm" @click="showToolResult(card.entry, 'execution')">
+                  {{ tr('完整执行结果', 'Full execution result') }}
+                </button>
+                <button class="btn ghost sm" @click="showToolResult(card.entry, 'model')">
+                  {{ tr('模型可见结果', 'Model-visible result') }}
+                </button>
+              </template>
               <button
+                v-else
                 class="btn ghost sm"
                 @click="
                   detail = {
@@ -364,7 +392,7 @@ onBeforeUnmount(() => {
                 "
               >
                 JSON</button
-              ><CopyButton :text="card.text" />
+              ><CopyButton :text="card.result?.execution ?? card.text" />
             </footer>
           </article>
         </div>
@@ -381,12 +409,56 @@ onBeforeUnmount(() => {
     </div>
   </Modal>
   <Modal v-if="detail" :open="true" :page="isMobile" wide :title="detail.title" @close="detail = null"
-    ><template #actions><CopyButton :text="detail.text" /></template>
-    <pre class="generation-full-text">{{ detail.text }}</pre>
+    ><template #actions><CopyButton :text="detailText" /></template>
+    <template v-if="detail.result">
+      <div class="generation-result-tabs" role="group" :aria-label="tr('结果视图', 'Result view')">
+        <button class="btn ghost sm" :aria-pressed="resultView === 'execution'" @click="resultView = 'execution'">
+          {{ tr('完整执行结果', 'Full execution result') }}
+        </button>
+        <button class="btn ghost sm" :aria-pressed="resultView === 'model'" @click="resultView = 'model'">
+          {{ tr('模型可见结果', 'Model-visible result') }}
+        </button>
+      </div>
+      <p class="generation-result-label">
+        {{
+          resultView === 'execution'
+            ? tr(
+                '展示已保存的执行数据；工具执行时的输出限制仍然适用。',
+                'Shows recorded execution data; output limits applied by the tool still apply.',
+              )
+            : detail.result.projected
+              ? tr(
+                  '展示发送给模型的结果正文；不同模型协议可能另附状态字段。',
+                  'Shows the result text sent to the model; provider protocols may also include status fields.',
+                )
+              : tr(
+                  '此结果没有单独的精简版本，模型收到相同内容。',
+                  'This result has no separate condensed version; the model receives the same content.',
+                )
+        }}
+      </p>
+    </template>
+    <pre class="generation-full-text">{{ detailText }}</pre>
   </Modal>
 </template>
 
 <style scoped>
+.generation-result-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.generation-result-tabs [aria-pressed='true'] {
+  background: var(--bg-sunken);
+  color: var(--accent);
+}
+.generation-result-label {
+  color: var(--fg-subtle);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0 0 10px;
+}
 .generation-filters {
   display: flex;
   align-items: end;
@@ -436,7 +508,7 @@ onBeforeUnmount(() => {
 }
 .generation-entry {
   --entry-accent: var(--fg-subtle);
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 12px;
   margin-bottom: 0;
   padding: 12px 14px;

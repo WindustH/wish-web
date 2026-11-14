@@ -285,3 +285,17 @@ test('overlapping Back traversals preserve the promise awaited by a concurrent r
   assert.equal(closed, 1);
   h.stack.afterNavigation(false, await navigation);
 });
+
+test('missing history.forward popstate cannot strand router navigation', async () => {
+  const h = harness();
+  let closed = 0;
+  let release = () => {};
+  release = h.stack.add(() => { closed++; release(); });
+  h.browser.history.forward = () => {};
+  h.back();
+  const ticket = await h.stack.beforeNavigation();
+  assert.equal(typeof ticket, 'number');
+  assert.equal(closed, 1);
+  h.stack.afterNavigation(true, ticket);
+  await h.tick();
+});

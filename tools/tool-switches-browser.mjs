@@ -44,7 +44,7 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await send('Emulation.setTouchEmulationEnabled',{enabled:true});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/__tool_switches`});
-  await until('!!window.fixture && document.querySelectorAll(".tool-delivery").length===10','controls mounted');
+  await until('!!window.fixture && document.querySelectorAll(".tool-delivery").length===5','controls mounted');
   const session=`document.querySelector('[aria-label="Session 提供方式"], [aria-label="Session delivery"]')`;
   await js(session+`.querySelector('input[value="tool"]').click()`);
   await until('fixture.tools.value.sessions_delivery==="tool" && fixture.tools.value.sessions','session direct tool');
@@ -52,6 +52,18 @@ try {
   await until('!fixture.tools.value.sessions','session disabled');
   await js(session+`.querySelector('input[value="command"]').click()`);
   await until('fixture.tools.value.sessions_delivery==="command" && fixture.tools.value.sessions','session command');
+  const blob=`document.querySelector('[data-tool="blob"] .tool-delivery')`;
+  assert.equal(await js(blob+`.querySelector('input[value="command"]').checked`),true,'older sessions default to enabled command delivery');
+  for (const mode of ['off','tool','command']) {
+    await js(blob+`.querySelector('input[value="${mode}"]').click()`);
+    await until(`fixture.tools.value.blob===${mode !== 'off'}`,'Blob enabled state');
+    if (mode !== 'off') assert.equal(await js('fixture.tools.value.blob_delivery'),mode);
+  }
+  await js('fixture.tools.value.shell=false');
+  await until(blob+`.querySelector('input[value="tool"]').checked`,'Blob falls back to direct without Shell');
+  assert.equal(await js(blob+`.querySelector('input[value="command"]').disabled`),true);
+  await js('fixture.tools.value.shell=true');
+  await until(blob+`.querySelector('input[value="command"]').checked`,'Blob saved command preference restored');
   const task=`document.querySelector('[aria-label="Task 提供方式"], [aria-label="Task delivery"]')`;
   assert.equal(await js(task+'.querySelectorAll("input").length'),3);
   assert.equal(await js(task+`.querySelector('input[value="off"]').disabled`),true);

@@ -27,7 +27,16 @@ useRailProximity(
   railElement,
   computed(() => !props.drawer),
 );
-const rail = computed(() => layoutRail(props.rows, props.total));
+const rail = computed(() => {
+  const layout = layoutRail(props.rows, props.total);
+  return {
+    ...layout,
+    nodes: layout.nodes.map((node) => ({
+      ...node,
+      key: JSON.stringify(node.events.map((event) => [event.chipKey, event.stepKey])),
+    })),
+  };
+});
 // Keep one decorative element; gradients fade empty spans without introducing scroll work.
 const railLineStyle = computed(() => {
   const { nodes, line } = rail.value;
@@ -103,7 +112,7 @@ const label = (node: RailNode) =>
     <div v-if="rail.line" class="rail-line" :style="railLineStyle" />
     <button
       v-for="node in rail.nodes"
-      :key="JSON.stringify(node.events.map((event) => [event.chipKey, event.stepKey]))"
+      :key="node.key"
       type="button"
       class="history-rail-node"
       :class="{ gathered: node.count > 1, failed: node.failed, warn: !node.failed && node.warn }"

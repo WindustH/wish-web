@@ -4,8 +4,6 @@ export interface BusEvents {
   notice: string;
   'upsert.session': { id: string; body: SessionView };
   'tombstone.session': { id: string };
-  'upsert.group': { id: string };
-  'tombstone.group': { id: string };
   'list.changed': Record<string, never> | undefined;
   'sync.snapshot': Record<string, never>;
   'configuration.changed': Record<string, never>;

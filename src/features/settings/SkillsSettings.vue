@@ -5,7 +5,7 @@
 // all are; a search lists what it finds under its box. The model is told of none of them; it looks
 // with `wish skill` in its shell. Folders and switches are part of the configuration draft, saved with
 // the rest of settings.
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { CheckboxIndicator, CheckboxRoot, PopoverAnchor, PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui';
 import { tr } from '../../core/i18n/tr.ts';
 import { skillContent, skillsList } from '../../core/api/endpoints.ts';
@@ -28,14 +28,24 @@ const query = ref('');
 const viewing = ref<SkillContent | null>(null);
 const settings = computed<{ dirs: string[]; disabled: string[] }>(() => props.config.skills);
 
+let loadingRequest: AbortController | undefined;
+let viewingRequest: AbortController | undefined;
+onBeforeUnmount(() => {
+  loadingRequest?.abort();
+  viewingRequest?.abort();
+});
 async function load() {
+  loadingRequest?.abort();
+  viewingRequest?.abort();
+  const request = (loadingRequest = new AbortController());
   loading.value = true;
   try {
-    snapshot.value = await skillsList();
+    const result = await skillsList({ signal: request.signal });
+    if (!request.signal.aborted) snapshot.value = result;
   } catch (error) {
-    showError({ title: tr('无法读取 Skill', 'Could not read skills'), error });
+    if (!request.signal.aborted) showError({ title: tr('无法读取 Skill', 'Could not read skills'), error });
   } finally {
-    loading.value = false;
+    if (!request.signal.aborted) loading.value = false;
   }
 }
 // A save may change the folders, so what is in them is read again.
@@ -189,10 +199,13 @@ function moveInResults(event: KeyboardEvent) {
 const folderRows = computed(() => (current.value ? decorate(skillRows(current.value)) : []));
 
 async function view(skill: SkillEntry) {
+  viewingRequest?.abort();
+  const request = (viewingRequest = new AbortController());
   try {
-    viewing.value = await skillContent(skill.name, skill.dir);
+    const result = await skillContent(skill.name, skill.dir, { signal: request.signal });
+    if (!request.signal.aborted) viewing.value = result;
   } catch (error) {
-    showError({ title: tr('无法读取这个 Skill', 'Could not read this skill'), error });
+    if (!request.signal.aborted) showError({ title: tr('无法读取这个 Skill', 'Could not read this skill'), error });
   }
 }
 </script>

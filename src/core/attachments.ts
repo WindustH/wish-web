@@ -85,7 +85,7 @@ export function saveAttachmentDrafts<T extends AttachmentInput>(
   } else attachmentDrafts.delete(sessionId);
 }
 
-// Uploads the attachments to their owner's files: a session's by default, or a group's with `upload`.
+// Uploads attachments to the owning session's files.
 export async function uploadAttachments(
   owner: string,
   attachments: readonly AttachmentInput[],

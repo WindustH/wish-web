@@ -2,7 +2,7 @@
 // Names and values edited as rows: an MCP server's environment or headers. A value the server
 // hides comes back as "<redacted>"; left empty, it keeps the stored one. Nothing is written back
 // until a row changes, so opening the editor leaves the draft as it was.
-import { ref, watch } from 'vue';
+import { ref, toRaw, watch } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { REDACTED } from '../../core/secretRef.ts';
@@ -16,31 +16,46 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: Record<string, string> | undefined] }>();
 
-type Row = { name: string; value: string; hidden: boolean };
-const rows = ref<Row[]>(
-  Object.entries(props.modelValue ?? {}).map(([name, value]) =>
-    props.secretValues !== false && value === REDACTED
-      ? { name, value: '', hidden: true }
-      : { name, value, hidden: false },
-  ),
+type Row = { id: number; name: string; value: string; hidden: boolean };
+const rows = ref<Row[]>([]);
+let nextId = 0;
+let applying = false;
+let emitted: Record<string, string> | undefined;
+watch(
+  [() => props.modelValue, () => props.secretValues],
+  ([value, secret], previous) => {
+    // Preserve blank rows/caret while reflecting our own edit, but adopt resets from the parent.
+    if (previous && toRaw(value) === emitted && secret === previous[1]) return;
+    applying = true;
+    rows.value = Object.entries(value ?? {}).map(([name, value]) => ({
+      id: nextId++,
+      name,
+      value: secret !== false && value === REDACTED ? '' : value,
+      hidden: secret !== false && value === REDACTED,
+    }));
+    applying = false;
+  },
+  { immediate: true, deep: true },
 );
 
 watch(
   rows,
   (next) => {
+    if (applying) return;
     const entries = next
       .filter((row) => row.name.trim())
       .map((row) => [row.name.trim(), row.value || (row.hidden ? REDACTED : '')]);
     // The server leaves an empty map out, so an emptied one is left out too.
-    emit('update:modelValue', entries.length ? Object.fromEntries(entries) : undefined);
+    emitted = entries.length ? Object.fromEntries(entries) : undefined;
+    emit('update:modelValue', emitted);
   },
-  { deep: true },
+  { deep: true, flush: 'sync' },
 );
 </script>
 
 <template>
   <div class="kv-editor">
-    <div v-for="(row, index) in rows" :key="index" class="kv-row">
+    <div v-for="(row, index) in rows" :key="row.id" class="kv-row">
       <input
         class="input set-mono"
         v-model="row.name"
@@ -69,7 +84,11 @@ watch(
         <Icon name="x" />
       </button>
     </div>
-    <button type="button" class="btn ghost kv-add" @click="rows.push({ name: '', value: '', hidden: false })">
+    <button
+      type="button"
+      class="btn ghost kv-add"
+      @click="rows.push({ id: nextId++, name: '', value: '', hidden: false })"
+    >
       <Icon name="plus" />{{ addLabel }}
     </button>
   </div>

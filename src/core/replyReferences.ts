@@ -11,6 +11,9 @@ export type ReplyReference = {
   end?: number;
   blob?: string;
   fileName?: string;
+  lineStart?: number;
+  lineEnd?: number;
+  version?: string;
   imageId?: string;
   page?: number;
   region?: {
@@ -35,6 +38,11 @@ export function validReference(value: unknown): value is ReplyReference {
     typeof v.text === 'string' &&
     v.text.length <= 16000 &&
     (v.seq === undefined || (Number.isSafeInteger(v.seq) && v.seq >= 0)) &&
+    (v.lineStart === undefined ||
+      (Number.isSafeInteger(v.lineStart) &&
+        v.lineStart > 0 &&
+        Number.isSafeInteger(v.lineEnd) &&
+        v.lineEnd! >= v.lineStart)) &&
     (v.start === undefined ||
       (Number.isSafeInteger(v.start) && v.start >= 0 && Number.isSafeInteger(v.end) && v.end! >= v.start))
   );
@@ -45,8 +53,12 @@ export function referenceDescription(ref: ReplyReference) {
       `[Reference: ${ref.label}; file=${ref.blob}${ref.page ? `; page=${ref.page}` : ''}; ` +
       `coordinates(top-left, ${ref.region.unit})=${JSON.stringify(ref.region)}; the following image is the selected region.]`
     );
+  const header = ref.blob
+    ? `[Reference: ${JSON.stringify(ref.fileName ?? ref.label)}; file=${ref.blob}${ref.lineStart === undefined ? '' : `; lines=${ref.lineStart}:${ref.lineEnd}`}; source range ${ref.start}:${ref.end}]`
+    : `[Reply to message ${ref.seq}, text block ${ref.block}, source range ${ref.start}:${ref.end}]`;
   return (
-    `[Reply to message ${ref.seq}, text block ${ref.block}, source range ${ref.start}:${ref.end}]\n` +
+    header +
+    '\n' +
     ref.text
       .split('\n')
       .map((line) => `> ${line}`)

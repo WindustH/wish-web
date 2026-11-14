@@ -12,6 +12,7 @@ import { toast } from './ui/toast.ts';
 import { applyTokens } from './ui/applyTokens.ts';
 import { initPWA } from './ui/pwa.ts';
 import { sessionSearchCommands } from './features/sessions/searchCommands.ts';
+import { sessionSidebarCommands } from './features/sessions/sidebarCommands.ts';
 import { installShortcuts } from './features/shell/shortcuts.ts';
 import App from './App.vue';
 import { createUnhandledRejectionReporter } from './ui/unhandledErrors.ts';
@@ -133,6 +134,7 @@ app.mount('#app');
 
 installShortcuts({
   ...sessionSearchCommands(router),
+  ...sessionSidebarCommands(router),
   openSettings: () => {
     void router.push('/settings');
   },

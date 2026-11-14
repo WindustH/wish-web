@@ -4,7 +4,7 @@ import { computed } from 'vue';
 import UserBubble from './UserBubble.vue';
 import ImageGrid from './ImageGrid.vue';
 import { imageParts } from '../imageAlbums.ts';
-// A history item's message, or the blocks of one shown elsewhere (`content`), such as a group's.
+// A history item's message, or message blocks shown elsewhere through `content`.
 const props = defineProps<{ item?: any; content?: ContentBlock[] }>();
 const bubbles = computed(() => userBubbles(props.content ?? props.item.entry?.payload?.content));
 const groups = computed(() => {

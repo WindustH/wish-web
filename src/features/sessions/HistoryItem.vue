@@ -11,10 +11,10 @@ import AssistantEntry from './entries/AssistantEntry.vue';
 import SystemEntry from './entries/SystemEntry.vue';
 import QuestionCard from './entries/QuestionCard.vue';
 import LateAnswerEntry from './entries/LateAnswerEntry.vue';
-import GroupSentEntry from './entries/GroupSentEntry.vue';
-import GroupMessageEntry from './entries/GroupMessageEntry.vue';
+import PeerSentEntry from './entries/PeerSentEntry.vue';
+import PeerMessageEntry from './entries/PeerMessageEntry.vue';
 import ImageAlbumEntry from './entries/ImageAlbumEntry.vue';
-import BlobMentionCard from '../../domain/references/BlobMentionCard.vue';
+import BlobMentionCards from './entries/BlobMentionCards.vue';
 import { rowBlobMentions } from './rowBlobMentions.ts';
 
 // `forcedKeys` are the groups a search holds open to show what it found.
@@ -33,10 +33,10 @@ const entryComponent = computed<Component>(() =>
       ? QuestionCard
       : entry.value?.payload?.metadata?.source === 'ask_user_answer'
         ? LateAnswerEntry
-        : entry.value?.kind === 'group_sent'
-          ? GroupSentEntry
-          : entry.value?.kind === 'group_message'
-            ? GroupMessageEntry
+        : entry.value?.kind === 'peer_sent'
+          ? PeerSentEntry
+          : entry.value?.kind === 'peer_message'
+            ? PeerMessageEntry
             : entry.value?.kind === 'run_error'
               ? ErrorEntry
               : entry.value?.kind === 'user_message'
@@ -60,20 +60,10 @@ const entryProps = computed(() =>
 
 <template>
   <FileChangeCards :item="item" />
-  <div v-if="fileMentions.length" class="blob-mention-cards">
-    <BlobMentionCard v-for="file in fileMentions" :key="file.key" :mention="file.mention" />
-  </div>
+  <BlobMentionCards v-if="fileMentions.length" :files="fileMentions" />
   <div v-if="item.type === 'entry' && item.entry?.seq != null" class="entry-anchor" :data-seq="item.entry.seq">
     <component :is="entryComponent" v-bind="entryProps" />
   </div>
   <div v-else-if="item.type === 'chips' || item.type === 'process'" class="history-chip-row" />
   <component :is="entryComponent" v-else v-bind="entryProps" />
 </template>
-<style scoped>
-.blob-mention-cards {
-  display: grid;
-  gap: 8px;
-  padding: 6px 0 12px;
-  min-width: 0;
-}
-</style>

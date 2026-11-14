@@ -1,5 +1,5 @@
 // Navigation guard and unsaved changes confirmation for settings view.
-import { ref, computed, provide, type Ref, type ComputedRef } from 'vue';
+import { ref, computed, provide, watch, type Ref, type ComputedRef } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router';
 import { theme } from '../../core/theme/index.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
@@ -32,6 +32,21 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
   });
 
   const preferenceSource = ref(JSON.stringify(preferenceValue()));
+  // Desktop preferences apply immediately, including when the layout changes.
+  watch(
+    () => JSON.stringify(preferenceValue()),
+    (value) => {
+      if (!isMobile.value) preferenceSource.value = value;
+    },
+    { flush: 'sync' },
+  );
+  watch(
+    isMobile,
+    () => {
+      preferenceSource.value = JSON.stringify(preferenceValue());
+    },
+    { flush: 'sync' },
+  );
 
   const dirty = computed(
     () => serverDirty.value || (isMobile.value && JSON.stringify(preferenceValue()) !== preferenceSource.value),

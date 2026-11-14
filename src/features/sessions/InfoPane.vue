@@ -22,9 +22,7 @@ import ProviderIcon from '../../domain/providers/ProviderIcon.vue';
 import { contextGauge } from './contextUsage.ts';
 import { useModelCatalog } from '../../domain/providers/useModelCatalog.ts';
 import { useSessionRequests } from './useSessionRequests.ts';
-import { RouterLink } from 'vue-router';
 import Icon from '../../ui/components/Icon.vue';
-import type { GroupView } from '../../core/api/types.ts';
 
 const props = withDefaults(
   defineProps<{ initialSection?: 'overview' | 'search'; sidebar?: boolean; open?: boolean }>(),
@@ -127,22 +125,6 @@ const remaining = computed(() =>
   gauge.value.tokens != null && gauge.value.trigger ? Math.max(0, gauge.value.trigger - gauge.value.tokens) : null,
 );
 const phase = computed(() => snapshot.value?.phase || 'idle');
-
-// The groups the session is in.
-const groups = ref<GroupView[]>([]);
-const groupsError = ref<unknown>(null);
-async function loadGroups(id: string | null) {
-  groups.value = [];
-  groupsError.value = null;
-  if (!id) return;
-  try {
-    const found = await api.sessionGroups(id);
-    if (chat.sessionId.value === id) groups.value = found;
-  } catch (error) {
-    if (chat.sessionId.value === id) groupsError.value = error;
-  }
-}
-watch(() => chat.sessionId.value, loadGroups, { immediate: true });
 </script>
 
 <template>
@@ -228,30 +210,6 @@ watch(() => chat.sessionId.value, loadGroups, { immediate: true });
               ><small>{{ tr('当前与历史 Generation', 'Current and historical generations') }}</small></span
             ><Icon name="chevron-right" />
           </button>
-        </section>
-
-        <section v-if="groups.length || groupsError" class="info-card">
-          <header class="info-card-head">
-            <h4>{{ tr('所在群组', 'Groups') }}</h4>
-          </header>
-          <div v-if="groupsError" class="load-error" role="alert">
-            <span>{{ errorDetail(groupsError) }}</span
-            ><button class="btn ghost sm" @click="loadGroups(chat.sessionId.value)">
-              {{ i18n.t('common.retry') }}
-            </button>
-          </div>
-          <ul v-else class="info-members">
-            <li v-for="item in groups" :key="item.id">
-              <RouterLink :to="`/g/${item.id}`" class="info-member"
-                ><Icon name="users" />{{ item.name || item.id.slice(0, 8) }}</RouterLink
-              ><small>{{
-                tr(
-                  `${item.members.length} 个成员`,
-                  `${item.members.length} member${item.members.length === 1 ? '' : 's'}`,
-                )
-              }}</small>
-            </li>
-          </ul>
         </section>
 
         <section class="info-card">

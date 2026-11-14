@@ -345,11 +345,15 @@
   height: 18px;
   color: var(--fg-muted);
 }
-.menu-item[data-highlighted] {
+.menu-item[data-disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+.menu-item[data-highlighted]:not([data-disabled]) {
   background: var(--bg-hover);
 }
 @media (hover: hover) {
-  .menu-item:hover {
+  .menu-item:hover:not([data-disabled]) {
     background: var(--bg-hover);
   }
 }

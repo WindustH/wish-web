@@ -185,11 +185,20 @@ function field(name: string, text: string) {
             class="input"
             v-model="login.callbackUrl"
             :placeholder="tr('粘贴授权后的 localhost 链接', 'Paste localhost callback URL')"
-          /><button class="btn" @click="login.complete">{{ tr('完成登录', 'Complete sign-in') }}</button></template
+          /><button
+            type="button"
+            class="btn"
+            :disabled="login.submitting || !login.callbackUrl.trim()"
+            @click="login.complete"
+          >
+            {{ tr('完成登录', 'Complete sign-in') }}
+          </button></template
         >
       </div>
       <div v-if="account.preset === 'github_copilot'" class="set-card account-signin">
-        <button class="btn" @click="copilot.start">{{ tr('通过 GitHub 登录', 'Sign in with GitHub') }}</button>
+        <button type="button" class="btn" :disabled="copilot.busy" @click="copilot.start">
+          {{ tr('通过 GitHub 登录', 'Sign in with GitHub') }}
+        </button>
         <p>{{ copilot.message }}</p>
         <strong v-if="copilot.code">{{ copilot.code }}</strong
         ><a v-if="copilot.url" :href="copilot.url" target="_blank" rel="noopener noreferrer">{{

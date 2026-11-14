@@ -4,6 +4,7 @@ import { describeError } from '../../core/i18n/errorMessages.ts';
 import { displayFailure } from '../../core/api/failures.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
+import { useRailProximity } from './useRailProximity.ts';
 import { computed, inject, nextTick, onUnmounted, provide, ref, watch } from 'vue';
 import { replyContextKey } from '../../domain/references/context.ts';
 import { useVirtualizer } from '@tanstack/vue-virtual';
@@ -75,8 +76,8 @@ const retries = computed(() => Object.values(streamState.value.retries));
 const running = computed(() => streamState.value?.active);
 const runFailure = computed(() => {
   if (running.value) return null;
-  const last = chat.entries.value.at(-1);
-  if (last?.kind === 'run_error' || last?.kind === 'history_event') return null;
+  const last = chat.entries.value.findLast((entry) => entry.kind !== 'history_event');
+  if (last?.kind === 'run_error') return null;
   return streamState.value?.error || chat.snapshot.value?.last_error;
 });
 const requestFailure = computed(() => displayFailure(chat.error.value));
@@ -129,9 +130,7 @@ watch(
 
 // The rail's rows: where each row starts and how tall it is - measured where the log has
 // measured it, estimated where it has not - with the events that came in it.
-const measureVersion = ref(0);
 const railRows = computed<RailRow[]>(() => {
-  void measureVersion.value;
   // The virtualizer's cache holds its VirtualItem records, not bare numbers: the height of a
   // measured row is its `size`. A measured row of height 0 - an unseen chips host - stays 0
   // (`??` catches only the unmeasured), so the running top never drifts or turns NaN.
@@ -139,7 +138,7 @@ const railRows = computed<RailRow[]>(() => {
   // text (or prepend a page) before this render has asked the virtualizer for its new total.
   virtualizer.value.getTotalSize();
   const cache = virtualizer.value.measurementsCache;
-  const width = scrollContentEl.value?.querySelector<HTMLElement>('.chatlog-inner')?.clientWidth || 736;
+  const width = innerEl.value?.clientWidth || 736;
   let top = 0;
   return groups.value.map((row, index) => {
     const height = cache?.[index]?.size ?? estimateRow(row, width);
@@ -219,6 +218,12 @@ const railSwipe = useRailSwipe({
 const railToggleLabel = computed(() =>
   railSwipe.open.value ? tr('收起时间线', 'Hide timeline') : tr('展开时间线', 'Show timeline'),
 );
+const railToggle = ref<HTMLElement>();
+useRailProximity(
+  railToggle,
+  computed(() => railDrawer.value && !props.mobile),
+  true,
+);
 
 const workIndicator = computed(() =>
   chatWorkIndicator({
@@ -240,7 +245,9 @@ const workStatus = computed(() => {
   // A question waits on the user, not on work: say so rather than "tool call · ask_user".
   // The open forms come with the snapshot, so this holds after a reload too.
   if (awaitsAnswer(chat.snapshot.value)) return tr('等待你回答上面的问题', 'Waiting for your answers above');
-  if (state?.currentTool) return `${i18n.t('entry.toolCall')} · ${state.currentTool}`;
+  if (state?.currentTool && (state.activity === 'preparingTool' || state.activity === 'tool')) {
+    return `${i18n.t(state.activity === 'preparingTool' ? 'chat.preparingTool' : 'chat.executingTool')} · ${state.currentTool}`;
+  }
   return i18n.t(`chat.${state?.activity || 'working'}`);
 });
 const standbyPreparing = computed(() => {
@@ -263,7 +270,7 @@ const virtualizer = useVirtualizer(
   computed(() => {
     const items = groups.value;
     const session = props.sessionId;
-    const width = scrollContentEl.value?.querySelector<HTMLElement>('.chatlog-inner')?.clientWidth || 736;
+    const width = innerEl.value?.clientWidth || 736;
     return {
       count: items.length,
       enabled: pageActive.value,
@@ -373,7 +380,6 @@ watch(
 // After every layout change (measure, groups, stream) re-derive scroll state
 watch([() => groups.value.length, () => virtualizer.value.getVirtualItems().length], async () => {
   const gen = epoch;
-  measureVersion.value++;
   await nextTick();
   if (owns(gen)) measureScroll();
 });
@@ -582,6 +588,7 @@ watch(
     </div>
     <Hint v-if="railDrawer && !mobile && activityChips.length" :text="railToggleLabel">
       <button
+        ref="railToggle"
         type="button"
         class="rail-drawer-toggle btn ghost icon-only"
         :aria-label="railToggleLabel"
@@ -612,16 +619,40 @@ watch(
 </template>
 
 <style scoped>
-.rail-drawer-toggle {
+.rail-drawer-toggle.btn {
   position: absolute;
   top: 0;
   left: 0;
   z-index: 2;
   width: 24px;
+  min-width: 24px;
   height: 28px;
   min-height: 28px;
   padding: 4px;
   color: var(--fg-subtle);
+  background: transparent;
+  border: 0;
+  transition:
+    color var(--dur-fast),
+    opacity 100ms linear;
+}
+.rail-drawer-toggle.rail-proximity {
+  opacity: var(--rail-proximity, 0);
+}
+.rail-drawer-toggle:focus-visible {
+  opacity: 1;
+  pointer-events: auto !important;
+}
+@media (hover: hover) {
+  .rail-drawer-toggle:hover {
+    color: var(--accent);
+    background: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail-drawer-toggle {
+    transition: none;
+  }
 }
 .font-warmup {
   position: absolute;

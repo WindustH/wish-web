@@ -3,13 +3,22 @@ import { virtualWindow } from '../virtualWindow.ts';
 
 // Cards have a 4:3 preview and two fixed text lines. Resize and scroll only update
 // the visible row window; objects and preview caches remain owned by the caller.
-export function useVirtualGrid(viewport: Ref<HTMLElement | undefined>, count: Ref<number>) {
+export function useVirtualGrid(
+  viewport: Ref<HTMLElement | undefined>,
+  count: Ref<number>,
+  layout?: Readonly<Ref<string>>,
+) {
   const width = ref(280),
     height = ref(480),
     offset = ref(0);
-  const columns = computed(() => Math.max(1, Math.floor((width.value + 12) / 124)));
+  const icons = computed(() => !layout || layout.value === 'icons');
+  const columns = computed(() => (icons.value ? Math.max(1, Math.floor((width.value + 12) / 124)) : 1));
   const rowSize = computed(() =>
-    Math.ceil(Math.min(180, (width.value - (columns.value - 1) * 12) / columns.value) * 0.75 + 62),
+    icons.value
+      ? Math.ceil(Math.min(180, (width.value - (columns.value - 1) * 12) / columns.value) * 0.75 + 62)
+      : layout?.value === 'compact'
+        ? 40
+        : 64,
   );
   const range = computed(() =>
     virtualWindow(Math.ceil(count.value / columns.value), rowSize.value, height.value, offset.value),
@@ -18,7 +27,8 @@ export function useVirtualGrid(viewport: Ref<HTMLElement | undefined>, count: Re
   const end = computed(() => Math.min(count.value, range.value.end * columns.value));
   const style = computed(() => ({
     gridTemplateColumns: `repeat(${columns.value}, minmax(0, 1fr))`,
-    gridAutoRows: `${rowSize.value - 18}px`,
+    gridAutoRows: `${rowSize.value - (icons.value ? 18 : 4)}px`,
+    rowGap: `${icons.value ? 18 : 4}px`,
     paddingTop: `${range.value.start * rowSize.value}px`,
     paddingBottom: `${Math.max(0, range.value.total - range.value.end * rowSize.value)}px`,
   }));
@@ -62,6 +72,7 @@ export function useVirtualGrid(viewport: Ref<HTMLElement | undefined>, count: Re
   watch(count, () => {
     if (start.value >= count.value) reset();
   });
+  if (layout) watch(layout, reset);
   onBeforeUnmount(() => observer?.disconnect());
   return { start, end, style, reset };
 }

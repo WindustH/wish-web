@@ -3,6 +3,26 @@ import test from 'node:test';
 import { reactive } from 'vue';
 import { createEmptyStream, createStreamProcessor } from '../src/core/state/chatStream.ts';
 
+test('streaming tool arguments are preparation until execution actually starts, including reconnect', () => {
+  const processor = createStreamProcessor({ onClose() {}, onHistoryPruned() {}, onScheduleRefresh() {}, onTurnComplete() {}, onNotice() {}, onError(e) { throw e; } });
+  let state = createEmptyStream();
+  const draft = { ModelStream: { ToolUseDelta: { index: 0, name: 'shell', arguments: '{"command":"sleep ' } } };
+  const started = { ToolStarted: { call_id: 'call-1', name: 'shell' } };
+  const send = (event: object) => { state = processor.processFrame(JSON.stringify({ type: 'session_event', event }), state); };
+  send(draft);
+  assert.equal(state.activity, 'preparingTool');
+  assert.equal(state.currentTool, 'shell');
+  send(started);
+  assert.equal(state.activity, 'tool');
+  state = processor.processFrame(JSON.stringify({ type: 'snapshot', data: { status: { running: true } }, live_events: [draft] }), state);
+  assert.equal(state.activity, 'preparingTool');
+  send(started);
+  assert.equal(state.activity, 'tool');
+  send({ TurnStarted: { turn: 2 } });
+  assert.equal(state.currentTool, null);
+  assert.equal(state.activity, 'working');
+});
+
 test('checkpoint rewind removes speculative text, reasoning and tool arguments, including after reconnect', () => {
   const processor = createStreamProcessor({ onClose() {}, onHistoryPruned() {}, onScheduleRefresh() {}, onTurnComplete() {}, onNotice() {}, onError(e) { throw e; } });
   let state = createEmptyStream();

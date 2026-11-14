@@ -86,7 +86,13 @@ function opened(event: Event) {
 // the drag-and-drop channel, which pointer capture does not touch.
 function ownFieldDrag(event: Event) {
   const target = event.target as HTMLElement | null;
-  if (target?.matches?.('input, textarea') && target.isConnected) {
+  if (
+    (event as PointerEvent).pointerType === 'mouse' &&
+    target?.matches?.(
+      'textarea, input:not([type]), input[type=text], input[type=search], input[type=password], input[type=email], input[type=url], input[type=tel]',
+    ) &&
+    target.isConnected
+  ) {
     try {
       target.setPointerCapture((event as PointerEvent).pointerId);
     } catch {

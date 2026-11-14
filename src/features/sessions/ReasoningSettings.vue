@@ -86,8 +86,9 @@ async function loadMetadata() {
     if (!signal.aborted) metadataBusy.value = false;
   }
 }
+watch(() => snapshot.value?.reasoning_effort, resetChoice);
 watch(
-  snapshot,
+  [() => snapshot.value?.provider, () => snapshot.value?.model],
   () => {
     resetChoice();
     void loadMetadata();

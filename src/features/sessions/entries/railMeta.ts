@@ -60,8 +60,6 @@ export function noticeFailed(entry: GroupEntry): boolean {
 
 /** What a notice is called, in the words its own window is titled with. */
 export function noticeLabel(entry: GroupEntry): string {
-  if (entry.payload?.instruction_operation === 'remove')
-    return `${entry.payload.instruction_title} · ${i18n.locale.value === 'zh' ? '已从上下文移除' : 'Removed from context'}`;
   if (entry.payload?.instruction_kind) return instructionLabel(entry.payload.instruction_kind);
   if (entry.payload?.instruction_title) return entry.payload.instruction_title;
   if (entry.payload?.background) {
@@ -250,6 +248,15 @@ export function chipEvents(chip: any, resultOf: (callId: string) => any): ChipEv
 
 /** What a notice says, as one line - the grey line under its title in a window's list. */
 export function noticeText(entry: GroupEntry): string {
+  if (entry.payload?.instruction_kind === 'compaction') {
+    const count = entry.payload.metadata?.removed_entries ?? 0;
+    return i18n.locale.value === 'zh'
+      ? `上下文压缩完成，移除了 ${count} 条上下文记录。原始历史仍然保留。`
+      : `Context compacted; ${count} context entries removed. Original history is retained.`;
+  }
+  if (entry.payload?.instruction_kind === 'upstream-compaction') {
+    return i18n.locale.value === 'zh' ? '上游上下文压缩已完成。' : 'Upstream context compaction completed.';
+  }
   return (
     (entry.payload?.content ?? []).map((block: { text?: string }) => block.text ?? '').join('\n') ||
     entry.payload?.text ||

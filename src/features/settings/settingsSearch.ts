@@ -64,7 +64,7 @@ export const settingTerms: Record<string, string[]> = {
   ],
   debug: [
     '调试模式 用户行为日志 记录 导出 Debug activity log record export',
-    '样式预览 卡片 群组 Style preview cards session groups',
+    '样式预览 卡片 会话消息 Style preview cards session messages',
     '诊断 Diagnostics',
     '滚动卡死记录 Scroll freeze',
     '初始引导 Setup onboarding',

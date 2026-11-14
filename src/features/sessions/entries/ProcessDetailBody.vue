@@ -175,11 +175,11 @@ const fieldName = (key: string) =>
       <BlobMentionCard v-else-if="blobMention" :mention="blobMention" />
       <component v-else-if="extensionResult" :is="extensionResult.component" v-bind="extensionResult.props" />
       <template v-else-if="name === 'view_image' && result?.status === 'success'">
-        <ToolImage v-if="imageSrc" :src="imageSrc" :mime="output.mime_type" :path="output.path" />
+        <ToolImage v-if="imageSrc" :src="imageSrc" :mime="output?.mime_type" :path="output?.path" />
         <p v-else class="detail-muted">
           {{ tr('此结果没有已保存的图片引用。', 'No saved image reference is available for this result.') }}
         </p>
-        <p class="detail-muted">{{ output.mime_type }}</p>
+        <p class="detail-muted">{{ output?.mime_type }}</p>
       </template>
       <template v-else-if="searchFound">
         <p class="detail-muted">
@@ -229,20 +229,3 @@ const fieldName = (key: string) =>
     <pre v-if="rawOpen">{{ fullText }}</pre>
   </details>
 </template>
-
-<style scoped>
-:deep(.virtual-rows-item > .proc-event) {
-  height: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-:deep(.virtual-rows-item .proc-event-text strong) {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-:deep(.virtual-rows-item .proc-event-text small) {
-  -webkit-line-clamp: 1;
-}
-</style>

@@ -6,14 +6,14 @@ import { computed } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
 import type { MenuItem } from '../../ui/components/menuTypes.ts';
-import type { GroupStorage, SessionBytes, SessionStorage } from '../../core/api/endpoints.ts';
+import type { SessionBytes, SessionStorage } from '../../core/api/endpoints.ts';
 import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 import { fmtBytes, fmtDateTime, relTime } from '../../core/util/fmt.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { modelLabel } from '../../domain/providers/modelLabel.ts';
 
-export type DataItem = ({ kind: 'session' } & SessionStorage) | ({ kind: 'group' } & GroupStorage);
+export type DataItem = { kind: 'session' } & SessionStorage;
 const props = defineProps<{
   item: DataItem;
   // What the bytes can be made of, with the legend's colors.
@@ -25,17 +25,8 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ toggle: []; act: [key: string] }>();
 const shownParts = computed(() => props.parts.filter((part) => props.item.bytes[part.key] > 0));
-// What the row says before its parts: a session's model, a group's members and messages.
-const about = computed(() =>
-  props.item.kind === 'group'
-    ? tr(
-        `${props.item.members} 个成员 · ${props.item.messages} 条消息`,
-        `${props.item.members} member${props.item.members === 1 ? '' : 's'} · ${props.item.messages} message${props.item.messages === 1 ? '' : 's'}`,
-      )
-    : props.item.model
-      ? modelLabel(props.item.model) || props.item.model
-      : '',
-);
+// Show the session's model before its stored parts.
+const about = computed(() => modelLabel(props.item.model ?? '') || props.item.model || '');
 const tags = computed(() => (props.item.kind === 'session' ? (props.item.tags ?? []) : []));
 </script>
 
@@ -51,13 +42,8 @@ const tags = computed(() => (props.item.kind === 'session' ? (props.item.tags ??
     @keydown.space.prevent="emit('toggle')"
   >
     <span class="data-check" aria-hidden="true"><Icon v-if="chosen" name="check" /></span>
-    <span
-      class="data-kind"
-      :class="item.kind"
-      :aria-label="item.kind === 'group' ? tr('群组', 'Group') : tr('会话', 'Session')"
-      role="img"
-    >
-      <Icon :name="item.kind === 'group' ? 'users' : 'chat'" />
+    <span class="data-kind" :class="item.kind" :aria-label="tr('会话', 'Session')" role="img">
+      <Icon name="chat" />
     </span>
     <div class="data-main">
       <div class="data-title">
@@ -149,7 +135,7 @@ const tags = computed(() => (props.item.kind === 'session' ? (props.item.tags ??
   height: 13px;
   stroke-width: 3;
 }
-/* A session's bubble and a group's people, each on a tile of its own tint. */
+/* A session's bubble on a tinted tile. */
 .data-kind {
   display: grid;
   place-items: center;
@@ -159,10 +145,6 @@ const tags = computed(() => (props.item.kind === 'session' ? (props.item.tags ??
   border-radius: 9px;
   background: var(--bg-sunken);
   color: var(--fg-muted);
-}
-.data-kind.group {
-  background: color-mix(in srgb, var(--chart-2) 16%, var(--bg-raised));
-  color: var(--chart-2);
 }
 .data-kind .icon {
   width: 18px;

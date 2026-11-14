@@ -51,15 +51,21 @@ watch(
     });
     sources.value = {};
     playbackErrors.value = {};
+    const errors: unknown[] = [];
     for (const artifact of artifacts ?? []) {
       if (!alive) break;
       try {
         const grant = await mediaPlayback(session, artifact.id, { signal: playbackController.signal });
         if (alive) sources.value[artifact.id] = absUrl(grant.path);
       } catch (error) {
-        if (alive) showError({ title: tr('无法读取媒体', 'Could not load media'), error });
+        if (alive) errors.push(error);
       }
     }
+    if (alive && errors.length)
+      showError({
+        title: tr(`无法读取 ${errors.length} 个媒体文件`, `Could not load ${errors.length} media files`),
+        error: errors[0],
+      });
   },
   { immediate: true },
 );
@@ -217,7 +223,7 @@ figure {
 video {
   width: 100%;
   max-height: 65vh;
-  background: var(--bg-secondary);
+  background: var(--bg-inset);
   border-radius: 12px;
 }
 audio {

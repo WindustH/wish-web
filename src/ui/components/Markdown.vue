@@ -58,10 +58,26 @@ async function handleClick(event: MouseEvent) {
   border-radius: 6px;
   background: var(--bg-raised);
   color: var(--accent);
+  text-decoration: none;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   overflow-wrap: anywhere;
   cursor: pointer;
+}
+/* Code-formatted filenames share the link's surface instead of nesting a second chip. */
+.markdown :deep(.file-mention code) {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  line-height: inherit;
+}
+@media (hover: hover) {
+  .markdown :deep(.file-mention:hover) {
+    background: var(--bg-hover);
+    text-decoration: none;
+  }
 }
 .markdown :deep(.file-mention .icon) {
   display: inline-block;

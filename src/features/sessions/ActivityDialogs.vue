@@ -13,6 +13,9 @@ import FileDiff from './entries/FileDiff.vue';
 import { changedFiles } from './fileChanges.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import SystemEntry from './entries/SystemEntry.vue';
+import PeerMessageDialog from './entries/PeerMessageDialog.vue';
+import LateAnswerDialog from './entries/LateAnswerDialog.vue';
+import BlobMentionCard from '../../domain/references/BlobMentionCard.vue';
 
 const props = defineProps<{
   chips: ChipItem<EntryView>[];
@@ -23,11 +26,13 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ dismiss: [requestId: number] }>();
 const selected = ref<ActivityRequest | null>(null);
+const expandedFiles = ref(new Set<string>());
 const searchSelections = ref(new Set<string>());
 watch(
   () => props.request,
   (request) => {
     selected.value = request;
+    expandedFiles.value = new Set();
     searchSelections.value = new Set();
   },
   { immediate: true },
@@ -57,7 +62,14 @@ function closeActivity(key: string) {
 watch(
   () => props.chips,
   (chips) => {
-    if (selected.value && !selected.value.question && !chips.some((chip) => chip.key === selected.value!.chipKey))
+    if (
+      selected.value &&
+      !selected.value.question &&
+      !selected.value.mentions &&
+      !selected.value.peer &&
+      !selected.value.lateAnswers &&
+      !chips.some((chip) => chip.key === selected.value!.chipKey)
+    )
       closeActivity(selected.value.chipKey);
   },
 );
@@ -76,6 +88,34 @@ const requestedStep = computed(() => {
 
 <template>
   <div class="activity-dialog-host">
+    <PeerMessageDialog
+      v-if="selected?.peer"
+      :key="selected.requestId"
+      v-bind="selected.peer"
+      @close="selected && closeActivity(selected.chipKey)"
+    />
+    <LateAnswerDialog
+      v-if="selected?.lateAnswers"
+      :key="selected.requestId"
+      :answers="selected.lateAnswers"
+      @close="selected && closeActivity(selected.chipKey)"
+    />
+    <Modal
+      v-if="selected?.mentions"
+      :key="selected.requestId"
+      :open="true"
+      :title="tr(`引用文件 · ${selected.mentions.length}`, `Referenced files · ${selected.mentions.length}`)"
+      @close="selected && closeActivity(selected.chipKey)"
+    >
+      <div class="blob-mention-list">
+        <BlobMentionCard
+          v-for="file in selected.mentions"
+          :key="file.key"
+          :mention="file.mention"
+          @opened="selected && closeActivity(selected.chipKey)"
+        />
+      </div>
+    </Modal>
     <QuestionDetailDialog
       v-if="selected?.question"
       :detail="selected.question"
@@ -105,19 +145,30 @@ const requestedStep = computed(() => {
           </div></div
       ></template>
       <div class="file-change-details">
-        <template v-for="file in selectedFiles" :key="file.path">
-          <FileDiff
-            v-for="(edit, index) in file.edits"
-            :key="`${file.path}:${index}`"
-            :edit="edit"
-            :flat="selectedFiles.length === 1"
-          />
-        </template>
+        <component
+          :is="selectedFiles.length === 1 ? 'div' : 'details'"
+          v-for="file in selectedFiles"
+          :key="file.path"
+          :open="selectedFiles.length === 1 || expandedFiles.has(file.path)"
+          @toggle="
+            ($event.target as HTMLDetailsElement).open ? expandedFiles.add(file.path) : expandedFiles.delete(file.path)
+          "
+        >
+          <summary v-if="selectedFiles.length > 1">{{ file.path }}</summary>
+          <template v-if="selectedFiles.length === 1 || expandedFiles.has(file.path)">
+            <FileDiff
+              v-for="(edit, index) in file.edits"
+              :key="`${file.path}:${index}`"
+              :edit="edit"
+              :flat="selectedFiles.length === 1"
+            />
+          </template>
+        </component>
       </div>
     </Modal>
     <template v-for="chip in activeChips" :key="chip.key">
       <ProcessGroup
-        v-if="chip.type === 'process' && !selected?.files"
+        v-if="chip.type === 'process' && !selected?.files && !selected?.mentions"
         variant="ghost"
         :item="chip"
         :session="session"
@@ -139,6 +190,13 @@ const requestedStep = computed(() => {
   </div>
 </template>
 <style scoped>
+.blob-mention-list {
+  display: grid;
+  gap: 10px;
+}
+.blob-mention-list :deep(.blob-mention-card) {
+  width: 100%;
+}
 :global(.file-changes-dialog.compact .modal-body) {
   padding: 12px 16px 16px;
 }
@@ -157,6 +215,12 @@ const requestedStep = computed(() => {
   display: grid;
   gap: 12px;
   min-width: 0;
+}
+.file-change-details summary {
+  padding: 8px 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
 }
 .activity-dialog-host {
   display: contents;

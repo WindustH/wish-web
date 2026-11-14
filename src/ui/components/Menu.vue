@@ -22,6 +22,7 @@ export function closeMenus() {
 // browser's. With `selectsText`, a finger held on the text itself selects it (see TouchSelection),
 // and only one held on the blank around it opens the menu. With `selectionItems`, a right click or a
 // long press on text already selected opens those items instead, for what was selected.
+import { observeLayout } from '../observeLayout.ts';
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import {
   DropdownMenuContent,
@@ -288,26 +289,21 @@ function sightOf(element: Element, clips: Element[]): DOMRect | null {
   }
   return right > left && bottom > top ? new DOMRect(left, top, right - left, bottom - top) : null;
 }
-// Checked every frame while the menu is open: a list moves its rows without scrolling as often as
-// it scrolls them.
-let watching = 0;
-watch(open, (isOpen) => {
-  cancelAnimationFrame(watching);
-  const at = anchor.value;
+// Follow virtual-row layout changes and scrolling while the menu is open.
+watch([open, anchor], ([isOpen, at], _, cleanup) => {
   if (!isOpen || !props.context || !at) return;
   const clips = clipsOf(at.element);
-  const check = () => {
-    const box = at.element.getBoundingClientRect();
-    const seen = at.element.isConnected ? sightOf(at.element, clips) : null;
-    if (seen && covers(seen, box.left + at.x, box.top + at.y)) watching = requestAnimationFrame(check);
-    else close();
-  };
-  watching = requestAnimationFrame(check);
+  cleanup(
+    observeLayout(at.element, () => {
+      const box = at.element.getBoundingClientRect();
+      const seen = at.element.isConnected ? sightOf(at.element, clips) : null;
+      if (!seen || !covers(seen, box.left + at.x, box.top + at.y)) close();
+    }),
+  );
 });
 onBeforeUnmount(() => {
   cancelPress();
   cancelSelection();
-  cancelAnimationFrame(watching);
   closers.delete(close);
 });
 </script>
@@ -352,6 +348,7 @@ onBeforeUnmount(() => {
           <DropdownMenuItem
             class="menu-item"
             :class="{ 'menu-danger': item.danger }"
+            :disabled="item.disabled"
             @select="emit('select', item.key, selected ?? undefined)"
           >
             <Icon v-if="item.icon" :name="item.icon" /><span class="menu-item-label"

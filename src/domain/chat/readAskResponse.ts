@@ -3,6 +3,7 @@
 interface AskResult {
   messages?: { Assistant?: { content?: { Text?: { text?: unknown } }[] } }[];
 }
+const MAX_FRAME_CHARS = 16 * 1024 * 1024;
 
 export async function readAskResponse(response: Response, onText: (text: string) => void): Promise<void> {
   if (!response.ok) {
@@ -38,6 +39,7 @@ export async function readAskResponse(response: Response, onText: (text: string)
   let finished = false;
   let receivedText = false;
   const processFrame = (frame: string) => {
+    if (frame.length > MAX_FRAME_CHARS) throw new Error('The answer stream frame exceeds the size limit.');
     const lines = frame.split(/\r?\n/);
     const event = lines
       .find((line) => line.startsWith('event:'))
@@ -52,7 +54,12 @@ export async function readAskResponse(response: Response, onText: (text: string)
       finished = true;
       return;
     }
-    const parsed = JSON.parse(data);
+    let parsed;
+    try {
+      parsed = JSON.parse(data);
+    } catch {
+      throw new Error(`Invalid JSON in answer stream event: ${event ?? 'message'}.`);
+    }
     if (event === 'error') throw new Error(parsed.message || 'The model request failed.');
     if (event !== 'model_event') return;
     if (typeof parsed.TextDelta?.delta === 'string' && parsed.TextDelta.delta) {
@@ -76,6 +83,7 @@ export async function readAskResponse(response: Response, onText: (text: string)
         processFrame(frame);
         if (finished) break;
       }
+      if (buffer.length > MAX_FRAME_CHARS) throw new Error('The answer stream frame exceeds the size limit.');
     }
     if (!finished && buffer.trim()) processFrame(buffer);
     if (!finished) throw new Error('The response connection ended early.');

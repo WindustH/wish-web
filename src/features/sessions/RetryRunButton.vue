@@ -12,7 +12,7 @@ const available = computed(() => {
   const outcomeId = snapshot.status?.state?.Suspended?.outcome;
   if (outcomeId == null) return false;
   const outcome = chat.entries.value.find((entry) => entry.event_id === outcomeId);
-  const failure = outcome?.payload.failure;
+  const failure = outcome?.payload.failure ?? snapshot.last_error;
   // A user-requested run may retry any failed outcome, independently of automatic retry policy.
   if (!failure) return false;
   return props.sequence == null || outcome?.seq === props.sequence;

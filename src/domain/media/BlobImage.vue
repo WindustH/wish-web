@@ -8,6 +8,7 @@ import { apiFetch, needsAccessToken } from '../../core/api/client.ts';
 import { imagePreviewUrl } from '../../core/api/endpoints.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import { acquireImageLoad } from '../../core/util/imageLoad.ts';
+import { previewCache } from '../../core/util/previewCache.ts';
 import { openImageLightbox } from '../../ui/imageLightbox.ts';
 
 const props = withDefaults(defineProps<{ src: string; zoom?: boolean; previewWidth?: 384 | 768 | 1536 }>(), {
@@ -61,9 +62,17 @@ async function onOpen() {
   } catch (error) {
     if (!request.signal.aborted) toast(describeError(error).message);
   } finally {
-    opening.value = false;
+    if (originalController === request) opening.value = false;
   }
 }
+watch(
+  () => props.src,
+  () => {
+    originalController?.abort();
+    originalController = undefined;
+    opening.value = false;
+  },
+);
 watch(
   [preview, visible],
   async ([src, shown], _, onCleanup) => {
@@ -80,14 +89,33 @@ watch(
       url.value = src;
       return;
     }
+    // Keep only bounded preview images, never original uploads. Paint first, then
+    // let HTTP validation detect edits to mutable local links without a blank frame.
+    const key = src !== props.src ? `image:${src}` : undefined;
+    const cached = key ? previewCache.entry(key) : undefined;
+    if (cached?.value) url.value = objectUrl = URL.createObjectURL(cached.value);
     let release: (() => void) | undefined;
     try {
       release = await acquireImageLoad(controller.signal);
       const response = await apiFetch(src, { signal: controller.signal });
-      if (!response.ok) return;
+      controller.signal.throwIfAborted();
+      if (!response.ok) {
+        if ([403, 404, 410].includes(response.status)) {
+          if (key) previewCache.set(key, null);
+          url.value = '';
+        }
+        return;
+      }
+      const version = response.headers.get('etag') ?? undefined;
+      if (cached?.value && version && cached.version === version) {
+        await response.body?.cancel();
+        return;
+      }
       const bytes = await response.blob();
       if (!controller.signal.aborted) {
         if (src === props.src) loadedOriginal = { src, bytes };
+        if (key) previewCache.set(key, bytes, version);
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
         url.value = objectUrl = URL.createObjectURL(bytes);
       }
     } catch {

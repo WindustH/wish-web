@@ -12,14 +12,14 @@ import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { relTime } from '../../core/util/fmt.ts';
 import { useMedia } from '../../ui/composables/useMedia.ts';
-import { sessionTitle, type GroupRow, type SessionRow } from '../../core/state/sessionsSlice.ts';
+import { sessionTitle, type SessionRow } from '../../core/state/sessionsSlice.ts';
 export type RowAction = 'generate-name' | 'rename' | 'tags' | 'prune' | 'select' | 'pin' | 'unpin' | 'move' | 'delete';
 // A list that can choose several (`selectable`) offers it in a row's menu; while it is choosing,
 // every row is a box to tick instead of a link, and has no menu. A list arranged in folders
 // (`arranged`) lets a row be pinned and moved; where no heading says a row is pinned, as among
 // search results, a pin marks it (`pinMark`). A group can only be renamed, pinned, moved or deleted.
 const props = defineProps<{
-  row: SessionRow | GroupRow;
+  row: SessionRow;
   active: boolean;
   index: number;
   arranged?: boolean;
@@ -30,7 +30,6 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ action: [kind: RowAction]; toggle: []; activate: [event: MouseEvent] }>();
 const name = computed(() => sessionTitle(props.row));
-const group = computed(() => props.row.kind === 'group');
 const tags = computed<string[]>(() =>
   props.row.kind === 'session' && Array.isArray(props.row.metadata?.tags) ? props.row.metadata.tags : [],
 );
@@ -47,19 +46,13 @@ const actions = computed<MenuItem[]>(() => [
       ]
     : []),
   { key: 'rename', icon: 'pencil', label: i18n.t('manage.rename'), separator: props.arranged },
-  ...(group.value
-    ? []
-    : [
-        { key: 'generate-name', icon: 'sparkles', label: tr('自动重命名', 'Auto rename') },
-        { key: 'tags', icon: 'tag', label: i18n.t('sessions.editTags') },
-        { key: 'prune', icon: 'eraser', label: tr('清理历史', 'Clear history') },
-      ]),
+  { key: 'generate-name', icon: 'sparkles', label: tr('自动重命名', 'Auto rename') },
+  { key: 'tags', icon: 'tag', label: i18n.t('sessions.editTags') },
+  { key: 'prune', icon: 'eraser', label: tr('清理历史', 'Clear history') },
   ...(props.selectable
     ? [{ key: 'select', icon: 'check-square', label: tr('多选', 'Select several'), separator: true }]
     : []),
-  group.value
-    ? { key: 'delete', icon: 'trash-2', label: tr('删除群组', 'Delete group'), danger: true, separator: true }
-    : { key: 'delete', icon: 'trash-2', label: i18n.t('sessions.delete'), danger: true, separator: true },
+  { key: 'delete', icon: 'trash-2', label: i18n.t('sessions.delete'), danger: true, separator: true },
 ]);
 function activate(event: MouseEvent) {
   if (props.selectable && event.target instanceof Element && event.target.closest('.sl-row')) emit('activate', event);
@@ -71,7 +64,7 @@ const linkAttrs = computed(() =>
     ? { type: 'button', 'aria-pressed': !!props.chosen }
     : // In a list arranged in folders the whole row is dragged, not its link.
       {
-        to: `/${group.value ? 'g' : 's'}/${props.row.id}`,
+        to: `/s/${props.row.id}`,
         'aria-current': props.active ? 'page' : undefined,
         draggable: props.arranged ? 'false' : undefined,
       },
@@ -94,16 +87,6 @@ const linkAttrs = computed(() =>
           @click="selecting && !$event.defaultPrevented && emit('toggle')"
         >
           <span v-if="selecting" class="sl-check" aria-hidden="true"><Icon v-if="chosen" name="check" /></span>
-          <Hint
-            v-else-if="row.kind === 'group'"
-            :text="
-              tr(
-                `群组 · ${row.members.length} 个成员`,
-                `Group · ${row.members.length} member${row.members.length === 1 ? '' : 's'}`,
-              )
-            "
-            ><span class="sl-status sl-group" :aria-label="tr('群组', 'Group')"><Icon name="users" /></span
-          ></Hint>
           <Spinner v-else-if="sessionNaming.pending.value.has(row.id)" />
           <Hint v-else :text="i18n.t(`phase.${row.phase}`)"
             ><span class="sl-status phase-dot" :class="row.phase" :aria-label="i18n.t(`phase.${row.phase}`)"

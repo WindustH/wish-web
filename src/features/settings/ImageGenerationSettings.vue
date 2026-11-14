@@ -265,7 +265,7 @@ function parameters(event: Event) {
 }
 .parameters {
   min-height: 140px;
-  font-family: var(--font-mono);
+  font-family: var(--mono);
   resize: vertical;
 }
 .image-editor small {

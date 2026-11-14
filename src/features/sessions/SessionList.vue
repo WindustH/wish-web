@@ -6,7 +6,7 @@ import Hint from '../../ui/components/Hint.vue';
 // Session list with client query (server filter), tag chip, virtualized
 // rows (TanStack) and endless next-page loading — data unbounded, DOM bounded.
 // It shows one folder at a time: opening a folder replaces the rows with what it holds, and the
-// path above them leads back up; what is made here - sessions, groups, folders - goes in it.
+// path above them leads back up; what is made here - sessions and folders - goes in it.
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useVirtualizer } from '@tanstack/vue-virtual';
@@ -15,7 +15,6 @@ import {
   sessions,
   sessionTitle,
   type FolderRow,
-  type GroupRow,
   type ListRow,
   type SessionRow,
 } from '../../core/state/sessionsSlice.ts';
@@ -31,7 +30,6 @@ import { useListDrag } from './useListDrag.ts';
 import { useMedia } from '../../ui/composables/useMedia.ts';
 import DeleteSessionsDialog from './DeleteSessionsDialog.vue';
 import PruneDialog from './PruneDialog.vue';
-import CreateGroupDialog from '../groups/CreateGroupDialog.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
 import type { MenuItem } from '../../ui/components/menuTypes.ts';
@@ -56,7 +54,7 @@ const action = ref<{ target: ActionTarget; kind: 'rename' | 'tags' | 'delete' } 
 const rows = computed(() => sessions.items.value);
 
 // Choosing several, from a row's menu: rows become boxes to tick, and a bar at the bottom acts on
-// the ticked ones - deleting sessions and groups alike, clearing the history of the sessions among
+// the ticked ones - deleting sessions, clearing the history of the sessions among
 // them. Only rows the list shows count, so a search never hides one that would go.
 const keyboardRoot = ref<HTMLElement | null>(null);
 const selecting = ref(false);
@@ -80,24 +78,23 @@ function activateRow(id: string, event: MouseEvent) {
   chosen.value = new Set([...chosen.value, ...range]);
   selectionAnchor = start < 0 ? id : anchor;
 }
-// Sessions and groups are chosen, as far as they show; folders are opened.
+// Sessions are chosen, as far as they show; folders are opened.
 const entries = computed(() =>
   lines.value.flatMap((line) => (line.kind === 'row' && line.row.kind !== 'folder' ? [line.row] : [])),
 );
+watch(entries, (rows) => {
+  const visible = new Set(rows.map((row) => row.id));
+  const retained = new Set([...chosen.value].filter((id) => visible.has(id)));
+  if (retained.size !== chosen.value.size) chosen.value = retained;
+});
 const touchSelection = useTouchRangeSelection(listEl, selecting, () => entries.value.map((row) => row.id), chosen);
 const sessionRows = computed(() => entries.value.filter((row) => row.kind === 'session'));
 const chosenRows = computed(() => entries.value.filter((row) => chosen.value.has(row.id)));
 const chosenSessions = computed(() => chosenRows.value.filter((row) => row.kind === 'session'));
 const allChosen = computed(() => entries.value.length > 0 && entries.value.every((row) => chosen.value.has(row.id)));
-const chosenLabel = computed(() => {
-  const sessions = chosenSessions.value.length,
-    groups = chosenRows.value.length - sessions;
-  const parts = [
-    sessions ? tr(`${sessions} 个会话`, `${sessions} session${sessions === 1 ? '' : 's'}`) : '',
-    groups ? tr(`${groups} 个群组`, `${groups} group${groups === 1 ? '' : 's'}`) : '',
-  ].filter(Boolean);
-  return parts.length ? tr(`已选 ${parts.join('、')}`, `${parts.join(', ')} chosen`) : tr('已选 0 个', 'None chosen');
-});
+const chosenLabel = computed(() =>
+  tr(`已选 ${chosenSessions.value.length} 个会话`, `${chosenSessions.value.length} sessions chosen`),
+);
 function toggle(id: string) {
   const next = new Set(chosen.value);
   if (next.has(id)) next.delete(id);
@@ -118,12 +115,12 @@ useKeyboardScope(keyboardRoot, (event) => {
   return true;
 });
 // Clearing history or deleting: one row from its menu, or the chosen ones from the bar.
-const batch = ref<{ kind: 'prune' | 'delete'; targets: { id: string; name: string; group?: boolean }[] } | null>(null);
+const batch = ref<{ kind: 'prune' | 'delete'; targets: { id: string; name: string }[] } | null>(null);
 function actOnChosen(kind: 'prune' | 'delete') {
   const targets = kind === 'prune' ? chosenSessions.value : chosenRows.value;
   batch.value = {
     kind,
-    targets: targets.map((row) => ({ id: row.id, name: sessionTitle(row), group: row.kind === 'group' })),
+    targets: targets.map((row) => ({ id: row.id, name: sessionTitle(row) })),
   };
 }
 function batchDone() {
@@ -131,7 +128,7 @@ function batchDone() {
   batch.value = null;
   if (ended) stopSelecting();
 }
-function onRowAction(row: SessionRow | GroupRow, kind: RowAction) {
+function onRowAction(row: SessionRow, kind: RowAction) {
   if (kind === 'generate-name') {
     void sessionNaming.generate(row.id);
   } else if (kind === 'select') {
@@ -181,18 +178,15 @@ const upward = computed(() => sessions.path.value.at(-2)?.id ?? null);
 function newSession() {
   void router.push(here.value ? { path: '/new', query: { folder: here.value } } : '/new');
 }
-const creatingGroup = ref(false);
 const creatingFolder = ref(false);
-// What the plus beside the search makes: a group or a folder - and on a phone, where no row
+// What the plus beside the search makes: a folder - and on a phone, where no row
 // offers it, a session too.
 const makeItems = computed<MenuItem[]>(() => [
   ...(isMobile.value ? [{ key: 'session', icon: 'new-session', label: i18n.t('sessions.new') }] : []),
-  { key: 'group', icon: 'users', label: i18n.t('sessions.newGroup') },
   { key: 'folder', icon: 'folder-plus', label: tr('新建文件夹', 'New folder') },
 ]);
 function make(key: string) {
   if (key === 'session') newSession();
-  else if (key === 'group') creatingGroup.value = true;
   else creatingFolder.value = true;
 }
 
@@ -211,7 +205,7 @@ const drag = useListDrag(
   (folder) => sessions.open(folder),
 );
 // What dragging a row takes: a chosen row takes every chosen one with it.
-function dragged(row: SessionRow | GroupRow | FolderRow) {
+function dragged(row: SessionRow | FolderRow) {
   const ids = selecting.value && chosen.value.has(row.id) ? [...chosen.value] : [row.id];
   const parents = new Set(rows.value.filter((item) => ids.includes(item.id)).map((item) => item.parent));
   const label =
@@ -222,15 +216,12 @@ function dragged(row: SessionRow | GroupRow | FolderRow) {
         : sessionTitle(row);
   return { ids, from: parents.size === 1 ? [...parents][0] : undefined, label };
 }
-function startDrag(row: SessionRow | GroupRow | FolderRow, event: DragEvent) {
+function startDrag(row: SessionRow | FolderRow, event: DragEvent) {
   const { ids, from } = dragged(row);
-  const link =
-    row.kind === 'folder'
-      ? undefined
-      : new URL(router.resolve(`/${row.kind === 'group' ? 'g' : 's'}/${row.id}`).href, location.href).href;
+  const link = row.kind === 'folder' ? undefined : new URL(router.resolve(`/s/${row.id}`).href, location.href).href;
   drag.start(event, ids, from, link);
 }
-function pressRow(row: SessionRow | GroupRow | FolderRow, event: TouchEvent) {
+function pressRow(row: SessionRow | FolderRow, event: TouchEvent) {
   if (selecting.value) return;
   const { ids, from, label } = dragged(row);
   drag.press(event, ids, from, label);
@@ -244,9 +235,7 @@ function dropHere(event: DragEvent) {
 }
 const rearranging = ref(false);
 let motionTimer: ReturnType<typeof setTimeout>;
-// Rearrange motion triggers on an id-set change; building the full joined
-// string on every row patch is wasted work — length plus the boundary ids
-// is a cheap enough fingerprint for a purely cosmetic class toggle.
+// Compare the full ID order: a middle-row move also needs the rearrange transition.
 // The list as shown: its rows under headings - the folders, what is pinned, then the rest by the
 // day it last changed: today, yesterday, each day of the week before, and older. The listing's own
 // order already runs that way (search results by time alone), so a heading goes wherever the
@@ -309,8 +298,7 @@ const lines = computed<Line[]>(() => {
   }
   return out;
 });
-const rowFingerprint = () =>
-  `${rows.value.length}|${rows.value[0]?.id ?? ''}|${rows.value[rows.value.length - 1]?.id ?? ''}`;
+const rowFingerprint = () => rows.value.map((row) => row.id).join('|');
 watch(rowFingerprint, () => {
   rearranging.value = true;
   clearTimeout(motionTimer);
@@ -348,8 +336,6 @@ const shown = computed(() => virtualizer.value.getVirtualItems().map((v) => ({ v
 // The scrollbar hides at rest: every scroll shows it again, and it fades once
 // the list has been still for a moment (the CSS owns the fade itself).
 const scrolling = ref(false);
-// Rows scrolled under the heading fade out instead of being cut; at the top nothing is under it.
-const scrolled = ref(false);
 let scrollbarTimer: ReturnType<typeof setTimeout>;
 function showScrollbar() {
   scrolling.value = true;
@@ -362,7 +348,6 @@ function onListScroll() {
   const el = listEl.value;
   if (!el) return;
   showScrollbar();
-  scrolled.value = el.scrollTop > 0;
   const fromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
   if (fromBottom < 400 && sessions.hasMore.value && !sessions.loadingMore.value) sessions.loadMore();
 }
@@ -409,7 +394,6 @@ onMounted(() => {
     <button v-if="!isMobile" type="button" class="sl-new" @click="newSession">
       <span class="sl-new-icon"><Icon name="new-session" class="sl-new-glyph" /></span>{{ i18n.t('sessions.new') }}
     </button>
-    <CreateGroupDialog v-if="creatingGroup" :folder="here" @close="creatingGroup = false" />
     <NewFolderDialog v-if="creatingFolder" :parent="here" @close="creatingFolder = false" />
     <nav v-if="here" class="sl-path" :aria-label="tr('当前位置', 'Where you are')">
       <Hint :text="tr('返回上一级', 'Up one level')"
@@ -469,7 +453,6 @@ onMounted(() => {
       class="sl-scroll"
       :class="{
         scrolling,
-        scrolled,
         docked: selecting,
         'sl-range-selecting': touchSelection.dragging.value,
         'sl-drop-here': drag.dragging.value && drag.over.value === here,
@@ -548,7 +531,7 @@ onMounted(() => {
               :selecting="selecting"
               :chosen="chosen.has(line.row.id)"
               @activate="(event) => activateRow(line.row.id, event)"
-              @action="(kind) => onRowAction(line.row as SessionRow | GroupRow, kind)"
+              @action="(kind) => onRowAction(line.row as SessionRow, kind)"
               @toggle="toggle(line.row.id)"
             />
           </div>
@@ -556,12 +539,7 @@ onMounted(() => {
       </div>
     </div>
     <Transition name="sl-dock">
-      <div
-        v-if="selecting"
-        class="sl-select-bar"
-        role="toolbar"
-        :aria-label="tr('已选的会话和群组', 'Chosen sessions and groups')"
-      >
+      <div v-if="selecting" class="sl-select-bar" role="toolbar" :aria-label="tr('已选的会话', 'Chosen sessions')">
         <div class="sl-select-head">
           <Hint :text="tr('退出多选', 'Stop selecting')"
             ><button

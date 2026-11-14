@@ -12,17 +12,21 @@ import {
   blobMetadata,
   updateBlobLibrary,
   deleteBlob,
+  moveLibraryItems,
 } from '../../core/api/endpoints.ts';
-import type { LibraryBlob } from '../../core/api/types.ts';
+import type { LibraryBlob, LibraryFolder } from '../../core/api/types.ts';
+import type { StoredAttachmentReference } from '../../core/attachments.ts';
 import type { EntryView } from '../../core/api/projections.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
-import { fmtBytes } from '../../core/util/fmt.ts';
+import { ApiError } from '../../core/api/client.ts';
+import { fmtBytes, fmtDateTime } from '../../core/util/fmt.ts';
 import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
 import { pageActivityKey, usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { downloadApiFile } from '../../ui/download.ts';
 import IslandSidebar from '../../ui/components/IslandSidebar.vue';
 import Menu from '../../ui/components/Menu.vue';
+import type { MenuItem } from '../../ui/components/menuTypes.ts';
 import DirectoryPicker from '../../ui/components/DirectoryPicker.vue';
 import Modal from '../../ui/components/Modal.vue';
 import LibraryThumbnail from './LibraryThumbnail.vue';
@@ -34,6 +38,10 @@ import { toast } from '../../ui/toast.ts';
 import Icon from '../../ui/components/Icon.vue';
 import SessionBlobPreview from './SessionBlobPreview.vue';
 import { attachmentNames, blobKind, blobIcon, blobName, type BlobKind } from './libraryFiles.ts';
+import LibraryFolderDialog from './LibraryFolderDialog.vue';
+import { folderTrail, type LibraryFolderAction } from './libraryFolders.ts';
+import { useListDrag } from './useListDrag.ts';
+import { useTouchRangeSelection } from './useTouchRangeSelection.ts';
 
 const previewRef = ref<InstanceType<typeof SessionBlobPreview>>();
 const mediaToolbar = ref<HTMLElement>();
@@ -63,7 +71,11 @@ const props = defineProps<{
   libraryRevision: number;
   pendingTarget?: LibraryTarget;
 }>();
-const emit = defineEmits<{ close: []; targetHandled: [request: number]; mention: [blob: LibraryBlob, name: string] }>();
+const emit = defineEmits<{
+  close: [];
+  targetHandled: [request: number];
+  mention: [files: StoredAttachmentReference[]];
+}>();
 const items = ref<LibraryBlob[]>([]),
   selected = ref<LibraryBlob | null>(null);
 const next = ref<number | null>(null),
@@ -76,11 +88,95 @@ const saved = useWorkspaceState('library', () => props.session, {
   name: '',
   scroll: 0,
   loaded: 0,
+  folder: '',
 });
+const folder = computed(() => saved.value.folder || null);
+const folders = ref<LibraryFolder[]>([]);
+const supportsFolders = ref<boolean>();
+const folderAction = ref<LibraryFolderAction>();
+const trail = computed(() => folderTrail(folders.value, folder.value));
+const childFolders = computed(() =>
+  folders.value.filter((item) => item.parent === folder.value).sort((a, b) => a.name.localeCompare(b.name)),
+);
+const viewState = useWorkspaceState('library-view', () => 'all', { mode: 'icons' });
+const view = computed(() => (['compact', 'details'].includes(viewState.value.mode) ? viewState.value.mode : 'icons'));
+function openFolder(id: string | null) {
+  saved.value = { ...saved.value, folder: id ?? '', selected: '', name: '', scroll: 0, loaded: 0 };
+}
+let moveController: AbortController | undefined;
+async function moveFiles(ids: string[], into: string | null) {
+  if (!supportsFolders.value || batchBusy.value) return;
+  const owner = props.session;
+  const origin = folder.value;
+  const request = new AbortController();
+  moveController = request;
+  batchBusy.value = true;
+  try {
+    await moveLibraryItems(owner, ids, into, { signal: request.signal });
+    if (!request.signal.aborted && props.session === owner && folder.value === origin) {
+      stopSelecting();
+      await reload();
+    }
+  } catch (cause) {
+    if (!request.signal.aborted) toast(describeError(cause).message);
+  } finally {
+    if (moveController === request) {
+      moveController = undefined;
+      batchBusy.value = false;
+    }
+  }
+}
+const drag = useListDrag((ids, into) => {
+  void moveFiles(ids, into);
+}, openFolder);
+function dragIds(blob: LibraryBlob) {
+  return chosen.value.has(blob.id) ? [...chosen.value] : [blob.id];
+}
+function dragFile(blob: LibraryBlob, event: DragEvent) {
+  if (!supportsFolders.value || batchBusy.value) {
+    event.preventDefault();
+    return;
+  }
+  drag.start(event, dragIds(blob), folder.value);
+}
+function pressFile(blob: LibraryBlob, event: TouchEvent) {
+  if (!selecting.value && supportsFolders.value && !batchBusy.value)
+    drag.press(event, [blob.id], folder.value, filename(blob));
+}
+function folderMenu() {
+  return [
+    { key: 'rename', label: tr('重命名', 'Rename'), icon: 'pencil' },
+    { key: 'move', label: tr('移动到…', 'Move to…'), icon: 'folder' },
+    { key: 'delete', label: tr('删除文件夹', 'Delete folder'), icon: 'trash-2', danger: true, separator: true },
+  ];
+}
+function actFolder(key: string, item: LibraryFolder) {
+  if (key === 'move') folderAction.value = { kind: 'move', ids: [item.id] };
+  else if (key === 'rename' || key === 'delete') folderAction.value = { kind: key, folder: item };
+}
+function folderChanged() {
+  stopSelecting();
+  void reload();
+}
+onBeforeUnmount(() => moveController?.abort());
 const filter = ref<BlobKind | 'all'>('all');
 const showAll = ref(false);
 const updating = ref(new Set<string>());
+const selecting = ref(false);
+const chosen = ref(new Set<string>());
+let selectionAnchor: string | undefined;
+const batchBusy = ref(false);
+const batchProgress = ref('');
+const deleteTargets = ref<LibraryBlob[]>([]);
+let batchController: AbortController | undefined;
+onBeforeUnmount(() => batchController?.abort());
+function stopSelecting() {
+  selecting.value = false;
+  chosen.value = new Set();
+  selectionAnchor = undefined;
+}
 function selectBlob(blob: LibraryBlob | null) {
+  if (blob) stopSelecting();
   selected.value = blob;
   saved.value.selected = blob?.id ?? '';
   saved.value.name = blob ? filename(blob) : '';
@@ -89,7 +185,14 @@ const parentActive = usePageActivity();
 const active = computed(() => parentActive.value && props.open);
 provide(pageActivityKey, active);
 watch(active, (visible) => {
-  if (!visible) linkOpen.value = false;
+  if (!visible) {
+    cancelOperations();
+    drag.cancel();
+    folderAction.value = undefined;
+    linkOpen.value = false;
+    deleteTargets.value = [];
+    stopSelecting();
+  }
 });
 const uploadedNames = ref(new Map<string, string>());
 const names = computed(() => new Map([...attachmentNames(props.entries), ...uploadedNames.value]));
@@ -98,29 +201,69 @@ const linkOpen = ref(false),
   localPath = ref(''),
   linking = ref(false),
   linkError = ref('');
+const linkPaths = computed(() => [
+  ...new Set(
+    localPath.value
+      .split(/\r?\n/)
+      .map((path) => path.trim())
+      .filter(Boolean),
+  ),
+]);
+function chooseLinks(paths: string[]) {
+  localPath.value = paths.join('\n');
+}
+let linkController: AbortController | undefined;
+onBeforeUnmount(() => linkController?.abort());
 async function addLink() {
-  if (!localPath.value.trim() || linking.value) return;
+  const paths = linkPaths.value;
+  if (!paths.length || linking.value) return;
+  if (paths.length > 100) {
+    linkError.value = tr('一次最多链接 100 个文件', 'Link up to 100 files at a time');
+    return;
+  }
   const owner = props.session;
+  const destination = folder.value;
+  const request = new AbortController();
+  linkController = request;
   linking.value = true;
   linkError.value = '';
+  const failures: { path: string; error: string }[] = [];
   try {
-    await linkSessionFile(owner, localPath.value.trim());
-    if (owner !== props.session) return;
-    linkOpen.value = false;
-    localPath.value = '';
+    for (const path of paths) {
+      if (request.signal.aborted || owner !== props.session) return;
+      try {
+        const linked = await linkSessionFile(owner, path, false, { signal: request.signal });
+        if (destination) await moveLibraryItems(owner, [linked.id], destination, { signal: request.signal });
+      } catch (cause) {
+        if (request.signal.aborted || owner !== props.session) return;
+        failures.push({ path, error: describeError(cause).message });
+      }
+    }
+    if (request.signal.aborted || owner !== props.session) return;
+    localPath.value = failures.map((item) => item.path).join('\n');
+    linkError.value = failures.map((item) => `${item.path}: ${item.error}`).join('\n');
+    if (!failures.length) linkOpen.value = false;
     await reload();
-  } catch (cause) {
-    linkError.value = describeError(cause).message;
   } finally {
-    linking.value = false;
+    if (linkController === request) {
+      linkController = undefined;
+      linking.value = false;
+    }
   }
 }
 
 let uploadController: AbortController | undefined;
 onBeforeUnmount(() => uploadController?.abort());
+function cancelOperations() {
+  for (const request of [moveController, batchController, linkController, uploadController]) request?.abort();
+  moveController = batchController = linkController = uploadController = undefined;
+  batchBusy.value = linking.value = uploading.value = false;
+  batchProgress.value = '';
+}
 async function upload() {
   if (uploading.value) return;
   const owner = props.session;
+  const destination = folder.value;
   const request = new AbortController();
   uploadController = request;
   uploading.value = true;
@@ -135,6 +278,7 @@ async function upload() {
         const bytes = file.body ?? (await file.read());
         if (request.signal.aborted || props.session !== owner) return;
         const blob = await uploadSessionBlob(owner, bytes, { signal: request.signal, query: { name: file.name } });
+        if (destination) await moveLibraryItems(owner, [blob.id], destination, { signal: request.signal });
         if (request.signal.aborted || props.session !== owner) return;
         if (file.name) uploadedNames.value.set(blob.id, file.name);
       } catch (cause) {
@@ -156,39 +300,102 @@ async function upload() {
     }
   }
 }
-const menuItems = (blob: LibraryBlob) => [
-  { key: 'mention', label: i18n.t('library.mention'), icon: 'at-sign' },
+const libraryActions = computed<MenuItem[]>(() => [
   {
-    key: 'visible',
+    key: 'select',
+    label: selecting.value ? tr('退出多选', 'Stop selecting') : tr('多选文件', 'Select files'),
+    icon: 'check-square',
+    checked: selecting.value,
+  },
+  ...(selecting.value
+    ? []
+    : [
+        {
+          key: 'all',
+          label: showAll.value ? tr('返回展示库', 'Return to Library') : tr('查看全部文件', 'Show all files'),
+          icon: 'eye',
+          checked: showAll.value,
+        },
+        { key: 'link', label: i18n.t('library.linkFile'), icon: 'link', disabled: linking.value },
+        { key: 'upload', label: i18n.t('library.upload'), icon: 'upload', disabled: uploading.value },
+        ...(supportsFolders.value
+          ? [{ key: 'new-folder', label: tr('新建文件夹', 'New folder'), icon: 'folder-plus' }]
+          : []),
+        {
+          key: 'refresh',
+          label: i18n.t('library.refresh'),
+          icon: 'refresh-cw',
+          disabled: loading.value,
+          separator: true,
+        },
+      ]),
+  { key: 'icons', label: tr('图标视图', 'Icons'), icon: 'grid', checked: view.value === 'icons', separator: true },
+  { key: 'compact', label: tr('紧凑列表', 'Compact list'), icon: 'list', checked: view.value === 'compact' },
+  { key: 'details', label: tr('详细列表', 'Details'), icon: 'list-details', checked: view.value === 'details' },
+]);
+function libraryAction(key: string) {
+  if (batchBusy.value) return;
+  if (key === 'select') selecting.value ? stopSelecting() : (selecting.value = true);
+  else if (key === 'all') showAll.value = !showAll.value;
+  else if (key === 'link') {
+    linkError.value = '';
+    linkOpen.value = true;
+  } else if (key === 'upload') void upload();
+  else if (key === 'refresh') void load();
+  else if (key === 'new-folder') folderAction.value = { kind: 'create' };
+  else if (['icons', 'compact', 'details'].includes(key)) viewState.value.mode = key;
+}
+const menuItems = (blob: LibraryBlob) => [
+  { key: 'select', label: tr('多选文件', 'Select files'), icon: 'check' },
+  { key: 'mention', label: i18n.t('library.mention'), icon: 'at-sign' },
+  ...(supportsFolders.value ? [{ key: 'move', label: tr('移动到…', 'Move to…'), icon: 'folder' }] : []),
+  {
+    key: blob.visible === false ? 'show' : 'hide',
     label: blob.visible === false ? tr('加入展示库', 'Show in Library') : tr('从库中隐藏', 'Hide from Library'),
     icon: blob.visible === false ? 'eye' : 'eye-off',
   },
   {
-    key: 'pin',
+    key: blob.pinned ? 'unpin' : 'pin',
     label: blob.pinned ? tr('取消置顶', 'Unpin') : tr('置顶', 'Pin to top'),
     icon: 'pin',
     checked: !!blob.pinned,
   },
   { key: 'delete', label: tr('删除文件', 'Delete file'), icon: 'trash-2', danger: true, separator: true },
 ];
+type LibraryAction = 'pin' | 'unpin' | 'show' | 'hide' | 'delete';
+async function changeBlob(key: LibraryAction, blob: LibraryBlob, owner: string, signal?: AbortSignal) {
+  if (key === 'delete') {
+    await deleteBlob(`${owner}/${blob.id}`, { signal });
+    if (owner === props.session && selected.value?.id === blob.id) selectBlob(null);
+  } else {
+    const state = await updateBlobLibrary(
+      `${owner}/${blob.id}`,
+      key === 'pin' || key === 'unpin' ? { pinned: key === 'pin' } : { visible: key === 'show' },
+      { signal },
+    );
+    if (owner === props.session && selected.value?.id === blob.id) selected.value = { ...selected.value, ...state };
+  }
+}
 async function act(key: string, blob: LibraryBlob) {
+  if (batchBusy.value) return;
+  if (key === 'select') {
+    selecting.value = true;
+    chosen.value = new Set([blob.id]);
+    selectionAnchor = blob.id;
+    return;
+  }
   if (key === 'mention') return mention(blob);
+  if (key === 'move') {
+    folderAction.value = { kind: 'move', ids: [blob.id] };
+    return;
+  }
+  if (!['pin', 'unpin', 'show', 'hide', 'delete'].includes(key)) return;
   if (updating.value.has(blob.id)) return;
   const owner = props.session;
   updating.value.add(blob.id);
   try {
-    if (key === 'delete') {
-      await deleteBlob(`${owner}/${blob.id}`);
-      if (owner !== props.session) return;
-      if (selected.value?.id === blob.id) selectBlob(null);
-    } else {
-      const state = await updateBlobLibrary(
-        `${owner}/${blob.id}`,
-        key === 'pin' ? { pinned: !blob.pinned } : { visible: blob.visible === false },
-      );
-      if (owner !== props.session) return;
-      if (selected.value?.id === blob.id) selected.value = { ...selected.value, ...state };
-    }
+    await changeBlob(key as LibraryAction, blob, owner);
+    if (owner !== props.session) return;
     await reload(true);
   } catch (cause) {
     toast(describeError(cause).message);
@@ -197,24 +404,126 @@ async function act(key: string, blob: LibraryBlob) {
   }
 }
 function mention(blob: LibraryBlob) {
-  emit('mention', blob, filename(blob));
+  emit('mention', [attachmentReference(blob)]);
+}
+function attachmentReference(blob: LibraryBlob): StoredAttachmentReference {
+  return { owner: props.session, id: blob.id, mime: blob.mime_type, name: filename(blob), size: blob.byte_count };
 }
 const filename = (blob: LibraryBlob) => blobName(blob, names.value);
 const title = computed(() => (selected.value ? filename(selected.value) : i18n.t('library.title')));
 const shown = computed(() => items.value.filter((blob) => filter.value === 'all' || blobKind(blob) === filter.value));
+const chosenFiles = computed(() => shown.value.filter((blob) => chosen.value.has(blob.id)));
+const allChosen = computed(() => shown.value.length > 0 && shown.value.every((blob) => chosen.value.has(blob.id)));
+const allPinned = computed(() => chosenFiles.value.length > 0 && chosenFiles.value.every((blob) => blob.pinned));
+const allHidden = computed(
+  () => chosenFiles.value.length > 0 && chosenFiles.value.every((blob) => blob.visible === false),
+);
+function activateBlob(blob: LibraryBlob, event: MouseEvent) {
+  if (batchBusy.value || event.button !== 0) return;
+  if (!selecting.value && !event.shiftKey) return selectBlob(blob);
+  selecting.value = true;
+  (event.currentTarget as HTMLElement).focus({ preventScroll: true });
+  if (event.shiftKey && selectionAnchor) {
+    const ids = shown.value.map((item) => item.id);
+    const start = ids.indexOf(selectionAnchor),
+      end = ids.indexOf(blob.id);
+    if (start >= 0 && end >= 0) {
+      chosen.value = new Set([...chosen.value, ...ids.slice(Math.min(start, end), Math.max(start, end) + 1)]);
+      return;
+    }
+  }
+  const next = new Set(chosen.value);
+  if (next.has(blob.id)) next.delete(blob.id);
+  else next.add(blob.id);
+  chosen.value = next;
+  selectionAnchor = blob.id;
+}
+function chooseAll() {
+  chosen.value = allChosen.value ? new Set() : new Set(shown.value.map((blob) => blob.id));
+  selectionAnchor = undefined;
+}
+function mentionChosen() {
+  const files = chosenFiles.value.map(attachmentReference);
+  stopSelecting();
+  emit('mention', files);
+}
+watch([shown, batchBusy], () => {
+  // A batch refresh reloads all previously loaded pages before reconciling selection.
+  if (batchBusy.value) return;
+  const ids = new Set(shown.value.map((blob) => blob.id));
+  chosen.value = new Set([...chosen.value].filter((id) => ids.has(id)));
+  if (selectionAnchor && !ids.has(selectionAnchor)) selectionAnchor = undefined;
+});
+async function actOnChosen(key: LibraryAction, targets = [...chosenFiles.value]) {
+  if (batchBusy.value || !targets.length) return;
+  const owner = props.session;
+  const origin = folder.value;
+  const loaded = items.value.length;
+  const request = new AbortController();
+  const current = () => !request.signal.aborted && owner === props.session && origin === folder.value && active.value;
+  batchController = request;
+  batchBusy.value = true;
+  const failures: { id: string; message: string }[] = [];
+  try {
+    for (const [index, blob] of targets.entries()) {
+      if (!current()) return;
+      batchProgress.value = `${index + 1} / ${targets.length}`;
+      try {
+        await changeBlob(key, blob, owner, request.signal);
+      } catch (cause) {
+        if (!current()) return;
+        failures.push({ id: blob.id, message: `${filename(blob)}: ${describeError(cause).message}` });
+      }
+    }
+    if (!current()) return;
+    deleteTargets.value = [];
+    await reload(true);
+    while (current() && next.value !== null && items.value.length < loaded) {
+      const before = items.value.length;
+      await load(true, true);
+      if (items.value.length === before) break;
+    }
+    if (!current()) return;
+    if (failures.length) {
+      if (selecting.value) chosen.value = new Set(failures.map((failure) => failure.id));
+      toast(failures.map((failure) => failure.message).join('\n'));
+    } else stopSelecting();
+  } finally {
+    if (batchController === request) {
+      batchController = undefined;
+      batchBusy.value = false;
+    }
+  }
+}
 const gridViewport = ref<HTMLElement>();
 const grid = useVirtualGrid(
   gridViewport,
-  computed(() => shown.value.length),
+  computed(() => shown.value.length + childFolders.value.length),
+  view,
 );
-const visibleItems = computed(() => shown.value.slice(grid.start.value, grid.end.value));
+useTouchRangeSelection(
+  gridViewport,
+  computed(() => selecting.value && !batchBusy.value),
+  () => shown.value.map((item) => item.id),
+  chosen,
+  'data-blob-id',
+);
+const visibleFolders = computed(() => childFolders.value.slice(grid.start.value, grid.end.value));
+const visibleItems = computed(() =>
+  shown.value.slice(
+    Math.max(0, grid.start.value - childFolders.value.length),
+    Math.max(0, grid.end.value - childFolders.value.length),
+  ),
+);
 watch(filter, (value) => {
+  stopSelecting();
   grid.reset();
   saved.value.filter = value;
   saved.value.scroll = 0;
 });
-watch(() => props.session, grid.reset);
+watch([() => props.session, folder], grid.reset);
 watch(showAll, () => {
+  stopSelecting();
   controller?.abort();
   loading.value = false;
   items.value = [];
@@ -247,9 +556,16 @@ function selectFilter(value: string) {
   if (kind) filter.value = kind;
 }
 function back() {
-  if (selected.value) selectBlob(null);
+  if (selecting.value) stopSelecting();
+  else if (selected.value) selectBlob(null);
+  else if (folder.value) openFolder(trail.value.at(-1)?.parent ?? null);
   else emit('close');
 }
+useBackLayer(
+  () => props.open && props.mobile && selecting.value,
+  stopSelecting,
+  () => 48,
+);
 useBackLayer(
   () => props.open && props.mobile,
   () => emit('close'),
@@ -260,6 +576,11 @@ useBackLayer(
   () => {
     selectBlob(null);
   },
+  () => 47,
+);
+useBackLayer(
+  () => props.open && props.mobile && !!folder.value,
+  () => openFolder(trail.value.at(-1)?.parent ?? null),
   () => 46,
 );
 watch(
@@ -275,23 +596,51 @@ function reload(quiet = false) {
   return load(false, quiet);
 }
 async function load(more = false, quiet = false) {
-  if (loading.value) return;
+  if (loading.value || !active.value) return;
   const request = new AbortController();
   controller = request;
   const owner = props.session;
+  const origin = folder.value;
   loading.value = true;
   if (!quiet) error.value = '';
   try {
-    const page = await sessionBlobs(owner, more ? (next.value ?? 0) : 0, {
-      signal: request.signal,
-      query: { include_hidden: showAll.value },
-    });
-    if (request.signal.aborted || owner !== props.session) return;
+    const readPage = (scoped: boolean) =>
+      sessionBlobs(owner, more ? (next.value ?? 0) : 0, {
+        signal: request.signal,
+        query: { include_hidden: showAll.value, ...(scoped ? { folder: origin ?? '/' } : {}) },
+      });
+    let page;
+    try {
+      page = await readPage(supportsFolders.value !== false);
+    } catch (cause) {
+      // Older servers reject unknown query fields. Only that compatibility path needs
+      // a second request; current servers receive the desired folder on the first read.
+      if (supportsFolders.value === undefined && cause instanceof ApiError && cause.status === 400) {
+        page = await readPage(false);
+      } else if (origin && cause instanceof ApiError && cause.status === 404) {
+        // Verify the owner still exists and the saved folder was removed elsewhere.
+        page = await readPage(false);
+        if (
+          !request.signal.aborted &&
+          owner === props.session &&
+          origin === folder.value &&
+          Array.isArray(page.folders) &&
+          !page.folders.some((item) => item.id === origin)
+        ) {
+          openFolder(null);
+          return;
+        }
+        throw cause;
+      } else throw cause;
+    }
+    if (request.signal.aborted || owner !== props.session || origin !== folder.value) return;
+    supportsFolders.value = Array.isArray(page.folders);
     const known = new Map((more ? items.value : []).map((blob) => [blob.id, blob]));
     for (const blob of page.items) known.set(blob.id, blob);
     items.value = [...known.values()];
     next.value = page.next;
     total.value = page.total;
+    folders.value = page.folders ?? [];
     saved.value.loaded = items.value.length;
     error.value = '';
   } catch (cause) {
@@ -304,14 +653,26 @@ async function load(more = false, quiet = false) {
   }
 }
 watch(
-  () => props.session,
-  (_, __, onCleanup) => {
+  [() => props.session, folder, active],
+  (_, previous, onCleanup) => {
     const owner = props.session;
+    const ownerChanged = owner !== previous?.[0];
     let disposed = false;
     controller?.abort();
-    uploadController?.abort();
-    uploading.value = false;
-    uploadedNames.value.clear();
+    cancelOperations();
+    loading.value = false;
+    if (!active.value) return;
+    drag.cancel();
+    folderAction.value = undefined;
+    if (ownerChanged) {
+      folders.value = [];
+      uploadedNames.value.clear();
+    }
+    deleteTargets.value = [];
+    stopSelecting();
+    linkOpen.value = false;
+    localPath.value = '';
+    linkError.value = '';
     loading.value = false;
     items.value = [];
     selected.value = null;
@@ -354,7 +715,14 @@ watch(
       restoreGrid();
     })();
     const timer = setInterval(() => {
-      if (active.value && document.visibilityState !== 'hidden' && !selected.value && next.value === null)
+      if (
+        active.value &&
+        document.visibilityState !== 'hidden' &&
+        !selected.value &&
+        !selecting.value &&
+        !batchBusy.value &&
+        next.value === null
+      )
         void load(false, true);
     }, 15000);
     onCleanup(() => {
@@ -398,12 +766,12 @@ watch(
   >
     <template #leading>
       <button
-        v-if="selected || mobile"
+        v-if="selected || mobile || folder"
         class="btn ghost icon-only"
-        :aria-label="selected ? i18n.t('library.back') : tr('关闭侧栏', 'Close sidebar')"
+        :aria-label="selected || folder ? i18n.t('library.back') : tr('关闭侧栏', 'Close sidebar')"
         @click="back"
       >
-        <Icon :name="selected ? 'arrow-left' : 'chevron-right'" />
+        <Icon :name="selected || folder ? 'arrow-left' : 'chevron-right'" />
       </button>
     </template>
     <template #title>
@@ -413,6 +781,7 @@ watch(
           :options="filterOptions"
           class="library-filter-select"
           :aria-label="i18n.t('library.filter')"
+          :disabled="batchBusy"
           @update:model-value="selectFilter"
         />
         <span class="library-count" :title="i18n.t('library.count', { count: total })">{{ total }}</span>
@@ -430,38 +799,29 @@ watch(
     </template>
     <template v-if="selected" #toolbar><div ref="mediaToolbar" class="library-media-toolbar" /></template>
     <template #actions>
-      <button
+      <Menu
         v-if="!selected"
-        class="btn ghost icon-only library-all"
-        :class="{ active: showAll }"
-        :aria-pressed="showAll"
-        :aria-label="showAll ? tr('返回展示库', 'Return to Library') : tr('查看全部文件', 'Show all files')"
-        :title="showAll ? tr('返回展示库', 'Return to Library') : tr('查看全部文件', 'Show all files')"
-        @click="showAll = !showAll"
+        :items="libraryActions"
+        :disabled="batchBusy"
+        content-class="library-menu"
+        @select="libraryAction"
       >
-        <Icon name="eye" />
-      </button>
-      <button
-        v-if="!selected"
-        class="btn ghost icon-only library-link"
-        :aria-label="i18n.t('library.linkFile')"
-        @click="
-          linkError = '';
-          linkOpen = true;
-        "
-      >
-        <Icon name="link" />
-      </button>
-      <button
-        v-if="!selected"
-        class="btn ghost icon-only library-upload"
-        :disabled="uploading"
-        :aria-label="i18n.t('library.upload')"
-        :title="i18n.t('library.upload')"
-        @click="upload"
-      >
-        <Icon :name="uploading ? 'loader-circle' : 'upload'" :class="{ spin: uploading }" />
-      </button>
+        <template #trigger>
+          <button
+            type="button"
+            class="btn ghost icon-only library-menu-trigger"
+            :class="{ active: selecting || showAll }"
+            :aria-label="tr('文件库操作', 'Library actions')"
+            :title="tr('文件库操作', 'Library actions')"
+            :aria-busy="uploading || batchBusy"
+          >
+            <Icon
+              :name="uploading || batchBusy ? 'loader-circle' : 'ellipsis-vertical'"
+              :class="{ spin: uploading || batchBusy }"
+            />
+          </button>
+        </template>
+      </Menu>
       <a
         v-if="selected"
         class="btn ghost icon-only"
@@ -471,15 +831,6 @@ watch(
         @click="downloadApiFile($event, blobUrl(`${session}/${selected.id}`), filename(selected))"
         ><Icon name="download"
       /></a>
-      <button
-        v-else
-        class="btn ghost icon-only"
-        :disabled="loading"
-        :aria-label="i18n.t('library.refresh')"
-        @click="load()"
-      >
-        <Icon name="refresh-cw" :class="{ spin: loading }" />
-      </button>
     </template>
     <template v-if="selected">
       <SessionBlobPreview
@@ -497,7 +848,50 @@ watch(
       />
     </template>
     <template v-else>
-      <div ref="gridViewport" class="library-scroll" @scroll.passive="rememberGrid">
+      <nav
+        v-if="supportsFolders && (folder || drag.dragging.value)"
+        class="library-path"
+        :aria-label="tr('文件夹路径', 'Folder path')"
+      >
+        <button
+          type="button"
+          class="btn ghost sm"
+          data-drop-place="/"
+          :class="{ 'drop-target': drag.over.value === null }"
+          @click="openFolder(null)"
+          @dragenter="drag.hover($event, null)"
+          @dragover="drag.hover($event, null)"
+          @dragleave="drag.leave($event, null)"
+          @drop="drag.drop($event, null)"
+        >
+          <Icon name="library" :size="14" />{{ i18n.t('library.title') }}
+        </button>
+        <template v-for="part in trail" :key="part.id">
+          <Icon name="chevron-right" :size="12" />
+          <button
+            type="button"
+            class="btn ghost sm"
+            :data-drop-place="part.id"
+            :class="{ 'drop-target': drag.over.value === part.id }"
+            @click="openFolder(part.id)"
+            @dragenter="drag.hover($event, part.id)"
+            @dragover="drag.hover($event, part.id)"
+            @dragleave="drag.leave($event, part.id)"
+            @drop="drag.drop($event, part.id)"
+          >
+            {{ part.name }}
+          </button>
+        </template>
+      </nav>
+      <div
+        ref="gridViewport"
+        class="library-scroll"
+        :class="[{ selecting }, `library-view-${view}`]"
+        :data-drop-place="folder ?? '/'"
+        @scroll.passive="rememberGrid"
+        @dragover="!$event.defaultPrevented && drag.hover($event, folder)"
+        @drop="!$event.defaultPrevented && drag.drop($event, folder)"
+      >
         <p v-if="showAll" class="library-all-hint">
           {{ tr('全部文件 · 可将需要的文件加入展示库', 'All files · Add files you need to your Library') }}
         </p>
@@ -506,19 +900,67 @@ watch(
           <button class="btn sm" @click="load()">{{ i18n.t('common.retry') }}</button>
         </div>
         <p v-else-if="loading && !items.length" class="library-empty" role="status">{{ i18n.t('common.loading') }}</p>
-        <p v-else-if="!shown.length" class="library-empty">
+        <p v-else-if="!shown.length && !childFolders.length" class="library-empty">
           {{ i18n.t(items.length ? 'library.noMatches' : 'library.empty') }}
         </p>
         <div class="library-grid" :style="grid.style.value">
+          <Menu
+            v-for="item in visibleFolders"
+            :key="item.id"
+            context
+            :items="folderMenu()"
+            :disabled="batchBusy || selecting"
+            @select="actFolder($event, item)"
+          >
+            <div
+              class="library-card library-folder"
+              :class="{ 'drop-target': drag.over.value === item.id }"
+              :data-drop-place="item.id"
+              data-drop-opens
+              @dragenter="drag.hover($event, item.id, true)"
+              @dragover="drag.hover($event, item.id)"
+              @dragleave="drag.leave($event, item.id)"
+              @drop="drag.drop($event, item.id)"
+            >
+              <button
+                type="button"
+                class="library-item"
+                :data-folder-id="item.id"
+                :disabled="batchBusy"
+                :draggable="!batchBusy"
+                @click="openFolder(item.id)"
+                @dragstart="drag.start($event, [item.id], folder)"
+                @touchstart.passive="!selecting && !batchBusy && drag.press($event, [item.id], folder, item.name)"
+              >
+                <span v-if="view === 'icons'" class="library-folder-thumbnail"><Icon name="folder" :size="58" /></span>
+                <Icon v-else name="folder" class="library-file-icon" :size="view === 'compact' ? 22 : 32" />
+                <span class="library-filename">{{ item.name }}</span>
+                <span class="library-filesize">{{ tr('文件夹', 'Folder') }}</span>
+              </button>
+              <Menu :items="folderMenu()" :disabled="batchBusy" @select="actFolder($event, item)">
+                <template #trigger
+                  ><button
+                    type="button"
+                    class="library-item-menu btn ghost icon-only"
+                    :aria-label="tr('文件夹操作', 'Folder actions')"
+                  >
+                    <Icon name="ellipsis-vertical" :size="16" /></button
+                ></template>
+              </Menu>
+            </div>
+          </Menu>
           <Menu
             v-for="blob in visibleItems"
             :key="blob.id"
             context
             :items="menuItems(blob)"
-            :disabled="updating.has(blob.id)"
+            :disabled="selecting || batchBusy || updating.has(blob.id)"
             @select="act($event, blob)"
           >
-            <div class="library-card" :class="{ 'library-hidden': blob.visible === false }">
+            <div
+              class="library-card"
+              :class="{ 'library-hidden': blob.visible === false, chosen: chosen.has(blob.id) }"
+            >
               <div v-if="blob.pinned || blob.visible === false" class="library-badges">
                 <span v-if="blob.pinned" :title="tr('已置顶', 'Pinned')"><Icon name="pin" :size="13" /></span>
                 <span v-if="blob.visible === false" :title="tr('未在库中展示', 'Hidden from Library')"
@@ -526,13 +968,33 @@ watch(
                 /></span>
               </div>
               <button
+                type="button"
                 class="library-item"
                 :data-blob-id="blob.id"
+                :draggable="supportsFolders && !batchBusy"
+                :disabled="batchBusy"
+                :aria-pressed="selecting ? chosen.has(blob.id) : undefined"
+                :aria-label="filename(blob)"
                 :title="blob.local_path || undefined"
-                @click="selectBlob(blob)"
+                @mousedown="$event.shiftKey && $event.preventDefault()"
+                @dragstart="dragFile(blob, $event)"
+                @touchstart.passive="pressFile(blob, $event)"
+                @click="activateBlob(blob, $event)"
               >
-                <LibraryThumbnail :session="session" :blob="blob" />
+                <LibraryThumbnail v-if="view === 'icons'" :session="session" :blob="blob" />
+                <Icon
+                  v-else
+                  class="library-file-icon"
+                  :name="blobIcon(blobKind(blob))"
+                  :size="view === 'compact' ? 22 : 32"
+                />
+                <span v-if="selecting" class="library-check" aria-hidden="true"
+                  ><Icon v-if="chosen.has(blob.id)" name="check" :size="14"
+                /></span>
                 <span class="library-filename" :title="filename(blob)">{{ filename(blob) }}</span>
+                <span v-if="view === 'details'" class="library-file-details"
+                  >{{ blob.mime_type }} · {{ fmtDateTime(blob.modified_at) }}</span
+                >
                 <span class="library-filesize"
                   ><Icon v-if="blob.linked" name="link" :size="12" />{{
                     blob.available === false ? i18n.t('library.unavailable') : fmtBytes(blob.byte_count)
@@ -540,13 +1002,18 @@ watch(
                 >
               </button>
               <Menu
+                v-if="!selecting"
                 :items="menuItems(blob)"
-                :disabled="updating.has(blob.id)"
+                :disabled="batchBusy || updating.has(blob.id)"
                 :label="i18n.t('library.fileActions')"
                 @select="act($event, blob)"
               >
                 <template #trigger>
-                  <button class="library-item-menu btn ghost icon-only" :aria-label="i18n.t('library.fileActions')">
+                  <button
+                    type="button"
+                    class="library-item-menu btn ghost icon-only"
+                    :aria-label="i18n.t('library.fileActions')"
+                  >
                     <Icon name="ellipsis-vertical" :size="16" />
                   </button>
                 </template>
@@ -554,25 +1021,175 @@ watch(
             </div>
           </Menu>
         </div>
-        <button v-if="next !== null" class="btn library-more" :disabled="loading" @click="load(true)">
+        <button
+          v-if="next !== null"
+          type="button"
+          class="btn library-more"
+          :disabled="loading || batchBusy"
+          @click="load(true)"
+        >
           {{ i18n.t(loading ? 'common.loading' : 'library.more') }}
         </button>
       </div>
     </template>
+    <template v-if="selecting && !selected" #footer>
+      <div class="library-selection-wrap">
+        <div class="library-selection" role="toolbar" :aria-label="tr('已选文件操作', 'Selected file actions')">
+          <div class="library-selection-head">
+            <button
+              type="button"
+              class="btn ghost icon-only"
+              :aria-label="tr('退出多选', 'Stop selecting')"
+              :title="tr('退出多选（Esc）', 'Stop selecting (Esc)')"
+              @click="stopSelecting"
+            >
+              <Icon name="x" />
+            </button>
+            <span role="status">{{
+              batchBusy
+                ? tr(`处理中 ${batchProgress}`, `Processing ${batchProgress}`)
+                : tr(`已选 ${chosenFiles.length} 个文件`, `${chosenFiles.length} files selected`)
+            }}</span>
+            <button
+              type="button"
+              class="btn ghost library-select-all"
+              :disabled="batchBusy || !shown.length"
+              @click="chooseAll"
+            >
+              {{
+                allChosen
+                  ? tr('取消全选', 'Clear all')
+                  : next !== null
+                    ? tr('全选已加载', 'Select loaded')
+                    : tr('全选', 'Select all')
+              }}
+            </button>
+          </div>
+          <div class="library-selection-actions">
+            <button
+              v-if="supportsFolders"
+              type="button"
+              class="btn library-batch-move"
+              :disabled="batchBusy || !chosenFiles.length"
+              @click="folderAction = { kind: 'move', ids: [...chosen] }"
+            >
+              <Icon name="folder" />{{ tr('移动', 'Move') }}
+            </button>
+            <button
+              type="button"
+              class="btn library-batch-mention"
+              :disabled="batchBusy || !chosenFiles.length"
+              :title="i18n.t('library.mention')"
+              @click="mentionChosen"
+            >
+              <Icon name="at-sign" />{{ tr('引用', 'Mention') }}
+            </button>
+            <button
+              type="button"
+              class="btn library-batch-pin"
+              :disabled="batchBusy || !chosenFiles.length"
+              @click="actOnChosen(allPinned ? 'unpin' : 'pin')"
+            >
+              <Icon name="pin" />{{ allPinned ? tr('取消置顶', 'Unpin') : tr('置顶', 'Pin') }}
+            </button>
+            <button
+              type="button"
+              class="btn library-batch-visible"
+              :disabled="batchBusy || !chosenFiles.length"
+              @click="actOnChosen(allHidden ? 'show' : 'hide')"
+            >
+              <Icon :name="allHidden ? 'eye' : 'eye-off'" />{{ allHidden ? tr('显示', 'Show') : tr('隐藏', 'Hide') }}
+            </button>
+            <button
+              type="button"
+              class="btn danger library-batch-delete"
+              :disabled="batchBusy || !chosenFiles.length"
+              @click="deleteTargets = [...chosenFiles]"
+            >
+              <Icon name="trash-2" />{{ tr('删除', 'Delete') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </template>
   </IslandSidebar>
+  <LibraryFolderDialog
+    :session="session"
+    :parent="folder"
+    :folders="folders"
+    :action="folderAction"
+    @close="folderAction = undefined"
+    @changed="folderChanged"
+  />
+  <Teleport to="body">
+    <div
+      v-if="drag.ghost.value"
+      class="sl-touch-ghost"
+      :style="{ transform: `translate(${drag.ghost.value.x}px, ${drag.ghost.value.y}px)` }"
+      aria-hidden="true"
+    >
+      <Icon name="folder" />{{ drag.ghost.value.label }}
+    </div>
+  </Teleport>
+  <Modal
+    compact
+    :open="deleteTargets.length > 0"
+    :dismissable="!batchBusy"
+    :title="tr(`删除 ${deleteTargets.length} 个文件？`, `Delete ${deleteTargets.length} files?`)"
+    @close="deleteTargets = []"
+  >
+    <p>
+      {{
+        tr(
+          '文件将从此会话的库中永久删除；链接文件的原文件会保留。',
+          'Files will be permanently removed from this session’s Library. Linked originals will be kept.',
+        )
+      }}
+    </p>
+    <template #footer>
+      <button type="button" class="btn ghost" :disabled="batchBusy" @click="deleteTargets = []">
+        {{ tr('取消', 'Cancel') }}
+      </button>
+      <button
+        type="button"
+        class="btn danger solid library-confirm-delete"
+        :disabled="batchBusy"
+        @click="actOnChosen('delete', [...deleteTargets])"
+      >
+        <Icon v-if="batchBusy" name="loader-circle" class="spin" />{{ tr('删除', 'Delete') }}
+      </button>
+    </template>
+  </Modal>
   <Modal compact :open="linkOpen" :dismissable="!linking" :title="i18n.t('library.linkFile')" @close="linkOpen = false">
     <form :id="linkFormId" class="library-link-form" @submit.prevent="addLink">
-      <p>{{ i18n.t('library.linkHint') }}</p>
+      <p>
+        {{ i18n.t('library.linkHint') }}
+        {{
+          tr(
+            '每行一个路径，或浏览并多选文件，一次最多 100 个。',
+            'Enter one path per line, or browse and select multiple files (up to 100).',
+          )
+        }}
+      </p>
       <div class="library-path-picker">
-        <input
+        <textarea
           v-model="localPath"
+          rows="4"
           class="input"
           data-initial-focus
           :aria-label="i18n.t('library.localPath')"
           :placeholder="i18n.t('library.localPath')"
           :disabled="linking"
         />
-        <DirectoryPicker v-model="localPath" mode="file" side="bottom" :disabled="linking">
+        <DirectoryPicker
+          :model-value="linkPaths[0] ?? ''"
+          :selected-files="linkPaths"
+          multiple
+          mode="file"
+          side="bottom"
+          :disabled="linking"
+          @select-files="chooseLinks"
+        >
           <template #trigger
             ><button
               type="button"
@@ -585,20 +1202,34 @@ watch(
           ></template>
         </DirectoryPicker>
       </div>
-      <p v-if="linkError" role="alert">{{ linkError }}</p>
+      <p v-if="linkError" role="alert" class="library-link-error">{{ linkError }}</p>
     </form>
     <template #footer>
       <button type="button" class="btn ghost" :disabled="linking" @click="linkOpen = false">
         {{ tr('取消', 'Cancel') }}
       </button>
-      <button :form="linkFormId" type="submit" class="btn primary" :disabled="linking || !localPath.trim()">
-        {{ linking ? i18n.t('common.loading') : i18n.t('library.linkFile') }}
+      <button
+        :form="linkFormId"
+        type="submit"
+        class="btn primary"
+        :disabled="linking || !linkPaths.length || linkPaths.length > 100"
+      >
+        {{
+          linking ? i18n.t('common.loading') : tr(`链接 ${linkPaths.length} 个文件`, `Link ${linkPaths.length} files`)
+        }}
       </button>
     </template>
   </Modal>
 </template>
 
 <style scoped>
+.library-link-error {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.library-path-picker textarea {
+  resize: vertical;
+}
 .library-path-picker {
   display: flex;
   align-items: center;
@@ -641,7 +1272,7 @@ watch(
   position: relative;
   min-width: 0;
 }
-.library-all.active {
+.library-menu-trigger.active {
   background: var(--accent-soft);
   color: var(--accent);
 }
@@ -682,12 +1313,116 @@ watch(
   overscroll-behavior: contain;
   padding: 0 14px 16px;
 }
+.library-path {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px 8px;
+  overflow-x: auto;
+  flex: none;
+}
+.library-path .btn {
+  flex: none;
+  white-space: nowrap;
+}
+.library-path .drop-target,
+.library-folder.drop-target {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 10px;
+}
+.library-folder-thumbnail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 4/3;
+  color: var(--accent);
+}
+.library-file-icon {
+  color: var(--fg-muted);
+  grid-column: 1;
+  grid-row: 1 / 3;
+}
+.library-file-details {
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--fg-subtle);
+  grid-column: 2;
+  grid-row: 2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:is(.library-view-compact, .library-view-details) .library-card {
+  max-width: none;
+  border-radius: 8px;
+}
+:is(.library-view-compact, .library-view-details) .library-item {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  column-gap: 8px;
+  row-gap: 0;
+  height: 100%;
+  padding: 3px 34px 3px 6px;
+  border-radius: 8px;
+}
+:is(.library-view-compact, .library-view-details) .library-filename {
+  grid-column: 2;
+  grid-row: 1;
+}
+:is(.library-view-compact, .library-view-details) .library-filesize {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  white-space: nowrap;
+}
+:is(.library-view-compact, .library-view-details) .library-item-menu {
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+}
+:is(.library-view-compact, .library-view-details) .library-card.chosen {
+  background: var(--accent-soft);
+}
+:is(.library-view-compact, .library-view-details) .library-check {
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+}
+:is(.library-view-compact, .library-view-details) .library-badges {
+  inset: 2px auto auto 4px;
+}
+.library-view-compact .library-item {
+  grid-template-rows: 1fr;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+}
+.library-view-compact :is(.library-file-icon, .library-filesize) {
+  grid-row: 1;
+}
+:is(.library-view-compact, .library-view-details) .library-item:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.library-folder .library-item:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.library-view-details .library-item {
+  grid-template-rows: 1fr 1fr;
+}
+.library-view-details .library-folder .library-filename {
+  grid-row: 1 / 3;
+}
+@media (hover: hover) {
+  :is(.library-view-compact, .library-view-details) .library-item:hover {
+    background: var(--bg-hover);
+  }
+}
 .library-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 112px), 1fr));
   gap: 18px 12px;
 }
 .library-item {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -699,6 +1434,10 @@ watch(
   text-align: left;
   cursor: pointer;
   border-radius: 12px;
+}
+/* Keep the keyboard focus indicator on the thumbnail, clear of the filename and size. */
+.library-item:focus-visible {
+  border: 0 !important;
 }
 .library-filename {
   width: 100%;
@@ -728,8 +1467,83 @@ watch(
   line-height: 16px;
   color: var(--fg-muted);
 }
-.library-item:hover :deep(.library-thumbnail) {
+.selecting .library-item {
+  user-select: none;
+}
+.library-card.chosen :deep(.library-thumbnail),
+.library-item:focus-visible :deep(.library-thumbnail) {
   border-color: var(--accent);
+}
+.library-card.chosen :deep(.library-thumbnail) {
+  background-color: var(--accent-soft);
+}
+.library-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--fg-subtle);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  color: var(--bg);
+  pointer-events: none;
+}
+.chosen .library-check {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.library-selection-wrap {
+  flex: none;
+  padding: 8px 12px max(12px, env(safe-area-inset-bottom));
+}
+.library-selection {
+  width: 100%;
+  max-width: 480px;
+  margin-inline: auto;
+  padding: 8px 10px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 18px;
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-pop);
+}
+.library-selection-head,
+.library-selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.library-selection-head {
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.library-selection-head > span {
+  flex: 1;
+  min-width: 0;
+}
+.library-selection-head .btn {
+  flex: none;
+}
+.library-selection-actions {
+  flex-wrap: wrap;
+}
+.library-selection-actions .btn {
+  flex: 1 0 auto;
+  min-height: 32px;
+  padding: 6px 8px;
+  font-size: 12px;
+  gap: 4px;
+}
+.library-selection-actions .icon {
+  width: 16px;
+  height: 16px;
+}
+@media (hover: hover) {
+  .library-item:hover :deep(.library-thumbnail) {
+    border-color: var(--accent);
+  }
 }
 .library-empty {
   padding: 24px 8px;

@@ -57,10 +57,6 @@ export function createSync({
         emit('tombstone.session', { id: event.id });
       } else if (event.type === 'session_changed') {
         void sessions.refresh(event.id);
-      } else if (event.type === 'group_changed') {
-        emit('upsert.group', { id: event.id });
-      } else if (event.type === 'group_deleted') {
-        emit('tombstone.group', { id: event.id });
       } else if (event.type === 'list_changed') {
         emit('list.changed', {});
       }

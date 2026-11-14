@@ -10,6 +10,7 @@
 import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import { useRouter } from 'vue-router';
 import Icon from './Icon.vue';
+import { observeLayout } from '../observeLayout.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { copyText } from '../clipboard.ts';
 import { caretAt, glyphAt, selectionCovers, SELECTABLE_TEXT as ROOTS } from '../textAtPoint.ts';
@@ -32,33 +33,21 @@ let root: Element | null = null;
 function show(next: Range | null) {
   range.value = next;
   place();
-  if (next && !following) {
-    followedAt = '';
-    following = requestAnimationFrame(follow);
-  }
+  if (next && root && !stopFollowing) stopFollowing = observeLayout(root, place);
 }
 function clear() {
+  if (press?.timer) clearTimeout(press.timer);
+  press = undefined;
   root = null;
   barOpen.value = false;
   show(null);
-  cancelAnimationFrame(following);
-  following = 0;
+  stopFollowing?.();
+  stopFollowing = undefined;
+  cancelAnimationFrame(frame);
+  frame = 0;
 }
-// Rows above re-measure and replies grow without a scroll; while there is a selection, the marks
-// follow its message wherever it moves.
-let following = 0,
-  followedAt = '';
-function follow() {
-  following = 0;
-  if (!range.value || !root) return;
-  const box = root.getBoundingClientRect();
-  const at = `${box.left} ${box.top} ${box.width} ${box.height}`;
-  if (at !== followedAt) {
-    followedAt = at;
-    place();
-  }
-  if (range.value) following = requestAnimationFrame(follow);
-}
+// Layout changes above the selected row can move it without a scroll.
+let stopFollowing: (() => void) | undefined;
 // Another page has none of these words.
 onBeforeUnmount(useRouter().afterEach(() => clear()));
 
@@ -136,8 +125,9 @@ const placeSoon = () => {
 };
 
 // A word as the language divides it, around the character pressed.
+const segmenter = new Intl.Segmenter(undefined, { granularity: 'word' });
 function wordAround(text: string, index: number): [number, number] {
-  for (const { segment, index: from } of new Intl.Segmenter(undefined, { granularity: 'word' }).segment(text)) {
+  for (const { segment, index: from } of segmenter.segment(text)) {
     if (index < from + segment.length) return [from, from + segment.length];
   }
   return [index, index + 1];
@@ -250,12 +240,24 @@ function onHandleDown(edge: 'start' | 'end', event: PointerEvent) {
 }
 function onHandleMove(event: PointerEvent) {
   if (!drag || !root) return;
+  if (!root.isConnected || !drag.node.isConnected || !root.contains(drag.node)) {
+    drag = undefined;
+    clear();
+    return;
+  }
   const caret = caretAt(event.clientX, event.clientY - drag.dy, root);
   if (!caret || !(caret.node instanceof Text) || !root.contains(caret.node)) return;
   const next = document.createRange();
-  next.setStart(drag.node, drag.offset);
-  if (next.comparePoint(caret.node, caret.offset) >= 0) next.setEnd(caret.node, caret.offset);
-  else next.setStart(caret.node, caret.offset);
+  try {
+    const length = drag.node instanceof Text ? drag.node.length : drag.node.childNodes.length;
+    next.setStart(drag.node, Math.min(drag.offset, length));
+    if (next.comparePoint(caret.node, caret.offset) >= 0) next.setEnd(caret.node, caret.offset);
+    else next.setStart(caret.node, caret.offset);
+  } catch {
+    drag = undefined;
+    clear();
+    return;
+  }
   if (!next.collapsed) show(next);
 }
 function onHandleUp() {

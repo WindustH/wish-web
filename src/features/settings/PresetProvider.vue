@@ -443,48 +443,6 @@ const optional = (items: string[]) => [{ value: '', label: tr('不使用', 'Disa
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.chatgpt-login {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-}
-.chatgpt-login .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-.chatgpt-login .hint {
-  width: 100%;
-}
-.copilot-code {
-  width: 100%;
-  font: 600 20px/1.4 var(--mono);
-  letter-spacing: 0.12em;
-  user-select: all;
-}
-.chatgpt-manual {
-  width: 100%;
-  display: grid;
-  gap: 8px;
-}
-.chatgpt-manual-input {
-  display: flex;
-  gap: 8px;
-}
-.chatgpt-manual-input .input {
-  flex: 1;
-  min-width: 0;
-}
-.chatgpt-manual-input .btn {
-  flex: none;
-}
-@media (max-width: 599px) {
-  .chatgpt-manual-input {
-    flex-direction: column;
-  }
-}
-
 .provider-mark {
   display: grid;
   place-items: center;
@@ -671,15 +629,6 @@ a,
     margin-top: 8px;
     line-height: 1.6;
   }
-  .provider-panel .preset-section > .chatgpt-login {
-    padding: 14px;
-    border-top: 1px solid var(--line);
-  }
-  .provider-panel .chatgpt-login > .btn {
-    width: 100%;
-    min-height: 44px;
-    justify-content: center;
-  }
   .provider-panel .preset-section .mobile-settings-row {
     border-block: 2px solid var(--bg-sunken);
   }
@@ -793,7 +742,7 @@ a,
   .preset-section > header a {
     font-size: 12px;
   }
-  .preset-section > :is(label, .provider-toggle, .provider-headers, .hint, .chatgpt-login) {
+  .preset-section > :is(label, .provider-toggle, .provider-headers, .hint) {
     margin: 0;
     padding: 10px 16px;
   }

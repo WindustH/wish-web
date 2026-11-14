@@ -58,7 +58,6 @@ const current = computed(() => extensionSections.value.find((item) => item.id ==
             :compact="!mobile"
             :include="[current.toolKey]"
             :search-available="searchAvailable"
-            in-settings
           >
             <template v-if="!mobile" #label>
               <ExtensionCategoryPicker

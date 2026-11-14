@@ -31,7 +31,7 @@ const parts = computed(() =>
     {
       key: 'blobs',
       name: tr('资源文件', 'Resource files'),
-      what: tr('发给会话和群组的图片与文件', 'Images and files sent to sessions and groups'),
+      what: tr('发给会话的图片与文件', 'Images and files sent to sessions'),
       bytes: props.storage.bytes.blobs,
     },
     {
@@ -43,7 +43,7 @@ const parts = computed(() =>
     {
       key: 'service_data',
       name: tr('服务数据', 'Service data'),
-      what: tr('会话列表、群组和用量记录', 'The session list, groups and usage records'),
+      what: tr('会话列表和用量记录', 'The session list and usage records'),
       bytes: props.storage.bytes.service_data,
       database: 'service_data' as Database,
     },
@@ -61,8 +61,6 @@ const LABELS: Record<string, [string, string]> = {
   context: ['上下文', 'Context'],
   model_calls: ['模型调用记录', 'Model call records'],
   queue: ['输入队列', 'Input queue'],
-  groups: ['群组与成员', 'Groups and members'],
-  group_messages: ['群聊消息', 'Group messages'],
   calls: ['Token 用量记录', 'Token usage records'],
   stream_samples: ['速度采样点', 'Speed samples'],
   other: ['结构与其他', 'Schema and other'],
@@ -89,6 +87,10 @@ const showSmall = ref(false);
 // One reading covers both databases; opening either reads afresh.
 const opened = ref<Database | null>(null);
 const detail = ref<StorageDetail | null>(null);
+const databaseKinds = computed(() => ({
+  session_data: kinds('session_data', detail.value?.session_data ?? []),
+  service_data: kinds('service_data', detail.value?.service_data ?? []),
+}));
 const failed = ref<unknown>(null);
 let detailController = new AbortController();
 onBeforeUnmount(() => detailController.abort());
@@ -152,7 +154,7 @@ async function toggle(database: Database) {
           <p v-if="failed" class="storage-kinds-state" role="alert">{{ errorDetail(failed) }}</p>
           <p v-else-if="!detail" class="storage-kinds-state" role="status"><Spinner /></p>
           <ul v-else>
-            <template v-for="kind in kinds(part.database, detail[part.database])" :key="kind.kind">
+            <template v-for="kind in databaseKinds[part.database]" :key="kind.kind">
               <li v-if="showSmall || kind.share >= SMALL">
                 <span class="storage-kind-name">{{ kind.name }}</span>
                 <span class="storage-kind-bar" aria-hidden="true"
@@ -164,12 +166,12 @@ async function toggle(database: Database) {
                 >
               </li>
             </template>
-            <li v-if="!showSmall && kinds(part.database, detail[part.database]).some((kind) => kind.share < SMALL)">
+            <li v-if="!showSmall && databaseKinds[part.database].some((kind) => kind.share < SMALL)">
               <button type="button" class="storage-more" @click="showSmall = true">
                 {{
                   tr(
-                    `还有 ${kinds(part.database, detail[part.database]).filter((kind) => kind.share < SMALL).length} 项，各占不到 1%`,
-                    `${kinds(part.database, detail[part.database]).filter((kind) => kind.share < SMALL).length} more, each under 1%`,
+                    `还有 ${databaseKinds[part.database].filter((kind) => kind.share < SMALL).length} 项，各占不到 1%`,
+                    `${databaseKinds[part.database].filter((kind) => kind.share < SMALL).length} more, each under 1%`,
                   )
                 }}
               </button>

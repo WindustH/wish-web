@@ -99,29 +99,6 @@
     background: var(--line-strong);
   }
 }
-/* A shade of the pane's own colour at the top of the list, over rows scrolled under the heading. */
-.sessions-pane {
-  --sl-surface: var(--bg-sunken);
-}
-.shell.mobile .sessions-pane {
-  --sl-surface: var(--bg);
-}
-.sl-scroll::before {
-  content: '';
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: block;
-  height: 20px;
-  margin-bottom: -20px;
-  background: linear-gradient(var(--sl-surface), transparent);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-fast) var(--ease-out);
-}
-.sl-scroll.scrolled::before {
-  opacity: 1;
-}
 .sl-item {
   display: flex;
   align-items: flex-start;
@@ -253,8 +230,8 @@
   width: 16px;
   height: 16px;
 }
-/* With a mouse the button shows only on hover: at rest it takes no room, so names run to the end of
-   the row, and while it shows the row fades out under it, the cover widening as the button fades in. */
+/* The hover menu overlays the text. Fade only that text area so the row's highlight and
+   keyboard focus border remain solid. At rest, names can use the full row width. */
 @property --sl-cover {
   syntax: '<length>';
   inherits: false;
@@ -266,12 +243,14 @@
   }
   .sl-row {
     padding-right: 12px;
+  }
+  .sl-main {
     --sl-cover: -20px;
     mask-image: linear-gradient(to left, transparent var(--sl-cover), #000 calc(var(--sl-cover) + 20px));
     transition: --sl-cover var(--dur-fast);
   }
-  .sl-item:is(:hover, :has(:focus-visible), :has(.sl-menu-trigger[data-state='open'])) .sl-row {
-    --sl-cover: 32px;
+  .sl-item:is(:hover, :has(:focus-visible), :has(.sl-menu-trigger[data-state='open'])) .sl-main {
+    --sl-cover: 20px;
   }
   .sl-menu-trigger {
     position: absolute;
@@ -320,18 +299,6 @@
   .sl-folder:is(:hover, :has(:focus-visible)) :is(.sl-count, .sl-enter) {
     visibility: hidden;
   }
-}
-.sl-status.sl-group {
-  display: grid;
-  place-items: center;
-  width: 14px;
-  height: 14px;
-  margin: 4px 0 0 -4px;
-  color: var(--fg-subtle);
-}
-.sl-status.sl-group .icon {
-  width: 14px;
-  height: 14px;
 }
 /* Choosing several: the row is a button with a box in place of its status dot. */
 button.sl-row {
@@ -498,14 +465,6 @@ button.sl-row {
 }
 .model-chip {
   flex: 1 1 auto;
-}
-/* A group's bar says how many are in it, in the model chip's place. */
-.group-count {
-  flex: none;
-  padding: 5px;
-  color: var(--fg-subtle);
-  font-size: 12px;
-  font-weight: var(--weight-latin-semibold);
 }
 .reasoning-chip {
   flex: 0 1 auto;
@@ -1985,7 +1944,7 @@ button.sl-row {
   }
 }
 
-/* Info windows, a session's and a group's: a heading with its mark, then cards of facts. */
+/* Session info windows: a heading with its mark, then cards of facts. */
 .info-members {
   display: grid;
   gap: 2px;

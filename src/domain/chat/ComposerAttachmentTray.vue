@@ -15,12 +15,6 @@ useBackLayer(
   },
   () => 75,
 );
-watch(
-  () => props.items,
-  () => {
-    open.value = false;
-  },
-);
 watch(active, (value) => {
   if (!value) open.value = false;
 });

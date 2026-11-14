@@ -5,6 +5,7 @@ export interface MediaOptions {
   language?: string | null;
   watermark?: boolean | null;
   voice?: string | null;
+  filter_markdown?: boolean | null;
   speed?: number | null;
   volume?: number | null;
   pitch?: number | null;

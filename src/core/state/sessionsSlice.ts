@@ -1,4 +1,4 @@
-// The list a user browses - folders, sessions and groups - one folder at a time, the way a file
+// The list a user browses - folders and sessions - one folder at a time, the way a file
 // manager shows a directory: opening a folder replaces the list with what it holds, and the path
 // to it leads back up. Looking for words or a tag lists every match, flat, wherever it is.
 // Authoritative data always comes from GET /conversations; sync frames are invalidation signals,
@@ -26,18 +26,17 @@ import { bus } from '../bus.ts';
 import { shallowRef, computed } from 'vue';
 import { debounce } from '../util/fmt.ts';
 import * as api from '../api/endpoints.ts';
-import type { CreateSessionBody, FolderView, GroupView, Placement, SessionsListParams } from '../api/endpoints.ts';
+import type { CreateSessionBody, FolderView, Placement, SessionsListParams } from '../api/endpoints.ts';
 import type { SessionView } from '../api/projections.ts';
 import type { SessionUpsert, SessionTombstone } from './syncSlice.ts';
 import { platform } from '../../platform/index.ts';
 
-// One list row: the list-facing fields of a session snapshot, a group, or a folder, with where it
+// One list row: the list-facing fields of a session snapshot or a folder, with where it
 // is. Rows fetched from GET /conversations carry the whole snapshot.
 export type SessionRow = { kind: 'session' } & Placement &
   Pick<SessionView, 'id' | 'name' | 'phase' | 'updated_at' | 'revision' | 'metadata'>;
-export type GroupRow = { kind: 'group' } & Placement & Pick<GroupView, 'id' | 'name' | 'members' | 'updated_at'>;
 export type FolderRow = { kind: 'folder' } & FolderView;
-export type ListRow = SessionRow | GroupRow | FolderRow;
+export type ListRow = SessionRow | FolderRow;
 // Opaque server pagination token, bound to the current folder, filter and sort.
 type SessionsCursor = NonNullable<SessionsListParams['cursor']>;
 export interface SessionCreateInput {
@@ -202,9 +201,14 @@ export const sessions = (() => {
   }
 
   // Every folder, for the path and the names; a folder shown that is gone leaves for the root.
+  let folderRequest = 0;
   async function loadFolders() {
+    const request = ++folderRequest;
+    const generation = gen;
     try {
-      folders.value = new Map((await api.foldersList()).map((item) => [item.id, item]));
+      const incoming = await api.foldersList({ signal: listController.signal });
+      if (request !== folderRequest || generation !== gen) return;
+      folders.value = new Map(incoming.map((item) => [item.id, item]));
       if (folder.value && !folders.value.has(folder.value)) open(null);
     } catch {
       /* The path falls back to the folder's id until the next reading. */
@@ -270,7 +274,7 @@ export const sessions = (() => {
 
   async function rename(id: string, name: string): Promise<SessionView> {
     const snap = await api.sessionRename(id, name);
-    items.value = items.value.map((s) => (s.id === id ? { ...s, name: snap.name } : s));
+    items.value = items.value.map((s) => (s.id === id ? { ...s, name: snap.name, revision: snap.revision } : s));
     return snap;
   }
 
@@ -292,21 +296,6 @@ export const sessions = (() => {
     items.value = items.value.filter((s) => s.id !== id);
   }
 
-  async function createGroup(name: string, members: string[], into: string | null = null): Promise<GroupView> {
-    const group = await api.groupCreate(name, members, into);
-    await rebuild();
-    return group;
-  }
-  async function renameGroup(id: string, name: string): Promise<GroupView> {
-    const group = await api.groupUpdate(id, { name });
-    items.value = items.value.map((s) => (s.id === id ? { ...s, name: group.name } : s));
-    return group;
-  }
-  async function deleteGroup(id: string): Promise<void> {
-    await api.groupDelete(id);
-    dropRow(id);
-  }
-
   async function createFolder(name: string, parent: string | null): Promise<FolderView> {
     const made = await api.folderCreate(name, parent);
     await rebuild();
@@ -323,7 +312,7 @@ export const sessions = (() => {
     await api.folderDelete(id);
     await rebuild();
   }
-  /** Moves sessions, groups and folders into `into` (null for the root). What leaves the folder
+  /** Moves sessions and folders into `into` (null for the root). What leaves the folder
    *  shown leaves the list at once, and the folder it goes into counts it; the server's reading
    *  follows and settles both. */
   async function move(ids: string[], into: string | null): Promise<void> {
@@ -357,8 +346,6 @@ export const sessions = (() => {
   bus.on('tombstone.session', (t: SessionTombstone) => {
     if (t?.id) dropRow(t.id);
   });
-  bus.on('upsert.group', () => debouncedRebuild());
-  bus.on('tombstone.group', (t: { id: string }) => dropRow(t.id));
   bus.on('list.changed', () => debouncedRebuild());
   // Authoritative snapshot (reconnect / cursor reset): rebuild the
   // collection — membership, order and cursor are all re-derived.
@@ -391,9 +378,6 @@ export const sessions = (() => {
     rename,
     updateMeta,
     dropRow,
-    createGroup,
-    renameGroup,
-    deleteGroup,
     createFolder,
     renameFolder,
     deleteFolder,

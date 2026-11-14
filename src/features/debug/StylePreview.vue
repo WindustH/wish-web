@@ -12,7 +12,7 @@ import HistoryItem from '../sessions/HistoryItem.vue';
 import FileChangeCards from '../sessions/entries/FileChangeCards.vue';
 import ProcessGroup from '../sessions/entries/ProcessGroup.vue';
 import ProcessDetailBody from '../sessions/entries/ProcessDetailBody.vue';
-import GroupMessageCard from '../sessions/entries/GroupMessageCard.vue';
+import PeerMessageCard from '../sessions/entries/PeerMessageCard.vue';
 import ActivityDialogs from '../sessions/ActivityDialogs.vue';
 import { openActivityKey, type ActivityRequest } from '../sessions/activityDialogs.ts';
 const samples = stylePreviewFixtures();
@@ -27,7 +27,7 @@ const categories = computed(() => [
   { id: 'files', label: tr('文件卡片', 'Files') },
   { id: 'messages', label: tr('消息与错误', 'Messages & errors') },
   { id: 'tools', label: tr('工具执行', 'Tools') },
-  { id: 'sessions', label: tr('Session / 群组', 'Session / groups') },
+  { id: 'sessions', label: tr('会话间通信', 'Session communication') },
 ]);
 const visible = computed(() =>
   samples.filter((sample) => category.value === 'all' || sample.category === category.value),
@@ -106,7 +106,7 @@ provide(openActivityKey, (value) => {
             <ProcessDetailBody :step="sample.item.steps[0]" :related-result="sample.item.steps[1]" />
           </details>
         </div>
-        <GroupMessageCard v-else-if="sample.kind === 'group'" v-bind="sample.item" preview />
+        <PeerMessageCard v-else-if="sample.kind === 'peer'" v-bind="sample.item" preview />
         <RetryStatus v-else-if="sample.kind === 'retry'" :retries="sample.item" />
         <RunRetryPreview v-else-if="sample.kind === 'manual-retry'" v-bind="sample.item" />
         <HistoryItem v-else :item="sample.item" />

@@ -128,7 +128,8 @@ export function summarizeSteps(steps: any[], zh: boolean): string {
     );
   const pages = count('web_fetch');
   if (pages) parts.push(zh ? `读取了 ${pages} 次网页` : `read webpages ${pages} ${pages === 1 ? 'time' : 'times'}`);
-  if (count('session')) parts.push(zh ? '管理了会话与群组' : 'managed sessions and groups');
+  if (count('session')) parts.push(zh ? '管理了会话' : 'managed sessions');
+  if (count('blob')) parts.push(zh ? '访问了文件库' : 'accessed the file library');
   if (count('task')) parts.push(zh ? '管理了命令任务' : 'managed command tasks');
   if (count('history_search', 'history_read', 'history_query'))
     parts.push(zh ? '查阅了会话历史' : 'looked through the history');
@@ -155,6 +156,7 @@ export function summarizeSteps(steps: any[], zh: boolean): string {
         'web_fetch',
         'task',
         'session',
+        'blob',
         'view_image',
         'ask_user',
       ].includes(name)

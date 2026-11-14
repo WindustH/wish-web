@@ -32,10 +32,13 @@ test('PDF page cache distinguishes source revisions and page numbers and honors 
   await pdfPage('s', 'blob', 2, signal, 'v1');
   await pdfPage('s', 'blob', 1, signal, 'v2');
   assert.equal(requests, 3);
+  setBaseUrl('https://another-wish.test/api');
+  await pdfPage('s', 'blob', 1, signal, 'v2');
+  assert.equal(requests, 4, 'identical session IDs and revisions on different servers do not share PDF bytes');
   const cancelled = new AbortController();
   cancelled.abort();
   await assert.rejects(pdfPage('s', 'blob', 1, cancelled.signal, 'v1'), {name:'AbortError'});
-  assert.equal(requests, 3);
+  assert.equal(requests, 4);
   previewCache.clear();
 });
 

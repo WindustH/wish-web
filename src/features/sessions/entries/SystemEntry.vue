@@ -6,7 +6,7 @@ import CopyButton from '../../../ui/components/CopyButton.vue';
 import ProcessDetail from './ProcessDetail.vue';
 import Icon from '../../../ui/components/Icon.vue';
 import { useIsMobile } from '../../../ui/composables/useMedia.ts';
-import { noticeFailed, noticeIconName, noticeLabel, noticeTone } from './railMeta.ts';
+import { noticeFailed, noticeIconName, noticeLabel, noticeTone, noticeText } from './railMeta.ts';
 
 const props = defineProps<{ item: any; forced?: boolean; variant?: 'chip' | 'node' | 'ghost'; openTick?: number }>();
 const emit = defineEmits<{ close: [] }>();
@@ -41,12 +41,7 @@ const iconName = computed(() => noticeIconName(props.item.entry));
 const label = computed(() => noticeLabel(props.item.entry));
 const nodeFailed = computed(() => failed.value || tone.value === 'error');
 const nodeWarn = computed(() => tone.value === 'warn' && !nodeFailed.value);
-const text = computed(
-  () =>
-    (props.item.entry.payload?.content ?? []).map((block: { text?: string }) => block.text ?? '').join('\n') ||
-    props.item.entry.payload?.text ||
-    '',
-);
+const text = computed(() => noticeText(props.item.entry));
 </script>
 
 <template>

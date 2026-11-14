@@ -88,6 +88,11 @@ async function runQuestion(
   if (owner !== generation) return;
   if (log.value) log.value.scrollTop = log.value.scrollHeight;
   const current = new AbortController();
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    current.abort();
+  }, 10 * 60_000);
   controller = current;
   try {
     const response = await apiFetch(absUrl(`/sessions/${encodeURIComponent(props.sessionId)}/ask`), {
@@ -104,8 +109,13 @@ async function runQuestion(
     if (owner === generation) completed.value = true;
   } catch (error: any) {
     if (owner === generation)
-      turn.error = current.signal.aborted ? tr('已停止回答。', 'Answer stopped.') : String(error?.message || error);
+      turn.error = timedOut
+        ? tr('回答超时，请重试。', 'The answer timed out. Please retry.')
+        : current.signal.aborted
+          ? tr('已停止回答。', 'Answer stopped.')
+          : String(error?.message || error);
   } finally {
+    clearTimeout(timeout);
     if (owner === generation) {
       turn.busy = false;
       busy.value = false;
@@ -153,7 +163,7 @@ function onKeydown(event: KeyboardEvent) {
         <MessageContext :text="turn.answer" kind="assistant">
           <div class="entry assistant">
             <div class="body">
-              <Markdown data-selectable-text v-if="turn.answer" :text="turn.answer" />
+              <Markdown data-selectable-text v-if="turn.answer" :text="turn.answer" :streaming="turn.busy" />
               <span v-else-if="turn.busy" class="ask-thinking"
                 ><Icon name="loader-circle" class="spin" />{{ tr('正在回答…', 'Answering…') }}</span
               >

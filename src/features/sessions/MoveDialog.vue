@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Moving sessions, groups and folders: choosing a folder, or the root, from the tree of folders.
+// Moving sessions and folders: choosing a folder, or the root, from the tree of folders.
 // A folder being moved, and what is inside it, cannot be chosen: nothing goes into itself.
 import { computed, onMounted, ref } from 'vue';
 import * as api from '../../core/api/endpoints.ts';

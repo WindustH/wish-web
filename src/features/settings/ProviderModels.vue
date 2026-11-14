@@ -592,7 +592,7 @@ const choices = computed(() =>
 .effort-chip {
   cursor: pointer;
   user-select: none;
-  font-family: var(--font-mono, inherit);
+  font-family: var(--mono);
   display: inline-flex;
   align-items: center;
   justify-content: center;

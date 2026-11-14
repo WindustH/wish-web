@@ -28,3 +28,16 @@ test('preview artifacts expire even when recently read', (t) => {
   t.mock.timers.tick(1);
   assert.equal(cache.get('cover'), undefined);
 });
+
+test('preview versions follow their bounded artifact rather than a separate unbounded map', () => {
+  const cache = new PreviewCache(10, 1);
+  const cover = new Blob(['cover']);
+  cache.set('linked', cover, 'v1');
+  assert.equal(cache.entry('linked')?.version, 'v1');
+  assert.equal(cache.get('linked'), cover);
+  cache.set('linked', null, 'v2');
+  assert.equal(cache.entry('linked')?.version, 'v2');
+  assert.equal(cache.get('linked'), null);
+  cache.set('other', cover);
+  assert.equal(cache.entry('linked'), undefined);
+});

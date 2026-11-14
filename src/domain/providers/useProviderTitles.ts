@@ -1,4 +1,5 @@
 import { computed, readonly, ref } from 'vue';
+import { getBaseUrl } from '../../core/api/client.ts';
 import { bus } from '../../core/bus.ts';
 import { providerConfigs } from '../../core/api/endpoints.ts';
 import { providerTitles } from './providerPresentation.ts';
@@ -15,23 +16,38 @@ let pending: Promise<void> | undefined;
 /** Whether provider names can be shown yet; until then, what shows one keeps its place empty. */
 export const providerTitlesRead = readonly(read);
 
+let scope = getBaseUrl();
+let controller: AbortController | undefined;
 let loadedAt = 0;
 let revision = 0;
 function load() {
+  if (scope !== getBaseUrl()) {
+    scope = getBaseUrl();
+    revision++;
+    controller?.abort();
+    pending = undefined;
+    loadedAt = 0;
+    known.value = {};
+    read.value = false;
+    providerTitlesError.value = null;
+  }
+  const requestedRevision = revision;
+  const requestedScope = scope;
+  const current = () => requestedRevision === revision && requestedScope === getBaseUrl();
   if (Date.now() - loadedAt < 30_000) return;
   // Names from the last launch cover the wait; the fresh list replaces them.
   if (!Object.keys(known.value).length)
     void readCached<typeof known.value>('provider-titles').then((cached) => {
-      if (cached && !Object.keys(known.value).length) {
+      if (current() && cached && !Object.keys(known.value).length) {
         known.value = cached;
         read.value = true;
       }
     });
   if (pending) return;
-  const requestedRevision = revision;
-  pending = providerConfigs()
+  controller = new AbortController();
+  pending = providerConfigs({ signal: controller.signal })
     .then(({ providers }: { providers: { id: string; display_name?: string | null; preset: string }[] }) => {
-      if (requestedRevision !== revision) return;
+      if (!current()) return;
       const titles = Object.fromEntries(
         providers.map((p) => [p.id, { display_name: p.display_name ?? null, preset: p.preset }]),
       );
@@ -41,12 +57,14 @@ function load() {
       writeCached('provider-titles', titles);
     })
     .catch((error) => {
-      if (requestedRevision === revision) providerTitlesError.value = error;
+      if (current()) providerTitlesError.value = error;
     })
     .finally(() => {
-      pending = undefined;
-      read.value = true;
-      if (requestedRevision !== revision) load();
+      if (requestedRevision === revision) {
+        pending = undefined;
+        if (current()) read.value = true;
+        else load();
+      }
     });
 }
 
@@ -63,8 +81,13 @@ export function useProviderTitles() {
 }
 
 // One application-lifetime subscriber, shared by all consumers.
+bus.on('sync.snapshot', () => {
+  if (scope !== getBaseUrl()) load();
+});
 bus.on('configuration.changed', () => {
   revision++;
+  controller?.abort();
+  pending = undefined;
   loadedAt = 0;
   load();
 });

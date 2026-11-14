@@ -1,6 +1,8 @@
 import { watch, type Ref } from 'vue';
+import { useMiddleButtonGuard } from './useMiddleButtonGuard.ts';
 
 export function useMiddlePan(element: Ref<HTMLElement | undefined>) {
+  useMiddleButtonGuard(element);
   watch(
     element,
     (host, _, cleanup) => {

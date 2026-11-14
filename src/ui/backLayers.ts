@@ -19,6 +19,7 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
   let restoring: (() => void) | undefined;
   let restorationFinished: Promise<void> | undefined;
   let finishRestoration: (() => void) | undefined;
+  let restorationTimer: ReturnType<typeof setTimeout> | undefined;
   let navigationSentinel: typeof sentinel;
   let serial = 0;
   let navigation = 0;
@@ -72,6 +73,7 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
           action();
         } finally {
           handling = false;
+          clearTimeout(restorationTimer);
           finishRestoration?.();
           finishRestoration = undefined;
           restorationFinished = undefined;
@@ -118,6 +120,22 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
       restorationFinished = new Promise<void>((resolve) => {
         finishRestoration = resolve;
       });
+      // A browser may drop forward() after external history changes. Never strand a route guard.
+      restorationTimer = setTimeout(() => {
+        const action = restoring;
+        restoring = undefined;
+        sentinel = undefined;
+        handling = true;
+        try {
+          action?.();
+        } finally {
+          handling = false;
+          finishRestoration?.();
+          finishRestoration = undefined;
+          restorationFinished = undefined;
+          queueMicrotask(arm);
+        }
+      }, 1000);
       browser.history.forward();
     },
     true,

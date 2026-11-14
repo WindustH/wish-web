@@ -251,6 +251,11 @@ function keydown(event: KeyboardEvent) {
   }
   emit('keydown', event);
   if (event.defaultPrevented || event.isComposing || composing.value || event.keyCode === 229) return;
+  if (event.key === 'Tab' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+    event.preventDefault();
+    replace('\t');
+    return;
+  }
   if (event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
     const selected = selection();
     const deletion = shortcutDeletion(event.key.toLowerCase(), value, selected.start, selected.end);

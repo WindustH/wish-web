@@ -1,5 +1,6 @@
 import type { LibraryBlob } from '../../core/api/types.ts';
 import type { EntryView } from '../../core/api/projections.ts';
+import { codeLanguage } from '../../ui/codeLanguage.ts';
 
 export type BlobKind = 'image' | 'video' | 'audio' | 'pdf' | 'text' | 'file';
 const extensions: Record<string, string> = {
@@ -22,7 +23,8 @@ const extensions: Record<string, string> = {
 export function blobKind(blob: LibraryBlob): BlobKind {
   for (const kind of ['image', 'video', 'audio', 'text'] as const)
     if (blob.mime_type.startsWith(`${kind}/`)) return kind;
-  return blob.mime_type === 'application/pdf' ? 'pdf' : 'file';
+  if (blob.mime_type === 'application/pdf') return 'pdf';
+  return codeLanguage(blob.name ?? blob.local_path ?? '', blob.mime_type) ? 'text' : 'file';
 }
 export const blobIcon = (kind: BlobKind) =>
   ({ image: 'image', video: 'video', audio: 'music', pdf: 'instruction', text: 'instruction', file: 'paperclip' })[

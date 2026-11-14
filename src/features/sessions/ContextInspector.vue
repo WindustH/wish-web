@@ -265,7 +265,7 @@ onBeforeUnmount(() => {
   margin-bottom: 8px;
 }
 .inspection-tabs [aria-pressed='true'] {
-  background: var(--surface-hover, #8883);
+  background: var(--bg-hover);
 }
 .inspection-row {
   display: flex;

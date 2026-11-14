@@ -60,6 +60,11 @@ let observer: ResizeObserver | undefined,
   controller: AbortController | undefined;
 function measure() {
   cancelAnimationFrame(frame);
+  if (!links.value.length && !focused.value) {
+    lines.value = [];
+    focusLines.value = [];
+    return;
+  }
   frame = requestAnimationFrame(() => {
     const el = root.value;
     if (!el || !context) return;
@@ -127,18 +132,18 @@ watch(
   { immediate: true },
 );
 watch(
-  [root, () => props.text],
-  async () => {
+  [root, () => !!links.value.length || !!focused.value],
+  ([element, needed]) => {
     observer?.disconnect();
-    await nextTick();
-    if (root.value) {
+    if (element && needed) {
       observer = new ResizeObserver(measure);
-      observer.observe(root.value);
+      observer.observe(element);
     }
     measure();
   },
   { flush: 'post' },
 );
+watch(() => props.text, measure, { flush: 'post' });
 function hit(event: MouseEvent) {
   if (!lines.value.length) return;
   const box = root.value?.getBoundingClientRect();

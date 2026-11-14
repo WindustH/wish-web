@@ -33,6 +33,8 @@ export interface SessionDescriptor {
 /** `mcp` adds no tool of its own: the model reaches MCP servers with `wish mcp` in the shell. */
 export type ToolDelivery = 'tool' | 'command';
 export interface ToolSwitches {
+  blob?: boolean;
+  blob_delivery?: ToolDelivery;
   history_search?: boolean;
   history_search_delivery?: ToolDelivery;
   task_delivery?: ToolDelivery;
@@ -108,8 +110,8 @@ export type EntryKind =
   | 'user_message'
   | 'assistant_message'
   | 'tool_result'
-  | 'group_message'
-  | 'group_sent';
+  | 'peer_message'
+  | 'peer_sent';
 export interface EntryPayload {
   via?: 'command';
   instruction_title?: string;
@@ -196,7 +198,32 @@ export function sessionView(value: any): SessionView {
 export function entryView(item: any, sessionId: string): EntryView {
   if (item.content.kind === 'event') {
     const failure = operationFailure({ outcome: item.content.value.Finished });
-    // A note of Wish's that the session sent a message to a group.
+    const event = item.content.value;
+    const compaction = event.CompactionSummary ?? event.ContextCompacted ?? event.UpstreamCompactionCompleted;
+    if (compaction) {
+      return {
+        seq: item.record.sequence,
+        id: `event-${item.record.sequence}`,
+        event_id: item.record.item?.Event,
+        created_at: item.record.recorded_at,
+        kind: 'system_message',
+        payload: {
+          instruction_kind: event.CompactionSummary
+            ? 'summary'
+            : event.ContextCompacted
+              ? 'compaction'
+              : 'upstream-compaction',
+          content: event.CompactionSummary
+            ? (Array.isArray(compaction.content) ? compaction.content : []).flatMap((block: any) =>
+                typeof block?.Text?.text === 'string' ? [{ type: 'text', text: block.Text.text }] : [],
+              )
+            : [],
+          metadata: compaction,
+        },
+      };
+    }
+
+    // Durable application events alongside the session's conversation.
     const sent = item.content.value.Application;
     if (sent?.type === 'command_tool_use') {
       return {
@@ -226,23 +253,49 @@ export function entryView(item: any, sessionId: string): EntryView {
         },
       };
     }
-    if (sent?.type === 'model_instruction') {
-      const note = sent.instruction;
-      const text = (note.content ?? []).map((block: any) => block.Text?.text ?? '').join('\n\n');
+    if (sent?.type === 'image_delivery') {
       return {
         seq: item.record.sequence,
         id: `event-${item.record.sequence}`,
         created_at: item.record.recorded_at,
         kind: 'system_message',
         payload: {
-          instruction_title: note.title,
-          instruction_observation: true,
-          instruction_key: sent.key,
-          instruction_operation: sent.operation,
-          content: [{ type: 'text', text }],
-          instruction_sections:
-            !sent.operation && instructionSections(text).length > 1 ? instructionSections(text) : undefined,
+          instruction_kind: 'image-delivery',
+          content: (sent.content ?? [])
+            .filter((block: any) => typeof block.Text?.text === 'string')
+            .map((block: any) => ({ type: 'text', text: block.Text.text })),
         },
+      };
+    }
+    // Image delivery observations are durable facts about what the model could see.
+    // Keep each recorded transition, rather than rebuilding the current request state.
+    if (
+      sent?.type === 'model_instruction' &&
+      sent.instruction?.title === '图片输入说明' &&
+      sent.operation !== 'remove'
+    ) {
+      return {
+        seq: item.record.sequence,
+        id: `event-${item.record.sequence}`,
+        created_at: item.record.recorded_at,
+        kind: 'system_message',
+        payload: {
+          instruction_kind: 'image-input',
+          content: (sent.instruction.content ?? [])
+            .filter((block: any) => typeof block.Text?.text === 'string')
+            .map((block: any) => ({ type: 'text', text: block.Text.text })),
+        },
+      };
+    }
+    // Request observations describe a model projection, not a message in the transcript.
+    // Keep their sequence for paging while excluding them from the conversation/activity rail.
+    if (sent?.type === 'model_instruction') {
+      return {
+        seq: item.record.sequence,
+        id: `event-${item.record.sequence}`,
+        created_at: item.record.recorded_at,
+        kind: 'history_event',
+        payload: { content: [] },
       };
     }
     if (sent?.type === 'group_message_sent') {
@@ -250,7 +303,7 @@ export function entryView(item: any, sessionId: string): EntryView {
         seq: item.record.sequence,
         id: `event-${item.record.sequence}`,
         created_at: item.record.recorded_at,
-        kind: 'group_sent',
+        kind: 'peer_sent',
         payload: { metadata: sent, content: [{ type: 'text', text: sent.text ?? '' }] },
       };
     }
@@ -317,9 +370,9 @@ export function entryView(item: any, sessionId: string): EntryView {
           result: completion?.result ? { status: 'success', output: completion.result } : undefined,
           content: [{ type: 'text', text: raw }],
         };
-      } else if (message.metadata?.source === 'group') {
-        // A post a group told this session: who wrote it and where are in the metadata.
-        result.kind = 'group_message';
+      } else if (['group', 'session_message'].includes(message.metadata?.source)) {
+        // A peer message; legacy group headers remain readable from their stored metadata.
+        result.kind = 'peer_message';
         result.payload = { metadata: message.metadata, content: blocks(message.content) };
       } else {
         result.kind = type === 'Developer' ? 'developer_message' : 'user_message';
@@ -367,25 +420,11 @@ export function entryView(item: any, sessionId: string): EntryView {
   if (type === 'System' && message.metadata?.source === 'wish_agent_instructions') {
     result.payload.instruction_sections = instructionSections(
       (message.content ?? []).map((block: any) => block.Text?.text ?? '').join('\n\n'),
-      item.instruction_preview,
     );
   }
   if (entry.origin === 'Summary' || type === 'UpstreamCompaction') {
     result.kind = 'system_message';
     result.payload.instruction_kind = type === 'UpstreamCompaction' ? 'upstream-compaction' : 'summary';
-  }
-  if (Array.isArray(item.initial_tools)) {
-    const sections = result.payload.instruction_sections ?? [
-      {
-        kind: 'base' as const,
-        content: result.payload.content.map((block) => (block.type === 'text' ? block.text : '')).join('\n'),
-        supplemental: false,
-      },
-    ];
-    result.payload.instruction_sections = [
-      { kind: 'initial-tools', content: JSON.stringify(item.initial_tools, null, 2), supplemental: false },
-      ...sections,
-    ];
   }
   if (type === 'User' && Array.isArray(message.metadata?.input_parts)) {
     result.payload.content = orderedUserContent(message, sessionId, result.payload.content);

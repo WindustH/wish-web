@@ -13,13 +13,14 @@ const label = computed(() => i18n.t(sessionListCollapsed.value ? 'sessions.expan
 </script>
 
 <template>
-  <Hint v-if="!isMobile" :text="label"
+  <Hint v-if="!isMobile" :text="`${label} · Shift+Tab`"
     ><button
       v-bind="$attrs"
       type="button"
       class="btn ghost icon-only session-list-toggle"
       :aria-label="label"
       :aria-expanded="!sessionListCollapsed"
+      aria-keyshortcuts="Shift+Tab"
       aria-controls="session-list"
       @click="prefs.setSessionListCollapsed(!sessionListCollapsed)"
     >

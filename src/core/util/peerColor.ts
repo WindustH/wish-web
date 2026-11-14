@@ -1,4 +1,4 @@
-// A session's lasting colour wherever groups show it: one of the six chart colours, from its id.
+// A session's stable colour in peer messages: one of the six chart colours, from its id.
 export function peerColor(id: string): string {
   let hash = 0;
   for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;

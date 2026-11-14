@@ -19,6 +19,8 @@ const props = withDefaults(
     title?: string;
     side?: 'top' | 'bottom';
     mode?: 'directory' | 'file';
+    multiple?: boolean;
+    selectedFiles?: string[];
   }>(),
   { title: undefined, side: 'top', mode: 'directory' },
 );
@@ -27,10 +29,11 @@ const label = computed(
     props.title ??
     (props.mode === 'file' ? tr('选择本地文件', 'Choose local file') : tr('选择工作目录', 'Choose working directory')),
 );
-const emit = defineEmits<{ 'update:modelValue': [path: string] }>();
+const emit = defineEmits<{ 'update:modelValue': [path: string]; 'select-files': [paths: string[]] }>();
+const selection = ref<string[]>([]);
 type DirectoryListing = Awaited<ReturnType<typeof directoriesList>>;
 const folderName = computed(
-  () => props.modelValue.split('/').filter(Boolean).at(-1) || (props.modelValue.startsWith('/') ? '/' : ''),
+  () => props.modelValue.split(/[\\/]/).filter(Boolean).at(-1) || (props.modelValue.startsWith('/') ? '/' : ''),
 );
 const active = usePageActivity();
 const layer = useDialogLayer(() => 75);
@@ -70,7 +73,14 @@ const files = computed(() => (listing.value?.files ?? []).filter((name) => showH
 function selectFile(name: string) {
   if (props.mode !== 'file' || pending.value || error.value || !listing.value || path.value !== listing.value.path)
     return;
-  emit('update:modelValue', childPath(listing.value.path, name));
+  const file = childPath(listing.value.path, name);
+  if (props.multiple) {
+    selection.value = selection.value.includes(file)
+      ? selection.value.filter((path) => path !== file)
+      : [...selection.value, file];
+    return;
+  }
+  emit('update:modelValue', file);
   open.value = false;
 }
 const siblings = computed(() => {
@@ -132,6 +142,7 @@ async function browse(target: string) {
 }
 watch(open, (value) => {
   if (value) {
+    selection.value = [...(props.selectedFiles ?? [])];
     listing.value = undefined;
     sidebarListing.value = undefined;
     void browse(initialPath());
@@ -249,10 +260,20 @@ function select() {
                   :key="'file:' + name"
                   type="button"
                   class="directory-row file-row"
+                  :aria-pressed="multiple ? selection.includes(childPath(listing!.path, name)) : undefined"
                   :disabled="path !== listing?.path"
                   @click="selectFile(name)"
                 >
-                  <Icon name="paperclip" class="directory-folder" /><span>{{ name }}</span>
+                  <Icon
+                    :name="
+                      multiple
+                        ? selection.includes(childPath(listing!.path, name))
+                          ? 'check-square'
+                          : 'square'
+                        : 'paperclip'
+                    "
+                    class="directory-folder"
+                  /><span>{{ name }}</span>
                 </button>
                 <p v-if="!directories.length && !files.length" class="hint">
                   {{
@@ -281,7 +302,30 @@ function select() {
           >
             <Icon name="check" />
           </button>
+          <button
+            v-if="mode === 'file' && multiple"
+            type="button"
+            class="btn primary"
+            :disabled="!selection.length || selection.length > 100"
+            :title="
+              selection.length > 100 ? tr('每次最多选择 100 个文件', 'Choose up to 100 files at a time') : undefined
+            "
+            @click="
+              emit('select-files', selection);
+              open = false;
+            "
+          >
+            {{ tr(`选择 ${selection.length} 个文件`, `Choose ${selection.length} files`) }}
+          </button>
         </div>
+        <p v-if="mode === 'file' && multiple && selection.length > 100" class="directory-selection-limit" role="status">
+          {{
+            tr(
+              '每次最多选择 100 个文件，请取消部分选择。',
+              'Choose up to 100 files at a time. Deselect some files to continue.',
+            )
+          }}
+        </p>
         <PopoverArrow as-child :width="30" :height="9"
           ><span data-bubble-anchor class="directory-tail-anchor" aria-hidden="true"
         /></PopoverArrow>
@@ -450,6 +494,12 @@ function select() {
     background: var(--bg-hover);
   }
 }
+.directory-selection-limit {
+  margin: 0;
+  padding: 0 10px 10px;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
 .directory-footer {
   display: flex;
   align-items: center;
@@ -460,7 +510,7 @@ function select() {
   background: var(--directory-chrome);
   border-radius: 0 0 13px 13px;
 }
-.directory-footer .btn {
+.directory-footer .btn.icon-only {
   width: 28px;
   min-width: 28px;
   height: 28px;

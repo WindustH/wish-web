@@ -11,14 +11,14 @@ import SessionListAction, { type ActionTarget } from './SessionListAction.vue';
 import PruneDialog from './PruneDialog.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
-import { sessionTitle, type GroupRow, type ListRow, type SessionRow } from '../../core/state/sessionsSlice.ts';
+import { sessionTitle, type ListRow, type SessionRow } from '../../core/state/sessionsSlice.ts';
 const active = usePageActivity();
 // The home page comes and goes with every trip to a conversation or a setting; it shows the last
-// list - sessions and groups - at once, even after a reload, and swaps in the fresh one when it arrives.
+// session list at once, even after a reload, and swaps in the fresh one when it arrives.
 const recent = createCachedResource(
   (_: void, signal) =>
     conversationsList({ limit: 5, order: 'desc', flat: true }, { signal }).then((page) =>
-      (page.items as ListRow[]).filter((row): row is SessionRow | GroupRow => row.kind !== 'folder'),
+      (page.items as ListRow[]).filter((row): row is SessionRow => row.kind !== 'folder'),
     ),
   () => ({ key: 'recent-sessions', persist: true }),
 );
@@ -37,9 +37,9 @@ function refresh() {
   clearTimeout(timer);
   if (active.value) timer = setTimeout(() => recent.load(), 200);
 }
-const off = (
-  ['upsert.session', 'tombstone.session', 'upsert.group', 'tombstone.group', 'list.changed', 'sync.snapshot'] as const
-).map((topic) => bus.on(topic, refresh));
+const off = (['upsert.session', 'tombstone.session', 'list.changed', 'sync.snapshot'] as const).map((topic) =>
+  bus.on(topic, refresh),
+);
 watch(
   active,
   (value) => {

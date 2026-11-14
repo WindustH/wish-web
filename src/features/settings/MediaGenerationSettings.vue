@@ -158,8 +158,8 @@ function applyDurationInput(event: Event) {
       {{
         props.section === 'audio_transcription'
           ? tr(
-              '在「扩展工具」中启用 Audio Transcribe。文件上限最高为 32 MiB，部分服务限 25 MB；语言提示和说话人区分取决于服务。',
-              'Enable Audio Transcribe under Tools. Files up to 32 MiB are supported (25 MB for some services); language hints and speaker attribution depend on the service.',
+              '在「扩展工具」中启用 Audio Transcribe。文件格式、大小、时长和语言选项取决于服务。',
+              'Enable Audio Transcribe under Tools. File formats, size, duration and language options depend on the service.',
             )
           : tr(
               '在「扩展工具」中启用对应生成工具。生成请求中断后不会自动重发或切换服务。',
@@ -197,7 +197,9 @@ function applyDurationInput(event: Event) {
               :preset="currentSpec?.account_presets[0]"
             />
           </div>
-          <label v-if="currentSpec?.protocol !== 'xai_speech'" class="set-row stacked"
+          <label
+            v-if="!['xai_speech', 'deepseek_speech', 'deepseek_transcription'].includes(currentSpec?.protocol || '')"
+            class="set-row stacked"
             ><span class="set-label">{{ tr('模型 ID', 'Model ID') }}</span
             ><input class="input" v-model="current.model"
           /></label>
@@ -208,7 +210,25 @@ function applyDurationInput(event: Event) {
           <SwitchRow v-model="current.proxy_enabled" :name="tr('使用代理', 'Use proxy')" />
         </div>
         <div v-if="currentSpec?.kind !== 'transcription' && !editOnly" class="set-card">
-          <label v-if="currentSpec?.kind === 'speech'" class="set-row stacked"
+          <template v-if="currentSpec?.protocol === 'deepseek_speech'">
+            <label class="set-row stacked">
+              <span class="set-label">{{ tr('默认音色', 'Default voice') }}</span>
+              <select
+                class="input"
+                :value="current.parameters.voice ?? 'stella'"
+                @change="current.parameters.voice = ($event.target as HTMLSelectElement).value"
+              >
+                <option value="stella">{{ tr('海星 · 女声', 'Stella · Female') }}</option>
+                <option value="tide">{{ tr('暗潮 · 男声', 'Tide · Male') }}</option>
+              </select>
+            </label>
+            <SwitchRow
+              :model-value="current.parameters.filter_markdown ?? true"
+              @update:model-value="current.parameters.filter_markdown = $event"
+              :name="tr('朗读前去掉 Markdown 格式', 'Remove Markdown formatting before reading')"
+            />
+          </template>
+          <label v-else-if="currentSpec?.kind === 'speech'" class="set-row stacked"
             ><span class="set-label">{{ tr('默认音色 ID', 'Default voice ID') }}</span
             ><input
               class="input"
@@ -312,6 +332,22 @@ function applyDurationInput(event: Event) {
             :name="tr('纯音乐', 'Instrumental')"
           />
         </div>
+        <p v-if="currentSpec?.protocol === 'deepseek_speech'" class="hint">
+          {{
+            tr(
+              '自动识别语言，生成 WAV 音频。每次最多 10,000 个计费字符，汉字按 2 个字符计算；不支持调整语速。',
+              'Detects language automatically and generates WAV audio. Up to 10,000 billing characters per request; Han characters count twice. Speed cannot be adjusted.',
+            )
+          }}
+        </p>
+        <p v-if="currentSpec?.protocol === 'deepseek_transcription'" class="hint">
+          {{
+            tr(
+              '支持 16 位 PCM WAV 或 Ogg Opus，最大 8 MiB、120 秒。自动识别语言；双声道仅识别左声道。',
+              'Accepts 16-bit PCM WAV or Ogg Opus, up to 8 MiB and 120 seconds. Detects language automatically; stereo uses only the left channel.',
+            )
+          }}
+        </p>
         <div v-if="videoCapabilities" class="set-card">
           <div class="set-row stacked">
             <span class="set-label">{{ tr('支持的用途', 'Supported uses') }}</span>

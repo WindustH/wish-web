@@ -49,14 +49,14 @@ import { useAutoGrow } from './useAutoGrow.ts';
 import './composerIsland.css';
 
 const props = defineProps<{
-  /** Whose drafts these are: the open session's id, a group's, or the start page's own key. */
+  /** Whose drafts these are: the open session's id or the start page's own key. */
   owner: string;
   mobile: boolean;
   mobileActions?: MenuItem[];
   /** The start page's composer, laid out larger with its send button in a footer. */
   start?: boolean;
   disabled?: boolean;
-  /** Where the message goes when it is not the open session: a new session, or a group. */
+  /** Where the message goes when starting a new session. */
   sendMessage?: (text: string, attachments: AttachmentInput[]) => Promise<string>;
 }>();
 
@@ -224,6 +224,9 @@ function historyFor(owner: string) {
     state = { navigation: createPromptHistory<PromptDraft>(), hasMore: true };
     promptHistories.set(owner, state);
   }
+  promptHistories.delete(owner);
+  promptHistories.set(owner, state);
+  while (promptHistories.size > 32) promptHistories.delete(promptHistories.keys().next().value!);
   return state;
 }
 let historyState = historyFor(props.owner);

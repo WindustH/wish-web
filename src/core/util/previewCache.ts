@@ -1,6 +1,11 @@
 // Bounded preview artifacts and extracted PDF pages, never entire source media or expiring URLs.
+interface CachedPreview {
+  value: Blob | null;
+  version?: string;
+  at: number;
+}
 export class PreviewCache {
-  private entries = new Map<string, { value: Blob | null; at: number }>();
+  private entries = new Map<string, CachedPreview>();
   private bytes = 0;
   private readonly maxBytes: number;
   private readonly maxEntries: number;
@@ -11,6 +16,9 @@ export class PreviewCache {
     this.ttl = ttl;
   }
   get(key: string): Blob | null | undefined {
+    return this.entry(key)?.value;
+  }
+  entry(key: string): Readonly<CachedPreview> | undefined {
     const entry = this.entries.get(key);
     if (!entry) return undefined;
     if (Date.now() - entry.at >= this.ttl) {
@@ -19,12 +27,12 @@ export class PreviewCache {
     }
     this.entries.delete(key);
     this.entries.set(key, entry);
-    return entry.value;
+    return entry;
   }
-  set(key: string, value: Blob | null) {
+  set(key: string, value: Blob | null, version?: string) {
     this.remove(key);
     if ((value?.size ?? 0) > this.maxBytes) return;
-    this.entries.set(key, { value, at: Date.now() });
+    this.entries.set(key, { value, version, at: Date.now() });
     this.bytes += value?.size ?? 0;
     while (this.bytes > this.maxBytes || this.entries.size > this.maxEntries)
       this.remove(this.entries.keys().next().value!);

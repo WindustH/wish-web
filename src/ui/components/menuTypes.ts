@@ -6,4 +6,5 @@ export type MenuItem = {
   shortcut?: string;
   separator?: boolean;
   checked?: boolean;
+  disabled?: boolean;
 };

@@ -11,7 +11,7 @@ export interface ToolCallData {
 export interface StreamState {
   active: boolean;
   phase: 'idle' | 'pending' | 'streaming';
-  activity: 'working' | 'writing' | 'thinking' | 'tool';
+  activity: 'working' | 'writing' | 'thinking' | 'preparingTool' | 'tool';
   text: string;
   reasoning: string;
   toolCalls: Record<string | number, ToolCallData>;
@@ -94,7 +94,7 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
         callbacks.onHistoryPruned();
         return current;
       }
-      // History written beside any run: a note that the session sent a message to a group.
+      // Application history can be written outside a model run, including peer messages.
       if (data.type === 'history_changed') {
         callbacks.onScheduleRefresh();
         return current;
@@ -235,7 +235,7 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
           };
           return {
             ...current,
-            activity: 'tool',
+            activity: 'preparingTool',
             toolCalls: calls,
             currentTool: calls[value.index].name,
           };
@@ -256,6 +256,10 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
 
       if (kind === 'CompactionSummaryStarted') {
         return { ...current, standbyPreparing: true };
+      }
+
+      if (['CompactionSummary', 'ContextCompacted', 'UpstreamCompactionCompleted'].includes(kind)) {
+        callbacks.onScheduleRefresh();
       }
 
       if (kind === 'CompactionSummary' || kind === 'CompactionSummaryFailed') {

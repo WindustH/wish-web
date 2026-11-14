@@ -34,15 +34,30 @@ slots only, while `features/sessions/SessionLibrary` owns session files and prev
 Opening it preserves the mounted conversation and composer. On mobile, Back leaves a preview,
 then closes the sidebar before navigating away from the conversation.
 
+On session pages, Tab toggles the right sidebar and Shift+Tab toggles the desktop session list,
+using the same controls and saved view as pointer activation. In the message editor, Tab inserts
+a literal tab at the selection and preserves focus/undo history; Shift+Tab moves focus back.
+Other fields, menus and dialogs retain normal focus navigation. Held keys do not repeatedly toggle a sidebar.
+
 The activity timeline floats beside the transcript when the conversation pane has enough margin.
 On phones or crowded desktop panes it uses the same sliding drawer, based on the pane's actual
 layout width rather than the window width. Opening it translates the content without rewrapping
 messages; desktop users have a toggle button, leaving mouse text selection available.
+The desktop reveal arrow keeps the expanded rail's horizontal position, follows the mouse
+vertically and fades with horizontal distance. Hover changes its color without a background;
+focused keyboard controls stay visible, and activity nodes keep priority when the rail is open.
 
 The paged `GET …/blobs` catalog defaults to persisted user-visible membership, independently of loaded
 history. All files adds `include_hidden=true`; model artifacts and region-reply crops default to hidden.
 Context menus show/hide, pin/unpin or delete blobs. Pinning precedes server pagination and implies visibility;
 deletion is refused by the server for images required by current/standby contexts or pending input.
+The selection button, file menu or Shift-click enters multi-selection. Click toggles a file,
+Shift-click extends a range in the loaded, filtered catalog, and Esc/mobile Back clears selection
+before closing the sidebar. The selection toolbar mentions, pins/unpins, shows/hides or deletes
+files; deletion confirms the captured targets, and partial failures remain selected for retry.
+Select all applies to loaded files and says so while another page is available. Batch writes are
+sequential and abort on session change/unmount; bulk mentions insert into the composer in order.
+Selection is local to the current catalog view and pauses periodic refreshes.
 History attachment names only enrich labels. Requests and refresh timers are released
 when the session changes or the sidebar closes. Image, audio, video and PDF previews use the
 existing short-lived single-file grants; native media retains range-based playback. Text is
@@ -50,12 +65,28 @@ escaped and limited to 256 KiB. PDF.js loads on demand and renders bounded canva
 page window, with page and zoom controls. Its worker, fonts, CMaps and WASM are generated from the dependency
 at build time; third-party binary resources are not checked into source control.
 
-Library keeps its filter, count and upload controls in one header row. Uploads use the existing
+Library keeps its filter and count in the header, with selection, visibility, linking, upload,
+refresh and view choices in one action menu. Icons, compact and detailed lists share the virtual
+window and persist the chosen layout. Owner-local folders are server metadata: creation,
+rename and atomic batch moves never relocate blob bytes or linked originals. Mouse dragging
+moves the selected batch into folders or breadcrumb ancestors; ordinary mobile long presses
+drag files, while selection mode uses the session list's held range selection and edge scrolling.
+Folder dialogs live outside the virtual grid. Uploads use the existing
 session blob endpoint; mentioning a file appends a stored attachment to the current draft without
 submitting it. Model `wish blob mention` results appear as file cards; `wish://blob/...` links and
 Markdown local absolute paths use the same sidebar opener, with optional PDF page and media time.
+Groups of up to three mention cards stay separate; larger groups use a counted stack. Its complete
+list opens in the session-owned `ActivityDialogs` host so virtual row recycling cannot dismiss it.
+Choosing a file preserves its page/time target and closes the list after opening the sidebar.
 The UI only parses reference coordinates while rendering. A local path is registered on activation,
 with `temporary:true`, preserving the separation between storage and the displayed Library.
+
+Text and source files use `domain/media/SourcePreview`: a separate line-number gutter and the
+shared syntax highlighter preserve exact UTF-16 source offsets for copying and reply references.
+References include filename, line range and version; locating checks the original excerpt before
+selecting it. Markdown defaults to source. Markdown, HTML and SVG offer an explicit preview;
+HTML is sanitized in a sandboxed iframe with external requests and scripts disabled, while SVG
+uses the image viewer's zoom and region quoting. The existing 256 KiB text limit still applies.
 Context menus and the visible file-actions button expose the same actions on desktop and touch.
 Mobile keeps model/reasoning selection in the header menu, using the header chip typography.
 Empty, unfocused mobile conversation composers
@@ -64,6 +95,11 @@ use one row; focus or a draft expands the same editor above its actions, preserv
 Media thumbnails load near the viewport. Videos show a paused frame and play glyph; audio covers
 are extracted with lazy-loaded music-metadata and ranged tag reads (4 MiB / 32 requests / 10 seconds),
 falling back to a music icon. PDF uses a corner glyph; images have no type badge.
+Rendered covers, image previews and extracted PDF pages share a server-scoped memory cache
+(64 entries / 32 MiB / 10 minutes). Remounting shows a cached cover immediately; catalog refreshes
+keep the displayed cover while mutable links are revalidated using the source version or image ETag.
+Unchanged files do not recreate the cover. Original media and expiring playback URLs are not stored
+in this cache, which is released on page reload.
 
 Real-browser and catalog coverage lives in the adjacent test repository's `tests.test_wish_library`.
 
@@ -173,6 +209,8 @@ Instruction projections carry stable semantic kinds. Display labels are localize
   guard. The existing forward boundary remains backed by the Chromium navigation regression tests.
 - Streaming Markdown reuses sanitized block HTML and DOM. Unfinished code fences defer highlighting.
   Parsing remains document-wide to preserve later reference definitions, lists, tables and math.
+  Explicit `<br>`, `<br/>` and `<br />` tags use an inline hard-break rule, including in tables;
+  raw HTML stays disabled, code/escaped tags remain literal, and source selections retain the original tags.
   The pre-existing full-document cache was already bounded to two million UTF-16 code units, with separate highlight caching
   and long-stream throttling; it was not an unbounded 500-document cache.
 - Native text and IME input no longer rebuild the editor DOM. Attachment normalization remains atomic;
@@ -216,3 +254,36 @@ geometry is read at most once per animation frame and skipped entirely without b
 Only a PDF page with an active region gesture/selection owns global selection listeners;
 sidebar width dragging defers page rasterization. Dropping below two touches releases pinch
 ownership while suppressing the compatibility click.
+
+Session-to-session messages use the recipient session history and link to the sender. There is no group route, group sidebar or independent transcript.
+
+### Working-tree audit after v0.2.7 (2026-11-14)
+
+- Library queries start when the panel opens, using one folder-scoped request. A legacy server
+  that rejects the folder parameter gets an unscoped fallback. Missing saved folders return to
+  the root. Closing or changing owner/folder cancels pending batches, moves, uploads and links;
+  already completed requests cannot be rolled back by aborting later work.
+- Background Tab/Shift+Tab still toggle the sidebars. Focused controls and open dialogs retain
+  native traversal, and the composer retains its separate indentation behavior. Touch-selection
+  handles validate live anchors before Range operations. Modal pointer capture is limited to
+  mouse text fields.
+- HTML previews inject CSP even when head has attributes, retain the sandbox, and reset preview
+  mode on owner/file changes. Generic file icons and stylesheet tokens use the existing catalog.
+  SSE tolerates non-JSON conflict responses; the standalone server handles malformed paths and HEAD.
+- Instruction projections carry semantic kinds. Image/compaction labels follow locale changes
+  when rendered. Historical group keys and old instruction titles remain readable for compatibility.
+- Settings editors follow external resets without deleting unfinished rows. MCP arguments update
+  before blur. Sequential session-setting saves advance the accepted baseline after each successful
+  request, preserving unsaved edits after a later failure. Secondary configuration savers rebase
+  conflicts without overwriting refreshed credentials; onboarding checks own their cancellation.
+
+Browser regressions include `library-lifecycle-browser.mjs`, `audit-settings-browser.mjs`,
+`sidebar-shortcuts-browser.mjs`, `source-preview-browser.mjs`, `blob-mention-stack-browser.mjs`
+and `touch-selection-layout-browser.mjs`. Existing library folder/selection tests also apply.
+Component size alone does not justify moving all state into a composable; no blanket component
+split or removal of compatibility event names is claimed. DirectoryPicker's backend integration
+and the PWA coordinator remain within the documented allowed imports. Native-device coverage and
+profiling of large source files remain separate from Chromium regression checks.
+The proposed selection-only mutation scope failed the preceding-content layout regression in a
+fixed-height scroll viewport. Container observation remains coalesced per frame and active only
+while the selection/menu is open; narrowing it needs equivalent position-change coverage.

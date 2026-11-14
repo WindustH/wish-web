@@ -24,6 +24,7 @@ export const ICONS: Record<string, string> = {
   play: `<path d="m8 5 11 7-11 7Z" ${SOLID}/>`,
   music: `<path d="M9 17V5l11-2v12M9 8l11-2"/><ellipse cx="6" cy="17" rx="3" ry="2.5" ${SOFT}/><ellipse cx="17" cy="15" rx="3" ry="2.5" ${SOFT}/>`,
   upload: '<path d="M12 16V3m-5 5 5-5 5 5M4 15v5h16v-5"/>',
+  file: `<path d="M14 2H5v20h14V7Z" ${SOFT}/><path d="M14 2v5h5"/>`,
   'file-pdf': `<path d="M14 2H5v20h14V7Z" ${SOFT}/><path d="M14 2v5h5M8 17c3-3 5-8 3-8s0 7 5 7-2-4-8 1Z"/>`,
   video: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m10 8 6 4-6 4z"/>',
   audio: '<path d="M4 10v4m4-7v10m4-13v16m4-13v10m4-7v4"/>',
@@ -96,6 +97,9 @@ export const ICONS: Record<string, string> = {
   tag: `<path d="M4 12.4V5.5A1.5 1.5 0 0 1 5.5 4h6.9l7.6 7.6a1.8 1.8 0 0 1 0 2.5l-5.9 5.9a1.8 1.8 0 0 1-2.5 0Z" ${SOFT}/><path d="${dot(8.5, 8.5)}" stroke-width="3"/>`,
   // A folder: back leaf and the front panel over it, the front in shade.
   folder: `<path d="M3.5 8V6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V9"/><path d="M3.5 9.5h17v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z" ${SOFT}/>`,
+  grid: `<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>`,
+  list: `<path d="M9 6h11M9 12h11M9 18h11M4 6h.1M4 12h.1M4 18h.1"/>`,
+  'list-details': `<rect x="3.5" y="4" width="5" height="6" rx="1"/><rect x="3.5" y="14" width="5" height="6" rx="1"/><path d="M12 5h8M12 9h5M12 15h8M12 19h5"/>`,
   // A new folder: the folder, and a plus on it.
   'folder-plus': `<path d="M3.5 8V6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V9"/><path d="M3.5 9.5h17v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z" ${SOFT}/><path d="M12 11.8v5.4M9.3 14.5h5.4"/>`,
   // Pinned to the top: a pushpin, its head filled.

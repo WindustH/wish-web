@@ -133,7 +133,8 @@ watch(
         // Read only the tail: large logs never accumulate in the browser.
         const info = await taskOutput(session, taskId, 0, 0, controller.signal);
         const start = Math.max(0, info.output_bytes - 64 * 1024);
-        const result = await taskOutput(session, taskId, start, 64 * 1024, controller.signal);
+        const result =
+          info.output_bytes === 0 ? info : await taskOutput(session, taskId, start, 64 * 1024, controller.signal);
         if (controller.signal.aborted) return;
         const box = outputBox.value;
         const follow = first || !box || box.scrollHeight - box.scrollTop - box.clientHeight < 32;

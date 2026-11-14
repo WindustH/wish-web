@@ -26,7 +26,7 @@ const server = await createServer({ configFile: false, root: process.cwd(), plug
   name: 'chat-regression', configureServer(server) { server.middlewares.use('/__file_changes', async (_, res) => {
     res.setHeader('content-type', 'text/html'); res.end(await server.transformIndexHtml('/__file_changes', html));
   }); },
-}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/sessions/entries/FileChangeCards.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router'] } });
+}], server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { entries: ['src/features/sessions/entries/FileChangeCards.vue'], include: ['vue', '@mdit/plugin-tex', '@tanstack/vue-virtual', 'dompurify', 'markdown-it', 'motion-v', 'reka-ui', 'temml', 'vue-router', 'highlight.js/lib/common', 'highlight.js/lib/languages/dockerfile', 'highlight.js/lib/languages/powershell'] } });
 const profile = await mkdtemp(join(tmpdir(), 'wish-file-changes-'));
 let chrome, ws;
 try {
@@ -67,10 +67,15 @@ try {
     }
   }
   await js('document.querySelector(".file-change-card").click()');
-  await until('document.querySelectorAll(".file-diff").length===4','stack shows every file');
+  await until('document.querySelectorAll(".file-change-details summary").length===4','stack lists every file');
+  assert.equal(await js('document.querySelectorAll(".file-diff").length'),0,'closed files do not render diffs');
+  await js('document.querySelectorAll(".file-change-details summary")[1].click()');
+  await until('document.querySelectorAll(".file-diff").length===1','expanding a file renders its diff');
   assert.equal(await js('!!document.querySelector(".file-changes-dialog .modal-head")'),false,'file detail uses compact heading');
   await js('fixture.visible.value=false');
-  assert.equal(await js('document.querySelectorAll(".file-diff").length'),4,'virtual row unmount keeps dialog');
+  assert.equal(await js('document.querySelectorAll(".file-diff").length'),1,'virtual row unmount keeps dialog');
+  await js('document.querySelectorAll(".file-change-details details:not([open]) summary").forEach(element=>element.click())');
+  await until('document.querySelectorAll(".file-diff").length===4','every listed diff can be expanded');
   await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
   await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
   await until('!document.querySelector("[role=dialog]")','Escape closes');
@@ -88,7 +93,7 @@ try {
   await until('document.querySelector(".diff-pagination span").textContent.startsWith("2")','diff next page');
   assert.ok(await js('document.querySelectorAll(".diff-line").length<=500'),'next diff page remains bounded');
   assert.deepEqual(exceptions,[]);
-  console.log(JSON.stringify({ok:true,checks:['1/3 individual cards','4-file stack','desktop/mobile','dark/light','single-file detail','stable modal host','Escape closes','2000-line diff pagination']}));
+  console.log(JSON.stringify({ok:true,checks:['1/3 individual cards','4-file stack','lazy diff rendering','desktop/mobile','dark/light','single-file detail','stable modal host','Escape closes','2000-line diff pagination']}));
 
 } finally {
   ws?.close();

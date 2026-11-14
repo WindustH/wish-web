@@ -1,14 +1,9 @@
 <script setup lang="ts">
-import { mediaPlayback } from '../../domain/media/requests.ts';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { LibraryBlob } from '../../core/api/types.ts';
 import { blobUrl } from '../../core/api/endpoints.ts';
-import { absUrl } from '../../core/api/client.ts';
-import { pdfThumbnail } from '../../domain/media/pdfThumbnail.ts';
 import { previewCache } from '../../core/util/previewCache.ts';
-import { videoThumbnail } from '../../domain/media/videoThumbnail.ts';
-import { audioCover } from '../../domain/media/audioCover.ts';
-import { acquireImageLoad } from '../../core/util/imageLoad.ts';
+import { thumbnail, thumbnailKey } from '../../domain/media/thumbnail.ts';
 import BlobImage from '../../domain/media/BlobImage.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { blobIcon, blobKind } from './libraryFiles.ts';
@@ -19,6 +14,15 @@ const surface = ref<HTMLElement>(),
   visible = ref(false),
   source = ref('');
 let observer: IntersectionObserver | undefined;
+let objectUrl = '',
+  currentKey = '';
+let displayed: Blob | null | undefined;
+function display(bytes: Blob | null | undefined) {
+  if (displayed === bytes) return;
+  displayed = bytes;
+  if (objectUrl) URL.revokeObjectURL(objectUrl);
+  source.value = objectUrl = bytes ? URL.createObjectURL(bytes) : '';
+}
 onMounted(() => {
   if (typeof IntersectionObserver === 'undefined') {
     visible.value = true;
@@ -35,57 +39,32 @@ onMounted(() => {
   );
   if (surface.value) observer.observe(surface.value);
 });
-onBeforeUnmount(() => observer?.disconnect());
+onBeforeUnmount(() => {
+  observer?.disconnect();
+  if (objectUrl) URL.revokeObjectURL(objectUrl);
+});
 watch(
-  () => [props.session, props.blob.id, props.blob.modified_at, props.blob.byte_count, visible.value] as const,
+  () => [props.session, props.blob, visible.value] as const,
   async (_, __, onCleanup) => {
     const controller = new AbortController();
-    let objectUrl = '';
-    onCleanup(() => {
-      controller.abort();
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    });
-    source.value = '';
-    if (!visible.value || !['audio', 'video', 'pdf'].includes(kind.value)) return;
-    const key = absUrl(blobUrl(`${props.session}/${props.blob.id}`));
-    const cacheable = !props.blob.linked;
-    const cached = cacheable ? previewCache.get(key) : undefined;
-    if (cached !== undefined) {
-      if (cached) source.value = objectUrl = URL.createObjectURL(cached);
+    onCleanup(() => controller.abort());
+    const key = thumbnailKey(props.session, props.blob);
+    if (currentKey !== key) {
+      currentKey = key;
+      display(undefined);
+    }
+    if (props.blob.available === false) {
+      display(undefined);
       return;
     }
-    let release: (() => void) | undefined;
+    const cached = previewCache.get(key);
+    if (cached !== undefined) display(cached);
+    if (!visible.value || !['audio', 'video', 'pdf'].includes(kind.value)) return;
     try {
-      release = await acquireImageLoad(controller.signal);
-      if (kind.value === 'audio') {
-        const cover = await audioCover(
-          blobUrl(`${props.session}/${props.blob.id}`),
-          props.blob.byte_count,
-          props.blob.mime_type,
-          controller.signal,
-        );
-        if (!controller.signal.aborted) {
-          if (cacheable) previewCache.set(key, cover);
-          if (cover) source.value = objectUrl = URL.createObjectURL(cover);
-        }
-      } else if (kind.value === 'pdf') {
-        const cover = await pdfThumbnail(props.session, props.blob.id, controller.signal);
-        if (!controller.signal.aborted) {
-          if (cacheable) previewCache.set(key, cover);
-          if (cover) source.value = objectUrl = URL.createObjectURL(cover);
-        }
-      } else {
-        const grant = await mediaPlayback(props.session, props.blob.id, { signal: controller.signal });
-        const cover = await videoThumbnail(absUrl(grant.path), controller.signal);
-        if (!controller.signal.aborted) {
-          if (cacheable) previewCache.set(key, cover);
-          source.value = objectUrl = URL.createObjectURL(cover);
-        }
-      }
+      const cover = await thumbnail(props.session, props.blob, controller.signal);
+      if (!controller.signal.aborted) display(cover);
     } catch {
-      // Thumbnails are optional: unsupported codecs and missing covers retain the type icon.
-    } finally {
-      release?.();
+      // A transient validation failure must not discard the last good cover.
     }
   },
   { immediate: true },
@@ -95,14 +74,19 @@ watch(
 <template>
   <span ref="surface" class="library-thumbnail" :class="kind">
     <BlobImage
-      v-if="kind === 'image'"
+      v-if="kind === 'image' && blob.available !== false"
       :src="blobUrl(`${session}/${blob.id}`)"
       :zoom="false"
       :preview-width="384"
       alt=""
       loading="lazy"
     />
-    <img v-else-if="['audio', 'video', 'pdf'].includes(kind) && source" :src="source" alt="" @error="source = ''" />
+    <img
+      v-else-if="['audio', 'video', 'pdf'].includes(kind) && source"
+      :src="source"
+      alt=""
+      @error="display(undefined)"
+    />
     <Icon v-else :name="blobIcon(kind)" :size="kind === 'audio' ? 48 : 32" />
     <span v-if="kind === 'video'" class="library-play"><Icon name="play" :size="24" /></span>
     <Icon v-if="kind === 'pdf'" name="file-pdf" class="library-pdf-icon" :size="26" />

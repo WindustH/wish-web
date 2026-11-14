@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // One MCP server: a card with what is known of it, and its editor.
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
@@ -63,21 +63,43 @@ const running = computed(() =>
   props.status?.instances ? tr(`${props.status.instances} 个实例运行中`, `${props.status.instances} running`) : '',
 );
 
-const argsText = computed({
-  get: () => (props.value.args ?? []).join('\n'),
-  set: (text: string) => {
-    props.value.args = text
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean);
+// Keep raw edit buffers (including trailing newlines/spaces), while updating the
+// draft on input so keyboard Save/Test does not depend on a prior blur event.
+const argsText = ref((props.value.args ?? []).join('\n'));
+const cwd = ref(props.value.cwd ?? '');
+const argumentsFrom = (text: string) =>
+  text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+watch(
+  argsText,
+  (text) => {
+    props.value.args = argumentsFrom(text);
   },
-});
-const cwd = computed({
-  get: () => props.value.cwd ?? '',
-  set: (text: string) => {
+  { flush: 'sync' },
+);
+watch(
+  cwd,
+  (text) => {
     props.value.cwd = text.trim() || null;
   },
-});
+  { flush: 'sync' },
+);
+watch(
+  () => props.value.args,
+  (args) => {
+    if (JSON.stringify(args ?? []) !== JSON.stringify(argumentsFrom(argsText.value)))
+      argsText.value = (args ?? []).join('\n');
+  },
+  { deep: true },
+);
+watch(
+  () => props.value.cwd,
+  (value) => {
+    if ((value ?? '') !== cwd.value.trim()) cwd.value = value ?? '';
+  },
+);
 const authProvider = computed({
   get: () => props.value.auth_provider ?? '',
   set: (id: string) => {
@@ -234,7 +256,7 @@ async function check() {
             ><textarea
               class="input set-mono"
               rows="3"
-              v-model.lazy="argsText"
+              v-model="argsText"
               placeholder="-y&#10;@upstash/context7-mcp"
               autocomplete="off"
               autocapitalize="off"
@@ -249,7 +271,7 @@ async function check() {
               }}</small></span
             ><input
               class="input set-mono"
-              v-model.lazy="cwd"
+              v-model="cwd"
               :placeholder="tr('会话的工作目录', 'The session\'s directory')"
               autocomplete="off"
               autocapitalize="off"

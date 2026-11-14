@@ -12,10 +12,11 @@ const MAX_SCROLL_SPEED = 480; // Pixels per second.
  * including virtual rows. Reversing restores the baseline outside the range.
  */
 export function useTouchRangeSelection(
-  root: Ref<HTMLElement | null>,
+  root: Ref<HTMLElement | null | undefined>,
   enabled: Ref<boolean>,
   ids: () => string[],
   chosen: Ref<Set<string>>,
+  attribute = 'data-session-id',
 ) {
   const dragging = ref(false);
   watch(
@@ -38,7 +39,7 @@ export function useTouchRangeSelection(
           }
         | undefined;
       const rowAtTarget = (target: EventTarget | null) =>
-        target instanceof Element ? target.closest<HTMLElement>('[data-session-id]')?.dataset.sessionId : undefined;
+        target instanceof Element ? target.closest<HTMLElement>(`[${attribute}]`)?.getAttribute(attribute) : undefined;
       function stop() {
         clearTimeout(hold);
         cancelAnimationFrame(frame);
@@ -63,7 +64,7 @@ export function useTouchRangeSelection(
         }
         chosen.value = next;
         noteTouchAction(
-          'session range selection',
+          'list range selection',
           () => chosen.value.size === next.size && [...next].every((id) => chosen.value.has(id)),
         );
       }
@@ -81,11 +82,14 @@ export function useTouchRangeSelection(
         }
         // Gaps and headings have no selection ID; use the nearest visible row.
         let nearest: { id: string; distance: number } | undefined;
-        for (const row of element!.querySelectorAll<HTMLElement>('[data-session-id]')) {
+        for (const row of element!.querySelectorAll<HTMLElement>(`[${attribute}]`)) {
           const rect = row.getBoundingClientRect();
           if (rect.bottom < box.top || rect.top > box.bottom) continue;
-          const distance = Math.max(rect.top - y, y - rect.bottom, 0);
-          if (!nearest || distance < nearest.distance) nearest = { id: row.dataset.sessionId!, distance };
+          const distance = Math.hypot(
+            Math.max(rect.left - x, x - rect.right, 0),
+            Math.max(rect.top - y, y - rect.bottom, 0),
+          );
+          if (!nearest || distance < nearest.distance) nearest = { id: row.getAttribute(attribute)!, distance };
         }
         if (nearest) extend(nearest.id);
       }

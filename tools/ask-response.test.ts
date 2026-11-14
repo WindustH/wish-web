@@ -41,3 +41,18 @@ test('BTW keeps partial text and reports stream errors', async () => {
   await assert.rejects(readAskResponse(response, text => seen.push(text)), /上游断开/);
   assert.deepEqual(seen, ['部分']);
 });
+
+test('BTW rejects malformed JSON with event context', async () => {
+  await assert.rejects(readAskResponse(sse(['event: model_event\ndata: {broken}\n\n']), () => {}), /Invalid JSON.*model_event/);
+});
+
+test('BTW bounds an unterminated frame and cancels its reader', async () => {
+  let cancelled = false;
+  const chunk = new TextEncoder().encode('x'.repeat(1024 * 1024));
+  const response = new Response(new ReadableStream({
+    pull(controller) { controller.enqueue(chunk); },
+    cancel() { cancelled = true; },
+  }), { headers: { 'content-type': 'text/event-stream' } });
+  await assert.rejects(readAskResponse(response, () => {}), /size limit/);
+  assert.equal(cancelled, true);
+});

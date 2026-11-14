@@ -11,7 +11,8 @@
 // so the browser need not invalidate styles for every message descendant.
 import { onScopeDispose, ref, watch, type Ref } from 'vue';
 
-const LANE = 44; // px the panel slides aside when the drawer stands open
+export const RAIL_DRAWER_WIDTH = 44; // px the panel slides aside when the drawer stands open
+const LANE = RAIL_DRAWER_WIDTH;
 const LOCK = 10; // px of travel before the gesture owns the drag
 const BIAS = 1.5; // horizontal must beat vertical by this much to lock
 const FLICK = 0.3; // px/ms that settles the drawer on its own

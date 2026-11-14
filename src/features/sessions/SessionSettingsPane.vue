@@ -151,7 +151,14 @@ const useDefaults = () => {
   compaction.value = structuredClone(defaults.value);
 };
 function setCompaction(enabled: boolean) {
-  compaction.value = enabled ? structuredClone(snapshot.value?.config?.compaction ?? defaults.value) : null;
+  const template = snapshot.value?.config?.compaction ?? defaults.value;
+  if (enabled && !template) {
+    toast(
+      tr('尚未配置压缩参数，请先在全局配置中设置。', 'Set compaction parameters in the global configuration first.'),
+    );
+    return;
+  }
+  compaction.value = enabled ? structuredClone(template) : null;
 }
 
 const busy = ref(false);
@@ -160,6 +167,11 @@ async function save() {
   const current = snapshot.value;
   if (!id || !current || busy.value) return;
   const saved = JSON.parse(source.value);
+  const desired = JSON.parse(draftValue());
+  const accepted = (patch: Record<string, unknown>) => {
+    Object.assign(saved, patch);
+    if (chat.sessionId.value === id) source.value = JSON.stringify(saved);
+  };
   if (
     running.value &&
     (execution.value !== saved.execution ||
@@ -181,29 +193,37 @@ async function save() {
         id,
         {
           ...current.config,
-          compaction: compaction.value,
-          run: { ...current.config.run, tools: execution.value, background_tools_on_input: backgroundTools.value },
+          compaction: desired.compaction,
+          run: { ...current.config.run, tools: desired.execution, background_tools_on_input: desired.backgroundTools },
         },
         current.revision,
       );
       chat.adoptSnapshot(id, next);
+      accepted({
+        compaction: desired.compaction,
+        execution: desired.execution,
+        backgroundTools: desired.backgroundTools,
+      });
     }
     // After the config: switching tools rebuilds the session's tool list on the server.
-    if (JSON.stringify(tools.value) !== JSON.stringify(saved.tools)) {
-      const next = await api.sessionSetTools(id, tools.value);
+    if (JSON.stringify(desired.tools) !== JSON.stringify(saved.tools)) {
+      const next = await api.sessionSetTools(id, desired.tools);
       chat.adoptSnapshot(id, next);
+      accepted({ tools: desired.tools });
     }
-    if (cwd.value !== saved.cwd) {
-      const next = await api.sessionSetWorkingDirectory(id, cwd.value);
+    if (desired.cwd !== saved.cwd) {
+      const next = await api.sessionSetWorkingDirectory(id, desired.cwd);
       chat.adoptSnapshot(id, next);
+      accepted({ cwd: desired.cwd });
     }
-    const wanted = ownShell.value ? shell.value : null;
+    const wanted = desired.shell;
     if (JSON.stringify(wanted) !== JSON.stringify(saved.shell)) {
       const next = await api.sessionSetShell(id, wanted);
       chat.adoptSnapshot(id, next);
+      accepted({ shell: wanted });
     }
     if (chat.sessionId.value === id) {
-      reset();
+      if (draftValue() === JSON.stringify(desired)) reset();
       toast(tr('会话设置已保存。', 'Session settings saved.'));
     }
   } catch (error) {
@@ -280,7 +300,7 @@ async function act(kind: 'compact' | 'clear') {
           }}
         </p>
       </header>
-      <div class="set-card">
+      <fieldset class="set-card" :disabled="running || busy">
         <div class="set-row inline toggle-row">
           <span class="set-label"
             ><span>{{ tr('自动压缩', 'Compact automatically') }}</span
@@ -289,6 +309,7 @@ async function act(kind: 'compact' | 'clear') {
             }}</small></span
           ><SwitchRoot
             :model-value="!!compaction"
+            :disabled="running || busy"
             class="cfg-switch"
             :aria-label="tr('自动压缩', 'Compact automatically')"
             @update:model-value="setCompaction"
@@ -298,8 +319,14 @@ async function act(kind: 'compact' | 'clear') {
         <template v-if="compaction">
           <CompactionRows :value="compaction" inline show-compact />
         </template>
-      </div>
-      <button v-if="compaction && differsFromDefaults" type="button" class="btn ghost set-reset" @click="useDefaults">
+      </fieldset>
+      <button
+        v-if="compaction && differsFromDefaults"
+        type="button"
+        class="btn ghost set-reset"
+        :disabled="running || busy"
+        @click="useDefaults"
+      >
         <Icon name="refresh-cw" />{{ tr('使用全局默认值', 'Use the global defaults') }}
       </button>
       <div class="set-card context-actions">
@@ -336,7 +363,7 @@ async function act(kind: 'compact' | 'clear') {
           :extension-rows="extensionSwitchRows"
           v-if="snapshot"
           v-model="tools"
-          :include="['shell', 'sessions', 'history_search', 'ask_user']"
+          :include="['shell', 'blob', 'sessions', 'history_search', 'ask_user']"
           :search-available="searchAvailable"
           :note="running ? savedLater() : undefined"
         />
@@ -368,6 +395,7 @@ async function act(kind: 'compact' | 'clear') {
       <div class="set-card">
         <SwitchRow
           v-model="tools.mcp"
+          :disabled="running || busy"
           :name="tr('MCP 服务器', 'MCP servers')"
           :hint="switchHint(tr('调用已配置的 MCP 服务器', 'Call the configured MCP servers'))"
         />
@@ -378,6 +406,7 @@ async function act(kind: 'compact' | 'clear') {
       <div class="set-card">
         <SwitchRow
           v-model="tools.skills"
+          :disabled="running || busy"
           name="Skill"
           :hint="switchHint(tr('查找和读取 Skill', 'Find and read skills'))"
         />

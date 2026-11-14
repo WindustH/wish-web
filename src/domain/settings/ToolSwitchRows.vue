@@ -18,8 +18,6 @@ const props = defineProps<{
   }[];
   compact?: boolean;
   include?: readonly (keyof ToolSwitches)[];
-  /** Shown inside settings, where web search providers are a page away rather than a menu. */
-  inSettings?: boolean;
   /** Said in every row instead of what the tool does, while the switches cannot be saved. */
   note?: string;
 }>();
@@ -27,6 +25,7 @@ const tools = defineModel<ToolSwitches>({ required: true });
 const rows = computed(() =>
   [
     { key: 'shell' as const, name: 'Shell', hint: i18n.t('tools.shell.hint') },
+    { key: 'blob' as const, name: 'Blob', hint: i18n.t('tools.blob.hint') },
     {
       key: 'sessions' as const,
       name: 'Session',
@@ -82,6 +81,7 @@ function setCapability(
     | 'ask_user'
     | 'web_fetch'
     | 'web_search'
+    | 'blob'
     | 'history_search'
     | 'sessions',
   value: string,
@@ -99,6 +99,7 @@ function deliveryKey(
     | 'ask_user'
     | 'web_fetch'
     | 'web_search'
+    | 'blob'
     | 'history_search'
     | 'sessions',
 ) {
@@ -112,6 +113,7 @@ function deliveryKey(
         | 'ask_user_delivery'
         | 'web_fetch_delivery'
         | 'web_search_delivery'
+        | 'blob_delivery'
         | 'history_search_delivery'
         | 'sessions_delivery');
 }
@@ -125,10 +127,13 @@ function delivery(
     | 'ask_user'
     | 'web_fetch'
     | 'web_search'
+    | 'blob'
     | 'history_search'
     | 'sessions',
 ): ToolDelivery {
-  return tools.value[deliveryKey(key)] ?? (key === 'shell' || key === 'sessions' ? 'command' : 'tool');
+  return (
+    tools.value[deliveryKey(key)] ?? (key === 'shell' || key === 'sessions' || key === 'blob' ? 'command' : 'tool')
+  );
 }
 </script>
 
@@ -149,7 +154,7 @@ function delivery(
         class="tool-delivery"
         :label="`${row.name} ${i18n.t('tools.delivery')}`"
         :model-value="
-          (row.key === 'history_search' ? tools.history_search === false : !tools[row.key])
+          (row.key === 'history_search' || row.key === 'blob' ? tools[row.key] === false : !tools[row.key])
             ? 'off'
             : tools.shell
               ? delivery(row.key)

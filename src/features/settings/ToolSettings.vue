@@ -40,8 +40,7 @@ defineProps<{ config: SettingsConfig; shells: ShellCatalog | null; busy: boolean
         <ToolSwitchRows
           v-model="config.defaults.tools"
           :search-available="searchAvailable"
-          :include="['shell', 'sessions', 'history_search', 'ask_user']"
-          in-settings
+          :include="['shell', 'blob', 'sessions', 'history_search', 'ask_user']"
         />
       </div>
     </section>

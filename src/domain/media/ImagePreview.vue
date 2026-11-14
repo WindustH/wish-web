@@ -8,6 +8,7 @@ import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
 import { zoomAt } from './imageTransform.ts';
 import { usePinchZoom } from '../../ui/composables/usePinchZoom.ts';
+import { useMiddleButtonGuard } from '../../ui/composables/useMiddleButtonGuard.ts';
 import Icon from '../../ui/components/Icon.vue';
 
 const props = defineProps<{
@@ -22,6 +23,7 @@ const saved = useWorkspaceState('image', () => props.stateKey, { zoom: 1, x: 0, 
 const emit = defineEmits<{ error: [] }>();
 const surface = ref<HTMLElement>(),
   picture = ref<HTMLImageElement>();
+useMiddleButtonGuard(surface);
 const zoom = ref(Math.max(1, Math.min(8, saved.value.zoom))),
   x = ref(0),
   y = ref(0);
@@ -41,6 +43,7 @@ function remember() {
   saved.value = { zoom: zoom.value, x: x.value / image.offsetWidth, y: y.value / image.offsetHeight };
 }
 function loaded() {
+  zoom.value = Math.max(1, Math.min(8, saved.value.zoom));
   x.value = saved.value.x * (picture.value?.offsetWidth ?? 0);
   y.value = saved.value.y * (picture.value?.offsetHeight ?? 0);
   clamp();
@@ -104,6 +107,17 @@ const pinching = usePinchZoom(
     remember();
   },
   stop,
+);
+watch(
+  [() => props.stateKey, () => props.src],
+  () => {
+    stop();
+    zoom.value = Math.max(1, Math.min(8, saved.value.zoom));
+    x.value = 0;
+    y.value = 0;
+    if (picture.value?.complete) loaded();
+  },
+  { flush: 'post' },
 );
 watch(usePageActivity(), (active) => {
   if (!active) stop();

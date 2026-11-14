@@ -9,7 +9,9 @@ import { showError } from '../../ui/errorDialog.ts';
 import { toast } from '../../ui/toast.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
 import { REDACTED, secretText, readSecret, writeCredential } from '../../core/secretRef.ts';
-import { configSnapshot, configSave, providerPresets } from '../../core/api/endpoints.ts';
+import { configSnapshot, providerPresets } from '../../core/api/endpoints.ts';
+import { saveConfigEdits } from '../../core/configEdits.ts';
+import { bus } from '../../core/bus.ts';
 import { presetProfile } from '../providers/preset-profile.ts';
 
 // The first-run setup, in three steps: the provider, its credentials, then the model new sessions
@@ -97,8 +99,15 @@ export function useProviderSetup({ preview = false } = {}) {
     OPTIONAL.has(field) || !!preset.value?.optional_credentials.includes(field);
   let controller: AbortController | undefined;
   let generation = 0;
+  let verification: AbortController | undefined;
+  function cancelVerification() {
+    verification?.abort();
+    verification = undefined;
+    verifying.value = false;
+  }
 
   function choose(value: string) {
+    cancelVerification();
     choice.value = value;
     const configured = value.startsWith('existing:') ? value.slice(9) : undefined;
     const shared = value.startsWith('account:') ? snapshot.value.config.accounts?.[value.slice(8)] : undefined;
@@ -134,6 +143,7 @@ export function useProviderSetup({ preview = false } = {}) {
   }
 
   async function load() {
+    cancelVerification();
     controller?.abort();
     controller = new AbortController();
     const own = ++generation;
@@ -226,17 +236,21 @@ export function useProviderSetup({ preview = false } = {}) {
   /** Reads the catalog with the credentials entered, which also checks them; on success, moves on. */
   async function verify() {
     if (authMissing.value || verifying.value) return;
+    const attempt = new AbortController();
+    verification = attempt;
     verifying.value = true;
     verifyFailed.value = false;
     catalogState.value = 'loading';
     try {
       const read = provider.value.model_list_path
-        ? await readDraftCatalogModels(id.value.trim(), plain(provider.value), controller?.signal)
+        ? await readDraftCatalogModels(id.value.trim(), plain(provider.value), attempt.signal)
         : null;
+      if (attempt.signal.aborted) return;
       models.value = offer(read ?? []);
       catalogState.value = read ? 'ready' : 'none';
       step.value = 'model';
     } catch (cause) {
+      if (attempt.signal.aborted) return;
       if (noCatalog(cause)) {
         models.value = offer([]);
         catalogState.value = 'none';
@@ -254,11 +268,15 @@ export function useProviderSetup({ preview = false } = {}) {
         ),
       });
     } finally {
-      verifying.value = false;
+      if (verification === attempt) {
+        verification = undefined;
+        verifying.value = false;
+      }
     }
   }
   /** Moves on without a catalog: the model is entered by hand. */
   function skipVerify() {
+    cancelVerification();
     models.value = offer([]);
     step.value = 'model';
   }
@@ -343,7 +361,8 @@ export function useProviderSetup({ preview = false } = {}) {
         );
         return true;
       }
-      snapshot.value = await configSave({ revision: snapshot.value.revision, config }, { signal: controller?.signal });
+      snapshot.value = await saveConfigEdits(snapshot.value, config, { signal: controller?.signal });
+      bus.emit('configuration.changed', {});
       return true;
     } catch (cause) {
       error.value = errorText(cause);
@@ -358,10 +377,8 @@ export function useProviderSetup({ preview = false } = {}) {
   async function saveForSignIn() {
     if (preview || !snapshot.value) return false;
     try {
-      snapshot.value = await configSave(
-        { revision: snapshot.value.revision, config: configWith() },
-        { signal: controller?.signal },
-      );
+      snapshot.value = await saveConfigEdits(snapshot.value, configWith(), { signal: controller?.signal });
+      bus.emit('configuration.changed', {});
       choice.value = `existing:${id.value.trim()}`;
       return true;
     } catch (cause) {
@@ -384,6 +401,7 @@ export function useProviderSetup({ preview = false } = {}) {
 
   void load();
   onScopeDispose(() => {
+    cancelVerification();
     generation++;
     controller?.abort();
   });

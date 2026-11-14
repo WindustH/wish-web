@@ -14,7 +14,7 @@ export interface SessionsListParams {
   query?: string;
   tag?: string;
 }
-/** A folder of the list: it holds sessions, groups and folders, as a directory does. */
+/** A folder of the list: it holds sessions and folders, as a directory does. */
 export interface FolderView {
   id: string;
   name: string;
@@ -31,40 +31,12 @@ export interface SessionsPage {
   has_more: boolean;
 }
 
-// Groups: chats among the user and several sessions.
-export interface GroupView {
-  id: string;
-  name: string;
-  /** Its sessions, in the order they joined; the user is in every group. */
-  members: string[];
-  /** The session that made it with `wish session`; null for one the user made. */
-  created_by: string | null;
-  created_at: number;
-  updated_at: number;
-}
-export type GroupAuthor = { kind: 'user' } | { kind: 'session'; id: string; name: string };
-export interface GroupMessage {
-  seq: number;
-  at: number;
-  author: GroupAuthor;
-  text: string;
-  /** Images and files the user posted, in the group's files. */
-  attachments?: { id: string; kind: 'image' | 'file'; name: string | null }[];
-}
-export interface GroupMessagesPage {
-  items: GroupMessage[];
-  next: number | null;
-}
-/** A row of the list a user browses: a session or a group. */
 /** Where an entry of the list is: its folder (null for the root), and whether it is pinned there. */
 export interface Placement {
   parent: string | null;
   pinned: boolean;
 }
-export type Conversation =
-  | ({ kind: 'session' } & SessionView & Placement)
-  | ({ kind: 'group' } & GroupView & Placement)
-  | ({ kind: 'folder' } & FolderView);
+export type Conversation = ({ kind: 'session' } & SessionView & Placement) | ({ kind: 'folder' } & FolderView);
 export interface ConversationsPage {
   items: Conversation[];
   next_cursor: any;
@@ -160,6 +132,7 @@ export interface LinkedBlob extends BlobInfo {
   linked: boolean;
 }
 export interface LibraryBlob extends BlobInfo {
+  folder?: string | null;
   visible?: boolean;
   pinned?: boolean;
   linked?: boolean;
@@ -172,6 +145,12 @@ export interface BlobPage {
   items: LibraryBlob[];
   next: number | null;
   total: number;
+  folders?: LibraryFolder[];
+}
+export interface LibraryFolder {
+  id: string;
+  name: string;
+  parent: string | null;
 }
 export interface UploadedBlob extends BlobInfo {
   sha256: string;
@@ -372,18 +351,7 @@ export interface SessionStorage {
   messages: { user: number; assistant: number; tool_calls: number };
   bytes: SessionBytes;
 }
-/** What one group keeps: its transcript (`history`) and the files posted to it (`attachments`). */
-export interface GroupStorage {
-  id: string;
-  name: string;
-  /** How many sessions are in it. */
-  members: number;
-  created_at: number;
-  updated_at: number;
-  /** How many messages its transcript holds. */
-  messages: number;
-  bytes: SessionBytes;
-}
+
 // What pruning released, or would: history outside the sessions' context and the files only it named.
 export interface PruneCounts {
   messages: number;

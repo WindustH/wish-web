@@ -1,4 +1,6 @@
 import { apiFetch, needsAccessToken } from '../core/api/client.ts';
+import { toast } from './toast.ts';
+import { describeError } from '../core/i18n/errorMessages.ts';
 
 /**
  * Click handler for a download link to the backend. A backend reached directly
@@ -8,9 +10,13 @@ import { apiFetch, needsAccessToken } from '../core/api/client.ts';
 export async function downloadApiFile(event: MouseEvent, url: string, filename: string) {
   if (!needsAccessToken(url)) return;
   event.preventDefault();
-  const response = await apiFetch(url);
-  if (!response.ok) return;
-  saveBlob(await response.blob(), filename);
+  try {
+    const response = await apiFetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    saveBlob(await response.blob(), filename);
+  } catch (error) {
+    toast(describeError(error).message);
+  }
 }
 
 /** Saves what is in memory as a file download. */

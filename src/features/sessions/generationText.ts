@@ -14,3 +14,27 @@ export function generationText(message: Record<string, any>): string {
   if (role === 'UpstreamCompaction') return json(value);
   return json(value);
 }
+
+/** Stored execution data and the protocol's model-facing text, without UI-only metadata. */
+export function generationToolResult(message: Record<string, any>) {
+  const result = message.ToolResult;
+  if (!result) return null;
+  const content = result.content;
+  const projected =
+    content !== null &&
+    typeof content === 'object' &&
+    (typeof content.model_text === 'string' || Object.hasOwn(content, 'model_value'));
+  const execution = projected
+    ? Object.fromEntries(Object.entries(content).filter(([key]) => key !== 'model_text' && key !== 'model_value'))
+    : content;
+  const text = (value: unknown) => (typeof value === 'string' ? value : JSON.stringify(value, null, 2));
+  return {
+    execution: text(execution),
+    model: projected
+      ? Object.hasOwn(content, 'model_value')
+        ? text(content.model_value)
+        : (content.model_text as string)
+      : text(content),
+    projected,
+  };
+}

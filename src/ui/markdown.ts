@@ -12,6 +12,7 @@ import {
   type SourceMapping,
 } from './markdownSourceMap.ts';
 import { cjkEmphasis } from './markdownEmphasis.ts';
+import { markdownBreaks } from './markdownBreaks.ts';
 import { parseFileMention } from '../core/blobMentions.ts';
 
 const markdown = new MarkdownIt({
@@ -22,6 +23,7 @@ const markdown = new MarkdownIt({
   highlight: highlightCode,
 });
 markdown.use(cjkEmphasis);
+markdown.use(markdownBreaks);
 markdown.use(tex, {
   render: (content, displayMode) =>
     temml.renderToString(content, {
