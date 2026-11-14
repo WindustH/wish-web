@@ -16,16 +16,36 @@ export interface KeyBinding {
 }
 export type Bindings = Record<ShortcutId, KeyBinding | null>;
 export const shortcutIds = Object.keys(defaultBindings) as ShortcutId[];
-export type BrowserShortcut = 'find' | 'print' | 'save';
-export const browserShortcutKeys: Record<BrowserShortcut, string> = { find: 'f', print: 'p', save: 's' };
+export type BrowserShortcut = 'find' | 'print' | 'save' | 'devTools';
+export const browserShortcutKeys: Record<BrowserShortcut, string> = {
+  find: 'f',
+  print: 'p',
+  save: 's',
+  devTools: 'F12',
+};
 export interface ShortcutPreferences {
   bindings: Bindings;
   blockedBrowser: Record<BrowserShortcut, boolean>;
 }
 export const defaultShortcuts = (): ShortcutPreferences => ({
   bindings: Object.fromEntries(shortcutIds.map((id) => [id, { ...defaultBindings[id] }])) as Bindings,
-  blockedBrowser: { find: true, print: true, save: true },
+  blockedBrowser: { find: true, print: true, save: true, devTools: true },
 });
+export function browserShortcut(
+  event: Pick<KeyboardEvent, 'key' | 'code' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'altKey'>,
+): BrowserShortcut | undefined {
+  // An IME may replace key with Process/Unidentified while leaving the physical
+  // key available. Blocking browser actions must still work during composition.
+  const key = ['Process', 'Unidentified', ''].includes(event.key) ? event.code.replace(/^Key/, '') : event.key;
+  if (key === 'F12' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) return 'devTools';
+  const letter = key.toLowerCase();
+  const devToolsModifier =
+    (event.ctrlKey && event.shiftKey && !event.metaKey && !event.altKey) ||
+    (event.metaKey && event.altKey && !event.ctrlKey && !event.shiftKey);
+  if (devToolsModifier && ['i', 'j', 'c'].includes(letter)) return 'devTools';
+  if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+  return (Object.keys(browserShortcutKeys) as BrowserShortcut[]).find((id) => browserShortcutKeys[id] === letter);
+}
 export function keyBinding(
   event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'altKey'>,
 ): KeyBinding {

@@ -37,6 +37,7 @@ const browserCommands = computed(() => [
   { id: 'find' as const, label: tr('浏览器查找', 'Browser find') },
   { id: 'print' as const, label: tr('打印', 'Print') },
   { id: 'save' as const, label: tr('保存网页', 'Save page') },
+  { id: 'devTools' as const, label: tr('开发者工具', 'Developer tools') },
 ]);
 const bindings = computed(() => shortcuts.value.value.bindings);
 const blocked = computed(() => shortcuts.value.value.blockedBrowser);
@@ -93,6 +94,7 @@ function reset() {
   error.value = '';
 }
 function browserLabel(id: BrowserShortcut) {
+  if (id === 'devTools') return 'F12 · Ctrl + Shift + I / J / C · ⌘ + Alt + I / J / C';
   return shortcutLabel({ key: browserShortcutKeys[id], mod: true });
 }
 </script>
@@ -199,12 +201,12 @@ function browserLabel(id: BrowserShortcut) {
     </section>
     <section class="set-section">
       <header class="set-section-head">
-        <h3>{{ tr('拦截浏览器快捷键', 'Block browser shortcuts') }}</h3>
+        <h3>{{ tr('浏览器快捷键', 'Browser shortcuts') }}</h3>
         <p>
           {{
             tr(
-              '开启后，按键不会触发浏览器操作。绑定了应用动作时，仍执行应用动作。',
-              'When enabled, these keys do not trigger browser actions. Any assigned app command still runs.',
+              '开启表示允许，关闭表示禁用。绑定了应用动作时，仍执行应用动作。',
+              'On allows the browser action; off disables it. Any assigned app command still runs.',
             )
           }}
         </p>
@@ -212,14 +214,14 @@ function browserLabel(id: BrowserShortcut) {
       <div class="set-card">
         <div v-for="command in browserCommands" :key="command.id" class="shortcut-row">
           <div class="shortcut-name">
-            <label :for="`block-${command.id}`">{{ command.label }}</label
+            <label :for="`browser-${command.id}`">{{ command.label }}</label
             ><small>{{ browserLabel(command.id) }}</small>
           </div>
           <SwitchRoot
-            :id="`block-${command.id}`"
+            :id="`browser-${command.id}`"
             class="cfg-switch"
-            :model-value="blocked[command.id]"
-            @update:model-value="shortcuts.setBrowserBlocked(command.id, $event)"
+            :model-value="!blocked[command.id]"
+            @update:model-value="shortcuts.setBrowserBlocked(command.id, !$event)"
             ><SwitchThumb class="cfg-switch-thumb"
           /></SwitchRoot>
         </div>

@@ -1,11 +1,4 @@
-import {
-  browserShortcutKeys,
-  keyBinding,
-  sameBinding,
-  shortcutIds,
-  type BrowserShortcut,
-  type ShortcutId,
-} from '../../core/shortcuts.ts';
+import { browserShortcut, keyBinding, sameBinding, shortcutIds, type ShortcutId } from '../../core/shortcuts.ts';
 import { shortcuts } from '../../core/state/shortcutsSlice.ts';
 
 export interface ShortcutCommands {
@@ -68,16 +61,9 @@ export function installShortcuts(commands: ShortcutCommands) {
     if (!event.repeat) void run();
   }
   function capture(event: KeyboardEvent) {
-    if (event.isComposing || event.keyCode === 229) return;
     // These browser commands stay blocked even inside an editor or local dialog.
-    if (
-      (event.ctrlKey || event.metaKey) &&
-      !event.altKey &&
-      !event.shiftKey &&
-      (Object.keys(browserShortcutKeys) as BrowserShortcut[]).some(
-        (id) => shortcuts.value.value.blockedBrowser[id] && browserShortcutKeys[id] === event.key.toLowerCase(),
-      )
-    ) {
+    const browserCommand = browserShortcut(event);
+    if (browserCommand && shortcuts.value.value.blockedBrowser[browserCommand]) {
       if (!event.defaultPrevented) browserBlocked.add(event);
       event.preventDefault();
     }
@@ -85,10 +71,10 @@ export function installShortcuts(commands: ShortcutCommands) {
     // to handle their own commands first.
     if (event.key === 'Tab') command(event);
   }
-  document.addEventListener('keydown', capture, true);
+  window.addEventListener('keydown', capture, true);
   document.addEventListener('keydown', command);
   return () => {
-    document.removeEventListener('keydown', capture, true);
+    window.removeEventListener('keydown', capture, true);
     document.removeEventListener('keydown', command);
   };
 }
