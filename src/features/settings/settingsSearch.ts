@@ -72,7 +72,7 @@ export const settingTerms: Record<string, string[]> = {
   shortcuts: [
     '键盘 按键 快捷键 Keyboard shortcuts keybindings Tab Shift Ctrl Command',
     '侧栏 sidebar 搜索 search 会话 session',
-    '浏览器 查找 打印 保存 开发者工具 F12 browser find print save developer tools',
+    '浏览器 查找 光标浏览 打印 保存 开发者工具 F3 F7 F12 browser find caret browsing print save developer tools',
     '发送 消息 Enter send',
   ],
 };

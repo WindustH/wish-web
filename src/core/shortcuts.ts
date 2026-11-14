@@ -16,12 +16,13 @@ export interface KeyBinding {
 }
 export type Bindings = Record<ShortcutId, KeyBinding | null>;
 export const shortcutIds = Object.keys(defaultBindings) as ShortcutId[];
-export type BrowserShortcut = 'find' | 'print' | 'save' | 'devTools';
+export type BrowserShortcut = 'find' | 'print' | 'save' | 'devTools' | 'caretBrowsing';
 export const browserShortcutKeys: Record<BrowserShortcut, string> = {
   find: 'f',
   print: 'p',
   save: 's',
   devTools: 'F12',
+  caretBrowsing: 'F7',
 };
 export interface ShortcutPreferences {
   bindings: Bindings;
@@ -29,7 +30,7 @@ export interface ShortcutPreferences {
 }
 export const defaultShortcuts = (): ShortcutPreferences => ({
   bindings: Object.fromEntries(shortcutIds.map((id) => [id, { ...defaultBindings[id] }])) as Bindings,
-  blockedBrowser: { find: true, print: true, save: true, devTools: true },
+  blockedBrowser: { find: true, print: true, save: true, devTools: true, caretBrowsing: true },
 });
 export function browserShortcut(
   event: Pick<KeyboardEvent, 'key' | 'code' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'altKey'>,
@@ -37,12 +38,19 @@ export function browserShortcut(
   // An IME may replace key with Process/Unidentified while leaving the physical
   // key available. Blocking browser actions must still work during composition.
   const key = ['Process', 'Unidentified', ''].includes(event.key) ? event.code.replace(/^Key/, '') : event.key;
-  if (key === 'F12' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) return 'devTools';
+  if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+    if (key === 'F3') return 'find'; // Shift reverses the search direction.
+    if (!event.shiftKey) {
+      if (key === 'F7') return 'caretBrowsing';
+      if (key === 'F12') return 'devTools';
+    }
+  }
   const letter = key.toLowerCase();
   const devToolsModifier =
     (event.ctrlKey && event.shiftKey && !event.metaKey && !event.altKey) ||
     (event.metaKey && event.altKey && !event.ctrlKey && !event.shiftKey);
   if (devToolsModifier && ['i', 'j', 'c'].includes(letter)) return 'devTools';
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && letter === 'g') return 'find';
   if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
   return (Object.keys(browserShortcutKeys) as BrowserShortcut[]).find((id) => browserShortcutKeys[id] === letter);
 }

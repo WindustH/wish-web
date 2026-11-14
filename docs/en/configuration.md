@@ -144,8 +144,10 @@ These settings apply at once and are stored in this browser only.
 Configure sidebar toggles, session/history search, settings and new-session commands here.
 Click a binding to record a replacement, disable it, or restore the defaults. Conflicting
 bindings are rejected. **Send with Enter** also lives here: when off, Enter adds a line
-and Ctrl/⌘ + Enter sends. Browser find, print, save and developer-tool shortcuts each
+and Ctrl/⌘ + Enter sends. Browser find, caret browsing, print, save and developer-tool shortcuts each
 have a switch: on allows the browser action and off disables it. All default to off.
+Find covers Ctrl/⌘ + F, F3/Shift + F3, Ctrl/⌘ + G and Ctrl/⌘ + Shift + G.
+Caret browsing controls F7.
 Developer tools covers F12, Ctrl + Shift + I/J/C and ⌘ + Alt + I/J/C.
 These preferences are stored in the current browser.
 

@@ -35,6 +35,7 @@ const commands = computed(() => [
 ]);
 const browserCommands = computed(() => [
   { id: 'find' as const, label: tr('浏览器查找', 'Browser find') },
+  { id: 'caretBrowsing' as const, label: tr('光标浏览', 'Caret browsing') },
   { id: 'print' as const, label: tr('打印', 'Print') },
   { id: 'save' as const, label: tr('保存网页', 'Save page') },
   { id: 'devTools' as const, label: tr('开发者工具', 'Developer tools') },
@@ -94,6 +95,8 @@ function reset() {
   error.value = '';
 }
 function browserLabel(id: BrowserShortcut) {
+  if (id === 'find') return 'Ctrl / ⌘ + F · F3 / Shift + F3 · Ctrl / ⌘ + G / Ctrl / ⌘ + Shift + G';
+  if (id === 'caretBrowsing') return 'F7';
   if (id === 'devTools') return 'F12 · Ctrl + Shift + I / J / C · ⌘ + Alt + I / J / C';
   return shortcutLabel({ key: browserShortcutKeys[id], mod: true });
 }
