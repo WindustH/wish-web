@@ -224,8 +224,8 @@ Instruction projections carry stable semantic kinds. Display labels are localize
 - Shared settings copy uses dictionary keys. Existing two-language `tr()` calls and some compatibility
   payload `any` fields remain; this is not a claim of a complete localization or typing migration.
 
-Run `node tools/source-review-browser.mjs` for Markdown identity/semantics, input/IME/Undo, menu
-click isolation, focus restoration and opt-in diagnostics. Run `node tools/overlay-layout-browser.mjs`
+Run `node ../wish-test/web/run.mjs browser source-review-browser.mjs` for Markdown identity/semantics, input/IME/Undo, menu
+click isolation, focus restoration and opt-in diagnostics. Run `node ../wish-test/web/run.mjs browser overlay-layout-browser.mjs`
 for responsive overlay and route transition regressions. Unit coverage includes abort scopes,
 sync lifecycle, overlapping Back, malformed diffs and locale dictionary parity.
 

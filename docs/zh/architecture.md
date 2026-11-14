@@ -136,7 +136,7 @@ Service Worker 由 `vite-plugin-pwa` 借助 Workbox 生成：
 - `backLayers` 统一持有本地窗口和移动端页面的历史边界。返回先关闭最高层窗口，再由 `pageBackTarget` 决定页面父级；页面返回不能混入弹窗的批量关闭回调。
 - `useMobileBackNavigation` 负责首页退出确认。浏览器没有通用的 PWA 关闭接口：有前序浏览器页面时返回该页面；独立启动时确认后回到历史边界，由下一次系统返回退出。
 
-验证入口：`tools/dialog-lifecycle.test.ts`、`tools/back-layers.test.ts`、`tools/chat-browser-regression.mjs` 和 `tools/settings-navigation-browser.mjs`。后者使用真实 Hash History，覆盖账户详情返回、分类返回、首页退出确认与取消。
+验证入口：`../wish-test/web/frontend/dialog-lifecycle.test.ts`、`../wish-test/web/frontend/back-layers.test.ts`、`../wish-test/web/frontend/chat-browser-regression.mjs` 和 `../wish-test/web/frontend/settings-navigation-browser.mjs`。后者使用真实 Hash History，覆盖账户详情返回、分类返回、首页退出确认与取消。
 
 移动端历史边界在 Back 后通过 forward 恢复原记录，再执行关闭或父页替换；禁止在连续返回后用 pushState 重建边界。Chromium 在返回后会停止认可之前的用户激活，此时 pushState 可能使同文档记录全部被系统返回跳过。`history.back()` 不应用这套跳过规则，因此单独通过它的测试不足以证明 Android 手势返回正常。单元测试模拟该规则，浏览器回归额外断言连续返回不增加历史记录。参见 [Chromium history manipulation intervention](https://chromium.googlesource.com/chromium/src/+/main/docs/history_manipulation_intervention.md)。
 
@@ -156,7 +156,7 @@ Shell 和 Session 操作仍保留时间轴记录，文件卡片不会替代工�
 完整列表由会话级 `ActivityDialogs` 持有，虚拟行回收不关闭弹窗；选择文件保留页码或时间定位，
 成功打开侧栏后关闭列表。
 
-验证：`tools/file-changes.test.ts`、`tools/file-changes-browser.mjs`。
+验证：`../wish-test/web/frontend/file-changes.test.ts`、`../wish-test/web/frontend/file-changes-browser.mjs`。
 
 
 ## 依赖边界
@@ -188,7 +188,7 @@ Shell 和 Session 操作仍保留时间轴记录，文件卡片不会替代工�
 - 桌面与移动端复用同一个覆盖页实例，路由重开会取消关闭计时；仅凭两个 RouterView 不能证明重复挂载或白屏。浏览器回归已覆盖 899/900px 断点往返、草稿保留和快速关闭重开。220ms 是关闭动画的卸载兜底，仍需真机覆盖不同浏览器与手势。
 - 配置、消息分组、历史行和文件 diff 的关键接口补上了类型；旧 diff 数据增加运行时筛选。其他上游兼容字段仍有 `any`，没有宣称已完成全仓严格类型迁移。
 
-验证入口：`tools/source-review-browser.mjs`、`tools/overlay-layout-browser.mjs`、`tools/abort-scope.test.ts`、`tools/sync-lifecycle.test.ts`、`tools/back-layers.test.ts`、`tools/menu-backdrop.test.ts` 和 `tools/i18n-catalog.test.ts`，以及现有会话、输入历史、活动记录和设置导航浏览器回归。
+验证入口：`../wish-test/web/frontend/source-review-browser.mjs`、`../wish-test/web/frontend/overlay-layout-browser.mjs`、`../wish-test/web/frontend/abort-scope.test.ts`、`../wish-test/web/frontend/sync-lifecycle.test.ts`、`../wish-test/web/frontend/back-layers.test.ts`、`../wish-test/web/frontend/menu-backdrop.test.ts` 和 `../wish-test/web/frontend/i18n-catalog.test.ts`，以及现有会话、输入历史、活动记录和设置导航浏览器回归。
 
 库顶栏保留分类与数量，多选、全部文件、链接、上传、刷新和视图选择收进统一菜单。图标、紧凑、详细
 三种视图共用虚拟窗口并保存偏好。文件夹由服务端按会话持久化，创建、重命名和批量移动只修改组织元数据，

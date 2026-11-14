@@ -74,10 +74,10 @@ node serve.ts
 ./pnpmw install --frozen-lockfile
 WISH_UPSTREAM=http://127.0.0.1:9780 ./pnpmw dev   # http://127.0.0.1:5173
 ./pnpmw typecheck
-./pnpmw test
+./pnpmw test   # 转发到相邻的 wish-test 仓库
 ```
 
-基于 Vue 3、TypeScript 和 Vite 构建。项目结构和约定见[开发指南](docs/zh/development.md)。欢迎参与贡献。
+基于 Vue 3、TypeScript 和 Vite 构建。项目结构和约定见[开发指南](docs/zh/development.md)。自动化测试和夹具统一放在 `wish-test/web/frontend/`，此仓库只保留命令入口。欢迎参与贡献。
 
 ## 许可证
 

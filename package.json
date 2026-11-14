@@ -16,9 +16,9 @@
     "build": "python3 tools/fonts.py && vue-tsc --noEmit && vite build",
     "typecheck": "vue-tsc --noEmit",
     "start": "node serve.ts",
-    "selftest:api": "node tools/selftest-api.ts",
-    "test": "node --test tools/*.test.ts",
-    "lint": "node tools/check-boundaries.mjs",
+    "selftest:api": "node ../wish-test/web/run.mjs api",
+    "test": "node ../wish-test/web/run.mjs unit",
+    "lint": "node ../wish-test/web/run.mjs boundaries",
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "check": "pnpm lint && pnpm typecheck && pnpm format:check"

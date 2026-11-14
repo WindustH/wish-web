@@ -87,12 +87,13 @@ described in the [deployment guide](docs/en/deployment.md).
 ./pnpmw install --frozen-lockfile
 WISH_UPSTREAM=http://127.0.0.1:9780 ./pnpmw dev   # http://127.0.0.1:5173
 ./pnpmw typecheck
-./pnpmw test
+./pnpmw test   # delegates to an adjacent wish-test checkout
 ```
 
 Built with Vue 3, TypeScript and Vite. See the
 [development guide](docs/en/development.md) for the project layout and
-conventions. Contributions are welcome.
+conventions. Automated tests and fixtures live in `wish-test/web/frontend/`;
+this repository keeps only the command entry points. Contributions are welcome.
 
 ## License
 

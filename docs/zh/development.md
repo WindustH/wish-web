@@ -34,16 +34,18 @@ Vite 会在 <http://127.0.0.1:5173> 启动支持热更新的开发服务器（�
 | `./pnpmw dev` | 开发服务器，见上文 |
 | `./pnpmw build` | 先运行 `vue-tsc --noEmit`，再用 `vite build` 输出到 `dist/`。会话信息中显示的构建号是当前提交的前 12 位（不在 git 仓库中时为 `dev`） |
 | `./pnpmw typecheck` | 只做类型检查（严格模式，并报告未使用的变量和参数） |
-| `./pnpmw test` | 单元测试：`node --test tools/*.test.ts` |
+| `./pnpmw test` | 转发到 `../wish-test/web/run.mjs unit` |
+| `./pnpmw lint` | 转发到 `../wish-test/web/run.mjs boundaries` |
 | `./pnpmw selftest:api [url]` | 对运行中的服务做只读的 API 检查，默认 `http://127.0.0.1:8790` |
 | `./pnpmw start` | `node serve.ts` |
 
 ## 测试
 
-- **单元测试**（`./pnpmw test`，安装依赖后在仓库根目录运行）：`tools/*.test.ts`，基于 `node:test`。它们在不启动浏览器的情况下测试各类逻辑：API 数据转换和模型校验、聊天历史和消息队列、粘贴文本和附件占位符、配置合并、提供商就绪判断、列表和输入框的尺寸调整，以及已打补丁依赖的回归测试。
+- **自动化测试**统一放在 `wish-test/web/frontend/`：包括 `node:test` 单测、浏览器回归、夹具、API 检查和导入边界检查器。`wish-web` 不保存测试实现。安装前端依赖后，在 `wish-test` 中运行 `node web/run.mjs unit`、`node web/run.mjs typecheck`、`node web/run.mjs boundaries` 和 `node web/run.mjs browser ci`。两个仓库不相邻时设置 `WISH_WEB_REPO`。测试直接使用被测前端安装的依赖和补丁；仓库相邻时也可用 `./pnpmw test`、`./pnpmw lint`、`./pnpmw selftest:api` 转发到测试仓库。
+- **浏览器回归**可以单独选取：在 `wish-test` 运行 `node web/run.mjs browser session-list-mount-browser.mjs source-preview-browser.mjs`。浏览器用例共用 Vite 的依赖缓存，按顺序运行；`CHROME` 可指定浏览器。部分可选媒体或设备检查需要额外夹具。
 - **API 自检**（`./pnpmw selftest:api http://127.0.0.1:5173`，也可以是任何已部署的地址）：读取 `/version`、会话、提供商、默认设置、配置、用量、状态和存储，并确认 `/events` 以快照开头。它不会修改任何东西，失败时以非零状态退出。
 - **浏览器自检**：打开 `/#/selftest?auto=1`，或在设置 →“调试”→“连接诊断”中点击“开始检查”。它会检查模块加载、语言和主题切换、本地存储、API、事件流和 Service Worker，不会改动服务端的任何数据。带 `?auto=1` 时，结果还会写入 `window.__selftestResult`。
-- **服务端测试**在单独的 `wish-test` 仓库中。`tests/test_wish_server.py` 针对 `../wish-core`（或 `$WISH_CORE_REPO`）的调试构建进行黑盒 HTTP 测试，在 `wish-test` 目录下运行 `python3 -m unittest tests.test_wish_server -v`。`wish-test/web/` 下的浏览器测试是为早期的双守护进程服务端写的，还没有迁移到当前版本。
+- **服务端测试**也在 `wish-test` 中。`tests/test_wish_server.py` 针对 `../wish-core`（或 `$WISH_CORE_REPO`）的调试构建进行黑盒 HTTP 测试，在 `wish-test` 目录下运行 `python3 -m unittest tests.test_wish_server -v`。该仓库 README 区分当前集成测试与早期双守护进程场景。
 
 需要修改会话的检查，请在临时启动的服务端上进行，不要拿重要的会话做实验。
 
@@ -67,7 +69,7 @@ src/
   styles/                       样式
   generated/fonts/              构建时生成的字体（不进仓库）
 public/                         应用清单、图标、许可证文本
-tools/                          测试、API 自检、字体来源清单和构建脚本
+tools/                          字体来源清单、字体生成和 PDF 构建辅助脚本
 patches/                        依赖补丁
 serve.ts                       生产环境服务器
 ```
@@ -87,8 +89,8 @@ serve.ts                       生产环境服务器
 
 | 补丁 | 修复的问题 | 对应测试 |
 | --- | --- | --- |
-| `patches/reka-ui@2.10.4.patch` | 滚动锁定不再修改页面的 `pointer-events`（交给可关闭层处理）；即使退出动画没有报告结束，关闭的对话框也会被卸载 | `tools/scroll-lock.test.ts`、`tools/presence-lifecycle.test.ts` |
-| `patches/@tanstack__virtual-core@3.17.9.patch` | 在后台保持挂载的虚拟列表出现跳动和卡死：过期的滚动校正会被丢弃，而不是重放 | `tools/virtual-clamped-adjustment.test.ts` |
+| `patches/reka-ui@2.10.4.patch` | 滚动锁定不再修改页面的 `pointer-events`（交给可关闭层处理）；即使退出动画没有报告结束，关闭的对话框也会被卸载 | `../wish-test/web/frontend/scroll-lock.test.ts`、`../wish-test/web/frontend/presence-lifecycle.test.ts` |
+| `patches/@tanstack__virtual-core@3.17.9.patch` | 在后台保持挂载的虚拟列表出现跳动和卡死：过期的滚动校正会被丢弃，而不是重放 | `../wish-test/web/frontend/virtual-clamped-adjustment.test.ts` |
 
 升级这两个包时，需要重新制作补丁（先运行 `./pnpmw patch <包名>`，再运行 `./pnpmw patch-commit <目录>`），并跑一遍测试。
 
@@ -101,4 +103,4 @@ serve.ts                       生产环境服务器
 同一个 CSS 字重下，一行里各个字体的笔画应当一样粗。基准是中文字体：`tools/build-cjk-fonts.py` 为每个 CSS 字重选定静态字重。Montserrat 和 Bitter 向它看齐：`tools/build-latin-fonts.py` 从 `node_modules/@fontsource-variable/` 取出这两个字体并重新校准字重映射。本来就要显示为粗体的英文标签使用 `--weight-latin-semibold` / `--weight-latin-bold`，让 Montserrat 回到它自己的 600 和 700。改动其中任何字体后，运行 `python3 tools/measure-font-weights.py`（需要 NumPy 和 Pillow）：它按 CSS 字重列出各字体的笔画粗细，以及与之匹配的拉丁字重，把结果填进 `tools/build-latin-fonts.py`。
 
 
-运行 `pnpm check` 检查依赖边界、TypeScript 和格式；`pnpm format` 应用统一的 Prettier 风格。CI 同时构建项目，并运行已有检查和浏览器回归。本轮没有新增单元测试。
+运行 `pnpm check` 检查依赖边界（需要相邻的 `wish-test`）、TypeScript 和格式；`pnpm format` 应用统一的 Prettier 风格。CI 始终检查前端类型、格式并构建。配置 `WISH_TEST_REPOSITORY`（owner/repo）以及可选的 `WISH_TEST_REF` 后，CI 会检出集中测试仓库，执行单测、测试类型检查和浏览器回归；手动工作流输入可覆盖这两个配置。未配置时会明确报告跳过外部测试。

@@ -34,16 +34,18 @@ Differences from production: there is no service worker, so the install and upda
 | `./pnpmw dev` | Dev server, see above |
 | `./pnpmw build` | `vue-tsc --noEmit`, then `vite build` into `dist/`. The build ID shown in Session info is the first 12 characters of the current commit (`dev` outside git) |
 | `./pnpmw typecheck` | Type-check only (strict, with unused locals and parameters reported) |
-| `./pnpmw test` | Unit tests: `node --test tools/*.test.ts` |
+| `./pnpmw test` | Delegates to `../wish-test/web/run.mjs unit` |
+| `./pnpmw lint` | Delegates to `../wish-test/web/run.mjs boundaries` |
 | `./pnpmw selftest:api [url]` | Read-only API checks against a running server, default `http://127.0.0.1:8790` |
 | `./pnpmw start` | `node serve.ts` |
 
 ## Tests
 
-- **Unit tests** (`./pnpmw test`, run from the repository root after installing): `tools/*.test.ts` with `node:test`. They cover logic without a browser: API projections and model checks, chat history and queue handling, pasted text and attachment placeholders, the configuration merge, provider readiness, list and message box resizing, and regressions for the patched dependencies.
+- **Automated tests** live in `wish-test/web/frontend/`, including `node:test` unit tests, browser regressions, fixtures, the API check and the import-boundary checker. This repository contains no automated test implementations. Install this app's dependencies, then run `node web/run.mjs unit`, `node web/run.mjs typecheck`, `node web/run.mjs boundaries` and `node web/run.mjs browser ci` from `wish-test`. Set `WISH_WEB_REPO` when the checkouts are not adjacent. Tests use this app's installed dependencies, including patches. `./pnpmw test`, `./pnpmw lint` and `./pnpmw selftest:api` remain convenience entry points for adjacent checkouts.
+- **Browser regressions** can be selected with `node web/run.mjs browser session-list-mount-browser.mjs source-preview-browser.mjs` from `wish-test`. Run them sequentially; they share Vite's dependency cache. `CHROME` overrides the browser executable. Some optional media/device checks require additional fixtures.
 - **API self-test** (`./pnpmw selftest:api http://127.0.0.1:5173` or any deployed URL): reads `/version`, sessions, providers, defaults, configuration, usage, status and storage, and checks that `/events` opens with a snapshot. It changes nothing and exits non-zero on failure.
 - **Browser self-test**: open `/#/selftest?auto=1`, or Settings → **Debug** → **Connection diagnostics** → **Run checks**. It checks module loading, language and theme switching, local storage, the API, the event stream and the service worker without changing anything on the server. With `?auto=1` the result is also left in `window.__selftestResult`.
-- **Server tests** live in the separate `wish-test` repository. `tests/test_wish_server.py` runs black-box HTTP tests against a debug build of `../wish-core` (or `$WISH_CORE_REPO`): `python3 -m unittest tests.test_wish_server -v` from `wish-test`. The browser suites under `wish-test/web/` were written for the earlier two-daemon server and have not been ported to the current one.
+- **Server tests** also live in `wish-test`. `tests/test_wish_server.py` runs black-box HTTP tests against a debug build of `../wish-core` (or `$WISH_CORE_REPO`): `python3 -m unittest tests.test_wish_server -v` from `wish-test`. Its README distinguishes current integration checks from legacy two-daemon scenarios.
 
 Test against a scratch server when a check needs to change sessions, never against sessions you care about.
 
@@ -67,7 +69,7 @@ src/
   styles/                       CSS
   generated/fonts/              fonts generated at build time (not in the repository)
 public/                         manifest, icons, license texts
-tools/                          tests, API self-test, font pins and build scripts
+tools/                          font pins, font generation and PDF build helpers
 patches/                        dependency patches
 serve.ts                       production server
 ```
@@ -87,8 +89,8 @@ Two packages are patched. The patches are registered under `patchedDependencies`
 
 | Patch | Fixes | Tested by |
 | --- | --- | --- |
-| `patches/reka-ui@2.10.4.patch` | The scroll lock no longer touches the page's `pointer-events` (left to the dismissable layer), and a closing dialog unmounts even when its exit animation never reports an end | `tools/scroll-lock.test.ts`, `tools/presence-lifecycle.test.ts` |
-| `patches/@tanstack__virtual-core@3.17.9.patch` | Scroll jumps and freezes in virtualized lists kept alive in the background: stale scroll corrections expire instead of replaying | `tools/virtual-clamped-adjustment.test.ts` |
+| `patches/reka-ui@2.10.4.patch` | The scroll lock no longer touches the page's `pointer-events` (left to the dismissable layer), and a closing dialog unmounts even when its exit animation never reports an end | `../wish-test/web/frontend/scroll-lock.test.ts`, `../wish-test/web/frontend/presence-lifecycle.test.ts` |
+| `patches/@tanstack__virtual-core@3.17.9.patch` | Scroll jumps and freezes in virtualized lists kept alive in the background: stale scroll corrections expire instead of replaying | `../wish-test/web/frontend/virtual-clamped-adjustment.test.ts` |
 
 When upgrading either package, recreate the patch (`./pnpmw patch <package>`, then `./pnpmw patch-commit <dir>`) and run the tests.
 
@@ -101,4 +103,4 @@ Sarasa Gothic SC (Chinese) and Maple Mono NF CN (code) are split into small WOFF
 A CSS weight should give every font on a line the same stroke. The Chinese fonts set the scale: `tools/build-cjk-fonts.py` picks the static weight for each CSS weight. Montserrat and Bitter follow it: `tools/build-latin-fonts.py` takes them from `node_modules/@fontsource-variable/` with their weight mapping recalibrated. Latin labels meant to read bold use `--weight-latin-semibold` / `--weight-latin-bold`, which land Montserrat on its own 600 and 700. After changing any of these fonts, run `python3 tools/measure-font-weights.py` (needs NumPy and Pillow): it prints each face's stems per CSS weight and the Latin weights that match, which go into `tools/build-latin-fonts.py`.
 
 
-Run `pnpm check` for import boundaries, TypeScript and formatting; `pnpm format` applies the shared Prettier style. CI also builds and runs the existing checks and browser regressions. No new unit test suite is introduced.
+Run `pnpm check` for import boundaries (requires adjacent `wish-test`), TypeScript and formatting; `pnpm format` applies the shared Prettier style. CI always type-checks, formats and builds the app. Configure `WISH_TEST_REPOSITORY` (owner/repo) and optionally `WISH_TEST_REF` to check out the centralized suites and run unit, test-type and browser checks; manual workflow inputs can override them. Without that setting CI explicitly reports the skipped external checks.
