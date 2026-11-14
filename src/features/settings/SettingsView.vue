@@ -10,6 +10,7 @@ import { useDialogNesting } from '../../ui/composables/useDialogNesting.ts';
 import { useDialogFocus } from '../../ui/composables/useDialogFocus.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import UiSettings from './UiSettings.vue';
+import ShortcutSettings from './ShortcutSettings.vue';
 import DebugSettings from '../debug/DebugSettings.vue';
 import MobileSessionSettings from './MobileSessionSettings.vue';
 import Modal from '../../ui/components/Modal.vue';
@@ -287,6 +288,7 @@ onActivated(() => {
             </header>
             <div ref="content" class="settings-content" data-scroll-preserve>
               <UiSettings v-if="tab === 'ui'" />
+              <ShortcutSettings v-else-if="tab === 'shortcuts'" />
               <DebugSettings v-else-if="tab === 'debug'" />
               <template v-else-if="ready">
                 <MobileSessionSettings

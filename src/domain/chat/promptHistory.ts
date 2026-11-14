@@ -6,6 +6,7 @@ export interface HistoricalAttachment {
   blob_id: string;
   filename?: string;
   mime_type?: string;
+  byte_count?: number;
   placeholder?: string;
 }
 export interface HistoricalPrompt {
@@ -25,12 +26,23 @@ export function sessionPrompts(entries: readonly EntryView[], owner?: string): H
           text: metadata.input_text as string,
           attachments: metadata.attachments
             .filter((file: { kind: string; id?: string }) => (file.kind === 'image' || file.kind === 'file') && file.id)
-            .map((file: { kind: 'image' | 'file'; id: string; name?: string; placeholder?: string }) => ({
-              kind: file.kind,
-              blob_id: `${owner}/${file.id}`,
-              filename: file.name ?? undefined,
-              placeholder: file.placeholder,
-            })) as HistoricalAttachment[],
+            .map(
+              (file: {
+                kind: 'image' | 'file';
+                id: string;
+                name?: string;
+                placeholder?: string;
+                byte_count?: number;
+                mime_type?: string;
+              }) => ({
+                kind: file.kind,
+                blob_id: `${owner}/${file.id}`,
+                filename: file.name ?? undefined,
+                placeholder: file.placeholder,
+                byte_count: file.byte_count,
+                mime_type: file.mime_type,
+              }),
+            ) as HistoricalAttachment[],
         };
       }
       const attachments: HistoricalAttachment[] = [];
@@ -47,6 +59,7 @@ export function sessionPrompts(entries: readonly EntryView[], owner?: string): H
               blob_id: file.blob_id,
               filename: file.filename ?? undefined,
               mime_type: file.mime_type,
+              byte_count: file.byte_count,
               placeholder,
             });
           return placeholder;

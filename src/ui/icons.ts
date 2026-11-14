@@ -89,6 +89,8 @@ export const ICONS: Record<string, string> = {
   copy: `<path d="M15.5 8.5v-2A2.5 2.5 0 0 0 13 4H6.5A2.5 2.5 0 0 0 4 6.5V13a2.5 2.5 0 0 0 2.5 2.5h2"/><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5" ${SOFT}/>`,
   // Pasted text.
   clipboard: `<rect x="4.5" y="4.5" width="15" height="16" rx="3" ${SOFT}/><rect x="9" y="3" width="6" height="3.5" rx="1.2"/><path d="M8.5 11h7m-7 4h4.5"/>`,
+  keyboard:
+    '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M6 15h12"/>',
   undo: '<path d="M3 9h11a6 6 0 0 1 0 12M3 9l5-5M3 9l5 5"/>',
   save: `<path d="M4.5 7A2.5 2.5 0 0 1 7 4.5h9L19.5 8v9a2.5 2.5 0 0 1-2.5 2.5H7A2.5 2.5 0 0 1 4.5 17Z" ${SOFT}/><path d="M8.5 4.5V8h6.5V4.5M8 19.5V14h8v5.5"/>`,
   image: `<rect x="3.5" y="4" width="17" height="16" rx="3.5" ${SOFT}/><circle cx="9" cy="9.5" r="1.8"/><path d="m4 17.5 5-5 3.5 3.5 2.5-2.5 5 5"/>`,

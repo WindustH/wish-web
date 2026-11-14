@@ -3,6 +3,7 @@ import { ref, computed, provide, watch, type Ref, type ComputedRef } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router';
 import { theme } from '../../core/theme/index.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
+import { shortcuts } from '../../core/state/shortcutsSlice.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { showError } from '../../ui/errorDialog.ts';
@@ -29,6 +30,7 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
     sendOnEnter: prefs.sendOnEnter.value,
     notifyOnFailure: prefs.notifyOnFailure.value,
     keepAwake: prefs.keepAwake.value,
+    shortcuts: shortcuts.value.value,
   });
 
   const preferenceSource = ref(JSON.stringify(preferenceValue()));
@@ -59,6 +61,7 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
     prefs.setSendOnEnter(value.sendOnEnter);
     prefs.setNotifyOnFailure(value.notifyOnFailure);
     prefs.setKeepAwake(value.keepAwake);
+    shortcuts.restore(value.shortcuts);
   }
 
   const saving = ref(false);

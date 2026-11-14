@@ -2,6 +2,8 @@ name: Frontend quality
 on:
   pull_request:
   push:
+  schedule:
+    - cron: '19 3 * * *'
   workflow_dispatch:
     inputs:
       test_repository:
@@ -10,12 +12,17 @@ on:
       test_ref:
         description: Compatible wish-test revision
         type: string
+      browser_suite:
+        description: Portable browser coverage
+        type: choice
+        options: [ci, portable, extended]
+        default: portable
 permissions:
   contents: read
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     defaults:
       run:
         working-directory: wish-web
@@ -49,14 +56,68 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install fonttools brotli numpy
-      - run: sudo apt-get update && sudo apt-get install -y p7zip-full
+      - run: sudo apt-get update && sudo apt-get install -y p7zip-full ffmpeg
       - run: pnpm build
       - name: Browser regressions
         if: ${{ inputs.test_repository != '' || vars.WISH_TEST_REPOSITORY != '' }}
         working-directory: wish-test
         env:
           CHROME: /usr/bin/google-chrome
-        run: node web/run.mjs browser ci
+        run: node web/run.mjs browser ${{ inputs.browser_suite || (github.event_name == 'schedule' && 'portable') || 'ci' }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failures
+          path: wish-test/.artifacts/web
+          if-no-files-found: ignore
       - name: External test checkout not configured
         if: ${{ inputs.test_repository == '' && vars.WISH_TEST_REPOSITORY == '' }}
         run: echo '::notice::Set WISH_TEST_REPOSITORY to run the centralized wish-test checks. Only app typecheck, formatting and build ran.'
+  integration:
+    if: ${{ inputs.test_repository != '' || vars.WISH_TEST_REPOSITORY != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CARGO_INCREMENTAL: 0
+      CHROME: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: wish-web
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.WISH_CORE_REPOSITORY || 'WindustH/wish-core' }}
+          ref: ${{ vars.WISH_CORE_REF || 'master' }}
+          path: wish-core
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.test_repository || vars.WISH_TEST_REPOSITORY }}
+          ref: ${{ inputs.test_ref || vars.WISH_TEST_REF || 'main' }}
+          path: wish-test
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: wish-core
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          npm install --global pnpm@12.3.4
+          python3 -m pip install fonttools brotli numpy Pillow
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full ffmpeg poppler-utils
+      - run: pnpm install --frozen-lockfile && pnpm build
+        working-directory: wish-web
+      - run: cargo build --locked
+        working-directory: wish-core
+      - run: python3 run_tests.py web_e2e -q
+        working-directory: wish-test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: integration-failures
+          path: wish-test/.artifacts/web
+          if-no-files-found: ignore

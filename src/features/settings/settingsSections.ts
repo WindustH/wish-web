@@ -92,6 +92,13 @@ export const sections = computed(() => [
     ),
   },
   {
+    id: 'shortcuts',
+    icon: 'keyboard',
+    label: tr('快捷键', 'Keyboard shortcuts'),
+    summary: tr('按键绑定、发送方式与浏览器快捷键', 'Bindings, sending and browser shortcuts'),
+    description: tr('自定义快捷键，只保存在这个浏览器中。', 'Customize shortcuts, stored in this browser only.'),
+  },
+  {
     id: 'debug',
     icon: 'diagnostics',
     label: tr('调试', 'Debug'),

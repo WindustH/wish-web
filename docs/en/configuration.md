@@ -134,11 +134,18 @@ These settings apply at once and are stored in this browser only.
 | --- | --- |
 | **Theme** | **Follow system**, **Light** or **Dark** |
 | **Language** | 中文 or English. The default is 中文. |
-| **Send with Enter** (desktop) | On: Enter sends, Shift + Enter adds a line. Off: Enter adds a line, Ctrl/⌘ + Enter sends. |
 | **Keep screen awake while running** (phone) | Uses the Wake Lock API while a reply runs. Needs HTTPS. |
 | **Notify me when I'm needed** | While the page is in the background, shows a system notification whenever a session's run ends in failure (**Run failed: <session name>**, with the error as its text) and whenever the agent asks you something (**<session name> is waiting for your answer**, with the questions as its text). Asks for notification permission; needs HTTPS. |
 | **Install Wish** | Opens the browser's install prompt when available. |
 | **Local preferences** → **Clear local data** | See the table below. |
+
+## Keyboard shortcuts
+
+Configure sidebar toggles, session/history search, settings and new-session commands here.
+Click a binding to record a replacement, disable it, or restore the defaults. Conflicting
+bindings are rejected. **Send with Enter** also lives here: when off, Enter adds a line
+and Ctrl/⌘ + Enter sends. Browser find, print and save shortcuts are blocked by default;
+each has its own switch. These preferences are stored in the current browser.
 
 ## Debug
 

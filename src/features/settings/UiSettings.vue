@@ -30,7 +30,7 @@ const sections = computed(() =>
 const desktop = useMedia(`(min-width: ${cfg.breakpoints.desktop}px)`);
 const { mode } = theme;
 const { choice: localeChoice } = i18n;
-const { sendOnEnter, notifyOnFailure, keepAwake, textSize, originalImages } = prefs;
+const { notifyOnFailure, keepAwake, textSize, originalImages } = prefs;
 // Shares of this device's standard text size; a phone's standard is a step larger than a desktop's.
 const textSizes = computed(() => [
   { value: '0.9', label: tr('小', 'Small') },
@@ -199,30 +199,7 @@ function clearPreferences() {
           </div>
         </template>
         <template v-if="section === 'input'">
-          <div v-if="desktop" class="setting-row">
-            <div>
-              <label for="send-on-enter">{{ tr('按 Enter 发送消息', 'Send with Enter') }}</label>
-            </div>
-            <SettingHint
-              id="send-on-enter-hint"
-              :text="
-                sendOnEnter
-                  ? tr('按 Shift + Enter 换行。', 'Press Shift + Enter for a new line.')
-                  : tr(
-                      '按 Enter 换行，按 Ctrl / ⌘ + Enter 发送。',
-                      'Press Enter for a new line; Ctrl / ⌘ + Enter to send.',
-                    )
-              "
-            /><SwitchRoot
-              id="send-on-enter"
-              aria-describedby="send-on-enter-hint"
-              :model-value="sendOnEnter"
-              class="cfg-switch"
-              @update:model-value="prefs.setSendOnEnter"
-              ><SwitchThumb class="cfg-switch-thumb"
-            /></SwitchRoot>
-          </div>
-          <div v-else class="setting-row">
+          <div v-if="!desktop" class="setting-row">
             <div>
               <label for="keep-awake">{{ tr('运行时保持屏幕唤醒', 'Keep screen awake while running') }}</label>
             </div>

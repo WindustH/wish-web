@@ -263,7 +263,7 @@ Session-to-session messages use the recipient session history and link to the se
   that rejects the folder parameter gets an unscoped fallback. Missing saved folders return to
   the root. Closing or changing owner/folder cancels pending batches, moves, uploads and links;
   already completed requests cannot be rolled back by aborting later work.
-- Background Tab/Shift+Tab still toggle the sidebars. Focused controls and open dialogs retain
+- Tab/Shift+Tab toggle the sidebars even after focusing their buttons. Editors and transient dialogs retain
   native traversal, and the composer retains its separate indentation behavior. Touch-selection
   handles validate live anchors before Range operations. Modal pointer capture is limited to
   mouse text fields.
@@ -287,3 +287,5 @@ profiling of large source files remain separate from Chromium regression checks.
 The proposed selection-only mutation scope failed the preceding-content layout regression in a
 fixed-height scroll viewport. Container observation remains coalesced per frame and active only
 while the selection/menu is open; narrowing it needs equivalent position-change coverage.
+
+Shortcut bindings are defined in `core/shortcuts.ts`, stored by `core/state/shortcutsSlice.ts`, and dispatched by `features/shell/shortcuts.ts`. Settings → Keyboard shortcuts configures all application bindings, the send key and browser find/print/save blocking. Preferences share the settings save/discard behavior and stay local to this browser.

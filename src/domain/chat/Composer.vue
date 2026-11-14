@@ -275,7 +275,7 @@ function openAttachmentPreview(item: Attachment, event: Event) {
   previewAttachment(
     {
       ...item,
-      ...(item.stored && item.size !== undefined && !item.bytes.byteLength
+      ...(item.stored && !item.bytes.byteLength
         ? { bytes: undefined, url: blobUrl(`${item.stored.owner}/${item.stored.id}`) }
         : {}),
       ...(item.previewBlob ? { bytes: undefined, url: item.localUrl } : {}),

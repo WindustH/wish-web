@@ -197,7 +197,7 @@ Wish checks the connection before saving it, and says what went wrong if it can'
 | Ctrl/⌘ + Enter in a question card | Send the answers |
 | ↑ / ↓ / Home / End on the message box's resize handle | Resize the message box |
 
-The first four don't work while a dialog is open.
+Application shortcuts can be changed or disabled in **Settings → Keyboard shortcuts**. Click a binding and press its replacement; conflicts are shown before applying it. The same page controls the send key and browser find/print/save shortcuts, which are blocked by default. Tab toggles the right sidebar and Shift+Tab toggles the desktop session list, including when their buttons have focus. In the message editor, Tab inserts indentation; transient dialogs and menus keep local focus navigation.
 
 ### Prompt history
 

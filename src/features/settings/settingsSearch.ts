@@ -58,7 +58,6 @@ export const settingTerms: Record<string, string[]> = {
     '语言 Language',
     '字体 Font',
     '通知 Notifications',
-    '发送快捷键 Send Enter',
     '保持唤醒 Keep awake',
     '本地数据 Local data',
   ],
@@ -69,6 +68,12 @@ export const settingTerms: Record<string, string[]> = {
     '滚动卡死记录 Scroll freeze',
     '初始引导 Setup onboarding',
     '连接 Connection',
+  ],
+  shortcuts: [
+    '键盘 按键 快捷键 Keyboard shortcuts keybindings Tab Shift Ctrl Command',
+    '侧栏 sidebar 搜索 search 会话 session',
+    '浏览器 查找 打印 保存 browser find print save',
+    '发送 消息 Enter send',
   ],
 };
 type Section = { id: string; label: string; summary: string; description: string };

@@ -3,6 +3,7 @@
 import { shallowRef } from 'vue';
 import { cfg } from '../config.ts';
 import { platform } from '../../platform/index.ts';
+import { shortcuts } from './shortcutsSlice.ts';
 
 // An on/off preference, stored as '1' or '0'; until one is stored it has its default.
 function toggle(key: string, fallback: boolean) {
@@ -37,6 +38,7 @@ export const prefs = (() => {
   }
 
   function load() {
+    shortcuts.load();
     const width = Number(platform('storage').get('pref.rightSidebarWidth'));
     rightSidebarWidth.value = Number.isFinite(width) && width >= 280 ? width : 0;
     for (const pref of [sendOnEnter, keepAwake, notifyOnFailure, sessionListCollapsed, originalImages]) pref.load();
