@@ -82,11 +82,6 @@ function activateRow(id: string, event: MouseEvent) {
 const entries = computed(() =>
   lines.value.flatMap((line) => (line.kind === 'row' && line.row.kind !== 'folder' ? [line.row] : [])),
 );
-watch(entries, (rows) => {
-  const visible = new Set(rows.map((row) => row.id));
-  const retained = new Set([...chosen.value].filter((id) => visible.has(id)));
-  if (retained.size !== chosen.value.size) chosen.value = retained;
-});
 const touchSelection = useTouchRangeSelection(listEl, selecting, () => entries.value.map((row) => row.id), chosen);
 const sessionRows = computed(() => entries.value.filter((row) => row.kind === 'session'));
 const chosenRows = computed(() => entries.value.filter((row) => chosen.value.has(row.id)));
@@ -297,6 +292,13 @@ const lines = computed<Line[]>(() => {
     if (sessions.filtered.value || !folded.value.has(id)) out.push({ kind: 'row', key: row.id, row });
   }
   return out;
+});
+// Register after lines exists: watch reads its source immediately to collect dependencies,
+// even without an immediate callback. entries derives from the folded display lines.
+watch(entries, (rows) => {
+  const visible = new Set(rows.map((row) => row.id));
+  const retained = new Set([...chosen.value].filter((id) => visible.has(id)));
+  if (retained.size !== chosen.value.size) chosen.value = retained;
 });
 const rowFingerprint = () => rows.value.map((row) => row.id).join('|');
 watch(rowFingerprint, () => {
