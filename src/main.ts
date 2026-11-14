@@ -10,6 +10,7 @@ import { prefs } from './core/state/prefsSlice.ts';
 import { sync } from './core/state/syncSlice.ts';
 import { toast } from './ui/toast.ts';
 import { applyTokens } from './ui/applyTokens.ts';
+import { installViewport } from './ui/viewport.ts';
 import { initPWA } from './ui/pwa.ts';
 import { sessionSearchCommands } from './features/sessions/searchCommands.ts';
 import { sessionSidebarCommands } from './features/sessions/sidebarCommands.ts';
@@ -37,6 +38,7 @@ import { installActivityRecorder } from './domain/diagnostics/activityRecorder.t
 import { installScrollStallLog } from './domain/diagnostics/scrollStalls.ts';
 
 applyTokens();
+const stopViewport = installViewport();
 registerBrowserPlatform({ namespace: cfg.meta.storageNamespace, version: cfg.meta.storageVersion });
 applyConnection();
 prefs.load();
@@ -124,6 +126,7 @@ app.config.errorHandler = (error, _instance, info) => {
 const reportRejection = createUnhandledRejectionReporter(() => toast(i18n.t('errors.background')));
 window.addEventListener('unhandledrejection', reportRejection);
 app.onUnmount(() => {
+  stopViewport();
   sync.stop();
   stopStallLog();
   stopActivityRecorder();

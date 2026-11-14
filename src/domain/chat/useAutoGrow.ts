@@ -1,4 +1,4 @@
-import { nextTick, watch, type WatchSource } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, watch, type WatchSource } from 'vue';
 import { cfg } from '../../core/config.ts';
 
 /**
@@ -11,10 +11,9 @@ export function useAutoGrow(
   sources: WatchSource[],
   options: { mobile: () => boolean; fixed: () => boolean },
 ) {
-  watch(sources, async () => {
-    await nextTick();
+  function measure() {
     const el = element();
-    if (!el) return;
+    if (!el?.isConnected || !el.getClientRects().length) return;
     if (options.fixed()) {
       el.style.height = '';
       el.style.overflowY = 'auto';
@@ -30,11 +29,32 @@ export function useAutoGrow(
     const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
     const maxPx = Math.min(
       lineH * (options.mobile() ? cfg.composer.mobileMaxRows : cfg.composer.desktopMaxRows) + padding,
-      window.innerHeight * cfg.composer.maxHeightVh,
+      (window.visualViewport?.height ?? window.innerHeight) * cfg.composer.maxHeightVh,
     );
     const limit = el.scrollHeight > maxPx;
     el.style.height = Math.min(el.scrollHeight, maxPx) + 'px';
     el.style.overflowY = limit ? 'auto' : 'hidden';
     el.scrollTop = atEnd ? el.scrollHeight : top;
+  }
+  watch(sources, async () => {
+    await nextTick();
+    measure();
+  });
+  let frame = 0;
+  function resized() {
+    if (!frame)
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        measure();
+      });
+  }
+  onMounted(() => {
+    window.visualViewport?.addEventListener('resize', resized);
+    window.addEventListener('resize', resized);
+  });
+  onBeforeUnmount(() => {
+    cancelAnimationFrame(frame);
+    window.visualViewport?.removeEventListener('resize', resized);
+    window.removeEventListener('resize', resized);
   });
 }

@@ -81,9 +81,11 @@ async function submit() {
 
 <style>
 .connect-view {
-  min-height: 100dvh;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
-  align-items: center;
+  align-items: safe center;
   justify-content: center;
   padding: 32px 16px;
   background: var(--bg);

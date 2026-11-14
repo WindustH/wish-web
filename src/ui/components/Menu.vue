@@ -39,6 +39,7 @@ import MenuBackdrop from './MenuBackdrop.vue';
 import { usePageActivity } from '../composables/usePageActivity.ts';
 import { covers, glyphAt, selectionCovers, SELECTABLE_TEXT } from '../textAtPoint.ts';
 import { noteSwallowedClick } from '../interactionSignals.ts';
+import type { SelectionActionRequest } from '../selectionActions.ts';
 
 // `checked` marks the current choice of a menu that picks one of several.
 import type { MenuItem } from './menuTypes.ts';
@@ -254,6 +255,19 @@ function selectionAt(root: Element, x?: number, y?: number): string | null {
   const text = selection.toString();
   return text ? (props.selectionText?.(range, root, text) ?? text) : null;
 }
+function onTouchSelection(event: CustomEvent<SelectionActionRequest>) {
+  if (!props.selectsText || !props.selectionItems || props.disabled || !pageActive.value) return;
+  const root = event.currentTarget as Element;
+  const range = event.detail.range;
+  if (!root.contains(range.commonAncestorContainer) || range.collapsed) return;
+  const text = props.selectionText?.(range, root, range.toString()) ?? range.toString();
+  event.detail.actions = {
+    // Capturing a selection can enable an owner's reply action on Vue's next render.
+    items: () => props.selectionItems ?? [],
+    select: (key) => emit('select', key, text),
+  };
+  event.stopPropagation();
+}
 function onPointerMove(event: PointerEvent) {
   if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) cancelPress();
 }
@@ -320,6 +334,7 @@ onBeforeUnmount(() => {
     @pointerup="cancelPress"
     @pointercancel="cancelPress"
     @selectstart="onSelectStart"
+    @wish-selection-actions="onTouchSelection"
     @click.capture="dropClickAfterPress"
   >
     <slot />

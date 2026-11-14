@@ -243,6 +243,19 @@ text is fetched on hover and cached in a bounded session cache. Parser maps also
 without mutating rendered Markdown or searching repeated words. Cross-domain interaction contracts live
 in `domain/references`, avoiding a chat/media dependency cycle.
 
+Touch selection obtains the same copy/reply actions from the owning `Menu` through
+`ui/selectionActions`; it preserves original Markdown/plain-text offsets without a second menu.
+Highlights and handles live inside the selected message's positioned host, so transcript scrolling
+moves them with the text without a viewport-coordinate update. Only the action bar follows the viewport.
+`touch-reply-browser.mjs` checks real touch gestures, dragged references, outgoing metadata and
+synchronous scroll alignment; `touch-selection-layout-browser.mjs` covers layout changes and cleanup.
+
+`ui/viewport` publishes visual viewport height and pan offsets for the app and portalled forms.
+The outer document is fixed; transcripts and forms retain their own scroll containers. Keyboard
+dismissal clears residual document scroll, including delayed WebKit updates, without resetting history
+scroll or blurring an active editor. `keyboard-viewport-browser.mjs` replays those viewport sequences;
+it simulates keyboard geometry and does not replace testing on an iOS device.
+
 File activation lives in `domain/references/ReferenceMarkdown`; generic `ui/Markdown` emits
 link-click events and handles code copying. Library navigation is a pending target consumed by
 the mounted panel, without a mount deadline. File and reference requests share cancellation

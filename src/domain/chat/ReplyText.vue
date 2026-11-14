@@ -247,6 +247,7 @@ onBeforeUnmount(() => {
   <div
     ref="root"
     class="reply-text"
+    data-selection-host
     :class="{ 'reply-focused': !!focused }"
     :data-reply-seq="seq"
     :data-reply-block="block"

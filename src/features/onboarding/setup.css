@@ -6,7 +6,7 @@
 .provider-setup {
   --setup-pad-y: 52px;
   --setup-pad-x: 28px;
-  height: 100dvh;
+  height: var(--viewport-height, 100dvh);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--setup-pad-y) var(--setup-pad-x) 0;

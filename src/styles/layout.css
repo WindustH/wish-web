@@ -1,6 +1,7 @@
 .shell {
   display: flex;
-  height: 100dvh;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
 }
 .main {
@@ -83,6 +84,9 @@
 }
 .shell.mobile {
   padding-bottom: env(safe-area-inset-bottom);
+}
+html.keyboard-open .shell.mobile {
+  padding-bottom: 0;
 }
 .session-list-edge {
   position: relative;

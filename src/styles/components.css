@@ -181,10 +181,10 @@
   position: fixed;
   z-index: 61;
   left: 50%;
-  top: 50%;
+  top: calc(var(--viewport-top, 0px) + var(--viewport-height, 100dvh) / 2);
   transform: translate(-50%, -50%);
   width: min(92vw, 32rem);
-  max-height: min(84dvh, 44rem);
+  max-height: min(calc(var(--viewport-height, 100dvh) * 0.84), 44rem);
   background: var(--bg-overlay);
   color: var(--fg);
   border: 1px solid var(--line-strong);
@@ -1014,10 +1014,10 @@ img.zoomable {
   }
 }
 .modal-card.modal-page {
-  inset: 0;
+  inset: var(--viewport-top, 0px) 0 auto;
   transform: none;
   width: 100%;
-  height: 100dvh;
+  height: var(--viewport-height, 100dvh);
   max-height: none;
   border: 0;
   border-radius: 0;
@@ -1194,15 +1194,18 @@ img.zoomable {
 /* A sheet: the card slides up from the bottom of a phone's screen, as wide as it, its top rounded,
    with a grip along its top edge. */
 .modal-card.modal-sheet {
-  inset: auto 0 0;
+  inset: auto 0 var(--viewport-bottom, 0px);
   transform: none;
   width: 100%;
-  max-height: 80dvh;
+  max-height: calc(var(--viewport-height, 100dvh) * 0.8);
   padding-bottom: env(safe-area-inset-bottom);
   border: 0;
   border-top: 1px solid var(--line);
   border-radius: 18px 18px 0 0;
   animation: sheet-in var(--dur-slow) var(--ease-out);
+}
+html.keyboard-open .modal-card.modal-sheet {
+  padding-bottom: 0;
 }
 .modal-card.modal-sheet::before {
   content: '';

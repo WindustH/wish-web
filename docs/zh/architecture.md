@@ -210,6 +210,15 @@ SVG 复用图片缩放与框选引用。文本读取仍限制为前 256 KiB。
 
 ### 引用与媒体交互的审计改进
 
+移动端选区通过 `ui/selectionActions` 取得所属 `Menu` 的复制与回复操作，复用原文位置映射，
+不再打开第二个菜单。高亮和手柄放在消息自身的定位容器内，随文字同步滚动；只有操作栏跟随视口。
+`touch-reply-browser.mjs` 覆盖实际触摸、拖动后引用、发送元数据与同步滚动，
+`touch-selection-layout-browser.mjs` 覆盖布局变化与清理。
+
+`ui/viewport` 为应用和弹窗提供可见视口高度与偏移。外层文档固定，消息和表单各自滚动；
+键盘收起时清理残留的文档滚动，并处理 WebKit 延迟更新，不重置消息位置或强制取消输入焦点。
+`keyboard-viewport-browser.mjs` 模拟键盘视口变化；这项回归检查不能替代 iOS 真机验证。
+
 文件链接由 `domain/references/ReferenceMarkdown` 处理；通用 `ui/Markdown` 发出链接点击事件并负责代码复制。
 侧栏定位通过待处理目标传递，挂载后消费，不再依赖固定时长轮询；关闭、重开和新目标会使旧请求失效。
 

@@ -7,7 +7,7 @@
 // press whatever the page says. That also rules out painting the selection as a highlight, which
 // WebKit skips on text that cannot be selected, so it is boxes laid over the words. A mouse keeps
 // the browser's own selection.
-import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import Icon from './Icon.vue';
 import { observeLayout } from '../observeLayout.ts';
@@ -15,12 +15,15 @@ import { tr } from '../../core/i18n/tr.ts';
 import { copyText } from '../clipboard.ts';
 import { caretAt, glyphAt, selectionCovers, SELECTABLE_TEXT as ROOTS } from '../textAtPoint.ts';
 import { noteSwallowedClick } from '../interactionSignals.ts';
+import { selectionActions, type SelectionActions } from '../selectionActions.ts';
+import { touchButton } from '../touchButton.ts';
 
 // As long as a held finger takes to open a message's menu, so the two gestures read alike.
 const HOLD_MS = 500;
 const supported = !!(document.caretPositionFromPoint || document.caretRangeFromPoint);
+const actionTouch = touchButton();
 
-type Edge = { x: number; top: number; height: number; shown: boolean };
+type Edge = { x: number; top: number; height: number };
 type Box = { x: number; y: number; width: number; height: number };
 const range = shallowRef<Range | null>(null);
 const marks = ref<Box[]>([]);
@@ -28,23 +31,54 @@ const start = ref<Edge>();
 const end = ref<Edge>();
 const bar = ref<{ x: number; y: number; below: boolean }>();
 const barOpen = ref(false);
+const host = shallowRef<HTMLElement>();
+const layer = ref<HTMLElement>();
+const toolbar = ref<HTMLElement>();
+const ownerActions = shallowRef<SelectionActions>();
+const actions = computed(
+  () => ownerActions.value?.items() ?? [{ key: 'copy', icon: 'copy', label: tr('复制', 'Copy') }],
+);
 let root: Element | null = null;
+let relativeHost: HTMLElement | undefined;
+
+function attach(textRoot: HTMLElement, node: Text) {
+  stopFollowing?.();
+  stopFollowing = undefined;
+  relativeHost?.classList.remove('touch-selection-host');
+  relativeHost = undefined;
+  root = textRoot;
+  // ReplyText supplies a host outside rendered Markdown, preserving its DOM/source
+  // mapping and first/last-child paragraph layout. Other text can host its own marks.
+  host.value = node.parentElement?.closest<HTMLElement>('[data-selection-host]') ?? textRoot;
+  if (getComputedStyle(host.value).position === 'static') {
+    relativeHost = host.value;
+    relativeHost.classList.add('touch-selection-host');
+  }
+}
 
 function show(next: Range | null) {
   range.value = next;
+  ownerActions.value = next && root ? selectionActions(root, next) : undefined;
   place();
-  if (next && root && !stopFollowing) stopFollowing = observeLayout(root, place);
+  if (next && root && !stopFollowing)
+    stopFollowing = observeLayout(root, place, { scroll: false, ignore: () => layer.value });
 }
 function clear() {
+  actionTouch.cancel();
   if (press?.timer) clearTimeout(press.timer);
   press = undefined;
+  drag = undefined;
   root = null;
   barOpen.value = false;
   show(null);
   stopFollowing?.();
   stopFollowing = undefined;
+  relativeHost?.classList.remove('touch-selection-host');
+  relativeHost = undefined;
+  host.value = undefined;
   cancelAnimationFrame(frame);
   frame = 0;
+  measurePending = false;
 }
 // Layout changes above the selected row can move it without a scroll.
 let stopFollowing: (() => void) | undefined;
@@ -73,54 +107,76 @@ function textBoxes(current: Range): DOMRect[] {
   }
   return boxes;
 }
-// The marks, the handles and the bar follow the selection as the page scrolls, and hide outside
-// the log.
+// Marks and handles live in the message's own scroll layer. Their coordinates do
+// not depend on the viewport, so scrolling moves them with the glyphs immediately.
 function place() {
   const current = range.value;
-  if (!current || !root) return;
-  if (!root.isConnected) return clear();
-  const whole = current.getBoundingClientRect();
-  const view = (root.closest('[data-selection-viewport]') ?? document.documentElement).getBoundingClientRect();
+  const anchor = host.value;
+  if (!current || !root || !anchor) return;
+  if (
+    !root.isConnected ||
+    !anchor.isConnected ||
+    current.collapsed ||
+    !anchor.contains(current.commonAncestorContainer)
+  )
+    return clear();
+  const box = anchor.getBoundingClientRect();
+  const left = box.left + anchor.clientLeft - anchor.scrollLeft;
+  const top = box.top + anchor.clientTop - anchor.scrollTop;
   // Words of one line that run on across elements (a bold word, a link) make one mark, not a seam.
   const lines: Box[] = [];
   for (const box of textBoxes(current)) {
-    const top = Math.max(box.top, view.top),
-      bottom = Math.min(box.bottom, view.bottom);
-    if (bottom <= top) continue;
+    if (!box.height) continue;
+    const x = box.left - left;
+    const y = box.top - top;
     const last = lines[lines.length - 1];
     if (
       last &&
-      Math.abs(last.y - top) < 1 &&
-      Math.abs(last.y + last.height - bottom) < 1 &&
-      Math.abs(last.x + last.width - box.left) < 2
+      Math.abs(last.y - y) < 1 &&
+      Math.abs(last.height - box.height) < 1 &&
+      Math.abs(last.x + last.width - x) < 2
     ) {
-      last.width = box.right - last.x;
+      last.width = x + box.width - last.x;
     } else {
-      lines.push({ x: box.left, y: top, width: box.width, height: bottom - top });
+      lines.push({ x, y, width: box.width, height: box.height });
     }
   }
   marks.value = lines;
-  const within = (box: DOMRect) => box.top >= view.top && box.bottom <= view.bottom;
   const first = caretBox(current.startContainer, current.startOffset);
   const last = caretBox(current.endContainer, current.endOffset);
-  start.value = { x: first.left, top: first.top, height: first.height, shown: within(first) };
-  end.value = { x: last.right, top: last.top, height: last.height, shown: within(last) };
+  start.value = { x: first.left - left, top: first.top - top, height: first.height };
+  end.value = { x: last.right - left, top: last.top - top, height: last.height };
+  placeToolbar();
+}
+function placeToolbar() {
+  const current = range.value;
+  if (!current || !root) return;
+  const whole = current.getBoundingClientRect();
+  const view = (root.closest('[data-selection-viewport]') ?? document.documentElement).getBoundingClientRect();
   const below = whole.top - 56 < view.top;
+  const halfWidth = (toolbar.value?.offsetWidth ?? 200) / 2 + 8;
   bar.value =
     whole.bottom > view.top && whole.top < view.bottom
       ? {
-          x: Math.min(Math.max((whole.left + whole.right) / 2, 64), innerWidth - 64),
+          x: Math.min(Math.max((whole.left + whole.right) / 2, halfWidth), innerWidth - halfWidth),
           y: below ? whole.bottom + 28 : whole.top - 12,
           below,
         }
       : undefined;
 }
+watch([toolbar, actions], placeToolbar, { flush: 'post' });
 let frame = 0;
-const placeSoon = () => {
+let measurePending = false;
+const placeSoon = (event: Event) => {
+  // A nested code/table scroller can move glyphs within the message. Outer
+  // transcript scrolling only needs to reposition the floating action bar.
+  measurePending ||= !!root && event.target instanceof Node && root.contains(event.target);
   if (range.value && !frame)
     frame = requestAnimationFrame(() => {
       frame = 0;
-      place();
+      if (measurePending) place();
+      else placeToolbar();
+      measurePending = false;
     });
 };
 
@@ -159,16 +215,17 @@ function onPointerDown(event: PointerEvent) {
     }, HOLD_MS);
     return;
   }
-  const textRoot = event.target instanceof Element ? event.target.closest(ROOTS) : null;
+  const textRoot = event.target instanceof Element ? event.target.closest<HTMLElement>(ROOTS) : null;
   const glyph = textRoot && glyphAt(x, y, textRoot);
   if (!textRoot || !glyph) return;
   held.timer = setTimeout(() => {
+    if (!textRoot.isConnected || !textRoot.contains(glyph.node) || glyph.index >= glyph.node.length) return;
     held.held = true;
     const [from, to] = wordAround(glyph.node.data, glyph.index);
     const word = document.createRange();
     word.setStart(glyph.node, from);
     word.setEnd(glyph.node, to);
-    root = textRoot;
+    attach(textRoot, glyph.node);
     barOpen.value = true;
     // Lifting the finger must not also act on what it held, a link among the words say: no click
     // counts until it is lifted, and for the moment after.
@@ -213,6 +270,11 @@ function onContextMenu(event: Event) {
   }
 }
 function onClick(event: MouseEvent) {
+  if (event.target instanceof Element && event.target.closest('.ts-handle')) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
   // Suppress only a synthetic click on the words that this hold selected.
   // A delayed click on an unrelated button (or a keyboard click) is not its
   // follow-up and must never be swallowed at document capture.
@@ -232,10 +294,11 @@ function onHandleDown(edge: 'start' | 'end', event: PointerEvent) {
   if (!current || !box) return;
   event.preventDefault();
   (event.currentTarget as Element).setPointerCapture(event.pointerId);
+  const dy = event.clientY - ((event.currentTarget as Element).getBoundingClientRect().top + box.height / 2);
   drag =
     edge === 'start'
-      ? { node: current.endContainer, offset: current.endOffset, dy: event.clientY - (box.top + box.height / 2) }
-      : { node: current.startContainer, offset: current.startOffset, dy: event.clientY - (box.top + box.height / 2) };
+      ? { node: current.endContainer, offset: current.endOffset, dy }
+      : { node: current.startContainer, offset: current.startOffset, dy };
   barOpen.value = false;
 }
 function onHandleMove(event: PointerEvent) {
@@ -267,10 +330,14 @@ function onHandleUp() {
   place();
 }
 
-async function copy() {
+async function choose(key: string) {
+  const current = range.value;
+  if (!root?.isConnected || !current || current.collapsed) return clear();
+  const owner = selectionActions(root, current);
   const text = range.value?.toString() ?? '';
   clear();
-  if (text) await copyText(text);
+  if (owner) owner.select(key);
+  else if (key === 'copy' && text) await copyText(text);
 }
 
 const listeners: [string, (event: never) => void][] = [
@@ -287,21 +354,19 @@ onMounted(() => {
   document.documentElement.classList.add('touch-selection');
   for (const [type, listener] of listeners) document.addEventListener(type, listener as EventListener, true);
   addEventListener('scroll', placeSoon, { capture: true, passive: true });
-  addEventListener('resize', placeSoon);
 });
 onBeforeUnmount(() => {
   if (!supported) return;
   document.documentElement.classList.remove('touch-selection');
   for (const [type, listener] of listeners) document.removeEventListener(type, listener as EventListener, true);
   removeEventListener('scroll', placeSoon, { capture: true });
-  removeEventListener('resize', placeSoon);
   clear();
 });
 </script>
 
 <template>
-  <Teleport to="body">
-    <template v-if="range">
+  <Teleport v-if="range && host" :to="host">
+    <div ref="layer" class="ts-layer">
       <div
         v-for="(mark, index) in marks"
         :key="index"
@@ -310,7 +375,6 @@ onBeforeUnmount(() => {
       />
       <div
         v-for="edge in ['start', 'end'] as const"
-        v-show="(edge === 'start' ? start : end)?.shown"
         :key="edge"
         class="touch-selection-ui ts-handle"
         :class="edge"
@@ -319,34 +383,58 @@ onBeforeUnmount(() => {
           top: `${(edge === 'start' ? start : end)?.top}px`,
           height: `${(edge === 'start' ? start : end)?.height}px`,
         }"
-        @pointerdown="onHandleDown(edge, $event)"
+        @pointerdown.stop="onHandleDown(edge, $event)"
         @pointermove="onHandleMove"
         @pointerup="onHandleUp"
         @pointercancel="onHandleUp"
       >
         <span class="ts-knob" />
       </div>
-      <div
-        v-if="bar && barOpen"
-        class="touch-selection-ui ts-bar"
-        :class="{ below: bar.below }"
-        role="toolbar"
-        :aria-label="tr('选中的文字', 'Selected text')"
-        :style="{ left: `${bar.x}px`, top: `${bar.y}px` }"
-        @pointerdown.prevent
+    </div>
+  </Teleport>
+  <Teleport to="body">
+    <div
+      v-if="range && bar && barOpen"
+      ref="toolbar"
+      class="touch-selection-ui ts-bar"
+      :class="{ below: bar.below }"
+      role="toolbar"
+      :aria-label="tr('选中的文字', 'Selected text')"
+      :style="{ left: `${bar.x}px`, top: `${bar.y}px` }"
+      @mousedown.prevent
+    >
+      <button
+        v-for="action in actions"
+        :key="action.key"
+        type="button"
+        class="ts-action"
+        :data-selection-action="action.key"
+        :disabled="action.disabled"
+        @click="actionTouch.acceptsClick($event) && choose(action.key)"
+        @touchstart.passive="actionTouch.start"
+        @touchmove.passive="actionTouch.move"
+        @touchend="actionTouch.end"
+        @touchcancel="actionTouch.cancel"
       >
-        <button type="button" class="ts-action" @click="copy">
-          <Icon name="copy" /><span>{{ tr('复制', 'Copy') }}</span>
-        </button>
-      </div>
-    </template>
+        <Icon v-if="action.icon" :name="action.icon" /><span>{{ action.label }}</span>
+      </button>
+    </div>
   </Teleport>
 </template>
 
 <style scoped>
+:global(.touch-selection-host) {
+  position: relative;
+}
+.ts-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 65;
+  pointer-events: none;
+}
 /* The selected words: the selection colour over them, blended so the text keeps its own. */
 .ts-mark {
-  position: fixed;
+  position: absolute;
   z-index: 65;
   pointer-events: none;
   border-radius: 2px;
@@ -355,13 +443,14 @@ onBeforeUnmount(() => {
 }
 /* A handle: a thin accent bar the height of the line, with a knob above the start or below the end. */
 .ts-handle {
-  position: fixed;
+  position: absolute;
   z-index: 66;
   width: 2px;
   margin-left: -1px;
   border-radius: 1px;
   background: var(--accent);
   touch-action: none;
+  pointer-events: auto;
 }
 .ts-handle::before {
   content: '';
@@ -389,6 +478,9 @@ onBeforeUnmount(() => {
   position: fixed;
   z-index: 67;
   display: flex;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  white-space: nowrap;
   gap: 2px;
   padding: 4px;
   transform: translate(-50%, -100%);

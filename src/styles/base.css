@@ -4,6 +4,7 @@
 html,
 body {
   height: 100%;
+  overflow: hidden;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -28,6 +29,8 @@ html {
   }
 }
 body {
+  position: fixed;
+  inset: 0;
   margin: 0;
   background: var(--bg);
   color: var(--fg);
@@ -40,7 +43,11 @@ body {
   letter-spacing: 0.01em;
 }
 #app {
-  height: 100dvh;
+  position: fixed;
+  inset: var(--viewport-top, 0px) 0 auto;
+  height: var(--viewport-height, 100dvh);
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }

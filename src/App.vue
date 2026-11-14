@@ -196,7 +196,9 @@ const online = computed(() => sync.online.value);
 
 <style>
 .provider-gate-status {
-  min-height: 100dvh;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -218,7 +220,7 @@ const online = computed(() => sync.online.value);
 }
 .onboarding-preview {
   position: fixed;
-  inset: 0;
+  inset: var(--viewport-top, 0px) 0 auto;
   z-index: 55;
 }
 @media (min-width: 900px) {
