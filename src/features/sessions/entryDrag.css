@@ -1,0 +1,43 @@
+/* What a finger drags rides above it, out of its way. */
+.sl-touch-ghost {
+  position: fixed;
+  z-index: 80;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 70vw;
+  margin: -56px 0 0 -24px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--bg-overlay);
+  box-shadow: var(--shadow-pop);
+  color: var(--fg);
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.sl-touch-ghost .icon {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--fg-subtle);
+}
+.sl-drag-badge {
+  position: fixed;
+  top: -100px;
+  left: -100px;
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 14px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font: 600 13px/1 var(--font);
+}

@@ -110,11 +110,12 @@ function openCard(event: MouseEvent) {
 
 // How long the call keeps waiting, when the model set a timeout.
 const now = useQuestionClock();
+const relativeTime = computed(() => new Intl.RelativeTimeFormat(intlLocale(), { numeric: 'always' }));
 const deadline = computed(() => {
   const form = pending.value.find((item) => item.call_id === props.item.callId);
   if (background.value || state.value.kind !== 'open' || !form?.timeout_seconds) return null;
   const left = Math.max(0, form.asked_at + form.timeout_seconds * 1000 - now.value) / 1000;
-  const format = new Intl.RelativeTimeFormat(intlLocale(), { numeric: 'always' });
+  const format = relativeTime.value;
   const when =
     left < 90
       ? format.format(Math.max(1, Math.round(left)), 'second')

@@ -70,20 +70,20 @@ export function useConfigDraft() {
     providerTitles(
       Object.entries(snapshot.value?.providers ?? {}).map(([id, value]) => ({
         id,
-        display_name: (value as any).display_name,
-        preset: (value as any).preset,
+        display_name: value.display_name,
+        preset: value.preset,
       })),
     ),
   );
   const providerTitle = (id: string) => providerTitleMap.value.get(id) ?? id;
   const providerOptions = computed(() =>
     Object.entries(snapshot.value?.providers ?? {}).map(([id, value]) => {
-      const p = findPreset((value as any).preset);
+      const p = findPreset(value.preset);
       return {
         value: id,
         label: providerTitle(id),
         brand: p?.provider,
-        preset: (value as any).preset as string | undefined,
+        preset: value.preset ?? undefined,
       };
     }),
   );

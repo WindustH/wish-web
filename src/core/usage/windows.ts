@@ -40,9 +40,9 @@ export function usageQueries(
       ? {
           window: 'custom',
           bucket,
-          from_ms: new Date(selected.start! + 'T00:00:00').getTime(),
+          from_ms: Date.parse(selected.start!) - offsetMinutes * 60_000,
           to_ms: Math.min(
-            new Date(new Date(end + 'T00:00:00').setDate(new Date(end + 'T00:00:00').getDate() + 1)).getTime(),
+            Date.parse(end) + 86_400_000 - offsetMinutes * 60_000,
             Math.ceil(now / 3_600_000) * 3_600_000,
           ),
         }

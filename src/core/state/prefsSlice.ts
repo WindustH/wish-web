@@ -44,14 +44,7 @@ export const prefs = (() => {
     for (const pref of [sendOnEnter, keepAwake, notifyOnFailure, sessionListCollapsed, originalImages]) pref.load();
     const size = Number(platform('storage').get(TEXT_SIZE));
     textSize.value = size >= 0.8 && size <= 1.4 ? size : 1;
-    applyTextSize();
     loaded.value = true;
-  }
-
-  // Font sizes are rem (tools write px; the build converts them), so the root's size scales all text.
-  function applyTextSize() {
-    if (typeof document !== 'undefined')
-      document.documentElement.style.setProperty('--text-size', String(textSize.value));
   }
 
   return {
@@ -71,9 +64,8 @@ export const prefs = (() => {
     setNotifyOnFailure: notifyOnFailure.set,
     setSessionListCollapsed: sessionListCollapsed.set,
     setTextSize(v: number) {
-      textSize.value = v;
-      platform('storage').set(TEXT_SIZE, String(v));
-      applyTextSize();
+      textSize.value = Number.isFinite(v) ? Math.max(0.8, Math.min(1.4, v)) : 1;
+      platform('storage').set(TEXT_SIZE, String(textSize.value));
     },
   };
 })();

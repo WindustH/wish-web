@@ -29,7 +29,7 @@ const panelActive = computed(() => active.value && props.open);
 provide(pageActivityKey, panelActive);
 const close = () => (props.sidebar ? emit('close') : modal.value?.close());
 useBackLayer(
-  () => !!props.sidebar && !!props.page && panelActive.value,
+  () => props.backLayer && !!props.sidebar && !!props.page && panelActive.value,
   close,
   () => 45,
 );

@@ -10,12 +10,12 @@ import { createQuestionWatch } from '../../core/questionWatch.ts';
 import { platform } from '../../platform/index.ts';
 import { announce } from '../../ui/live.ts';
 
-function show(title: string, body: string, tag: string) {
+async function show(title: string, body: string, tag: string) {
   if (!prefs.notifyOnFailure.value || !platform('app').isHidden()) return;
   const notify = platform('notify');
   if (notify.permission() !== 'granted') return;
   try {
-    notify.show({ title, body, tag });
+    await notify.show({ title, body, tag });
   } catch (error) {
     console.warn('[notify]', error);
   }
@@ -24,7 +24,7 @@ function show(title: string, body: string, tag: string) {
 export function installBackgroundNotify() {
   const failures = createRunFailureWatch();
   const questions = createQuestionWatch();
-  bus.on('upsert.session', (update) => {
+  const stopUpdates = bus.on('upsert.session', (update) => {
     const session = update?.body;
     const name = session?.name || session?.id;
     const failure = failures.observe(session);
@@ -39,9 +39,13 @@ export function installBackgroundNotify() {
       show(title, form.questions.map((item) => item.question).join('\n'), `wish-question-${form.call_id}`);
     }
   });
-  bus.on('tombstone.session', (event) => {
+  const stopDeletions = bus.on('tombstone.session', (event) => {
     if (!event?.id) return;
     failures.forget(event.id);
     questions.forget(event.id);
   });
+  return () => {
+    stopUpdates();
+    stopDeletions();
+  };
 }

@@ -84,7 +84,13 @@ export const sessions = (() => {
   const query = shallowRef('');
   const tagFilter = shallowRef(''); // '' = none; exact tag (contract)
   // The folder shown (null for the root), and every folder, for the path to it and its names.
-  const folder = shallowRef<string | null>(readFolder());
+  const folder = shallowRef<string | null>(null);
+  let hydrated = false;
+  function hydrate() {
+    if (hydrated) return;
+    folder.value = readFolder();
+    hydrated = true;
+  }
   const folders = shallowRef(new Map<string, FolderView>());
 
   let gen = 0; // request generation
@@ -357,6 +363,7 @@ export const sessions = (() => {
   );
 
   return {
+    hydrate,
     items: list,
     hasMore,
     loading,

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { record } from '../shared/validation.ts';
 import { computed, ref, watch } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { blobUrl } from '../../core/api/endpoints.ts';
@@ -11,8 +12,6 @@ watch(
     previewsOpen.value = false;
   },
 );
-const record = (value: unknown): Record<string, unknown> | undefined =>
-  value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
 const imageId = (value: unknown): string | undefined =>
   typeof value === 'string' && /^[a-f0-9]{64}$/.test(value) ? value : undefined;
 const source = computed(() => imageId(props.request.source_image));

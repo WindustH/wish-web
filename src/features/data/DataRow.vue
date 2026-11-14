@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// One session or group in the data panel, as a wide row: its kind by its icon, its name, what it
+// One session in the data panel, as a wide row: its icon, its name, what it
 // is made of, its size - with a bar against the largest one shown - and when it last changed. A
 // click chooses it; its menu acts on it alone.
 import { computed } from 'vue';
@@ -31,16 +31,14 @@ const tags = computed(() => (props.item.kind === 'session' ? (props.item.tags ??
 </script>
 
 <template>
-  <article
-    class="data-row"
-    :class="{ chosen }"
-    role="button"
-    tabindex="0"
-    :aria-pressed="chosen"
-    @click="emit('toggle')"
-    @keydown.enter.prevent="emit('toggle')"
-    @keydown.space.prevent="emit('toggle')"
-  >
+  <article class="data-row" :class="{ chosen }">
+    <button
+      type="button"
+      class="data-row-select"
+      :aria-label="tr('选择会话', 'Select session') + ' · ' + sessionTitle(item)"
+      :aria-pressed="chosen"
+      @click="emit('toggle')"
+    />
     <span class="data-check" aria-hidden="true"><Icon v-if="chosen" name="check" /></span>
     <span class="data-kind" :class="item.kind" :aria-label="tr('会话', 'Session')" role="img">
       <Icon name="chat" />
@@ -81,6 +79,7 @@ const tags = computed(() => (props.item.kind === 'session' ? (props.item.tags ??
 
 <style scoped>
 .data-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -101,8 +100,19 @@ const tags = computed(() => (props.item.kind === 'session' ? (props.item.tags ??
     border-color: var(--line-strong);
   }
 }
-.data-row:focus-visible {
-  box-shadow: 0 0 0 2px var(--focus-ring);
+.data-row-select {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 0;
+  border-radius: inherit;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.data-row-menu {
+  position: relative;
+  z-index: 2;
 }
 .data-row.chosen {
   border-color: var(--accent);

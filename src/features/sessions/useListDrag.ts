@@ -10,6 +10,7 @@
 // and lifting drops where the finger is. A finger that sets off up or down before the press is
 // held scrolls the list. The places are marked `data-drop-place` - a folder's id, or `/` for the
 // root - and `data-drop-opens` on a folder the drag may open.
+import './entryDrag.css';
 import { nextTick, onBeforeUnmount, shallowRef } from 'vue';
 import { closeMenus } from '../../ui/components/Menu.vue';
 

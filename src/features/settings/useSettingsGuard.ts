@@ -30,6 +30,8 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
     sendOnEnter: prefs.sendOnEnter.value,
     notifyOnFailure: prefs.notifyOnFailure.value,
     keepAwake: prefs.keepAwake.value,
+    originalImages: prefs.originalImages.value,
+    textSize: prefs.textSize.value,
     shortcuts: shortcuts.value.value,
   });
 
@@ -61,6 +63,8 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
     prefs.setSendOnEnter(value.sendOnEnter);
     prefs.setNotifyOnFailure(value.notifyOnFailure);
     prefs.setKeepAwake(value.keepAwake);
+    prefs.setOriginalImages(value.originalImages);
+    prefs.setTextSize(value.textSize);
     shortcuts.restore(value.shortcuts);
   }
 

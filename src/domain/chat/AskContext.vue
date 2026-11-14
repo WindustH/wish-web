@@ -8,6 +8,7 @@ import MessageContext from './entries/MessageContext.vue';
 import { readAskResponse } from './readAskResponse.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { isSendKey } from '../../ui/sendKey.ts';
+import { streamingText } from '../../ui/streamingText.ts';
 
 const props = defineProps<{ sessionId: string; hidden: boolean; externalInput?: boolean }>();
 const emit = defineEmits<{ cleared: [] }>();
@@ -94,6 +95,12 @@ async function runQuestion(
     current.abort();
   }, 10 * 60_000);
   controller = current;
+  let answer = '';
+  const display = streamingText((text) => {
+    if (owner !== generation) return;
+    followAnswer();
+    turn.answer = text;
+  });
   try {
     const response = await apiFetch(absUrl(`/sessions/${encodeURIComponent(props.sessionId)}/ask`), {
       method: 'POST',
@@ -103,8 +110,8 @@ async function runQuestion(
     });
     await readAskResponse(response, (delta: string) => {
       if (owner !== generation) return;
-      followAnswer();
-      turn.answer += delta;
+      answer += delta;
+      display.write(answer);
     });
     if (owner === generation) completed.value = true;
   } catch (error: any) {
@@ -115,6 +122,7 @@ async function runQuestion(
           ? tr('已停止回答。', 'Answer stopped.')
           : String(error?.message || error);
   } finally {
+    display.flush();
     clearTimeout(timeout);
     if (owner === generation) {
       turn.busy = false;

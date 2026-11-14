@@ -1,9 +1,8 @@
 <script setup lang="ts">
+import { record } from '../shared/validation.ts';
 import { computed } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 const props = defineProps<{ request: Record<string, unknown> }>();
-const record = (value: unknown): Record<string, unknown> | undefined =>
-  value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
 const fields = computed(() =>
   [
     ['voice_id', tr('音色', 'Voice')],

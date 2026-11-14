@@ -13,7 +13,7 @@ const emit = defineEmits<{ close: []; back: [] }>();
 const focus = useDialogFocus();
 const resizing = ref(false);
 provide(sidebarResizingKey, resizing);
-const handle = ref<HTMLElement>();
+const heading = ref<HTMLElement>();
 // A nested touch picker can retarget its compatibility click to this scrim.
 let pressTarget: EventTarget | null = null;
 function rememberPress(event: PointerEvent) {
@@ -26,7 +26,13 @@ function closeFromScrim(event: MouseEvent) {
 const preferredWidth = defineModel<number>('width', { default: 0 });
 const available = ref(window.innerWidth);
 const minimum = 280;
-const maximum = computed(() => Math.max(minimum, available.value - 320));
+// Preserve a readable conversation when a wide session list or a tablet leaves
+// too little room for two docked panels. Measure the workspace, not the screen.
+const drawer = computed(() => !props.overlay && available.value < 800);
+const modal = computed(() => !!props.overlay || drawer.value);
+const maximum = computed(() =>
+  modal.value ? Math.min(460, available.value) : Math.max(minimum, available.value - 480),
+);
 const width = computed(() =>
   Math.round(
     Math.min(
@@ -36,6 +42,7 @@ const width = computed(() =>
   ),
 );
 let observer: ResizeObserver | undefined;
+let measureFrame = 0;
 let drag: { id: number; x: number; width: number; preferred: number; target: HTMLElement } | undefined;
 function finishResize(commit = false) {
   if (!drag) return;
@@ -82,16 +89,20 @@ function cancelResize() {
 }
 function observeContainer() {
   observer?.disconnect();
-  const container = handle.value?.parentElement?.parentElement;
+  cancelAnimationFrame(measureFrame);
+  const container = heading.value?.parentElement?.parentElement;
   if (!container) return;
   available.value = container.clientWidth;
   observer = new ResizeObserver(() => {
-    available.value = container.clientWidth;
+    cancelAnimationFrame(measureFrame);
+    measureFrame = requestAnimationFrame(() => {
+      available.value = container.clientWidth;
+    });
   });
   observer.observe(container);
 }
-watch(handle, observeContainer);
-watch(() => props.overlay, cancelResize);
+watch(heading, observeContainer);
+watch(modal, cancelResize);
 watch(() => props.open, cancelResize);
 onMounted(() => {
   observeContainer();
@@ -101,6 +112,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   cancelResize();
   observer?.disconnect();
+  cancelAnimationFrame(measureFrame);
   window.removeEventListener('blur', cancelResize);
   window.removeEventListener('pointerdown', rememberPress, true);
 });
@@ -108,17 +120,17 @@ onBeforeUnmount(() => {
 
 <template>
   <DialogRoot
-    :modal="!!overlay"
+    :modal="modal"
     :open="open"
     :unmount-on-hide="retainContent === false"
     @update:open="!$event && emit('close')"
   >
-    <DialogOverlay v-if="overlay" class="island-scrim" @click="closeFromScrim" />
+    <DialogOverlay v-if="modal" class="island-scrim" @click="closeFromScrim" />
     <DialogContent
-      id="session-sidebar"
+      :id="open ? 'session-sidebar' : undefined"
       class="island-sidebar"
-      :class="{ 'island-overlay': overlay }"
-      :style="!overlay ? { flexBasis: `${width}px`, '--sidebar-width': `${width}px` } : undefined"
+      :class="{ 'island-overlay': modal, 'island-drawer': drawer }"
+      :style="{ flexBasis: !modal ? `${width}px` : undefined, '--sidebar-width': `${width}px` }"
       :aria-describedby="undefined"
       :disable-outside-pointer-events="false"
       @open-auto-focus="focus.opened"
@@ -127,8 +139,7 @@ onBeforeUnmount(() => {
       @escape-key-down.prevent="emit('back')"
     >
       <div
-        v-if="!overlay"
-        ref="handle"
+        v-if="!modal"
         class="island-resize-handle"
         role="separator"
         tabindex="0"
@@ -144,7 +155,7 @@ onBeforeUnmount(() => {
         @lostpointercapture="cancelResize"
         @keydown="onResizeKeydown"
       />
-      <header class="island-heading">
+      <header ref="heading" class="island-heading">
         <slot name="leading" />
         <DialogTitle class="island-title"
           ><slot name="title">{{ title }}</slot></DialogTitle
@@ -239,6 +250,11 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   box-shadow: none;
+}
+.island-drawer {
+  left: auto;
+  width: min(var(--sidebar-width), 100%);
+  box-shadow: -1px 0 var(--line);
 }
 @media (prefers-reduced-motion: no-preference) {
   .island-sidebar[data-state='open'] {

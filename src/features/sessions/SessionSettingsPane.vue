@@ -273,7 +273,7 @@ async function act(kind: 'compact' | 'clear') {
   <SessionPanelModal
     :open="open"
     :sidebar="sidebar"
-    :back-layer="!isMobile"
+    :back-layer="sidebar || !isMobile"
     content-class="session-window session-settings-window"
     :title="tr('会话设置', 'Session settings')"
     :page="isMobile"

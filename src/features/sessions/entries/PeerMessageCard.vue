@@ -221,6 +221,7 @@ onBeforeUnmount(() => observer?.disconnect());
   pointer-events: none;
 }
 .peer-card-preview.clipped {
+  -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent);
   mask-image: linear-gradient(to bottom, #000 60%, transparent);
 }
 .peer-card-preview :deep(.markdown > .markdown-block:first-child > :first-child) {

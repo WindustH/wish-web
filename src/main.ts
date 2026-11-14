@@ -7,6 +7,7 @@ import { platform } from './platform/index.ts';
 import { theme } from './core/theme/index.ts';
 import { i18n } from './core/i18n/index.ts';
 import { prefs } from './core/state/prefsSlice.ts';
+import { sessions } from './core/state/sessionsSlice.ts';
 import { sync } from './core/state/syncSlice.ts';
 import { toast } from './ui/toast.ts';
 import { applyTokens } from './ui/applyTokens.ts';
@@ -40,8 +41,16 @@ import { installScrollStallLog } from './domain/diagnostics/scrollStalls.ts';
 applyTokens();
 const stopViewport = installViewport();
 registerBrowserPlatform({ namespace: cfg.meta.storageNamespace, version: cfg.meta.storageVersion });
+sessions.hydrate();
 applyConnection();
 prefs.load();
+const stopTextSize = watch(
+  prefs.textSize,
+  (size) => {
+    document.documentElement.style.setProperty('--text-size', String(size));
+  },
+  { immediate: true, flush: 'sync' },
+);
 
 // The app supplies its own message actions; unused browser context menus
 // should not appear on right-click or touch hold elsewhere in the UI. Parts
@@ -98,9 +107,10 @@ watch(
 // Background notifier FIRST: its sync.snapshot baseline must be established
 // before the control plane starts streaming.
 // Signed out, the sign-in page picks a server first.
+let stopBackgroundNotify = () => {};
 if (!isSignedOut()) {
   const { installBackgroundNotify } = await import('./domain/chat/notify.ts');
-  installBackgroundNotify();
+  stopBackgroundNotify = installBackgroundNotify();
   sync.start();
 }
 
@@ -126,6 +136,8 @@ app.config.errorHandler = (error, _instance, info) => {
 const reportRejection = createUnhandledRejectionReporter(() => toast(i18n.t('errors.background')));
 window.addEventListener('unhandledrejection', reportRejection);
 app.onUnmount(() => {
+  stopBackgroundNotify();
+  stopTextSize();
   stopViewport();
   sync.stop();
   stopStallLog();

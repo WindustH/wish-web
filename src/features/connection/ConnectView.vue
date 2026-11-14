@@ -18,7 +18,7 @@ async function submit() {
   error.value = '';
   try {
     await checkConnection(address.value, token.value.trim());
-    connect(address.value, token.value.trim());
+    await connect(address.value, token.value.trim());
   } catch (cause) {
     error.value = errorText(cause);
     busy.value = false;

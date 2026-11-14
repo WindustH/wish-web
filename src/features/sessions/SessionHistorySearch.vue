@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useSearchFocus } from './searchFocus.ts';
 import { unfold, fold, cancelFold } from '../../ui/motion/fold.ts';
 // Server-side history search with generational guards; jumping locates the
 // seq through the bounded window (never a full scan); errors surface.
@@ -13,6 +14,7 @@ import { tr } from '../../core/i18n/tr.ts';
 import { useSessionRequests } from './useSessionRequests.ts';
 
 const input = ref<HTMLInputElement | null>(null);
+useSearchFocus(input, 'chat', () => chat.sessionId.value);
 const isMobile = useIsMobile();
 onMounted(() => {
   if (!isMobile.value) input.value?.focus({ preventScroll: true });

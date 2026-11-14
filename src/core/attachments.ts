@@ -64,8 +64,16 @@ export const attachmentLimits = (capabilities?: any): AttachmentLimits => ({
 // Cleared by the composer when the draft is sent or emptied; object URLs of
 // stored items stay alive until that item leaves the store.
 const attachmentDrafts = new Map<string, AttachmentInput[]>();
+const DRAFT_BYTES = 64 * 1024 * 1024;
+const draftBytes = (items: readonly AttachmentInput[]) =>
+  items.reduce((total, item) => total + item.bytes.byteLength + (item.previewBlob?.size ?? 0), 0);
 export function attachmentDraftsFor<T extends AttachmentInput = AttachmentInput>(sessionId: string): T[] {
-  return (attachmentDrafts.get(sessionId) ?? []) as T[];
+  const items = attachmentDrafts.get(sessionId);
+  if (items) {
+    attachmentDrafts.delete(sessionId);
+    attachmentDrafts.set(sessionId, items);
+  }
+  return (items ?? []) as T[];
 }
 export function saveAttachmentDrafts<T extends AttachmentInput>(
   sessionId: string,
@@ -73,13 +81,17 @@ export function saveAttachmentDrafts<T extends AttachmentInput>(
   releaseEvicted?: (items: T[]) => void,
 ) {
   if (attachments.length) {
+    attachmentDrafts.delete(sessionId);
     attachmentDrafts.set(sessionId, [...attachments]);
-    // In-memory only, but unbounded sessions would still grow it; evict the
-    // oldest session beyond a generous working set.
-    while (attachmentDrafts.size > 32) {
+    let bytes = [...attachmentDrafts.values()].reduce((total, items) => total + draftBytes(items), 0);
+    // Bound inactive drafts by bytes as well as count. Keep the active draft
+    // even when it alone exceeds the cache budget; its attachment limits apply.
+    while (attachmentDrafts.size > 32 || bytes > DRAFT_BYTES) {
       const oldest = attachmentDrafts.keys().next().value;
       if (oldest === undefined || oldest === sessionId) break;
-      releaseEvicted?.(attachmentDrafts.get(oldest) as T[]);
+      const evicted = attachmentDrafts.get(oldest) as T[];
+      bytes -= draftBytes(evicted);
+      releaseEvicted?.(evicted);
       attachmentDrafts.delete(oldest);
     }
   } else attachmentDrafts.delete(sessionId);

@@ -57,6 +57,7 @@ const choices = computed(() =>
     }));
   }),
 );
+const choicesByKey = computed(() => new Map(choices.value.map((item) => [item.key, item])));
 const efforts = computed(() => {
   const items = [
     { key: '', title: tr('上游默认', 'Upstream default') },
@@ -108,9 +109,7 @@ function selectEffort(value: string) {
         @select="selectModel"
       >
         <template #suffix="{ itemKey }"
-          ><Hint
-            v-if="choices.find((item) => item.key === itemKey)?.vision"
-            :text="tr('支持视觉输入', 'Supports image input')"
+          ><Hint v-if="choicesByKey.get(itemKey)?.vision" :text="tr('支持视觉输入', 'Supports image input')"
             ><Icon name="image" :aria-label="tr('视觉', 'Vision')" /></Hint
         ></template>
         <template #status>

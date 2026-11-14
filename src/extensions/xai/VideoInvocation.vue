@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { record } from '../shared/validation.ts';
 import { computed, ref, watch } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { blobUrl } from '../../core/api/endpoints.ts';
@@ -11,12 +12,10 @@ watch(
     expanded.value = false;
   },
 );
-const record = (v: unknown): Record<string, unknown> =>
-  v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 const inputs = computed(() => {
   const rows: { label: string; source: string; image: boolean; local: boolean }[] = [];
   const add = (value: unknown, label: string, image = true) => {
-    const asset = record(value);
+    const asset = record(value) ?? {};
     const source = String(asset.blob ?? asset.url ?? '');
     rows.push({ label, source, image, local: typeof asset.blob === 'string' && /^[a-f0-9]{64}$/.test(asset.blob) });
   };
@@ -29,7 +28,7 @@ const inputs = computed(() => {
       .forEach((v, i) => add(v, tr('参考图', 'Reference image') + ' ' + (i + 1)));
   if (Array.isArray(props.request.keyframes))
     props.request.keyframes.slice(0, 4).forEach((v) => {
-      const k = record(v);
+      const k = record(v) ?? {};
       add(k.image, tr('关键帧', 'Keyframe') + ' · ' + k.timestamp_s + ' s');
     });
   return rows;

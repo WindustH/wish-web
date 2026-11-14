@@ -246,6 +246,7 @@
   }
   .sl-main {
     --sl-cover: -20px;
+    -webkit-mask-image: linear-gradient(to left, transparent var(--sl-cover), #000 calc(var(--sl-cover) + 20px));
     mask-image: linear-gradient(to left, transparent var(--sl-cover), #000 calc(var(--sl-cover) + 20px));
     transition: --sl-cover var(--dur-fast);
   }

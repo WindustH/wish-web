@@ -17,10 +17,14 @@ export const browserNotify = {
     if (Notification.permission === 'granted') return 'granted';
     return await Notification.requestPermission(); // may reject → propagate
   },
-  show({ title, body, tag, silent = true }: NotifyOptions): boolean {
+  async show({ title, body, tag, silent = true }: NotifyOptions): Promise<boolean> {
     if (!this.isSupported) return false;
     if (Notification.permission !== 'granted') return false;
-    new Notification(title, { body, tag, silent }); // may throw → propagate
+    // Android requires persistent notifications. getRegistration() also works
+    // without a controller and, unlike ready, does not hang on pages without SW.
+    const registration = await navigator.serviceWorker?.getRegistration();
+    if (registration?.active) await registration.showNotification(title, { body, tag, silent });
+    else new Notification(title, { body, tag, silent }); // may throw → propagate
     return true;
   },
 };

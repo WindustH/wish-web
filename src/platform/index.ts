@@ -17,6 +17,13 @@ export interface StorageAdapter {
   clear(): void;
 }
 
+/** Optional durable cache for plain responses; mutations resolve after commit. */
+export interface ResponseCacheAdapter {
+  read(key: string): Promise<unknown>;
+  write(key: string, value: unknown): Promise<void>;
+  clear(): Promise<void>;
+}
+
 export type NotifyPermission = NotificationPermission | 'unsupported';
 export interface NotifyOptions {
   title: string;
@@ -28,7 +35,7 @@ export interface NotifyAdapter {
   readonly isSupported: boolean;
   permission(): NotifyPermission;
   request(): Promise<NotifyPermission>;
-  show(options: NotifyOptions): boolean;
+  show(options: NotifyOptions): boolean | Promise<boolean>;
 }
 
 export interface PickFilesOptions {
@@ -52,12 +59,14 @@ export interface ClipboardAdapter {
 }
 
 export interface AppAdapter {
+  readonly supportsWakeLock?: boolean;
   isHidden(): boolean;
   promptInstall(): Promise<boolean>;
   keepAwake(on: boolean): Promise<boolean>;
 }
 
 export interface PlatformAdapters {
+  responseCache: ResponseCacheAdapter;
   storage: StorageAdapter;
   notify: NotifyAdapter;
   fs: FsAdapter;

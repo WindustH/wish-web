@@ -130,8 +130,9 @@ export async function checkConnection(address: string, token: string) {
 }
 
 /** Saves a checked connection and restarts the app on it. */
-export function connect(address: string, token: string) {
+export async function connect(address: string, token: string) {
   const baseUrl = apiBaseFor(address);
+  await clearCached({ suspend: true });
   const store = storage();
   if (baseUrl === cfg.api.baseUrl && !token) store?.remove(CONNECTION);
   else store?.set(CONNECTION, JSON.stringify({ baseUrl, token }));
@@ -146,6 +147,6 @@ export async function signOut() {
   store?.remove(CONNECTION);
   store?.set(SIGNED_OUT, '1');
   store?.remove('wish.providerGate.ready');
-  await clearCached();
+  await clearCached({ suspend: true });
   location.replace(location.pathname + location.search);
 }

@@ -93,15 +93,9 @@ a {
   background: var(--selection);
 }
 :focus-visible {
-  outline: none;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
   border-color: var(--accent) !important;
-}
-button:focus-visible,
-a:focus-visible,
-[role='button']:focus-visible,
-[role='option']:focus-visible,
-[role='menuitem']:focus-visible {
-  border: 1px solid var(--accent) !important;
 }
 .hint {
   font-size: 13px;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, inject, onActivated, onScopeDispose, provide, watch } from 'vue';
+import { ref, computed, inject, onActivated, onScopeDispose, provide, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
@@ -11,7 +11,7 @@ import { useDialogFocus } from '../../ui/composables/useDialogFocus.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import UiSettings from './UiSettings.vue';
 import ShortcutSettings from './ShortcutSettings.vue';
-import DebugSettings from '../debug/DebugSettings.vue';
+const DebugSettings = defineAsyncComponent(() => import('../debug/DebugSettings.vue'));
 import MobileSessionSettings from './MobileSessionSettings.vue';
 import Modal from '../../ui/components/Modal.vue';
 import ToolSettings from './ToolSettings.vue';
@@ -333,7 +333,7 @@ onActivated(() => {
                 <button class="btn" @click="load"><Icon name="refresh-cw" />{{ tr('重新载入', 'Reload') }}</button>
               </div>
             </div>
-            <footer v-if="ready && tab !== 'ui' && tab !== 'debug' && !isMobile" class="settings-footer">
+            <footer v-if="ready && !['ui', 'debug', 'shortcuts'].includes(tab) && !isMobile" class="settings-footer">
               <span class="settings-status" :class="{ dirty }"
                 ><i aria-hidden="true" />{{
                   dirty ? tr('有未保存的修改', 'Unsaved changes') : tr('所有修改已保存', 'All changes saved')
@@ -679,6 +679,7 @@ onActivated(() => {
   inset: 0;
   z-index: 50;
   background: var(--scrim);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 

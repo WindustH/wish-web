@@ -22,11 +22,22 @@ wish            HTTP API · sessions · providers · SQLite   (wish-core)
 - **API layer.** `endpoints.ts` has one function per server call. `client.ts` performs requests with a 30-second timeout and turns failures into one error type. `sse.ts` reads event streams. `projections.ts` turns the server's native types (externally tagged messages, `{session, status}` pairs) into the flat objects the views use, for example mapping a session's phase to idle, running, queued or compacting.
 - **Connection.** `core/connection.ts` decides which server the API layer talks to. By default it is the page's own `/api`, proxied by `serve.ts`. After signing out and connecting to another server, the saved address becomes the API base and `client.ts` adds its access token to every request, event stream and attachment download (`apiFetch`, `ApiImage`), since the browser then reaches that server directly.
 - **Platform adapters** wrap browser APIs behind small interfaces. The browser implementation is registered at start-up; a native shell could register its own.
+
+Session-list folder state hydrates explicitly after platform registration; module imports do not read it early.
+The response cache uses an optional platform adapter. Browser writes/clears resolve on IndexedDB transaction
+completion. Connection changes suspend late cache writes, await clearing, then navigate. Text-size DOM updates
+belong to the startup UI subscription rather than the preference state slice.
 - **Routing** uses the URL hash (`/#/s/<id>`), so any static host works without rewrite rules. On desktop, a chat's info, search and settings panels are dialogs over the chat. On a phone they are child routes (`/#/s/<id>/info`, `/search`, `/settings`).
 
 ## Live updates
 
 ### Right sidebar and session Library
+
+Each sidebar panel is mounted lazily and retained across tab switches, including Library and Tasks; inactive
+panels stop polling. Narrow workspaces (under 800px after the left list) use a right drawer; docking reserves
+at least 480px for conversation content. Only the visible panel owns the `session-sidebar` accessibility ID.
+Shortcut hints and accessibility bindings follow the user's configuration. Search focus requests are consumed
+by the owning input when its panel is ready, not by querying another component's CSS selectors.
 
 The chat toolbar spans the conversation and right sidebar. The rightmost toggle controls a
 sidebar separated by a single border, without outer margins, rounded corners or shadows; Library opens its file browser. The generic `IslandSidebar` owns presentation

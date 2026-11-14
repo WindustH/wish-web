@@ -61,7 +61,10 @@ function show(el: HTMLElement | null) {
     observer = new MutationObserver(() => {
       if (!el.isConnected) hide();
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    // Observe removal of the anchor or any ancestor, without receiving every
+    // streaming text replacement elsewhere in the application.
+    for (let parent = el.parentElement; parent; parent = parent.parentElement)
+      observer.observe(parent, { childList: true });
   }, 450);
 }
 function over(event: PointerEvent) {

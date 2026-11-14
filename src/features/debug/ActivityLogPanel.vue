@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
+import { saveBlob } from '../../ui/download.ts';
 import { copyText } from '../../ui/clipboard.ts';
 import {
   activityCount,
@@ -19,12 +20,10 @@ function clear() {
   refresh();
 }
 function download() {
-  const url = URL.createObjectURL(new Blob([exportActivity()], { type: 'application/json' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `wish-debug-${new Date().toISOString().replaceAll(':', '-')}.json`;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  saveBlob(
+    new Blob([exportActivity()], { type: 'application/json' }),
+    `wish-debug-${new Date().toISOString().replaceAll(':', '-')}.json`,
+  );
 }
 </script>
 <template>

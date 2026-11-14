@@ -90,6 +90,7 @@ const close = inject(closeOverlayKey)!;
   inset: 0;
   z-index: 50;
   background: var(--scrim);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   animation: overlay-window-fade 180ms var(--ease-out);
 }

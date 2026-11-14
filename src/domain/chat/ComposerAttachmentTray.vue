@@ -94,6 +94,7 @@ function outside(event: Event) {
   border: 1px solid color-mix(in srgb, var(--line-strong) 65%, transparent);
   border-radius: 14px;
   background: color-mix(in srgb, var(--bg-raised) 78%, transparent);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   box-shadow: 0 2px 8px rgb(0 0 0 / 5%);
   pointer-events: auto;

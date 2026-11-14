@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useTouchRangeSelection } from './useTouchRangeSelection.ts';
+import { useSearchFocus } from './searchFocus.ts';
+import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
 import { useKeyboardScope } from '../../ui/composables/useKeyboardScope.ts';
 import { sessionNaming } from '../../core/state/sessionNaming.ts';
 import Hint from '../../ui/components/Hint.vue';
@@ -47,6 +49,8 @@ const router = useRouter();
 // on a phone it is a page of its own under the start page's header.
 const isMobile = useIsMobile();
 const query = ref(sessions.query.value);
+const searchInput = ref<HTMLInputElement | null>(null);
+useSearchFocus(searchInput, 'list');
 const composing = ref(false);
 const listEl = ref<HTMLElement | null>(null);
 
@@ -58,6 +62,11 @@ const rows = computed(() => sessions.items.value);
 // them. Only rows the list shows count, so a search never hides one that would go.
 const keyboardRoot = ref<HTMLElement | null>(null);
 const selecting = ref(false);
+useBackLayer(
+  () => isMobile.value && route.name === 'sessions' && selecting.value,
+  stopSelecting,
+  () => 48,
+);
 const chosen = ref(new Set<string>());
 let selectionAnchor: string | null = null;
 function activateRow(id: string, event: MouseEvent) {
@@ -376,6 +385,7 @@ onMounted(() => {
         <Spinner v-if="sessions.loading.value" /><Icon v-else name="search" />
         <input
           v-model="query"
+          ref="searchInput"
           type="search"
           @compositionstart="composing = true"
           @compositionend="
@@ -888,49 +898,6 @@ onMounted(() => {
 .sl-scroll.sl-drop-here {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
   border-radius: var(--radius);
-}
-/* What a finger drags rides above it, out of its way. */
-.sl-touch-ghost {
-  position: fixed;
-  z-index: 80;
-  top: 0;
-  left: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 70vw;
-  margin: -56px 0 0 -24px;
-  padding: 8px 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: 12px;
-  background: var(--bg-overlay);
-  box-shadow: var(--shadow-pop);
-  color: var(--fg);
-  font-size: 13.5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  pointer-events: none;
-}
-.sl-touch-ghost .icon {
-  flex: none;
-  width: 15px;
-  height: 15px;
-  color: var(--fg-subtle);
-}
-:global(.sl-drag-badge) {
-  position: fixed;
-  top: -100px;
-  left: -100px;
-  display: grid;
-  place-items: center;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: 14px;
-  background: var(--accent);
-  color: var(--accent-fg);
-  font: 600 13px/1 var(--font);
 }
 .sl-path li button.sl-path-root {
   padding-inline: 6px;

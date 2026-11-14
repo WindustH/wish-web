@@ -14,6 +14,7 @@ import { modelLabel } from '../../domain/providers/modelLabel.ts';
 import { sessionParent } from '../shell/sessionNavigation.ts';
 import { sessionPanelCloseKey, sessionPanelElementsKey } from '../../domain/chat/sessionPanel.ts';
 import Hint from '../../ui/components/Hint.vue';
+import { useShortcutHint } from '../../ui/composables/useShortcutHint.ts';
 // Chat surface: top bar (desktop information/settings / mobile back+menu), log,
 // composer, and a shared sidebar for session actions. Opening session
 // actions never rebuilds the conversation.
@@ -353,6 +354,7 @@ const sidebarOpen = computed({
   },
 });
 const sidebarToggle = ref<HTMLButtonElement>();
+const sidebarShortcut = useShortcutHint('toggleRightSidebar');
 watch(
   [sidebarOpen, id],
   ([, session], [, previousSession], onCleanup) => {
@@ -429,24 +431,26 @@ watch([sidebarKind, sidebarOpen, id], ([kind, open, session], previous, onCleanu
     });
   }, 100);
 });
-const sidebarMounted = ref(sidebarOpen.value);
 const infoMounted = ref(false),
-  settingsMounted = ref(false);
+  settingsMounted = ref(false),
+  libraryMounted = ref(false),
+  tasksMounted = ref(false);
 watch(
   [sidebarOpen, sidebarDisplayedKind, id],
   ([open, kind, session], previous) => {
     if (previous && session !== previous[2]) {
       infoMounted.value = false;
       settingsMounted.value = false;
+      libraryMounted.value = false;
+      tasksMounted.value = false;
     }
     if (open && kind === 'info') infoMounted.value = true;
     if (open && kind === 'settings') settingsMounted.value = true;
+    if (open && kind === 'library') libraryMounted.value = true;
+    if (open && kind === 'tasks') tasksMounted.value = true;
   },
   { immediate: true },
 );
-watch(sidebarOpen, (open) => {
-  if (open) sidebarMounted.value = true;
-});
 const libraryRevision = ref(0);
 function openSidebar(kind: SidebarView) {
   if (kind === 'info') infoInitialSection.value = 'overview';
@@ -455,7 +459,6 @@ function openSidebar(kind: SidebarView) {
   sidebarOpen.value = true;
 }
 watch(id, () => {
-  sidebarMounted.value = sidebarOpen.value;
   modelOpen.value = false;
   reasoningOpen.value = false;
 });
@@ -476,7 +479,12 @@ watch(
 
 <template>
   <div class="chat-workspace" :class="{ 'sidebar-open': sidebarOpen }">
-    <Hint :text="`${i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar')} · Tab`"
+    <Hint
+      :text="
+        [i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar'), sidebarShortcut.label.value]
+          .filter(Boolean)
+          .join(' · ')
+      "
       ><button
         type="button"
         class="btn ghost icon-only"
@@ -484,7 +492,7 @@ watch(
         data-sidebar-toggle
         :aria-label="i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar')"
         aria-controls="session-sidebar"
-        aria-keyshortcuts="Tab"
+        :aria-keyshortcuts="sidebarShortcut.aria.value"
         :aria-expanded="sidebarOpen"
         @click="sidebarOpen = !sidebarOpen"
       >
@@ -637,17 +645,17 @@ watch(
       />
       <SessionTasks
         @count="backgroundTaskCount = $event"
-        v-if="sidebarMounted && id && sidebarDisplayedKind === 'tasks'"
-        :key="id"
+        v-if="tasksMounted && id"
+        :key="`tasks:${id}`"
         :session="id"
-        :open="sidebarOpen"
+        :open="sidebarOpen && sidebarDisplayedKind === 'tasks'"
         :mobile="isMobile"
         @close="sidebarOpen = false"
       />
       <SessionLibrary
-        v-if="sidebarMounted && id && sidebarDisplayedKind === 'library'"
-        :open="sidebarOpen"
-        :key="id"
+        v-if="libraryMounted && id"
+        :open="sidebarOpen && sidebarDisplayedKind === 'library'"
+        :key="`library:${id}`"
         :session="id"
         :mobile="isMobile"
         :entries="chat.entries.value"

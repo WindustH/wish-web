@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useDocumentVisible } from '../../ui/composables/useDocumentVisible.ts';
 import SessionHistorySearch from './SessionHistorySearch.vue';
+import { searchFocus } from './searchFocus.ts';
 import SelectField from '../../domain/providers/SelectField.vue';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 const errorDetail = (error: unknown) => describeError(error).message;
@@ -29,6 +30,13 @@ const props = withDefaults(
   { initialSection: 'overview', open: true },
 );
 const section = ref(props.initialSection);
+watch(
+  searchFocus,
+  (request) => {
+    if (request?.scope === 'chat' && request.session === chat.sessionId.value) section.value = 'search';
+  },
+  { immediate: true },
+);
 watch(
   () => props.initialSection,
   (value) => {
@@ -131,7 +139,7 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
   <SessionPanelModal
     :open="open"
     :sidebar="sidebar"
-    :back-layer="!isMobile"
+    :back-layer="sidebar || !isMobile"
     :content-class="`session-window usage-info-window${section === 'search' ? ' history-search-window' : ''}`"
     :title="i18n.t('info.title')"
     :page="isMobile"
@@ -338,8 +346,10 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
   font-size: 12px;
   color: var(--fg-subtle);
 }
-.context-structure-link:hover {
-  color: var(--accent);
+@media (hover: hover) {
+  .context-structure-link:hover {
+    color: var(--accent);
+  }
 }
 .context-structure-link > .icon {
   width: 16px;

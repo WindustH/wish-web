@@ -279,7 +279,7 @@ function browserLabel(id: BrowserShortcut) {
   color: var(--danger);
   margin-top: 12px;
 }
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .shortcut-row {
     flex-wrap: wrap;
   }

@@ -2,7 +2,6 @@
 import Icon from '../../ui/components/Icon.vue';
 import { computed, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
-import { cfg } from '../../core/config.ts';
 import { theme } from '../../core/theme/index.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
@@ -13,7 +12,6 @@ import { hasNewWebBuild } from '../../ui/buildUpdate.ts';
 import { needRefresh, prepareWebUpdate } from '../../ui/pwa.ts';
 import { clearCached } from '../../core/util/responseCache.ts';
 import { keepConnection } from '../../core/connection.ts';
-import { useMedia } from '../../ui/composables/useMedia.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import SettingHint from '../../domain/settings/SettingHint.vue';
 import SettingsSections from './SettingsSections.vue';
@@ -27,7 +25,7 @@ const sections = computed(() =>
     { id: 'local', zh: '应用与本地数据', en: 'Application and local data' },
   ].map((item) => ({ id: item.id, label: tr(item.zh, item.en) })),
 );
-const desktop = useMedia(`(min-width: ${cfg.breakpoints.desktop}px)`);
+const keepAwakeSupported = platform('app').supportsWakeLock !== false;
 const { mode } = theme;
 const { choice: localeChoice } = i18n;
 const { notifyOnFailure, keepAwake, textSize, originalImages } = prefs;
@@ -105,12 +103,12 @@ async function install() {
     showError({ title: tr('无法安装', 'Could not install'), error });
   }
 }
-function clearPreferences() {
+async function clearPreferences() {
   try {
     const restoreConnection = keepConnection();
     platform('storage').clear();
     restoreConnection();
-    void clearCached();
+    await clearCached();
     clearOpen.value = false;
     toast(
       tr(
@@ -199,7 +197,7 @@ function clearPreferences() {
           </div>
         </template>
         <template v-if="section === 'input'">
-          <div v-if="!desktop" class="setting-row">
+          <div v-if="keepAwakeSupported" class="setting-row">
             <div>
               <label for="keep-awake">{{ tr('运行时保持屏幕唤醒', 'Keep screen awake while running') }}</label>
             </div>

@@ -4,6 +4,7 @@
 // On a desktop it opens from the foot of the sidebar, which names the server; on a phone from a
 // button at the top right of the start page.
 import { computed, ref } from 'vue';
+import { useShortcutHint } from '../../ui/composables/useShortcutHint.ts';
 import { useRouter } from 'vue-router';
 import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
@@ -18,13 +19,13 @@ const props = defineProps<{ placement: 'sidebar' | 'header' }>();
 const router = useRouter();
 const signingOut = ref(false);
 const server = serverName();
-const mac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform);
+const settingsShortcut = useShortcutHint('openSettings');
 const items = computed<MenuItem[]>(() => [
   {
     key: 'settings',
     icon: 'settings',
     label: i18n.t('nav.settings'),
-    shortcut: props.placement === 'sidebar' ? (mac ? '⌘,' : 'Ctrl+,') : undefined,
+    shortcut: props.placement === 'sidebar' ? settingsShortcut.label.value : undefined,
   },
   { key: 'stats', icon: 'stats', label: i18n.t('nav.stats') },
   { key: 'data', icon: 'storage', label: tr('会话与数据', 'Sessions & data') },

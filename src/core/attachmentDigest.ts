@@ -10,27 +10,50 @@ const K = new Uint32Array([
   0xc67178f2,
 ]);
 const rotate = (x: number, n: number) => (x >>> n) | (x << (32 - n));
-export async function attachmentDigest(bytes: ArrayBuffer): Promise<string> {
+export async function attachmentDigest(bytes: ArrayBuffer, signal?: AbortSignal): Promise<string> {
+  signal?.throwIfAborted();
   if (globalThis.crypto?.subtle) {
     const result = await crypto.subtle.digest('SHA-256', bytes);
+    signal?.throwIfAborted();
     return Array.from(new Uint8Array(result), (n) => n.toString(16).padStart(2, '0')).join('');
   }
-  return attachmentDigestFallback(bytes);
+  const work = digestBlocks(bytes);
+  for (;;) {
+    signal?.throwIfAborted();
+    const next = work.next();
+    if (next.done) return next.value;
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
 }
 export function attachmentDigestFallback(bytes: ArrayBuffer): string {
+  const work = digestBlocks(bytes);
+  for (;;) {
+    const next = work.next();
+    if (next.done) return next.value;
+  }
+}
+// Read full blocks in place; only the final padding needs a copy. The async
+// fallback yields between bounded chunks on LAN HTTP where WebCrypto is absent.
+function* digestBlocks(bytes: ArrayBuffer): Generator<void, string> {
   const input = new Uint8Array(bytes);
-  const padded = new Uint8Array(Math.ceil((input.length + 9) / 64) * 64);
-  padded.set(input);
-  padded[input.length] = 0x80;
+  const fullLength = Math.floor(input.length / 64) * 64;
+  const remainder = input.length - fullLength;
+  const padded = new Uint8Array(Math.ceil((remainder + 9) / 64) * 64);
+  padded.set(input.subarray(fullLength));
+  padded[remainder] = 0x80;
   const view = new DataView(padded.buffer);
+  const source = new DataView(bytes);
   view.setUint32(padded.length - 8, Math.floor(input.length / 0x20000000));
   view.setUint32(padded.length - 4, input.length * 8);
   const hash = new Uint32Array([
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
   ]);
   const w = new Uint32Array(64);
-  for (let offset = 0; offset < padded.length; offset += 64) {
-    for (let i = 0; i < 16; i++) w[i] = view.getUint32(offset + i * 4);
+  for (let offset = 0; offset < fullLength + padded.length; offset += 64) {
+    if (offset && offset % (256 * 1024) === 0) yield;
+    const block = offset < fullLength ? source : view;
+    const start = offset < fullLength ? offset : offset - fullLength;
+    for (let i = 0; i < 16; i++) w[i] = block.getUint32(start + i * 4);
     for (let i = 16; i < 64; i++) {
       const x = w[i - 15],
         y = w[i - 2];

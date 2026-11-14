@@ -9,7 +9,7 @@ export type PreviewAttachment = {
   url?: string;
   pastedText?: boolean;
   anchor?: HTMLElement;
-  editText?: (text: string) => void;
+  editText?: (text: string) => void | Promise<void>;
 };
 export const attachmentPreview = shallowRef<PreviewAttachment | null>(null);
 export function previewAttachment(item: PreviewAttachment, event: Event) {

@@ -497,15 +497,6 @@ dd {
     font-size: 11px;
   }
 }
-@media (max-width: 450px) {
-  .model-share {
-    grid-template-columns: minmax(100px, 130px) minmax(0, 1fr);
-    gap: 10px;
-  }
-  .model-share :deep(.usage-canvas) {
-    height: 140px;
-  }
-}
 @media (max-width: 599px) {
   .statistics-usage {
     padding: 16px 12px;
@@ -516,6 +507,15 @@ dd {
   }
   .model-share :deep(.usage-canvas) {
     height: 124px;
+  }
+}
+@media (max-width: 450px) {
+  .model-share {
+    grid-template-columns: minmax(100px, 130px) minmax(0, 1fr);
+    gap: 10px;
+  }
+  .model-share :deep(.usage-canvas) {
+    height: 140px;
   }
 }
 </style>

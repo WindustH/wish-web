@@ -5,10 +5,12 @@ import { browserNotify } from './notify.ts';
 import { browserFs } from './fs.ts';
 import { browserClipboard } from './clipboard.ts';
 import { browserApp } from './app.ts';
+import { createBrowserResponseCache } from './responseCache.ts';
 
 export function registerBrowserPlatform(storage: BrowserStorageOptions) {
   use('clipboard', browserClipboard);
   use('storage', createBrowserStorage(storage));
+  use('responseCache', createBrowserResponseCache());
   use('notify', browserNotify);
   use('fs', browserFs);
   use('app', browserApp);

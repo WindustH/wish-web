@@ -1,7 +1,6 @@
 <script setup lang="ts">
+import { record } from '../validation.ts';
 import { computed } from 'vue';
-const record = (value: unknown): Record<string, unknown> | undefined =>
-  value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
 const props = defineProps<{ output: Record<string, unknown> }>();
 const results = computed(() =>
   (Array.isArray(props.output.results) ? props.output.results : []).map(record).filter(Boolean),

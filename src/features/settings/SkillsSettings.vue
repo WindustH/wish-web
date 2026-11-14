@@ -435,7 +435,7 @@ async function view(skill: SkillEntry) {
     </div>
   </Modal>
 
-  <Modal :open="!!viewing" wide :layer="72" :title="viewing?.name ?? ''" @close="viewing = null">
+  <Modal :open="!!viewing" wide :page="isMobile" :layer="72" :title="viewing?.name ?? ''" @close="viewing = null">
     <div v-if="viewing" class="skill-view">
       <p v-if="viewing.description" class="skill-view-description">{{ viewing.description }}</p>
       <dl class="skill-view-meta">

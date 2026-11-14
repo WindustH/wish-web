@@ -154,6 +154,7 @@
     inset: 0;
     z-index: 50;
     background: var(--scrim);
+    -webkit-backdrop-filter: blur(3px);
     backdrop-filter: blur(3px);
     animation: fade-in 180ms ease-out;
   }

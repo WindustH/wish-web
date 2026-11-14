@@ -15,7 +15,7 @@ import {
 import { describeError } from '../../core/i18n/errorMessages.ts';
 const errorDetail = (error: unknown) => describeError(error).message;
 import { attachmentPreview, previewAttachment } from '../../ui/attachmentPreview.ts';
-import { attachmentDigest, attachmentDigestFallback } from '../../core/attachmentDigest.ts';
+import { attachmentDigest } from '../../core/attachmentDigest.ts';
 import { expandPastedText } from '../../core/pastedText.ts';
 import InlineMessageEditor from './InlineMessageEditor.vue';
 import { attachmentsForMessage } from '../../core/attachmentPlaceholders.ts';
@@ -151,18 +151,22 @@ async function reference(reference: ReplyReference, image?: Blob) {
     return;
   }
   const owner = props.owner;
-  const bytes = image ? await image.arrayBuffer() : new ArrayBuffer(0);
-  if (owner !== props.owner) return;
   if (
     image &&
-    (bytes.byteLength > limits.value.imageBytes ||
+    (image.size > limits.value.imageBytes ||
       attachments.value.filter((a) => a.kind === 'image').length >= limits.value.imageCount)
   ) {
     toast(tr('选区图片超过附件限制', 'Selected image exceeds attachment limits'));
     return;
   }
+  const bytes = image ? await image.arrayBuffer() : new ArrayBuffer(0);
+  if (owner !== props.owner || !live.value) return;
   if (image) reference = { ...reference, imageId: await attachmentDigest(bytes) };
-  if (owner !== props.owner) return;
+  if (owner !== props.owner || !live.value) return;
+  if (image && attachments.value.filter((a) => a.kind === 'image').length >= limits.value.imageCount) {
+    toast(tr('选区图片超过附件限制', 'Selected image exceeds attachment limits'));
+    return;
+  }
   const placeholder = `<reply-${reference.id}>`;
   attachments.value.push({
     reply: reference,
@@ -269,6 +273,11 @@ function onEditorPaste(event: ClipboardEvent) {
   const insertion = ta.value?.createInsertion();
   void onPaste(event, (token) => insertion?.insert(token)).finally(() => insertion?.dispose());
 }
+const textEdits = new Map<Attachment, AbortController>();
+const pendingTextEdits = new Set<Promise<void>>();
+onBeforeUnmount(() => {
+  for (const request of textEdits.values()) request.abort();
+});
 function openAttachmentPreview(item: Attachment, event: Event) {
   const owner = attachmentsOwnerId.value;
   const anchor = event.currentTarget;
@@ -280,18 +289,32 @@ function openAttachmentPreview(item: Attachment, event: Event) {
         : {}),
       ...(item.previewBlob ? { bytes: undefined, url: item.localUrl } : {}),
       editText: item.pastedText
-        ? (value) => {
+        ? (value: string) => {
             if (owner !== attachmentsOwnerId.value || !attachments.value.includes(item)) return;
-            const previous = item.placeholder!;
-            const bytes = new TextEncoder().encode(value).buffer;
-            const token = `<paste-${attachmentDigestFallback(bytes)}>`;
-            item.bytes = bytes;
-            delete item.stored;
-            item.placeholder = token;
-            // The text block uses bytes; retain its URL as the attachment row's stable key.
-            setTextOwned(text.value.split(previous).join(token));
-            saveAttachmentDrafts(owner, attachments.value);
-            if (attachmentPreview.value?.anchor === anchor) attachmentPreview.value.bytes = bytes;
+            textEdits.get(item)?.abort();
+            const request = new AbortController();
+            textEdits.set(item, request);
+            const edit = (async () => {
+              const previous = item.placeholder!;
+              const bytes = new TextEncoder().encode(value).buffer;
+              const token = `<paste-${await attachmentDigest(bytes, request.signal)}>`;
+              if (owner !== attachmentsOwnerId.value || !attachments.value.includes(item)) return;
+              item.bytes = bytes;
+              delete item.stored;
+              item.placeholder = token;
+              // The text block uses bytes; retain its URL as the attachment row's stable key.
+              setTextOwned(text.value.split(previous).join(token));
+              saveAttachmentDrafts(owner, attachments.value);
+              if (attachmentPreview.value?.anchor === anchor) attachmentPreview.value.bytes = bytes;
+            })().catch((error) => {
+              if (!request.signal.aborted) toast(errorDetail(error));
+            });
+            pendingTextEdits.add(edit);
+            void edit.finally(() => {
+              pendingTextEdits.delete(edit);
+              if (textEdits.get(item) === request) textEdits.delete(item);
+            });
+            return edit;
           }
         : undefined,
     },
@@ -300,6 +323,8 @@ function openAttachmentPreview(item: Attachment, event: Event) {
 }
 
 function removeAttachment(index: number) {
+  const item = attachments.value[index];
+  if (item) textEdits.get(item)?.abort();
   const token = attachments.value[index]?.placeholder;
   if (token) setTextOwned(text.value.split(token).join(''));
   discardAttachment(index);
@@ -311,6 +336,7 @@ function submitBtw() {
 watch(
   () => props.owner,
   (id, previous) => {
+    if (previous !== id) for (const request of textEdits.values()) request.abort();
     // The drafts previously typed belong to the owner being left: land them before reading the next.
     if (previous && previous !== id) chat.flushDrafts(previous);
     text.value = chat.getDraft(id);
@@ -346,6 +372,10 @@ async function submit() {
   }
   if (sending.value || !canSend.value) return;
   const owner = props.owner;
+  while (pendingTextEdits.size) {
+    await Promise.all([...pendingTextEdits]);
+    if (owner !== props.owner || sending.value || !canSend.value) return;
+  }
   const payload = text.value;
   const submittedAttachments = attachments.value;
   const chosen = attachmentsForMessage(payload, submittedAttachments);

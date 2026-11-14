@@ -11,6 +11,9 @@ let wakeLock: WakeLockSentinel | null = null;
 let wakeRequest = 0;
 
 export const browserApp = {
+  get supportsWakeLock() {
+    return 'wakeLock' in navigator;
+  },
   // Background notifications must only fire while the page is hidden —
   // the visible UI is the primary channel (round-4 #2).
   isHidden(): boolean {

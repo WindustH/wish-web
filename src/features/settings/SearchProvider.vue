@@ -171,7 +171,7 @@ async function check() {
               }}</small></span
             ><input
               class="input set-mono"
-              v-model.lazy="baseUrl"
+              v-model="baseUrl"
               :placeholder="
                 preset?.base_url_placeholder ||
                 (preset?.base_url_required ? 'https://' : tr('默认地址', 'Default address'))

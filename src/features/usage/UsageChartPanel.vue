@@ -40,7 +40,8 @@ function toggleModel(key: string) {
   hiddenModels.value = next;
 }
 const dailyTable = ref(false);
-const num = (value: number) => new Intl.NumberFormat(i18n.locale.value, { maximumFractionDigits: 2 }).format(value);
+const numberFormat = computed(() => new Intl.NumberFormat(i18n.locale.value, { maximumFractionDigits: 2 }));
+const num = (value: number) => numberFormat.value.format(value);
 const providerTitle = useProviderTitles();
 // Models keep one color everywhere.
 // Models without usage in this window (e.g. only failed calls) have nothing to plot or toggle.

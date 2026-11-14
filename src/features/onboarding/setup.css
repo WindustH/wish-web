@@ -781,6 +781,7 @@ p.setup-status {
     padding: 12px var(--setup-pad-x) max(12px, env(safe-area-inset-bottom));
     border-top: 1px solid var(--line);
     background: color-mix(in srgb, var(--bg-sunken) 90%, transparent);
+    -webkit-backdrop-filter: blur(14px);
     backdrop-filter: blur(14px);
   }
   .setup-footer .btn.primary {

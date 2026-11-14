@@ -3,24 +3,26 @@ import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
 import { computed } from 'vue';
+import { useShortcutHint } from '../../ui/composables/useShortcutHint.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import { i18n } from '../../core/i18n/index.ts';
 
 defineOptions({ inheritAttrs: false });
 const isMobile = useIsMobile();
+const shortcut = useShortcutHint('toggleLeftSidebar');
 const { sessionListCollapsed } = prefs;
 const label = computed(() => i18n.t(sessionListCollapsed.value ? 'sessions.expandList' : 'sessions.collapseList'));
 </script>
 
 <template>
-  <Hint v-if="!isMobile" :text="`${label} · Shift+Tab`"
+  <Hint v-if="!isMobile" :text="[label, shortcut.label.value].filter(Boolean).join(' · ')"
     ><button
       v-bind="$attrs"
       type="button"
       class="btn ghost icon-only session-list-toggle"
       :aria-label="label"
       :aria-expanded="!sessionListCollapsed"
-      aria-keyshortcuts="Shift+Tab"
+      :aria-keyshortcuts="shortcut.aria.value"
       aria-controls="session-list"
       @click="prefs.setSessionListCollapsed(!sessionListCollapsed)"
     >
