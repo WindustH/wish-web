@@ -213,6 +213,7 @@ const requestedStep = computed(() => {
 }
 .file-change-details {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   min-width: 0;
 }
