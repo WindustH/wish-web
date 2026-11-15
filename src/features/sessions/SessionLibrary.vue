@@ -23,7 +23,7 @@ import { ApiError } from '../../core/api/client.ts';
 import { fmtBytes, fmtDateTime } from '../../core/util/fmt.ts';
 import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
 import { pageActivityKey, usePageActivity } from '../../ui/composables/usePageActivity.ts';
-import { downloadApiFile } from '../../ui/download.ts';
+import { saveApiFile } from '../../ui/download.ts';
 import IslandSidebar from '../../ui/components/IslandSidebar.vue';
 import Menu from '../../ui/components/Menu.vue';
 import type { MenuItem } from '../../ui/components/menuTypes.ts';
@@ -373,12 +373,18 @@ const menuItems = (blob: LibraryBlob) => [
   { key: 'delete', label: tr('删除文件', 'Delete file'), icon: 'trash-2', danger: true, separator: true },
 ];
 const previewActions = computed(() =>
-  selected.value ? menuItems(selected.value).filter((item) => item.key !== 'select') : [],
+  selected.value
+    ? [
+        { key: 'download', label: i18n.t('library.download'), icon: 'download' },
+        ...menuItems(selected.value).filter((item) => item.key !== 'select'),
+      ]
+    : [],
 );
 function previewAction(key: string) {
   const blob = selected.value;
   if (!blob || batchBusy.value || updating.value.has(blob.id)) return;
-  if (key === 'delete') deleteTargets.value = [blob];
+  if (key === 'download') void saveApiFile(blobUrl(`${props.session}/${blob.id}`), filename(blob));
+  else if (key === 'delete') deleteTargets.value = [blob];
   else void act(key, blob);
 }
 type LibraryAction = 'pin' | 'unpin' | 'show' | 'hide' | 'delete';
@@ -838,15 +844,6 @@ watch(
           </button>
         </template>
       </Menu>
-      <a
-        v-if="selected"
-        class="btn ghost icon-only"
-        :href="blobUrl(`${session}/${selected.id}`)"
-        :download="filename(selected)"
-        :aria-label="i18n.t('library.download')"
-        @click="downloadApiFile($event, blobUrl(`${session}/${selected.id}`), filename(selected))"
-        ><Icon name="download"
-      /></a>
       <Menu
         v-if="selected"
         :items="previewActions"

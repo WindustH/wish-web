@@ -10,6 +10,15 @@ import { describeError } from '../core/i18n/errorMessages.ts';
 export async function downloadApiFile(event: MouseEvent, url: string, filename: string) {
   if (!needsAccessToken(url)) return;
   event.preventDefault();
+  await saveApiFile(url, filename);
+}
+
+/** Starts a backend download from an action, including authenticated connections. */
+export async function saveApiFile(url: string, filename: string) {
+  if (!needsAccessToken(url)) {
+    saveUrl(url, filename);
+    return;
+  }
   try {
     const response = await apiFetch(url);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -22,9 +31,13 @@ export async function downloadApiFile(event: MouseEvent, url: string, filename: 
 /** Saves what is in memory as a file download. */
 export function saveBlob(blob: Blob, filename: string) {
   const objectUrl = URL.createObjectURL(blob);
-  const link = Object.assign(document.createElement('a'), { href: objectUrl, download: filename });
+  saveUrl(objectUrl, filename);
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+}
+
+function saveUrl(url: string, filename: string) {
+  const link = Object.assign(document.createElement('a'), { href: url, download: filename });
   document.body.append(link);
   link.click();
   link.remove();
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }
