@@ -17,6 +17,7 @@ import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { toast } from '../../ui/toast.ts';
 import Menu from '../../ui/components/Menu.vue';
 import type { MenuItem } from '../../ui/components/menuTypes.ts';
+import Icon from '../../ui/components/Icon.vue';
 import CopyButton from '../../ui/components/CopyButton.vue';
 import SegmentedControl from '../../ui/components/SegmentedControl.vue';
 import Markdown from '../references/ReferenceMarkdown.vue';
@@ -45,8 +46,11 @@ watch([() => props.session, () => props.blob], () => {
   mode.value = 'source';
 });
 const previewKind = computed(() => sourcePreviewKind(props.name, props.mime));
-// A plain text/code file only needs Copy; it fits in the heading without a second row.
-const localToolbar = computed(() => !props.toolbar || (!!previewKind.value && separateToolbar.value));
+const compactToolbar = computed(() => mobile.value && !!props.toolbar);
+// On phones, a single view toggle shares the filename row. File actions live in its menu.
+const localToolbar = computed(
+  () => !props.toolbar || (!!previewKind.value && separateToolbar.value && !compactToolbar.value),
+);
 const language = computed(() => codeLanguage(props.name, props.mime) ?? 'plaintext');
 const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const html = computed(() => sourceLines(highlightCode(props.text, language.value) || escape(props.text)));
@@ -191,9 +195,23 @@ watch(
     :style="{ '--source-gutter': gutter }"
   >
     <Teleport :to="toolbar || 'body'" :disabled="localToolbar">
-      <div class="source-toolbar" :class="{ 'source-toolbar-local': localToolbar }">
+      <div
+        v-if="previewKind || !compactToolbar"
+        class="source-toolbar"
+        :class="{ 'source-toolbar-local': localToolbar }"
+      >
+        <button
+          v-if="compactToolbar && previewKind"
+          type="button"
+          class="btn ghost icon-only source-view-toggle"
+          :aria-label="mode === 'source' ? tr('预览文件', 'Preview file') : tr('查看源码', 'View source')"
+          :title="mode === 'source' ? tr('预览文件', 'Preview file') : tr('查看源码', 'View source')"
+          @click="mode = mode === 'source' ? 'preview' : 'source'"
+        >
+          <Icon :name="mode === 'source' ? 'eye' : 'terminal'" />
+        </button>
         <SegmentedControl
-          v-if="previewKind"
+          v-else-if="previewKind"
           v-model="mode"
           :label="tr('文件视图', 'File view')"
           :show-labels="mobile"
@@ -202,7 +220,7 @@ watch(
             { value: 'preview', label: tr('预览', 'Preview'), icon: 'eye' },
           ]"
         />
-        <div class="source-actions">
+        <div v-if="!compactToolbar" class="source-actions">
           <CopyButton v-if="mode === 'source'" :text="text" />
         </div>
       </div>

@@ -470,6 +470,7 @@ const previewActions = computed(() =>
   selected.value
     ? [
         { key: 'refresh', label: tr('刷新', 'Refresh'), icon: 'refresh-cw' },
+        ...(previewRef.value?.canCopy ? [{ key: 'copy', label: tr('复制全文', 'Copy all text'), icon: 'copy' }] : []),
         ...(previewRef.value?.canWrap
           ? [{ key: 'wrap', label: tr('自动换行', 'Wrap lines'), icon: 'wrap-text', checked: prefs.sourceWrap.value }]
           : []),
@@ -508,6 +509,10 @@ function previewAction(key: string) {
   const blob = selected.value;
   if (!blob || batchBusy.value || previewBusy.value) return;
   if (key === 'refresh') previewRef.value?.refresh();
+  else if (key === 'copy')
+    void previewRef.value?.copy().then((copied) => {
+      if (copied) toast(tr('已复制', 'Copied'));
+    });
   else if (key === 'wrap') prefs.setSourceWrap(!prefs.sourceWrap.value);
   else if (key === 'download') void downloadPreview(blob);
   else if (key === 'delete') deleteTargets.value = [blob];
@@ -1854,6 +1859,9 @@ watch(
   flex: none;
   display: flex;
   align-items: center;
+}
+.library-media-toolbar:empty {
+  display: none;
 }
 .library-file-title {
   display: flex;

@@ -351,7 +351,7 @@ html.keyboard-open .island-sheet {
   display: grid;
   place-items: center;
   width: 100%;
-  height: 20px;
+  height: 12px;
   padding: 0;
   border: 0;
   background: transparent;

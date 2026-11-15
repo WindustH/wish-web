@@ -15,6 +15,7 @@ import VideoPlayer from '../../domain/media/VideoPlayer.vue';
 import ImagePreview from '../../domain/media/ImagePreview.vue';
 import SourcePreview from '../../domain/media/SourcePreview.vue';
 import { sourcePreviewKind } from '../../ui/codeLanguage.ts';
+import { copyText } from '../../ui/clipboard.ts';
 import { blobKind } from './libraryFiles.ts';
 import type { BlobLocation } from '../../core/blobMentions.ts';
 
@@ -91,6 +92,8 @@ function refresh() {
 defineExpose({
   refresh,
   loading,
+  canCopy: computed(() => kind.value === 'text'),
+  copy: () => copyText(text.value),
   canWrap: computed(() => kind.value === 'text' && sourceMode.value === 'source'),
   locate: (reference: import('../../core/replyReferences.ts').ReplyReference) => {
     focusReference.value = { ...reference };

@@ -58,6 +58,8 @@ In a text or source file preview, selecting text opens **Copy** and **Quote sele
 
 Text previews wrap long lines to fit the sidebar by default. Toggle **Wrap lines** in the file's `⋮` menu to use horizontal scrolling instead; Wish remembers this choice on your device. Wrapped lines keep their original line numbers, and copying or quoting does not insert extra line breaks.
 
+On phones, the eye/terminal button beside the filename switches between source and rendered preview without a separate toolbar row. Use **Copy all text** in the file's `⋮` menu to copy the original text.
+
 An open file checks for changes every five seconds while the sidebar and browser tab are visible, and reloads when its version changes. Text previews keep their reading position and source/rendered mode. Use **Refresh** in the file's `⋮` menu to reload immediately.
 
 ### Right sidebar: Library, Background tasks, Info & Settings
