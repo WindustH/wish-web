@@ -9,6 +9,7 @@ import { highlightCode } from '../../ui/codeHighlight.ts';
 import { codeLanguage, sourcePreviewKind } from '../../ui/codeLanguage.ts';
 import { sourceRange, sourceSelection } from '../../ui/sourceSelection.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { toast } from '../../ui/toast.ts';
 import Icon from '../../ui/components/Icon.vue';
 import CopyButton from '../../ui/components/CopyButton.vue';
@@ -30,6 +31,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ scroll: [top: number] }>();
 const active = usePageActivity();
+const mobile = useIsMobile();
 const replies = inject(replyContextKey, undefined);
 const mode = ref('source');
 watch([() => props.session, () => props.blob], () => {
@@ -173,30 +175,33 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="source-preview">
-    <Teleport :to="toolbar || 'body'" :disabled="!toolbar">
-      <div class="source-toolbar">
-        <button
-          v-if="canQuote"
-          type="button"
-          class="btn ghost sm source-quote"
-          :disabled="quoting"
-          :aria-label="tr('引用选区', 'Quote selection')"
-          :title="tr('引用选区', 'Quote selection')"
-          @pointerdown.prevent
-          @click="quote"
-        >
-          <Icon name="reply" /><span>{{ tr('引用选区', 'Quote selection') }}</span>
-        </button>
-        <CopyButton v-if="mode === 'source'" :text="text" />
+    <Teleport :to="toolbar || 'body'" :disabled="!toolbar || mobile">
+      <div class="source-toolbar" :class="{ 'source-toolbar-local': !toolbar || mobile }">
         <SegmentedControl
           v-if="previewKind"
           v-model="mode"
           :label="tr('文件视图', 'File view')"
+          :show-labels="mobile"
           :options="[
             { value: 'source', label: tr('源码', 'Source'), icon: 'terminal' },
             { value: 'preview', label: tr('预览', 'Preview'), icon: 'eye' },
           ]"
         />
+        <div class="source-actions">
+          <button
+            v-if="canQuote"
+            type="button"
+            class="btn ghost sm source-quote"
+            :disabled="quoting"
+            :aria-label="tr('引用选区', 'Quote selection')"
+            :title="tr('引用选区', 'Quote selection')"
+            @pointerdown.prevent
+            @click="quote"
+          >
+            <Icon name="reply" /><span>{{ tr('引用选区', 'Quote selection') }}</span>
+          </button>
+          <CopyButton v-if="mode === 'source'" :text="text" />
+        </div>
       </div>
     </Teleport>
     <div
@@ -238,6 +243,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .source-preview {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -245,13 +251,24 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 .source-toolbar {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 4px;
 }
-.source-toolbar :deep(.segment) {
+.source-toolbar:not(.source-toolbar-local) :deep(.segment) {
   min-height: 26px;
   padding: 0 8px;
+}
+.source-toolbar-local {
+  gap: 8px;
+  padding-bottom: 10px;
+}
+.source-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
 }
 .source-quote {
   white-space: nowrap;
@@ -278,7 +295,13 @@ onBeforeUnmount(() => {
   display: flex;
   min-width: 100%;
   width: max-content;
+  min-height: 100%;
   align-items: stretch;
+}
+.source-scroll {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
 }
 .source-lines pre {
   margin: 0;
@@ -291,16 +314,18 @@ onBeforeUnmount(() => {
   left: 0;
   z-index: 1;
   flex: none;
-  padding: 0 12px 0 8px;
+  padding: 10px 10px;
+  min-width: calc(2ch + 20px);
   border-right: 1px solid var(--line);
   background: var(--bg);
   color: var(--fg-subtle);
   text-align: right;
   user-select: none;
+  -webkit-user-select: none;
 }
 .source-code {
   flex: 1;
-  padding: 0 14px;
+  padding: 10px 12px;
   outline: none;
   user-select: text;
   -webkit-user-select: text;

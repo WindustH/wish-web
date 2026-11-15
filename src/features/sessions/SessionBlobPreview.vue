@@ -255,6 +255,9 @@ async function handleLoadFailure(cause?: unknown) {
 .blob-preview-pdf {
   padding: 0 6px 6px;
 }
+.blob-preview-text {
+  overflow: hidden;
+}
 .blob-preview-image,
 .blob-preview-video {
   align-items: center;

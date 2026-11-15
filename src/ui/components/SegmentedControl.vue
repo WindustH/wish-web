@@ -4,6 +4,7 @@ import Icon from './Icon.vue';
 import Hint from './Hint.vue';
 const props = defineProps<{
   label: string;
+  showLabels?: boolean;
   options: { value: string; label: string; icon: string; disabled?: boolean; tone?: 'danger' }[];
 }>();
 const model = defineModel<string>({ required: true });
@@ -25,7 +26,10 @@ const selected = computed(() =>
   >
     <span class="segment-thumb" aria-hidden="true" />
     <Hint v-for="option in options" :key="option.value" :text="option.label">
-      <label class="segment" :class="{ disabled: option.disabled, danger: option.tone === 'danger' }">
+      <label
+        class="segment"
+        :class="{ disabled: option.disabled, danger: option.tone === 'danger', 'segment-labelled': showLabels }"
+      >
         <input
           v-model="model"
           type="radio"
@@ -35,6 +39,7 @@ const selected = computed(() =>
           :aria-label="option.label"
         />
         <Icon :name="option.icon" :size="18" />
+        <span v-if="showLabels">{{ option.label }}</span>
       </label>
     </Hint>
   </div>
@@ -84,6 +89,11 @@ const selected = computed(() =>
   height: 100%;
   margin: 0;
   cursor: inherit;
+}
+.segment-labelled {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
 }
 .segment:has(input:checked) {
   color: var(--accent);
