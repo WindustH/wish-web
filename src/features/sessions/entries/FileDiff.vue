@@ -3,7 +3,9 @@ import { computed, ref, watch } from 'vue';
 import { diffCounts, parseDiff, type FileEdit } from './processDetails.ts';
 import CopyButton from '../../../ui/components/CopyButton.vue';
 import { tr } from '../../../core/i18n/tr.ts';
-const props = defineProps<{ edit: FileEdit; flat?: boolean }>();
+const props = withDefaults(defineProps<{ edit: FileEdit; flat?: boolean; showCounts?: boolean }>(), {
+  showCounts: true,
+});
 const lines = computed(() => parseDiff(props.edit.diff ?? ''));
 const counts = computed(() => diffCounts(lines.value));
 const page = ref(0);
@@ -21,7 +23,7 @@ watch(
   <section class="file-diff" :class="{ flat }">
     <header>
       <span class="diff-path">{{ edit.path }}</span
-      ><span v-if="edit.diff" class="diff-counts"
+      ><span v-if="edit.diff && showCounts" class="diff-counts"
         ><b class="added">+{{ counts.added }}</b
         ><b class="removed">−{{ counts.removed }}</b></span
       ><CopyButton v-if="edit.diff" :text="edit.diff" />

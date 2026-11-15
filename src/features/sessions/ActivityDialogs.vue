@@ -82,6 +82,31 @@ const selectedFiles = computed(() =>
         .filter((file) => !selected.value?.filePath || file.path === selected.value.filePath)
     : [],
 );
+const fileRoot = computed(() => {
+  if (selectedFiles.value.length < 2) return '';
+  const parents = selectedFiles.value.map((file) => file.path.replaceAll('\\', '/').split('/').slice(0, -1));
+  // A common directory is a prefix, not matching segments after the first divergence.
+  const end = parents[0]!.findIndex((part, index) => parents.some((parent) => parent[index] !== part));
+  const root = `${parents[0]!.slice(0, end < 0 ? undefined : end).join('/')}/`;
+  return root === '/' || /^[A-Za-z]:\/$/.test(root) ? '' : root;
+});
+const fileRows = computed(() =>
+  selectedFiles.value.map((file) => {
+    const path = file.path.replaceAll('\\', '/');
+    const slash = path.lastIndexOf('/');
+    return {
+      ...file,
+      name: path.slice(slash + 1),
+      directory: slash >= 0 ? path.slice(fileRoot.value.length, slash) : '',
+    };
+  }),
+);
+const fileTotals = computed(() =>
+  selectedFiles.value.reduce(
+    (total, file) => ({ added: total.added + file.added, removed: total.removed + file.removed }),
+    { added: 0, removed: 0 },
+  ),
+);
 const requestedStep = computed(() => {
   const request = selected.value;
   return request?.stepKey ? { key: request.stepKey, tick: request.requestId, solo: request.solo } : undefined;
@@ -137,7 +162,19 @@ const requestedStep = computed(() => {
       <template #compact-heading
         ><div class="dialog-topline file-changes-heading">
           <Icon name="file-diff" />
-          <h2>{{ tr('文件修改', 'File changes') }}</h2>
+          <h2>
+            {{ tr('文件修改', 'File changes') }}
+            <span
+              class="file-changes-count"
+              :aria-label="tr(`${selectedFiles.length} 个文件`, `${selectedFiles.length} files`)"
+            >
+              {{ selectedFiles.length }}
+            </span>
+          </h2>
+          <span v-if="fileTotals.added || fileTotals.removed" class="file-change-counts file-changes-totals">
+            <span class="added">+{{ fileTotals.added }}</span>
+            <span class="removed">−{{ fileTotals.removed }}</span>
+          </span>
           <div class="dialog-toolbar">
             <button
               class="btn ghost icon-only"
@@ -148,25 +185,41 @@ const requestedStep = computed(() => {
             </button>
           </div></div
       ></template>
-      <div class="file-change-details">
+      <p v-if="fileRoot" class="file-changes-root" :title="fileRoot">
+        <Icon name="folder" :size="14" /><span>{{ fileRoot.slice(0, -1) }}</span>
+      </p>
+      <div class="file-change-details" :class="{ 'file-change-list': selectedFiles.length > 1 }">
         <component
           :is="selectedFiles.length === 1 ? 'div' : 'details'"
-          v-for="file in selectedFiles"
+          v-for="file in fileRows"
           :key="file.path"
+          class="file-change-item"
           :open="selectedFiles.length === 1 || expandedFiles.has(file.path)"
           @toggle="
             ($event.target as HTMLDetailsElement).open ? expandedFiles.add(file.path) : expandedFiles.delete(file.path)
           "
         >
-          <summary v-if="selectedFiles.length > 1">{{ file.path }}</summary>
-          <template v-if="selectedFiles.length === 1 || expandedFiles.has(file.path)">
+          <summary v-if="selectedFiles.length > 1" :title="file.path">
+            <Icon name="file-diff" class="file-change-icon" />
+            <span class="file-change-name">
+              <strong>{{ file.name }}</strong>
+              <small v-if="file.directory">{{ file.directory }}</small>
+            </span>
+            <span v-if="file.added || file.removed" class="file-change-counts">
+              <span class="added">+{{ file.added }}</span>
+              <span class="removed">−{{ file.removed }}</span>
+            </span>
+            <Icon name="chevron-right" class="file-change-chevron" />
+          </summary>
+          <div v-if="selectedFiles.length === 1 || expandedFiles.has(file.path)" class="file-change-edits">
             <FileDiff
               v-for="(edit, index) in file.edits"
               :key="`${file.path}:${index}`"
               :edit="edit"
-              :flat="selectedFiles.length === 1"
+              :show-counts="selectedFiles.length === 1 || file.edits.length > 1"
+              flat
             />
-          </template>
+          </div>
         </component>
       </div>
     </Modal>
@@ -213,19 +266,123 @@ const requestedStep = computed(() => {
   color: var(--fg-muted);
 }
 .file-changes-heading > h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
+}
+.file-changes-count {
+  color: var(--fg-subtle);
+  font-size: 12px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.file-changes-root {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 0 10px;
+  color: var(--fg-subtle);
+  font: 11px/1.5 var(--mono);
+}
+.file-changes-root span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .file-change-details {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
   min-width: 0;
 }
+.file-change-list {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  overflow: clip;
+}
+.file-change-item {
+  min-width: 0;
+}
+.file-change-item + .file-change-item {
+  border-top: 1px solid var(--line);
+}
 .file-change-details summary {
-  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  list-style: none;
   cursor: pointer;
-  overflow-wrap: anywhere;
-  font-family: var(--mono);
+}
+.file-change-details summary::-webkit-details-marker {
+  display: none;
+}
+.file-change-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--fg-subtle);
+}
+.file-change-name {
+  flex: 1;
+  min-width: 0;
+}
+.file-change-name strong,
+.file-change-name small {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.file-change-name strong {
+  color: var(--fg);
+  font: 500 13px/1.5 var(--font);
+}
+.file-change-name small {
+  margin-top: 1px;
+  color: var(--fg-subtle);
+  font: 11px/1.5 var(--mono);
+}
+.file-change-counts {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+  font: 500 11px/1.5 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.file-change-counts .added {
+  color: var(--ok);
+}
+.file-change-counts .removed {
+  color: var(--err);
+}
+.file-change-chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--fg-subtle);
+}
+.file-change-item[open] > summary .file-change-chevron {
+  transform: rotate(90deg);
+}
+.file-change-list .file-change-edits {
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--line);
+}
+.file-change-edits > :not(:first-child) {
+  margin-top: 12px;
+}
+@media (hover: hover) {
+  .file-change-details summary:hover {
+    background: var(--bg-hover);
+  }
+}
+.file-change-details summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }
 .activity-dialog-host {
   display: contents;

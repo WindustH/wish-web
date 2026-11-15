@@ -24,6 +24,8 @@ Sending your first message creates the session, generates a suggested title in t
 
 Replies stream in real time alongside a live status indicator (**Thinking…**, **Writing response…**, the active tool, or **Compacting context**). Reasoning steps and tool calls fold neatly into a collapsible **Process** block; click any step to view the command, exit code, output (with the server path to full captures), file edit diffs, or viewed images.
 
+**File changes** lists filenames, relative directories, and added/removed line counts, with a shared directory shown once above the list. Expand a file to read its full path and diff; large diffs are paged.
+
 Background shell commands post status chips (**Background shell completed**, **failed**, or **terminated**) into the transcript when they finish—click any chip to inspect what ran and its output.
 
 ### Answering `ask_user` cards
