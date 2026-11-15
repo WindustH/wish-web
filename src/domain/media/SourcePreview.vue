@@ -31,16 +31,17 @@ const props = defineProps<{
   blob: string;
   version?: string;
   scroll: number;
+  previewScroll?: number;
   truncated: boolean;
   toolbar?: HTMLElement;
   focus?: ReplyReference;
 }>();
-const emit = defineEmits<{ scroll: [top: number] }>();
+const emit = defineEmits<{ scroll: [top: number]; previewScroll: [top: number] }>();
 const active = usePageActivity();
 const mobile = useIsMobile();
 const localToolbar = usePreviewToolbar(() => props.toolbar);
 const replies = inject(replyContextKey, undefined);
-const mode = ref('source');
+const mode = defineModel<string>('mode', { default: 'source' });
 watch([() => props.session, () => props.blob], () => {
   mode.value = 'source';
 });
@@ -50,7 +51,14 @@ const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<',
 const html = computed(() => sourceLines(highlightCode(props.text, language.value) || escape(props.text)));
 const gutter = computed(() => `${Math.max(2, String(props.text.split(/\r\n?|\n/).length).length)}ch`);
 const viewport = ref<HTMLElement>();
+const previewViewport = ref<HTMLElement>();
 const code = ref<HTMLElement>();
+defineExpose({
+  rememberScroll: () => {
+    if (viewport.value && mode.value === 'source') emit('scroll', viewport.value.scrollTop);
+    if (previewViewport.value) emit('previewScroll', previewViewport.value.scrollTop);
+  },
+});
 const selection = shallowRef<ReturnType<typeof sourceSelection>>();
 const quoting = ref(false);
 const canQuote = computed(() => active.value && replies?.session.value === props.session && !!selection.value);
@@ -75,9 +83,10 @@ watch([() => props.session, () => props.blob, () => props.version, () => props.t
   selection.value = undefined;
 });
 watch(
-  viewport,
-  (element) => {
+  [viewport, previewViewport],
+  ([element, preview]) => {
     if (element && mode.value === 'source') element.scrollTop = props.scroll;
+    if (preview) preview.scrollTop = props.previewScroll ?? 0;
   },
   { flush: 'post' },
 );
@@ -249,7 +258,14 @@ watch(
       referrerpolicy="no-referrer"
       :title="name"
     />
-    <div v-else-if="previewKind === 'markdown'" class="source-markdown"><Markdown :text="text" /></div>
+    <div
+      v-else-if="previewKind === 'markdown'"
+      ref="previewViewport"
+      class="source-markdown"
+      @scroll.passive="emit('previewScroll', ($event.target as HTMLElement).scrollTop)"
+    >
+      <Markdown :text="text" />
+    </div>
     <p v-if="truncated" class="source-truncated">{{ i18n.t('library.truncated') }}</p>
   </section>
 </template>
@@ -276,7 +292,7 @@ watch(
 .source-toolbar-local {
   flex-wrap: wrap;
   gap: 8px;
-  padding-bottom: 10px;
+  padding: 8px 12px;
 }
 .source-actions {
   display: flex;
@@ -310,8 +326,6 @@ watch(
   width: 100%;
 }
 .source-scroll {
-  border: 1px solid var(--line);
-  border-radius: 10px;
   background: var(--bg);
 }
 .source-lines pre {

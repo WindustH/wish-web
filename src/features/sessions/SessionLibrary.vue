@@ -469,12 +469,17 @@ const menuItems = (blob: LibraryBlob) => [
 const previewActions = computed(() =>
   selected.value
     ? [
+        { key: 'refresh', label: tr('刷新', 'Refresh'), icon: 'refresh-cw' },
         { key: 'download', label: i18n.t('library.download'), icon: 'download' },
         ...menuItems(selected.value).filter((item) => item.key !== 'select'),
       ]
     : [],
 );
 const downloading = ref<string>();
+const previewBusy = computed(
+  () =>
+    !!previewRef.value?.loading || !!downloading.value || (!!selected.value && updating.value.has(selected.value.id)),
+);
 let downloadController: AbortController | undefined;
 watch([() => props.session, active, () => selected.value?.id], () => {
   downloadController?.abort();
@@ -498,8 +503,9 @@ async function downloadPreview(blob: LibraryBlob) {
 }
 function previewAction(key: string) {
   const blob = selected.value;
-  if (!blob || batchBusy.value || updating.value.has(blob.id)) return;
-  if (key === 'download') void downloadPreview(blob);
+  if (!blob || batchBusy.value || previewBusy.value) return;
+  if (key === 'refresh') previewRef.value?.refresh();
+  else if (key === 'download') void downloadPreview(blob);
   else if (key === 'delete') deleteTargets.value = [blob];
   else void act(key, blob);
 }
@@ -1010,7 +1016,7 @@ watch(
       <Menu
         v-if="selected"
         :items="previewActions"
-        :disabled="batchBusy || updating.has(selected.id) || !!downloading"
+        :disabled="batchBusy || previewBusy"
         content-class="library-preview-menu"
         @select="previewAction"
       >
@@ -1020,12 +1026,9 @@ watch(
             class="btn ghost icon-only library-preview-menu-trigger"
             :aria-label="tr('文件操作', 'File actions')"
             :title="tr('文件操作', 'File actions')"
-            :aria-busy="updating.has(selected.id) || downloading === selected.id"
+            :aria-busy="previewBusy"
           >
-            <Icon
-              :name="updating.has(selected.id) || downloading === selected.id ? 'loader-circle' : 'ellipsis-vertical'"
-              :class="{ spin: updating.has(selected.id) || downloading === selected.id }"
-            />
+            <Icon :name="previewBusy ? 'loader-circle' : 'ellipsis-vertical'" :class="{ spin: previewBusy }" />
           </button>
         </template>
       </Menu>
