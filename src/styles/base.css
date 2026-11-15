@@ -189,11 +189,11 @@ html {
   -webkit-user-select: none;
   user-select: none;
 }
-/* On a touch screen Wish selects a message's words itself (TouchSelection), so the platform may
+/* On a touch screen Wish selects marked text itself (TouchSelection), so the platform may
    not; a caret is read under `reading-caret`, for that moment only. */
 @media (pointer: coarse) {
-  html.touch-selection :is(.entry.user .bubble, .entry.assistant .body .markdown),
-  html.touch-selection :is(.entry.user .bubble, .entry.assistant .body .markdown) * {
+  html.touch-selection [data-selectable-text],
+  html.touch-selection [data-selectable-text] * {
     -webkit-user-select: none;
     user-select: none;
   }

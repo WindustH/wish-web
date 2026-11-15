@@ -102,6 +102,13 @@ let openedAt = -Infinity;
 // The selected text the open menu acts on, or null for the element's own items.
 const selected = ref<string | null>(null);
 const shown = computed(() => (selected.value !== null && props.selectionItems ? props.selectionItems : props.items));
+function copySelected(event: ClipboardEvent) {
+  // The floating menu owns focus after selection. Keyboard copy must use the
+  // owner's original text too, rather than the browser's rendered line breaks.
+  if (selected.value === null || !event.clipboardData) return;
+  event.clipboardData.setData('text/plain', selected.value);
+  event.preventDefault();
+}
 function dismissBackdrop(event: PointerEvent | MouseEvent | WheelEvent) {
   // The backdrop consumes the press, so native text selection cannot collapse
   // itself. Clear this menu's selection on an outside press, but retain it when
@@ -355,6 +362,7 @@ onBeforeUnmount(() => {
         :align="context ? 'start' : align"
         :side-offset="context ? 2 : 6"
         :collision-padding="8"
+        @copy="copySelected"
         @close-auto-focus="context && $event.preventDefault()"
       >
         <DropdownMenuLabel v-if="heading" class="menu-heading">{{ heading }}</DropdownMenuLabel>

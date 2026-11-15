@@ -1,18 +1,23 @@
 <script setup lang="ts">
 import { usePreviewToolbar } from './usePreviewToolbar.ts';
-import { computed, inject, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import { computed, inject, ref, shallowRef, watch } from 'vue';
 import DOMPurify from 'dompurify';
 import { tr } from '../../core/i18n/tr.ts';
 import { i18n } from '../../core/i18n/index.ts';
+import { prefs } from '../../core/state/prefsSlice.ts';
 import { replyReferenceId, type ReplyReference } from '../../core/replyReferences.ts';
 import { replyContextKey } from '../references/context.ts';
 import { highlightCode } from '../../ui/codeHighlight.ts';
 import { codeLanguage, sourcePreviewKind } from '../../ui/codeLanguage.ts';
 import { sourceRange, sourceSelection } from '../../ui/sourceSelection.ts';
+import { sourceLines } from '../../ui/sourceLines.ts';
+import { copyText } from '../../ui/clipboard.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { toast } from '../../ui/toast.ts';
 import Icon from '../../ui/components/Icon.vue';
+import Menu from '../../ui/components/Menu.vue';
+import type { MenuItem } from '../../ui/components/menuTypes.ts';
 import CopyButton from '../../ui/components/CopyButton.vue';
 import SegmentedControl from '../../ui/components/SegmentedControl.vue';
 import Markdown from '../references/ReferenceMarkdown.vue';
@@ -42,38 +47,31 @@ watch([() => props.session, () => props.blob], () => {
 const previewKind = computed(() => sourcePreviewKind(props.name, props.mime));
 const language = computed(() => codeLanguage(props.name, props.mime) ?? 'plaintext');
 const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-// Preserve CRLF offsets through the HTML parser as well as syntax spans.
-const html = computed(() =>
-  (highlightCode(props.text, language.value) || escape(props.text)).replaceAll('\r', '&#13;'),
-);
-const numbers = computed(() => Array.from({ length: props.text.split(/\r\n?|\n/).length }, (_, i) => i + 1).join('\n'));
+const html = computed(() => sourceLines(highlightCode(props.text, language.value) || escape(props.text)));
+const gutter = computed(() => `${Math.max(2, String(props.text.split(/\r\n?|\n/).length).length)}ch`);
 const viewport = ref<HTMLElement>();
 const code = ref<HTMLElement>();
 const selection = shallowRef<ReturnType<typeof sourceSelection>>();
 const quoting = ref(false);
 const canQuote = computed(() => active.value && replies?.session.value === props.session && !!selection.value);
+const selectionItems = computed<MenuItem[]>(() => [
+  { key: 'copy-selection', icon: 'copy', label: tr('复制', 'Copy') },
+  ...(canQuote.value
+    ? [{ key: 'reply', icon: 'reply', label: tr('引用选区', 'Quote selection'), disabled: quoting.value }]
+    : []),
+]);
 function selectedRange() {
   const selected = document.getSelection();
   return code.value && selected?.rangeCount
     ? sourceSelection(code.value, props.text, selected.getRangeAt(0))
     : undefined;
 }
-function readSelection() {
-  selection.value = mode.value === 'source' && active.value ? selectedRange() : undefined;
+function captureSelection(range: Range) {
+  selection.value =
+    mode.value === 'source' && active.value && code.value ? sourceSelection(code.value, props.text, range) : undefined;
+  return selection.value?.text ?? '';
 }
-watch(
-  active,
-  (visible, _, cleanup) => {
-    if (!visible) {
-      selection.value = undefined;
-      return;
-    }
-    document.addEventListener('selectionchange', readSelection);
-    cleanup(() => document.removeEventListener('selectionchange', readSelection));
-  },
-  { immediate: true },
-);
-watch([() => props.text, mode], () => {
+watch([() => props.session, () => props.blob, () => props.version, () => props.text, mode, active], () => {
   selection.value = undefined;
 });
 watch(
@@ -89,9 +87,13 @@ function copySelection(event: ClipboardEvent) {
   event.clipboardData.setData('text/plain', current.text);
   event.preventDefault();
 }
+function choose(key: string, text?: string) {
+  if (key === 'reply') void quote();
+  else void copyText(key === 'copy-selection' ? (text ?? '') : props.text);
+}
 async function quote() {
   const current = selection.value;
-  if (!current || !replies || replies.session.value !== props.session || quoting.value) return;
+  if (!current || !replies || !canQuote.value || quoting.value) return;
   if (current.text.length > 16000) {
     toast(tr('选区过长，请缩小范围', 'Selection too long; select a smaller excerpt'));
     return;
@@ -170,13 +172,14 @@ watch(
   },
   { immediate: true },
 );
-onBeforeUnmount(() => {
-  selection.value = undefined;
-});
 </script>
 
 <template>
-  <section class="source-preview">
+  <section
+    class="source-preview"
+    :class="{ 'source-wrap': prefs.sourceWrap.value }"
+    :style="{ '--source-gutter': gutter }"
+  >
     <Teleport :to="toolbar || 'body'" :disabled="localToolbar">
       <div class="source-toolbar" :class="{ 'source-toolbar-local': localToolbar }">
         <SegmentedControl
@@ -191,16 +194,13 @@ onBeforeUnmount(() => {
         />
         <div class="source-actions">
           <button
-            v-if="canQuote"
+            v-if="mode === 'source'"
             type="button"
-            class="btn ghost sm source-quote"
-            :disabled="quoting"
-            :aria-label="tr('引用选区', 'Quote selection')"
-            :title="tr('引用选区', 'Quote selection')"
-            @pointerdown.prevent
-            @click="quote"
+            class="btn ghost sm source-wrap-toggle"
+            :aria-pressed="prefs.sourceWrap.value"
+            @click="prefs.setSourceWrap(!prefs.sourceWrap.value)"
           >
-            <Icon name="reply" /><span>{{ tr('引用选区', 'Quote selection') }}</span>
+            <Icon name="wrap-text" /><span>{{ tr('自动换行', 'Wrap lines') }}</span>
           </button>
           <CopyButton v-if="mode === 'source'" :text="text" />
         </div>
@@ -210,16 +210,27 @@ onBeforeUnmount(() => {
       v-if="mode === 'source'"
       ref="viewport"
       class="source-scroll"
+      data-selection-viewport
       @scroll.passive="emit('scroll', ($event.target as HTMLElement).scrollTop)"
       @copy="copySelection"
     >
       <div class="source-lines">
-        <pre class="source-numbers" aria-hidden="true">{{ numbers }}</pre>
-        <pre
-          class="source-code"
-          tabindex="0"
-          :aria-label="name"
-        ><code ref="code" class="code-highlight" :data-language="language" v-html="html" /></pre>
+        <Menu
+          :key="`${session}/${blob}/${version}`"
+          context
+          selects-text
+          :items="[{ key: 'copy', icon: 'copy', label: tr('复制全文', 'Copy all text') }]"
+          :selection-items="selectionItems"
+          :selection-text="captureSelection"
+          @select="choose"
+        >
+          <pre
+            class="source-code"
+            data-selection-host
+            tabindex="0"
+            :aria-label="name"
+          ><code ref="code" class="code-highlight" data-selectable-text :data-language="language" v-html="html" /></pre>
+        </Menu>
       </div>
     </div>
     <ImagePreview
@@ -273,18 +284,12 @@ onBeforeUnmount(() => {
   gap: 4px;
   margin-left: auto;
 }
-.source-quote {
+.source-wrap-toggle {
   white-space: nowrap;
 }
-@container (max-width: 480px) {
-  .source-quote {
-    width: 32px;
-    min-width: 32px;
-    padding: 4px;
-  }
-  .source-quote span {
-    display: none;
-  }
+.source-wrap-toggle[aria-pressed='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 .source-scroll,
 .source-markdown {
@@ -301,6 +306,9 @@ onBeforeUnmount(() => {
   min-height: 100%;
   align-items: stretch;
 }
+.source-wrap .source-lines {
+  width: 100%;
+}
 .source-scroll {
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -310,15 +318,31 @@ onBeforeUnmount(() => {
   margin: 0;
   font: 13px/1.7 var(--mono);
   tab-size: 4;
-  white-space: pre;
+  white-space: normal;
 }
-.source-numbers {
+.source-code {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 0;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.source-code code {
+  display: block;
+  font: inherit;
+  color: var(--fg);
+}
+.source-code :deep(.source-line) {
+  display: grid;
+  grid-template-columns: calc(var(--source-gutter) + 20px) minmax(0, 1fr);
+}
+.source-code :deep(.source-line::before) {
+  content: attr(data-line);
   position: sticky;
   left: 0;
   z-index: 1;
-  flex: none;
-  padding: 10px 10px;
-  min-width: calc(2ch + 20px);
+  padding: 0 10px;
   border-right: 1px solid var(--line);
   background: var(--bg);
   color: var(--fg-subtle);
@@ -326,16 +350,15 @@ onBeforeUnmount(() => {
   user-select: none;
   -webkit-user-select: none;
 }
-.source-code {
-  flex: 1;
-  padding: 10px 12px;
-  outline: none;
-  user-select: text;
-  -webkit-user-select: text;
+.source-code :deep(.source-line-text) {
+  min-width: 0;
+  min-height: 1.7em;
+  padding: 0 12px;
+  white-space: pre;
 }
-.source-code code {
-  font: inherit;
-  color: var(--fg);
+.source-wrap .source-code :deep(.source-line-text) {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .source-markdown {
   padding: 8px 12px;

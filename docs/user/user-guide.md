@@ -54,6 +54,10 @@ Attach images (up to 4 images per message) or files (up to 16 files), or paste/d
 
 Select text inside any message, code block, or PDF page to quote it directly into your reply. On images and PDFs, you can also drag a rectangle over a specific region to attach that crop and its coordinates. Sent quotes show clickable chips, and source messages display reply backlinks so you can jump back and forth.
 
+In a text or source file preview, selecting text opens **Copy** and **Quote selection** beside the selection. On touch screens, long-press a word and drag the handles to adjust the excerpt. Quotes retain the original text and line numbers.
+
+Text previews wrap long lines to fit the sidebar by default. Toggle **Wrap lines** in the preview toolbar to use horizontal scrolling instead; Wish remembers this choice on your device. Wrapped lines keep their original line numbers, and copying or quoting does not insert extra line breaks.
+
 ### Right sidebar: Library, Background tasks, Info & Settings
 
 Press `Tab` on desktop (or use the header tabs) to open the right sidebar:

@@ -23,6 +23,7 @@ function toggle(key: string, fallback: boolean) {
 
 export const prefs = (() => {
   const originalImages = toggle('pref.originalImages', false);
+  const sourceWrap = toggle('pref.sourceWrap', true);
   const sendOnEnter = toggle('pref.sendOnEnter', cfg.composer.sendOnEnter);
   const keepAwake = toggle('pref.keepAwake', false);
   const notifyOnFailure = toggle('pref.notifyOnFailure', false); // decisions 22: default OFF
@@ -41,7 +42,8 @@ export const prefs = (() => {
     shortcuts.load();
     const width = Number(platform('storage').get('pref.rightSidebarWidth'));
     rightSidebarWidth.value = Number.isFinite(width) && width >= 280 ? width : 0;
-    for (const pref of [sendOnEnter, keepAwake, notifyOnFailure, sessionListCollapsed, originalImages]) pref.load();
+    for (const pref of [sendOnEnter, keepAwake, notifyOnFailure, sessionListCollapsed, originalImages, sourceWrap])
+      pref.load();
     const size = Number(platform('storage').get(TEXT_SIZE));
     textSize.value = size >= 0.8 && size <= 1.4 ? size : 1;
     loaded.value = true;
@@ -52,6 +54,8 @@ export const prefs = (() => {
     setRightSidebarWidth,
     originalImages: originalImages.value,
     setOriginalImages: originalImages.set,
+    sourceWrap: sourceWrap.value,
+    setSourceWrap: sourceWrap.set,
     sendOnEnter: sendOnEnter.value,
     keepAwake: keepAwake.value,
     notifyOnFailure: notifyOnFailure.value,
