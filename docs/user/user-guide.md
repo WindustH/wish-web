@@ -69,7 +69,9 @@ Choose **Link folder** from the Library menu to browse a directory on the Wish s
 
 Use **Rename** in an item's menu to change its display name. This works for files, folders, linked children and bookmarks; it does not rename files on disk or change their contents.
 
-Right-click a message and choose **Bookmark message**, or select a passage and choose **Bookmark**. On touch screens, long-press text to use the selection toolbar. Open **Bookmarks** from the Library's category picker or its root entry to see saved messages and excerpts. Clicking one jumps to the original record and highlights the selected text. You can rename or remove bookmarks there. If the original history has been deleted, the saved excerpt remains available but the jump reports that the message is unavailable.
+Right-click a message and choose **Bookmark message**, or select a passage and choose **Bookmark**. On touch screens, long-press text to use the selection toolbar. Saved messages and excerpts appear alongside files in the Library, in all three views. Use the category picker to show only bookmarks. Clicking one jumps to the original record and highlights the selected text. You can rename or remove bookmarks there. If the original history has been deleted, the saved excerpt remains available but the jump reports that the message is unavailable.
+
+In icon view, bookmarks and text files show a miniature content page: Markdown retains headings and paragraphs, code uses syntax highlighting, and plain text shows its opening lines. The name below the preview remains the item's display name.
 
 ### History search
 

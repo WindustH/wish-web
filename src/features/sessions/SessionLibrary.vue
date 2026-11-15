@@ -16,7 +16,7 @@ import {
   deleteBlob,
   moveLibraryItems,
 } from '../../core/api/endpoints.ts';
-import type { LibraryBlob, LibraryFolder, LinkedFolderChild } from '../../core/api/types.ts';
+import type { LibraryBlob, LibraryBookmark, LibraryFolder, LinkedFolderChild } from '../../core/api/types.ts';
 import type { StoredAttachmentReference } from '../../core/attachments.ts';
 import type { EntryView } from '../../core/api/projections.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -32,6 +32,7 @@ import type { MenuItem } from '../../ui/components/menuTypes.ts';
 import DirectoryPicker from '../../ui/components/DirectoryPicker.vue';
 import Modal from '../../ui/components/Modal.vue';
 import LibraryThumbnail from './LibraryThumbnail.vue';
+import LibraryDocumentThumbnail from './LibraryDocumentThumbnail.vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import { platform } from '../../platform/index.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
@@ -42,7 +43,7 @@ import SessionBlobPreview from './SessionBlobPreview.vue';
 import { attachmentNames, blobKind, blobIcon, blobName, type BlobKind } from './libraryFiles.ts';
 import LibraryRenameDialog from './LibraryRenameDialog.vue';
 import LibraryLinkedFolder from './LibraryLinkedFolder.vue';
-import LibraryBookmarks from './LibraryBookmarks.vue';
+import { useLibraryBookmarks } from './useLibraryBookmarks.ts';
 import LibraryFolderDialog from './LibraryFolderDialog.vue';
 import LibraryCleanupDialog from './LibraryCleanupDialog.vue';
 import { folderTrail, type LibraryFolderAction } from './libraryFolders.ts';
@@ -250,6 +251,10 @@ function selectBlob(blob: LibraryBlob | null) {
 const parentActive = usePageActivity();
 const active = computed(() => parentActive.value && props.open);
 provide(pageActivityKey, active);
+const bookmarks = useLibraryBookmarks(
+  computed(() => props.session),
+  computed(() => active.value && !folder.value),
+);
 watch(active, (visible) => {
   if (!visible) {
     cancelOperations();
@@ -373,56 +378,54 @@ async function upload() {
 const libraryActions = computed<MenuItem[]>(() =>
   linkedFolder.value && filter.value !== 'bookmarks'
     ? [{ key: 'refresh', label: i18n.t('library.refresh'), icon: 'refresh-cw' }, ...folderMenu(linkedFolder.value)]
-    : filter.value === 'bookmarks'
-      ? [{ key: 'files', label: tr('返回文件', 'Back to files'), icon: 'library' }]
-      : [
-          {
-            key: 'select',
-            label: selecting.value ? tr('退出多选', 'Stop selecting') : tr('多选文件', 'Select files'),
-            icon: 'check-square',
-            checked: selecting.value,
-          },
-          ...(selecting.value
-            ? []
-            : [
-                {
-                  key: 'all',
-                  label: showAll.value ? tr('返回展示库', 'Return to Library') : tr('查看全部文件', 'Show all files'),
-                  icon: 'eye',
-                  checked: showAll.value,
-                },
-                { key: 'link', label: i18n.t('library.linkFile'), icon: 'link', disabled: linking.value },
-                { key: 'upload', label: i18n.t('library.upload'), icon: 'upload', disabled: uploading.value },
-                ...(supportsFolders.value
-                  ? [
-                      { key: 'new-folder', label: tr('新建文件夹', 'New folder'), icon: 'folder-plus' },
-                      { key: 'link-folder', label: tr('链接文件夹', 'Link folder'), icon: 'folder' },
-                    ]
-                  : []),
-                {
-                  key: 'refresh',
-                  label: i18n.t('library.refresh'),
-                  icon: 'refresh-cw',
-                  disabled: loading.value,
-                  separator: true,
-                },
-                {
-                  key: 'cleanup',
-                  label: tr('清理文件库…', 'Clean up Library…'),
-                  icon: 'eraser',
-                  disabled: uploading.value || linking.value,
-                },
-              ]),
-          {
-            key: 'icons',
-            label: tr('图标视图', 'Icons'),
-            icon: 'grid',
-            checked: view.value === 'icons',
-            separator: true,
-          },
-          { key: 'compact', label: tr('紧凑列表', 'Compact list'), icon: 'list', checked: view.value === 'compact' },
-          { key: 'details', label: tr('详细列表', 'Details'), icon: 'list-details', checked: view.value === 'details' },
-        ],
+    : [
+        {
+          key: 'select',
+          label: selecting.value ? tr('退出多选', 'Stop selecting') : tr('多选文件', 'Select files'),
+          icon: 'check-square',
+          checked: selecting.value,
+        },
+        ...(selecting.value
+          ? []
+          : [
+              {
+                key: 'all',
+                label: showAll.value ? tr('返回展示库', 'Return to Library') : tr('查看全部文件', 'Show all files'),
+                icon: 'eye',
+                checked: showAll.value,
+              },
+              { key: 'link', label: i18n.t('library.linkFile'), icon: 'link', disabled: linking.value },
+              { key: 'upload', label: i18n.t('library.upload'), icon: 'upload', disabled: uploading.value },
+              ...(supportsFolders.value
+                ? [
+                    { key: 'new-folder', label: tr('新建文件夹', 'New folder'), icon: 'folder-plus' },
+                    { key: 'link-folder', label: tr('链接文件夹', 'Link folder'), icon: 'folder' },
+                  ]
+                : []),
+              {
+                key: 'refresh',
+                label: i18n.t('library.refresh'),
+                icon: 'refresh-cw',
+                disabled: loading.value,
+                separator: true,
+              },
+              {
+                key: 'cleanup',
+                label: tr('清理文件库…', 'Clean up Library…'),
+                icon: 'eraser',
+                disabled: uploading.value || linking.value,
+              },
+            ]),
+        {
+          key: 'icons',
+          label: tr('图标视图', 'Icons'),
+          icon: 'grid',
+          checked: view.value === 'icons',
+          separator: true,
+        },
+        { key: 'compact', label: tr('紧凑列表', 'Compact list'), icon: 'list', checked: view.value === 'compact' },
+        { key: 'details', label: tr('详细列表', 'Details'), icon: 'list-details', checked: view.value === 'details' },
+      ],
 );
 function libraryAction(key: string) {
   if (batchBusy.value) return;
@@ -431,15 +434,16 @@ function libraryAction(key: string) {
     else actFolder(key, linkedFolder.value);
     return;
   }
-  if (key === 'files') filter.value = 'all';
-  else if (key === 'select') selecting.value ? stopSelecting() : (selecting.value = true);
+  if (key === 'select') selecting.value ? stopSelecting() : (selecting.value = true);
   else if (key === 'all') showAll.value = !showAll.value;
   else if (key === 'link') {
     linkError.value = '';
     linkOpen.value = true;
   } else if (key === 'upload') void upload();
-  else if (key === 'refresh') void load();
-  else if (key === 'new-folder') folderAction.value = { kind: 'create' };
+  else if (key === 'refresh') {
+    void load();
+    void bookmarks.load();
+  } else if (key === 'new-folder') folderAction.value = { kind: 'create' };
   else if (key === 'link-folder') folderAction.value = { kind: 'link' };
   else if (key === 'cleanup') cleanupOpen.value = true;
   else if (['icons', 'compact', 'details'].includes(key)) viewState.value.mode = key;
@@ -553,6 +557,29 @@ function attachmentReference(blob: LibraryBlob): StoredAttachmentReference {
 const filename = (blob: LibraryBlob) => blobName(blob, names.value);
 const title = computed(() => (selected.value ? filename(selected.value) : i18n.t('library.title')));
 const shown = computed(() => items.value.filter((blob) => filter.value === 'all' || blobKind(blob) === filter.value));
+type LibraryItem = LibraryBlob | LibraryBookmark;
+function isBookmark(item: LibraryItem): item is LibraryBookmark {
+  return 'seq' in item;
+}
+const shownBookmarks = computed(() =>
+  !folder.value && (filter.value === 'all' || filter.value === 'bookmarks') ? bookmarks.items.value : [],
+);
+const gridFolders = computed(() => (filter.value === 'bookmarks' ? [] : childFolders.value));
+const catalogItems = computed<LibraryItem[]>(() => {
+  const saved = [...shownBookmarks.value].sort((a, b) => b.created_at - a.created_at);
+  const combined: LibraryItem[] = [];
+  let index = 0;
+  // Keep server file order intact: pagination and file range selection use that same order.
+  for (const blob of shown.value) {
+    if (!blob.pinned)
+      while (index < saved.length && saved[index]!.created_at >= blob.modified_at) combined.push(saved[index++]!);
+    combined.push(blob);
+  }
+  return combined.concat(saved.slice(index));
+});
+const displayCount = computed(() =>
+  filter.value === 'bookmarks' ? shownBookmarks.value.length : total.value + shownBookmarks.value.length,
+);
 const chosenFiles = computed(() => shown.value.filter((blob) => chosen.value.has(blob.id)));
 const allChosen = computed(() => shown.value.length > 0 && shown.value.every((blob) => chosen.value.has(blob.id)));
 const allPinned = computed(() => chosenFiles.value.length > 0 && chosenFiles.value.every((blob) => blob.pinned));
@@ -639,7 +666,7 @@ async function actOnChosen(key: LibraryAction, targets = [...chosenFiles.value])
 const gridViewport = ref<HTMLElement>();
 const grid = useVirtualGrid(
   gridViewport,
-  computed(() => shown.value.length + childFolders.value.length),
+  computed(() => catalogItems.value.length + gridFolders.value.length),
   view,
 );
 useTouchRangeSelection(
@@ -649,11 +676,11 @@ useTouchRangeSelection(
   chosen,
   'data-blob-id',
 );
-const visibleFolders = computed(() => childFolders.value.slice(grid.start.value, grid.end.value));
+const visibleFolders = computed(() => gridFolders.value.slice(grid.start.value, grid.end.value));
 const visibleItems = computed(() =>
-  shown.value.slice(
-    Math.max(0, grid.start.value - childFolders.value.length),
-    Math.max(0, grid.end.value - childFolders.value.length),
+  catalogItems.value.slice(
+    Math.max(0, grid.start.value - gridFolders.value.length),
+    Math.max(0, grid.end.value - gridFolders.value.length),
   ),
 );
 watch(filter, (value) => {
@@ -876,8 +903,10 @@ watch(
         !selecting.value &&
         !batchBusy.value &&
         next.value === null
-      )
+      ) {
         void load(false, true);
+        void bookmarks.load();
+      }
     }, 15000);
     onCleanup(() => {
       disposed = true;
@@ -938,12 +967,9 @@ watch(
           :disabled="batchBusy"
           @update:model-value="selectFilter"
         />
-        <span
-          v-if="filter !== 'bookmarks' && !linkedFolder"
-          class="library-count"
-          :title="i18n.t('library.count', { count: total })"
-          >{{ total }}</span
-        >
+        <span v-if="!linkedFolder" class="library-count" :title="tr(`${displayCount} 项`, `${displayCount} items`)">{{
+          displayCount
+        }}</span>
       </span>
       <span
         v-else
@@ -1019,7 +1045,6 @@ watch(
         "
       />
     </template>
-    <LibraryBookmarks v-else-if="filter === 'bookmarks'" :session="session" />
     <template v-else>
       <nav
         v-if="supportsFolders && (folder || drag.dragging.value)"
@@ -1074,23 +1099,26 @@ watch(
         @dragover="!$event.defaultPrevented && drag.hover($event, folder)"
         @drop="!$event.defaultPrevented && drag.drop($event, folder)"
       >
-        <button
-          v-if="!folder && filter === 'all'"
-          class="btn ghost library-bookmarks-entry"
-          @click="filter = 'bookmarks'"
-        >
-          <Icon name="bookmark" />{{ tr('书签', 'Bookmarks') }}<Icon name="chevron-right" :size="14" />
-        </button>
         <p v-if="showAll" class="library-all-hint">
           {{ tr('全部文件 · 可将需要的文件加入展示库', 'All files · Add files you need to your Library') }}
         </p>
+        <div
+          v-if="bookmarks.error.value && !folder && (filter === 'all' || filter === 'bookmarks')"
+          class="library-empty"
+          role="alert"
+        >
+          <p>{{ bookmarks.error.value }}</p>
+          <button class="btn sm" @click="bookmarks.load()">{{ i18n.t('common.retry') }}</button>
+        </div>
         <div v-if="error" class="library-empty" role="alert">
           <p>{{ error }}</p>
           <button class="btn sm" @click="load()">{{ i18n.t('common.retry') }}</button>
         </div>
-        <p v-else-if="loading && !items.length" class="library-empty" role="status">{{ i18n.t('common.loading') }}</p>
-        <p v-else-if="!shown.length && !childFolders.length" class="library-empty">
-          {{ i18n.t(items.length ? 'library.noMatches' : 'library.empty') }}
+        <p v-else-if="(loading || bookmarks.loading.value) && !catalogItems.length" class="library-empty" role="status">
+          {{ i18n.t('common.loading') }}
+        </p>
+        <p v-else-if="!catalogItems.length && !gridFolders.length" class="library-empty">
+          {{ i18n.t(items.length || bookmarks.items.value.length ? 'library.noMatches' : 'library.empty') }}
         </p>
         <div class="library-grid" :style="grid.style.value">
           <Menu
@@ -1147,80 +1175,121 @@ watch(
               </Menu>
             </div>
           </Menu>
-          <Menu
-            v-for="blob in visibleItems"
-            :key="blob.id"
-            context
-            :items="menuItems(blob)"
-            :disabled="selecting || batchBusy || updating.has(blob.id)"
-            @select="act($event, blob)"
-          >
-            <div
-              class="library-card"
-              :class="{ 'library-hidden': blob.visible === false, chosen: chosen.has(blob.id) }"
+          <template v-for="blob in visibleItems" :key="blob.id">
+            <Menu
+              v-if="isBookmark(blob)"
+              context
+              :items="bookmarks.actions()"
+              :disabled="selecting || batchBusy || bookmarks.busy.value.has(blob.id)"
+              @select="bookmarks.action($event, blob)"
             >
-              <div v-if="blob.pinned || blob.visible === false" class="library-badges">
-                <span v-if="blob.pinned" :title="tr('已置顶', 'Pinned')"><Icon name="pin" :size="13" /></span>
-                <span v-if="blob.visible === false" :title="tr('未在库中展示', 'Hidden from Library')"
-                  ><Icon name="eye-off" :size="13"
-                /></span>
+              <div class="library-card library-bookmark">
+                <button
+                  type="button"
+                  class="library-item bookmark-open"
+                  :data-bookmark-id="blob.id"
+                  :aria-label="blob.name"
+                  :disabled="selecting || batchBusy || bookmarks.busy.value.has(blob.id)"
+                  @click="bookmarks.locate(blob)"
+                >
+                  <LibraryDocumentThumbnail v-if="view === 'icons'" :text="blob.text" bookmark />
+                  <Icon v-else class="library-file-icon" name="bookmark" :size="view === 'compact' ? 22 : 32" />
+                  <span class="library-filename" :title="blob.name">{{ blob.name }}</span>
+                  <span v-if="view === 'details'" class="library-file-details">{{ fmtDateTime(blob.created_at) }}</span>
+                  <span class="library-filesize">{{
+                    blob.block == null ? tr('消息书签', 'Message bookmark') : tr('片段书签', 'Excerpt bookmark')
+                  }}</span>
+                </button>
+                <Menu
+                  v-if="!selecting"
+                  :items="bookmarks.actions()"
+                  :disabled="batchBusy || bookmarks.busy.value.has(blob.id)"
+                  @select="bookmarks.action($event, blob)"
+                >
+                  <template #trigger
+                    ><button
+                      class="library-item-menu btn ghost icon-only"
+                      :aria-label="tr('书签操作', 'Bookmark actions')"
+                    >
+                      <Icon name="ellipsis-vertical" :size="16" /></button
+                  ></template>
+                </Menu>
               </div>
-              <button
-                type="button"
-                class="library-item"
-                :data-blob-id="blob.id"
-                :draggable="supportsFolders && !batchBusy"
-                :disabled="batchBusy"
-                :aria-pressed="selecting ? chosen.has(blob.id) : undefined"
-                :aria-label="filename(blob)"
-                :title="blob.local_path || undefined"
-                @mousedown="$event.shiftKey && $event.preventDefault()"
-                @dragstart="dragFile(blob, $event)"
-                @touchstart.passive="pressFile(blob, $event)"
-                @click="activateBlob(blob, $event)"
+            </Menu>
+            <Menu
+              v-else
+              context
+              :items="menuItems(blob)"
+              :disabled="selecting || batchBusy || updating.has(blob.id)"
+              @select="act($event, blob)"
+            >
+              <div
+                class="library-card"
+                :class="{ 'library-hidden': blob.visible === false, chosen: chosen.has(blob.id) }"
               >
-                <LibraryThumbnail v-if="view === 'icons'" :session="session" :blob="blob" />
-                <Icon
-                  v-else
-                  class="library-file-icon"
-                  :name="blobIcon(blobKind(blob))"
-                  :size="view === 'compact' ? 22 : 32"
-                />
-                <span v-if="selecting" class="library-check" aria-hidden="true"
-                  ><Icon v-if="chosen.has(blob.id)" name="check" :size="14"
-                /></span>
-                <span class="library-filename" :title="filename(blob)">{{ filename(blob) }}</span>
-                <span v-if="view === 'details'" class="library-file-details"
-                  >{{ blob.mime_type }} · {{ fmtDateTime(blob.modified_at) }}</span
+                <div v-if="blob.pinned || blob.visible === false" class="library-badges">
+                  <span v-if="blob.pinned" :title="tr('已置顶', 'Pinned')"><Icon name="pin" :size="13" /></span>
+                  <span v-if="blob.visible === false" :title="tr('未在库中展示', 'Hidden from Library')"
+                    ><Icon name="eye-off" :size="13"
+                  /></span>
+                </div>
+                <button
+                  type="button"
+                  class="library-item"
+                  :data-blob-id="blob.id"
+                  :draggable="supportsFolders && !batchBusy"
+                  :disabled="batchBusy"
+                  :aria-pressed="selecting ? chosen.has(blob.id) : undefined"
+                  :aria-label="filename(blob)"
+                  :title="blob.local_path || undefined"
+                  @mousedown="$event.shiftKey && $event.preventDefault()"
+                  @dragstart="dragFile(blob, $event)"
+                  @touchstart.passive="pressFile(blob, $event)"
+                  @click="activateBlob(blob, $event)"
                 >
-                <span class="library-filesize"
-                  ><Icon v-if="blob.linked" name="link" :size="12" />{{
-                    blob.available === false ? i18n.t('library.unavailable') : fmtBytes(blob.byte_count)
-                  }}</span
-                >
-              </button>
-              <Menu
-                v-if="!selecting"
-                :items="menuItems(blob)"
-                :disabled="batchBusy || updating.has(blob.id)"
-                :label="i18n.t('library.fileActions')"
-                @select="act($event, blob)"
-              >
-                <template #trigger>
-                  <button
-                    type="button"
-                    class="library-item-menu btn ghost icon-only"
-                    :aria-label="i18n.t('library.fileActions')"
+                  <LibraryThumbnail v-if="view === 'icons'" :session="session" :blob="blob" />
+                  <Icon
+                    v-else
+                    class="library-file-icon"
+                    :name="blobIcon(blobKind(blob))"
+                    :size="view === 'compact' ? 22 : 32"
+                  />
+                  <span v-if="selecting" class="library-check" aria-hidden="true"
+                    ><Icon v-if="chosen.has(blob.id)" name="check" :size="14"
+                  /></span>
+                  <span class="library-filename" :title="filename(blob)">{{ filename(blob) }}</span>
+                  <span v-if="view === 'details'" class="library-file-details"
+                    >{{ blob.mime_type }} · {{ fmtDateTime(blob.modified_at) }}</span
                   >
-                    <Icon name="ellipsis-vertical" :size="16" />
-                  </button>
-                </template>
-              </Menu>
-            </div>
-          </Menu>
+                  <span class="library-filesize"
+                    ><Icon v-if="blob.linked" name="link" :size="12" />{{
+                      blob.available === false ? i18n.t('library.unavailable') : fmtBytes(blob.byte_count)
+                    }}</span
+                  >
+                </button>
+                <Menu
+                  v-if="!selecting"
+                  :items="menuItems(blob)"
+                  :disabled="batchBusy || updating.has(blob.id)"
+                  :label="i18n.t('library.fileActions')"
+                  @select="act($event, blob)"
+                >
+                  <template #trigger>
+                    <button
+                      type="button"
+                      class="library-item-menu btn ghost icon-only"
+                      :aria-label="i18n.t('library.fileActions')"
+                    >
+                      <Icon name="ellipsis-vertical" :size="16" />
+                    </button>
+                  </template>
+                </Menu>
+              </div>
+            </Menu>
+          </template>
         </div>
         <button
-          v-if="next !== null"
+          v-if="next !== null && filter !== 'bookmarks'"
           type="button"
           class="btn library-more"
           :disabled="loading || batchBusy"
@@ -1311,6 +1380,13 @@ watch(
       </div>
     </template>
   </IslandSidebar>
+  <LibraryRenameDialog
+    :open="!!bookmarks.editing.value"
+    :name="bookmarks.editing.value?.name ?? ''"
+    :save="bookmarks.rename"
+    @close="bookmarks.editing.value = undefined"
+    @saved="bookmarks.load()"
+  />
   <LibraryRenameDialog
     :open="!!renameTarget"
     :name="renameTarget ? filename(renameTarget) : ''"
@@ -1453,16 +1529,6 @@ watch(
 }
 .library-path-picker .btn {
   flex: none;
-}
-.library-bookmarks-entry {
-  display: flex;
-  width: 100%;
-  justify-content: flex-start;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-.library-bookmarks-entry .icon:last-child {
-  margin-left: auto;
 }
 .library-title-controls {
   display: flex;

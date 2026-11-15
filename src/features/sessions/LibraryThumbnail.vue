@@ -4,6 +4,8 @@ import type { LibraryBlob } from '../../core/api/types.ts';
 import { blobUrl } from '../../core/api/endpoints.ts';
 import { previewCache } from '../../core/util/previewCache.ts';
 import { thumbnail, thumbnailKey } from '../../domain/media/thumbnail.ts';
+import { textThumbnail, textThumbnailKey } from '../../domain/media/textThumbnail.ts';
+import LibraryDocumentThumbnail from './LibraryDocumentThumbnail.vue';
 import BlobImage from '../../domain/media/BlobImage.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { blobIcon, blobKind } from './libraryFiles.ts';
@@ -12,7 +14,8 @@ const props = defineProps<{ session: string; blob: LibraryBlob }>();
 const kind = computed(() => blobKind(props.blob));
 const surface = ref<HTMLElement>(),
   visible = ref(false),
-  source = ref('');
+  source = ref(''),
+  text = ref('');
 let observer: IntersectionObserver | undefined;
 let objectUrl = '',
   currentKey = '';
@@ -48,16 +51,34 @@ watch(
   async (_, __, onCleanup) => {
     const controller = new AbortController();
     onCleanup(() => controller.abort());
-    const key = thumbnailKey(props.session, props.blob);
+    const key =
+      kind.value === 'text' ? textThumbnailKey(props.session, props.blob.id) : thumbnailKey(props.session, props.blob);
     if (currentKey !== key) {
       currentKey = key;
       display(undefined);
+      text.value = '';
     }
     if (props.blob.available === false) {
       display(undefined);
+      text.value = '';
       return;
     }
     const cached = previewCache.get(key);
+    if (kind.value === 'text') {
+      if (cached) {
+        const prefix = await cached.text();
+        if (controller.signal.aborted) return;
+        text.value = prefix;
+      }
+      if (!visible.value) return;
+      try {
+        const prefix = await textThumbnail(props.session, props.blob, controller.signal);
+        if (!controller.signal.aborted) text.value = prefix;
+      } catch {
+        // Unavailable or non-UTF-8 text retains its file icon or last good preview.
+      }
+      return;
+    }
     if (cached !== undefined) display(cached);
     if (!visible.value || !['audio', 'video', 'pdf'].includes(kind.value)) return;
     try {
@@ -72,9 +93,15 @@ watch(
 </script>
 
 <template>
-  <span ref="surface" class="library-thumbnail" :class="kind">
+  <span ref="surface" class="library-thumbnail" :class="[kind, { 'has-document': kind === 'text' && text }]">
+    <LibraryDocumentThumbnail
+      v-if="kind === 'text' && text"
+      :text="text"
+      :name="blob.name || blob.local_path || ''"
+      :mime="blob.mime_type"
+    />
     <BlobImage
-      v-if="kind === 'image' && blob.available !== false"
+      v-else-if="kind === 'image' && blob.available !== false"
       :src="blobUrl(`${session}/${blob.id}`)"
       :zoom="false"
       :preview-width="384"
@@ -113,6 +140,10 @@ video {
   height: 100%;
   object-fit: cover;
   pointer-events: none;
+}
+.library-thumbnail.has-document {
+  border: 0;
+  background: none;
 }
 .library-thumbnail.pdf img {
   object-fit: contain;

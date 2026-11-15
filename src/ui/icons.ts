@@ -4,14 +4,13 @@
 // strokes. Shapes fill the grid to about 2.5 units from its edge. Where the app has a concept of its
 // own - the service that holds sessions, model providers, MCP servers, reasoning, a run's steps,
 // queued messages - the icon draws that concept, not a stock pictogram. Conversation icons share
-// one bubble: a soft rectangle with its tail at the lower left. Brand logos are not here: they come
+// one bubble: a rounded outline with its tail at the lower left. Brand logos are not here: they come
 // from @lobehub/icons-static-svg (ProviderIcon).
 const SOFT = 'fill="currentColor" fill-opacity=".18"';
 const SOLID = 'fill="currentColor" stroke="none"';
 const dot = (x: number, y: number) => `M${x} ${y}h.01`;
-// The shared conversation bubble, 17 wide, its tail under the left third.
-const BUBBLE =
-  'M3 7.5A3.5 3.5 0 0 1 6.5 4h11A3.5 3.5 0 0 1 21 7.5v6a3.5 3.5 0 0 1-3.5 3.5H10.5L6 20.5V17h-.5A2.5 2.5 0 0 1 3 14.5Z';
+// The shared conversation bubble, with a continuous round body and a short open tail.
+const BUBBLE = 'M12 3a9 9 0 0 1 0 18H3l2.6-2.9A9 9 0 0 1 12 3Z';
 
 export const ICONS: Record<string, string> = {
   reply: `<path d="m9 10-5 5 5 5M4 15h10a6 6 0 0 0 0-12h-2"/>`,
@@ -163,11 +162,11 @@ export const ICONS: Record<string, string> = {
   // A model: a block of its own.
   model: `<path d="M12 3 20 7.5 12 12 4 7.5Z" ${SOFT}/><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9ZM4 7.5 12 12l8-4.5M12 12v9"/>`,
   // The model asked the user something.
-  question: `<path d="${BUBBLE}" ${SOFT}/><path d="M9.7 8.6a2.4 2.4 0 0 1 4.6.9c0 1.6-2.3 2.1-2.3 2.1${dot(12, 14.2)}"/>`,
+  question: `<path d="${BUBBLE}" ${SOFT}/><path d="M9.7 10.1a2.4 2.4 0 0 1 4.6.9c0 1.6-2.3 2.1-2.3 2.1${dot(12, 15.7)}"/>`,
   // A conversation with one session.
-  chat: `<path d="${BUBBLE}" ${SOFT}/><path d="${dot(8.5, 10.5)}${dot(12, 10.5)}${dot(15.5, 10.5)}"/>`,
+  chat: `<path d="${BUBBLE}" ${SOFT}/><path d="${dot(8.5, 12)}${dot(12, 12)}${dot(15.5, 12)}"/>`,
   // A new conversation.
-  'new-session': `<path d="${BUBBLE}" ${SOFT}/><path d="M12 7.2v6.6M8.7 10.5h6.6"/>`,
+  'new-session': `<path d="${BUBBLE}" ${SOFT}/><path d="M12 8.7v6.6M8.7 12h6.6"/>`,
   // Messages waiting their turn (the count is a badge beside it).
-  queue: `<path d="${BUBBLE}" ${SOFT}/><path d="M7.5 8.5h5M7.5 12.5h9"/>`,
+  queue: `<path d="${BUBBLE}" ${SOFT}/><path d="M7.5 10h5M7.5 14h9"/>`,
 };
