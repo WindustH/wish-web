@@ -15,7 +15,6 @@ import { copyText } from '../../ui/clipboard.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { toast } from '../../ui/toast.ts';
-import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
 import type { MenuItem } from '../../ui/components/menuTypes.ts';
 import CopyButton from '../../ui/components/CopyButton.vue';
@@ -39,13 +38,15 @@ const props = defineProps<{
 const emit = defineEmits<{ scroll: [top: number]; previewScroll: [top: number] }>();
 const active = usePageActivity();
 const mobile = useIsMobile();
-const localToolbar = usePreviewToolbar(() => props.toolbar);
+const separateToolbar = usePreviewToolbar(() => props.toolbar);
 const replies = inject(replyContextKey, undefined);
 const mode = defineModel<string>('mode', { default: 'source' });
 watch([() => props.session, () => props.blob], () => {
   mode.value = 'source';
 });
 const previewKind = computed(() => sourcePreviewKind(props.name, props.mime));
+// A plain text/code file only needs Copy; it fits in the heading without a second row.
+const localToolbar = computed(() => !props.toolbar || (!!previewKind.value && separateToolbar.value));
 const language = computed(() => codeLanguage(props.name, props.mime) ?? 'plaintext');
 const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const html = computed(() => sourceLines(highlightCode(props.text, language.value) || escape(props.text)));
@@ -202,15 +203,6 @@ watch(
           ]"
         />
         <div class="source-actions">
-          <button
-            v-if="mode === 'source'"
-            type="button"
-            class="btn ghost sm source-wrap-toggle"
-            :aria-pressed="prefs.sourceWrap.value"
-            @click="prefs.setSourceWrap(!prefs.sourceWrap.value)"
-          >
-            <Icon name="wrap-text" /><span>{{ tr('自动换行', 'Wrap lines') }}</span>
-          </button>
           <CopyButton v-if="mode === 'source'" :text="text" />
         </div>
       </div>
@@ -294,18 +286,17 @@ watch(
   gap: 8px;
   padding: 8px 12px;
 }
+@media (max-width: 899px) {
+  .source-toolbar-local {
+    padding: 2px 8px;
+    gap: 4px;
+  }
+}
 .source-actions {
   display: flex;
   align-items: center;
   gap: 4px;
   margin-left: auto;
-}
-.source-wrap-toggle {
-  white-space: nowrap;
-}
-.source-wrap-toggle[aria-pressed='true'] {
-  color: var(--accent);
-  background: var(--accent-soft);
 }
 .source-scroll,
 .source-markdown {

@@ -470,6 +470,9 @@ const previewActions = computed(() =>
   selected.value
     ? [
         { key: 'refresh', label: tr('刷新', 'Refresh'), icon: 'refresh-cw' },
+        ...(previewRef.value?.canWrap
+          ? [{ key: 'wrap', label: tr('自动换行', 'Wrap lines'), icon: 'wrap-text', checked: prefs.sourceWrap.value }]
+          : []),
         { key: 'download', label: i18n.t('library.download'), icon: 'download' },
         ...menuItems(selected.value).filter((item) => item.key !== 'select'),
       ]
@@ -505,6 +508,7 @@ function previewAction(key: string) {
   const blob = selected.value;
   if (!blob || batchBusy.value || previewBusy.value) return;
   if (key === 'refresh') previewRef.value?.refresh();
+  else if (key === 'wrap') prefs.setSourceWrap(!prefs.sourceWrap.value);
   else if (key === 'download') void downloadPreview(blob);
   else if (key === 'delete') deleteTargets.value = [blob];
   else void act(key, blob);

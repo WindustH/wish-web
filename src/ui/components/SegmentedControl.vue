@@ -92,6 +92,7 @@ const selected = computed(() =>
 }
 .segment-labelled {
   display: flex;
+  align-items: center;
   justify-content: center;
   gap: 6px;
 }

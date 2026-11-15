@@ -56,7 +56,7 @@ Select text inside any message, code block, or PDF page to quote it directly int
 
 In a text or source file preview, selecting text opens **Copy** and **Quote selection** beside the selection. On touch screens, long-press a word and drag the handles to adjust the excerpt. Quotes retain the original text and line numbers.
 
-Text previews wrap long lines to fit the sidebar by default. Toggle **Wrap lines** in the preview toolbar to use horizontal scrolling instead; Wish remembers this choice on your device. Wrapped lines keep their original line numbers, and copying or quoting does not insert extra line breaks.
+Text previews wrap long lines to fit the sidebar by default. Toggle **Wrap lines** in the file's `⋮` menu to use horizontal scrolling instead; Wish remembers this choice on your device. Wrapped lines keep their original line numbers, and copying or quoting does not insert extra line breaks.
 
 An open file checks for changes every five seconds while the sidebar and browser tab are visible, and reloads when its version changes. Text previews keep their reading position and source/rendered mode. Use **Refresh** in the file's `⋮` menu to reload immediately.
 
@@ -97,6 +97,8 @@ From the app menu:
 ## Mobile, PWA installation, and shortcuts
 
 Below 900 px width, Wish switches to a full-screen mobile layout integrated with your browser or Android Back gesture. Over HTTPS (or `localhost`), you can install Wish as a standalone app from **Settings → Interface → Install Wish**, enable background notifications for failures or `ask_user` prompts, and turn on **Keep screen awake while running**.
+
+Session panels open as compact bottom sheets. Pull the top handle upward (or tap it) to expand a panel to nearly the full visible height; pull it down to return to the smaller height. A further downward pull dismisses it. Scrolling, selecting text, and zooming inside the panel do not change its height.
 
 Default keyboard shortcuts (customizable in **Settings → Keyboard shortcuts**):
 

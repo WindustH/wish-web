@@ -91,6 +91,7 @@ function refresh() {
 defineExpose({
   refresh,
   loading,
+  canWrap: computed(() => kind.value === 'text' && sourceMode.value === 'source'),
   locate: (reference: import('../../core/replyReferences.ts').ReplyReference) => {
     focusReference.value = { ...reference };
   },

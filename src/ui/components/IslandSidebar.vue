@@ -3,8 +3,10 @@ import { DialogRoot, DialogContent, DialogOverlay, DialogTitle } from 'reka-ui';
 import { computed, onMounted, onBeforeUnmount, provide, ref, watch } from 'vue';
 import { sidebarResizingKey } from '../composables/useSidebarResize.ts';
 import { i18n } from '../../core/i18n/index.ts';
+import { tr } from '../../core/i18n/tr.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
 import { useSheetDrag } from '../composables/useSheetDrag.ts';
+import { useSheetExpansion } from '../composables/useSheetExpansion.ts';
 import Icon from './Icon.vue';
 
 const props = withDefaults(
@@ -16,6 +18,11 @@ const focus = useDialogFocus();
 const resizing = ref(false);
 provide(sidebarResizingKey, resizing);
 const heading = ref<HTMLElement>();
+const sheet = useSheetExpansion(
+  () => heading.value?.parentElement,
+  () => !!props.overlay && props.open,
+  () => emit('close'),
+);
 useSheetDrag(
   () => (props.overlay && props.open ? heading.value?.parentElement : null),
   () => !!props.overlay && props.open,
@@ -144,8 +151,18 @@ onBeforeUnmount(() => {
     <DialogContent
       :id="open ? 'session-sidebar' : undefined"
       class="island-sidebar"
-      :class="{ 'island-overlay': modal, 'island-drawer': drawer, 'island-sheet': overlay }"
-      :style="{ flexBasis: !modal ? `${width}px` : undefined, '--sidebar-width': `${width}px` }"
+      :class="{
+        'island-overlay': modal,
+        'island-drawer': drawer,
+        'island-sheet': overlay,
+        'island-sheet-expanded': overlay && sheet.expanded.value,
+        'island-sheet-sizing': sheet.dragging.value,
+      }"
+      :style="{
+        flexBasis: !modal ? `${width}px` : undefined,
+        '--sidebar-width': `${width}px`,
+        height: overlay && sheet.height.value !== undefined ? `${sheet.height.value}px` : undefined,
+      }"
       :aria-describedby="undefined"
       :disable-outside-pointer-events="false"
       @open-auto-focus="focus.opened"
@@ -153,6 +170,21 @@ onBeforeUnmount(() => {
       @interact-outside.prevent
       @escape-key-down.prevent="emit('back')"
     >
+      <button
+        v-if="overlay"
+        type="button"
+        class="island-sheet-handle"
+        data-sheet-drag-ignore
+        :aria-label="sheet.expanded.value ? tr('收回面板', 'Collapse panel') : tr('展开面板', 'Expand panel')"
+        :aria-expanded="sheet.expanded.value"
+        @pointerdown="sheet.start"
+        @pointermove="sheet.move"
+        @pointerup="sheet.end"
+        @pointercancel="sheet.cancel"
+        @lostpointercapture="sheet.cancel"
+        @click="sheet.toggle"
+        @keydown="sheet.keydown"
+      />
       <div
         v-if="!modal"
         class="island-resize-handle"
@@ -288,31 +320,55 @@ onBeforeUnmount(() => {
   position: fixed;
 }
 .island-sheet {
+  --sheet-max-height: calc(var(--viewport-height, 100dvh) - max(8px, env(safe-area-inset-top)));
+  --sheet-compact-height: min(calc(var(--viewport-height, 100dvh) * 0.92), var(--sheet-max-height));
   position: fixed;
   inset: auto 0 var(--viewport-bottom, 0px);
   width: 100%;
-  height: calc(var(--viewport-height, 100dvh) * 0.88);
-  max-height: calc(var(--viewport-height, 100dvh) - 16px);
+  height: var(--sheet-compact-height);
+  min-height: var(--sheet-compact-height);
+  max-height: var(--sheet-max-height);
   padding-bottom: env(safe-area-inset-bottom);
   box-sizing: border-box;
   border-top: 1px solid var(--line);
   border-radius: 18px 18px 0 0;
   background: var(--bg-overlay);
 }
+.island-sheet-expanded {
+  height: var(--sheet-max-height);
+}
+.island-sheet .island-heading {
+  height: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  gap: 4px;
+}
 html.keyboard-open .island-sheet {
   padding-bottom: 0;
 }
-.island-sheet::before {
-  content: '';
+.island-sheet-handle {
   flex: none;
-  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.island-sheet-handle::before {
+  content: '';
   width: 36px;
   height: 4px;
-  margin-top: 8px;
   border-radius: 2px;
   background: var(--line-strong);
 }
 @media (prefers-reduced-motion: no-preference) {
+  .island-sheet:not(.island-sheet-sizing) {
+    transition: height var(--dur-fast) var(--ease-out);
+  }
   .island-scrim-enter-active,
   .island-scrim-leave-active {
     transition: opacity var(--dur) var(--ease-out);
