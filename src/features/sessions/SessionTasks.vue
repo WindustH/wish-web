@@ -168,13 +168,8 @@ watch(
     @back="back"
   >
     <template #leading
-      ><button
-        v-if="saved.selected || mobile"
-        class="btn ghost icon-only"
-        :aria-label="saved.selected ? tr('返回', 'Back') : tr('关闭侧栏', 'Close sidebar')"
-        @click="back"
-      >
-        <Icon :name="saved.selected ? 'arrow-left' : 'chevron-right'" /></button
+      ><button v-if="saved.selected" class="btn ghost icon-only" :aria-label="tr('返回', 'Back')" @click="back">
+        <Icon name="arrow-left" /></button
     ></template>
     <template #actions
       ><button class="btn ghost icon-only" :disabled="loading" :aria-label="tr('刷新', 'Refresh')" @click="revision++">

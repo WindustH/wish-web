@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { usePageActivity } from '../composables/usePageActivity.ts';
-// Centered confirm/content modal on Reka primitives (title/description
+// Responsive confirm/content modal on Reka primitives (title/description
 // wired for a11y). While `dismissable` is false no path closes it — Esc,
 // overlay, close button are all suppressed; the owner resolves the busy work.
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from 'reka-ui';
@@ -17,13 +17,16 @@ import { useDialogLifecycle } from '../composables/useDialogLifecycle.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
 import { prefersReducedMotion } from '../motion/reducedMotion.ts';
 import { useSheetDrag } from '../composables/useSheetDrag.ts';
+import { useIsMobile } from '../composables/useMedia.ts';
 import { useBackLayer } from '../composables/useBackLayer.ts';
 import { touchButton } from '../touchButton.ts';
 const focus = useDialogFocus();
 const backTouch = touchButton();
 const pageActive = usePageActivity();
 
-// `sheet`: a card that slides up from the bottom of a phone's screen rather than one in its middle.
+// Ordinary mobile dialogs use a bottom sheet; routed pages and anchored popovers
+// retain their own presentation. Callers may explicitly override the sheet mode.
+const isMobile = useIsMobile();
 const props = withDefaults(
   defineProps<{
     open: boolean;
@@ -42,7 +45,7 @@ const props = withDefaults(
     anchor?: () => HTMLElement | null;
     ignoreOutside?: (target: Element) => boolean;
   }>(),
-  { dismissable: true, backLayer: true },
+  { dismissable: true, backLayer: true, sheet: undefined },
 );
 const emit = defineEmits<{ close: [] }>();
 const { mounted, contentOpen, requestClose, finishClose } = useDialogLifecycle({
@@ -66,6 +69,7 @@ useBackLayer(
 );
 // Anchored presentation is explicitly selected by the caller.
 const bubble = computed(() => !props.page && !!props.anchor);
+const bottomSheet = computed(() => !props.page && !bubble.value && (props.sheet ?? isMobile.value));
 // Compact cards drop the head and footer bands: the title joins the content
 // flow and the actions follow it. Page sheets keep their head (back button).
 const compactCard = computed(() => props.compact && !props.page);
@@ -129,10 +133,10 @@ const anchorStyle = ref<Record<string, string>>({});
 const mark = `m${Math.random().toString(36).slice(2, 9)}`;
 useSheetDrag(
   () =>
-    props.sheet && props.open && pageActive.value && shown.value
+    bottomSheet.value && props.open && pageActive.value && shown.value
       ? document.querySelector<HTMLElement>(`[data-modal="${mark}"]`)
       : null,
-  () => !!props.sheet && props.dismissable !== false,
+  () => bottomSheet.value && props.dismissable !== false,
   () => void requestClose(),
 );
 function positionBubble() {
@@ -201,10 +205,10 @@ defineExpose({ close: requestClose });
         @close-auto-focus="focus.closed"
         class="modal-card"
         :class="[
-          { wide, 'modal-page': page, 'modal-sheet': sheet, 'anchored-modal': bubble, compact: compactCard },
+          { wide, 'modal-page': page, 'modal-sheet': bottomSheet, 'anchored-modal': bubble, compact: compactCard },
           contentClass,
         ]"
-        :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }"
+        :style="{ ...(bubble ? anchorStyle : {}), ...(bottomSheet ? { width: '100%' } : {}), zIndex: layer + 1 }"
         :aria-describedby="undefined"
         @escape-key-down="
           (e: KeyboardEvent) => {

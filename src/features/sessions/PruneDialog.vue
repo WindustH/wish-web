@@ -139,8 +139,8 @@ async function prune() {
       <p class="prune-what">
         {{
           tr(
-            '清理当前上下文已经不再使用的消息和运行记录，以及只被它们引用的附件、图片和命令输出。上下文里的内容都会保留，对话可以照常继续。',
-            'Clears the messages and run events the current context no longer uses, with the attachments, images and command output only they refer to. Everything in the context stays, so conversations carry on as before.',
+            '清理当前上下文已经不再使用的消息和运行记录，以及只被它们引用的隐藏附件、图片和命令输出。上下文里的内容和库中可见的文件都会保留，对话可以照常继续。',
+            'Clears messages and run events no longer used by the current context, with hidden attachments, images and command output only they refer to. Current context and visible Library files are kept.',
           )
         }}
       </p>

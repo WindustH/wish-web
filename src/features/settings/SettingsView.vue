@@ -242,9 +242,7 @@ onActivated(() => {
                   <span class="settings-section-icon"><Icon :name="item.icon" /></span>
                   <span class="settings-section-text"
                     >{{ item.label
-                    }}<small v-if="isMobile || searchQuery.trim()" class="category-description">{{
-                      searchQuery.trim() ? item.searchHint : item.summary
-                    }}</small></span
+                    }}<small v-if="searchQuery.trim()" class="category-description">{{ item.searchHint }}</small></span
                   >
                   <Icon v-if="isMobile" name="chevron-right" class="section-chevron" />
                 </button>
@@ -274,7 +272,6 @@ onActivated(() => {
               </button>
               <div class="settings-heading-text">
                 <h2 class="page-bar-title">{{ current?.label }}</h2>
-                <p v-if="!isMobile">{{ current?.description }}</p>
               </div>
               <DraftActions v-if="isMobile" />
               <button

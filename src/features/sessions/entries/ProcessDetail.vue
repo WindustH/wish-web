@@ -80,10 +80,10 @@ const fullText = computed(() => {
   gap: 10px;
   min-width: 0;
 }
-.modal-card.process-detail:not(.modal-page) {
+.modal-card.process-detail:not(.modal-page):not(.modal-sheet) {
   width: min(760px, calc(100vw - 40px));
 }
-.modal-card.process-detail-visual:not(.modal-page) {
+.modal-card.process-detail-visual:not(.modal-page):not(.modal-sheet) {
   width: min(960px, calc(100vw - 40px));
 }
 .process-detail .modal-body {
@@ -268,9 +268,6 @@ const fullText = computed(() => {
   overflow-wrap: anywhere;
 }
 @media (max-width: 599px) {
-  .modal-card.process-detail {
-    max-height: 84dvh;
-  }
   .process-detail-heading {
     gap: 6px;
   }

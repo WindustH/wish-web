@@ -118,18 +118,15 @@ function browserLabel(id: BrowserShortcut) {
             )
           }}
         </p>
-        <p>
-          {{
-            tr(
-              '消息输入框中的 Tab 保留缩进；其他输入控件、弹窗和菜单保留焦点切换。',
-              'Tab keeps indentation in the message editor and focus navigation in dialogs and menus.',
-            )
-          }}
-        </p>
       </header>
       <div class="set-card">
-        <div v-for="command in commands" :key="command.id" class="shortcut-row" :data-shortcut="command.id">
-          <div class="shortcut-name">
+        <div
+          v-for="command in commands"
+          :key="command.id"
+          class="set-row inline shortcut-row"
+          :data-shortcut="command.id"
+        >
+          <div class="set-label shortcut-name">
             <span :id="`shortcut-${command.id}`">{{ command.label }}</span>
             <small v-if="command.hint">{{ command.hint }}</small>
           </div>
@@ -183,8 +180,8 @@ function browserLabel(id: BrowserShortcut) {
         <h3>{{ tr('消息输入（桌面端）', 'Message input (desktop)') }}</h3>
       </header>
       <div class="set-card">
-        <div class="shortcut-row">
-          <div class="shortcut-name">
+        <div class="set-row inline shortcut-row">
+          <div class="set-label shortcut-name">
             <label for="send-on-enter">{{ tr('按 Enter 发送消息', 'Send with Enter') }}</label>
             <small>{{
               prefs.sendOnEnter.value
@@ -215,8 +212,8 @@ function browserLabel(id: BrowserShortcut) {
         </p>
       </header>
       <div class="set-card">
-        <div v-for="command in browserCommands" :key="command.id" class="shortcut-row">
-          <div class="shortcut-name">
+        <div v-for="command in browserCommands" :key="command.id" class="set-row inline shortcut-row">
+          <div class="set-label shortcut-name">
             <label :for="`browser-${command.id}`">{{ command.label }}</label
             ><small>{{ browserLabel(command.id) }}</small>
           </div>
@@ -241,24 +238,13 @@ function browserLabel(id: BrowserShortcut) {
   gap: 12px;
 }
 .shortcut-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
-.shortcut-row + .shortcut-row {
-  border-top: 1px solid var(--line);
-}
-.shortcut-name {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+.shortcut-name label {
+  font: 500 13.5px/1.45 var(--font);
 }
 .shortcut-name small {
-  color: var(--fg-muted);
-  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 .shortcut-actions {
   display: flex;
@@ -279,12 +265,24 @@ function browserLabel(id: BrowserShortcut) {
   color: var(--danger);
   margin-top: 12px;
 }
-@media (max-width: 599px) {
-  .shortcut-row {
-    flex-wrap: wrap;
+@media (max-width: 899px) {
+  .shortcut-binding {
+    min-width: 0;
+    padding-inline: 10px;
+    max-width: 140px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+  }
+  .shortcut-heading .btn {
+    padding-inline: 4px;
+    font-size: 12px;
   }
   .shortcut-actions {
-    margin-left: auto;
+    gap: 0;
+  }
+  .shortcut-name label {
+    font-size: 13.5px;
   }
 }
 </style>

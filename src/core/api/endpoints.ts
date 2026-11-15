@@ -448,6 +448,12 @@ export const deleteLibraryFolder = (session: string, folder: string, opts?: Endp
   del(`${path(session)}/library/folders/${encodeURIComponent(folder)}`, opts);
 export const moveLibraryItems = (session: string, ids: string[], folder: string | null, opts?: EndpointOptions) =>
   post(`${path(session)}/library/move`, { ids, folder }, opts);
+export const cleanupLibrary = (
+  session: string,
+  body: { missing_links: boolean; unused_hidden: boolean; dry_run: boolean; ids?: string[] },
+  opts?: EndpointOptions,
+): Promise<import('./types.ts').LibraryCleanup> =>
+  post(`${path(session)}/library/cleanup`, body, { timeoutMs: 120_000, ...opts });
 export const blobUrl = (reference: string) => `${getBaseUrl()}${blobPath(reference)}`;
 export const deleteBlob = (reference: string, opts?: EndpointOptions) => del(blobPath(reference), opts);
 

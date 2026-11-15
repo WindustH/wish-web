@@ -66,19 +66,32 @@ export function useSheetDrag(element: () => HTMLElement | null | undefined, enab
       animate(offset, 0, SPRING);
     }
   }
+  function cancelPull() {
+    start = undefined;
+    pulling = false;
+    animate(offset, 0, SPRING);
+  }
   watch(
     element,
     (el, _, cleanup) => {
       if (!el) return;
+      offset.jump(0);
+      start = undefined;
+      pulling = false;
+      el.style.translate = '';
+      el.style.removeProperty('--sheet-drag');
       el.addEventListener('touchstart', onStart, { passive: true });
       el.addEventListener('touchmove', onMove, { passive: false });
       el.addEventListener('touchend', onEnd);
-      el.addEventListener('touchcancel', onEnd);
+      el.addEventListener('touchcancel', cancelPull);
       cleanup(() => {
+        offset.stop();
+        start = undefined;
+        pulling = false;
         el.removeEventListener('touchstart', onStart);
         el.removeEventListener('touchmove', onMove);
         el.removeEventListener('touchend', onEnd);
-        el.removeEventListener('touchcancel', onEnd);
+        el.removeEventListener('touchcancel', cancelPull);
       });
     },
     { flush: 'post' },

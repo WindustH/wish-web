@@ -4,6 +4,8 @@ import { computed, onMounted, onBeforeUnmount, provide, ref, watch } from 'vue';
 import { sidebarResizingKey } from '../composables/useSidebarResize.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
+import { useSheetDrag } from '../composables/useSheetDrag.ts';
+import Icon from './Icon.vue';
 
 const props = withDefaults(
   defineProps<{ title: string; overlay?: boolean; open: boolean; retainContent?: boolean }>(),
@@ -14,6 +16,11 @@ const focus = useDialogFocus();
 const resizing = ref(false);
 provide(sidebarResizingKey, resizing);
 const heading = ref<HTMLElement>();
+useSheetDrag(
+  () => (props.overlay && props.open ? heading.value?.parentElement : null),
+  () => !!props.overlay && props.open,
+  () => emit('close'),
+);
 // A nested touch picker can retarget its compatibility click to this scrim.
 let pressTarget: EventTarget | null = null;
 function rememberPress(event: PointerEvent) {
@@ -125,11 +132,16 @@ onBeforeUnmount(() => {
     :unmount-on-hide="retainContent === false"
     @update:open="!$event && emit('close')"
   >
-    <DialogOverlay v-if="modal" class="island-scrim" @click="closeFromScrim" />
+    <DialogOverlay
+      v-if="modal"
+      class="island-scrim"
+      :class="{ 'island-sheet-scrim': overlay }"
+      @click="closeFromScrim"
+    />
     <DialogContent
       :id="open ? 'session-sidebar' : undefined"
       class="island-sidebar"
-      :class="{ 'island-overlay': modal, 'island-drawer': drawer }"
+      :class="{ 'island-overlay': modal, 'island-drawer': drawer, 'island-sheet': overlay }"
       :style="{ flexBasis: !modal ? `${width}px` : undefined, '--sidebar-width': `${width}px` }"
       :aria-describedby="undefined"
       :disable-outside-pointer-events="false"
@@ -161,7 +173,18 @@ onBeforeUnmount(() => {
           ><slot name="title">{{ title }}</slot></DialogTitle
         >
         <slot name="toolbar" />
-        <div class="island-actions"><slot name="actions" /></div>
+        <div class="island-actions">
+          <slot name="actions" />
+          <button
+            v-if="overlay"
+            type="button"
+            class="btn ghost icon-only island-close"
+            :aria-label="i18n.t('common.close')"
+            @click="emit('close')"
+          >
+            <Icon name="x" />
+          </button>
+        </div>
       </header>
       <div class="island-body"><slot /></div>
       <slot name="footer" />
@@ -218,8 +241,10 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
-  padding: 4px 8px 4px 12px;
+  height: var(--h-topbar, 52px);
+  min-height: var(--h-topbar, 52px);
+  box-sizing: border-box;
+  padding: 4px 12px;
 }
 .island-title {
   flex: 1;
@@ -256,6 +281,34 @@ onBeforeUnmount(() => {
   width: min(var(--sidebar-width), 100%);
   box-shadow: -1px 0 var(--line);
 }
+.island-sheet-scrim {
+  position: fixed;
+}
+.island-sheet {
+  position: fixed;
+  inset: auto 0 var(--viewport-bottom, 0px);
+  width: 100%;
+  height: calc(var(--viewport-height, 100dvh) * 0.88);
+  max-height: calc(var(--viewport-height, 100dvh) - 16px);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: border-box;
+  border-top: 1px solid var(--line);
+  border-radius: 18px 18px 0 0;
+  background: var(--bg-overlay);
+}
+html.keyboard-open .island-sheet {
+  padding-bottom: 0;
+}
+.island-sheet::before {
+  content: '';
+  flex: none;
+  align-self: center;
+  width: 36px;
+  height: 4px;
+  margin-top: 8px;
+  border-radius: 2px;
+  background: var(--line-strong);
+}
 @media (prefers-reduced-motion: no-preference) {
   .island-sidebar[data-state='open'] {
     animation: island-in var(--dur) var(--ease-out);
@@ -280,6 +333,12 @@ onBeforeUnmount(() => {
   }
   .island-overlay[data-state='closed'] {
     animation-name: island-overlay-out;
+  }
+  .island-sheet[data-state='open'] {
+    animation: sheet-in var(--dur-slow) var(--ease-out);
+  }
+  .island-sheet[data-state='closed'] {
+    animation: sheet-out 180ms ease-in both;
   }
   .island-scrim[data-state='closed'] {
     animation: island-scrim-out var(--dur) var(--ease-out) both;

@@ -24,8 +24,7 @@ const modes = computed(() => [
   <div class="set-card">
     <label class="set-row"
       ><span class="set-label"
-        ><span>{{ tr('代理模式', 'Proxy mode') }}</span
-        ><small>{{ tr('各服务请求如何连接网络', 'How service requests reach the network') }}</small></span
+        ><span>{{ tr('代理模式', 'Proxy mode') }}</span></span
       ><SelectField mobile-page v-model="value.mode" :options="modes"
     /></label>
     <div v-if="value.mode === 'environment'" class="set-row stacked proxy-environment">

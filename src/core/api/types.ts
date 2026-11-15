@@ -147,6 +147,13 @@ export interface BlobPage {
   total: number;
   folders?: LibraryFolder[];
 }
+export interface LibraryCleanup {
+  missing_links: number;
+  unused_hidden: number;
+  bytes: number;
+  protected: number;
+  ids: string[];
+}
 export interface LibraryFolder {
   id: string;
   name: string;

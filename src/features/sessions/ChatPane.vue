@@ -704,11 +704,16 @@ watch(
 .chat-workspace:not(.sidebar-open) .chatbar {
   padding-right: 56px;
 }
-.chat-workspace :deep(.island-heading) {
-  height: var(--h-topbar);
-  min-height: var(--h-topbar);
+.chat-workspace :deep(.island-sidebar:not(.island-sheet) .island-heading) {
   padding-right: 56px;
-  box-sizing: border-box;
+}
+@media (max-width: 899px) {
+  .chat-workspace.sidebar-open :deep([data-sidebar-toggle]) {
+    visibility: hidden;
+  }
+  .chat-workspace .chatbar {
+    padding-right: 56px;
+  }
 }
 .chat-workspace-body {
   position: relative;

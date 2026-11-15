@@ -17,9 +17,7 @@ const options = computed(() =>
   <nav v-if="pages" class="extension-categories extension-pages" :aria-label="i18n.t('extension.categories')">
     <button v-for="item in categories" :key="item.id" type="button" @click="emit('update:modelValue', item.id)">
       <Icon :name="item.icon" />
-      <span class="extension-category-text"
-        >{{ item.label }}<small>{{ item.summary }}</small></span
-      >
+      <span class="extension-category-text">{{ item.label }}</span>
       <Icon name="chevron-right" class="section-chevron" />
     </button>
   </nav>
@@ -49,7 +47,7 @@ const options = computed(() =>
   font: inherit;
   cursor: pointer;
   text-align: start;
-  min-height: 66px;
+  min-height: 54px;
   padding: 12px 14px;
   gap: 14px;
   border: 0;
@@ -75,14 +73,6 @@ const options = computed(() =>
 .extension-category-text {
   flex: 1;
   min-width: 0;
-}
-.extension-category-text small {
-  display: block;
-  margin-top: 2px;
-  color: var(--fg-subtle);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.5;
 }
 .extension-pages .section-chevron {
   width: 16px;

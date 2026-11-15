@@ -73,7 +73,7 @@ function add() {
         :name="tr('新会话默认启用', 'On for new sessions')"
         :hint="
           config.defaults.tools.shell
-            ? tr('每个会话也可以在会话设置里单独开关', 'Each session can switch it in its own settings')
+            ? ''
             : tr(
                 '目前需要 Shell，而新会话默认不开启 Shell',
                 'Needs the shell for now, which new sessions start without',

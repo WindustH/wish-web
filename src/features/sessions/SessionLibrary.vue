@@ -39,6 +39,7 @@ import Icon from '../../ui/components/Icon.vue';
 import SessionBlobPreview from './SessionBlobPreview.vue';
 import { attachmentNames, blobKind, blobIcon, blobName, type BlobKind } from './libraryFiles.ts';
 import LibraryFolderDialog from './LibraryFolderDialog.vue';
+import LibraryCleanupDialog from './LibraryCleanupDialog.vue';
 import { folderTrail, type LibraryFolderAction } from './libraryFolders.ts';
 import { useListDrag } from './useListDrag.ts';
 import { useTouchRangeSelection } from './useTouchRangeSelection.ts';
@@ -94,6 +95,7 @@ const folder = computed(() => saved.value.folder || null);
 const folders = ref<LibraryFolder[]>([]);
 const supportsFolders = ref<boolean>();
 const folderAction = ref<LibraryFolderAction>();
+const cleanupOpen = ref(false);
 const trail = computed(() => folderTrail(folders.value, folder.value));
 const childFolders = computed(() =>
   folders.value.filter((item) => item.parent === folder.value).sort((a, b) => a.name.localeCompare(b.name)),
@@ -189,6 +191,7 @@ watch(active, (visible) => {
     cancelOperations();
     drag.cancel();
     folderAction.value = undefined;
+    cleanupOpen.value = false;
     linkOpen.value = false;
     deleteTargets.value = [];
     stopSelecting();
@@ -328,6 +331,12 @@ const libraryActions = computed<MenuItem[]>(() => [
           disabled: loading.value,
           separator: true,
         },
+        {
+          key: 'cleanup',
+          label: tr('清理文件库…', 'Clean up Library…'),
+          icon: 'eraser',
+          disabled: uploading.value || linking.value,
+        },
       ]),
   { key: 'icons', label: tr('图标视图', 'Icons'), icon: 'grid', checked: view.value === 'icons', separator: true },
   { key: 'compact', label: tr('紧凑列表', 'Compact list'), icon: 'list', checked: view.value === 'compact' },
@@ -343,6 +352,7 @@ function libraryAction(key: string) {
   } else if (key === 'upload') void upload();
   else if (key === 'refresh') void load();
   else if (key === 'new-folder') folderAction.value = { kind: 'create' };
+  else if (key === 'cleanup') cleanupOpen.value = true;
   else if (['icons', 'compact', 'details'].includes(key)) viewState.value.mode = key;
 }
 const menuItems = (blob: LibraryBlob) => [
@@ -362,6 +372,15 @@ const menuItems = (blob: LibraryBlob) => [
   },
   { key: 'delete', label: tr('删除文件', 'Delete file'), icon: 'trash-2', danger: true, separator: true },
 ];
+const previewActions = computed(() =>
+  selected.value ? menuItems(selected.value).filter((item) => item.key !== 'select') : [],
+);
+function previewAction(key: string) {
+  const blob = selected.value;
+  if (!blob || batchBusy.value || updating.value.has(blob.id)) return;
+  if (key === 'delete') deleteTargets.value = [blob];
+  else void act(key, blob);
+}
 type LibraryAction = 'pin' | 'unpin' | 'show' | 'hide' | 'delete';
 async function changeBlob(key: LibraryAction, blob: LibraryBlob, owner: string, signal?: AbortSignal) {
   if (key === 'delete') {
@@ -664,6 +683,7 @@ watch(
     if (!active.value) return;
     drag.cancel();
     folderAction.value = undefined;
+    cleanupOpen.value = false;
     if (ownerChanged) {
       folders.value = [];
       uploadedNames.value.clear();
@@ -766,13 +786,8 @@ watch(
     @back="back"
   >
     <template #leading>
-      <button
-        v-if="selected || mobile || folder"
-        class="btn ghost icon-only"
-        :aria-label="selected || folder ? i18n.t('library.back') : tr('关闭侧栏', 'Close sidebar')"
-        @click="back"
-      >
-        <Icon :name="selected || folder ? 'arrow-left' : 'chevron-right'" />
+      <button v-if="selected || folder" class="btn ghost icon-only" :aria-label="i18n.t('library.back')" @click="back">
+        <Icon name="arrow-left" />
       </button>
     </template>
     <template #title>
@@ -832,6 +847,28 @@ watch(
         @click="downloadApiFile($event, blobUrl(`${session}/${selected.id}`), filename(selected))"
         ><Icon name="download"
       /></a>
+      <Menu
+        v-if="selected"
+        :items="previewActions"
+        :disabled="batchBusy || updating.has(selected.id)"
+        content-class="library-preview-menu"
+        @select="previewAction"
+      >
+        <template #trigger>
+          <button
+            type="button"
+            class="btn ghost icon-only library-preview-menu-trigger"
+            :aria-label="tr('文件操作', 'File actions')"
+            :title="tr('文件操作', 'File actions')"
+            :aria-busy="updating.has(selected.id)"
+          >
+            <Icon
+              :name="updating.has(selected.id) ? 'loader-circle' : 'ellipsis-vertical'"
+              :class="{ spin: updating.has(selected.id) }"
+            />
+          </button>
+        </template>
+      </Menu>
     </template>
     <template v-if="selected">
       <SessionBlobPreview
@@ -1122,6 +1159,7 @@ watch(
     @close="folderAction = undefined"
     @changed="folderChanged"
   />
+  <LibraryCleanupDialog :session="session" :open="cleanupOpen" @close="cleanupOpen = false" @cleaned="folderChanged" />
   <Teleport to="body">
     <div
       v-if="drag.ghost.value"
@@ -1253,7 +1291,7 @@ watch(
   width: auto;
   max-width: 100%;
   min-width: 0;
-  padding: 4px 6px;
+  padding: 4px 0;
   min-height: 32px;
   gap: 8px;
   border: 0;

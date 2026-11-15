@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, provide, ref, watch } from 'vue';
 import IslandSidebar from '../../ui/components/IslandSidebar.vue';
-import Icon from '../../ui/components/Icon.vue';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
 import { pageActivityKey } from '../../ui/composables/usePageActivity.ts';
-import { tr } from '../../core/i18n/tr.ts';
 import Modal from '../../ui/components/Modal.vue';
 import { sessionPanelCloseKey, sessionPanelElementsKey } from './sessionPanel.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
@@ -61,10 +59,6 @@ defineExpose({ close });
     @close="close"
     @back="close"
   >
-    <template #leading
-      ><button class="btn ghost icon-only" :aria-label="tr('关闭侧栏', 'Close sidebar')" @click="close">
-        <Icon name="chevron-right" /></button
-    ></template>
     <template v-if="$slots.actions" #actions><slot name="actions" /></template>
     <div class="session-sidebar-content" :class="contentClass"><slot /></div>
     <template v-if="$slots.footer" #footer
