@@ -204,7 +204,7 @@ const requestedStep = computed(() => {
 :global(.file-changes-dialog.compact .modal-body) {
   padding: 12px 16px 16px;
 }
-:global(.modal-card.file-changes-dialog:not(.modal-sheet)) {
+:global(.modal-card.file-changes-dialog:not(.modal-page):not(.modal-sheet)) {
   width: min(960px, calc(100vw - 32px));
 }
 .file-changes-heading > .icon {

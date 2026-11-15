@@ -54,7 +54,7 @@ watch(
 </template>
 
 <style>
-.modal-card.account-window:not(.modal-page) {
+.modal-card.account-window:not(.modal-page):not(.modal-sheet) {
   width: min(92vw, 34rem);
 }
 .modal-card.account-window.compact .modal-body {

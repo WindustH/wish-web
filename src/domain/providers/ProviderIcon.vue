@@ -127,7 +127,7 @@ const maskImage = computed(() => `url("${source.value}")`);
 </script>
 
 <template>
-  <span v-if="source" class="provider-icon" :style="{ maskImage }" aria-hidden="true" />
+  <span v-if="source" class="provider-icon" :style="{ maskImage, WebkitMaskImage: maskImage }" aria-hidden="true" />
   <Icon :name="fallback ?? 'providers'" v-else class="provider-icon-fallback" :size="20" aria-hidden="true" />
 </template>
 
@@ -141,8 +141,11 @@ const maskImage = computed(() => `url("${source.value}")`);
 }
 .provider-icon {
   background: currentColor;
+  -webkit-mask-position: center;
   mask-position: center;
+  -webkit-mask-size: contain;
   mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
 }
 </style>

@@ -62,7 +62,7 @@ const title = computed(() =>
   </Modal>
 </template>
 <style scoped>
-:global(.modal-card.peer-message-window:not(.modal-page)) {
+:global(.modal-card.peer-message-window:not(.modal-page):not(.modal-sheet)) {
   width: min(94vw, 42.5rem);
 }
 :global(.peer-message-window.compact .modal-body) {

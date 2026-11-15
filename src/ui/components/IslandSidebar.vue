@@ -127,17 +127,18 @@ onBeforeUnmount(() => {
 
 <template>
   <DialogRoot
-    :modal="modal"
+    :modal="!!overlay"
     :open="open"
     :unmount-on-hide="retainContent === false"
     @update:open="!$event && emit('close')"
   >
     <DialogOverlay
-      v-if="modal"
+      v-if="overlay"
       class="island-scrim"
       :class="{ 'island-sheet-scrim': overlay }"
       @click="closeFromScrim"
     />
+    <div v-else-if="drawer && open" class="island-scrim" aria-hidden="true" @click="closeFromScrim" />
     <DialogContent
       :id="open ? 'session-sidebar' : undefined"
       class="island-sidebar"

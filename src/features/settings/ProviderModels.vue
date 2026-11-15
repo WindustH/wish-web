@@ -659,7 +659,7 @@ const choices = computed(() =>
   margin: 0 0 8px;
   font-size: 12px;
 }
-:global(.modal-card.catalog-picker) {
+:global(.modal-card.catalog-picker:not(.modal-page):not(.modal-sheet)) {
   width: min(520px, calc(100vw - 24px));
   max-height: min(75dvh, 560px);
 }

@@ -17,39 +17,53 @@ export function useSheetDrag(element: () => HTMLElement | null | undefined, enab
     const el = element();
     if (el) el.style.translate = value > 0 ? `0 ${value}px` : '';
   });
-  let start: number | undefined;
+  let start: { x: number; y: number; offset: number } | undefined;
   let pulling = false;
   function onStart(event: TouchEvent) {
     const touch = event.touches[0];
+    if (pulling) cancelPull();
     start = undefined;
-    if (!enabled() || event.touches.length !== 1 || !touch) return;
+    if (!enabled() || event.defaultPrevented || event.touches.length !== 1 || !touch) return;
     // On something scrolled down - the body, or a long block within it - a pull down scrolls it back.
     for (
       let node = event.target instanceof Element ? event.target : null;
       node && node !== event.currentTarget;
       node = node.parentElement
     ) {
-      if (node.scrollTop > 0) return;
+      if (
+        node.scrollTop > 0 ||
+        node.matches('[data-sheet-drag-ignore], [draggable="true"], input, textarea, select, [contenteditable="true"]')
+      )
+        return;
+      const style = getComputedStyle(node);
+      // Image panning, timeline handles and horizontally scrollable code own their gesture.
+      if (style.touchAction === 'none' || (node.scrollWidth > node.clientWidth && /auto|scroll/.test(style.overflowX)))
+        return;
     }
     offset.stop();
-    start = touch.clientY - offset.get();
+    start = { x: touch.clientX, y: touch.clientY, offset: offset.get() };
     pulling = false;
   }
   function onMove(event: TouchEvent) {
     const touch = event.touches[0];
     if (start === undefined || !touch) return;
-    const moved = touch.clientY - start;
+    if (!enabled() || event.touches.length !== 1 || event.defaultPrevented || !event.cancelable) {
+      cancelPull();
+      return;
+    }
+    const dx = Math.abs(touch.clientX - start.x);
+    const dy = touch.clientY - start.y;
     if (!pulling) {
       // Pushed up, the body scrolls; the pull starts only downwards.
-      if (moved < -4) {
+      if (dy < -4 || (dx >= 10 && dx >= Math.abs(dy))) {
         start = undefined;
         return;
       }
-      if (moved < 4) return;
+      if (dy < 10 || dy < dx * 1.25) return;
       pulling = true;
     }
     event.preventDefault();
-    offset.set(Math.max(0, moved));
+    offset.set(Math.max(0, dy + start.offset));
   }
   function onEnd() {
     if (start === undefined) return;

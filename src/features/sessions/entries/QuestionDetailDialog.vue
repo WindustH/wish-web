@@ -61,7 +61,7 @@ defineEmits<{ close: [] }>();
   </Modal>
 </template>
 <style scoped>
-:global(.modal-card.question-detail-window) {
+:global(.modal-card.question-detail-window:not(.modal-page):not(.modal-sheet)) {
   width: min(680px, calc(100vw - 32px));
 }
 :global(.question-detail-window.compact .modal-body) {

@@ -511,7 +511,7 @@ async function act(kind: 'compact' | 'clear') {
 </template>
 
 <style>
-.modal-card.session-settings-window:not(.modal-page) {
+.modal-card.session-settings-window:not(.modal-page):not(.modal-sheet) {
   width: min(92vw, 30rem);
 }
 /* Mobile palette overrides must not replace the desktop settings rules. */

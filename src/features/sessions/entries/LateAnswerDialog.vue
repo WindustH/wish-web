@@ -32,7 +32,7 @@ const emit = defineEmits<{ close: [] }>();
   </Modal>
 </template>
 <style>
-.modal-card.late-answer-detail:not(.modal-page) {
+.modal-card.late-answer-detail:not(.modal-page):not(.modal-sheet) {
   width: min(92vw, 30rem);
 }
 .late-answer-intro {

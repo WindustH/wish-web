@@ -59,28 +59,29 @@ const stopTextSize = watch(
 const stopStallLog = installScrollStallLog();
 const stopActivityRecorder = installActivityRecorder(router);
 
-document.addEventListener(
-  'contextmenu',
-  (event) => {
-    if (!(
-      event.target instanceof Element &&
-      event.target.closest(
-        '[data-context-menu], input, textarea, select, [contenteditable], pre, .markdown, .error-dialog-message',
-      )
-    ))
-      event.preventDefault();
-  },
-  true,
-);
+function onContextMenu(event: MouseEvent) {
+  if (!(
+    event.target instanceof Element &&
+    event.target.closest(
+      '[data-context-menu], input, textarea, select, [contenteditable], pre, .markdown, .error-dialog-message',
+    )
+  ))
+    event.preventDefault();
+}
+document.addEventListener('contextmenu', onContextMenu, true);
+const stopSystemListeners: Array<() => void> = [];
 
 // theme: system watch + apply resolved + meta theme-color sync
 const mq = matchMedia('(prefers-color-scheme: dark)');
 theme.init({
   storageAdapter: tryPlatform('storage'),
-  watchSystem: (cb: () => void) => mq.addEventListener('change', cb),
+  watchSystem: (cb: () => void) => {
+    mq.addEventListener('change', cb);
+    stopSystemListeners.push(() => mq.removeEventListener('change', cb));
+  },
   readSystem: () => (mq.matches ? 'dark' : 'light'),
 });
-watch(
+const stopTheme = watch(
   theme.resolved,
   (r) => {
     document.documentElement.dataset.theme = r;
@@ -94,9 +95,12 @@ watch(
 i18n.init({
   storageAdapter: tryPlatform('storage'),
   readSystem: () => (navigator.languages?.length ? navigator.languages : [navigator.language].filter(Boolean)),
-  watchSystem: (cb: () => void) => addEventListener('languagechange', cb),
+  watchSystem: (cb: () => void) => {
+    addEventListener('languagechange', cb);
+    stopSystemListeners.push(() => removeEventListener('languagechange', cb));
+  },
 });
-watch(
+const stopLocale = watch(
   i18n.locale,
   (l) => {
     document.documentElement.lang = l;
@@ -115,17 +119,22 @@ if (!isSignedOut()) {
 }
 
 // Malformed control-plane frame → one visible toast per occurrence.
-watch(sync.protocolError, (err) => {
+const stopProtocolError = watch(sync.protocolError, (err) => {
   if (err) toast(i18n.t('sync.protocolError'));
 });
 
-// keep-awake while a run is active (mobile setting)
+// Keep the screen awake while a run is active, on any supported device.
+let stopKeepAwake = () => {};
 {
   const { chat } = await import('./core/state/chatSlice.ts');
   const app = platform('app');
-  watch([() => chat.stream.value.active, prefs.keepAwake], ([active, enabled]) => {
+  const stop = watch([() => chat.stream.value.active, prefs.keepAwake], ([active, enabled]) => {
     void app.keepAwake(active && enabled);
   });
+  stopKeepAwake = () => {
+    stop();
+    void app.keepAwake(false);
+  };
 }
 
 const app = createApp(App);
@@ -135,8 +144,16 @@ app.config.errorHandler = (error, _instance, info) => {
 };
 const reportRejection = createUnhandledRejectionReporter(() => toast(i18n.t('errors.background')));
 window.addEventListener('unhandledrejection', reportRejection);
+let stopShortcuts = () => {};
 app.onUnmount(() => {
   stopBackgroundNotify();
+  stopTheme();
+  stopLocale();
+  stopProtocolError();
+  stopKeepAwake();
+  stopShortcuts();
+  stopSystemListeners.forEach((stop) => stop());
+  document.removeEventListener('contextmenu', onContextMenu, true);
   stopTextSize();
   stopViewport();
   sync.stop();
@@ -147,7 +164,7 @@ app.onUnmount(() => {
 app.use(router);
 app.mount('#app');
 
-installShortcuts({
+stopShortcuts = installShortcuts({
   ...sessionSearchCommands(router),
   ...sessionSidebarCommands(router),
   openSettings: () => {
@@ -159,3 +176,5 @@ installShortcuts({
 });
 
 initPWA();
+
+if (import.meta.hot) import.meta.hot.dispose(() => app.unmount());

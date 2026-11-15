@@ -159,7 +159,7 @@ watch(
     box-shadow: 0 0 0 2px var(--accent-soft);
   }
 }
-:global(.modal-card.image-album-window) {
+:global(.modal-card.image-album-window:not(.modal-page):not(.modal-sheet)) {
   width: min(94vw, 620px);
 }
 :global(.image-album-window .modal-body) {

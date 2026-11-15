@@ -59,6 +59,10 @@ async function clean() {
       { signal: request.signal },
     );
     if (request.signal.aborted) return;
+    if (result.unreadable_jobs) {
+      preview.value = result;
+      return;
+    }
     const removed = result.missing_links + result.unused_hidden;
     toast(
       tr(
@@ -126,7 +130,13 @@ async function clean() {
             )
           }}</span>
           <span>{{ tr(`预计释放 ${fmtBytes(preview.bytes)}`, `Estimated space: ${fmtBytes(preview.bytes)}`) }}</span>
-          <small v-if="preview.protected">{{
+          <small v-if="preview.unreadable_jobs" role="status">{{
+            tr(
+              '有生成任务记录无法读取，暂时保留候选文件。修复记录后可重新检查。',
+              'Some generation job records could not be read. Candidate files are kept until the records can be checked.',
+            )
+          }}</small>
+          <small v-else-if="preview.protected">{{
             tr(
               `${preview.protected} 个候选文件仍在使用，已保留`,
               `${preview.protected} candidates are still in use and will be kept`,
@@ -136,7 +146,7 @@ async function clean() {
         <span v-else-if="!error">{{ tr('请选择清理项目', 'Choose what to clean up') }}</span>
       </div>
       <p v-if="error" class="library-cleanup-error" role="alert">{{ error }}</p>
-      <button v-if="error && !cleaning" type="button" class="btn sm" @click="revision++">
+      <button v-if="(error || preview?.unreadable_jobs) && !cleaning" type="button" class="btn sm" @click="revision++">
         {{ tr('重新检查', 'Check again') }}
       </button>
     </div>

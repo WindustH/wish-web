@@ -1,18 +1,36 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue';
+import { onBeforeUnmount, onDeactivated, ref, watch } from 'vue';
 import { prefersReducedMotion } from '../motion/reducedMotion.ts';
 const props = withDefaults(defineProps<{ open?: boolean }>(), { open: false });
 const element = ref<HTMLDetailsElement>();
 const expanded = ref(props.open);
 let animation: Animation | undefined;
+let deadline: ReturnType<typeof setTimeout> | undefined;
 let target = props.open;
+function cancelAnimation() {
+  clearTimeout(deadline);
+  const previous = animation;
+  animation = undefined;
+  if (previous) {
+    previous.onfinish = previous.oncancel = null;
+    previous.cancel();
+  }
+}
+function settle() {
+  cancelAnimation();
+  expanded.value = target;
+  if (element.value) {
+    element.value.open = target;
+    element.value.style.overflow = '';
+  }
+}
 function toggle(event: MouseEvent) {
   const el = element.value!;
   if ((event.target as Element).closest('summary')?.parentElement !== el) return;
   event.preventDefault();
   target = animation ? !target : !el.open;
   const from = el.getBoundingClientRect().height;
-  animation?.cancel();
+  cancelAnimation();
   el.open = true;
   expanded.value = true;
   const style = getComputedStyle(el);
@@ -25,9 +43,7 @@ function toggle(event: MouseEvent) {
       parseFloat(style.borderTopWidth) +
       parseFloat(style.borderBottomWidth);
   if (prefersReducedMotion()) {
-    expanded.value = target;
-    el.open = target;
-    el.style.overflow = '';
+    settle();
     return;
   }
   el.style.overflow = 'hidden';
@@ -38,23 +54,18 @@ function toggle(event: MouseEvent) {
     ],
     { duration: 220, easing: 'ease-in-out' },
   );
-  animation.onfinish = () => {
-    expanded.value = target;
-    el.open = target;
-    el.style.overflow = '';
-    animation = undefined;
-  };
+  animation.onfinish = animation.oncancel = settle;
+  deadline = setTimeout(settle, 320);
 }
 watch(
   () => props.open,
   (value) => {
-    animation?.cancel();
     target = value;
-    expanded.value = value;
-    if (element.value) element.value.style.overflow = '';
+    settle();
   },
 );
-onBeforeUnmount(() => animation?.cancel());
+onDeactivated(settle);
+onBeforeUnmount(cancelAnimation);
 </script>
 <template>
   <details ref="element" :open="expanded" @click="toggle"><slot /></details>

@@ -14,17 +14,19 @@ export async function downloadApiFile(event: MouseEvent, url: string, filename: 
 }
 
 /** Starts a backend download from an action, including authenticated connections. */
-export async function saveApiFile(url: string, filename: string) {
+export async function saveApiFile(url: string, filename: string, signal?: AbortSignal) {
+  if (signal?.aborted) return;
   if (!needsAccessToken(url)) {
     saveUrl(url, filename);
     return;
   }
   try {
-    const response = await apiFetch(url);
+    const response = await apiFetch(url, { signal });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    saveBlob(await response.blob(), filename);
+    const blob = await response.blob();
+    if (!signal?.aborted) saveBlob(blob, filename);
   } catch (error) {
-    toast(describeError(error).message);
+    if (!signal?.aborted) toast(describeError(error).message);
   }
 }
 

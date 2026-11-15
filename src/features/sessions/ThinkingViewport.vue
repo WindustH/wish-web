@@ -85,6 +85,7 @@ onUnmounted(() => {
 .thinking-clip {
   min-height: 0;
   overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 12px), transparent);
   mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 12px), transparent);
 }
 .thinking-fold.collapsed .live-reasoning {

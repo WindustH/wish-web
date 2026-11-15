@@ -206,7 +206,7 @@ defineExpose({ close: requestClose });
           { wide, 'modal-page': page, 'modal-sheet': bottomSheet, 'anchored-modal': bubble, compact: compactCard },
           contentClass,
         ]"
-        :style="{ ...(bubble ? anchorStyle : {}), ...(bottomSheet ? { width: '100%' } : {}), zIndex: layer + 1 }"
+        :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }"
         :aria-describedby="undefined"
         @escape-key-down="
           (e: KeyboardEvent) => {

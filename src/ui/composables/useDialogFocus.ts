@@ -1,38 +1,39 @@
+import { onBeforeUnmount } from 'vue';
 import { useIsMobile } from './useMedia.ts';
 // Controlled dialogs have no Reka DialogTrigger. Remember the real opener so
 // Escape/Close returns the keyboard to the action that opened the surface.
 let lastInputWasKeyboard = true;
-let trackingInput = false;
+let inputOwners = 0;
 let pointerOpener: HTMLElement | null = null;
+function onPointerDown(event: PointerEvent) {
+  lastInputWasKeyboard = false;
+  pointerOpener =
+    event.target instanceof Element ? event.target.closest<HTMLElement>('button, a, [role="button"]') : null;
+}
+function onClick(event: MouseEvent) {
+  if (event.detail === 0) lastInputWasKeyboard = true;
+}
+function onKeyDown(event: KeyboardEvent) {
+  if (!event.metaKey && !event.ctrlKey && !event.altKey) {
+    lastInputWasKeyboard = true;
+    pointerOpener = null;
+  }
+}
 function trackInputModality() {
-  if (trackingInput || typeof document === 'undefined') return;
-  trackingInput = true;
-  document.addEventListener(
-    'pointerdown',
-    (event) => {
-      lastInputWasKeyboard = false;
-      pointerOpener =
-        event.target instanceof Element ? event.target.closest<HTMLElement>('button, a, [role="button"]') : null;
-    },
-    true,
-  );
-  document.addEventListener(
-    'click',
-    (event) => {
-      if (event.detail === 0) lastInputWasKeyboard = true;
-    },
-    true,
-  );
-  document.addEventListener(
-    'keydown',
-    (event) => {
-      if (!event.metaKey && !event.ctrlKey && !event.altKey) {
-        lastInputWasKeyboard = true;
-        pointerOpener = null;
-      }
-    },
-    true,
-  );
+  if (typeof document === 'undefined') return;
+  if (inputOwners++ === 0) {
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('keydown', onKeyDown, true);
+  }
+  onBeforeUnmount(() => {
+    if (--inputOwners > 0) return;
+    document.removeEventListener('pointerdown', onPointerDown, true);
+    document.removeEventListener('click', onClick, true);
+    document.removeEventListener('keydown', onKeyDown, true);
+    pointerOpener = null;
+    lastInputWasKeyboard = true;
+  });
 }
 export function useDialogFocus() {
   trackInputModality();

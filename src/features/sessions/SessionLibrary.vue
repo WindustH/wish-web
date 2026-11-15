@@ -380,10 +380,32 @@ const previewActions = computed(() =>
       ]
     : [],
 );
+const downloading = ref<string>();
+let downloadController: AbortController | undefined;
+watch([() => props.session, active, () => selected.value?.id], () => {
+  downloadController?.abort();
+  downloadController = undefined;
+  downloading.value = undefined;
+});
+onBeforeUnmount(() => downloadController?.abort());
+async function downloadPreview(blob: LibraryBlob) {
+  if (downloadController) return;
+  const request = new AbortController();
+  downloadController = request;
+  downloading.value = blob.id;
+  try {
+    await saveApiFile(blobUrl(`${props.session}/${blob.id}`), filename(blob), request.signal);
+  } finally {
+    if (downloadController === request) {
+      downloadController = undefined;
+      downloading.value = undefined;
+    }
+  }
+}
 function previewAction(key: string) {
   const blob = selected.value;
   if (!blob || batchBusy.value || updating.value.has(blob.id)) return;
-  if (key === 'download') void saveApiFile(blobUrl(`${props.session}/${blob.id}`), filename(blob));
+  if (key === 'download') void downloadPreview(blob);
   else if (key === 'delete') deleteTargets.value = [blob];
   else void act(key, blob);
 }
@@ -847,7 +869,7 @@ watch(
       <Menu
         v-if="selected"
         :items="previewActions"
-        :disabled="batchBusy || updating.has(selected.id)"
+        :disabled="batchBusy || updating.has(selected.id) || !!downloading"
         content-class="library-preview-menu"
         @select="previewAction"
       >
@@ -857,11 +879,11 @@ watch(
             class="btn ghost icon-only library-preview-menu-trigger"
             :aria-label="tr('文件操作', 'File actions')"
             :title="tr('文件操作', 'File actions')"
-            :aria-busy="updating.has(selected.id)"
+            :aria-busy="updating.has(selected.id) || downloading === selected.id"
           >
             <Icon
-              :name="updating.has(selected.id) ? 'loader-circle' : 'ellipsis-vertical'"
-              :class="{ spin: updating.has(selected.id) }"
+              :name="updating.has(selected.id) || downloading === selected.id ? 'loader-circle' : 'ellipsis-vertical'"
+              :class="{ spin: updating.has(selected.id) || downloading === selected.id }"
             />
           </button>
         </template>

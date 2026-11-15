@@ -177,7 +177,7 @@ function browserLabel(id: BrowserShortcut) {
     </section>
     <section class="set-section">
       <header class="set-section-head">
-        <h3>{{ tr('消息输入（桌面端）', 'Message input (desktop)') }}</h3>
+        <h3>{{ tr('消息输入', 'Message input') }}</h3>
       </header>
       <div class="set-card">
         <div class="set-row inline shortcut-row">
