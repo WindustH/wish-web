@@ -427,9 +427,9 @@ export const sessionBlobs = (
   get(`${path(session)}/blobs`, { ...opts, query: { start, limit: 80, ...opts?.query } });
 export const updateBlobLibrary = (
   reference: string,
-  changes: { visible?: boolean; pinned?: boolean },
+  changes: { visible?: boolean; pinned?: boolean; display_name?: string },
   opts?: EndpointOptions,
-): Promise<{ visible: boolean; pinned: boolean; name?: string | null }> =>
+): Promise<{ visible: boolean; pinned: boolean; name?: string | null; display_name?: string | null }> =>
   patch(`${blobPath(reference)}/library`, changes, opts);
 export const createLibraryFolder = (
   session: string,
@@ -448,6 +448,49 @@ export const deleteLibraryFolder = (session: string, folder: string, opts?: Endp
   del(`${path(session)}/library/folders/${encodeURIComponent(folder)}`, opts);
 export const moveLibraryItems = (session: string, ids: string[], folder: string | null, opts?: EndpointOptions) =>
   post(`${path(session)}/library/move`, { ids, folder }, opts);
+export const linkLibraryFolder = (
+  session: string,
+  localPath: string,
+  parent: string | null,
+  opts?: EndpointOptions,
+): Promise<import('./types.ts').LibraryFolder> =>
+  post(`${path(session)}/library/folders/link`, { path: localPath, parent }, opts);
+const linkedFolderPath = (session: string, folder: string) =>
+  `${path(session)}/library/folders/${encodeURIComponent(folder)}`;
+export const linkedFolderChildren = (
+  session: string,
+  folder: string,
+  relative: string,
+  after?: string,
+  opts?: EndpointOptions,
+): Promise<{ items: import('./types.ts').LinkedFolderChild[]; next: string | null }> =>
+  get(`${linkedFolderPath(session, folder)}/children`, { ...opts, query: { path: relative, after, limit: 80 } });
+export const openLinkedFolderFile = (
+  session: string,
+  folder: string,
+  relative: string,
+  opts?: EndpointOptions,
+): Promise<LinkedBlob> => post(`${linkedFolderPath(session, folder)}/open`, { path: relative }, opts);
+export const renameLinkedFolderChild = (
+  session: string,
+  folder: string,
+  relative: string,
+  name: string,
+  opts?: EndpointOptions,
+) => patch(`${linkedFolderPath(session, folder)}/children`, { path: relative, name }, opts);
+export const libraryBookmarks = (
+  session: string,
+  opts?: EndpointOptions,
+): Promise<import('./types.ts').LibraryBookmark[]> => get(`${path(session)}/library/bookmarks`, opts);
+export const addLibraryBookmark = (
+  session: string,
+  target: { seq: number; block?: number; start?: number; end?: number },
+  opts?: EndpointOptions,
+): Promise<import('./types.ts').LibraryBookmark> => post(`${path(session)}/library/bookmarks`, target, opts);
+export const renameLibraryBookmark = (session: string, id: string, name: string, opts?: EndpointOptions) =>
+  patch(`${path(session)}/library/bookmarks/${encodeURIComponent(id)}`, { name }, opts);
+export const deleteLibraryBookmark = (session: string, id: string, opts?: EndpointOptions) =>
+  del(`${path(session)}/library/bookmarks/${encodeURIComponent(id)}`, opts);
 export const cleanupLibrary = (
   session: string,
   body: { missing_links: boolean; unused_hidden: boolean; dry_run: boolean; ids?: string[] },

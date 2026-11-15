@@ -6,6 +6,7 @@ export interface ReplyContext {
   version?(source: string): number;
   focus?: Ref<ReplyReference | undefined>;
   add(reference: ReplyReference, image?: Blob): Promise<void>;
+  bookmark?(target: { seq: number; block?: number; start?: number; end?: number }): Promise<void>;
   locate(reference: ReplyReference): void;
   links(source: string, signal: AbortSignal): Promise<ReplyLink[]>;
   preview(seq: number, signal: AbortSignal): Promise<string>;

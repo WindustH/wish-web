@@ -62,7 +62,7 @@ function savePlayback() {
 window.addEventListener('pagehide', savePlayback);
 const metadata = shallowRef<BlobMetadata>();
 const kind = computed(() =>
-  sourcePreviewKind(props.name, metadata.value?.mime_type ?? props.blob.mime_type)
+  sourcePreviewKind(props.blob.name || props.name, metadata.value?.mime_type ?? props.blob.mime_type)
     ? 'text'
     : blobKind({ ...props.blob, ...metadata.value }),
 );
@@ -224,7 +224,7 @@ async function handleLoadFailure(cause?: unknown) {
       <SourcePreview
         v-else-if="kind === 'text'"
         :text="text"
-        :name="name"
+        :name="blob.name || name"
         :mime="metadata?.mime_type ?? blob.mime_type"
         :session="session"
         :blob="blob.id"

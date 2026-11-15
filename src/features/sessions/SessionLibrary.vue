@@ -6,6 +6,8 @@ import { useVirtualGrid } from '../../ui/composables/useVirtualGrid.ts';
 import { computed, nextTick, onBeforeUnmount, provide, ref, useId, watch } from 'vue';
 import {
   sessionBlobs,
+  openLinkedFolderFile,
+  renameLinkedFolderChild,
   blobUrl,
   uploadSessionBlob,
   linkSessionFile,
@@ -14,7 +16,7 @@ import {
   deleteBlob,
   moveLibraryItems,
 } from '../../core/api/endpoints.ts';
-import type { LibraryBlob, LibraryFolder } from '../../core/api/types.ts';
+import type { LibraryBlob, LibraryFolder, LinkedFolderChild } from '../../core/api/types.ts';
 import type { StoredAttachmentReference } from '../../core/attachments.ts';
 import type { EntryView } from '../../core/api/projections.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -38,6 +40,9 @@ import { toast } from '../../ui/toast.ts';
 import Icon from '../../ui/components/Icon.vue';
 import SessionBlobPreview from './SessionBlobPreview.vue';
 import { attachmentNames, blobKind, blobIcon, blobName, type BlobKind } from './libraryFiles.ts';
+import LibraryRenameDialog from './LibraryRenameDialog.vue';
+import LibraryLinkedFolder from './LibraryLinkedFolder.vue';
+import LibraryBookmarks from './LibraryBookmarks.vue';
 import LibraryFolderDialog from './LibraryFolderDialog.vue';
 import LibraryCleanupDialog from './LibraryCleanupDialog.vue';
 import { folderTrail, type LibraryFolderAction } from './libraryFolders.ts';
@@ -95,6 +100,55 @@ const folder = computed(() => saved.value.folder || null);
 const folders = ref<LibraryFolder[]>([]);
 const supportsFolders = ref<boolean>();
 const folderAction = ref<LibraryFolderAction>();
+const linkedFolder = computed(() => folders.value.find((item) => item.id === folder.value && item.linked_path));
+const linkedBrowser = ref<InstanceType<typeof LibraryLinkedFolder>>();
+const linkedRevision = ref(0);
+const renameTarget = ref<LibraryBlob>();
+const linkedSelection = ref<{ folder: string; path: string }>();
+let linkedOpenController: AbortController | undefined;
+async function renameFile(name: string, signal: AbortSignal) {
+  const blob = renameTarget.value;
+  if (!blob) return;
+  const owner = props.session;
+  const child = selected.value?.id === blob.id ? linkedSelection.value : undefined;
+  if (child) {
+    await renameLinkedFolderChild(owner, child.folder, child.path, name, { signal });
+    linkedRevision.value++;
+  }
+  const state = await updateBlobLibrary(`${owner}/${blob.id}`, { display_name: name }, { signal });
+  if (signal.aborted || owner !== props.session) return;
+  if (selected.value?.id === blob.id) selected.value = { ...selected.value, ...state };
+  items.value = items.value.map((item) => (item.id === blob.id ? { ...item, ...state } : item));
+}
+async function openLinkedChild(child: LinkedFolderChild) {
+  const folderId = linkedFolder.value?.id;
+  if (!folderId) return;
+  const request = ++opening,
+    owner = props.session;
+  linkedOpenController?.abort();
+  const controller = new AbortController();
+  linkedOpenController = controller;
+  try {
+    const opts = { signal: controller.signal };
+    const blob = await openLinkedFolderFile(owner, folderId, child.path, opts);
+    const metadata = await blobMetadata(`${owner}/${blob.id}`, opts);
+    if (
+      controller.signal.aborted ||
+      request !== opening ||
+      props.session !== owner ||
+      folder.value !== folderId ||
+      !active.value
+    )
+      return;
+    selectBlob({ ...metadata, linked: true, local_path: blob.path, modified_at: 0 });
+    linkedSelection.value = { folder: folderId, path: child.path };
+  } catch (cause) {
+    if (!controller.signal.aborted && request === opening && props.session === owner)
+      toast(describeError(cause).message);
+  } finally {
+    if (linkedOpenController === controller) linkedOpenController = undefined;
+  }
+}
 const cleanupOpen = ref(false);
 const trail = computed(() => folderTrail(folders.value, folder.value));
 const childFolders = computed(() =>
@@ -107,7 +161,8 @@ function openFolder(id: string | null) {
 }
 let moveController: AbortController | undefined;
 async function moveFiles(ids: string[], into: string | null) {
-  if (!supportsFolders.value || batchBusy.value) return;
+  if (!supportsFolders.value || batchBusy.value || folders.value.some((item) => item.id === into && item.linked_path))
+    return;
   const owner = props.session;
   const origin = folder.value;
   const request = new AbortController();
@@ -128,9 +183,11 @@ async function moveFiles(ids: string[], into: string | null) {
     }
   }
 }
-const drag = useListDrag((ids, into) => {
-  void moveFiles(ids, into);
-}, openFolder);
+const drag = useListDrag(
+  (ids, into) => void moveFiles(ids, into),
+  openFolder,
+  (into) => !folders.value.some((item) => item.id === into && item.linked_path),
+);
 function dragIds(blob: LibraryBlob) {
   return chosen.value.has(blob.id) ? [...chosen.value] : [blob.id];
 }
@@ -145,15 +202,21 @@ function pressFile(blob: LibraryBlob, event: TouchEvent) {
   if (!selecting.value && supportsFolders.value && !batchBusy.value)
     drag.press(event, [blob.id], folder.value, filename(blob));
 }
-function folderMenu() {
+function folderMenu(item?: LibraryFolder) {
   return [
     { key: 'rename', label: tr('重命名', 'Rename'), icon: 'pencil' },
     { key: 'move', label: tr('移动到…', 'Move to…'), icon: 'folder' },
-    { key: 'delete', label: tr('删除文件夹', 'Delete folder'), icon: 'trash-2', danger: true, separator: true },
+    {
+      key: 'delete',
+      label: item?.linked_path ? tr('移除链接', 'Remove link') : tr('删除文件夹', 'Delete folder'),
+      icon: 'trash-2',
+      danger: true,
+      separator: true,
+    },
   ];
 }
 function actFolder(key: string, item: LibraryFolder) {
-  if (key === 'move') folderAction.value = { kind: 'move', ids: [item.id] };
+  if (key === 'move') folderAction.value = { kind: 'move', ids: [item.id], from: item.parent };
   else if (key === 'rename' || key === 'delete') folderAction.value = { kind: key, folder: item };
 }
 function folderChanged() {
@@ -161,7 +224,7 @@ function folderChanged() {
   void reload();
 }
 onBeforeUnmount(() => moveController?.abort());
-const filter = ref<BlobKind | 'all'>('all');
+const filter = ref<BlobKind | 'all' | 'bookmarks'>('all');
 const showAll = ref(false);
 const updating = ref(new Set<string>());
 const selecting = ref(false);
@@ -178,6 +241,7 @@ function stopSelecting() {
   selectionAnchor = undefined;
 }
 function selectBlob(blob: LibraryBlob | null) {
+  linkedSelection.value = undefined;
   if (blob) stopSelecting();
   selected.value = blob;
   saved.value.selected = blob?.id ?? '';
@@ -192,6 +256,7 @@ watch(active, (visible) => {
     drag.cancel();
     folderAction.value = undefined;
     cleanupOpen.value = false;
+    renameTarget.value = undefined;
     linkOpen.value = false;
     deleteTargets.value = [];
     stopSelecting();
@@ -258,6 +323,8 @@ async function addLink() {
 let uploadController: AbortController | undefined;
 onBeforeUnmount(() => uploadController?.abort());
 function cancelOperations() {
+  linkedOpenController?.abort();
+  linkedOpenController = undefined;
   for (const request of [moveController, batchController, linkController, uploadController]) request?.abort();
   moveController = batchController = linkController = uploadController = undefined;
   batchBusy.value = linking.value = uploading.value = false;
@@ -303,48 +370,69 @@ async function upload() {
     }
   }
 }
-const libraryActions = computed<MenuItem[]>(() => [
-  {
-    key: 'select',
-    label: selecting.value ? tr('退出多选', 'Stop selecting') : tr('多选文件', 'Select files'),
-    icon: 'check-square',
-    checked: selecting.value,
-  },
-  ...(selecting.value
-    ? []
-    : [
-        {
-          key: 'all',
-          label: showAll.value ? tr('返回展示库', 'Return to Library') : tr('查看全部文件', 'Show all files'),
-          icon: 'eye',
-          checked: showAll.value,
-        },
-        { key: 'link', label: i18n.t('library.linkFile'), icon: 'link', disabled: linking.value },
-        { key: 'upload', label: i18n.t('library.upload'), icon: 'upload', disabled: uploading.value },
-        ...(supportsFolders.value
-          ? [{ key: 'new-folder', label: tr('新建文件夹', 'New folder'), icon: 'folder-plus' }]
-          : []),
-        {
-          key: 'refresh',
-          label: i18n.t('library.refresh'),
-          icon: 'refresh-cw',
-          disabled: loading.value,
-          separator: true,
-        },
-        {
-          key: 'cleanup',
-          label: tr('清理文件库…', 'Clean up Library…'),
-          icon: 'eraser',
-          disabled: uploading.value || linking.value,
-        },
-      ]),
-  { key: 'icons', label: tr('图标视图', 'Icons'), icon: 'grid', checked: view.value === 'icons', separator: true },
-  { key: 'compact', label: tr('紧凑列表', 'Compact list'), icon: 'list', checked: view.value === 'compact' },
-  { key: 'details', label: tr('详细列表', 'Details'), icon: 'list-details', checked: view.value === 'details' },
-]);
+const libraryActions = computed<MenuItem[]>(() =>
+  linkedFolder.value && filter.value !== 'bookmarks'
+    ? [{ key: 'refresh', label: i18n.t('library.refresh'), icon: 'refresh-cw' }, ...folderMenu(linkedFolder.value)]
+    : filter.value === 'bookmarks'
+      ? [{ key: 'files', label: tr('返回文件', 'Back to files'), icon: 'library' }]
+      : [
+          {
+            key: 'select',
+            label: selecting.value ? tr('退出多选', 'Stop selecting') : tr('多选文件', 'Select files'),
+            icon: 'check-square',
+            checked: selecting.value,
+          },
+          ...(selecting.value
+            ? []
+            : [
+                {
+                  key: 'all',
+                  label: showAll.value ? tr('返回展示库', 'Return to Library') : tr('查看全部文件', 'Show all files'),
+                  icon: 'eye',
+                  checked: showAll.value,
+                },
+                { key: 'link', label: i18n.t('library.linkFile'), icon: 'link', disabled: linking.value },
+                { key: 'upload', label: i18n.t('library.upload'), icon: 'upload', disabled: uploading.value },
+                ...(supportsFolders.value
+                  ? [
+                      { key: 'new-folder', label: tr('新建文件夹', 'New folder'), icon: 'folder-plus' },
+                      { key: 'link-folder', label: tr('链接文件夹', 'Link folder'), icon: 'folder' },
+                    ]
+                  : []),
+                {
+                  key: 'refresh',
+                  label: i18n.t('library.refresh'),
+                  icon: 'refresh-cw',
+                  disabled: loading.value,
+                  separator: true,
+                },
+                {
+                  key: 'cleanup',
+                  label: tr('清理文件库…', 'Clean up Library…'),
+                  icon: 'eraser',
+                  disabled: uploading.value || linking.value,
+                },
+              ]),
+          {
+            key: 'icons',
+            label: tr('图标视图', 'Icons'),
+            icon: 'grid',
+            checked: view.value === 'icons',
+            separator: true,
+          },
+          { key: 'compact', label: tr('紧凑列表', 'Compact list'), icon: 'list', checked: view.value === 'compact' },
+          { key: 'details', label: tr('详细列表', 'Details'), icon: 'list-details', checked: view.value === 'details' },
+        ],
+);
 function libraryAction(key: string) {
   if (batchBusy.value) return;
-  if (key === 'select') selecting.value ? stopSelecting() : (selecting.value = true);
+  if (linkedFolder.value && filter.value !== 'bookmarks') {
+    if (key === 'refresh') linkedRevision.value++;
+    else actFolder(key, linkedFolder.value);
+    return;
+  }
+  if (key === 'files') filter.value = 'all';
+  else if (key === 'select') selecting.value ? stopSelecting() : (selecting.value = true);
   else if (key === 'all') showAll.value = !showAll.value;
   else if (key === 'link') {
     linkError.value = '';
@@ -352,10 +440,12 @@ function libraryAction(key: string) {
   } else if (key === 'upload') void upload();
   else if (key === 'refresh') void load();
   else if (key === 'new-folder') folderAction.value = { kind: 'create' };
+  else if (key === 'link-folder') folderAction.value = { kind: 'link' };
   else if (key === 'cleanup') cleanupOpen.value = true;
   else if (['icons', 'compact', 'details'].includes(key)) viewState.value.mode = key;
 }
 const menuItems = (blob: LibraryBlob) => [
+  { key: 'rename', label: tr('重命名', 'Rename'), icon: 'pencil' },
   { key: 'select', label: tr('多选文件', 'Select files'), icon: 'check' },
   { key: 'mention', label: i18n.t('library.mention'), icon: 'at-sign' },
   ...(supportsFolders.value ? [{ key: 'move', label: tr('移动到…', 'Move to…'), icon: 'folder' }] : []),
@@ -394,7 +484,7 @@ async function downloadPreview(blob: LibraryBlob) {
   downloadController = request;
   downloading.value = blob.id;
   try {
-    await saveApiFile(blobUrl(`${props.session}/${blob.id}`), filename(blob), request.signal);
+    await saveApiFile(blobUrl(`${props.session}/${blob.id}`), blob.name || filename(blob), request.signal);
   } finally {
     if (downloadController === request) {
       downloadController = undefined;
@@ -431,9 +521,13 @@ async function act(key: string, blob: LibraryBlob) {
     selectionAnchor = blob.id;
     return;
   }
+  if (key === 'rename') {
+    renameTarget.value = blob;
+    return;
+  }
   if (key === 'mention') return mention(blob);
   if (key === 'move') {
-    folderAction.value = { kind: 'move', ids: [blob.id] };
+    folderAction.value = { kind: 'move', ids: [blob.id], from: blob.folder ?? null };
     return;
   }
   if (!['pin', 'unpin', 'show', 'hide', 'delete'].includes(key)) return;
@@ -568,7 +662,11 @@ watch(filter, (value) => {
   saved.value.filter = value;
   saved.value.scroll = 0;
 });
-watch([() => props.session, folder], grid.reset);
+watch([() => props.session, folder], () => {
+  grid.reset();
+  renameTarget.value = undefined;
+  opening++;
+});
 watch(showAll, () => {
   stopSelecting();
   controller?.abort();
@@ -590,12 +688,17 @@ function restoreGrid() {
   }
 }
 watch(gridViewport, restoreGrid, { flush: 'post' });
-const filters = ['all', 'image', 'video', 'audio', 'pdf', 'text', 'file'] as const;
+const filters = ['all', 'bookmarks', 'image', 'video', 'audio', 'pdf', 'text', 'file'] as const;
 const filterOptions = computed(() =>
   filters.map((kind) => ({
     value: kind,
-    label: kind === 'all' ? i18n.t('library.title') : i18n.t(`library.kind.${kind}`),
-    icon: kind === 'all' ? 'library' : kind === 'pdf' ? 'file-pdf' : blobIcon(kind),
+    label:
+      kind === 'bookmarks'
+        ? tr('书签', 'Bookmarks')
+        : kind === 'all'
+          ? i18n.t('library.title')
+          : i18n.t(`library.kind.${kind}`),
+    icon: kind === 'bookmarks' ? 'bookmark' : kind === 'all' ? 'library' : kind === 'pdf' ? 'file-pdf' : blobIcon(kind),
   })),
 );
 function selectFilter(value: string) {
@@ -605,6 +708,8 @@ function selectFilter(value: string) {
 function back() {
   if (selecting.value) stopSelecting();
   else if (selected.value) selectBlob(null);
+  else if (filter.value === 'bookmarks') filter.value = 'all';
+  else if (linkedBrowser.value?.back()) return;
   else if (folder.value) openFolder(trail.value.at(-1)?.parent ?? null);
   else emit('close');
 }
@@ -615,7 +720,7 @@ useBackLayer(
 );
 useBackLayer(
   () => props.open && props.mobile,
-  () => emit('close'),
+  back,
   () => 45,
 );
 useBackLayer(
@@ -626,8 +731,8 @@ useBackLayer(
   () => 47,
 );
 useBackLayer(
-  () => props.open && props.mobile && !!folder.value,
-  () => openFolder(trail.value.at(-1)?.parent ?? null),
+  () => props.open && props.mobile && (!!folder.value || filter.value === 'bookmarks'),
+  back,
   () => 46,
 );
 watch(
@@ -814,7 +919,12 @@ watch(
     @back="back"
   >
     <template #leading>
-      <button v-if="selected || folder" class="btn ghost icon-only" :aria-label="i18n.t('library.back')" @click="back">
+      <button
+        v-if="selected || folder || filter === 'bookmarks'"
+        class="btn ghost icon-only"
+        :aria-label="i18n.t('library.back')"
+        @click="back"
+      >
         <Icon name="arrow-left" />
       </button>
     </template>
@@ -828,7 +938,12 @@ watch(
           :disabled="batchBusy"
           @update:model-value="selectFilter"
         />
-        <span class="library-count" :title="i18n.t('library.count', { count: total })">{{ total }}</span>
+        <span
+          v-if="filter !== 'bookmarks' && !linkedFolder"
+          class="library-count"
+          :title="i18n.t('library.count', { count: total })"
+          >{{ total }}</span
+        >
       </span>
       <span
         v-else
@@ -904,6 +1019,7 @@ watch(
         "
       />
     </template>
+    <LibraryBookmarks v-else-if="filter === 'bookmarks'" :session="session" />
     <template v-else>
       <nav
         v-if="supportsFolders && (folder || drag.dragging.value)"
@@ -940,7 +1056,16 @@ watch(
           </button>
         </template>
       </nav>
+      <LibraryLinkedFolder
+        v-if="linkedFolder"
+        ref="linkedBrowser"
+        :session="session"
+        :folder="linkedFolder"
+        :revision="linkedRevision"
+        @open="openLinkedChild"
+      />
       <div
+        v-else
         ref="gridViewport"
         class="library-scroll"
         :class="[{ selecting }, `library-view-${view}`]"
@@ -949,6 +1074,13 @@ watch(
         @dragover="!$event.defaultPrevented && drag.hover($event, folder)"
         @drop="!$event.defaultPrevented && drag.drop($event, folder)"
       >
+        <button
+          v-if="!folder && filter === 'all'"
+          class="btn ghost library-bookmarks-entry"
+          @click="filter = 'bookmarks'"
+        >
+          <Icon name="bookmark" />{{ tr('书签', 'Bookmarks') }}<Icon name="chevron-right" :size="14" />
+        </button>
         <p v-if="showAll" class="library-all-hint">
           {{ tr('全部文件 · 可将需要的文件加入展示库', 'All files · Add files you need to your Library') }}
         </p>
@@ -965,7 +1097,7 @@ watch(
             v-for="item in visibleFolders"
             :key="item.id"
             context
-            :items="folderMenu()"
+            :items="folderMenu(item)"
             :disabled="batchBusy || selecting"
             @select="actFolder($event, item)"
           >
@@ -973,8 +1105,8 @@ watch(
               class="library-card library-folder"
               :class="{ 'drop-target': drag.over.value === item.id }"
               :data-drop-place="item.id"
-              data-drop-opens
-              @dragenter="drag.hover($event, item.id, true)"
+              :data-drop-opens="item.linked_path ? undefined : ''"
+              @dragenter="drag.hover($event, item.id, !item.linked_path)"
               @dragover="drag.hover($event, item.id)"
               @dragleave="drag.leave($event, item.id)"
               @drop="drag.drop($event, item.id)"
@@ -989,12 +1121,21 @@ watch(
                 @dragstart="drag.start($event, [item.id], folder)"
                 @touchstart.passive="!selecting && !batchBusy && drag.press($event, [item.id], folder, item.name)"
               >
-                <span v-if="view === 'icons'" class="library-folder-thumbnail"><Icon name="folder" :size="58" /></span>
-                <Icon v-else name="folder" class="library-file-icon" :size="view === 'compact' ? 22 : 32" />
+                <span v-if="view === 'icons'" class="library-folder-thumbnail"
+                  ><Icon :name="item.linked_path ? 'folder-link' : 'folder'" :size="58"
+                /></span>
+                <Icon
+                  v-else
+                  :name="item.linked_path ? 'folder-link' : 'folder'"
+                  class="library-file-icon"
+                  :size="view === 'compact' ? 22 : 32"
+                />
                 <span class="library-filename">{{ item.name }}</span>
-                <span class="library-filesize">{{ tr('文件夹', 'Folder') }}</span>
+                <span class="library-filesize">{{
+                  item.linked_path ? tr('链接文件夹', 'Linked folder') : tr('文件夹', 'Folder')
+                }}</span>
               </button>
-              <Menu :items="folderMenu()" :disabled="batchBusy" @select="actFolder($event, item)">
+              <Menu :items="folderMenu(item)" :disabled="batchBusy" @select="actFolder($event, item)">
                 <template #trigger
                   ><button
                     type="button"
@@ -1128,7 +1269,7 @@ watch(
               type="button"
               class="btn library-batch-move"
               :disabled="batchBusy || !chosenFiles.length"
-              @click="folderAction = { kind: 'move', ids: [...chosen] }"
+              @click="folderAction = { kind: 'move', ids: [...chosen], from: folder }"
             >
               <Icon name="folder" />{{ tr('移动', 'Move') }}
             </button>
@@ -1170,6 +1311,12 @@ watch(
       </div>
     </template>
   </IslandSidebar>
+  <LibraryRenameDialog
+    :open="!!renameTarget"
+    :name="renameTarget ? filename(renameTarget) : ''"
+    :save="renameFile"
+    @close="renameTarget = undefined"
+  />
   <LibraryFolderDialog
     :session="session"
     :parent="folder"
@@ -1306,6 +1453,16 @@ watch(
 }
 .library-path-picker .btn {
   flex: none;
+}
+.library-bookmarks-entry {
+  display: flex;
+  width: 100%;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.library-bookmarks-entry .icon:last-child {
+  margin-left: auto;
 }
 .library-title-controls {
   display: flex;

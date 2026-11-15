@@ -3,7 +3,7 @@
 // save the image. On a touch screen a long press on the words selects them instead (TouchSelection),
 // and one on the blank of the message opens the menu. A right click on a selection acts on what was
 // selected.
-import { computed, inject, ref } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
 import { replyContextKey } from '../../references/context.ts';
 import { markdownSelectionPieces } from '../../../ui/markdownSelection.ts';
 import { replyReferenceId, type ReplyReference } from '../../../core/replyReferences.ts';
@@ -11,24 +11,68 @@ import { apiFetch } from '../../../core/api/client.ts';
 import Menu from '../../../ui/components/Menu.vue';
 import type { MenuItem } from '../../../ui/components/menuTypes.ts';
 import { toast } from '../../../ui/toast.ts';
+import { describeError } from '../../../core/i18n/errorMessages.ts';
 import { tr } from '../../../core/i18n/tr.ts';
 import { markdownSelection } from '../../../ui/markdownSelection.ts';
 import { copyText } from '../../../ui/clipboard.ts';
 import { saveBlob } from '../../../ui/download.ts';
 
-const props = defineProps<{ text: string; kind: 'user' | 'assistant'; image?: { src: string; filename?: string } }>();
-const hasMenu = computed(() => !!props.image || !!props.text.trim());
-const items = computed<MenuItem[]>(() =>
-  props.image
-    ? [{ key: 'save', icon: 'download', label: tr('保存图片', 'Save image') }]
-    : [{ key: 'copy', icon: 'copy', label: tr('复制消息', 'Copy message') }],
-);
+const props = defineProps<{
+  text: string;
+  kind: 'user' | 'assistant';
+  seq?: number;
+  image?: { src: string; filename?: string };
+}>();
+const hasMenu = computed(() => !!props.image || !!props.text.trim() || props.seq !== undefined);
 const replies = inject(replyContextKey, undefined);
+const pressedSequence = ref<number>();
+const bookmarkSequence = computed(() => pressedSequence.value ?? props.seq);
+watch(
+  () => props.seq,
+  () => {
+    pressedSequence.value = undefined;
+  },
+);
+function captureMessage(event: Event) {
+  pressedSequence.value = undefined;
+  const root = event.currentTarget as HTMLElement;
+  const anchor = (event.target as Element | null)?.closest<HTMLElement>('[data-seq]');
+  const seq = Number(anchor?.dataset.seq);
+  if (anchor && root.contains(anchor) && Number.isSafeInteger(seq) && seq >= 0) pressedSequence.value = seq;
+}
+const savingBookmark = ref(false);
+const items = computed<MenuItem[]>(() => [
+  ...(props.image
+    ? [{ key: 'save', icon: 'download', label: tr('保存图片', 'Save image') }]
+    : props.text.trim()
+      ? [{ key: 'copy', icon: 'copy', label: tr('复制消息', 'Copy message') }]
+      : []),
+  ...(replies?.bookmark && bookmarkSequence.value !== undefined
+    ? [
+        {
+          key: 'bookmark-message',
+          icon: 'bookmark',
+          label: tr('添加消息书签', 'Bookmark message'),
+          disabled: savingBookmark.value,
+        },
+      ]
+    : []),
+]);
 let selectedReferences: ReplyReference[] = [];
 const canReply = ref(false);
 const selectionItems = computed<MenuItem[]>(() => [
   { key: 'copy-selection', icon: 'copy', label: tr('复制', 'Copy') },
   ...(replies && canReply.value ? [{ key: 'reply', icon: 'reply', label: tr('回复', 'Reply') }] : []),
+  ...(replies?.bookmark && canReply.value
+    ? [
+        {
+          key: 'bookmark-selection',
+          icon: 'bookmark',
+          label: tr('添加书签', 'Bookmark'),
+          disabled: savingBookmark.value,
+        },
+      ]
+    : []),
 ]);
 function captureSelection(range: Range, root: Element, fallback: string) {
   selectedReferences = [];
@@ -74,7 +118,24 @@ function captureSelection(range: Range, root: Element, fallback: string) {
   return markdownSelection(range, root, fallback);
 }
 async function choose(key: string, selection?: string) {
-  if (key === 'reply') {
+  if (key === 'bookmark-message' || key === 'bookmark-selection') {
+    if (savingBookmark.value || !replies?.bookmark) return;
+    const targets =
+      key === 'bookmark-message' && bookmarkSequence.value !== undefined
+        ? [{ seq: bookmarkSequence.value }]
+        : selectedReferences
+            .filter((reference) => reference.seq !== undefined)
+            .map(({ seq, block, start, end }) => ({ seq: seq!, block, start, end }));
+    savingBookmark.value = true;
+    try {
+      for (const target of targets) await replies.bookmark(target);
+      if (targets.length) toast(tr('已添加到库的书签中', 'Added to Library bookmarks'));
+    } catch (cause) {
+      toast(describeError(cause).message);
+    } finally {
+      savingBookmark.value = false;
+    }
+  } else if (key === 'reply') {
     if (!selectedReferences.length) {
       toast(tr('请选择同一消息中的文本', 'Select text within one message'));
       return;
@@ -133,7 +194,14 @@ const copyMessage = () => copyText(props.text);
     :within="kind === 'user' ? '.bubble' : '.body'"
     @select="choose"
   >
-    <div class="message-context" :class="kind" :tabindex="hasMenu ? 0 : undefined" @copy="copySelection">
+    <div
+      class="message-context"
+      :class="kind"
+      :tabindex="hasMenu ? 0 : undefined"
+      @copy="copySelection"
+      @contextmenu.capture="captureMessage"
+      @pointerdown.capture="captureMessage"
+    >
       <slot />
     </div>
   </Menu>

@@ -55,6 +55,7 @@ const imageSrc = () =>
 <template>
   <MessageContext
     :text="copyText()"
+    :seq="seq"
     :image="block.type === 'image' ? { src: imageSrc(), filename: block.filename ?? undefined } : undefined"
     kind="user"
   >

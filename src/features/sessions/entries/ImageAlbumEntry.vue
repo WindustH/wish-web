@@ -43,7 +43,7 @@ const assistant = computed(() => ({
         :locate-index="locateIndex"
       >
         <div v-for="image in images.slice(start, limit)" :key="image.key" class="entry-anchor" :data-seq="image.seq">
-          <UserBubble :block="image.block" />
+          <UserBubble :block="image.block" :seq="image.seq ?? undefined" />
         </div>
       </ImageGrid>
     </div>

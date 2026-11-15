@@ -63,6 +63,14 @@ Press `Tab` on desktop (or use the header tabs) to open the right sidebar:
 - **Session info & stats**: Shows the live **Context** gauge (current tokens vs compaction trigger and model window), standby summary status, web build ID, instructions, and session usage charts.
 - **Session settings**: Lets you override compaction thresholds, run **Compact now** or **Clear the context**, toggle tools and delivery modes (`command` vs direct `tool`), and set a session-specific working directory or shell.
 
+### Linked folders, display names, and message bookmarks
+
+Choose **Link folder** from the Library menu to browse a directory on the Wish server, including its subfolders. Files stay in their original location and are linked for preview as you open them. The directory is read-only in the Library: removing its link does not delete the source folder or its files.
+
+Use **Rename** in an item's menu to change its display name. This works for files, folders, linked children and bookmarks; it does not rename files on disk or change their contents.
+
+Right-click a message and choose **Bookmark message**, or select a passage and choose **Bookmark**. On touch screens, long-press text to use the selection toolbar. Open **Bookmarks** from the Library's category picker or its root entry to see saved messages and excerpts. Clicking one jumps to the original record and highlights the selected text. You can rename or remove bookmarks there. If the original history has been deleted, the saved excerpt remains available but the jump reports that the message is unavailable.
+
 ### History search
 
 Press `Ctrl/⌘ + Shift + F` to search the entire session transcript—including turns compacted out of the active context—and jump straight to any match.

@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { replyContextKey } from '../../domain/references/context.ts';
 import { validReference, type ReplyReference, type ReplyLink } from '../../core/replyReferences.ts';
-import { replyLinks, replyMessage, linkSessionFile, sessionEnvironment } from '../../core/api/endpoints.ts';
+import {
+  addLibraryBookmark,
+  replyLinks,
+  replyMessage,
+  linkSessionFile,
+  sessionEnvironment,
+} from '../../core/api/endpoints.ts';
 import { resolveEnvironmentMention } from '../../core/blobMentions.ts';
 import { fileMentionKey } from '../../domain/references/useFileMention.ts';
 import { toast } from '../../ui/toast.ts';
@@ -14,6 +20,7 @@ import { modelLabel } from '../../domain/providers/modelLabel.ts';
 import { sessionParent } from '../shell/sessionNavigation.ts';
 import { sessionPanelCloseKey, sessionPanelElementsKey } from '../../domain/chat/sessionPanel.ts';
 import Hint from '../../ui/components/Hint.vue';
+import { bus } from '../../core/bus.ts';
 import { useShortcutHint } from '../../ui/composables/useShortcutHint.ts';
 // Chat surface: top bar (desktop information/settings / mobile back+menu), log,
 // composer, and a shared sidebar for session actions. Opening session
@@ -214,7 +221,11 @@ provide(fileMentionKey, async (file) => {
 const replyRevision = ref(0);
 const focusedReference = ref<ReplyReference>();
 let focusTimer: ReturnType<typeof setTimeout> | undefined;
-onBeforeUnmount(() => clearTimeout(focusTimer));
+let locating = 0;
+onBeforeUnmount(() => {
+  locating++;
+  clearTimeout(focusTimer);
+});
 const replyCache = new Map<string, Promise<ReplyLink[]>>();
 const previewCache = new Map<number, string>();
 const replyVersions = ref(new Map<string, number>());
@@ -258,6 +269,7 @@ watch(
   },
 );
 watch(id, () => {
+  locating++;
   libraryTarget.value = undefined;
   focusedReference.value = undefined;
   clearTimeout(focusTimer);
@@ -274,13 +286,25 @@ provide(replyContextKey, {
     if (isMobile.value) sidebarOpen.value = false;
     await composerRef.value?.reference(reference, image);
   },
+  async bookmark(target) {
+    const session = id.value;
+    await addLibraryBookmark(session, target);
+    bus.emit('library.bookmarks.changed', { session });
+  },
   async locate(reference) {
     if (reference.session !== id.value) return;
+    const request = ++locating,
+      session = id.value;
+    clearTimeout(focusTimer);
     if (reference.seq !== undefined) {
+      if (isMobile.value) sidebarOpen.value = false;
       focusedReference.value = { ...reference };
-      if (await chat.locate(id.value, reference.seq)) {
-        clearTimeout(focusTimer);
-        focusTimer = setTimeout(() => (focusedReference.value = undefined), 4000);
+      const found = await chat.locate(session, reference.seq);
+      if (request !== locating || session !== id.value) return;
+      if (found) {
+        focusTimer = setTimeout(() => {
+          if (request === locating) focusedReference.value = undefined;
+        }, 4000);
       } else {
         focusedReference.value = undefined;
         toast(tr('原消息已不可用', 'Message is no longer available'));
@@ -288,6 +312,7 @@ provide(replyContextKey, {
       return;
     }
     if (reference.blob) {
+      focusedReference.value = undefined;
       sidebarState.value.view = 'library';
       sidebarOpen.value = true;
       libraryTarget.value = { request: ++openingFile, target: reference };

@@ -33,11 +33,12 @@ const groups = computed(() => {
             v-for="(image, imageIndex) in group.images.slice(start, limit)"
             :key="start + imageIndex"
             :block="image"
+            :seq="item?.entry?.seq"
           />
         </ImageGrid>
       </div>
       <div v-else-if="group.files" class="file-group">
-        <UserBubble v-for="(file, fileIndex) in group.files" :key="fileIndex" :block="file" />
+        <UserBubble v-for="(file, fileIndex) in group.files" :key="fileIndex" :block="file" :seq="item?.entry?.seq" />
       </div>
       <UserBubble v-else :block="group.block" :seq="item?.entry?.seq" :block-index="bubbles.indexOf(group.block)" />
     </template>

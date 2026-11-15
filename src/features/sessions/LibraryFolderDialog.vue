@@ -2,6 +2,7 @@
 import { computed, ref, useId, watch } from 'vue';
 import {
   createLibraryFolder,
+  linkLibraryFolder,
   renameLibraryFolder,
   deleteLibraryFolder,
   moveLibraryItems,
@@ -9,6 +10,7 @@ import {
 import type { LibraryFolder } from '../../core/api/types.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import { tr } from '../../core/i18n/tr.ts';
+import DirectoryPicker from '../../ui/components/DirectoryPicker.vue';
 import Modal from '../../ui/components/Modal.vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import { folderTrail, type LibraryFolderAction } from './libraryFolders.ts';
@@ -20,7 +22,8 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ close: []; changed: [] }>();
 const formId = useId();
-const unchangedMove = computed(() => props.action?.kind === 'move' && destination.value === (props.parent ?? '/'));
+const unchangedMove = computed(() => props.action?.kind === 'move' && destination.value === (props.action.from ?? '/'));
+const localPath = ref('');
 const name = ref(''),
   destination = ref('/'),
   busy = ref(false),
@@ -31,8 +34,9 @@ watch(
   ([action], _, cleanup) => {
     controller?.abort();
     controller = undefined;
+    localPath.value = '';
     name.value = action && 'folder' in action ? action.folder.name : '';
-    destination.value = props.parent ?? '/';
+    destination.value = (action?.kind === 'move' ? action.from : props.parent) ?? '/';
     error.value = '';
     busy.value = false;
     cleanup(() => controller?.abort());
@@ -40,23 +44,28 @@ watch(
   { immediate: true },
 );
 const title = computed(() =>
-  props.action?.kind === 'move'
-    ? tr('移动到文件夹', 'Move to folder')
-    : props.action?.kind === 'rename'
-      ? tr('重命名文件夹', 'Rename folder')
-      : props.action?.kind === 'delete'
-        ? tr('删除文件夹', 'Delete folder')
-        : tr('新建文件夹', 'New folder'),
+  props.action?.kind === 'link'
+    ? tr('链接文件夹', 'Link folder')
+    : props.action?.kind === 'move'
+      ? tr('移动到文件夹', 'Move to folder')
+      : props.action?.kind === 'rename'
+        ? tr('重命名文件夹', 'Rename folder')
+        : props.action?.kind === 'delete'
+          ? props.action.folder.linked_path
+            ? tr('移除链接', 'Remove link')
+            : tr('删除文件夹', 'Delete folder')
+          : tr('新建文件夹', 'New folder'),
 );
 const options = computed(() => [
   { value: '/', label: tr('库（根目录）', 'Library (root)'), icon: 'library' },
   ...props.folders
     .filter(
       (folder) =>
-        props.action?.kind !== 'move' ||
-        !folderTrail(props.folders, folder.id).some(
-          (parent) => props.action?.kind === 'move' && props.action.ids.includes(parent.id),
-        ),
+        !folder.linked_path &&
+        (props.action?.kind !== 'move' ||
+          !folderTrail(props.folders, folder.id).some(
+            (parent) => props.action?.kind === 'move' && props.action.ids.includes(parent.id),
+          )),
     )
     .map((folder) => ({
       value: folder.id,
@@ -76,7 +85,8 @@ async function submit() {
   error.value = '';
   try {
     const opts = { signal: request.signal };
-    if (action.kind === 'create') await createLibraryFolder(props.session, name.value.trim(), props.parent, opts);
+    if (action.kind === 'link') await linkLibraryFolder(props.session, localPath.value.trim(), props.parent, opts);
+    else if (action.kind === 'create') await createLibraryFolder(props.session, name.value.trim(), props.parent, opts);
     else if (action.kind === 'rename')
       await renameLibraryFolder(props.session, action.folder.id, name.value.trim(), opts);
     else if (action.kind === 'delete') await deleteLibraryFolder(props.session, action.folder.id, opts);
@@ -105,12 +115,32 @@ async function submit() {
       />
       <p v-else-if="action?.kind === 'delete'">
         {{
-          tr(
-            '仅删除空文件夹，请先移出其中的文件和子文件夹。',
-            'Only empty folders can be deleted. Move their contents first.',
-          )
+          action?.kind === 'delete' && action.folder.linked_path
+            ? tr(
+                '仅移除库中的链接，原文件夹及其内容会保留。',
+                'Only remove the Library link. The source folder and its contents will be kept.',
+              )
+            : tr(
+                '仅删除空文件夹，请先移出其中的文件和子文件夹。',
+                'Only empty folders can be deleted. Move their contents first.',
+              )
         }}
       </p>
+      <template v-else-if="action?.kind === 'link'">
+        <p>
+          {{
+            tr('浏览服务器上的文件夹，原文件保留在原处。', 'Browse a folder on the server. Source files stay in place.')
+          }}
+        </p>
+        <input
+          v-model="localPath"
+          class="input"
+          :disabled="busy"
+          :aria-label="tr('文件夹路径', 'Folder path')"
+          data-initial-focus
+        />
+        <DirectoryPicker v-model="localPath" :disabled="busy" :title="tr('选择文件夹', 'Choose folder')" />
+      </template>
       <input
         v-else
         v-model="name"
@@ -132,7 +162,12 @@ async function submit() {
         class="btn"
         :class="action?.kind === 'delete' ? 'danger solid' : 'primary'"
         :form="formId"
-        :disabled="busy || unchangedMove || ((action?.kind === 'create' || action?.kind === 'rename') && !name.trim())"
+        :disabled="
+          busy ||
+          unchangedMove ||
+          (action?.kind === 'link' && !localPath.trim()) ||
+          ((action?.kind === 'create' || action?.kind === 'rename') && !name.trim())
+        "
       >
         {{ title }}
       </button>

@@ -28,7 +28,7 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
 </script>
 
 <template>
-  <MessageContext :text="joined" kind="assistant">
+  <MessageContext :text="joined" :seq="item.entry?.seq" kind="assistant">
     <div class="entry assistant">
       <div class="body">
         <template v-for="(part, i) in parts" :key="i">

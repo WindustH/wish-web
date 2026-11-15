@@ -1,6 +1,7 @@
 // DOM-free application events. Publishers and subscribers share one payload contract.
 import type { SessionView } from './api/projections.ts';
 export interface BusEvents {
+  'library.bookmarks.changed': { session: string };
   notice: string;
   'upsert.session': { id: string; body: SessionView };
   'tombstone.session': { id: string };

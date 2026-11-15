@@ -1,6 +1,8 @@
 import type { LibraryFolder } from '../../core/api/types.ts';
 export type LibraryFolderAction =
-  { kind: 'create' } | { kind: 'rename' | 'delete'; folder: LibraryFolder } | { kind: 'move'; ids: string[] };
+  | { kind: 'create' | 'link' }
+  | { kind: 'rename' | 'delete'; folder: LibraryFolder }
+  | { kind: 'move'; ids: string[]; from: string | null };
 
 export function folderTrail(folders: LibraryFolder[], id: string | null): LibraryFolder[] {
   const byId = new Map(folders.map((folder) => [folder.id, folder]));

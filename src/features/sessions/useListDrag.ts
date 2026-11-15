@@ -22,7 +22,11 @@ const SLOP = 10;
 /** Where a drop goes: a folder's id, or null for the root. */
 type Place = string | null;
 
-export function useListDrag(move: (ids: string[], into: Place) => void, open: (folder: string) => void) {
+export function useListDrag(
+  move: (ids: string[], into: Place) => void,
+  open: (folder: string) => void,
+  accepts: (place: Place) => boolean = () => true,
+) {
   // What is dragged, and the folder it all comes from (undefined when it comes from several).
   const dragging = shallowRef<{ ids: string[]; from: Place | undefined } | null>(null);
   // The place a drop would go now; undefined for none.
@@ -51,11 +55,20 @@ export function useListDrag(move: (ids: string[], into: Place) => void, open: (f
   const ours = (event: DragEvent) => !!dragging.value && !!event.dataTransfer?.types.includes(TYPE);
   // Nothing goes into itself, and nothing moves to where it already is.
   const takes = (place: Place) =>
-    !!dragging.value && !(place && dragging.value.ids.includes(place)) && place !== dragging.value.from;
+    accepts(place) &&
+    !!dragging.value &&
+    !(place && dragging.value.ids.includes(place)) &&
+    place !== dragging.value.from;
 
   /** dragenter and dragover on a place; a folder held over (`opens`) is opened after a moment. */
   function hover(event: DragEvent, place: Place, opens = false) {
     if (!ours(event)) return;
+    if (!accepts(place)) {
+      over.value = undefined;
+      clearTimeout(spring);
+      event.dataTransfer!.dropEffect = 'none';
+      return;
+    }
     if (takes(place)) {
       event.preventDefault();
       event.dataTransfer!.dropEffect = 'move';

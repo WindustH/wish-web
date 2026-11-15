@@ -122,6 +122,8 @@ export interface BlobInfo {
   byte_count: number;
 }
 export interface BlobMetadata extends BlobInfo {
+  display_name?: string | null;
+  folder?: string | null;
   version: string;
   visible?: boolean;
   pinned?: boolean;
@@ -132,6 +134,7 @@ export interface LinkedBlob extends BlobInfo {
   linked: boolean;
 }
 export interface LibraryBlob extends BlobInfo {
+  display_name?: string | null;
   folder?: string | null;
   visible?: boolean;
   pinned?: boolean;
@@ -160,6 +163,24 @@ export interface LibraryFolder {
   id: string;
   name: string;
   parent: string | null;
+  linked_path?: string | null;
+}
+export interface LinkedFolderChild {
+  path: string;
+  name: string;
+  display_name?: string | null;
+  directory: boolean;
+  byte_count: number;
+}
+export interface LibraryBookmark {
+  id: string;
+  seq: number;
+  block: number | null;
+  start: number | null;
+  end: number | null;
+  name: string;
+  text: string;
+  created_at: number;
 }
 export interface UploadedBlob extends BlobInfo {
   sha256: string;
