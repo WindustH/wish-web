@@ -4,6 +4,7 @@ import { replyContextKey } from '../references/context.ts';
 import type { ReplyLink } from '../../core/replyReferences.ts';
 import { validReference } from '../../core/replyReferences.ts';
 import { markdownSourceRanges } from '../../ui/markdownSelection.ts';
+import { underlineGeometry, type TextRect } from '../../ui/underlineGeometry.ts';
 import Markdown from '../../domain/references/ReferenceMarkdown.vue';
 import { tr } from '../../core/i18n/tr.ts';
 const props = defineProps<{ seq?: number; block: number; text: string; plain?: boolean }>();
@@ -11,6 +12,7 @@ const context = inject(replyContextKey, undefined);
 const root = ref<HTMLElement>();
 const links = shallowRef<ReplyLink[]>([]);
 const lines = shallowRef<{ x: number; y: number; width: number; height: number; link: ReplyLink }[]>([]);
+const underlines = shallowRef<ReturnType<typeof underlineGeometry>>([]);
 const popup = ref<{ x: number; y: number; above: boolean; link: ReplyLink }>();
 const focusLines = shallowRef<{ x: number; y: number; width: number; height: number }[]>([]);
 const focused = computed(() => {
@@ -62,6 +64,7 @@ function measure() {
   cancelAnimationFrame(frame);
   if (!links.value.length && !focused.value) {
     lines.value = [];
+    underlines.value = [];
     focusLines.value = [];
     return;
   }
@@ -71,6 +74,13 @@ function measure() {
     measureFocus();
     const box = el.getBoundingClientRect();
     const result: typeof lines.value = [];
+    const decorations: TextRect[] = [];
+    const relative = (rect: DOMRect): TextRect => ({
+      x: rect.left - box.left,
+      y: rect.top - box.top,
+      width: rect.width,
+      height: rect.height,
+    });
     for (const link of links.value)
       for (const ref of link.references ?? []) {
         if (
@@ -92,18 +102,33 @@ function measure() {
             ranges = [range];
           }
         } else ranges = markdownSourceRanges(el, ref.start, ref.end);
-        for (const range of ranges)
-          for (const rect of range.getClientRects())
-            if (rect.width && rect.height)
-              result.push({
-                x: rect.left - box.left,
-                y: rect.top - box.top,
-                width: rect.width,
-                height: rect.height,
-                link,
-              });
+        for (const range of ranges) {
+          const rects = [...range.getClientRects()].filter((rect) => rect.width && rect.height);
+          result.push(...rects.map((rect) => ({ ...relative(rect), link })));
+          const common = range.commonAncestorContainer;
+          const element = common instanceof Element ? common : common.parentElement;
+          const atom = element?.closest('[data-md-atom]');
+          if (atom && el.contains(atom)) {
+            // A formula is one quoted unit. MathML exposes overlapping glyph,
+            // operator and script rectangles; their individual bottoms are not baselines.
+            const boxes = [...rects, ...atom.getClientRects()].filter((rect) => rect.width && rect.height);
+            if (boxes.length) {
+              const left = Math.min(...boxes.map((rect) => rect.left));
+              const top = Math.min(...boxes.map((rect) => rect.top));
+              const whole = {
+                x: left - box.left,
+                y: top - box.top,
+                width: Math.max(...boxes.map((rect) => rect.right)) - left,
+                height: Math.max(...boxes.map((rect) => rect.bottom)) - top,
+              };
+              decorations.push(whole);
+              result.push({ ...whole, link });
+            }
+          } else decorations.push(...rects.map(relative));
+        }
       }
     lines.value = result;
+    underlines.value = underlineGeometry(decorations);
   });
 }
 watch(
@@ -133,11 +158,13 @@ watch(
 );
 watch(
   [root, () => !!links.value.length || !!focused.value],
-  ([element, needed]) => {
+  ([element, needed], _, cleanup) => {
     observer?.disconnect();
     if (element && needed) {
       observer = new ResizeObserver(measure);
       observer.observe(element);
+      document.fonts?.addEventListener('loadingdone', measure);
+      cleanup(() => document.fonts?.removeEventListener('loadingdone', measure));
     }
     measure();
   },
@@ -147,16 +174,28 @@ watch(() => props.text, measure, { flush: 'post' });
 function hit(event: MouseEvent) {
   if (!lines.value.length) return;
   const box = root.value?.getBoundingClientRect();
-  return (
-    box &&
-    lines.value.find(
-      (line) =>
-        event.clientX >= box.left + line.x &&
-        event.clientX <= box.left + line.x + line.width &&
-        event.clientY >= box.top + line.y &&
-        event.clientY <= box.top + line.y + line.height,
-    )
+  if (!box) return;
+  const x = event.clientX - box.left,
+    y = event.clientY - box.top;
+  const direct = lines.value.find(
+    (line) => x >= line.x && x <= line.x + line.width && y >= line.y && y <= line.y + line.height,
   );
+  if (direct) return direct;
+  // The underline now has space beneath the glyphs, but remains part of the link's hit area.
+  const mark = underlines.value.find(
+    (line) => x >= line.x && x <= line.x + line.width && y >= line.y - 2 && y <= line.y + 2,
+  );
+  if (!mark) return;
+  let nearest: (typeof lines.value)[number] | undefined;
+  for (const line of lines.value)
+    if (
+      x >= line.x &&
+      x <= line.x + line.width &&
+      line.y + line.height <= mark.y &&
+      (!nearest || line.y + line.height > nearest.y + nearest.height)
+    )
+      nearest = line;
+  return nearest;
 }
 function move(event: MouseEvent) {
   if (!lines.value.length) return;
@@ -265,9 +304,9 @@ onBeforeUnmount(() => {
     /></span>
     <span aria-hidden="true" class="reply-underlines"
       ><i
-        v-for="(line, i) in lines"
+        v-for="(line, i) in underlines"
         :key="i"
-        :style="{ left: `${line.x}px`, top: `${line.y + line.height - 1}px`, width: `${line.width}px` }"
+        :style="{ left: `${line.x}px`, top: `${line.y}px`, width: `${line.width}px` }"
     /></span>
     <button
       v-if="lines.length"
@@ -321,6 +360,8 @@ onBeforeUnmount(() => {
   position: absolute;
   border-bottom: 2px dotted var(--accent);
   opacity: 0.85;
+  pointer-events: auto;
+  cursor: pointer;
 }
 .reply-access {
   position: absolute;
