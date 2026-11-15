@@ -206,39 +206,30 @@ With ADB connected, run `node tools/android-back-regression.mjs http://host:8790
 Instruction projections carry stable semantic kinds. Display labels are localized by presentation code, and stored titles remain intact. Settings snapshots and bus events have explicit contracts; this does not imply runtime validation of every upstream field.
 
 
-## Source review follow-up
+## Request and rendering lifecycle
 
 - Request deadlines cover response body reads and release their listeners/timers. Caller cancellation,
   history-window cancellation and connection checks do not require `AbortSignal.any` or `timeout`.
 - Global sync has explicit stop/restart semantics and discards late callbacks. Switching servers
-  already reloads the app, so the previous design alone did not prove a current account-switch leak.
-- Activity recording was already opt-in; stall diagnostics now use the same switch and release their
+  reloads the app.
+- Activity recording and stall diagnostics use the same opt-in switch and release their
   listeners/timers when disabled. Unhandled background rejections produce coalesced, nonmodal notices.
 - Closing a menu removes its backdrop immediately. Only the closing gesture's compatibility click is
   consumed; the next pointer press is not blocked.
-- Overlapping native Back events keep the original restoration promise instead of orphaning a route
-  guard. The existing forward boundary remains backed by the Chromium navigation regression tests.
+- Overlapping native Back events share the original restoration promise and its route-guard waiters.
 - Streaming Markdown reuses sanitized block HTML and DOM. Unfinished code fences defer highlighting.
   Parsing remains document-wide to preserve later reference definitions, lists, tables and math.
   Explicit `<br>`, `<br/>` and `<br />` tags use an inline hard-break rule, including in tables;
   raw HTML stays disabled, code/escaped tags remain literal, and source selections retain the original tags.
-  The pre-existing full-document cache was already bounded to two million UTF-16 code units, with separate highlight caching
-  and long-stream throttling; it was not an unbounded 500-document cache.
-- Native text and IME input no longer rebuild the editor DOM. Attachment normalization remains atomic;
+  The full-document cache is bounded to two million UTF-16 code units, with separate highlight caching
+  and long-stream throttling.
+- Native text and IME input preserve the editor DOM. Attachment normalization remains atomic;
   custom Undo restores its selection. Missing or unsupported `Selection.modify` degrades conservatively.
-- Custom chat resize observers share one observer and one frame callback. Their previous callbacks
-  already had frame coalescing and teardown; a layout loop was not demonstrated.
-- Desktop/mobile overlay pages retain their existing shared instance and cancellable close timer.
-  Chromium tests cover repeated 899/900px transitions, retained drafts and rapid close/reopen.
-  Two RouterViews alone do not demonstrate double mounting. Cross-browser device coverage remains
-  separate from these source and Chromium checks.
-- Shared settings copy uses dictionary keys. Existing two-language `tr()` calls and some compatibility
-  payload `any` fields remain; this is not a claim of a complete localization or typing migration.
-
-Run `node ../wish-test/web/run.mjs browser source-review-browser.mjs` for Markdown identity/semantics, input/IME/Undo, menu
-click isolation, focus restoration and opt-in diagnostics. Run `node ../wish-test/web/run.mjs browser overlay-layout-browser.mjs`
-for responsive overlay and route transition regressions. Unit coverage includes abort scopes,
-sync lifecycle, overlapping Back, malformed diffs and locale dictionary parity.
+- Custom chat resize observers share one observer and one frame callback, with teardown on unmount.
+- Desktop/mobile overlay pages share one instance and a cancellable close timer. A 220ms deadline
+  releases the instance if the close animation does not finish.
+- Shared settings copy uses dictionary keys. Two-language `tr()` calls and some compatibility
+  payload `any` fields also remain.
 
 
 ### Reply references
@@ -281,7 +272,7 @@ ownership while suppressing the compatibility click.
 
 Session-to-session messages use the recipient session history and link to the sender. There is no group route, group sidebar or independent transcript.
 
-### Working-tree audit after v0.2.7 (2026-11-14)
+### State and interaction constraints
 
 - Library queries start when the panel opens, using one folder-scoped request. A legacy server
   that rejects the folder parameter gets an unscoped fallback. Missing saved folders return to
@@ -301,15 +292,8 @@ Session-to-session messages use the recipient session history and link to the se
   request, preserving unsaved edits after a later failure. Secondary configuration savers rebase
   conflicts without overwriting refreshed credentials; onboarding checks own their cancellation.
 
-Browser regressions include `library-lifecycle-browser.mjs`, `audit-settings-browser.mjs`,
-`sidebar-shortcuts-browser.mjs`, `source-preview-browser.mjs`, `blob-mention-stack-browser.mjs`
-and `touch-selection-layout-browser.mjs`. Existing library folder/selection tests also apply.
-Component size alone does not justify moving all state into a composable; no blanket component
-split or removal of compatibility event names is claimed. DirectoryPicker's backend integration
-and the PWA coordinator remain within the documented allowed imports. Native-device coverage and
-profiling of large source files remain separate from Chromium regression checks.
-The proposed selection-only mutation scope failed the preceding-content layout regression in a
-fixed-height scroll viewport. Container observation remains coalesced per frame and active only
-while the selection/menu is open; narrowing it needs equivalent position-change coverage.
+Container observation is coalesced per frame and active only while the selection/menu is open.
+In a fixed-height scroll viewport, changes to preceding content can move the selection, so the
+observation scope includes those layout changes rather than only the selected text node.
 
 Shortcut bindings are defined in `core/shortcuts.ts`, stored by `core/state/shortcutsSlice.ts`, and dispatched by `features/shell/shortcuts.ts`. Settings → Keyboard shortcuts configures all application bindings, the send key and browser find/caret-browsing/print/save/developer-tool shortcuts. Browser switches allow the action when on and disable it when off. Browser blocking runs before the IME composition guard; application commands still pause during composition. Preferences share the settings save/discard behavior and stay local to this browser.
