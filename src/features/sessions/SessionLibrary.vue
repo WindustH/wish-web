@@ -1196,7 +1196,14 @@ watch(
       </button>
     </template>
   </Modal>
-  <Modal compact :open="linkOpen" :dismissable="!linking" :title="i18n.t('library.linkFile')" @close="linkOpen = false">
+  <Modal
+    compact
+    :open="linkOpen"
+    :sheet="mobile"
+    :dismissable="!linking"
+    :title="i18n.t('library.linkFile')"
+    @close="linkOpen = false"
+  >
     <form :id="linkFormId" class="library-link-form" @submit.prevent="addLink">
       <p>
         {{ i18n.t('library.linkHint') }}

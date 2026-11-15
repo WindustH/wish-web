@@ -4,10 +4,12 @@
 // layered over the first. The heading and the body are the same in both; only the frame differs.
 import { computed, ref } from 'vue';
 import Modal from '../../../ui/components/Modal.vue';
+import { useIsMobile } from '../../../ui/composables/useMedia.ts';
 import { stepText, toolTitle, stepToolName } from './processDetails.ts';
 import { tr } from '../../../core/i18n/tr.ts';
 import ProcessDetailHeading from './ProcessDetailHeading.vue';
 import ProcessDetailBody from './ProcessDetailBody.vue';
+const isMobile = useIsMobile();
 const props = defineProps<{ step: any; relatedResult?: any; session?: string; diffOnly?: boolean; inline?: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 const dialog = ref<InstanceType<typeof Modal>>();
@@ -35,6 +37,7 @@ const fullText = computed(() => {
     v-if="!inline"
     ref="dialog"
     :open="true"
+    :sheet="isMobile"
     compact
     wide
     :content-class="`process-detail${diffOnly || name === 'view_image' ? ' process-detail-visual' : ''}`"

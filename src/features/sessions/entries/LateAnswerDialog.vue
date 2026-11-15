@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { tr } from '../../../core/i18n/tr.ts';
 import Modal from '../../../ui/components/Modal.vue';
+import { useIsMobile } from '../../../ui/composables/useMedia.ts';
 import AnswerSummary from './AnswerSummary.vue';
 import type { AnswerRecord } from '../askUser.ts';
+const isMobile = useIsMobile();
 defineProps<{ answers: AnswerRecord[] }>();
 const emit = defineEmits<{ close: [] }>();
 </script>
 <template>
   <Modal
     :open="true"
+    :sheet="isMobile"
     compact
     :title="tr('补充的回答', 'Late answers')"
     content-class="late-answer-detail"

@@ -3,9 +3,11 @@ import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import * as api from '../../core/api/endpoints.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import Modal from '../../ui/components/Modal.vue';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import VirtualRows from '../../ui/components/VirtualRows.vue';
 import CopyButton from '../../ui/components/CopyButton.vue';
 
+const isMobile = useIsMobile();
 const props = defineProps<{ sessionId: string }>();
 const emit = defineEmits<{ close: [] }>();
 const tab = ref('messages');
@@ -146,6 +148,7 @@ onBeforeUnmount(() => {
 <template>
   <Modal
     :open="true"
+    :sheet="isMobile"
     :title="tr('模型上下文与历史', 'Model context and history')"
     wide
     body-scroll="content"
@@ -236,6 +239,7 @@ onBeforeUnmount(() => {
   <Modal
     v-if="detail !== null"
     :open="true"
+    :sheet="isMobile"
     :title="detailTitle"
     wide
     @close="

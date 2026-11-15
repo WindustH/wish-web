@@ -9,6 +9,7 @@ import QuestionDetailDialog from './entries/QuestionDetailDialog.vue';
 import ProcessGroup from './entries/ProcessGroup.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import FileDiff from './entries/FileDiff.vue';
 import { changedFiles } from './fileChanges.ts';
 import { tr } from '../../core/i18n/tr.ts';
@@ -17,6 +18,7 @@ import PeerMessageDialog from './entries/PeerMessageDialog.vue';
 import LateAnswerDialog from './entries/LateAnswerDialog.vue';
 import BlobMentionCard from '../../domain/references/BlobMentionCard.vue';
 
+const isMobile = useIsMobile();
 const props = defineProps<{
   chips: ChipItem<EntryView>[];
   request: ActivityRequest | null;
@@ -104,6 +106,7 @@ const requestedStep = computed(() => {
       v-if="selected?.mentions"
       :key="selected.requestId"
       :open="true"
+      :sheet="isMobile"
       :title="tr(`引用文件 · ${selected.mentions.length}`, `Referenced files · ${selected.mentions.length}`)"
       @close="selected && closeActivity(selected.chipKey)"
     >
@@ -124,6 +127,7 @@ const requestedStep = computed(() => {
     <Modal
       v-if="selected?.files"
       :open="true"
+      :sheet="isMobile"
       compact
       wide
       content-class="file-changes-dialog"

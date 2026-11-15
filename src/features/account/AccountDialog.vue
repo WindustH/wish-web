@@ -2,12 +2,14 @@
 // Account status as a window over the app, opened from the desktop navigation bar.
 import { watch } from 'vue';
 import Modal from '../../ui/components/Modal.vue';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import Icon from '../../ui/components/Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import RefreshStamp from '../../ui/components/RefreshStamp.vue';
 import AccountStatus from './AccountStatus.vue';
 import { useAccountStates } from './useAccountStates.ts';
 
+const isMobile = useIsMobile();
 const props = defineProps<{ open: boolean }>();
 defineEmits<{ close: [] }>();
 const { rows, unconfigured, loading, error, checkedAt, refresh } = useAccountStates();
@@ -25,6 +27,7 @@ watch(
   <Modal
     compact
     :open="open"
+    :sheet="isMobile"
     content-class="account-window"
     :title="tr('账户状态', 'Account status')"
     @close="$emit('close')"

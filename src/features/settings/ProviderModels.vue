@@ -440,6 +440,7 @@ const choices = computed(() =>
     <Modal
       ref="catalogModal"
       compact
+      :sheet="isMobile"
       body-scroll="content"
       content-class="catalog-picker"
       :open="catalogOpen"

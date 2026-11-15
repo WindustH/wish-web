@@ -5,6 +5,7 @@ export const sections = computed(() => [
     id: 'service',
     icon: 'service',
     label: tr('会话', 'Sessions'),
+    showSummary: true,
     summary: tr('默认模型、提示词与上下文', 'Model, instructions and context'),
     description: tr(
       '新会话的默认模型、工作目录、提示词和上下文压缩。',
@@ -15,6 +16,7 @@ export const sections = computed(() => [
     id: 'accounts',
     icon: 'key',
     label: tr('账户', 'Accounts'),
+    showSummary: true,
     summary: tr('凭据与订阅登录', 'Credentials and sign-in'),
     description: tr(
       '模型、搜索、网页读取、媒体生成与语音转写服务使用的账户。',
@@ -45,7 +47,8 @@ export const sections = computed(() => [
     id: 'extensions',
     icon: 'extensions',
     label: tr('扩展工具', 'Extension tools'),
-    summary: tr('图片、视频、音频、转写、网页与搜索', 'Images, video, audio, transcription, web and search'),
+    showSummary: true,
+    summary: tr('媒体生成、语音转写与联网服务', 'Media generation, transcription and web services'),
     description: tr(
       '管理扩展工具的默认启用方式、服务与账户。',
       'Manage default tool delivery, services and accounts for extensions.',

@@ -3,7 +3,9 @@ import { computed, ref, watch } from 'vue';
 import { albumColumns, albumPreview, ALBUM_ASPECT_RATIO, ALBUM_GAP, ALBUM_WIDTH } from '../imageAlbums.ts';
 import { tr } from '../../../core/i18n/tr.ts';
 import Modal from '../../../ui/components/Modal.vue';
+import { useIsMobile } from '../../../ui/composables/useMedia.ts';
 import VirtualImageGrid from './VirtualImageGrid.vue';
+const isMobile = useIsMobile();
 const props = defineProps<{ count: number; forceOpen?: boolean; locateIndex?: number }>();
 const open = ref(false);
 const preview = computed(() => albumPreview(props.count));
@@ -46,6 +48,7 @@ watch(
     </div>
     <Modal
       :open="open"
+      :sheet="isMobile"
       wide
       :title="tr(`图集 · ${count} 张图片`, `Album · ${count} images`)"
       body-scroll="content"

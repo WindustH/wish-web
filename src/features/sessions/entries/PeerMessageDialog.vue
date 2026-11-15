@@ -7,8 +7,10 @@ import CopyButton from '../../../ui/components/CopyButton.vue';
 import Icon from '../../../ui/components/Icon.vue';
 import Markdown from '../../../domain/references/ReferenceMarkdown.vue';
 import Modal from '../../../ui/components/Modal.vue';
+import { useIsMobile } from '../../../ui/composables/useMedia.ts';
 import { i18n } from '../../../core/i18n/index.ts';
 import { fmtDateTime } from '../../../core/util/fmt.ts';
+const isMobile = useIsMobile();
 const props = defineProps<PeerMessageDetail>();
 const emit = defineEmits<{ close: [] }>();
 const dialog = ref<InstanceType<typeof Modal> | null>(null);
@@ -17,7 +19,15 @@ const title = computed(() =>
 );
 </script>
 <template>
-  <Modal ref="dialog" :open="true" :title="title" compact content-class="peer-message-window" @close="emit('close')">
+  <Modal
+    ref="dialog"
+    :open="true"
+    :sheet="isMobile"
+    :title="title"
+    compact
+    content-class="peer-message-window"
+    @close="emit('close')"
+  >
     <div class="peer-card-actions">
       <CopyButton :text="text" /><button
         type="button"

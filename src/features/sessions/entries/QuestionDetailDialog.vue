@@ -2,15 +2,18 @@
 import type { QuestionDetail } from '../activityDialogs.ts';
 import { answerText } from '../askUser.ts';
 import Modal from '../../../ui/components/Modal.vue';
+import { useIsMobile } from '../../../ui/composables/useMedia.ts';
 import Icon from '../../../ui/components/Icon.vue';
 import Markdown from '../../../domain/references/ReferenceMarkdown.vue';
 import { tr } from '../../../core/i18n/tr.ts';
+const isMobile = useIsMobile();
 defineProps<{ detail: QuestionDetail }>();
 defineEmits<{ close: [] }>();
 </script>
 <template>
   <Modal
     :open="true"
+    :sheet="isMobile"
     compact
     content-class="question-detail-window"
     :title="tr('提问与回答', 'Questions and answers')"

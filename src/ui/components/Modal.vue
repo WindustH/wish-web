@@ -17,16 +17,14 @@ import { useDialogLifecycle } from '../composables/useDialogLifecycle.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
 import { prefersReducedMotion } from '../motion/reducedMotion.ts';
 import { useSheetDrag } from '../composables/useSheetDrag.ts';
-import { useIsMobile } from '../composables/useMedia.ts';
 import { useBackLayer } from '../composables/useBackLayer.ts';
 import { touchButton } from '../touchButton.ts';
 const focus = useDialogFocus();
 const backTouch = touchButton();
 const pageActive = usePageActivity();
 
-// Ordinary mobile dialogs use a bottom sheet; routed pages and anchored popovers
-// retain their own presentation. Callers may explicitly override the sheet mode.
-const isMobile = useIsMobile();
+// Short prompts and decisions stay centered. Content panels opt into a sheet
+// at their mobile breakpoint; pages and anchored popovers keep their own layout.
 const props = withDefaults(
   defineProps<{
     open: boolean;
@@ -45,7 +43,7 @@ const props = withDefaults(
     anchor?: () => HTMLElement | null;
     ignoreOutside?: (target: Element) => boolean;
   }>(),
-  { dismissable: true, backLayer: true, sheet: undefined },
+  { dismissable: true, backLayer: true },
 );
 const emit = defineEmits<{ close: [] }>();
 const { mounted, contentOpen, requestClose, finishClose } = useDialogLifecycle({
@@ -69,7 +67,7 @@ useBackLayer(
 );
 // Anchored presentation is explicitly selected by the caller.
 const bubble = computed(() => !props.page && !!props.anchor);
-const bottomSheet = computed(() => !props.page && !bubble.value && (props.sheet ?? isMobile.value));
+const bottomSheet = computed(() => !props.page && !bubble.value && props.sheet);
 // Compact cards drop the head and footer bands: the title joins the content
 // flow and the actions follow it. Page sheets keep their head (back button).
 const compactCard = computed(() => props.compact && !props.page);
