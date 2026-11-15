@@ -158,7 +158,11 @@ function parameters(event: Event) {
           /></label>
           <label class="set-row stacked"
             ><span class="set-label">{{ tr('接口基础地址', 'Base URL') }}</span
-            ><input class="input" v-model="current.base_url" :placeholder="spec(current.preset)?.base_url"
+            ><input
+              class="input"
+              :value="current.base_url"
+              @input="current.base_url = ($event.target as HTMLInputElement).value.trim() || null"
+              :placeholder="spec(current.preset)?.base_url"
           /></label>
           <SwitchRow v-model="current.proxy_enabled" :name="tr('使用代理', 'Use proxy')" />
         </div>

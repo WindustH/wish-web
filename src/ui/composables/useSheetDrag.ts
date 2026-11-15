@@ -32,7 +32,8 @@ export function useSheetDrag(element: () => HTMLElement | null | undefined, enab
     ) {
       if (
         node.scrollTop > 0 ||
-        node.matches('[data-sheet-drag-ignore], [draggable="true"], input, textarea, select, [contenteditable="true"]')
+        node.matches('[data-sheet-drag-ignore], [draggable="true"], input, textarea, select') ||
+        (node instanceof HTMLElement && node.isContentEditable)
       )
         return;
       const style = getComputedStyle(node);

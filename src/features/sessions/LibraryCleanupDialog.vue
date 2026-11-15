@@ -19,7 +19,7 @@ const measuring = ref(false),
   error = ref('');
 const revision = ref(0);
 let controller: AbortController | undefined;
-const count = computed(() => (preview.value?.missing_links ?? 0) + (preview.value?.unused_hidden ?? 0));
+const count = computed(() => preview.value?.ids.length ?? 0);
 const options = () => ({ missing_links: missingLinks.value, unused_hidden: unusedHidden.value });
 watch(
   [() => props.open, () => props.session, missingLinks, unusedHidden, revision],
@@ -64,10 +64,11 @@ async function clean() {
       return;
     }
     const removed = result.missing_links + result.unused_hidden;
+    const stale = result.stale_entries ?? 0;
     toast(
       tr(
-        `已清理 ${removed} 个文件，释放 ${fmtBytes(result.bytes)}`,
-        `Removed ${removed} files, freed ${fmtBytes(result.bytes)}`,
+        `已清理 ${removed} 个文件${stale ? `、${stale} 条失效记录` : ''}，释放 ${fmtBytes(result.bytes)}`,
+        `Removed ${removed} file${removed === 1 ? '' : 's'}${stale ? ` and ${stale} stale entr${stale === 1 ? 'y' : 'ies'}` : ''}, freed ${fmtBytes(result.bytes)}`,
       ),
     );
     emit('cleaned');
@@ -120,9 +121,15 @@ async function clean() {
         <template v-else-if="preview">
           <strong>{{
             count
-              ? tr(`可清理 ${count} 个文件`, `${count} files to remove`)
+              ? tr(`可清理 ${count} 项`, `${count} item${count === 1 ? '' : 's'} to remove`)
               : tr('没有可清理的文件', 'No files to remove')
           }}</strong>
+          <span v-if="preview.stale_entries">{{
+            tr(
+              `${preview.stale_entries} 条失效记录（文件已不存在）`,
+              `${preview.stale_entries} stale entr${preview.stale_entries === 1 ? 'y' : 'ies'} (files already missing)`,
+            )
+          }}</span>
           <span>{{
             tr(
               `无效链接 ${preview.missing_links} 个 · 隐藏文件 ${preview.unused_hidden} 个`,

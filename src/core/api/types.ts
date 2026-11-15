@@ -149,6 +149,7 @@ export interface BlobPage {
 }
 export interface LibraryCleanup {
   unreadable_jobs?: number;
+  stale_entries?: number;
   missing_links: number;
   unused_hidden: number;
   bytes: number;
@@ -365,6 +366,8 @@ export interface PruneCounts {
   messages: number;
   events: number;
   files: number;
+  stale_entries?: number;
+  unreadable_jobs?: number;
   bytes: { history: number; files: number; total: number };
 }
 export interface PruneResult extends PruneCounts {

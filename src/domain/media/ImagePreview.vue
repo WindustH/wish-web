@@ -5,6 +5,7 @@ import type { ReplyReference } from '../../core/replyReferences.ts';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import { usePreviewToolbar } from './usePreviewToolbar.ts';
 import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
 import { zoomAt } from './imageTransform.ts';
 import { usePinchZoom } from '../../ui/composables/usePinchZoom.ts';
@@ -19,6 +20,7 @@ const props = defineProps<{
   focus?: ReplyReference;
   toolbar?: HTMLElement;
 }>();
+const localToolbar = usePreviewToolbar(() => props.toolbar);
 const saved = useWorkspaceState('image', () => props.stateKey, { zoom: 1, x: 0, y: 0 });
 const emit = defineEmits<{ error: [] }>();
 const surface = ref<HTMLElement>(),
@@ -135,7 +137,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="image-preview">
-    <Teleport :to="toolbar ?? 'body'" :disabled="!toolbar">
+    <Teleport :to="toolbar ?? 'body'" :disabled="localToolbar">
       <div class="image-toolbar">
         <button
           class="btn ghost icon-only"
@@ -204,6 +206,8 @@ onBeforeUnmount(() => {
 }
 .image-toolbar {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   justify-content: center;
   flex: none;
 }

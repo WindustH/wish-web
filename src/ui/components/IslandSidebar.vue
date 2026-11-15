@@ -138,7 +138,9 @@ onBeforeUnmount(() => {
       :class="{ 'island-sheet-scrim': overlay }"
       @click="closeFromScrim"
     />
-    <div v-else-if="drawer && open" class="island-scrim" aria-hidden="true" @click="closeFromScrim" />
+    <Transition v-else name="island-scrim">
+      <div v-if="drawer && open" class="island-scrim" aria-hidden="true" @click="closeFromScrim" />
+    </Transition>
     <DialogContent
       :id="open ? 'session-sidebar' : undefined"
       class="island-sidebar"
@@ -311,6 +313,14 @@ html.keyboard-open .island-sheet {
   background: var(--line-strong);
 }
 @media (prefers-reduced-motion: no-preference) {
+  .island-scrim-enter-active,
+  .island-scrim-leave-active {
+    transition: opacity var(--dur) var(--ease-out);
+  }
+  .island-scrim-enter-from,
+  .island-scrim-leave-to {
+    opacity: 0;
+  }
   .island-sidebar[data-state='open'] {
     animation: island-in var(--dur) var(--ease-out);
   }

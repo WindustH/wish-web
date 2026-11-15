@@ -5,7 +5,7 @@
 // all are; a search lists what it finds under its box. The model is told of none of them; it looks
 // with `wish skill` in its shell. Folders and switches are part of the configuration draft, saved with
 // the rest of settings.
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { CheckboxIndicator, CheckboxRoot, PopoverAnchor, PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui';
 import { tr } from '../../core/i18n/tr.ts';
 import { skillContent, skillsList } from '../../core/api/endpoints.ts';
@@ -170,6 +170,7 @@ function outsideSearch(event: Event) {
 // From the keyboard: down or Tab from the box goes into what it found, up and down move through
 // them, and Escape comes back to the box.
 const searchInput = ref<HTMLInputElement | null>(null);
+let returnToSearch = false;
 const resultButtons = () => [...document.querySelectorAll<HTMLElement>('#skill-results button')];
 function intoResults(event: KeyboardEvent) {
   const first = resultButtons()[0];
@@ -198,7 +199,9 @@ function moveInResults(event: KeyboardEvent) {
 }
 const folderRows = computed(() => (current.value ? decorate(skillRows(current.value)) : []));
 
-async function view(skill: SkillEntry) {
+async function view(skill: SkillEntry, fromSearch = false) {
+  returnToSearch = fromSearch;
+  searchOpen.value = false;
   viewingRequest?.abort();
   const request = (viewingRequest = new AbortController());
   try {
@@ -207,6 +210,13 @@ async function view(skill: SkillEntry) {
   } catch (error) {
     if (!request.signal.aborted) showError({ title: tr('无法读取这个 Skill', 'Could not read this skill'), error });
   }
+}
+function closeDetail() {
+  viewing.value = null;
+  // The result button was removed with its popover. Return to a stable control
+  // without reopening the results or the phone keyboard.
+  if (returnToSearch) void nextTick(() => searchInput.value?.parentElement?.focus({ preventScroll: true }));
+  returnToSearch = false;
 }
 </script>
 
@@ -306,8 +316,8 @@ async function view(skill: SkillEntry) {
     </header>
     <PopoverRoot v-if="all.length > 8" :open="searchOpen && searching" @update:open="searchOpen = $event">
       <PopoverAnchor as-child>
-        <label class="skill-search"
-          ><Icon name="search" /><input
+        <div class="skill-search" tabindex="-1">
+          <Icon name="search" /><input
             ref="searchInput"
             v-model="query"
             type="search"
@@ -322,7 +332,8 @@ async function view(skill: SkillEntry) {
             @keydown.escape="closeSearch"
             @keydown.down="intoResults"
             @keydown.tab="intoResults"
-        /></label>
+          />
+        </div>
       </PopoverAnchor>
       <PopoverPortal>
         <PopoverContent
@@ -345,7 +356,7 @@ async function view(skill: SkillEntry) {
               class="skill-result"
               :class="{ off: skill.standing !== 'used' || !enabled(skill.name) }"
             >
-              <button type="button" class="skill-result-open" @click="view(skill)">
+              <button type="button" class="skill-result-open" @click="view(skill, true)">
                 <span class="skill-result-name">{{ skill.name }}</span>
                 <small>{{ [skill.category, skill.description].filter(Boolean).join(' · ') }}</small>
               </button>
@@ -435,7 +446,7 @@ async function view(skill: SkillEntry) {
     </div>
   </Modal>
 
-  <Modal :open="!!viewing" wide :page="isMobile" :layer="72" :title="viewing?.name ?? ''" @close="viewing = null">
+  <Modal :open="!!viewing" wide :page="isMobile" :layer="72" :title="viewing?.name ?? ''" @close="closeDetail">
     <div v-if="viewing" class="skill-view">
       <p v-if="viewing.description" class="skill-view-description">{{ viewing.description }}</p>
       <dl class="skill-view-meta">

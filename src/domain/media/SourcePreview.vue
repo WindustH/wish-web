@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usePreviewToolbar } from './usePreviewToolbar.ts';
 import { computed, inject, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import DOMPurify from 'dompurify';
 import { tr } from '../../core/i18n/tr.ts';
@@ -32,6 +33,7 @@ const props = defineProps<{
 const emit = defineEmits<{ scroll: [top: number] }>();
 const active = usePageActivity();
 const mobile = useIsMobile();
+const localToolbar = usePreviewToolbar(() => props.toolbar);
 const replies = inject(replyContextKey, undefined);
 const mode = ref('source');
 watch([() => props.session, () => props.blob], () => {
@@ -175,8 +177,8 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="source-preview">
-    <Teleport :to="toolbar || 'body'" :disabled="!toolbar || mobile">
-      <div class="source-toolbar" :class="{ 'source-toolbar-local': !toolbar || mobile }">
+    <Teleport :to="toolbar || 'body'" :disabled="localToolbar">
+      <div class="source-toolbar" :class="{ 'source-toolbar-local': localToolbar }">
         <SegmentedControl
           v-if="previewKind"
           v-model="mode"
@@ -261,6 +263,7 @@ onBeforeUnmount(() => {
   padding: 0 8px;
 }
 .source-toolbar-local {
+  flex-wrap: wrap;
   gap: 8px;
   padding-bottom: 10px;
 }

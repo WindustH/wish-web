@@ -23,6 +23,17 @@ import { tr } from '../../core/i18n/tr.ts';
 import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 
 const router = useRouter();
+const selectionBar = ref<HTMLElement>();
+const selectionHeight = ref(0);
+watch(selectionBar, (bar, _, cleanup) => {
+  selectionHeight.value = bar?.getBoundingClientRect().height ?? 0;
+  if (!bar) return;
+  const observer = new ResizeObserver(() => {
+    selectionHeight.value = bar.getBoundingClientRect().height;
+  });
+  observer.observe(bar);
+  cleanup(() => observer.disconnect());
+});
 
 type Snapshot = {
   items: DataItem[];
@@ -275,11 +286,22 @@ function deleted() {
       </template>
     </div>
     <!-- Room under the last cards for the bar that floats over the window while anything is chosen. -->
-    <div v-if="chosen.size" class="data-bar-room" aria-hidden="true" />
+    <div
+      v-if="chosen.size"
+      class="data-bar-room"
+      :style="{ '--selection-bar-height': `${selectionHeight}px` }"
+      aria-hidden="true"
+    />
     <!-- Floats over the bottom of the window while anything is chosen. -->
     <template #overlay>
       <Transition name="data-float">
-        <div v-if="chosen.size" class="data-selection" role="toolbar" :aria-label="tr('已选的会话', 'Chosen sessions')">
+        <div
+          v-if="chosen.size"
+          ref="selectionBar"
+          class="data-selection"
+          role="toolbar"
+          :aria-label="tr('已选的会话', 'Chosen sessions')"
+        >
           <button
             type="button"
             class="btn ghost icon-only"
@@ -510,7 +532,7 @@ function deleted() {
   height: 16px;
 }
 .data-bar-room {
-  height: 64px;
+  height: calc(var(--selection-bar-height, 44px) + 20px);
 }
 .data-float-enter-active {
   transition:
@@ -582,7 +604,7 @@ function deleted() {
     justify-content: center;
   }
   .data-bar-room {
-    height: calc(108px + env(safe-area-inset-bottom));
+    height: calc(var(--selection-bar-height, 96px) + 12px + env(safe-area-inset-bottom));
   }
   .data-list {
     gap: 6px;

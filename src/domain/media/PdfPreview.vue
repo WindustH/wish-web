@@ -13,6 +13,7 @@ import { describeError } from '../../core/i18n/errorMessages.ts';
 import { pdfInfo, type PdfInfo } from './requests.ts';
 import { pdfLayout, pdfPageAt, pdfWindow } from './pdfLayout.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import { usePreviewToolbar } from './usePreviewToolbar.ts';
 import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
 import { usePinchZoom } from '../../ui/composables/usePinchZoom.ts';
 import { useMiddlePan } from '../../ui/composables/useMiddlePan.ts';
@@ -27,6 +28,7 @@ const props = defineProps<{
   toolbar?: HTMLElement;
 }>();
 const emit = defineEmits<{ error: [cause: unknown] }>();
+const localToolbar = usePreviewToolbar(() => props.toolbar);
 const saved = useWorkspaceState('pdf', () => `${props.session}/${props.blob}`, {
   zoom: 1,
   index: 0,
@@ -271,8 +273,8 @@ onBeforeUnmount(() => {
   <div class="pdf-preview" :aria-busy="loading">
     <p v-if="error" role="alert" class="pdf-message">{{ error }}</p>
     <LoadingState v-else-if="loading" variant="overlay" :label="i18n.t('common.loading')" />
-    <Teleport :to="toolbar ?? 'body'" :disabled="!toolbar">
-      <div v-if="document" class="pdf-toolbar" :class="{ 'pdf-toolbar-inline': !!toolbar }">
+    <Teleport :to="toolbar ?? 'body'" :disabled="localToolbar">
+      <div v-if="document" class="pdf-toolbar" :class="{ 'pdf-toolbar-inline': !localToolbar }">
         <button
           class="btn ghost icon-only"
           :aria-label="tr('书签', 'Bookmarks')"
@@ -335,54 +337,51 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </Teleport>
-    <nav
-      v-if="outlineOpen"
-      class="pdf-bookmarks"
-      :style="{ top: toolbar ? '0' : 'var(--pdf-toolbar-height)' }"
-      :aria-label="tr('书签', 'Bookmarks')"
-    >
-      <p v-if="!bookmarks.length">{{ tr('此 PDF 没有书签', 'This PDF has no bookmarks') }}</p>
-      <div
-        v-for="bookmark in outlineRows"
-        :key="bookmark.index"
-        class="pdf-bookmark-row"
-        :style="{ paddingLeft: `${8 + Math.min(bookmark.depth, 8) * 12}px` }"
-      >
-        <button
-          v-if="bookmark.children"
-          class="btn ghost icon-only pdf-bookmark-toggle"
-          :aria-expanded="expandedBookmarks.has(bookmark.index)"
-          :aria-label="`${expandedBookmarks.has(bookmark.index) ? tr('折叠', 'Collapse') : tr('展开', 'Expand')} ${bookmark.title}`"
-          @click="toggleBookmark(bookmark.index)"
-        >
-          <Icon :name="expandedBookmarks.has(bookmark.index) ? 'chevron-down' : 'chevron-right'" :size="16" />
-        </button>
-        <span v-else class="pdf-bookmark-spacer" />
-        <button class="btn ghost pdf-bookmark-link" :disabled="!bookmark.page" @click="jump(bookmark)">
-          {{ bookmark.title }}
-        </button>
-      </div>
-    </nav>
-    <div ref="viewport" class="pdf-viewport" @scroll.passive="scroll" @wheel="wheel">
-      <div v-if="document" class="pdf-scroll" :style="{ height: `${layout.total}px`, width: `${pageWidth}px` }">
+    <div class="pdf-content">
+      <nav v-if="outlineOpen" class="pdf-bookmarks" :aria-label="tr('书签', 'Bookmarks')">
+        <p v-if="!bookmarks.length">{{ tr('此 PDF 没有书签', 'This PDF has no bookmarks') }}</p>
         <div
-          v-for="index in visible"
-          :key="`${session}:${blob}:${document.version}:${index}`"
-          class="pdf-page-host"
-          :style="{ top: `${layout.starts[index]}px`, height: `${layout.heights[index]}px` }"
+          v-for="bookmark in outlineRows"
+          :key="bookmark.index"
+          class="pdf-bookmark-row"
+          :style="{ paddingLeft: `${8 + Math.min(bookmark.depth, 8) * 12}px` }"
         >
-          <PdfScrollPage
-            :session="session"
-            :name="name"
-            :focus="focus"
-            :blob="blob"
-            :version="document.version"
-            :page="index + 1"
-            :width="pageWidth"
-            :resizing="pinching || wheelZooming || sidebarResizing"
-            @measured="measured(index, $event)"
-            @error="emit('error', $event)"
-          />
+          <button
+            v-if="bookmark.children"
+            class="btn ghost icon-only pdf-bookmark-toggle"
+            :aria-expanded="expandedBookmarks.has(bookmark.index)"
+            :aria-label="`${expandedBookmarks.has(bookmark.index) ? tr('折叠', 'Collapse') : tr('展开', 'Expand')} ${bookmark.title}`"
+            @click="toggleBookmark(bookmark.index)"
+          >
+            <Icon :name="expandedBookmarks.has(bookmark.index) ? 'chevron-down' : 'chevron-right'" :size="16" />
+          </button>
+          <span v-else class="pdf-bookmark-spacer" />
+          <button class="btn ghost pdf-bookmark-link" :disabled="!bookmark.page" @click="jump(bookmark)">
+            {{ bookmark.title }}
+          </button>
+        </div>
+      </nav>
+      <div ref="viewport" class="pdf-viewport" @scroll.passive="scroll" @wheel="wheel">
+        <div v-if="document" class="pdf-scroll" :style="{ height: `${layout.total}px`, width: `${pageWidth}px` }">
+          <div
+            v-for="index in visible"
+            :key="`${session}:${blob}:${document.version}:${index}`"
+            class="pdf-page-host"
+            :style="{ top: `${layout.starts[index]}px`, height: `${layout.heights[index]}px` }"
+          >
+            <PdfScrollPage
+              :session="session"
+              :name="name"
+              :focus="focus"
+              :blob="blob"
+              :version="document.version"
+              :page="index + 1"
+              :width="pageWidth"
+              :resizing="pinching || wheelZooming || sidebarResizing"
+              @measured="measured(index, $event)"
+              @error="emit('error', $event)"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -401,12 +400,21 @@ onBeforeUnmount(() => {
 }
 .pdf-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
   flex: none;
-  height: var(--pdf-toolbar-height, 34px);
+  min-height: var(--pdf-toolbar-height, 34px);
   padding: 0 2px;
   font: 12px/1.5 var(--font);
+}
+.pdf-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
 }
 .pdf-toolbar .btn {
   width: 28px;
@@ -459,7 +467,7 @@ onBeforeUnmount(() => {
 }
 .pdf-bookmarks {
   position: absolute;
-  top: 34px;
+  top: 0;
   inset-inline: 0;
   z-index: 3;
   max-height: 60%;

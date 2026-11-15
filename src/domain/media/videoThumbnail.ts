@@ -1,5 +1,6 @@
 // Called under the shared thumbnail permit. The decoder is released as soon as
 // one bounded frame has been copied, rather than retained by every grid card.
+import { encodeThumbnail } from './encodeThumbnail.ts';
 export async function videoThumbnail(src: string, signal: AbortSignal): Promise<Blob> {
   signal.throwIfAborted();
   const video = document.createElement('video');
@@ -31,11 +32,7 @@ export async function videoThumbnail(src: string, signal: AbortSignal): Promise<
         canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
         try {
           canvas.getContext('2d')!.drawImage(video, 0, 0, canvas.width, canvas.height);
-          canvas.toBlob(
-            (blob) => (blob ? resolve(blob) : reject(new Error('Video thumbnail unavailable'))),
-            'image/webp',
-            0.8,
-          );
+          void encodeThumbnail(canvas).then(resolve, reject);
         } catch (error) {
           reject(error);
         }

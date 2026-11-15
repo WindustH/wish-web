@@ -118,6 +118,12 @@ a {
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

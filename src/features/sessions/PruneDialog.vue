@@ -95,7 +95,10 @@ onBeforeUnmount(() => {
   asked++;
 });
 
-const empty = computed(() => preview.value != null && preview.value.bytes.total === 0 && !preview.value.files);
+const empty = computed(
+  () =>
+    preview.value != null && preview.value.bytes.total === 0 && !preview.value.files && !preview.value.stale_entries,
+);
 const skipped = computed(() => preview.value?.skipped.length ?? 0);
 const details = computed(() => {
   const found = preview.value;
@@ -104,6 +107,12 @@ const details = computed(() => {
     found.messages ? tr(`${found.messages} 条消息`, `${found.messages} message${found.messages === 1 ? '' : 's'}`) : '',
     found.events ? tr(`${found.events} 条运行记录`, `${found.events} run event${found.events === 1 ? '' : 's'}`) : '',
     found.files ? tr(`${found.files} 个文件`, `${found.files} file${found.files === 1 ? '' : 's'}`) : '',
+    found.stale_entries
+      ? tr(
+          `${found.stale_entries} 条失效记录`,
+          `${found.stale_entries} stale entr${found.stale_entries === 1 ? 'y' : 'ies'}`,
+        )
+      : '',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -117,10 +126,22 @@ async function prune() {
     const result = await api.storagePrune(body());
     const freed = Math.max(0, (result.database?.before ?? 0) - (result.database?.after ?? 0)) + result.bytes.files;
     const skipped = result.skipped.length;
+    const stale = result.stale_entries
+      ? tr(
+          `；移除了 ${result.stale_entries} 条失效记录`,
+          `; removed ${result.stale_entries} stale entr${result.stale_entries === 1 ? 'y' : 'ies'}`,
+        )
+      : '';
+    const retained = result.unreadable_jobs
+      ? tr(
+          '；部分生成记录无法读取，相关会话的文件已保留',
+          '; files in sessions with unreadable generation records were kept',
+        )
+      : '';
     toast(
       tr(
-        `已清理，释放了 ${fmtBytes(freed)}${skipped ? `；${skipped} 个运行中的会话已跳过` : ''}`,
-        `Cleared, ${fmtBytes(freed)} freed${skipped ? `; ${skipped} running session${skipped === 1 ? '' : 's'} skipped` : ''}`,
+        `已清理，释放了 ${fmtBytes(freed)}${stale}${skipped ? `；${skipped} 个运行中的会话已跳过` : ''}${retained}`,
+        `Cleared, ${fmtBytes(freed)} freed${stale}${skipped ? `; ${skipped} running session${skipped === 1 ? '' : 's'} skipped` : ''}${retained}`,
       ),
     );
     emit('pruned', result);
@@ -185,6 +206,14 @@ async function prune() {
           tr(
             `${skipped} 个会话正在运行，这次会跳过。`,
             `${skipped} running session${skipped === 1 ? ' is' : 's are'} skipped.`,
+          )
+        }}
+      </p>
+      <p v-if="preview?.unreadable_jobs && !measuring" class="prune-note" role="status">
+        {{
+          tr(
+            `${preview.unreadable_jobs} 条生成记录无法读取；相关会话的隐藏文件和生成记录已保留。`,
+            `${preview.unreadable_jobs} generation records could not be read; hidden files and generation records in the affected sessions were kept.`,
           )
         }}
       </p>

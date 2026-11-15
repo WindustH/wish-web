@@ -3,6 +3,7 @@ import { previewCache } from '../../core/util/previewCache.ts';
 import { renderPdfPage } from './nativePdf.ts';
 import { blobUrl } from '../../core/api/endpoints.ts';
 import { acquireImageLoad } from '../../core/util/imageLoad.ts';
+import { encodeThumbnail } from './encodeThumbnail.ts';
 
 export const pdfThumbnailKey = (session: string, blob: string) => `pdf-cover:${blobUrl(`${session}/${blob}`)}:384`;
 
@@ -19,13 +20,7 @@ export async function pdfThumbnail(session: string, blob: string, signal: AbortS
     if (ready?.version === info.version && ready.value) return ready.value;
     const bytes = await pdfPage(session, blob, 1, signal, info.version);
     const { canvas } = await renderPdfPage(bytes, 384, signal);
-    const cover = await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob(
-        (value) => (value ? resolve(value) : reject(new Error('PDF thumbnail encoding failed'))),
-        'image/webp',
-        0.8,
-      ),
-    );
+    const cover = await encodeThumbnail(canvas);
     signal.throwIfAborted();
     previewCache.set(key, cover, info.version);
     return cover;

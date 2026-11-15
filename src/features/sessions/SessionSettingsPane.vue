@@ -516,8 +516,7 @@ async function act(kind: 'compact' | 'clear') {
 }
 /* Mobile palette overrides must not replace the desktop settings rules. */
 @media (max-width: 899px) {
-  .modal-card.session-settings-window.modal-page,
-  .session-sidebar-content.session-settings-window {
+  .modal-card.session-settings-window.modal-page {
     background: var(--bg);
   }
   .session-settings-window .set-card {

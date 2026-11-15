@@ -43,6 +43,14 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
   const span = times.length
     ? times.reduce((a, b) => Math.max(a, b), -Infinity) - times.reduce((a, b) => Math.min(a, b), Infinity)
     : 0;
+  const axisNumber = new Intl.NumberFormat(locale, { notation: 'compact' });
+  const axisTime = new Intl.DateTimeFormat(locale, {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(span < 3_600_000 ? { second: '2-digit' as const } : {}),
+  });
   return {
     animation: true,
     animationDuration: 0,
@@ -98,14 +106,7 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
       axisLabel: {
         color: style.muted,
         hideOverlap: true,
-        formatter: (value: number) =>
-          new Date(value).toLocaleString(locale, {
-            month: 'numeric',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            ...(span < 3_600_000 ? { second: '2-digit' as const } : {}),
-          }),
+        formatter: (value: number) => axisTime.format(value),
       },
       splitNumber: 4,
     },
@@ -116,7 +117,7 @@ export function lineOptions(series: PlotSeries[], style: ChartStyle, locale: str
       nameTextStyle: { color: style.muted, align: 'left' },
       axisLabel: {
         color: style.muted,
-        formatter: (value: number) => new Intl.NumberFormat(locale, { notation: 'compact' }).format(value),
+        formatter: (value: number) => axisNumber.format(value),
       },
       splitLine: { lineStyle: { color: style.line } },
     },
@@ -156,13 +157,16 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
   const layout = calendarLayout(heat.buckets.length, width);
   const { rows, columns } = layout;
   const max = Math.max(1, ...heat.buckets.map((bucket) => bucket.total_tokens));
-  const date = (at: number, time = false) =>
-    new Date(at + heat.offsetMinutes * 60_000).toLocaleString(locale, {
-      timeZone: 'UTC',
-      month: 'numeric',
-      day: 'numeric',
-      ...(time ? { hour: '2-digit' as const, minute: '2-digit' as const } : {}),
-    });
+  const numberFormat = new Intl.NumberFormat(locale);
+  const dateFormat = new Intl.DateTimeFormat(locale, { timeZone: 'UTC', month: 'numeric', day: 'numeric' });
+  const timeFormat = new Intl.DateTimeFormat(locale, {
+    timeZone: 'UTC',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const date = (at: number, time = false) => (time ? timeFormat : dateFormat).format(at + heat.offsetMinutes * 60_000);
   const interval = heat.bucketMs !== 86_400_000;
   return {
     animation: true,
@@ -190,7 +194,7 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
         const amount = document.createElement('div');
         amount.style.cssText = 'display:flex;align-items:baseline;gap:6px;font-variant-numeric:tabular-nums;';
         const value = document.createElement('strong');
-        value.textContent = new Intl.NumberFormat(locale).format(bucket.total_tokens);
+        value.textContent = numberFormat.format(bucket.total_tokens);
         value.style.cssText = 'font-size:18px;font-weight:600;line-height:1.4;';
         const unit = document.createElement('span');
         unit.textContent = 'Token';
