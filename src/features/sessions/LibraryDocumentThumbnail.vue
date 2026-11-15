@@ -62,7 +62,7 @@ const html = computed(() =>
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--accent) 12%, var(--bg-sunken));
+  background: var(--bg-sunken);
   pointer-events: none;
   user-select: none;
 }
