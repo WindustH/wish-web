@@ -10,7 +10,7 @@ import {
   renameLinkedFolderChild,
   blobUrl,
   uploadSessionBlob,
-  linkSessionFile,
+  linkLibraryPath,
   blobMetadata,
   updateBlobLibrary,
   deleteBlob,
@@ -291,7 +291,7 @@ async function addLink() {
   const paths = linkPaths.value;
   if (!paths.length || linking.value) return;
   if (paths.length > 100) {
-    linkError.value = tr('一次最多链接 100 个文件', 'Link up to 100 files at a time');
+    linkError.value = tr('一次最多链接 100 项', 'Link up to 100 items at a time');
     return;
   }
   const owner = props.session;
@@ -305,8 +305,7 @@ async function addLink() {
     for (const path of paths) {
       if (request.signal.aborted || owner !== props.session) return;
       try {
-        const linked = await linkSessionFile(owner, path, false, { signal: request.signal });
-        if (destination) await moveLibraryItems(owner, [linked.id], destination, { signal: request.signal });
+        await linkLibraryPath(owner, path, destination, { signal: request.signal });
       } catch (cause) {
         if (request.signal.aborted || owner !== props.session) return;
         failures.push({ path, error: describeError(cause).message });
@@ -397,10 +396,7 @@ const libraryActions = computed<MenuItem[]>(() =>
               { key: 'link', label: i18n.t('library.linkFile'), icon: 'link', disabled: linking.value },
               { key: 'upload', label: i18n.t('library.upload'), icon: 'upload', disabled: uploading.value },
               ...(supportsFolders.value
-                ? [
-                    { key: 'new-folder', label: tr('新建文件夹', 'New folder'), icon: 'folder-plus' },
-                    { key: 'link-folder', label: tr('链接文件夹', 'Link folder'), icon: 'folder' },
-                  ]
+                ? [{ key: 'new-folder', label: tr('新建文件夹', 'New folder'), icon: 'folder-plus' }]
                 : []),
               {
                 key: 'refresh',
@@ -444,7 +440,6 @@ function libraryAction(key: string) {
     void load();
     void bookmarks.load();
   } else if (key === 'new-folder') folderAction.value = { kind: 'create' };
-  else if (key === 'link-folder') folderAction.value = { kind: 'link' };
   else if (key === 'cleanup') cleanupOpen.value = true;
   else if (['icons', 'compact', 'details'].includes(key)) viewState.value.mode = key;
 }
@@ -1161,19 +1156,12 @@ watch(
                 @dragstart="drag.start($event, [item.id], folder)"
                 @touchstart.passive="!selecting && !batchBusy && drag.press($event, [item.id], folder, item.name)"
               >
-                <span v-if="view === 'icons'" class="library-folder-thumbnail"
-                  ><Icon :name="item.linked_path ? 'folder-link' : 'folder'" :size="58"
-                /></span>
-                <Icon
-                  v-else
-                  :name="item.linked_path ? 'folder-link' : 'folder'"
-                  class="library-file-icon"
-                  :size="view === 'compact' ? 22 : 32"
-                />
+                <span v-if="view === 'icons'" class="library-folder-thumbnail"><Icon name="folder" :size="44" /></span>
+                <Icon v-else name="folder" class="library-file-icon" :size="view === 'compact' ? 22 : 32" />
                 <span class="library-filename">{{ item.name }}</span>
-                <span class="library-filesize">{{
-                  item.linked_path ? tr('链接文件夹', 'Linked folder') : tr('文件夹', 'Folder')
-                }}</span>
+                <span class="library-filesize"
+                  ><Icon v-if="item.linked_path" name="link" :size="12" />{{ tr('文件夹', 'Folder') }}</span
+                >
               </button>
               <Menu :items="folderMenu(item)" :disabled="batchBusy" @select="actFolder($event, item)">
                 <template #trigger
@@ -1464,12 +1452,6 @@ watch(
     <form :id="linkFormId" class="library-link-form" @submit.prevent="addLink">
       <p>
         {{ i18n.t('library.linkHint') }}
-        {{
-          tr(
-            '每行一个路径，或浏览并多选文件，一次最多 100 个。',
-            'Enter one path per line, or browse and select multiple files (up to 100).',
-          )
-        }}
       </p>
       <div class="library-path-picker">
         <textarea
@@ -1478,17 +1460,19 @@ watch(
           class="input"
           data-initial-focus
           :aria-label="i18n.t('library.localPath')"
-          :placeholder="i18n.t('library.localPath')"
+          :placeholder="
+            tr('文件或文件夹路径，每行一个（最多 100 项）', 'File or folder paths, one per line (up to 100)')
+          "
           :disabled="linking"
         />
         <DirectoryPicker
           :model-value="linkPaths[0] ?? ''"
-          :selected-files="linkPaths"
+          :selected-paths="linkPaths"
           multiple
-          mode="file"
+          mode="entry"
           side="bottom"
           :disabled="linking"
-          @select-files="chooseLinks"
+          @select-paths="chooseLinks"
         >
           <template #trigger
             ><button
@@ -1514,9 +1498,7 @@ watch(
         class="btn primary"
         :disabled="linking || !linkPaths.length || linkPaths.length > 100"
       >
-        {{
-          linking ? i18n.t('common.loading') : tr(`链接 ${linkPaths.length} 个文件`, `Link ${linkPaths.length} files`)
-        }}
+        {{ linking ? i18n.t('common.loading') : tr(`链接 ${linkPaths.length} 项`, `Link ${linkPaths.length} items`) }}
       </button>
     </template>
   </Modal>
@@ -1637,7 +1619,16 @@ watch(
   justify-content: center;
   width: 100%;
   aspect-ratio: 4/3;
-  color: var(--accent);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-raised);
+  color: var(--fg-muted);
+}
+.library-view-icons .library-folder .library-item:focus-visible {
+  box-shadow: none;
+}
+.library-folder .library-item:focus-visible .library-folder-thumbnail {
+  border-color: var(--accent);
 }
 .library-file-icon {
   color: var(--fg-muted);
@@ -1703,6 +1694,7 @@ watch(
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 .library-folder .library-item:focus-visible {
+  outline: none;
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 .library-view-details .library-item {

@@ -133,6 +133,7 @@ export interface LinkedBlob extends BlobInfo {
   path: string;
   linked: boolean;
 }
+export type LinkedLibraryItem = { kind: 'file'; blob: LinkedBlob } | { kind: 'folder'; folder: LibraryFolder };
 export interface LibraryBlob extends BlobInfo {
   display_name?: string | null;
   folder?: string | null;

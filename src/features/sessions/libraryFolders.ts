@@ -1,6 +1,6 @@
 import type { LibraryFolder } from '../../core/api/types.ts';
 export type LibraryFolderAction =
-  | { kind: 'create' | 'link' }
+  | { kind: 'create' }
   | { kind: 'rename' | 'delete'; folder: LibraryFolder }
   | { kind: 'move'; ids: string[]; from: string | null };
 

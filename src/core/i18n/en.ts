@@ -1,11 +1,10 @@
 // English dictionary (en).
 export const en = {
   'common.loading': 'Loading…',
-  'library.browseFiles': 'Browse files',
-  'library.linkFile': 'Link local file',
-  'library.localPath': 'Absolute file path',
-  'library.linkHint':
-    'Link a file on the computer running Wish without copying it. Moving or deleting the original breaks the link.',
+  'library.browseFiles': 'Browse files or folders',
+  'library.linkFile': 'Link local files or folders',
+  'library.localPath': 'Absolute file or folder path',
+  'library.linkHint': 'Link files or folders on the computer running Wish without copying their contents.',
   'library.unavailable': 'File unavailable',
   'library.upload': 'Upload files',
   'library.mention': 'Mention in chat',

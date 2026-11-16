@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Browse server paths. Directory mode selects working / skills directories; file mode
-// chooses a regular file for linking. Neither mode reads file contents.
+// Browse server paths. Directory mode selects working / skills directories;
+// entry mode also selects files and folders together without reading their contents.
 import { computed, nextTick, ref, watch } from 'vue';
 import { PopoverRoot, PopoverTrigger, PopoverPortal, PopoverContent, PopoverArrow } from 'reka-ui';
 import { directoriesList } from '../../core/api/endpoints.ts';
@@ -18,18 +18,22 @@ const props = withDefaults(
     disabled?: boolean;
     title?: string;
     side?: 'top' | 'bottom';
-    mode?: 'directory' | 'file';
+    mode?: 'directory' | 'file' | 'entry';
     multiple?: boolean;
-    selectedFiles?: string[];
+    selectedPaths?: string[];
   }>(),
   { title: undefined, side: 'top', mode: 'directory' },
 );
 const label = computed(
   () =>
     props.title ??
-    (props.mode === 'file' ? tr('选择本地文件', 'Choose local file') : tr('选择工作目录', 'Choose working directory')),
+    (props.mode === 'entry'
+      ? tr('选择文件或文件夹', 'Choose files or folders')
+      : props.mode === 'file'
+        ? tr('选择本地文件', 'Choose local file')
+        : tr('选择工作目录', 'Choose working directory')),
 );
-const emit = defineEmits<{ 'update:modelValue': [path: string]; 'select-files': [paths: string[]] }>();
+const emit = defineEmits<{ 'update:modelValue': [path: string]; 'select-paths': [paths: string[]] }>();
 const selection = ref<string[]>([]);
 type DirectoryListing = Awaited<ReturnType<typeof directoriesList>>;
 const folderName = computed(
@@ -42,7 +46,7 @@ function childPath(parent: string, name: string) {
   return parent.replace(/[\\/]+$/, '') + separator + name;
 }
 function initialPath() {
-  if (props.mode !== 'file') return props.modelValue || '/';
+  if (props.mode === 'directory') return props.modelValue || '/';
   const value = props.modelValue;
   const index = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
   if (index < 0) return '~';
@@ -71,9 +75,11 @@ const directories = computed(() =>
 );
 const files = computed(() => (listing.value?.files ?? []).filter((name) => showHidden.value || !name.startsWith('.')));
 function selectFile(name: string) {
-  if (props.mode !== 'file' || pending.value || error.value || !listing.value || path.value !== listing.value.path)
-    return;
-  const file = childPath(listing.value.path, name);
+  if (props.mode === 'directory' || !listing.value) return;
+  selectPath(childPath(listing.value.path, name));
+}
+function selectPath(file: string) {
+  if (pending.value || error.value || !listing.value || path.value !== listing.value.path) return;
   if (props.multiple) {
     selection.value = selection.value.includes(file)
       ? selection.value.filter((path) => path !== file)
@@ -122,7 +128,7 @@ async function browse(target: string) {
   pending.value = true;
   error.value = '';
   try {
-    const result = await directoriesList(target, props.mode === 'file');
+    const result = await directoriesList(target, props.mode !== 'directory');
     if (current !== generation) return;
     listing.value = result;
     path.value = result.path;
@@ -142,7 +148,7 @@ async function browse(target: string) {
 }
 watch(open, (value) => {
   if (value) {
-    selection.value = [...(props.selectedFiles ?? [])];
+    selection.value = [...(props.selectedPaths ?? [])];
     listing.value = undefined;
     sidebarListing.value = undefined;
     void browse(initialPath());
@@ -247,14 +253,35 @@ function select() {
               <p v-else-if="error" class="load-error" role="alert">{{ error }}</p>
               <template v-else>
                 <button
-                  v-for="name in directories"
-                  :key="name"
-                  class="directory-row"
-                  @click="browse(childPath(listing!.path, name))"
+                  v-if="mode === 'entry' && listing"
+                  type="button"
+                  class="directory-row current-directory-selection"
+                  :aria-pressed="selection.includes(listing.path)"
+                  :disabled="path !== listing.path"
+                  @click="selectPath(listing.path)"
                 >
-                  <Icon name="folder" class="directory-folder" /><span>{{ name }}</span
-                  ><Icon name="chevron-right" class="directory-enter" />
+                  <Icon
+                    :name="selection.includes(listing.path) ? 'check-square' : 'square'"
+                    class="directory-folder"
+                  /><span>{{ tr('此文件夹', 'This folder') }}</span>
                 </button>
+                <div v-for="name in directories" :key="name" class="directory-choice">
+                  <button
+                    v-if="mode === 'entry'"
+                    type="button"
+                    class="directory-row directory-select"
+                    :aria-label="tr('选择文件夹：', 'Select folder: ') + name"
+                    :aria-pressed="selection.includes(childPath(listing!.path, name))"
+                    :disabled="path !== listing?.path"
+                    @click="selectPath(childPath(listing!.path, name))"
+                  >
+                    <Icon :name="selection.includes(childPath(listing!.path, name)) ? 'check-square' : 'square'" />
+                  </button>
+                  <button type="button" class="directory-row" @click="browse(childPath(listing!.path, name))">
+                    <Icon name="folder" class="directory-folder" /><span>{{ name }}</span
+                    ><Icon name="chevron-right" class="directory-enter" />
+                  </button>
+                </div>
                 <button
                   v-for="name in files"
                   :key="'file:' + name"
@@ -277,7 +304,7 @@ function select() {
                 </button>
                 <p v-if="!directories.length && !files.length" class="hint">
                   {{
-                    mode === 'file'
+                    mode !== 'directory'
                       ? tr('没有可显示的文件或目录', 'No visible files or directories')
                       : tr('没有可显示的子目录', 'No visible subdirectories')
                   }}
@@ -289,7 +316,9 @@ function select() {
         <div class="directory-footer">
           <label class="directory-hidden"
             ><input v-model="showHidden" type="checkbox" />{{
-              mode === 'file' ? tr('显示隐藏文件', 'Show hidden files') : tr('显示隐藏目录', 'Show hidden directories')
+              mode !== 'directory'
+                ? tr('显示隐藏文件', 'Show hidden files')
+                : tr('显示隐藏目录', 'Show hidden directories')
             }}</label
           >
           <button
@@ -303,26 +332,28 @@ function select() {
             <Icon name="check" />
           </button>
           <button
-            v-if="mode === 'file' && multiple"
+            v-if="mode !== 'directory' && multiple"
             type="button"
             class="btn primary"
             :disabled="!selection.length || selection.length > 100"
-            :title="
-              selection.length > 100 ? tr('每次最多选择 100 个文件', 'Choose up to 100 files at a time') : undefined
-            "
+            :title="selection.length > 100 ? tr('每次最多选择 100 项', 'Choose up to 100 items at a time') : undefined"
             @click="
-              emit('select-files', selection);
+              emit('select-paths', selection);
               open = false;
             "
           >
-            {{ tr(`选择 ${selection.length} 个文件`, `Choose ${selection.length} files`) }}
+            {{ tr(`选择 ${selection.length} 项`, `Choose ${selection.length} items`) }}
           </button>
         </div>
-        <p v-if="mode === 'file' && multiple && selection.length > 100" class="directory-selection-limit" role="status">
+        <p
+          v-if="mode !== 'directory' && multiple && selection.length > 100"
+          class="directory-selection-limit"
+          role="status"
+        >
           {{
             tr(
-              '每次最多选择 100 个文件，请取消部分选择。',
-              'Choose up to 100 files at a time. Deselect some files to continue.',
+              '每次最多选择 100 项，请取消部分选择。',
+              'Choose up to 100 items at a time. Deselect some items to continue.',
             )
           }}
         </p>
@@ -335,6 +366,22 @@ function select() {
 </template>
 
 <style scoped>
+.directory-choice {
+  display: flex;
+  min-width: 0;
+}
+.directory-choice > .directory-row {
+  flex: 1;
+  min-width: 0;
+}
+.directory-choice > .directory-select {
+  flex: 0 0 32px;
+  justify-content: center;
+  padding-inline: 0;
+}
+.directory-list .current-directory-selection {
+  border-bottom: 1px solid var(--line);
+}
 .cwd-trigger {
   display: flex;
   align-items: center;

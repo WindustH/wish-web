@@ -417,6 +417,13 @@ export const linkSessionFile = (
   temporary = false,
   opts?: EndpointOptions,
 ): Promise<LinkedBlob> => post(`${path(session)}/blobs/link`, { path: localPath, temporary }, opts);
+export const linkLibraryPath = (
+  session: string,
+  localPath: string,
+  parent: string | null,
+  opts?: EndpointOptions,
+): Promise<import('./types.ts').LinkedLibraryItem> =>
+  post(`${path(session)}/library/link`, { path: localPath, parent }, opts);
 export const blobMetadata = (reference: string, opts?: EndpointOptions): Promise<BlobMetadata> =>
   get(`${blobPath(reference)}/meta`, opts);
 export const sessionBlobs = (
@@ -448,13 +455,6 @@ export const deleteLibraryFolder = (session: string, folder: string, opts?: Endp
   del(`${path(session)}/library/folders/${encodeURIComponent(folder)}`, opts);
 export const moveLibraryItems = (session: string, ids: string[], folder: string | null, opts?: EndpointOptions) =>
   post(`${path(session)}/library/move`, { ids, folder }, opts);
-export const linkLibraryFolder = (
-  session: string,
-  localPath: string,
-  parent: string | null,
-  opts?: EndpointOptions,
-): Promise<import('./types.ts').LibraryFolder> =>
-  post(`${path(session)}/library/folders/link`, { path: localPath, parent }, opts);
 const linkedFolderPath = (session: string, folder: string) =>
   `${path(session)}/library/folders/${encodeURIComponent(folder)}`;
 export const linkedFolderChildren = (

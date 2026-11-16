@@ -68,7 +68,7 @@ An open file checks for changes every five seconds while the sidebar and browser
 
 Press `Tab` on desktop (or use the header tabs) to open the right sidebar:
 
-- **Library**: Displays files visible in the session alongside folders you organize. From the Library menu (`⋮`), you can switch between **Icons**, **Compact list**, and **Details** views, **Show all files** (including hidden generated artifacts), create folders, **Upload** files up to 1 GiB, **Link local file** (register existing paths on the Wish server without copying bytes), or **Clean up Library…** to safely remove broken links and unused hidden files. Clicking any file—or any `wish://blob/...` or local file link in chat—opens built-in previews for images (lossless WebP), PDFs (native selectable pages with page jump and bookmarks), audio/video, and syntax-highlighted code/Markdown/HTML/SVG.
+- **Library**: Displays files visible in the session alongside folders you organize. From the Library menu (`⋮`), you can switch between **Icons**, **Compact list**, and **Details** views, **Show all files** (including hidden generated artifacts), create folders, **Upload** files up to 1 GiB, **Link local files or folders** (register existing paths on the Wish server without copying bytes), or **Clean up Library…** to safely remove broken links and unused hidden files. Clicking any file—or any `wish://blob/...` or local file link in chat—opens built-in previews for images (lossless WebP), PDFs (native selectable pages with page jump and bookmarks), audio/video, and syntax-highlighted code/Markdown/HTML/SVG.
 - **Background tasks**: Lists active and finished shell tasks in the session with live tail logs and terminate/force-kill controls.
 - **Session info & stats**: Shows the live **Context** gauge (current tokens vs compaction trigger and model window), standby summary status, web build ID, instructions, and session usage charts.
 - **Session settings**: Lets you override compaction thresholds, run **Compact now** or **Clear the context**, toggle tools and delivery modes (`command` vs direct `tool`), and set a session-specific working directory or shell.
@@ -77,7 +77,7 @@ In a video preview, use **Reference video region** beside the playback controls.
 
 ### Linked folders, display names, and message bookmarks
 
-Choose **Link folder** from the Library menu to browse a directory on the Wish server, including its subfolders. Files stay in their original location and are linked for preview as you open them. The directory is read-only in the Library: removing its link does not delete the source folder or its files.
+Choose **Link local files or folders** from the Library menu. Paste one absolute path per line (up to 100), mixing files and directories freely, or browse and select them together. Successful items are added to the current Library folder; failed paths remain in the form with an explanation so you can correct and retry them. Linking a directory lets you browse its live children, including subfolders. Files stay in their original location and are linked for preview as you open them. The directory is read-only in the Library: removing its link does not delete the source folder or its files.
 
 Use **Rename** in an item's menu to change its display name. This works for files, folders, linked children and bookmarks; it does not rename files on disk or change their contents.
 
