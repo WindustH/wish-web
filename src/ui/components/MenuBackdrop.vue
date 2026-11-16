@@ -2,7 +2,7 @@
 // Outside presses close the menu; only their trailing click is consumed. The backdrop
 // disappears with the menu instead of blocking subsequent gestures for a fixed delay.
 import { consumeDismissalClick } from '../consumeDismissalClick.ts';
-defineProps<{ open: boolean }>();
+defineProps<{ open: boolean; portalTarget?: HTMLElement }>();
 const emit = defineEmits<{ close: [event: PointerEvent | MouseEvent | WheelEvent] }>();
 function dismiss(event: PointerEvent | MouseEvent) {
   consumeDismissalClick(window, 'pointerId' in event ? event.pointerId : undefined);
@@ -11,7 +11,7 @@ function dismiss(event: PointerEvent | MouseEvent) {
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="portalTarget ?? 'body'">
     <div
       v-if="open"
       class="menu-backdrop"

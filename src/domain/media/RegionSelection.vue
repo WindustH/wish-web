@@ -6,16 +6,23 @@ import { tr } from '../../core/i18n/tr.ts';
 import { toast } from '../../ui/toast.ts';
 import Icon from '../../ui/components/Icon.vue';
 import { replyReferenceId, type ReplyReference } from '../../core/replyReferences.ts';
-const props = defineProps<{
-  target?: HTMLImageElement | HTMLCanvasElement;
-  session: string;
-  blob: string;
-  name: string;
-  page?: number;
-  dimensions?: { width: number; height: number };
-  focus?: ReplyReference;
-}>();
-const emit = defineEmits<{ selecting: [active: boolean] }>();
+const props = withDefaults(
+  defineProps<{
+    target?: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement;
+    session: string;
+    blob: string;
+    name: string;
+    page?: number;
+    dimensions?: { width: number; height: number };
+    focus?: ReplyReference;
+    enabled?: boolean;
+    once?: boolean;
+    time?: number;
+    portalTarget?: HTMLElement;
+  }>(),
+  { enabled: true },
+);
+const emit = defineEmits<{ selecting: [active: boolean]; complete: []; cancel: [] }>();
 const context = inject(replyContextKey, undefined);
 const active = usePageActivity();
 watch(active, (visible) => {
@@ -35,7 +42,10 @@ let pending: Press | undefined;
 let holdTimer: ReturnType<typeof setTimeout> | undefined;
 let quietUntil = 0;
 let observer: ResizeObserver | undefined;
-const enabled = computed(() => active.value && !!context && context.session.value === props.session);
+let revision = 0;
+const enabled = computed(
+  () => props.enabled !== false && active.value && !!context && context.session.value === props.session,
+);
 const rect = computed(() => {
   const b = bounds.value,
     s = selection.value;
@@ -47,12 +57,24 @@ const rect = computed(() => {
     height: s.height * b.height,
   };
 });
+function targetBounds() {
+  const target = props.target;
+  if (!target) return;
+  const box = target.getBoundingClientRect();
+  if (!(target instanceof HTMLVideoElement) || !target.videoWidth || !target.videoHeight) return box;
+  // The video element includes object-fit: contain letterboxing. Coordinates
+  // and pointer hit testing must use the actual picture, not the black bars.
+  const scale = Math.min(box.width / target.videoWidth, box.height / target.videoHeight);
+  const width = target.videoWidth * scale,
+    height = target.videoHeight * scale;
+  return new DOMRect(box.left + (box.width - width) / 2, box.top + (box.height - height) / 2, width, height);
+}
 function geometry() {
   innerWidth.value = window.innerWidth;
   innerHeight.value = window.innerHeight;
   const target = props.target;
   if (!target) return;
-  bounds.value = target.getBoundingClientRect();
+  bounds.value = targetBounds()!;
   let left = Math.max(0, bounds.value.left),
     top = Math.max(0, bounds.value.top),
     right = Math.min(window.innerWidth, bounds.value.right),
@@ -88,7 +110,7 @@ function down(e: PointerEvent) {
     host: e.currentTarget as HTMLElement,
     touch: e.pointerType === 'touch',
   };
-  if (press.touch) {
+  if (press.touch && !props.once) {
     cancelHold();
     pending = press;
     holding.value = true;
@@ -128,7 +150,7 @@ function move(e: PointerEvent) {
   e.preventDefault();
   e.stopPropagation();
   // A layout refresh may move the target while the pointer stays captured.
-  bounds.value = props.target?.getBoundingClientRect();
+  bounds.value = targetBounds();
   if (!bounds.value) return;
   const p = point(e),
     g = gesture;
@@ -144,7 +166,7 @@ function release() {
   gesture = undefined;
   dragging.value = false;
   if (g?.host.hasPointerCapture(g.pointer)) g.host.releasePointerCapture(g.pointer);
-  if (g?.touch) quietUntil = performance.now() + 400;
+  if (g?.touch || (g && props.once)) quietUntil = performance.now() + 400;
   if (g) emit('selecting', false);
 }
 function up(e: PointerEvent) {
@@ -153,11 +175,17 @@ function up(e: PointerEvent) {
   move(e);
   release();
   if (!rect.value || rect.value.width < 6 || rect.value.height < 6) selection.value = undefined;
+  else if (props.once) void reply();
 }
 function clear() {
+  revision++;
   cancelHold();
   release();
   selection.value = undefined;
+}
+function cancel() {
+  clear();
+  if (props.once) emit('cancel');
 }
 function lostCapture(e: PointerEvent) {
   if (gesture?.pointer === e.pointerId && e.target === gesture.host) clear();
@@ -205,7 +233,7 @@ function key(e: KeyboardEvent) {
   if (e.key === 'Escape' && selection.value) {
     e.preventDefault();
     e.stopPropagation();
-    clear();
+    cancel();
   }
 }
 function outside(e: PointerEvent) {
@@ -217,10 +245,22 @@ async function reply() {
     target = props.target;
   if (!s || !target || !context) return;
   const owner = props.session;
+  const at = revision;
+  const time = props.time;
   busy.value = true;
   try {
-    const width = target instanceof HTMLImageElement ? target.naturalWidth : target.width;
-    const height = target instanceof HTMLImageElement ? target.naturalHeight : target.height;
+    const width =
+      target instanceof HTMLImageElement
+        ? target.naturalWidth
+        : target instanceof HTMLVideoElement
+          ? target.videoWidth
+          : target.width;
+    const height =
+      target instanceof HTMLImageElement
+        ? target.naturalHeight
+        : target instanceof HTMLVideoElement
+          ? target.videoHeight
+          : target.height;
     const sw = s.width * width,
       sh = s.height * height,
       ratio = Math.min(1, 2048 / Math.max(sw, sh));
@@ -244,7 +284,11 @@ async function reply() {
       blob: props.blob,
       fileName: props.name,
       page: props.page,
-      label: props.name + (props.page ? ` · ${tr('第', 'p. ')}${props.page}${tr('页', '')}` : ''),
+      time,
+      label:
+        props.name +
+        (props.page ? ` · ${tr('第', 'p. ')}${props.page}${tr('页', '')}` : '') +
+        (time === undefined ? '' : ` · ${time}s`),
       text: '',
       region: {
         x: round(s.x * dimensions.width),
@@ -256,9 +300,10 @@ async function reply() {
         unit: props.page ? 'pt' : 'px',
       },
     };
-    if (owner === context.session.value) {
+    if (at === revision && enabled.value && owner === context.session.value) {
       await context.add(reference, image);
       clear();
+      if (props.once) emit('complete');
     }
   } catch (error) {
     toast(tr('无法引用选区：', 'Could not reference selection: ') + String(error));
@@ -276,7 +321,7 @@ watch(
     host.addEventListener('pointerdown', down, true);
     host.addEventListener('pointermove', move, true);
     host.addEventListener('pointerup', up, true);
-    host.addEventListener('pointercancel', clear, true);
+    host.addEventListener('pointercancel', cancel, true);
     host.addEventListener('lostpointercapture', lostCapture, true);
     host.addEventListener('touchmove', touchMove, { capture: true, passive: false });
     host.addEventListener('contextmenu', contextMenu, true);
@@ -292,7 +337,7 @@ watch(
       host.removeEventListener('pointerdown', down, true);
       host.removeEventListener('pointermove', move, true);
       host.removeEventListener('pointerup', up, true);
-      host.removeEventListener('pointercancel', clear, true);
+      host.removeEventListener('pointercancel', cancel, true);
       host.removeEventListener('lostpointercapture', lostCapture, true);
       host.removeEventListener('touchmove', touchMove, true);
       host.removeEventListener('contextmenu', contextMenu, true);
@@ -306,7 +351,10 @@ watch(
   (_, __, cleanup) => {
     const region = props.focus?.region,
       target = props.target;
-    if (!region || !target || props.focus?.page !== props.page) return;
+    if (!region || !target || props.focus?.page !== props.page) {
+      if (!dragging.value) selection.value = undefined;
+      return;
+    }
     // Let page navigation/scroll anchoring settle before restoring the source rectangle.
     const timer = setTimeout(() => {
       if (!active.value || !target.isConnected) return;
@@ -324,7 +372,7 @@ watch(
 );
 // In a virtual PDF only the page with a gesture/selection needs global observers.
 watch(
-  () => enabled.value && (!!selection.value || dragging.value || holding.value),
+  () => active.value && (!!selection.value || dragging.value || holding.value),
   (tracking, _, cleanup) => {
     if (!tracking) return;
     window.addEventListener('keydown', key, true);
@@ -359,7 +407,7 @@ const mask = computed(() => {
 });
 </script>
 <template>
-  <Teleport to="body">
+  <Teleport :to="portalTarget ?? 'body'">
     <svg
       v-if="selection && clip && rect"
       class="region-selection-mask"
@@ -378,7 +426,7 @@ const mask = computed(() => {
       />
     </svg>
     <div
-      v-if="selection && rect && !dragging"
+      v-if="selection && rect && !dragging && !once"
       class="region-reply-menu"
       role="menu"
       :style="{

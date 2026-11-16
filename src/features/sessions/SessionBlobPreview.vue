@@ -242,6 +242,8 @@ async function handleLoadFailure(cause?: unknown) {
         :label="name"
         :key="source"
         :src="source"
+        :reference="{ session, blob: blob.id }"
+        :focus="focusReference"
         @loadedmetadata="restorePlayback"
         @loadeddata="checkVideo"
         @playing="checkVideo"

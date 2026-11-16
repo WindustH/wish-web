@@ -73,6 +73,8 @@ Press `Tab` on desktop (or use the header tabs) to open the right sidebar:
 - **Session info & stats**: Shows the live **Context** gauge (current tokens vs compaction trigger and model window), standby summary status, web build ID, instructions, and session usage charts.
 - **Session settings**: Lets you override compaction thresholds, run **Compact now** or **Clear the context**, toggle tools and delivery modes (`command` vs direct `tool`), and set a session-specific working directory or shell.
 
+In a video preview, use **Reference video region** beside the playback controls. Playback pauses on the current frame; drag a rectangle and release to add a reference to the message input. It includes the playback time, original-frame coordinates, and a cropped image. On touch screens, drag immediately after tapping the button. Press Escape or tap the button again to cancel. Clicking the reference later returns to that frame and highlights the region. Playback speed uses the same menu style as other controls, including in fullscreen.
+
 ### Linked folders, display names, and message bookmarks
 
 Choose **Link folder** from the Library menu to browse a directory on the Wish server, including its subfolders. Files stay in their original location and are linked for preview as you open them. The directory is read-only in the Library: removing its link does not delete the source folder or its files.

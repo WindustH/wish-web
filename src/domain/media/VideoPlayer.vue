@@ -1,9 +1,19 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, inject, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
+import Menu from '../../ui/components/Menu.vue';
+import RegionSelection from './RegionSelection.vue';
+import { replyContextKey } from '../references/context.ts';
+import type { ReplyReference } from '../../core/replyReferences.ts';
+import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
-const props = defineProps<{ src: string; label: string }>();
+const props = defineProps<{
+  src: string;
+  label: string;
+  reference?: { session: string; blob: string };
+  focus?: ReplyReference;
+}>();
 const emit = defineEmits<{
   ready: [element: HTMLVideoElement | null];
   loadedmetadata: [];
@@ -16,6 +26,80 @@ const emit = defineEmits<{
 }>();
 const surface = ref<HTMLElement>(),
   video = ref<HTMLVideoElement>();
+const context = inject(replyContextKey, undefined);
+const active = usePageActivity();
+const quoting = ref(false),
+  frameReady = ref(false),
+  quoteTime = ref(0);
+const focused = shallowRef<ReplyReference>();
+const portalTarget = shallowRef<HTMLElement>();
+const canQuote = computed(() => !!props.reference && context?.session.value === props.reference.session);
+const speeds = computed(() =>
+  [0.5, 1, 1.25, 1.5, 2].map((value) => ({ key: String(value), label: `${value}×`, checked: rate.value === value })),
+);
+let quietUntil = 0;
+function endQuote() {
+  quoting.value = false;
+  quietUntil = performance.now() + 400;
+}
+function quote() {
+  if (quoting.value) {
+    endQuote();
+    return;
+  }
+  const el = video.value;
+  if (!el || !frameReady.value || !canQuote.value) return;
+  clearTimeout(clickTimer);
+  el.pause();
+  focused.value = undefined;
+  quoteTime.value = Math.round(el.currentTime * 1000) / 1000;
+  quoting.value = true;
+}
+function quoted() {
+  endQuote();
+  // The reference is now in the composer, which is outside the fullscreen player.
+  if (document.fullscreenElement === surface.value) void document.exitFullscreen().catch(() => {});
+}
+function escapeQuote(event: KeyboardEvent) {
+  if (event.key !== 'Escape') return;
+  event.preventDefault();
+  event.stopPropagation();
+  endQuote();
+}
+watch(
+  quoting,
+  (value, _, cleanup) => {
+    if (!value) return;
+    window.addEventListener('keydown', escapeQuote, true);
+    cleanup(() => window.removeEventListener('keydown', escapeQuote, true));
+  },
+  { flush: 'sync' },
+);
+watch([active, canQuote], ([visible, allowed]) => {
+  if (!visible || !allowed) endQuote();
+});
+function restoreReference() {
+  const el = video.value,
+    reference = props.focus;
+  if (!el || !reference || reference.time === undefined || !Number.isFinite(reference.time) || el.readyState < 1)
+    return;
+  endQuote();
+  el.pause();
+  seekTo(reference.time);
+  focused.value = { ...reference };
+}
+watch(
+  () => props.focus,
+  () => {
+    focused.value = undefined;
+    restoreReference();
+  },
+  { flush: 'post' },
+);
+function fullscreenChanged() {
+  portalTarget.value = document.fullscreenElement === surface.value ? surface.value : undefined;
+}
+document.addEventListener('fullscreenchange', fullscreenChanged);
 const paused = ref(true),
   duration = ref(0),
   time = ref(0),
@@ -43,17 +127,21 @@ function sync() {
   volume.value = el.volume;
   muted.value = el.muted;
   rate.value = el.playbackRate;
+  frameReady.value = el.readyState >= 2 && !el.seeking && !!el.videoWidth && !!el.videoHeight;
   buffered.value =
     duration.value && el.buffered.length ? (el.buffered.end(el.buffered.length - 1) / duration.value) * 100 : 0;
 }
 let clickTimer: ReturnType<typeof setTimeout> | undefined;
 function activateSurface(event: MouseEvent) {
+  if (quoting.value || performance.now() < quietUntil) return;
   clearTimeout(clickTimer);
   if (event.detail === 0) void toggle();
   else if (event.detail < 2) clickTimer = setTimeout(() => void toggle(), 250);
 }
 async function toggle() {
+  if (quoting.value) return;
   clearTimeout(clickTimer);
+  focused.value = undefined;
   const el = video.value;
   if (!el) return;
   notice.value = '';
@@ -66,6 +154,7 @@ async function toggle() {
     }
 }
 function seek(event: Event) {
+  focused.value = undefined;
   seekTo(Number((event.target as HTMLInputElement).value));
 }
 function seekTo(seconds: number) {
@@ -87,6 +176,7 @@ function speed(value: string) {
   if (video.value) video.value.playbackRate = Number(value);
 }
 async function fullscreen() {
+  if (quoting.value) return;
   clearTimeout(clickTimer);
   notice.value = '';
   const el = video.value as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | undefined;
@@ -100,12 +190,14 @@ async function fullscreen() {
   }
 }
 function keyboard(event: KeyboardEvent) {
+  if (quoting.value) return;
   if ((event.target as Element).closest('button, input, select, [role="menuitem"]')) return;
   if (event.key === ' ' || event.key === 'k') {
     event.preventDefault();
     void toggle();
   } else if (['ArrowLeft', 'ArrowRight'].includes(event.key) && video.value && duration.value) {
     event.preventDefault();
+    focused.value = undefined;
     seekTo(time.value + (event.key === 'ArrowLeft' ? -5 : 5));
   } else if (event.key === 'f') {
     event.preventDefault();
@@ -114,6 +206,7 @@ function keyboard(event: KeyboardEvent) {
 }
 watch(video, (element) => emit('ready', element ?? null), { flush: 'post' });
 onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', fullscreenChanged);
   clearTimeout(clickTimer);
   video.value?.pause();
   emit('ready', null);
@@ -121,10 +214,18 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="surface" class="wish-video" tabindex="0" :aria-label="label" @keydown="keyboard">
+  <div
+    ref="surface"
+    class="wish-video"
+    :class="{ 'video-quoting': quoting }"
+    tabindex="0"
+    :aria-label="label"
+    @keydown="keyboard"
+  >
     <video
       ref="video"
       :src="props.src"
+      crossorigin="anonymous"
       playsinline
       preload="metadata"
       :aria-label="label"
@@ -133,6 +234,7 @@ onBeforeUnmount(() => {
       @loadedmetadata="
         sync();
         emit('loadedmetadata');
+        restoreReference();
       "
       @loadeddata="
         sync();
@@ -143,6 +245,7 @@ onBeforeUnmount(() => {
         emit('playing');
       "
       @play="sync"
+      @seeking="sync"
       @pause="
         sync();
         emit('pause');
@@ -162,6 +265,20 @@ onBeforeUnmount(() => {
       "
       @error="emit('error')"
     />
+    <RegionSelection
+      v-if="reference"
+      :target="video"
+      :session="reference.session"
+      :blob="reference.blob"
+      :name="label"
+      :enabled="quoting"
+      :time="quoteTime"
+      :focus="focused"
+      :portal-target="portalTarget"
+      once
+      @complete="quoted"
+      @cancel="endQuote"
+    />
     <div class="video-controls">
       <input
         class="video-seek"
@@ -170,7 +287,7 @@ onBeforeUnmount(() => {
         :max="duration || 1"
         step="0.1"
         :value="shownTime"
-        :disabled="!duration"
+        :disabled="!duration || quoting"
         :aria-label="tr('播放进度', 'Playback position')"
         :aria-valuetext="`${clock(shownTime)} / ${clock(duration)}`"
         :style="{ '--played': `${progress}%`, '--buffered': `${buffered}%` }"
@@ -182,6 +299,7 @@ onBeforeUnmount(() => {
       <div class="video-buttons">
         <button
           class="btn ghost icon-only video-play"
+          :disabled="quoting"
           :aria-label="paused ? tr('播放', 'Play') : tr('暂停', 'Pause')"
           :title="paused ? tr('播放', 'Play') : tr('暂停', 'Pause')"
           @click="toggle"
@@ -210,16 +328,31 @@ onBeforeUnmount(() => {
             @input="setVolume"
           />
         </div>
-        <select
-          class="video-speed"
-          :value="rate"
-          :aria-label="tr('播放速度', 'Playback speed')"
-          @change="speed(($event.target as HTMLSelectElement).value)"
+        <Menu :items="speeds" :portal-target="portalTarget" side="top" @select="speed">
+          <template #trigger>
+            <button
+              class="btn ghost video-speed"
+              :aria-label="tr('播放速度', 'Playback speed')"
+              :title="tr('播放速度', 'Playback speed')"
+            >
+              {{ rate }}×<Icon name="chevron-down" :size="14" />
+            </button>
+          </template>
+        </Menu>
+        <button
+          v-if="canQuote"
+          class="btn ghost icon-only video-quote"
+          :disabled="!frameReady && !quoting"
+          :aria-pressed="quoting"
+          :aria-label="quoting ? tr('取消框选', 'Cancel selection') : tr('框选引用', 'Reference video region')"
+          :title="quoting ? tr('取消框选', 'Cancel selection') : tr('框选引用', 'Reference video region')"
+          @click="quote"
         >
-          <option v-for="value in [0.5, 1, 1.25, 1.5, 2]" :key="value" :value="value">{{ value }}×</option>
-        </select>
+          <Icon :name="quoting ? 'x' : 'quote'" />
+        </button>
         <button
           class="btn ghost icon-only"
+          :disabled="quoting"
           :aria-label="tr('切换全屏', 'Toggle fullscreen')"
           :title="tr('切换全屏', 'Toggle fullscreen')"
           @click="fullscreen"
@@ -227,6 +360,9 @@ onBeforeUnmount(() => {
           <Icon name="fullscreen" />
         </button>
       </div>
+      <p v-if="quoting" class="video-notice" role="status">
+        {{ tr('拖动框选画面，松开后加入输入框', 'Drag over the frame to add a reference to your message') }}
+      </p>
       <p v-if="notice" class="video-notice" role="status">{{ notice }}</p>
     </div>
   </div>
@@ -254,6 +390,14 @@ onBeforeUnmount(() => {
   background: #000;
   cursor: pointer;
 }
+.video-quoting video {
+  touch-action: none;
+  cursor: crosshair;
+}
+.video-quote[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
 .video-controls {
   flex: none;
   padding: 6px 10px 8px;
@@ -280,14 +424,11 @@ onBeforeUnmount(() => {
   color: var(--fg-muted);
 }
 .video-speed {
-  font: inherit;
   font-size: 12px;
   color: var(--fg-muted);
-  background: var(--bg-raised);
-  border: 0;
-  border-radius: 8px;
-  padding: 8px 2px;
-  cursor: pointer;
+  padding-inline: 4px;
+  gap: 2px;
+  white-space: nowrap;
 }
 .video-volume {
   display: flex;
@@ -380,6 +521,9 @@ onBeforeUnmount(() => {
   }
   .video-buttons .icon-only {
     min-width: 40px;
+    min-height: 40px;
+  }
+  .video-speed {
     min-height: 40px;
   }
 }

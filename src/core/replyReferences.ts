@@ -16,6 +16,8 @@ export type ReplyReference = {
   version?: string;
   imageId?: string;
   page?: number;
+  /** Video playback position in seconds, independent of playback speed. */
+  time?: number;
   region?: {
     x: number;
     y: number;
@@ -37,6 +39,7 @@ export function validReference(value: unknown): value is ReplyReference {
     typeof v.label === 'string' &&
     typeof v.text === 'string' &&
     v.text.length <= 16000 &&
+    (v.time === undefined || (Number.isFinite(v.time) && v.time >= 0)) &&
     (v.seq === undefined || (Number.isSafeInteger(v.seq) && v.seq >= 0)) &&
     (v.lineStart === undefined ||
       (Number.isSafeInteger(v.lineStart) &&
@@ -50,7 +53,7 @@ export function validReference(value: unknown): value is ReplyReference {
 export function referenceDescription(ref: ReplyReference) {
   if (ref.region)
     return (
-      `[Reference: ${ref.label}; file=${ref.blob}${ref.page ? `; page=${ref.page}` : ''}; ` +
+      `[Reference: ${ref.label}; file=${ref.blob}${ref.page ? `; page=${ref.page}` : ''}${ref.time === undefined ? '' : `; time=${ref.time}s`}; ` +
       `coordinates(top-left, ${ref.region.unit})=${JSON.stringify(ref.region)}; the following image is the selected region.]`
     );
   const header = ref.blob

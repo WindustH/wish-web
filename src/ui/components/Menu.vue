@@ -54,6 +54,7 @@ const props = withDefaults(
     side?: 'top' | 'bottom' | 'left' | 'right';
     align?: 'start' | 'center' | 'end';
     contentClass?: string;
+    portalTarget?: HTMLElement;
     within?: string;
     selectsText?: boolean;
     selectionItems?: MenuItem[];
@@ -352,7 +353,7 @@ onBeforeUnmount(() => {
         ><button type="button" class="btn ghost icon-only" :aria-label="label || 'menu'"><slot /></button
       ></slot>
     </DropdownMenuTrigger>
-    <DropdownMenuPortal v-if="pageActive">
+    <DropdownMenuPortal v-if="pageActive" :to="portalTarget ?? 'body'">
       <DropdownMenuContent
         data-keyboard-boundary
         class="menu-pop"
@@ -383,5 +384,5 @@ onBeforeUnmount(() => {
       </DropdownMenuContent>
     </DropdownMenuPortal>
   </DropdownMenuRoot>
-  <MenuBackdrop :open="open" @close="dismissBackdrop" />
+  <MenuBackdrop :open="open" :portal-target="portalTarget" @close="dismissBackdrop" />
 </template>
