@@ -33,6 +33,7 @@ import DirectoryPicker from '../../ui/components/DirectoryPicker.vue';
 import Modal from '../../ui/components/Modal.vue';
 import LibraryThumbnail from './LibraryThumbnail.vue';
 import LibraryDocumentThumbnail from './LibraryDocumentThumbnail.vue';
+import LibraryFolderThumbnail from './LibraryFolderThumbnail.vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import { platform } from '../../platform/index.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
@@ -1156,7 +1157,7 @@ watch(
                 @dragstart="drag.start($event, [item.id], folder)"
                 @touchstart.passive="!selecting && !batchBusy && drag.press($event, [item.id], folder, item.name)"
               >
-                <span v-if="view === 'icons'" class="library-folder-thumbnail"><Icon name="folder" :size="44" /></span>
+                <LibraryFolderThumbnail v-if="view === 'icons'" />
                 <Icon v-else name="folder" class="library-file-icon" :size="view === 'compact' ? 22 : 32" />
                 <span class="library-filename">{{ item.name }}</span>
                 <span class="library-filesize"
@@ -1612,17 +1613,6 @@ watch(
   background: var(--accent-soft);
   color: var(--accent);
   border-radius: 10px;
-}
-.library-folder-thumbnail {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  aspect-ratio: 4/3;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--bg-raised);
-  color: var(--fg-muted);
 }
 .library-view-icons .library-folder .library-item:focus-visible {
   box-shadow: none;
