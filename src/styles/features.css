@@ -471,6 +471,11 @@ button.sl-row {
   flex: 0 1 auto;
   max-width: 120px;
 }
+.model-chip:focus-visible,
+.reasoning-chip:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
 .model-chip span,
 .reasoning-chip span {
   overflow: hidden;

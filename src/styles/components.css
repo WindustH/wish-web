@@ -126,6 +126,14 @@
   border-color: var(--accent);
   background: var(--bg-control);
 }
+/* Bordered controls use their existing edge for keyboard focus, without a second ring. */
+:is(.btn, .input, .textarea, .control-select):focus-visible {
+  outline: none;
+  border-color: var(--accent) !important;
+}
+.btn.primary:focus-visible {
+  border-color: var(--accent-fg) !important;
+}
 .textarea {
   resize: none;
 }

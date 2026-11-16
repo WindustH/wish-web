@@ -236,7 +236,6 @@ onBeforeUnmount(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  box-shadow: inset 1px 0 var(--line);
   background: var(--bg);
   overflow: hidden;
   outline: none;
@@ -250,15 +249,15 @@ onBeforeUnmount(() => {
   touch-action: none;
   outline: none;
 }
-/* Match the session list divider: a wide invisible hit area, with only a
-   one-pixel line gaining accent color on hover, onResizeKeydown focus, or drag. */
+/* Paint the single divider above the panel content so edge-to-edge previews cannot cover it.
+   The wider hit area stays invisible; only the line changes color on hover, focus or drag. */
 .island-resize-handle::after {
   content: '';
   position: absolute;
   inset-block: 0;
   left: 0;
   width: 1px;
-  background: transparent;
+  background: var(--line);
   transition: background var(--dur-fast);
 }
 .island-resize-handle.is-resizing::after,

@@ -95,7 +95,6 @@ a {
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
-  border-color: var(--accent) !important;
 }
 .hint {
   font-size: 13px;
