@@ -9,6 +9,16 @@
 const SOFT = 'fill="currentColor" fill-opacity=".18"';
 const SOLID = 'fill="currentColor" stroke="none"';
 const dot = (x: number, y: number) => `M${x} ${y}h.01`;
+// Fill-only pieces never retrace an outline or darken an adjacent surface.
+const wash = (path: string) => `<path d="${path}" ${SOFT} stroke="none"/>`;
+const DOCUMENT = 'M14 3H7a2.5 2.5 0 0 0-2.5 2.5v13A2.5 2.5 0 0 0 7 21h10a2.5 2.5 0 0 0 2.5-2.5v-10Z';
+const documentIcon = (content = '') => `${wash(DOCUMENT)}<path d="${DOCUMENT}M14 3v5.5h5.5"/>${content}`;
+const FOLDER = 'M3.5 17.5v-11a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z';
+const folderIcon = `${wash('M3.5 9.5h17v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z')}<path d="${FOLDER}M3.5 9.5h17"/>`;
+const EYE = 'M2.5 12C4.7 7.7 8 5.5 12 5.5s7.3 2.2 9.5 6.5c-2.2 4.3-5.5 6.5-9.5 6.5S4.7 16.3 2.5 12Z';
+const TRASH = 'm6 7 .9 11.6a2 2 0 0 0 2 1.9h6.2a2 2 0 0 0 2-1.9L18 7Z';
+const BRAIN_LEFT = 'M12 4.6a2.9 2.9 0 1 0-5.8.1 3.9 3.9 0 0 0-2.4 5.6 3.9 3.9 0 0 0 .5 6.4A3.9 3.9 0 1 0 12 16.9';
+const BRAIN_RIGHT = 'M12 4.6a2.9 2.9 0 1 1 5.8.1 3.9 3.9 0 0 1 2.4 5.6 3.9 3.9 0 0 1-.5 6.4A3.9 3.9 0 1 1 12 16.9';
 // The shared conversation bubble, with a continuous round body and a short open tail.
 const BUBBLE = 'M12 3a9 9 0 0 1 0 18H3l2.6-2.9A9 9 0 0 1 12 3Z';
 
@@ -17,19 +27,21 @@ export const ICONS: Record<string, string> = {
   quote: `<path d="M10 11H4V5h6v8a6 6 0 0 1-6 6M20 11h-6V5h6v8a6 6 0 0 1-6 6"/>`,
   'at-sign': '<circle cx="12" cy="12" r="4"/><path d="M16 8v6a2 2 0 0 0 4 0v-2a8 8 0 1 0-3 6.2"/>',
   pause: `<path d="M8 5v14M16 5v14" stroke-width="4"/>`,
-  volume: `<path d="m11 5-6 4H2v6h3l6 4Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>`,
-  'volume-off': `<path d="m11 5-6 4H2v6h3l6 4Z"/><path d="m17 9 5 6m0-6-5 6"/>`,
+  volume: `<path d="m11 5-6 4H2v6h3l6 4Z" ${SOFT}/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>`,
+  'volume-off': `<path d="m11 5-6 4H2v6h3l6 4Z" ${SOFT}/><path d="m17 9 5 6m0-6-5 6"/>`,
   fullscreen: `<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>`,
   play: `<path d="m8 5 11 7-11 7Z" ${SOLID}/>`,
   music: `<path d="M9 17V5l11-2v12M9 8l11-2"/><ellipse cx="6" cy="17" rx="3" ry="2.5" ${SOFT}/><ellipse cx="17" cy="15" rx="3" ry="2.5" ${SOFT}/>`,
   upload: '<path d="M12 16V3m-5 5 5-5 5 5M4 15v5h16v-5"/>',
-  file: `<path d="M14 2H5v20h14V7Z" ${SOFT}/><path d="M14 2v5h5"/>`,
-  'file-pdf': `<path d="M14 2H5v20h14V7Z" ${SOFT}/><path d="M14 2v5h5M8 17c3-3 5-8 3-8s0 7 5 7-2-4-8 1Z"/>`,
-  video: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m10 8 6 4-6 4z"/>',
+  file: documentIcon(),
+  'file-pdf': documentIcon(
+    '<path d="M8 17.5c2.4-2.6 4.4-6.5 3-6.5-1.2 0 .2 6.5 4 6.5 2.8 0 .8-3.4-7 0Z" stroke-width="1.5"/>',
+  ),
+  video: `<rect x="3" y="4" width="18" height="16" rx="3" ${SOFT}/><path d="m10 8 6 4-6 4z"/>`,
   audio: '<path d="M4 10v4m4-7v10m4-13v16m4-13v10m4-7v4"/>',
-  mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>',
+  mic: `<rect x="9" y="2" width="6" height="12" rx="3" ${SOFT}/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>`,
 
-  instruction: `<path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8Z" ${SOFT}/><path d="M14 3v5h5M9 12h6M9 16h6"/>`,
+  instruction: documentIcon('<path d="M8.5 12.5h7M8.5 16.5h7"/>'),
   // Controls
   'chevron-up': '<path d="m6.5 14.5 5.5-5.5 5.5 5.5"/>',
   'chevron-down': '<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>',
@@ -53,67 +65,66 @@ export const ICONS: Record<string, string> = {
   // The sidebar: its column in shade.
   'panel-left': `<path d="M9.5 4H6.5A3.5 3.5 0 0 0 3 7.5v9A3.5 3.5 0 0 0 6.5 20h3Z" ${SOFT} stroke="none"/><rect x="3" y="4" width="18" height="16" rx="3.5"/><path d="M9.5 4v16"/>`,
   'panel-right': `<path d="M14.5 4h3A3.5 3.5 0 0 1 21 7.5v9a3.5 3.5 0 0 1-3.5 3.5h-3Z" ${SOFT} stroke="none"/><rect x="3" y="4" width="18" height="16" rx="3.5"/><path d="M14.5 4v16"/>`,
-  bookmark: `<path d="M6 4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17l-6-4-6 4Z"/>`,
-  library: `<rect x="3" y="4" width="4" height="16" rx="1" ${SOFT}/><rect x="9" y="4" width="4" height="16" rx="1"/><path d="m15 5 3.5-1 3.5 15-3.5 1Z" ${SOFT}/><path d="M3 8h4M9 8h4"/>`,
+  bookmark: `<path d="M6 4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17l-6-4-6 4Z" ${SOFT}/>`,
+  library: `<rect x="3" y="4" width="3" height="16" rx="1" ${SOFT}/><rect x="9" y="4" width="3" height="16" rx="1" ${SOFT}/><path d="m15.5 5 3-.5 3 15-3 .5Z" ${SOFT}/><path d="M3 8h3M9 8h3"/>`,
   // Track and progress.
   'loader-circle': '<circle cx="12" cy="12" r="8.5" stroke-opacity=".22"/><path d="M20.5 12A8.5 8.5 0 0 0 12 3.5"/>',
   'refresh-cw': '<path d="M20 12a8 8 0 0 1-13.9 5.4M4 12a8 8 0 0 1 13.9-5.4M18.5 3v4h-4M5.5 21v-4h4"/>',
   search: `<circle cx="10.5" cy="10.5" r="6.5" ${SOFT}/><path d="m15.5 15.5 5 5"/>`,
   // An eye: what a password field shows, or (struck through) hides.
-  eye: `<path d="M2.5 12C4.7 7.7 8 5.5 12 5.5s7.3 2.2 9.5 6.5c-2.2 4.3-5.5 6.5-9.5 6.5S4.7 16.3 2.5 12Z" ${SOFT}/><circle cx="12" cy="12" r="2.8"/>`,
-  'eye-off': `<path d="M2.5 12C4.7 7.7 8 5.5 12 5.5s7.3 2.2 9.5 6.5c-2.2 4.3-5.5 6.5-9.5 6.5S4.7 16.3 2.5 12Z" ${SOFT}/><path d="M4.5 4.5l15 15"/>`,
+  eye: `<path d="${EYE}" ${SOFT}/><circle cx="12" cy="12" r="2.8"/>`,
+  'eye-off': `${wash(EYE)}<path d="M9.2 5.8c.9-.2 1.8-.3 2.8-.3 4 0 7.3 2.2 9.5 6.5a17 17 0 0 1-2.8 3.8M15.4 18c-1.1.3-2.2.5-3.4.5-4 0-7.3-2.2-9.5-6.5a17 17 0 0 1 3.3-4.1M3 3l18 18"/>`,
   // Service icons share the same 24px stroke grid.
-  skill: `<path d="m4 20 11-11 3 3L7 23Z" transform="translate(0 -2)"/><path d="m12 10 3 3M6 3v4M4 5h4M19 3v4M17 5h4M20 16v4M18 18h4"/>`,
-  'web-reader': `<path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10l-7-7Z"/><path d="M13 3v7h7M8 13h3M8 17h3M16 13v5m-2-2 2 2 2-2"/>`,
-  'web-search': `<path d="M12 16.7A7 7 0 1 1 16.7 12M3 10h14M10 3c2 2 3 4.3 3 7M10 3c-2 2-3 4.3-3 7s1 5 3 7"/><circle cx="16" cy="16" r="4"/><path d="m19 19 3 3"/>`,
+  skill: `<path d="m4 18 11-11 3 3L7 21Z" ${SOFT}/><path d="m12 10 3 3M6 3v4M4 5h4M19 3v3M17.5 4.5h3M20 16v4M18 18h4"/>`,
+  'web-reader': documentIcon('<path d="M8.5 12.5h3M8.5 17h3M15.5 11.5v6m-1.5-1.5 1.5 1.5 1.5-1.5"/>'),
+  'web-search': `${wash('M10 17a7 7 0 1 1 7-7Z')}<path d="M10 17a7 7 0 1 1 7-7M3 10h12M10 3c2 2 3 4.3 3 7M10 3c-2 2-3 4.3-3 7s1 5 3 7"/><circle cx="17" cy="17" r="3.5" ${SOFT}/><path d="m19.5 19.5 2 2"/>`,
   // A task list with an active job; distinct from the shell prompt.
   tasks: `<rect x="3" y="4" width="18" height="16" rx="3.5" ${SOFT}/><path d="m6.5 8.5 1.5 1.5 2.5-3M13 9h4M6.5 15h3M13 15h4"/>`,
   // History is a clock turning back; reading a record is a document.
   'history-search': `<path d="M3 9a8 8 0 0 1 14-5M3 4v5h5M3 13a8 8 0 0 0 7 7M11 6v5l2 1"/><circle cx="17" cy="17" r="3.5" ${SOFT}/><path d="m19.5 19.5 2 2"/>`,
-  'history-read': `<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" ${SOFT}/><path d="M14 3v6h6M8 13h8M8 17h5"/>`,
+  'history-read': documentIcon('<path d="M8.5 12.5h7M8.5 16.5h4"/>'),
   'history-query': `<path d="M9 6h12M9 12h8M9 18h5"/><circle cx="4" cy="6" r="1" ${SOFT}/><circle cx="4" cy="12" r="1" ${SOFT}/><circle cx="4" cy="18" r="1" ${SOFT}/>`,
-  network: `<rect x="8" y="3" width="8" height="6" rx="1.5"/><path d="M12 9v5M5 17v-3h14v3"/><rect x="2" y="17" width="6" height="4" rx="1"/><rect x="16" y="17" width="6" height="4" rx="1"/>`,
-  key: '<path d="M14.3 13.7a6 6 0 1 0-4-4L3 17v4h4v-3h3v-3Z"/><path d="m15 5 4 4"/>',
+  network: `<rect x="8" y="3" width="8" height="6" rx="1.5" ${SOFT}/><path d="M12 9v5M5 17v-3h14v3"/><rect x="2" y="17" width="6" height="4" rx="1" ${SOFT}/><rect x="16" y="17" width="6" height="4" rx="1" ${SOFT}/>`,
+  key: `<path d="M14.3 13.7a6 6 0 1 0-4-4L3 17v4h4v-3h3v-3Z" ${SOFT}/><path d="m15 5 4 4"/>`,
   bot: `<rect x="4" y="7" width="16" height="13" rx="3" ${SOFT}/><path d="M12 3v4M1.5 12v4m21-4v4M9 16h6"/><circle cx="8.5" cy="12" r=".8" ${SOLID}/><circle cx="15.5" cy="12" r=".8" ${SOLID}/>`,
   // Send: a folded paper plane - the crane's cousin - its upper wing solid, the lower in shade,
   // the fold between them.
-  send: '<path d="M21 3.25 3.5 10.25l7.5 3 3 7.5Z" fill="currentColor" fill-opacity=".3"/><path d="M21 3.25 3.5 10.25l7.5 3Z" fill="currentColor"/><path d="m11 13.25 10-10"/>',
+  send: `${wash('M21 3.25 11 13.25l3 7.5Z')}<path d="M21 3.25 3.5 10.25l7.5 3Z" ${SOLID}/><path d="M21 3.25 3.5 10.25l7.5 3 3 7.5ZM11 13.25l10-10"/>`,
   square: `<rect x="6" y="6" width="12" height="12" rx="3" ${SOFT}/>`,
   download: `<path d="M4 15.5V17a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1.5" ${SOFT}/><path d="M12 3.5v11m-5-4.5 5 5 5-5"/>`,
 
   // Things
   pencil: `<path d="M15.8 4.2a2.4 2.4 0 0 1 3.4 3.4L8.5 18.3l-4.7 1.9 1.9-4.7Z" ${SOFT}/><path d="m13.5 6.5 4 4"/>`,
-  'trash-2': `<path d="m6 7 .9 11.6a2 2 0 0 0 2 1.9h6.2a2 2 0 0 0 2-1.9L18 7Z" ${SOFT}/><path d="M4 7h16M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7m-5 4v5.5m4-5.5v5.5"/>`,
-  'trash-off': `<path d="m6 7 .9 11.6a2 2 0 0 0 2 1.9h6.2a2 2 0 0 0 2-1.9L18 7Z" ${SOFT}/><path d="M4 7h16M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7m-5 4v5.5m4-5.5v5.5"/><path d="M3 3l18 18"/>`,
+  'trash-2': `${wash(TRASH)}<path d="M6 7l.9 11.6a2 2 0 0 0 2 1.9h6.2a2 2 0 0 0 2-1.9L18 7M4 7h16M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7m-5 4v5.5m4-5.5v5.5"/>`,
+  'trash-off': `${wash(TRASH)}<path d="M6.3 11l.6 7.6a2 2 0 0 0 2 1.9h6.2M18 7l-.6 8.2M10 7h10M9.2 4.8A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 3l18 18"/>`,
   copy: `<path d="M15.5 8.5v-2A2.5 2.5 0 0 0 13 4H6.5A2.5 2.5 0 0 0 4 6.5V13a2.5 2.5 0 0 0 2.5 2.5h2"/><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5" ${SOFT}/>`,
   'wrap-text': '<path d="M4 6h16M4 11h12a3 3 0 0 1 0 6h-5m3-3-3 3 3 3M4 17h3"/>',
   // Pasted text.
-  clipboard: `<rect x="4.5" y="4.5" width="15" height="16" rx="3" ${SOFT}/><rect x="9" y="3" width="6" height="3.5" rx="1.2"/><path d="M8.5 11h7m-7 4h4.5"/>`,
-  keyboard:
-    '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M6 15h12"/>',
+  clipboard: `${wash('M9 4.5H7.5a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3v-10a3 3 0 0 0-3-3H15v.8a1.2 1.2 0 0 1-1.2 1.2h-3.6A1.2 1.2 0 0 1 9 5.3Z')}<path d="M9 4.5H7.5a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3v-10a3 3 0 0 0-3-3H15M8.5 11h7m-7 4h4.5"/><rect x="9" y="3" width="6" height="3.5" rx="1.2" ${SOFT}/>`,
+  keyboard: `<rect x="2" y="5" width="20" height="14" rx="2" ${SOFT}/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M6 15h12"/>`,
   undo: '<path d="M3 9h11a6 6 0 0 1 0 12M3 9l5-5M3 9l5 5"/>',
   save: `<path d="M4.5 7A2.5 2.5 0 0 1 7 4.5h9L19.5 8v9a2.5 2.5 0 0 1-2.5 2.5H7A2.5 2.5 0 0 1 4.5 17Z" ${SOFT}/><path d="M8.5 4.5V8h6.5V4.5M8 19.5V14h8v5.5"/>`,
-  image: `<rect x="3.5" y="4" width="17" height="16" rx="3.5" ${SOFT}/><circle cx="9" cy="9.5" r="1.8"/><path d="m4 17.5 5-5 3.5 3.5 2.5-2.5 5 5"/>`,
+  image: `<rect x="3.5" y="4" width="17" height="16" rx="3.5" ${SOFT}/><circle cx="8.5" cy="9" r="1.3" ${SOLID}/><path d="m5 17 3.5-3.5L12 17l4-4 4 4"/>`,
   paperclip:
     '<path d="m15.5 8-6.3 6.3a1.9 1.9 0 0 0 2.7 2.7l6.6-6.6a3.8 3.8 0 0 0-5.4-5.4l-6.6 6.6a5.7 5.7 0 0 0 8 8l5-5"/>',
   tag: `<path d="M4 12.4V5.5A1.5 1.5 0 0 1 5.5 4h6.9l7.6 7.6a1.8 1.8 0 0 1 0 2.5l-5.9 5.9a1.8 1.8 0 0 1-2.5 0Z" ${SOFT}/><path d="${dot(8.5, 8.5)}" stroke-width="3"/>`,
   // A folder: back leaf and the front panel over it, the front in shade.
-  folder: `<path d="M3.5 8V6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V9"/><path d="M3.5 9.5h17v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z" ${SOFT}/>`,
-  grid: `<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>`,
+  folder: folderIcon,
+  grid: `<rect x="4" y="4" width="6" height="6" rx="1.5" ${SOFT}/><rect x="14" y="4" width="6" height="6" rx="1.5" ${SOFT}/><rect x="4" y="14" width="6" height="6" rx="1.5" ${SOFT}/><rect x="14" y="14" width="6" height="6" rx="1.5" ${SOFT}/>`,
   list: `<path d="M9 6h11M9 12h11M9 18h11M4 6h.1M4 12h.1M4 18h.1"/>`,
-  'list-details': `<rect x="3.5" y="4" width="5" height="6" rx="1"/><rect x="3.5" y="14" width="5" height="6" rx="1"/><path d="M12 5h8M12 9h5M12 15h8M12 19h5"/>`,
+  'list-details': `<rect x="3.5" y="4" width="5" height="6" rx="1" ${SOFT}/><rect x="3.5" y="14" width="5" height="6" rx="1" ${SOFT}/><path d="M12 5h8M12 9h5M12 15h8M12 19h5"/>`,
   // A new folder: the folder, and a plus on it.
-  'folder-plus': `<path d="M3.5 8V6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V9"/><path d="M3.5 9.5h17v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z" ${SOFT}/><path d="M12 11.8v5.4M9.3 14.5h5.4"/>`,
+  'folder-plus': `${folderIcon}<path d="M12 12.5v4M10 14.5h4"/>`,
   // Pinned to the top: a pushpin, its head filled.
-  pin: `<path d="M9 3.5h6l-.9 5.6 3.4 3.4H6.5l3.4-3.4Z" ${SOFT}/><path d="M9 3.5h6l-.9 5.6 3.4 3.4H6.5l3.4-3.4ZM12 12.5v8"/>`,
+  pin: `<path d="M9 3.5h6l-.9 5.6 3.4 3.4H6.5l3.4-3.4Z" ${SOFT}/><path d="M12 12.5v8"/>`,
   house: `<path d="M4 10.5 12 4l8 6.5v8a1.5 1.5 0 0 1-1.5 1.5H15v-5.5H9V20H5.5A1.5 1.5 0 0 1 4 18.5Z" ${SOFT}/>`,
-  'file-diff': `<path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8Z" ${SOFT}/><path d="M14 3v5h5M9.5 11.5h5M12 9v5m-2.5 3.5h5"/>`,
+  'file-diff': documentIcon('<path d="M9.5 12.5h5M12 10.5v4m-2.5 3.5h5"/>'),
   terminal: `<rect x="3" y="4" width="18" height="16" rx="3.5" ${SOFT}/><path d="m7 9.5 3 2.5-3 2.5m6 .5h4"/>`,
   globe: `<circle cx="12" cy="12" r="9" ${SOFT}/><path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9S9.6 5.5 12 3Z"/>`,
   // A chunky six-tooth gear.
   settings: `<path d="M9.6 5.32 9.59 3.02h4.82l0 2.3 2.17 1.26 2-1.16 2.4 4.17-1.99 1.15v2.52l1.99 1.15-2.4 4.17-2-1.16-2.17 1.26v2.3H9.59l.01-2.3-2.18-1.26-2 1.16-2.4-4.17 1.99-1.15v-2.52L3.02 9.59l2.4-4.17 2 1.16Z" ${SOFT}/><circle cx="12" cy="12" r="3"/>`,
   // A session's own settings: sliders.
-  tune: `<path d="M4 8h8.5m4 0H20M4 16h3.5m4 0H20"/><circle cx="14.5" cy="8" r="2.5" ${SOFT}/><circle cx="9.5" cy="16" r="2.5" ${SOFT}/>`,
+  tune: `<path d="M4 8h7.5M17.5 8H20M4 16h2.5M12.5 16H20"/><circle cx="14.5" cy="8" r="2.5" ${SOFT}/><circle cx="9.5" cy="16" r="2.5" ${SOFT}/>`,
   sun: `<circle cx="12" cy="12" r="4.2" ${SOFT}/><path d="M18.6 12h2.6m-4.53 4.67 1.84 1.84M12 18.6v2.6m-4.67-4.53-1.84 1.84M5.4 12H2.8m4.53-4.67L5.49 5.49M12 5.4V2.8m4.67 4.53 1.84-1.84"/>`,
   moon: `<path d="M20 15.2A8.5 8.5 0 1 1 8.8 4a9.5 9.5 0 0 0 11.2 11.2Z" ${SOFT}/>`,
   monitor: `<rect x="3" y="4" width="18" height="12.5" rx="3" ${SOFT}/><path d="M8.5 20.5h7M12 16.5v4"/>`,
@@ -128,21 +139,21 @@ export const ICONS: Record<string, string> = {
 
   // Wish's own concepts
   // Sessions: a conversation standing on the server that keeps it.
-  service: `<path d="M6 5.5A2.5 2.5 0 0 1 8.5 3h7A2.5 2.5 0 0 1 18 5.5v3a2.5 2.5 0 0 1-2.5 2.5H11l-2.5 2.3V11A2.5 2.5 0 0 1 6 8.5Z" ${SOFT}/><rect x="3.5" y="15" width="17" height="5.5" rx="2"/><path d="${dot(7.2, 17.75)}" stroke-width="2.6"/>`,
+  service: `<path d="M6 5.5A2.5 2.5 0 0 1 8.5 3h7A2.5 2.5 0 0 1 18 5.5v3a2.5 2.5 0 0 1-2.5 2.5H11l-2.5 1.5V11A2.5 2.5 0 0 1 6 8.5Z" ${SOFT}/><rect x="3.5" y="16" width="17" height="4.5" rx="1.5" ${SOFT}/><circle cx="7.2" cy="18.25" r=".75" ${SOLID}/>`,
   // Model providers: a cloud with a spark in it.
   providers: `<path d="M6.5 18.5a4 4 0 0 1-.3-8 5.8 5.8 0 0 1 11.1-1.4 4.6 4.6 0 0 1 .7 9.4Z" ${SOFT}/><path d="M12 10.8c.35 1.9 1.1 2.65 3 3-1.9.35-2.65 1.1-3 3-.35-1.9-1.1-2.65-3-3 1.9-.35 2.65-1.1 3-3Z" ${SOLID}/>`,
   // Groups: two people.
   users: `<circle cx="8" cy="7.5" r="3.2" ${SOFT}/><circle cx="17" cy="9" r="2.5" ${SOFT}/><path d="M2.5 20v-1.5a5.5 5.5 0 0 1 11 0V20M16 14.5h.5A4.5 4.5 0 0 1 21 19v1"/>`,
   // MCP: two servers linked through the bridge.
-  extensions: `<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M17.5 14v7M14 17.5h7"/>`,
-  mcp: `<rect x="3" y="3" width="8" height="8" rx="2.5" ${SOFT}/><rect x="13" y="13" width="8" height="8" rx="2.5"/><path d="M11 7h2.5A3.5 3.5 0 0 1 17 10.5V13M7 11v2.5a3.5 3.5 0 0 0 3.5 3.5H13"/>`,
+  extensions: `<rect x="3" y="3" width="7" height="7" rx="2" ${SOFT}/><rect x="14" y="3" width="7" height="7" rx="2" ${SOFT}/><rect x="3" y="14" width="7" height="7" rx="2" ${SOFT}/><path d="M17.5 14v7M14 17.5h7"/>`,
+  mcp: `<rect x="3" y="3" width="8" height="8" rx="2.5" ${SOFT}/><rect x="13" y="13" width="8" height="8" rx="2.5" ${SOFT}/><path d="M11 7h2.5A3.5 3.5 0 0 1 17 10.5V13M7 11v2.5a3.5 3.5 0 0 0 3.5 3.5H13"/>`,
   // Interface: a window, and light and dark in it.
-  appearance: `<rect x="3" y="4" width="18" height="16" rx="3.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 7.5a4.5 4.5 0 0 0 0 9Z" ${SOLID}/>`,
-  shapes: `<circle cx="7" cy="7" r="3.5" ${SOFT}/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><path d="m7 13 4.5 7.5h-9ZM14 15h6M14 19h6"/>`,
+  appearance: `<rect x="3" y="4" width="18" height="16" rx="3.5" ${SOFT}/><circle cx="12" cy="12" r="4.5"/><path d="M12 7.5a4.5 4.5 0 0 0 0 9Z" ${SOLID}/>`,
+  shapes: `<circle cx="7" cy="7" r="3.5" ${SOFT}/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" ${SOFT}/><path d="m7 13 4.5 7.5h-9Z" ${SOFT}/><path d="M14 15h6M14 19h6"/>`,
   // Debug: a connection's pulse.
   diagnostics: `<rect x="3" y="4.5" width="18" height="15" rx="3.5" ${SOFT}/><path d="M6.5 12.5H9l1.5-3.5 3 7 1.5-3.5h2.5"/>`,
   // Statistics: rounded columns on a floor.
-  stats: `<rect x="4.5" y="12" width="4" height="8" rx="1.5" ${SOFT}/><rect x="10" y="4.5" width="4" height="15.5" rx="1.5" ${SOFT}/><rect x="15.5" y="8.5" width="4" height="11.5" rx="1.5" ${SOFT}/>`,
+  stats: `<rect x="3" y="12" width="4" height="8" rx="1.5" ${SOFT}/><rect x="10" y="4.5" width="4" height="15.5" rx="1.5" ${SOFT}/><rect x="17" y="8.5" width="4" height="11.5" rx="1.5" ${SOFT}/>`,
   // Sessions and data: the store they are kept in, its lid in shade and two layers below.
   storage: `<ellipse cx="12" cy="6" rx="7.5" ry="2.75" ${SOFT}/><path d="M4.5 6v12c0 1.52 3.36 2.75 7.5 2.75s7.5-1.23 7.5-2.75V6M4.5 12c0 1.52 3.36 2.75 7.5 2.75s7.5-1.23 7.5-2.75"/>`,
   // Choosing several: a ticked box.
@@ -151,16 +162,14 @@ export const ICONS: Record<string, string> = {
   eraser: `<path d="M7.8 19.5 3.9 15.6a2 2 0 0 1 0-2.8l8.9-8.9a2 2 0 0 1 2.8 0l4.5 4.5a2 2 0 0 1 0 2.8l-8.3 8.3" ${SOFT}/><path d="m8 10 6.5 6.5M7.8 19.5h12.7"/>`,
   // Account status: a dial with radial ticks, a clear needle and its pivot.
   account: `<path d="M5.5 18.2a9 9 0 1 1 13 0Z" ${SOFT}/><path d="M12 5v2M5.6 8.1l1.5 1.3M18.4 8.1l-1.5 1.3M4 14h2M20 14h-2M12 14l3.2-4"/><circle cx="12" cy="14" r="1.4" fill="currentColor" stroke="none"/>`,
-  // Reasoning: the model's side of the conversation, still thinking.
-  // Reasoning: the brain, as this app has always drawn it. Two hemispheres with their folds, split
-  // down the middle; a soft wash under the outline so it holds up at the rail's 16px.
-  thinking: `<path d="M12 4.6a2.9 2.9 0 1 0-5.8.1 3.9 3.9 0 0 0-2.4 5.6 3.9 3.9 0 0 0 .5 6.4A3.9 3.9 0 1 0 12 16.9Z" ${SOFT}/><path d="M12 4.6a2.9 2.9 0 1 1 5.8.1 3.9 3.9 0 0 1 2.4 5.6 3.9 3.9 0 0 1-.5 6.4A3.9 3.9 0 1 1 12 16.9Z" ${SOFT}/><path d="M15 12.4a4.4 4.4 0 0 1-3-3.9 4.4 4.4 0 0 1-3 3.9"/><path d="M17 6.1a2.9 2.9 0 0 0 .4-1.3M6.6 4.8A2.9 2.9 0 0 0 7 6.1M4 10.4a3.9 3.9 0 0 1 .6-.4M19.9 10a3.9 3.9 0 0 1 .6.4M6.6 17.1A3.9 3.9 0 0 1 4.7 16.6M19.9 16.6a3.9 3.9 0 0 1-1.9.5"/>`,
+  // One centre seam, with folds that leave room to breathe at the rail's 16px size.
+  thinking: `${wash(BRAIN_LEFT + 'Z' + BRAIN_RIGHT + 'Z')}<path d="${BRAIN_LEFT}${BRAIN_RIGHT}M12 4.6v12.3M6.2 5c0 1 .7 1.8 1.8 2M17.8 5c0 1-.7 1.8-1.8 2M4.3 10.2c1.4 0 2.5.8 2.7 2.3M19.7 10.2c-1.4 0-2.5.8-2.7 2.3M9 16c1.7 0 3-1.3 3-3M15 16c-1.7 0-3-1.3-3-3"/>`,
   // A tool call.
   tool: `<path d="M14.7 3.5a5 5 0 0 0-4.6 6.9l-6.2 6.2a2.1 2.1 0 0 0 3 3l6.2-6.2a5 5 0 0 0 6.9-4.6l-3.3 1.6-2.6-.6-.6-2.6Z" ${SOFT}/>`,
   // A run's work: steps climbed.
   steps: `<path d="M3.5 20.5v-5H9V10h5.5V4.5h6v16Z" ${SOFT} stroke="none"/><path d="M3.5 20.5v-5H9V10h5.5V4.5h6"/>`,
   // A model: a block of its own.
-  model: `<path d="M12 3 20 7.5 12 12 4 7.5Z" ${SOFT}/><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9ZM4 7.5 12 12l8-4.5M12 12v9"/>`,
+  model: `${wash('M12 3 20 7.5 12 12 4 7.5Z')}<path d="M12 3 20 7.5v9L12 21l-8-4.5v-9ZM4 7.5 12 12l8-4.5M12 12v9"/>`,
   // The model asked the user something.
   question: `<path d="${BUBBLE}" ${SOFT}/><path d="M9.7 10.1a2.4 2.4 0 0 1 4.6.9c0 1.6-2.3 2.1-2.3 2.1${dot(12, 15.7)}"/>`,
   // A conversation with one session.
