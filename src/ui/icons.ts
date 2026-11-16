@@ -10,11 +10,12 @@ const SOFT = 'fill="currentColor" fill-opacity=".18"';
 const SOLID = 'fill="currentColor" stroke="none"';
 const dot = (x: number, y: number) => `M${x} ${y}h.01`;
 // Fill-only pieces never retrace an outline or darken an adjacent surface.
-const wash = (path: string) => `<path d="${path}" ${SOFT} stroke="none"/>`;
+const wash = (path: string, cutout = '') =>
+  `<path d="${path}${cutout}" ${SOFT} stroke="none"${cutout ? ' fill-rule="evenodd"' : ''}/>`;
 const DOCUMENT = 'M14 3H7a2.5 2.5 0 0 0-2.5 2.5v13A2.5 2.5 0 0 0 7 21h10a2.5 2.5 0 0 0 2.5-2.5v-10Z';
 const documentIcon = (content = '') => `${wash(DOCUMENT)}<path d="${DOCUMENT}M14 3v5.5h5.5"/>${content}`;
-const FOLDER = 'M3.5 17.5v-11a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z';
-const folderIcon = `${wash('M3.5 9.5h17v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z')}<path d="${FOLDER}M3.5 9.5h17"/>`;
+const FOLDER = 'M3.5 17.5v-12a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v9.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z';
+const folderIcon = `${wash('M3.5 10h17v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z')}<path d="${FOLDER}M3.5 10h17"/>`;
 const EYE = 'M2.5 12C4.7 7.7 8 5.5 12 5.5s7.3 2.2 9.5 6.5c-2.2 4.3-5.5 6.5-9.5 6.5S4.7 16.3 2.5 12Z';
 const TRASH = 'm6 7 .9 11.6a2 2 0 0 0 2 1.9h6.2a2 2 0 0 0 2-1.9L18 7Z';
 const BRAIN_LEFT = 'M12 4.6a2.9 2.9 0 1 0-5.8.1 3.9 3.9 0 0 0-2.4 5.6 3.9 3.9 0 0 0 .5 6.4A3.9 3.9 0 1 0 12 16.9';
@@ -37,7 +38,7 @@ export const ICONS: Record<string, string> = {
   'file-pdf': documentIcon(
     '<path d="M8 17.5c2.4-2.6 4.4-6.5 3-6.5-1.2 0 .2 6.5 4 6.5 2.8 0 .8-3.4-7 0Z" stroke-width="1.5"/>',
   ),
-  video: `<rect x="3" y="4" width="18" height="16" rx="3" ${SOFT}/><path d="m10 8 6 4-6 4z"/>`,
+  video: `${wash('M6 4h12a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z', 'M10 8l6 4-6 4Z')}<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m10 8 6 4-6 4Z"/>`,
   audio: '<path d="M4 10v4m4-7v10m4-13v16m4-13v10m4-7v4"/>',
   mic: `<rect x="9" y="2" width="6" height="12" rx="3" ${SOFT}/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>`,
 
@@ -81,7 +82,7 @@ export const ICONS: Record<string, string> = {
   // A task list with an active job; distinct from the shell prompt.
   tasks: `<rect x="3" y="4" width="18" height="16" rx="3.5" ${SOFT}/><path d="m6.5 8.5 1.5 1.5 2.5-3M13 9h4M6.5 15h3M13 15h4"/>`,
   // History is a clock turning back; reading a record is a document.
-  'history-search': `<path d="M3 9a8 8 0 0 1 14-5M3 4v5h5M3 13a8 8 0 0 0 7 7M11 6v5l2 1"/><circle cx="17" cy="17" r="3.5" ${SOFT}/><path d="m19.5 19.5 2 2"/>`,
+  'history-search': `<path d="M18.5 10.5a8 8 0 1 0-8 8M2.5 6v4.5H7M10.5 6.5v4L13 12"/><circle cx="17.5" cy="17.5" r="3.5" ${SOFT}/><path d="m20 20 1.5 1.5"/>`,
   'history-read': documentIcon('<path d="M8.5 12.5h7M8.5 16.5h4"/>'),
   'history-query': `<path d="M9 6h12M9 12h8M9 18h5"/><circle cx="4" cy="6" r="1" ${SOFT}/><circle cx="4" cy="12" r="1" ${SOFT}/><circle cx="4" cy="18" r="1" ${SOFT}/>`,
   network: `<rect x="8" y="3" width="8" height="6" rx="1.5" ${SOFT}/><path d="M12 9v5M5 17v-3h14v3"/><rect x="2" y="17" width="6" height="4" rx="1" ${SOFT}/><rect x="16" y="17" width="6" height="4" rx="1" ${SOFT}/>`,
@@ -114,7 +115,7 @@ export const ICONS: Record<string, string> = {
   list: `<path d="M9 6h11M9 12h11M9 18h11M4 6h.1M4 12h.1M4 18h.1"/>`,
   'list-details': `<rect x="3.5" y="4" width="5" height="6" rx="1" ${SOFT}/><rect x="3.5" y="14" width="5" height="6" rx="1" ${SOFT}/><path d="M12 5h8M12 9h5M12 15h8M12 19h5"/>`,
   // A new folder: the folder, and a plus on it.
-  'folder-plus': `${folderIcon}<path d="M12 12.5v4M10 14.5h4"/>`,
+  'folder-plus': `${folderIcon}<path d="M12 13v3.5M10.25 14.75h3.5"/>`,
   // Pinned to the top: a pushpin, its head filled.
   pin: `<path d="M9 3.5h6l-.9 5.6 3.4 3.4H6.5l3.4-3.4Z" ${SOFT}/><path d="M12 12.5v8"/>`,
   house: `<path d="M4 10.5 12 4l8 6.5v8a1.5 1.5 0 0 1-1.5 1.5H15v-5.5H9V20H5.5A1.5 1.5 0 0 1 4 18.5Z" ${SOFT}/>`,
@@ -148,7 +149,7 @@ export const ICONS: Record<string, string> = {
   extensions: `<rect x="3" y="3" width="7" height="7" rx="2" ${SOFT}/><rect x="14" y="3" width="7" height="7" rx="2" ${SOFT}/><rect x="3" y="14" width="7" height="7" rx="2" ${SOFT}/><path d="M17.5 14v7M14 17.5h7"/>`,
   mcp: `<rect x="3" y="3" width="8" height="8" rx="2.5" ${SOFT}/><rect x="13" y="13" width="8" height="8" rx="2.5" ${SOFT}/><path d="M11 7h2.5A3.5 3.5 0 0 1 17 10.5V13M7 11v2.5a3.5 3.5 0 0 0 3.5 3.5H13"/>`,
   // Interface: a window, and light and dark in it.
-  appearance: `<rect x="3" y="4" width="18" height="16" rx="3.5" ${SOFT}/><circle cx="12" cy="12" r="4.5"/><path d="M12 7.5a4.5 4.5 0 0 0 0 9Z" ${SOLID}/>`,
+  appearance: `${wash('M6.5 4h11A3.5 3.5 0 0 1 21 7.5v9a3.5 3.5 0 0 1-3.5 3.5h-11A3.5 3.5 0 0 1 3 16.5v-9A3.5 3.5 0 0 1 6.5 4Z', 'M12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 1 0 0-9Z')}<rect x="3" y="4" width="18" height="16" rx="3.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 7.5a4.5 4.5 0 0 0 0 9Z" ${SOLID}/>`,
   shapes: `<circle cx="7" cy="7" r="3.5" ${SOFT}/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" ${SOFT}/><path d="m7 13 4.5 7.5h-9Z" ${SOFT}/><path d="M14 15h6M14 19h6"/>`,
   // Debug: a connection's pulse.
   diagnostics: `<rect x="3" y="4.5" width="18" height="15" rx="3.5" ${SOFT}/><path d="M6.5 12.5H9l1.5-3.5 3 7 1.5-3.5h2.5"/>`,
