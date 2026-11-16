@@ -21,6 +21,8 @@ Changes apply immediately to subsequent requests and commands without restarting
 - **Skills**: Adds extra `SKILL.md` directories, shows discovered skills across roots (including shadowed or invalid entries), and disables individual skills.
 - **Network**: Sets the shared outbound proxy policy (`environment`, `manual`, or `direct`) and displays proxy environment variables visible to the Wish process.
 
+Image and video services appear once in **Add service**. Choose among their bundled models inside the service editor, or enter a **Custom model ID**. Model selection updates the corresponding interface and available options while retaining the account and any custom base URL. Unsupported resolution/aspect-ratio choices are cleared; switching image protocols resets incompatible JSON parameters with a notification. Existing services remain unchanged until edited. Regional endpoints, subscription accounts, and API accounts remain separate choices.
+
 ## Browser-local sections
 
 ### Interface

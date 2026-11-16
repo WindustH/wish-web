@@ -38,6 +38,10 @@ Both `/api/events` and `/api/sessions/{id}/events` read via `fetch` instead of `
 
 Persisted history (loaded in 40-entry cursor pages) is always authoritative: live previews give way to stored messages once a turn completes, and reconnects refresh state via `snapshot` (including Gemini `stream_checkpoint` previews) without ever replaying requests.
 
+## Generation services
+
+Generation catalogs carry optional `service: {id, name}` metadata from Core. `domain/settings/generationServices.ts` groups only explicitly related templates for settings and account-service suggestions. Model selection retains each template's stable ID and protocol; never merge services by brand or infer protocol compatibility from model names. Catalogs without grouping metadata retain their original entries.
+
 ## Caching, PWA, and i18n
 
 - **`KeepAlive`**: Keeps up to four top-level pages mounted across navigation.

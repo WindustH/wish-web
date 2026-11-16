@@ -8,6 +8,7 @@ import { providerName } from '../providers/providerPresentation.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { defaultAccount, fetchAccountPresets } from './accountCompatibility.ts';
+import { generationServices } from './generationServices.ts';
 
 export interface ServiceCatalogs {
   models: ConfigCatalog;
@@ -30,9 +31,13 @@ export function accountServices(
     defaultAccount({ [accountId]: account }, allowed, required) === accountId;
   const linked = (
     providers: Record<string, { preset?: string | null; credential_id?: string | null }> | undefined,
-    preset: string,
+    preset: string | string[],
   ) =>
-    Object.values(providers ?? {}).some((service) => service.preset === preset && service.credential_id === accountId);
+    Object.values(providers ?? {}).some(
+      (service) =>
+        service.credential_id === accountId &&
+        (Array.isArray(preset) ? preset.includes(service.preset ?? '') : service.preset === preset),
+    );
   const choices: AccountServiceChoice[] = [];
   const model = catalogs.models.presets.find((preset) => preset.id === account.preset);
   const variant = model?.variants[model.protocols[0]!];
@@ -100,21 +105,20 @@ export function accountServices(
       },
     });
   }
-  for (const preset of catalogs.image) {
-    if (
-      !ready(preset.account_presets, preset.required_credentials) ||
-      linked(config.image_generation?.providers, preset.id)
-    )
+  for (const group of generationServices(catalogs.image)) {
+    const preset = group.defaultPreset;
+    const ids = group.presets.map((p) => p.id);
+    if (!ready(preset.account_presets, preset.required_credentials) || linked(config.image_generation?.providers, ids))
       continue;
     choices.push({
       key: `image_generation:${preset.id}`,
-      title: preset.name,
+      title: group.name,
       brand: preset.brand,
       detail: preset.model,
       category: tr('图片生成', 'Image generation'),
       add() {
         const section = (config.image_generation ??= { order: [], providers: {} });
-        if (linked(section.providers, preset.id)) return;
+        if (linked(section.providers, ids)) return;
         const id = uniqueId(preset.id, (key) => key in section.providers);
         section.providers[id] = {
           preset: preset.id,
@@ -128,18 +132,19 @@ export function accountServices(
       },
     });
   }
-  for (const preset of catalogs.media) {
+  for (const family of generationServices(catalogs.media)) {
+    const preset = family.defaultPreset;
+    const ids = family.presets.map((p) => p.id);
     const group =
       preset.kind === 'video'
         ? 'video_generation'
         : preset.kind === 'transcription'
           ? 'audio_transcription'
           : 'audio_generation';
-    if (!ready(preset.account_presets, preset.required_credentials) || linked(config[group]?.providers, preset.id))
-      continue;
+    if (!ready(preset.account_presets, preset.required_credentials) || linked(config[group]?.providers, ids)) continue;
     choices.push({
       key: `${group}:${preset.id}`,
-      title: preset.name,
+      title: family.name,
       brand: preset.brand,
       detail: preset.model,
       category:
@@ -150,7 +155,7 @@ export function accountServices(
             : tr('音频生成', 'Audio generation'),
       add() {
         const section = (config[group] ??= { order: [], providers: {} });
-        if (linked(section.providers, preset.id)) return;
+        if (linked(section.providers, ids)) return;
         const id = uniqueId(preset.id, (key) => key in section.providers);
         section.providers[id] = {
           preset: preset.id,

@@ -15,6 +15,13 @@ import SwitchRow from '../../domain/settings/SwitchRow.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
 import { tr } from '../../core/i18n/tr.ts';
+import GenerationModelField from './GenerationModelField.vue';
+import {
+  generationServices,
+  generationServiceName,
+  generationModelPreset,
+  selectMediaModel,
+} from '../../domain/settings/generationServices.ts';
 const props = defineProps<{ section: 'video_generation' | 'audio_generation' | 'audio_transcription' }>();
 const { draft, mediaCatalog } = inject(configDraftKey)!;
 const mobile = useIsMobile();
@@ -33,9 +40,16 @@ const adding = ref(false),
 const current = computed(() => config.value.providers[editing.value]);
 const spec = (id: string) => catalog.value.find((p) => p.id === id);
 const currentSpec = computed(() => current.value && spec(current.value.preset));
-const videoCapabilities = computed(() =>
-  currentSpec.value?.model === current.value?.model ? currentSpec.value?.video : undefined,
+const services = computed(() => generationServices(catalog.value));
+const currentGroup = computed(() =>
+  services.value.find((group) => group.presets.some((p) => p.id === current.value?.preset)),
 );
+const modelSpec = computed(
+  () =>
+    current.value &&
+    generationModelPreset(currentGroup.value?.presets ?? [], current.value.preset, current.value.model),
+);
+const videoCapabilities = computed(() => modelSpec.value?.video);
 const editOnly = computed(
   () => videoCapabilities.value?.modes.length === 1 && videoCapabilities.value.modes[0] === 'edit',
 );
@@ -58,11 +72,12 @@ const kindTitle = (kind: string) =>
     transcription: 'ASR',
   })[kind] ?? kind;
 const choices = computed(() =>
-  catalog.value.map((p) => ({
-    key: p.id,
-    title: p.name,
-    brand: p.brand,
-    description: `${kindTitle(p.kind)} · ${p.model}`,
+  services.value.map((group) => ({
+    key: group.id,
+    title: group.name,
+    brand: group.brand,
+    description: kindTitle(group.defaultPreset.kind),
+    search: group.presets.map((p) => `${p.name} ${p.model} ${p.id} ${p.protocol}`).join(' '),
   })),
 );
 const icon = computed(() =>
@@ -75,11 +90,11 @@ const order = computed<string[]>({
   },
 });
 function add(id: string) {
-  const preset = spec(id);
+  const preset = services.value.find((group) => group.id === id)?.defaultPreset;
   if (!preset) return;
   const key = uniqueId(id, (key) => key in config.value.providers);
   config.value.providers[key] = {
-    preset: id,
+    preset: preset.id,
     credential_id: '',
     model: preset.model,
     enabled: true,
@@ -89,6 +104,10 @@ function add(id: string) {
   config.value.order.push(key);
   adding.value = false;
   editing.value = key;
+}
+function chooseModel(id: string) {
+  const next = currentGroup.value?.presets.find((p) => p.id === id);
+  if (current.value && next) selectMediaModel(current.value, next);
 }
 function remove(id: string) {
   if (editing.value === id) editing.value = '';
@@ -132,7 +151,7 @@ function applyDurationInput(event: Event) {
       >
         <SettingsItemCard
           draggable
-          :title="spec(config.providers[id].preset)?.name || id"
+          :title="generationServiceName(spec(config.providers[id].preset)) || id"
           :summary="`${config.providers[id].model} · ${draft.accounts[config.providers[id].credential_id]?.name || tr('未关联账户', 'No account')}`"
           :position="index + 1"
           :state="{
@@ -181,7 +200,7 @@ function applyDurationInput(event: Event) {
       :page="mobile"
       compact
       :content-class="mobile ? 'settings-editor mobile-settings-page' : 'settings-editor'"
-      :title="currentSpec?.name || current.preset"
+      :title="generationServiceName(currentSpec) || current.preset"
       @close="editing = ''"
     >
       <div class="media-editor">
@@ -197,12 +216,14 @@ function applyDurationInput(event: Event) {
               :preset="currentSpec?.account_presets[0]"
             />
           </div>
-          <label
+          <GenerationModelField
             v-if="!['xai_speech', 'deepseek_speech', 'deepseek_transcription'].includes(currentSpec?.protocol || '')"
-            class="set-row stacked"
-            ><span class="set-label">{{ tr('模型 ID', 'Model ID') }}</span
-            ><input class="input" v-model="current.model"
-          /></label>
+            :key="editing"
+            :preset="current.preset"
+            v-model:model="current.model"
+            :presets="currentGroup?.presets ?? []"
+            @choose="chooseModel"
+          />
           <label class="set-row stacked"
             ><span class="set-label">{{ tr('接口基础地址', 'Base URL') }}</span
             ><input
@@ -316,14 +337,16 @@ function applyDurationInput(event: Event) {
               ><span class="set-label">{{ tr('画幅', 'Aspect ratio') }}</span
               ><select class="input" v-model="current.parameters.aspect_ratio">
                 <option :value="null">{{ tr('使用服务默认值', 'Service default') }}</option>
-                <option v-for="ratio in currentSpec?.aspect_ratios ?? []" :key="ratio">{{ ratio }}</option>
+                <option v-for="ratio in (modelSpec ?? currentSpec)?.aspect_ratios ?? []" :key="ratio">
+                  {{ ratio }}
+                </option>
               </select></label
             >
-            <label v-if="currentSpec?.resolutions?.length" class="set-row stacked"
+            <label v-if="(modelSpec ?? currentSpec)?.resolutions?.length" class="set-row stacked"
               ><span class="set-label">{{ tr('分辨率', 'Resolution') }}</span
               ><select class="input" v-model="current.parameters.resolution">
                 <option :value="null">{{ tr('使用服务默认值', 'Service default') }}</option>
-                <option v-for="resolution in currentSpec?.resolutions ?? []" :key="resolution">
+                <option v-for="resolution in (modelSpec ?? currentSpec)?.resolutions ?? []" :key="resolution">
                   {{ resolution }}
                 </option></select
               ><small>{{ tr('可选分辨率取决于模型。', 'Supported resolutions depend on the model.') }}</small></label

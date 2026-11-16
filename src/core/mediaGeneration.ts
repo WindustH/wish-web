@@ -37,6 +37,7 @@ export interface VideoCapabilities {
 export interface MediaPreset {
   id: string;
   name: string;
+  service?: PresetService;
   brand: string;
   protocol: string;
   kind: MediaKind;
@@ -67,3 +68,4 @@ export interface MediaJob {
   timestamps?: MediaArtifact | null;
   error?: string | null;
 }
+import type { PresetService } from './generationPresets.ts';

@@ -14,6 +14,13 @@ import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { showError } from '../../ui/errorDialog.ts';
+import { toast } from '../../ui/toast.ts';
+import GenerationModelField from './GenerationModelField.vue';
+import {
+  generationServices,
+  generationServiceName,
+  selectImageModel,
+} from '../../domain/settings/generationServices.ts';
 const { draft, imageCatalog } = inject(configDraftKey)!;
 const mobile = useIsMobile();
 const config = computed(() => (draft.value.image_generation ??= { order: [], providers: {} }));
@@ -27,21 +34,24 @@ const adding = ref(false),
   editing = ref('');
 const current = computed(() => config.value.providers[editing.value]);
 const spec = (id: string) => imageCatalog.value.find((p) => p.id === id);
+const services = computed(() => generationServices(imageCatalog.value));
+const currentGroup = computed(() =>
+  services.value.find((group) => group.presets.some((p) => p.id === current.value?.preset)),
+);
 const choices = computed(() =>
-  imageCatalog.value.map((p) => ({
-    key: p.id,
-    title: p.name,
-    brand: p.brand,
-    description: p.model,
-    search: `${p.id} ${p.protocol}`,
+  services.value.map((group) => ({
+    key: group.id,
+    title: group.name,
+    brand: group.brand,
+    search: group.presets.map((p) => `${p.name} ${p.model} ${p.id} ${p.protocol}`).join(' '),
   })),
 );
 function add(id: string) {
-  const preset = spec(id);
+  const preset = services.value.find((group) => group.id === id)?.defaultPreset;
   if (!preset) return;
   const key = uniqueId(id, (key) => key in config.value.providers);
   config.value.providers[key] = {
-    preset: id,
+    preset: preset.id,
     credential_id: '',
     model: preset.model,
     enabled: true,
@@ -51,6 +61,14 @@ function add(id: string) {
   config.value.order.push(key);
   adding.value = false;
   editing.value = key;
+}
+function chooseModel(id: string) {
+  const previous = current.value && spec(current.value.preset);
+  const next = currentGroup.value?.presets.find((p) => p.id === id);
+  if (!previous || !next || !current.value) return;
+  if (selectImageModel(current.value, previous, next)) {
+    toast(tr('已切换模型，生成参数已恢复默认值。', 'Model changed; generation parameters restored to defaults.'));
+  }
 }
 function remove(id: string) {
   if (editing.value === id) editing.value = '';
@@ -92,7 +110,7 @@ function parameters(event: Event) {
       >
         <SettingsItemCard
           draggable
-          :title="spec(config.providers[id].preset)?.name || id"
+          :title="generationServiceName(spec(config.providers[id].preset)) || id"
           :summary="`${config.providers[id].model} · ${draft.accounts[config.providers[id].credential_id]?.name || tr('未关联账户', 'No account')}`"
           :position="index + 1"
           :state="{
@@ -136,7 +154,7 @@ function parameters(event: Event) {
       :page="mobile"
       compact
       :content-class="mobile ? 'settings-editor mobile-settings-page' : 'settings-editor'"
-      :title="spec(current.preset)?.name || current.preset"
+      :title="generationServiceName(spec(current.preset)) || current.preset"
       @close="editing = ''"
     >
       <div class="image-editor">
@@ -152,10 +170,13 @@ function parameters(event: Event) {
               :preset="spec(current.preset)?.account_presets[0]"
             />
           </div>
-          <label class="set-row stacked"
-            ><span class="set-label">{{ tr('模型 ID', 'Model ID') }}</span
-            ><input class="input" v-model="current.model"
-          /></label>
+          <GenerationModelField
+            :key="editing"
+            :preset="current.preset"
+            v-model:model="current.model"
+            :presets="currentGroup?.presets ?? []"
+            @choose="chooseModel"
+          />
           <label class="set-row stacked"
             ><span class="set-label">{{ tr('接口基础地址', 'Base URL') }}</span
             ><input

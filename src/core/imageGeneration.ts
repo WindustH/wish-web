@@ -1,6 +1,9 @@
+import type { PresetService } from './generationPresets.ts';
+
 export interface ImagePreset {
   id: string;
   name: string;
+  service?: PresetService;
   brand: string;
   protocol: string;
   base_url: string;
