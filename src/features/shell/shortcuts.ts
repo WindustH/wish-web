@@ -43,9 +43,11 @@ export function installShortcuts(commands: ShortcutCommands) {
   }
   function command(event: KeyboardEvent, physicalSpace = false, palette = false) {
     if (localKey(event, physicalSpace, palette)) return;
+    // The palette's function key also works in the composer and its search input.
     // Plain keys retain editing and dialog focus navigation. Docked and overlay
     // sidebars remain toggleable after their controls receive focus.
     if (
+      !(palette && /^F(?:[1-9]|1[0-2])$/.test(event.key)) &&
       !event.ctrlKey &&
       !event.metaKey &&
       !event.altKey &&
