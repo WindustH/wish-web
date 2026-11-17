@@ -17,6 +17,7 @@ import {
 } from './sessionCommands.ts';
 const props = defineProps<{ sessionId: string }>();
 const emit = defineEmits<{ close: []; btw: [] }>();
+const panel = ref<InstanceType<typeof CommandPanel>>();
 const input = ref<HTMLInputElement>();
 const query = ref('');
 const selected = ref(0);
@@ -211,6 +212,19 @@ async function execute() {
 }
 function keydown(event: KeyboardEvent) {
   if (event.isComposing || event.keyCode === 229) return;
+  if (
+    event.key === 'Backspace' &&
+    query.value === '' &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey &&
+    !event.shiftKey
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    panel.value?.close();
+    return;
+  }
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault();
     selected.value = Math.max(
@@ -227,7 +241,7 @@ function keydown(event: KeyboardEvent) {
 }
 </script>
 <template>
-  <CommandPanel :title="tr('命令面板', 'Command palette')" :busy="busy" @close="emit('close')">
+  <CommandPanel ref="panel" :title="tr('命令面板', 'Command palette')" :busy="busy" @close="emit('close')">
     <div class="session-commands" data-keyboard-boundary>
       <div class="command-input">
         <span aria-hidden="true">:</span

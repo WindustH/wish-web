@@ -46,7 +46,7 @@ A successfully completed answer is automatically saved as a Markdown file in tha
 
 ### Command palette and keyboard navigation
 
-The palette provides completions: **↑/↓** selects, **Tab** fills the selected completion, **Enter** executes, and **Esc** closes it. Clicking a completion fills the input; the **Run** button also executes on mobile.
+The palette provides completions: **↑/↓** selects, **Tab** fills the selected completion, **Enter** executes, and **Esc** closes it. **Backspace** with an empty input removes the leading `:` and closes the palette; with text present it deletes normally. Clicking a completion fills the input; the **Run** button also executes on mobile.
 
 | Command | Action |
 | --- | --- |
@@ -58,7 +58,7 @@ The palette provides completions: **↑/↓** selects, **Tab** fills the selecte
 
 Model and effort completions load the available provider catalogs. When multiple providers offer the same model ID, use `provider/model`; selecting a completion supplies this qualification. Reasoning levels follow model capabilities, including required reasoning and models without reasoning. Model changes follow the same revision checks and next-turn behavior as the model picker.
 
-Under **Settings → Keyboard shortcuts → Advanced settings**, customize or disable the navigation keys. Defaults are **i** to focus the message input, **Esc** to leave it, **j/k** to scroll down/up, **J/K** to move to the next/previous message, and **:** to open commands. Letter navigation does not intercept typing or input-method composition in text fields and dialogs. These keys do not interrupt an answer; use the separate **Interrupt model response** shortcut.
+Under **Settings → Keyboard shortcuts → Advanced settings**, customize or disable the navigation keys. Defaults are **i** to focus the message input, **Esc** to leave it, **j/k** to scroll down/up, **J/K** to move to the next/previous user message (skipping assistant replies), and **:** to open commands. Letter navigation does not intercept typing or input-method composition in text fields and dialogs. These keys do not interrupt an answer; use the separate **Interrupt model response** shortcut.
 
 An optional exit sequence (for example `ji`) can leave the message input. It is **unset by default**. Configure a maximum interval between keys (default **300 ms**, range **100–2000 ms**). A recognized sequence is removed from the input; slower typing remains literal. Moving the caret, using an input method, or other intervening edits cancels recognition.
 

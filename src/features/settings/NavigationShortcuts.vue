@@ -17,8 +17,8 @@ const actions = computed<{ id: NavigationAction; label: string }[]>(() => [
   { id: 'exit', label: tr('退出消息输入框', 'Leave message input') },
   { id: 'down', label: tr('向下滚动对话', 'Scroll conversation down') },
   { id: 'up', label: tr('向上滚动对话', 'Scroll conversation up') },
-  { id: 'nextMessage', label: tr('下一条消息', 'Next message') },
-  { id: 'previousMessage', label: tr('上一条消息', 'Previous message') },
+  { id: 'nextMessage', label: tr('下一条用户消息', 'Next user message') },
+  { id: 'previousMessage', label: tr('上一条用户消息', 'Previous user message') },
   { id: 'command', label: tr('命令面板', 'Command palette') },
 ]);
 function key(event: KeyboardEvent, id: NavigationAction) {

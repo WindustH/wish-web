@@ -301,17 +301,18 @@ function navigate(direction: -1 | 1, message = false) {
     el.scrollBy({ top: direction * 96, behavior: 'auto' });
     return;
   }
-  // Use measured/estimated positions for every virtual row, not just mounted DOM nodes.
+  // Navigate by user turns, using every virtual row rather than only mounted DOM nodes.
   const entries = virtualizer.value.measurementsCache.filter((row) => {
     const group = groups.value[row.index];
-    return group?.type === 'entry' && ['user_message', 'assistant_message'].includes(group.entry.kind);
+    return group?.type === 'entry' && group.entry.kind === 'user_message';
   });
   const target =
     direction > 0
       ? entries.find((row) => row.start > el.scrollTop + 4)
       : entries.findLast((row) => row.start < el.scrollTop - 4);
   if (target) virtualizer.value.scrollToIndex(target.index, { align: 'start' });
-  else el.scrollTo({ top: direction > 0 ? el.scrollHeight : 0, behavior: 'auto' });
+  else if (direction < 0 || chat.hasMoreAfter.value)
+    el.scrollTo({ top: direction > 0 ? el.scrollHeight : 0, behavior: 'auto' });
 }
 defineExpose({ navigate });
 
