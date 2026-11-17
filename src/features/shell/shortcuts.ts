@@ -12,11 +12,17 @@ export interface ShortcutCommands {
 }
 export function installShortcuts(commands: ShortcutCommands) {
   const browserBlocked = new WeakSet<KeyboardEvent>();
-  const localKey = (event: KeyboardEvent) =>
+  const localKey = (event: KeyboardEvent, physicalSpace = false, palette = false) =>
     (event.defaultPrevented && !browserBlocked.has(event)) ||
-    event.isComposing ||
-    event.keyCode === 229 ||
-    event.composedPath().some((node) => node instanceof HTMLElement && node.hasAttribute('data-keyboard-boundary'));
+    (!physicalSpace && (event.isComposing || event.keyCode === 229)) ||
+    event
+      .composedPath()
+      .some(
+        (node) =>
+          node instanceof HTMLElement &&
+          node.hasAttribute('data-keyboard-boundary') &&
+          !(palette && node.classList.contains('session-quick-switch')),
+      );
   function action(id: ShortcutId) {
     switch (id) {
       case 'toggleRightSidebar':
@@ -35,8 +41,8 @@ export function installShortcuts(commands: ShortcutCommands) {
         return commands.openNewSession;
     }
   }
-  function command(event: KeyboardEvent) {
-    if (localKey(event)) return;
+  function command(event: KeyboardEvent, physicalSpace = false, palette = false) {
+    if (localKey(event, physicalSpace, palette)) return;
     // Plain keys retain editing and dialog focus navigation. Docked and overlay
     // sidebars remain toggleable after their controls receive focus.
     if (
@@ -56,6 +62,7 @@ export function installShortcuts(commands: ShortcutCommands) {
     )
       return;
     const binding = keyBinding(event);
+    if (physicalSpace) binding.key = ' ';
     const id = shortcutIds.find((key) => sameBinding(shortcuts.value.value.bindings[key], binding));
     const run = id && action(id);
     if (!run) return;
@@ -69,6 +76,16 @@ export function installShortcuts(commands: ShortcutCommands) {
     if (browserCommand && shortcuts.value.value.blockedBrowser[browserCommand]) {
       if (!event.defaultPrevented) browserBlocked.add(event);
       event.preventDefault();
+    }
+    // Ctrl+Space can arrive as Process/229 through an IME. This explicit
+    // modified shortcut is safe to identify by its physical key; ordinary Space
+    // still belongs to composition. Run the palette before editor handlers.
+    const physicalSpace = event.code === 'Space' && (event.ctrlKey || event.metaKey);
+    const binding = keyBinding(event);
+    if (physicalSpace) binding.key = ' ';
+    if (sameBinding(shortcuts.value.value.bindings.quickSwitchSessions, binding)) {
+      command(event, physicalSpace, true);
+      return;
     }
     // Tab runs before a sidebar's focus scope; other bindings allow local editors
     // to handle their own commands first.
