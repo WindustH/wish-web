@@ -42,6 +42,7 @@ import AppMenu from '../shell/AppMenu.vue';
 import { goHome } from './useRecentsSheet.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { platform } from '../../platform/index.ts';
+import { prefs } from '../../core/state/prefsSlice.ts';
 
 const route = useRoute();
 const router = useRouter();
@@ -70,9 +71,17 @@ useBackLayer(
 const chosen = ref(new Set<string>());
 let selectionAnchor: string | null = null;
 function activateRow(id: string, event: MouseEvent) {
-  if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey) return;
+  if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey) return;
   if (!event.shiftKey) {
     selectionAnchor = id;
+    if (!isMobile.value && !selecting.value) {
+      // Browsing from the sidebar keeps it available, overriding the destination's
+      // saved state only after navigation succeeds. Other entry points restore it.
+      event.preventDefault();
+      void router.push(`/s/${id}`).then((failure) => {
+        if (!failure && route.params.id === id) prefs.setSessionListCollapsed(false);
+      });
+    }
     return;
   }
   event.preventDefault();
