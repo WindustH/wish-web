@@ -8,6 +8,7 @@ export type EndpointOptions = Omit<RequestOptions, 'body' | 'raw'>;
 
 // Sessions.
 export interface SessionsListParams {
+  flat?: boolean;
   cursor?: number | string | null;
   limit?: number;
   order?: string;

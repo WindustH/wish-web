@@ -2,6 +2,7 @@ import { browserShortcut, keyBinding, sameBinding, shortcutIds, type ShortcutId 
 import { shortcuts } from '../../core/state/shortcutsSlice.ts';
 
 export interface ShortcutCommands {
+  quickSwitchSessions?: () => void;
   openNewSession: () => void;
   openSettings: () => void;
   focusSessionSearch: () => Promise<void>;
@@ -22,6 +23,8 @@ export function installShortcuts(commands: ShortcutCommands) {
         return commands.sidebarToggle('right');
       case 'toggleLeftSidebar':
         return commands.sidebarToggle('left');
+      case 'quickSwitchSessions':
+        return commands.quickSwitchSessions;
       case 'searchSessions':
         return commands.focusSessionSearch;
       case 'searchChat':

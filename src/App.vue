@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useMobileNavigationMotion } from './features/shell/useMobileNavigationMotion.ts';
+import SessionQuickSwitch from './features/shell/SessionQuickSwitch.vue';
+import { rememberSessionVisit } from './features/shell/quickSwitch.ts';
 import Modal from './ui/components/Modal.vue';
 import { useMobileBackNavigation } from './features/shell/useMobileBackNavigation.ts';
 import HoverHintHost from './ui/components/HoverHintHost.vue';
@@ -41,6 +43,13 @@ const signedOut = isSignedOut();
 const gate = signedOut ? null : useProviderGate();
 const route = useRoute();
 const router = useRouter();
+watch(
+  () => route.params.id,
+  (id) => {
+    if (typeof id === 'string') rememberSessionVisit(id);
+  },
+  { immediate: true },
+);
 const isMobile = useIsMobile();
 // Settings and statistics open over the page they were opened from: a window on a desktop, a page
 // of their own on a phone. The page behind stays mounted, and comes back as it was when they close.
@@ -108,6 +117,7 @@ const online = computed(() => sync.online.value);
       </div>
     </main>
     <div v-else class="shell" :class="isMobile ? 'mobile' : 'desktop'">
+      <SessionQuickSwitch />
       <div class="main">
         <div class="main-col">
           <div v-if="!online" class="offline-banner" role="status">{{ i18n.t('settings.offline') }}</div>

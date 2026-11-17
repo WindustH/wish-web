@@ -15,6 +15,7 @@ import { installViewport } from './ui/viewport.ts';
 import { initPWA } from './ui/pwa.ts';
 import { sessionSearchCommands } from './features/sessions/searchCommands.ts';
 import { sessionSidebarCommands } from './features/sessions/sidebarCommands.ts';
+import { quickSwitchOpen } from './features/shell/quickSwitch.ts';
 import { installShortcuts } from './features/shell/shortcuts.ts';
 import App from './App.vue';
 import { createUnhandledRejectionReporter } from './ui/unhandledErrors.ts';
@@ -165,6 +166,9 @@ app.use(router);
 app.mount('#app');
 
 stopShortcuts = installShortcuts({
+  quickSwitchSessions: () => {
+    quickSwitchOpen.value = !quickSwitchOpen.value;
+  },
   ...sessionSearchCommands(router),
   ...sessionSidebarCommands(router),
   openSettings: () => {

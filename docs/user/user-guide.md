@@ -117,3 +117,7 @@ Default keyboard shortcuts (customizable in **Settings → Keyboard shortcuts**)
 | `Ctrl/⌘ + Shift + O` | New session |
 | `Enter` / `Ctrl/⌘ + Enter` | Send message (configurable under **Send with Enter**) |
 | `Esc` | Stop run, clear list selection, or close dialog |
+
+## Quick session switching
+
+Press **Ctrl + Space** to search sessions by name, tag, provider or model. Filter to running sessions or those awaiting a reply, then use **↑/↓** and **Enter** to open a result; **Esc** closes the window. Sessions you opened most recently appear first; unvisited sessions follow by last update. Visits are stored in this browser per server (up to 500). The binding can be changed in **Settings → Keyboard shortcuts**.

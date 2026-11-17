@@ -6,6 +6,7 @@ export const defaultBindings = {
   searchChat: { key: 'f', mod: true, shift: true },
   openSettings: { key: ',', mod: true },
   newSession: { key: 'o', mod: true, shift: true },
+  quickSwitchSessions: { key: ' ', mod: true },
 } satisfies Record<string, KeyBinding>;
 export type ShortcutId = keyof typeof defaultBindings;
 export interface KeyBinding {

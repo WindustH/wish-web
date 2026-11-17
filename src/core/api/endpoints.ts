@@ -80,6 +80,7 @@ export async function sessionsList(params: SessionsListParams = {}, opts?: Endpo
   const page = await get('/sessions', {
     query: {
       start: params.cursor ?? 0,
+      flat: params.flat,
       limit: params.limit,
       order: params.order,
       query: params.query,
