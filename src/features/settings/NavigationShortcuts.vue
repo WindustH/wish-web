@@ -71,8 +71,8 @@ function sequence(event: Event) {
       <p>
         {{
           tr(
-            '未编辑文本时使用字母导航。大写键使用 Shift；输入框中仅退出键与退出序列生效。',
-            'Letter navigation works outside text fields. Use Shift for uppercase keys. Only exit bindings apply inside the message input.',
+            '会话与侧栏都可使用。输入框内保留文字输入；会话输入框仅响应退出键和退出序列。大写键使用 Shift。',
+            'Navigate from the conversation or either sidebar. Text fields keep ordinary typing; only exit bindings apply inside the message input. Use Shift for uppercase keys.',
           )
         }}
       </p>

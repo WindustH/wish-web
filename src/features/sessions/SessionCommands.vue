@@ -38,24 +38,30 @@ function keydown(event: KeyboardEvent) {
     btwOpen.value
   )
     return;
+  const action = Object.entries(nav.keys).find(([, key]) => key && key === event.key)?.[0];
+  if (!action || action === 'exit') return;
+  const editing = (node: EventTarget | null) =>
+    node instanceof HTMLElement &&
+    (node.isContentEditable || node.matches('input,textarea,select,[role="textbox"],[role="combobox"]'));
+  // Check both focus and event ancestry: typing always wins over navigation,
+  // including fields inside a non-modal sidebar and inherited contenteditable.
+  if (editing(document.activeElement) || event.composedPath().some(editing)) return;
+  const overlays =
+    '[role="dialog"]:not(.island-sidebar),.island-sheet,[role="alertdialog"],[role="menu"],[role="listbox"]';
   if (
     event
       .composedPath()
-      .some(
-        (node) =>
-          node instanceof HTMLElement &&
-          (node.isContentEditable ||
-            node.matches(
-              'input,textarea,select,[data-keyboard-boundary],[role="textbox"],[role="combobox"],[role="dialog"],[role="menu"],[role="listbox"]',
-            )),
-      )
+      .some((node) => node instanceof HTMLElement && node.matches(`${overlays},[data-keyboard-boundary]`))
   )
     return;
-  // Modal focus may still be moving during its opening frame.
-  if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
-  const { keys } = nav;
-  const action = Object.entries(keys).find(([, key]) => key && key === event.key)?.[0];
-  if (!action || action === 'exit') return;
+  // A popup owns the keyboard even before focus moves into its portal. Docked
+  // and non-modal drawer sidebars remain ordinary workspace surfaces.
+  if (
+    [...document.querySelectorAll<HTMLElement>(overlays)].some(
+      (element) => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden',
+    )
+  )
+    return;
   event.preventDefault();
   event.stopPropagation();
   if (action === 'focus') {
@@ -69,8 +75,8 @@ function keydown(event: KeyboardEvent) {
       action === 'nextMessage' || action === 'previousMessage',
     );
 }
-onMounted(() => document.addEventListener('keydown', keydown));
-onBeforeUnmount(() => document.removeEventListener('keydown', keydown));
+onMounted(() => document.addEventListener('keydown', keydown, true));
+onBeforeUnmount(() => document.removeEventListener('keydown', keydown, true));
 defineExpose({ open });
 </script>
 <template>
