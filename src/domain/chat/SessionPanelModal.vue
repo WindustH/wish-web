@@ -13,6 +13,8 @@ const props = withDefaults(
     title: string;
     page?: boolean;
     sidebar?: boolean;
+    embedded?: boolean;
+    retainContent?: boolean;
     contentClass?: string;
     backLayer?: boolean;
   }>(),
@@ -27,14 +29,14 @@ const panelActive = computed(() => active.value && props.open);
 provide(pageActivityKey, panelActive);
 const close = () => (props.sidebar ? emit('close') : modal.value?.close());
 useBackLayer(
-  () => props.backLayer && !!props.sidebar && !!props.page && panelActive.value,
+  () => !props.embedded && props.backLayer && !!props.sidebar && !!props.page && panelActive.value,
   close,
   () => 45,
 );
 watch(
   [active, () => props.page, () => props.open],
   ([active, page, open]) => {
-    if (!panelClose) return;
+    if (!panelClose || props.embedded) return;
     if (active && open && !page) panelClose.value = close;
     else if (panelClose.value === close) panelClose.value = null;
   },
@@ -48,9 +50,13 @@ const ignoreOutside = (target: Element) => panelElements?.contains(target) ?? fa
 defineExpose({ close });
 </script>
 <template>
+  <div v-if="embedded" v-show="open" class="session-panel-embedded" :class="contentClass">
+    <slot />
+    <div v-if="$slots.footer" class="session-sidebar-footer embedded-footer"><slot name="footer" /></div>
+  </div>
   <IslandSidebar
-    v-if="sidebar"
-    :retain-content="false"
+    v-else-if="sidebar"
+    :retain-content="retainContent ?? false"
     :open="open"
     :overlay="page"
     :title="title"
@@ -97,5 +103,11 @@ defineExpose({ close });
   gap: 8px;
   padding: 10px 12px;
   border-top: 1px solid var(--line);
+}
+.embedded-footer {
+  position: sticky;
+  bottom: -12px;
+  background: var(--bg);
+  margin: 0 -12px -12px;
 }
 </style>

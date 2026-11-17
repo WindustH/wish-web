@@ -3,6 +3,15 @@ import type { EntryView } from '../../core/api/projections.ts';
 import { codeLanguage } from '../../ui/codeLanguage.ts';
 
 export type BlobKind = 'image' | 'video' | 'audio' | 'pdf' | 'text' | 'file';
+/** Linked directory listings provide filenames without opening files to sniff their contents. */
+export function linkedFileKind(name: string): BlobKind {
+  const extension = name.split('.').at(-1)?.toLowerCase() ?? '';
+  if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'avif', 'bmp', 'svg', 'heic', 'heif'].includes(extension)) return 'image';
+  if (['mp4', 'webm', 'mkv', 'mov', 'avi', 'm4v'].includes(extension)) return 'video';
+  if (['mp3', 'wav', 'flac', 'ogg', 'opus', 'm4a', 'aac'].includes(extension)) return 'audio';
+  if (extension === 'pdf') return 'pdf';
+  return codeLanguage(name) ? 'text' : 'file';
+}
 const extensions: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',

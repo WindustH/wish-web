@@ -34,7 +34,6 @@ import Modal from '../../ui/components/Modal.vue';
 import LibraryThumbnail from './LibraryThumbnail.vue';
 import LibraryDocumentThumbnail from './LibraryDocumentThumbnail.vue';
 import LibraryFolderThumbnail from './LibraryFolderThumbnail.vue';
-import SelectField from '../../ui/components/SelectField.vue';
 import { platform } from '../../platform/index.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import { cfg } from '../../core/config.ts';
@@ -375,10 +374,26 @@ async function upload() {
     }
   }
 }
+const filterMenu = computed<MenuItem>(() => ({
+  key: 'filter',
+  label: tr('筛选', 'Filter'),
+  icon: 'filter',
+  children: filterOptions.value.map((item) => ({
+    key: `filter:${item.value}`,
+    label: item.label,
+    icon: item.icon,
+    checked: filter.value === item.value,
+  })),
+}));
 const libraryActions = computed<MenuItem[]>(() =>
   linkedFolder.value && filter.value !== 'bookmarks'
-    ? [{ key: 'refresh', label: i18n.t('library.refresh'), icon: 'refresh-cw' }, ...folderMenu(linkedFolder.value)]
+    ? [
+        filterMenu.value,
+        { key: 'refresh', label: i18n.t('library.refresh'), icon: 'refresh-cw' },
+        ...folderMenu(linkedFolder.value),
+      ]
     : [
+        filterMenu.value,
         {
           key: 'select',
           label: selecting.value ? tr('退出多选', 'Stop selecting') : tr('多选文件', 'Select files'),
@@ -414,18 +429,26 @@ const libraryActions = computed<MenuItem[]>(() =>
               },
             ]),
         {
-          key: 'icons',
-          label: tr('图标视图', 'Icons'),
+          key: 'view',
+          label: tr('视图', 'View'),
           icon: 'grid',
-          checked: view.value === 'icons',
           separator: true,
+          children: [
+            { key: 'icons', label: tr('图标视图', 'Icons'), icon: 'grid', checked: view.value === 'icons' },
+            { key: 'compact', label: tr('紧凑列表', 'Compact list'), icon: 'list', checked: view.value === 'compact' },
+            {
+              key: 'details',
+              label: tr('详细列表', 'Details'),
+              icon: 'list-details',
+              checked: view.value === 'details',
+            },
+          ],
         },
-        { key: 'compact', label: tr('紧凑列表', 'Compact list'), icon: 'list', checked: view.value === 'compact' },
-        { key: 'details', label: tr('详细列表', 'Details'), icon: 'list-details', checked: view.value === 'details' },
       ],
 );
 function libraryAction(key: string) {
   if (batchBusy.value) return;
+  if (key.startsWith('filter:')) return selectFilter(key.slice(7));
   if (linkedFolder.value && filter.value !== 'bookmarks') {
     if (key === 'refresh') linkedRevision.value++;
     else actFolder(key, linkedFolder.value);
@@ -734,7 +757,7 @@ const filterOptions = computed(() =>
       kind === 'bookmarks'
         ? tr('书签', 'Bookmarks')
         : kind === 'all'
-          ? i18n.t('library.title')
+          ? i18n.t('library.kind.all')
           : i18n.t(`library.kind.${kind}`),
     icon: kind === 'bookmarks' ? 'bookmark' : kind === 'all' ? 'library' : kind === 'pdf' ? 'file-pdf' : blobIcon(kind),
   })),
@@ -743,12 +766,15 @@ function selectFilter(value: string) {
   const kind = filters.find((kind) => kind === value);
   if (kind) filter.value = kind;
 }
+function parentFolder() {
+  if (linkedBrowser.value?.back()) return;
+  if (folder.value) openFolder(trail.value.at(-1)?.parent ?? null);
+}
 function back() {
   if (selecting.value) stopSelecting();
   else if (selected.value) selectBlob(null);
   else if (filter.value === 'bookmarks') filter.value = 'all';
-  else if (linkedBrowser.value?.back()) return;
-  else if (folder.value) openFolder(trail.value.at(-1)?.parent ?? null);
+  else if (folder.value) parentFolder();
   else emit('close');
 }
 useBackLayer(
@@ -959,25 +985,13 @@ watch(
     @back="back"
   >
     <template #leading>
-      <button
-        v-if="selected || folder || filter === 'bookmarks'"
-        class="btn ghost icon-only"
-        :aria-label="i18n.t('library.back')"
-        @click="back"
-      >
+      <button v-if="selected" class="btn ghost icon-only" :aria-label="i18n.t('library.back')" @click="back">
         <Icon name="arrow-left" />
       </button>
     </template>
     <template #title>
       <span v-if="!selected" class="library-title-controls">
-        <SelectField
-          :model-value="filter"
-          :options="filterOptions"
-          class="library-filter-select"
-          :aria-label="i18n.t('library.filter')"
-          :disabled="batchBusy"
-          @update:model-value="selectFilter"
-        />
+        <Icon name="library" /><span>{{ i18n.t('library.title') }}</span>
         <span v-if="!linkedFolder" class="library-count" :title="tr(`${displayCount} 项`, `${displayCount} items`)">{{
           displayCount
         }}</span>
@@ -1054,11 +1068,31 @@ watch(
       />
     </template>
     <template v-else>
+      <div v-if="filter !== 'all'" class="library-filter-status">
+        <span><Icon name="filter" :size="14" />{{ filterOptions.find((item) => item.value === filter)?.label }}</span>
+        <button
+          class="btn ghost icon-only sm"
+          :aria-label="tr('清除筛选', 'Clear filter')"
+          @click="selectFilter('all')"
+        >
+          <Icon name="x" :size="14" />
+        </button>
+      </div>
       <nav
         v-if="supportsFolders && (folder || drag.dragging.value)"
         class="library-path"
         :aria-label="tr('文件夹路径', 'Folder path')"
       >
+        <button
+          v-if="folder"
+          type="button"
+          class="btn ghost icon-only sm library-parent"
+          :aria-label="tr('到父目录', 'Go to parent folder')"
+          :title="tr('到父目录', 'Go to parent folder')"
+          @click="parentFolder"
+        >
+          <Icon name="arrow-left" />
+        </button>
         <button
           type="button"
           class="btn ghost sm"
@@ -1094,6 +1128,7 @@ watch(
         ref="linkedBrowser"
         :session="session"
         :folder="linkedFolder"
+        :filter="filter"
         :revision="linkedRevision"
         @open="openLinkedChild"
       />
@@ -1531,18 +1566,19 @@ watch(
   gap: 6px;
   min-width: 0;
 }
-.library-title-controls :deep(.library-filter-select) {
-  width: auto;
-  max-width: 100%;
-  min-width: 0;
-  padding: 4px 0;
-  min-height: 32px;
+.library-filter-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  border: 0;
-  background-color: transparent;
-  font: inherit;
-  color: var(--fg);
-  cursor: pointer;
+  padding: 0 14px 8px;
+}
+.library-filter-status > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-muted);
+  font-size: 12px;
 }
 .library-count {
   font-size: 11px;

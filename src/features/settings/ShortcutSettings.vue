@@ -29,6 +29,7 @@ const commands = computed(() => [
     hint: tr('桌面会话列表', 'Desktop session list'),
   },
   { id: 'quickSwitchSessions' as const, label: tr('快速切换会话', 'Quick switch sessions') },
+  { id: 'interruptReply' as const, label: tr('中断模型回答', 'Interrupt model response') },
   { id: 'searchSessions' as const, label: tr('搜索会话', 'Search sessions') },
   { id: 'searchChat' as const, label: tr('搜索当前会话', 'Search current session') },
   { id: 'openSettings' as const, label: tr('打开设置', 'Open settings') },

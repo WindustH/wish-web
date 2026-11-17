@@ -52,7 +52,8 @@ export const router = createRouter({
             {
               path: 'settings',
               name: 'chat-settings',
-              component: () => import('./features/sessions/SessionSettingsPane.vue'),
+              component: () => import('./features/sessions/InfoPane.vue'),
+              props: { initialSection: 'settings' },
             },
           ],
         },

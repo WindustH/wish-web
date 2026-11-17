@@ -3,6 +3,7 @@ import { shortcuts } from '../../core/state/shortcutsSlice.ts';
 
 export interface ShortcutCommands {
   quickSwitchSessions?: () => void;
+  interruptReply?: () => void;
   openNewSession: () => void;
   openSettings: () => void;
   focusSessionSearch: () => Promise<void>;
@@ -31,6 +32,8 @@ export function installShortcuts(commands: ShortcutCommands) {
         return commands.sidebarToggle('left');
       case 'quickSwitchSessions':
         return commands.quickSwitchSessions;
+      case 'interruptReply':
+        return commands.interruptReply;
       case 'searchSessions':
         return commands.focusSessionSearch;
       case 'searchChat':
@@ -43,11 +46,11 @@ export function installShortcuts(commands: ShortcutCommands) {
   }
   function command(event: KeyboardEvent, physicalSpace = false, palette = false) {
     if (localKey(event, physicalSpace, palette)) return;
-    // The palette's function key also works in the composer and its search input.
+    // Function-key shortcuts also work in editors; they do not insert text.
     // Plain keys retain editing and dialog focus navigation. Docked and overlay
     // sidebars remain toggleable after their controls receive focus.
     if (
-      !(palette && /^F(?:[1-9]|1[0-2])$/.test(event.key)) &&
+      !/^F(?:[1-9]|1[0-2])$/.test(event.key) &&
       !event.ctrlKey &&
       !event.metaKey &&
       !event.altKey &&

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useDocumentVisible } from '../../ui/composables/useDocumentVisible.ts';
 import SessionHistorySearch from './SessionHistorySearch.vue';
+import SessionSettingsPane from './SessionSettingsPane.vue';
 import { searchFocus } from './searchFocus.ts';
 import SelectField from '../../domain/providers/SelectField.vue';
 import { describeError } from '../../core/i18n/errorMessages.ts';
@@ -26,10 +27,20 @@ import { useSessionRequests } from './useSessionRequests.ts';
 import Icon from '../../ui/components/Icon.vue';
 
 const props = withDefaults(
-  defineProps<{ initialSection?: 'overview' | 'search'; sidebar?: boolean; open?: boolean }>(),
+  defineProps<{ initialSection?: 'overview' | 'search' | 'settings'; sidebar?: boolean; open?: boolean }>(),
   { initialSection: 'overview', open: true },
 );
+const emit = defineEmits<{ close: []; 'update:section': [value: 'overview' | 'search' | 'settings'] }>();
 const section = ref(props.initialSection);
+const settingsMounted = ref(false);
+watch(
+  section,
+  (value) => {
+    if (value === 'settings') settingsMounted.value = true;
+    emit('update:section', value);
+  },
+  { immediate: true },
+);
 watch(
   searchFocus,
   (request) => {
@@ -53,7 +64,6 @@ watch(
   },
 );
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
-defineEmits<{ close: [] }>();
 const isMobile = useIsMobile();
 
 const snapshot = computed(() => chat.snapshot.value);
@@ -137,6 +147,7 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
 
 <template>
   <SessionPanelModal
+    retain-content
     :open="open"
     :sidebar="sidebar"
     :back-layer="sidebar || !isMobile"
@@ -153,11 +164,13 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
         :options="[
           { value: 'overview', label: tr('概览', 'Overview') },
           { value: 'search', label: i18n.t('chatbar.search') },
+          { value: 'settings', label: tr('设置', 'Settings') },
         ]"
       />
     </div>
+    <SessionSettingsPane v-if="settingsMounted" embedded :open="open && section === 'settings'" />
     <SessionHistorySearch v-if="section === 'search'" @close="$emit('close')" />
-    <template v-else>
+    <template v-else-if="section === 'overview'">
       <div v-if="err" class="load-error" role="alert">
         <span>{{ errorDetail(err) }}</span>
         <button class="btn ghost sm" @click="refresh">{{ i18n.t('common.retry') }}</button>

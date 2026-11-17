@@ -16,6 +16,7 @@ import { initPWA } from './ui/pwa.ts';
 import { sessionSearchCommands } from './features/sessions/searchCommands.ts';
 import { sessionSidebarCommands } from './features/sessions/sidebarCommands.ts';
 import { quickSwitchOpen } from './features/shell/quickSwitch.ts';
+import { interruptReply } from './domain/chat/interruptReply.ts';
 import { installShortcuts } from './features/shell/shortcuts.ts';
 import App from './App.vue';
 import { createUnhandledRejectionReporter } from './ui/unhandledErrors.ts';
@@ -166,6 +167,11 @@ app.use(router);
 app.mount('#app');
 
 stopShortcuts = installShortcuts({
+  interruptReply: () => {
+    const current = router.currentRoute.value;
+    if (current.meta.section === 'sessions' && typeof current.params.id === 'string')
+      void interruptReply(current.params.id);
+  },
   quickSwitchSessions: () => {
     quickSwitchOpen.value = !quickSwitchOpen.value;
   },

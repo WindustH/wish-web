@@ -32,6 +32,9 @@ import {
   DropdownMenuRoot,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
   Primitive,
 } from 'reka-ui';
 import Icon from './Icon.vue';
@@ -369,7 +372,32 @@ onBeforeUnmount(() => {
         <DropdownMenuLabel v-if="heading" class="menu-heading">{{ heading }}</DropdownMenuLabel>
         <template v-for="item in shown" :key="item.key">
           <DropdownMenuSeparator v-if="item.separator" class="menu-separator" />
+          <DropdownMenuSub v-if="item.children">
+            <DropdownMenuSubTrigger class="menu-item" :disabled="item.disabled">
+              <Icon v-if="item.icon" :name="item.icon" />
+              <span class="menu-item-label">{{ item.label }}</span>
+              <Icon name="chevron-right" class="menu-check" />
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal :to="portalTarget ?? 'body'">
+              <DropdownMenuSubContent class="menu-pop" :side-offset="4" :collision-padding="8" data-keyboard-boundary>
+                <template v-for="child in item.children" :key="child.key">
+                  <DropdownMenuSeparator v-if="child.separator" class="menu-separator" />
+                  <DropdownMenuItem
+                    class="menu-item"
+                    :class="{ 'menu-danger': child.danger }"
+                    :disabled="child.disabled"
+                    @select="emit('select', child.key, selected ?? undefined)"
+                  >
+                    <Icon v-if="child.icon" :name="child.icon" />
+                    <span class="menu-item-label">{{ child.label }}</span>
+                    <Icon v-if="child.checked" name="check" class="menu-check" />
+                  </DropdownMenuItem>
+                </template>
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
           <DropdownMenuItem
+            v-else
             class="menu-item"
             :class="{ 'menu-danger': item.danger }"
             :disabled="item.disabled"

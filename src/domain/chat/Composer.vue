@@ -3,7 +3,7 @@ import { inject } from 'vue';
 import type { QueuedAttachment } from '../../core/api/types.ts';
 import { replyContextKey } from '../references/context.ts';
 import { referenceDescription, type ReplyReference } from '../../core/replyReferences.ts';
-import { useKeyboardScope } from '../../ui/composables/useKeyboardScope.ts';
+import { interruptReply } from './interruptReply.ts';
 import { historyPage, blobUrl } from '../../core/api/endpoints.ts';
 import { cfg } from '../../core/config.ts';
 import {
@@ -464,27 +464,9 @@ async function pickAttachment(kind: 'image' | 'file', event: MouseEvent) {
   }
 }
 
-const interrupting = ref(false);
 async function onStop() {
-  if (!running.value || sending.value || interrupting.value) return;
-  interrupting.value = true;
-  try {
-    await chat.interrupt();
-  } catch (e: any) {
-    toast(i18n.t('chat.stopFailed') + ': ' + errorDetail(e));
-  } finally {
-    interrupting.value = false;
-  }
+  if (live.value && !sending.value) await interruptReply(props.owner);
 }
-
-useKeyboardScope(composerEl, (event) => {
-  if (event.key !== 'Escape' || event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)
-    return false;
-  if (!live.value || !running.value || sending.value || interrupting.value || chat.sessionId.value !== props.owner)
-    return false;
-  void onStop();
-  return true;
-});
 
 // Drafts are written a moment after typing stops; landing them on the way out keeps the last
 // keystrokes, and an emptied field (a sent message) is already written at once by the writer.
@@ -735,7 +717,7 @@ function onKeydown(e: KeyboardEvent) {
         :sending="sending"
         :can-send="canSend"
         :queueable="queueable && !btwMode"
-        :escape-stops="!mobile"
+        :show-shortcut="!mobile"
         @send="submit()"
         @stop="onStop()"
       />
@@ -747,7 +729,7 @@ function onKeydown(e: KeyboardEvent) {
         :sending="sending"
         :can-send="canSend"
         :queueable="queueable"
-        :escape-stops="!mobile"
+        :show-shortcut="!mobile"
         @send="submit()"
         @stop="onStop()"
       />

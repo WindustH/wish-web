@@ -10,7 +10,13 @@ import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
 import LibraryRenameDialog from './LibraryRenameDialog.vue';
-const props = defineProps<{ session: string; folder: LibraryFolder; revision: number }>();
+import { linkedFileKind, type BlobKind } from './libraryFiles.ts';
+const props = defineProps<{
+  session: string;
+  folder: LibraryFolder;
+  revision: number;
+  filter?: BlobKind | 'all' | 'bookmarks';
+}>();
 const emit = defineEmits<{ open: [child: LinkedFolderChild] }>();
 const active = usePageActivity();
 const saved = useWorkspaceState('linked-folder', () => `${props.session}/${props.folder.id}`, { path: '' });
@@ -75,6 +81,14 @@ async function rename(name: string, signal: AbortSignal) {
     await renameLinkedFolderChild(props.session, props.folder.id, editing.value.path, name, { signal });
 }
 const actions = () => [{ key: 'rename', icon: 'pencil', label: tr('重命名', 'Rename') }];
+const shown = computed(() =>
+  items.value.filter(
+    (item) =>
+      !props.filter ||
+      props.filter === 'all' ||
+      (props.filter !== 'bookmarks' && (item.directory || linkedFileKind(item.name) === props.filter)),
+  ),
+);
 </script>
 <template>
   <section class="linked-folder-browser" :aria-busy="loading">
@@ -97,8 +111,10 @@ const actions = () => [{ key: 'rename', icon: 'pencil', label: tr('重命名', '
     <p v-if="error" role="alert">
       {{ error }} <button class="btn sm" @click="load()">{{ tr('重试', 'Retry') }}</button>
     </p>
-    <p v-else-if="!loading && !items.length">{{ tr('文件夹为空', 'Folder is empty') }}</p>
-    <Menu v-for="item in items" :key="item.path" context :items="actions()" @select="editing = item">
+    <p v-else-if="!loading && !shown.length">
+      {{ items.length ? tr('没有匹配的文件', 'No matching files') : tr('文件夹为空', 'Folder is empty') }}
+    </p>
+    <Menu v-for="item in shown" :key="item.path" context :items="actions()" @select="editing = item">
       <div class="linked-folder-row">
         <button class="linked-child" :data-linked-path="item.path" @click="open(item)">
           <Icon :name="item.directory ? 'folder' : 'instruction'" /><span

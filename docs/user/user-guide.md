@@ -36,7 +36,7 @@ When the agent asks for input, an inline **Waiting for you** card lets you pick 
 
 Sending a message while a reply is active adds it to **Queued** above the composer rather than making you wait. You can drag queued entries to reorder them (or use `↑`/`↓`), pull one back into the composer to edit, or remove it before it starts.
 
-Press **Stop** or `Esc` to interrupt a running turn. You can also switch the model or reasoning effort from the header chips mid-run; the new selection takes effect at the next model turn without cancelling the active request.
+Press **Stop** or `Ctrl / ⌘ + P` to interrupt a running turn. You can also switch the model or reasoning effort from the header chips mid-run; the new selection takes effect at the next model turn without cancelling the active request.
 
 ### Quick side questions (`BTW`)
 
@@ -64,26 +64,32 @@ On phones, the eye/terminal button beside the filename switches between source a
 
 An open file checks for changes every five seconds while the sidebar and browser tab are visible, and reloads when its version changes. Text previews keep their reading position and source/rendered mode. Use **Refresh** in the file's `⋮` menu to reload immediately.
 
-### Right sidebar: Library, Background tasks, Info & Settings
+### Right sidebar: Library, Background tasks, and Session
 
 Press `Tab` on desktop (or use the header tabs) to open the right sidebar:
 
-- **Library**: Displays files visible in the session alongside folders you organize. From the Library menu (`⋮`), you can switch between **Icons**, **Compact list**, and **Details** views, **Show all files** (including hidden generated artifacts), create folders, **Upload** files up to 1 GiB, **Link local files or folders** (register existing paths on the Wish server without copying bytes), or **Clean up Library…** to safely remove broken links and unused hidden files. Clicking any file—or any `wish://blob/...` or local file link in chat—opens built-in previews for images (lossless WebP), PDFs (native selectable pages with page jump and bookmarks), audio/video, and syntax-highlighted code/Markdown/HTML/SVG.
+- **Library**: Displays files visible in the session alongside folders you organize. From the Library menu (`⋮`), you can switch between **Icons**, **Compact list**, and **Details** views, **Show all files** (including hidden generated artifacts), create folders, **Upload** files up to 1 GiB, **Link** (register existing paths on the Wish server without copying bytes), or **Clean up Library…** to safely remove broken links and unused hidden files. Clicking any file—or any `wish://blob/...` or local file link in chat—opens built-in previews for images (lossless WebP), PDFs (native selectable pages with page jump and bookmarks), audio/video, and syntax-highlighted code/Markdown/HTML/SVG.
 - **Background tasks**: Lists active and finished shell tasks in the session with live tail logs and terminate/force-kill controls.
-- **Session info & stats**: Shows the live **Context** gauge (current tokens vs compaction trigger and model window), standby summary status, web build ID, instructions, and session usage charts.
-- **Session settings**: Lets you override compaction thresholds, run **Compact now** or **Clear the context**, toggle tools and delivery modes (`command` vs direct `tool`), and set a session-specific working directory or shell.
+- **Session → Overview**: Shows the live **Context** gauge (current tokens vs compaction trigger and model window), standby summary status, web build ID, instructions, and session usage charts.
+- **Session → Settings**: Lets you override compaction thresholds, run **Compact now** or **Clear the context**, toggle tools and delivery modes (`command` vs direct `tool`), and set a session-specific working directory or shell.
 
 In a video preview, use **Reference video region** beside the playback controls. Playback pauses on the current frame; drag a rectangle and release to add a reference to the message input. It includes the playback time, original-frame coordinates, and a cropped image. On touch screens, drag immediately after tapping the button. Press Escape or tap the button again to cancel. Clicking the reference later returns to that frame and highlights the region. Playback speed uses the same menu style as other controls, including in fullscreen.
 
 ### Linked folders, display names, and message bookmarks
 
-Choose **Link local files or folders** from the Library menu. Paste one absolute path per line (up to 100), mixing files and directories freely, or browse and select them together. Successful items are added to the current Library folder; failed paths remain in the form with an explanation so you can correct and retry them. Linking a directory lets you browse its live children, including subfolders. Files stay in their original location and are linked for preview as you open them. The directory is read-only in the Library: removing its link does not delete the source folder or its files.
+The parent-folder button sits beside the folder path, below the Library heading. Use the **Filter** and **View** submenus for file types and icon, compact, or detailed layouts.
+
+Choose **Link** from the Library menu. Paste one absolute path per line (up to 100), mixing files and directories freely, or browse and select them together. Successful items are added to the current Library folder; failed paths remain in the form with an explanation so you can correct and retry them. Linking a directory lets you browse its live children, including subfolders. Files stay in their original location and are linked for preview as you open them. The directory is read-only in the Library: removing its link does not delete the source folder or its files.
 
 Use **Rename** in an item's menu to change its display name. This works for files, folders, linked children and bookmarks; it does not rename files on disk or change their contents.
 
-Right-click a message and choose **Bookmark message**, or select a passage and choose **Bookmark**. On touch screens, long-press text to use the selection toolbar. Saved messages and excerpts appear alongside files in the Library, in all three views. Use the category picker to show only bookmarks. Clicking one jumps to the original record and highlights the selected text. You can rename or remove bookmarks there. If the original history has been deleted, the saved excerpt remains available but the jump reports that the message is unavailable.
+Right-click a message and choose **Add bookmark**, or select a passage and choose **Bookmark**. On touch screens, long-press text to use the selection toolbar. Saved messages and excerpts appear alongside files in the Library, in all three views. Use **Library menu → Filter → Bookmarks** to show only bookmarks. Clicking one jumps to the original record and highlights the selected text. You can rename or remove bookmarks there. If the original history has been deleted, the saved excerpt remains available but the jump reports that the message is unavailable.
 
 In icon view, bookmarks and text files show a miniature content page: Markdown retains headings and paragraphs, code uses syntax highlighting, and plain text shows its opening lines. The name below the preview remains the item's display name.
+
+### Session panel
+
+The **Session** sidebar combines **Overview**, **History search**, and **Settings** tabs. Session settings retain unsaved edits while you switch tabs or sidebars, with Save and Discard controls at the bottom. Each session remembers its last selected tab.
 
 ### History search
 
@@ -119,7 +125,8 @@ Default keyboard shortcuts (customizable in **Settings → Keyboard shortcuts**)
 | `Ctrl/⌘ + ,`               | Open Settings                                         |
 | `Ctrl/⌘ + Shift + O`       | New session                                           |
 | `Enter` / `Ctrl/⌘ + Enter` | Send message (configurable under **Send with Enter**) |
-| `Esc`                      | Stop run, clear list selection, or close dialog       |
+| `Ctrl / ⌘ + P`             | Interrupt the current model response                  |
+| `Esc`                      | Clear list selection or close dialog                  |
 
 ## Quick session switching
 

@@ -52,7 +52,7 @@ const items = computed<MenuItem[]>(() => [
         {
           key: 'bookmark-message',
           icon: 'bookmark',
-          label: tr('添加消息书签', 'Bookmark message'),
+          label: tr('添加书签', 'Add bookmark'),
           disabled: savingBookmark.value,
         },
       ]

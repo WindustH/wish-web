@@ -27,7 +27,7 @@ import SwitchRow from '../../domain/settings/SwitchRow.vue';
 import ToolBackgroundRow from '../../domain/settings/ToolBackgroundRow.vue';
 import ToolExecutionRow from '../../domain/settings/ToolExecutionRow.vue';
 
-const props = withDefaults(defineProps<{ sidebar?: boolean; open?: boolean }>(), { open: true });
+const props = withDefaults(defineProps<{ sidebar?: boolean; open?: boolean; embedded?: boolean }>(), { open: true });
 defineEmits<{ close: [] }>();
 const isMobile = useIsMobile();
 const extensionSelection = ref('image_generation');
@@ -278,6 +278,7 @@ async function act(kind: 'compact' | 'clear') {
 
 <template>
   <SessionPanelModal
+    :embedded="embedded"
     :open="open"
     :sidebar="sidebar"
     :back-layer="sidebar || !isMobile"

@@ -24,6 +24,7 @@ const BRAIN_RIGHT = 'M12 4.6a2.9 2.9 0 1 1 5.8.1 3.9 3.9 0 0 1 2.4 5.6 3.9 3.9 0
 const BUBBLE = 'M12 3a9 9 0 0 1 0 18H3l2.6-2.9A9 9 0 0 1 12 3Z';
 
 export const ICONS: Record<string, string> = {
+  filter: `${wash('M4 4h16l-6 8v7l-4 2v-9Z')}<path d="M4 4h16l-6 8v7l-4 2v-9Z"/>`,
   reply: `<path d="m9 10-5 5 5 5M4 15h10a6 6 0 0 0 0-12h-2"/>`,
   quote: `<path d="M10 11H4V5h6v8a6 6 0 0 1-6 6M20 11h-6V5h6v8a6 6 0 0 1-6 6"/>`,
   'at-sign': '<circle cx="12" cy="12" r="4"/><path d="M16 8v6a2 2 0 0 0 4 0v-2a8 8 0 1 0-3 6.2"/>',

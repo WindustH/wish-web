@@ -7,4 +7,5 @@ export type MenuItem = {
   separator?: boolean;
   checked?: boolean;
   disabled?: boolean;
+  children?: Omit<MenuItem, 'children'>[];
 };

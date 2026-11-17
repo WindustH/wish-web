@@ -7,6 +7,7 @@ export const defaultBindings = {
   openSettings: { key: ',', mod: true },
   newSession: { key: 'o', mod: true, shift: true },
   quickSwitchSessions: { key: 'F4' },
+  interruptReply: { key: 'p', mod: true },
 } satisfies Record<string, KeyBinding>;
 export type ShortcutId = keyof typeof defaultBindings;
 export interface KeyBinding {

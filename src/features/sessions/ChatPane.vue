@@ -46,7 +46,6 @@ import Composer from '../../domain/chat/Composer.vue';
 import QueueDock from './QueueDock.vue';
 import InfoPane from './InfoPane.vue';
 import { useComposerHeight } from '../../domain/chat/useComposerHeight.ts';
-import SessionSettingsPane from './SessionSettingsPane.vue';
 import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
 import { useResolvedEffort } from './useResolvedEffort.ts';
@@ -91,7 +90,6 @@ const routeTab = computed<SessionTab | null>(() => {
   const n = route.name as string;
   return n === 'chat-info' || n === 'chat-search' ? 'info' : n === 'chat-settings' ? 'settings' : null;
 });
-const infoInitialSection = ref<'overview' | 'search'>('overview');
 const tab = computed(() =>
   sidebarOpen.value && (sidebarKind.value === 'info' || sidebarKind.value === 'settings') ? sidebarKind.value : null,
 );
@@ -133,10 +131,7 @@ function titleAction(key: string) {
 watch(id, () => {
   renameTarget.value = null;
 });
-const tabs = computed(() => [
-  { key: 'info', icon: 'info', label: i18n.t('chatbar.info') },
-  { key: 'settings', icon: 'tune', label: i18n.t('chatbar.settings') },
-]);
+const tabs = computed(() => [{ key: 'info', icon: 'info', label: i18n.t('chatbar.info') }]);
 const mobileActions = computed(() => [
   ...tabs.value,
   { key: 'library', icon: 'library', label: i18n.t('library.title') },
@@ -368,9 +363,35 @@ const { effort, error: effortError } = useResolvedEffort(snapshot);
 const modelOpen = ref(false);
 const reasoningOpen = ref(false);
 // Keep the original storage scope so existing sidebar preferences survive this expansion.
-const sidebarState = useWorkspaceState('library-open', () => id.value, { open: false, view: 'library' });
+const sidebarState = useWorkspaceState('library-open', () => id.value, {
+  open: false,
+  view: 'library',
+  section: 'overview',
+});
+// Older workspaces used a separate settings sidebar.
+watch(
+  () => sidebarState.value.view,
+  (view) => {
+    if (view === 'settings') {
+      sidebarState.value.section = 'settings';
+      sidebarState.value.view = 'info';
+    }
+  },
+  { immediate: true, flush: 'sync' },
+);
+const infoInitialSection = computed({
+  get: (): 'overview' | 'search' | 'settings' =>
+    sidebarState.value.section === 'settings'
+      ? 'settings'
+      : sidebarState.value.section === 'search'
+        ? 'search'
+        : 'overview',
+  set: (value) => {
+    sidebarState.value.section = value;
+  },
+});
 const sidebarKind = computed(() =>
-  ['info', 'settings', 'tasks'].includes(sidebarState.value.view) ? sidebarState.value.view : 'library',
+  ['info', 'tasks'].includes(sidebarState.value.view) ? sidebarState.value.view : 'library',
 );
 const sidebarOpen = computed({
   get: () => sidebarState.value.open,
@@ -457,7 +478,6 @@ watch([sidebarKind, sidebarOpen, id], ([kind, open, session], previous, onCleanu
   }, 100);
 });
 const infoMounted = ref(false),
-  settingsMounted = ref(false),
   libraryMounted = ref(false),
   tasksMounted = ref(false);
 watch(
@@ -465,12 +485,10 @@ watch(
   ([open, kind, session], previous) => {
     if (previous && session !== previous[2]) {
       infoMounted.value = false;
-      settingsMounted.value = false;
       libraryMounted.value = false;
       tasksMounted.value = false;
     }
     if (open && kind === 'info') infoMounted.value = true;
-    if (open && kind === 'settings') settingsMounted.value = true;
     if (open && kind === 'library') libraryMounted.value = true;
     if (open && kind === 'tasks') tasksMounted.value = true;
   },
@@ -478,7 +496,10 @@ watch(
 );
 const libraryRevision = ref(0);
 function openSidebar(kind: SidebarView) {
-  if (kind === 'info') infoInitialSection.value = 'overview';
+  if (kind === 'settings') {
+    infoInitialSection.value = 'settings';
+    kind = 'info';
+  }
   if (kind === 'library' && sidebarOpen.value && sidebarKind.value === kind) libraryRevision.value++;
   sidebarState.value.view = kind;
   sidebarOpen.value = true;
@@ -493,8 +514,8 @@ watch(
   [routeTab, id, () => route.name],
   ([child, session, routeName]) => {
     if (!child || !session) return;
-    infoInitialSection.value = routeName === 'chat-search' ? 'search' : 'overview';
-    sidebarState.value.view = child;
+    infoInitialSection.value = child === 'settings' ? 'settings' : routeName === 'chat-search' ? 'search' : 'overview';
+    sidebarState.value.view = 'info';
     sidebarOpen.value = true;
     void router.replace({ name: 'chat', params: { id: session } });
   },
@@ -658,14 +679,8 @@ watch(
         :key="`info:${id}`"
         sidebar
         :open="sidebarOpen && sidebarDisplayedKind === 'info'"
+        @update:section="infoInitialSection = $event"
         :initial-section="infoInitialSection"
-        @close="sidebarOpen = false"
-      />
-      <SessionSettingsPane
-        v-if="settingsMounted && id"
-        :key="`settings:${id}`"
-        sidebar
-        :open="sidebarOpen && sidebarDisplayedKind === 'settings'"
         @close="sidebarOpen = false"
       />
       <SessionTasks
