@@ -94,6 +94,7 @@ Press `Ctrl/⌘ + Shift + F` to search the entire session transcript—including
 On desktop, the left sidebar (`Shift + Tab`) organizes folders and sessions into **Pinned**, **Today**, **Yesterday**, and **Older**. Search filters across all folders, and multi-select mode lets you move items, clear history, or delete sessions together. On phones (`< 900px`), the home screen shows your five most recent sessions with **View all sessions** and a top-right menu.
 
 From the app menu:
+
 - **Settings** (`Ctrl/⌘ + ,`): Opens the 11-section configuration window (see [Configuration](configuration.md)).
 - **Stats**: Shows an activity calendar, **Estimated TPS** and **Token usage** charts per model, cache hit rates, service status, and storage totals.
 - **Account status**: Displays balances, plan tiers, and rolling quota countdowns for configured providers.
@@ -108,16 +109,16 @@ Session panels open as compact bottom sheets. Pull the top handle upward (or tap
 
 Default keyboard shortcuts (customizable in **Settings → Keyboard shortcuts**):
 
-| Shortcut | Action |
-| --- | --- |
-| `Tab` / `Shift + Tab` | Toggle right sidebar / toggle left desktop sidebar |
-| `Ctrl/⌘ + K` | Search sessions |
-| `Ctrl/⌘ + Shift + F` | Search current session history |
-| `Ctrl/⌘ + ,` | Open Settings |
-| `Ctrl/⌘ + Shift + O` | New session |
+| Shortcut                   | Action                                                |
+| -------------------------- | ----------------------------------------------------- |
+| `Tab` / `Shift + Tab`      | Toggle right sidebar / toggle left desktop sidebar    |
+| `Ctrl/⌘ + K`               | Search sessions                                       |
+| `Ctrl/⌘ + Shift + F`       | Search current session history                        |
+| `Ctrl/⌘ + ,`               | Open Settings                                         |
+| `Ctrl/⌘ + Shift + O`       | New session                                           |
 | `Enter` / `Ctrl/⌘ + Enter` | Send message (configurable under **Send with Enter**) |
-| `Esc` | Stop run, clear list selection, or close dialog |
+| `Esc`                      | Stop run, clear list selection, or close dialog       |
 
 ## Quick session switching
 
-Press **Ctrl + Space** to search sessions by name, tag, provider or model. Filter to running sessions or those awaiting a reply, then use **↑/↓** and **Enter** to open a result; **Esc** closes the window. Sessions you opened most recently appear first; unvisited sessions follow by last update. Visits are stored in this browser per server (up to 500). The binding can be changed in **Settings → Keyboard shortcuts**.
+Press **Ctrl + Space** to search sessions by name, folder path, tag, provider or model. The compact list shows folder paths to the left of session names, without provider or model labels. Use **↑/↓** and **Enter** to open a result; **Esc** closes the window. Sessions you opened most recently appear first; unvisited sessions follow by last update. Visits are stored in this browser per server (up to 500). The binding can be changed in **Settings → Keyboard shortcuts**.

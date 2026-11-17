@@ -3,15 +3,15 @@ import { computed, nextTick, onScopeDispose, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
-import { sessionsList } from '../../core/api/endpoints.ts';
-import type { SessionView } from '../../core/api/projections.ts';
+import { conversationsList, foldersList } from '../../core/api/endpoints.ts';
+import type { Conversation, ConversationsPage, FolderView } from '../../core/api/types.ts';
+type SessionRow = Extract<Conversation, { kind: 'session' }>;
 import { tr } from '../../core/i18n/tr.ts';
 import { quickSwitchOpen as open, sessionVisits } from './quickSwitch.ts';
 
 const router = useRouter();
 const query = ref('');
-const filter = ref('all');
-const rows = ref<SessionView[]>([]);
+const rows = ref<SessionRow[]>([]);
 const visits = ref<Record<string, number>>({});
 const loading = ref(false);
 const failed = ref(false);
@@ -19,19 +19,32 @@ const active = ref(0);
 const limit = ref(60);
 const input = ref<HTMLInputElement>();
 const results = ref<HTMLElement>();
-const filters = computed(() => [
-  { id: 'all', name: tr('全部', 'All') },
-  { id: 'running', name: tr('运行中', 'Running') },
-  { id: 'waiting', name: tr('待回复', 'Awaiting reply') },
-]);
+const folders = ref<FolderView[]>([]);
+const paths = computed(() => {
+  const index = new Map(folders.value.map((folder) => [folder.id, folder]));
+  const result = new Map<string, string>();
+  for (const folder of folders.value) {
+    const names: string[] = [];
+    const seen = new Set<string>();
+    let item: FolderView | undefined = folder;
+    while (item && !seen.has(item.id)) {
+      seen.add(item.id);
+      names.unshift(item.name);
+      item = item.parent ? index.get(item.parent) : undefined;
+    }
+    result.set(folder.id, names.join(' / '));
+  }
+  return result;
+});
+function folderPath(row: SessionRow) {
+  return row.parent ? (paths.value.get(row.parent) ?? '') : '';
+}
 const matches = computed(() => {
   const words = query.value.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
   return rows.value
     .filter((row) => {
-      if (filter.value === 'running' && !['running', 'queued', 'compacting'].includes(row.phase)) return false;
-      if (filter.value === 'waiting' && !row.pending_questions?.length) return false;
       const tags = Array.isArray(row.metadata?.tags) ? row.metadata.tags.join(' ') : '';
-      const text = `${row.name} ${row.id} ${row.provider} ${row.model} ${tags}`.toLocaleLowerCase();
+      const text = `${row.name} ${row.id} ${row.provider} ${row.model} ${tags} ${folderPath(row)}`.toLocaleLowerCase();
       return words.every((word) => text.includes(word));
     })
     .sort(
@@ -52,11 +65,20 @@ async function load() {
   rows.value = [];
   try {
     let cursor: number | string | null = null;
+    const [first, directory] = await Promise.all([
+      conversationsList({ flat: true, limit: 1000, order: 'desc' }, { signal: request.signal }),
+      foldersList({ signal: request.signal }),
+    ]);
+    if (request.signal.aborted) return;
+    folders.value = directory;
     do {
-      const page = await sessionsList({ flat: true, limit: 1000, cursor, order: 'desc' }, { signal: request.signal });
+      const page: ConversationsPage =
+        cursor == null
+          ? first
+          : await conversationsList({ flat: true, limit: 1000, cursor, order: 'desc' }, { signal: request.signal });
       if (request.signal.aborted) return;
       const known = new Set(rows.value.map((row) => row.id));
-      rows.value.push(...page.items.filter((row) => !known.has(row.id)));
+      rows.value.push(...page.items.filter((row): row is SessionRow => row.kind === 'session' && !known.has(row.id)));
       const next = page.next_cursor ?? null;
       if (next === cursor) break;
       cursor = next;
@@ -71,7 +93,6 @@ watch(open, async (value) => {
   controller?.abort();
   if (!value) return;
   query.value = '';
-  filter.value = 'all';
   active.value = 0;
   limit.value = 60;
   visits.value = sessionVisits();
@@ -80,7 +101,7 @@ watch(open, async (value) => {
   input.value?.focus();
 });
 watch(input, (element) => element?.focus());
-watch([query, filter], () => {
+watch(query, () => {
   active.value = 0;
   limit.value = 60;
   results.value?.scrollTo(0, 0);
@@ -90,7 +111,7 @@ watch(active, async () => {
   results.value?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
 });
 onScopeDispose(() => controller?.abort());
-async function choose(row?: SessionView) {
+async function choose(row?: SessionRow) {
   if (!row) return;
   open.value = false;
   await router.push({ name: 'chat', params: { id: row.id } });
@@ -111,41 +132,34 @@ function keyboard(event: KeyboardEvent) {
     :open="open"
     :title="tr('快速切换会话', 'Quick switch sessions')"
     content-class="session-quick-switch"
+    compact
+    body-scroll="content"
     :layer="150"
     @close="open = false"
   >
-    <div class="quick-search">
-      <Icon name="search" />
-      <input
-        ref="input"
-        v-model="query"
-        role="combobox"
-        aria-autocomplete="list"
-        aria-expanded="true"
-        aria-controls="quick-session-results"
-        :aria-activedescendant="visible[active] ? `quick-session-${visible[active].id}` : undefined"
-        :aria-label="tr('搜索会话', 'Search sessions')"
-        :placeholder="tr('搜索名称、标签或模型…', 'Search names, tags or models…')"
-        @keydown="keyboard"
-        autocomplete="off"
-      />
-    </div>
-    <div class="quick-filters">
-      <button
-        v-for="item in filters"
-        :key="item.id"
-        class="btn ghost"
-        :aria-pressed="filter === item.id"
-        @click="filter = item.id"
-      >
-        {{ item.name }}
-      </button>
-      <small>{{ tr('最近访问优先', 'Recently visited first') }}</small>
-    </div>
+    <template #compact-heading>
+      <div class="quick-search">
+        <Icon name="search" />
+        <input
+          ref="input"
+          v-model="query"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded="true"
+          aria-controls="quick-session-results"
+          :aria-activedescendant="visible[active] ? `quick-session-${visible[active].id}` : undefined"
+          :aria-label="tr('搜索会话', 'Search sessions')"
+          :placeholder="tr('搜索会话、文件夹或标签…', 'Search sessions, folders or tags…')"
+          @keydown="keyboard"
+          autocomplete="off"
+        />
+        <button class="quick-close" :aria-label="tr('关闭', 'Close')" @click="open = false"><Icon name="x" /></button>
+      </div>
+    </template>
     <div
       ref="results"
       id="quick-session-results"
-      class="quick-results"
+      class="quick-results modal-scroll-region"
       role="listbox"
       :aria-label="tr('会话', 'Sessions')"
       :aria-busy="loading"
@@ -162,115 +176,251 @@ function keyboard(event: KeyboardEvent) {
         @mousedown.prevent
         @click="choose(row)"
       >
-        <Icon name="chat" />
+        <Icon :name="row.parent ? 'folder' : 'chat'" class="quick-kind" />
+        <span v-if="folderPath(row)" class="quick-path" :title="folderPath(row)">{{ folderPath(row) }}</span>
+        <span v-if="folderPath(row)" class="quick-separator" aria-hidden="true">/</span>
+        <strong>{{ row.name || row.id.slice(0, 8) }}</strong>
+        <Icon v-if="row.running" name="loader-circle" class="spinner quick-state" />
         <span
-          ><strong>{{ row.name || row.id.slice(0, 8) }}</strong
-          ><small>{{ row.provider }} · {{ row.model }}</small></span
-        >
-        <Icon v-if="row.running" name="loader-circle" class="spinner" />
+          v-else-if="row.pending_questions?.length"
+          class="quick-waiting"
+          :aria-label="tr('待回复', 'Awaiting reply')"
+          :title="tr('待回复', 'Awaiting reply')"
+        ></span>
+        <span class="quick-enter" aria-hidden="true">↵</span>
       </button>
-    </div>
-    <div class="quick-status" role="status">
-      <span v-if="loading">{{ tr('正在加载会话…', 'Loading sessions…') }}</span>
-      <button v-else-if="failed" class="btn ghost" @click="load">
-        {{ tr('加载失败，点击重试', 'Loading failed. Retry') }}
-      </button>
-      <span v-else-if="!matches.length">{{ tr('没有匹配的会话', 'No matching sessions') }}</span>
-      <button v-if="matches.length > visible.length" class="btn ghost" @click="limit += 60">
+      <div v-if="!visible.length" class="quick-empty" role="status">
+        {{
+          loading
+            ? tr('正在加载会话…', 'Loading sessions…')
+            : failed
+              ? tr('无法加载会话', 'Unable to load sessions')
+              : tr('没有匹配的会话', 'No matching sessions')
+        }}
+      </div>
+      <button v-if="matches.length > visible.length" class="quick-more" @click="limit += 60">
         {{ tr('显示更多', 'Show more') }}
       </button>
-      <small>{{ tr('↑ ↓ 选择 · Enter 打开 · Esc 关闭', '↑ ↓ Select · Enter Open · Esc Close') }}</small>
+    </div>
+    <div class="quick-footer">
+      <span role="status">
+        <button v-if="failed" class="quick-retry" @click="load">
+          {{ tr('加载失败，重试', 'Loading failed. Retry') }}
+        </button>
+        <template v-else>{{
+          loading ? tr('加载中…', 'Loading…') : tr(`${matches.length} 个会话`, `${matches.length} sessions`)
+        }}</template>
+      </span>
+      <span class="quick-hints"
+        ><span><kbd>↑</kbd><kbd>↓</kbd> {{ tr('选择', 'Select') }}</span
+        ><span><kbd>↵</kbd> {{ tr('打开', 'Open') }}</span
+        ><span><kbd>esc</kbd> {{ tr('关闭', 'Close') }}</span></span
+      >
     </div>
   </Modal>
 </template>
 <style scoped>
 :global(.modal-card.session-quick-switch:not(.modal-page):not(.modal-sheet)) {
-  width: min(620px, calc(100vw - 24px));
+  width: min(600px, calc(100vw - 24px));
+  border-radius: 16px;
+  max-height: min(580px, calc(var(--viewport-height, 100dvh) - 40px));
+}
+:global(.modal-card.session-quick-switch.compact > .modal-body) {
+  padding: 0;
+  line-height: 1.4;
 }
 .quick-search {
   display: flex;
   align-items: center;
   gap: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 10px 14px;
+  padding: 10px 14px 10px 18px;
+  border-bottom: 1px solid var(--line);
+  min-height: 58px;
 }
-.quick-search:focus-within {
-  border-color: var(--accent);
+.quick-search > .icon {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+  flex: none;
 }
 .quick-search input {
   flex: 1;
   min-width: 0;
   border: 0;
+  padding: 4px 0;
   background: transparent;
   color: var(--fg);
   font: inherit;
+  font-size: 16px;
   outline: none !important;
   box-shadow: none !important;
 }
-.quick-filters {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 10px 0;
-  flex-wrap: wrap;
-}
-.quick-filters [aria-pressed='true'] {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-.quick-filters small {
-  margin-left: auto;
+.quick-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   color: var(--fg-subtle);
+  cursor: pointer;
+}
+.quick-close:hover {
+  color: var(--fg);
+  background: var(--bg-hover);
+}
+.quick-close .icon {
+  width: 16px;
+  height: 16px;
 }
 .quick-results {
-  max-height: min(48dvh, 400px);
   overflow: auto;
+  overscroll-behavior: contain;
+  max-height: min(48dvh, 360px);
+  padding: 6px;
 }
 .quick-result {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 9px;
   width: 100%;
+  min-height: 40px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
   color: var(--fg);
   text-align: left;
-  padding: 12px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 14px;
   cursor: pointer;
 }
 .quick-result[aria-selected='true'] {
   background: var(--bg-hover);
 }
-.quick-result > span {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  gap: 5px;
+.quick-kind {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--fg-subtle);
+}
+.quick-result[aria-selected='true'] .quick-kind {
+  color: var(--accent);
+}
+.quick-path {
+  max-width: 32%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--fg-subtle);
+  font-size: 12px;
+}
+.quick-separator {
+  color: var(--fg-subtle);
+  opacity: 0.5;
 }
 .quick-result strong {
+  flex: 1;
+  min-width: 0;
   font-weight: 500;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.quick-result small {
-  color: var(--fg-subtle);
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+.quick-state {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--accent);
 }
-.quick-status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding-top: 10px;
+.quick-waiting {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--accent);
+}
+.quick-enter {
+  visibility: hidden;
   color: var(--fg-subtle);
+  flex: none;
+  font-size: 16px;
+}
+.quick-result[aria-selected='true'] .quick-enter {
+  visibility: visible;
+}
+.quick-empty {
+  padding: 28px 12px;
+  text-align: center;
+  color: var(--fg-subtle);
+  font-size: 13px;
+}
+.quick-more,
+.quick-retry {
+  border: 0;
+  background: transparent;
+  color: var(--fg-subtle);
+  font: inherit;
+  cursor: pointer;
+}
+.quick-more {
+  width: 100%;
+  padding: 10px;
   font-size: 12px;
 }
-.quick-status small {
-  margin-left: auto;
+.quick-more:hover,
+.quick-retry:hover {
+  color: var(--accent);
+}
+.quick-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--line);
+  color: var(--fg-subtle);
+  font-size: 11px;
+}
+.quick-hints,
+.quick-hints > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.quick-hints {
+  gap: 12px;
+}
+.quick-hints kbd {
+  font: inherit;
+  font-size: 10px;
+  line-height: 16px;
+  min-width: 17px;
+  padding: 0 3px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  text-align: center;
+}
+@media (pointer: coarse) {
+  .quick-result {
+    min-height: 44px;
+  }
+  .quick-close {
+    width: 40px;
+    height: 40px;
+  }
+}
+@media (max-width: 420px) {
+  .quick-hints {
+    gap: 7px;
+  }
+  .quick-footer {
+    padding-inline: 12px;
+  }
+  .quick-search {
+    padding-left: 14px;
+  }
 }
 </style>
