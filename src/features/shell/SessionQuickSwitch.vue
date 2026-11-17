@@ -7,6 +7,7 @@ import { conversationsList, foldersList } from '../../core/api/endpoints.ts';
 import type { Conversation, ConversationsPage, FolderView } from '../../core/api/types.ts';
 type SessionRow = Extract<Conversation, { kind: 'session' }>;
 import { tr } from '../../core/i18n/tr.ts';
+import { i18n } from '../../core/i18n/index.ts';
 import { quickSwitchOpen as open, sessionVisits } from './quickSwitch.ts';
 
 const router = useRouter();
@@ -54,6 +55,31 @@ const matches = computed(() => {
         a.id.localeCompare(b.id),
     );
 });
+function workState(row: SessionRow) {
+  if (row.pending_questions?.length) return 'waiting';
+  if (row.phase === 'compacting') return 'compacting';
+  if (row.running || row.phase === 'running') return 'running';
+  if (row.phase === 'queued') return 'queued';
+  if (row.last_error) return 'error';
+  return row.phase === 'suspended' ? 'suspended' : 'idle';
+}
+const workIcons = {
+  idle: 'chat',
+  running: 'loader-circle',
+  compacting: 'loader-circle',
+  queued: 'queue',
+  waiting: 'question',
+  suspended: 'pause',
+  error: 'triangle-alert',
+};
+function workLabel(row: SessionRow) {
+  const state = workState(row);
+  return state === 'waiting'
+    ? tr('待回复', 'Awaiting reply')
+    : state === 'error'
+      ? tr('回复失败', 'Reply failed')
+      : i18n.t(`phase.${state}`);
+}
 const visible = computed(() => matches.value.slice(0, limit.value));
 let controller: AbortController | undefined;
 async function load() {
@@ -176,16 +202,20 @@ function keyboard(event: KeyboardEvent) {
         @mousedown.prevent
         @click="choose(row)"
       >
-        <Icon :name="row.parent ? 'folder' : 'chat'" class="quick-kind" />
+        <span
+          class="quick-kind"
+          :class="workState(row)"
+          role="img"
+          :aria-label="workLabel(row)"
+          :title="workLabel(row)"
+        >
+          <Icon
+            :name="workIcons[workState(row)]"
+            :class="{ spin: ['running', 'compacting'].includes(workState(row)) }"
+          />
+        </span>
         <strong>{{ row.name || row.id.slice(0, 8) }}</strong>
         <span v-if="folderPath(row)" class="quick-path" :title="folderPath(row)">{{ folderPath(row) }}</span>
-        <Icon v-if="row.running" name="loader-circle" class="spinner quick-state" />
-        <span
-          v-else-if="row.pending_questions?.length"
-          class="quick-waiting"
-          :aria-label="tr('待回复', 'Awaiting reply')"
-          :title="tr('待回复', 'Awaiting reply')"
-        ></span>
         <span class="quick-enter" aria-hidden="true">↵</span>
       </button>
       <div v-if="!visible.length" class="quick-empty" role="status">
@@ -300,12 +330,20 @@ function keyboard(event: KeyboardEvent) {
   background: var(--bg-hover);
 }
 .quick-kind {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 16px;
   height: 16px;
   flex: none;
   color: var(--fg-subtle);
 }
-.quick-result[aria-selected='true'] .quick-kind {
+.quick-kind .icon {
+  width: 16px;
+  height: 16px;
+}
+.quick-kind.running,
+.quick-result[aria-selected='true'] .quick-kind.idle {
   color: var(--accent);
 }
 .quick-path {
@@ -325,18 +363,20 @@ function keyboard(event: KeyboardEvent) {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.quick-state {
-  width: 14px;
-  height: 14px;
-  flex: none;
-  color: var(--accent);
+.quick-kind.compacting {
+  color: var(--ok);
 }
-.quick-waiting {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex: none;
-  background: var(--accent);
+.quick-kind.waiting,
+.quick-kind.queued {
+  color: var(--warn);
+}
+.quick-kind.error {
+  color: var(--danger);
+}
+@media (prefers-reduced-motion: reduce) {
+  .quick-kind .spin {
+    animation: none;
+  }
 }
 .quick-enter {
   visibility: hidden;

@@ -107,6 +107,8 @@ Below 900 px width, Wish switches to a full-screen mobile layout integrated with
 
 Session panels open as compact bottom sheets. Pull the top handle upward (or tap it) to expand a panel to nearly the full visible height; pull it down to return to the smaller height. A further downward pull dismisses it. Scrolling, selecting text, and zooming inside the panel do not change its height.
 
+The left session sidebar remembers its expanded or collapsed state separately for each session, just like the right sidebar. These choices are stored in this browser and isolated by server. The home page keeps its own default; sessions without a saved choice inherit that default.
+
 Default keyboard shortcuts (customizable in **Settings → Keyboard shortcuts**):
 
 | Shortcut                   | Action                                                |
@@ -121,4 +123,4 @@ Default keyboard shortcuts (customizable in **Settings → Keyboard shortcuts**)
 
 ## Quick session switching
 
-Press **Ctrl + Space** to search sessions by name, folder path, tag, provider or model. The compact list shows folder paths to the right of session names, without provider or model labels. Use **↑/↓** and **Enter** to open a result; **Esc** closes the window. Sessions you opened most recently appear first; unvisited sessions follow by last update. Visits are stored in this browser per server (up to 500). The binding can be changed in **Settings → Keyboard shortcuts**.
+Press **Ctrl + Space** to search sessions by name, folder path, tag, provider or model. The compact list shows folder paths to the right of session names, without provider or model labels. The left icon indicates the session’s work status, such as running, queued, compacting or awaiting a reply. Use **↑/↓** and **Enter** to open a result; **Esc** closes the window. Sessions you opened most recently appear first; unvisited sessions follow by last update. Visits are stored in this browser per server (up to 500). The binding can be changed in **Settings → Keyboard shortcuts**.

@@ -26,6 +26,11 @@ import { useRecentsSheet } from './useRecentsSheet.ts';
 const route = useRoute();
 const router = useRouter();
 const isMobile = useIsMobile();
+watch(
+  () => route.params.id,
+  (id) => prefs.setSessionListOwner(typeof id === 'string' ? id : null),
+  { immediate: true, flush: 'sync' },
+);
 const showList = computed(() => (isMobile.value ? route.name === 'all-sessions' : !prefs.sessionListCollapsed.value));
 // A phone's home page and all sessions are one screen: the list is a sheet over the home page.
 const home = computed(() => route.name === 'sessions' || route.name === 'all-sessions');
