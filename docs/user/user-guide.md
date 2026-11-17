@@ -40,7 +40,27 @@ Press **Stop** or `Ctrl / ⌘ + P` to interrupt a running turn. You can also swi
 
 ### Quick side questions (`BTW`)
 
-Click **BTW** in the composer toolbar to ask a side question in a floating bubble without interrupting the active run or writing to session history. Follow-ups inside the bubble share its short context and reuse the session's prompt cache.
+Outside text fields, press **:** to open the command palette, or choose **Command palette** from the session menu (also available on mobile). Type `btw <question>` to ask a side question without interrupting the active run or writing to its conversation history. The answer streams in a separate window. Closing that window or switching sessions lets generation continue; run `btw` without a question to reopen the session's retained answers. Follow-ups share a bounded side-chat context.
+
+A successfully completed answer is automatically saved as a Markdown file in that session's Library, including the question and timestamp. If saving fails, the window retains the answer and offers **Retry save**, without generating or charging for a new answer. Partial, interrupted, and failed answers are not automatically saved. Closing the browser or reloading the page can interrupt an unfinished request; saved Markdown files remain available in the Library.
+
+### Command palette and keyboard navigation
+
+The palette provides completions: **↑/↓** selects, **Tab** fills the selected completion, **Enter** executes, and **Esc** closes it. Clicking a completion fills the input; the **Run** button also executes on mobile.
+
+| Command | Action |
+| --- | --- |
+| `btw <question>` / `btw` | Ask aside / reopen the latest side conversation |
+| `clear` | Clear current model context while keeping searchable conversation history |
+| `compact` | Start context compaction |
+| `model <model> [effort]` | Switch the session model and optionally set reasoning effort |
+| `effort <level>` | Change only reasoning effort |
+
+Model and effort completions load the available provider catalogs. When multiple providers offer the same model ID, use `provider/model`; selecting a completion supplies this qualification. Reasoning levels follow model capabilities, including required reasoning and models without reasoning. Model changes follow the same revision checks and next-turn behavior as the model picker.
+
+Under **Settings → Keyboard shortcuts → Advanced settings**, customize or disable the navigation keys. Defaults are **i** to focus the message input, **Esc** to leave it, **j/k** to scroll down/up, **J/K** to move to the next/previous message, and **:** to open commands. Letter navigation does not intercept typing or input-method composition in text fields and dialogs. These keys do not interrupt an answer; use the separate **Interrupt model response** shortcut.
+
+An optional exit sequence (for example `ji`) can leave the message input. It is **unset by default**. Configure a maximum interval between keys (default **300 ms**, range **100–2000 ms**). A recognized sequence is removed from the input; slower typing remains literal. Moving the caret, using an input method, or other intervening edits cancels recognition.
 
 ### Prompt history and drafts
 

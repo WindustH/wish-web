@@ -79,6 +79,7 @@ export const settingTerms: Record<string, string[]> = {
     '侧栏 sidebar 搜索 search 会话 session',
     '浏览器 查找 光标浏览 打印 保存 开发者工具 F3 F7 F12 browser find caret browsing print save developer tools',
     '发送 消息 Enter send',
+    '高级 导航 命令面板 序列 间隔 聚焦 退出 滚动 advanced navigation command palette sequence interval focus escape scroll btw compact model effort',
   ],
 };
 type Section = { id: string; label: string; summary: string; description: string };

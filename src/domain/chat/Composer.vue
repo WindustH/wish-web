@@ -34,11 +34,7 @@ import { chat } from '../../core/state/chatSlice.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import { toast } from '../../ui/toast.ts';
 import Icon from '../../ui/components/Icon.vue';
-import BubbleSurface from '../../ui/components/BubbleSurface.vue';
-import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
-import AskContext from './AskContext.vue';
 import { useComposerAttachments, type Attachment } from './useComposerAttachments.ts';
-import { useBtwPopup } from './useBtwPopup.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { isSendKey } from '../../ui/sendKey.ts';
 import ComposerSendButtons from './ComposerSendButtons.vue';
@@ -62,27 +58,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{ mobileAction: [key: string] }>();
 const mobileMenuItems = computed<MenuItem[]>(() => [
-  ...(!btwMode.value
-    ? [
-        { key: 'image', icon: 'image', label: i18n.t('chat.image') },
-        { key: 'file', icon: 'paperclip', label: i18n.t('chat.attachment') },
-      ]
-    : []),
-  ...(live.value
-    ? [
-        {
-          key: 'btw',
-          icon: 'chat',
-          label: tr('临时对话', 'Temporary chat'),
-          checked: btwOpen.value,
-        },
-      ]
-    : []),
+  { key: 'image', icon: 'image', label: i18n.t('chat.image') },
+  { key: 'file', icon: 'paperclip', label: i18n.t('chat.attachment') },
   ...(props.mobileActions ?? []),
 ]);
 function mobileAction(key: string) {
-  if (key === 'btw') toggleBtw();
-  else if (key === 'image' || key === 'file') {
+  if (key === 'image' || key === 'file') {
     const insertion = ta.value?.createInsertion();
     void attach(key, (token) => insertion?.insert(token)).finally(() => insertion?.dispose());
   } else emit('mobileAction', key);
@@ -98,22 +79,6 @@ const sendOnEnter = computed(() => prefs.sendOnEnter.value);
 
 const composerEl = ref<HTMLElement | null>(null);
 const ta = ref<InstanceType<typeof InlineMessageEditor> | null>(null);
-const pageActive = usePageActivity();
-const btwButton = ref<HTMLButtonElement | null>(null);
-const btwBubble = ref<HTMLElement | null>(null);
-const { btwOpen, btwHidden, btwPosition, toggleBtw } = useBtwPopup(
-  computed(() => props.mobile),
-  pageActive,
-  composerEl,
-  ta,
-  btwButton,
-  btwBubble,
-);
-const btwChat = ref<InstanceType<typeof AskContext> | null>(null);
-const btwDraft = ref('');
-const btwMode = computed(() => props.mobile && btwOpen.value);
-const btwBusy = computed(() => Boolean(btwChat.value?.busy));
-
 function focusComposerBlank(event: MouseEvent) {
   const target = event.target;
   if (
@@ -133,7 +98,6 @@ function fill(v: string, attachmentsToFill?: QueuedAttachment[]) {
 
 async function mention(reference: StoredAttachmentReference) {
   if (reference.owner !== props.owner) return;
-  if (btwOpen.value) toggleBtw();
   await nextTick();
   const insertion = ta.value?.createInsertion();
   try {
@@ -178,7 +142,6 @@ async function reference(reference: ReplyReference, image?: Blob) {
     placeholder,
   });
   saveAttachmentDrafts(owner, attachments.value);
-  if (btwOpen.value) toggleBtw();
   await nextTick();
   const insertion = ta.value?.createInsertion();
   insertion?.insert(placeholder);
@@ -254,7 +217,7 @@ function switchPromptHistory(owner: string) {
   promptHistory = historyState.navigation;
 }
 onBeforeUnmount(() => historyRequest.abort());
-const editorText = computed(() => (btwMode.value ? btwDraft.value : text.value));
+const editorText = text;
 
 function setTextOwned(v: string) {
   text.value = v;
@@ -262,14 +225,10 @@ function setTextOwned(v: string) {
 }
 function onEditorInput(value: string) {
   if (historyLoading.value) resetPromptHistory();
-  if (btwMode.value) btwDraft.value = value;
-  else {
-    syncAttachmentTags(text.value, value);
-    setTextOwned(value);
-  }
+  syncAttachmentTags(text.value, value);
+  setTextOwned(value);
 }
 function onEditorPaste(event: ClipboardEvent) {
-  if (btwMode.value) return;
   const insertion = ta.value?.createInsertion();
   void onPaste(event, (token) => insertion?.insert(token)).finally(() => insertion?.dispose());
 }
@@ -329,10 +288,6 @@ function removeAttachment(index: number) {
   if (token) setTextOwned(text.value.split(token).join(''));
   discardAttachment(index);
 }
-function submitBtw() {
-  if (btwChat.value?.submitQuestion(btwDraft.value)) btwDraft.value = '';
-}
-
 watch(
   () => props.owner,
   (id, previous) => {
@@ -341,8 +296,6 @@ watch(
     if (previous && previous !== id) chat.flushDrafts(previous);
     text.value = chat.getDraft(id);
     switchPromptHistory(id);
-    btwDraft.value = '';
-    btwOpen.value = false;
   },
   { flush: 'sync' },
 );
@@ -366,10 +319,6 @@ useAutoGrow(() => ta.value?.el, [editorText, () => props.mobile], {
 });
 
 async function submit() {
-  if (btwMode.value) {
-    submitBtw();
-    return;
-  }
   if (sending.value || !canSend.value) return;
   const owner = props.owner;
   while (pendingTextEdits.size) {
@@ -537,7 +486,6 @@ function onKeydown(e: KeyboardEvent) {
     !e.ctrlKey &&
     !e.metaKey &&
     !e.shiftKey &&
-    !btwMode.value &&
     live.value &&
     !props.start &&
     !props.disabled &&
@@ -567,7 +515,7 @@ function onKeydown(e: KeyboardEvent) {
     @click="focusComposerBlank"
     :class="[
       mobile ? 'mobile' : 'desktop',
-      { 'composer-start': start, 'composer-empty': !editorText && !attachments.length && !btwMode },
+      { 'composer-start': start, 'composer-empty': !editorText && !attachments.length },
     ]"
   >
     <div v-if="!mobile" class="composer-toolbar">
@@ -587,24 +535,11 @@ function onKeydown(e: KeyboardEvent) {
         >
           <Icon name="paperclip" /></button
       ></Hint>
-      <button
-        v-if="live"
-        ref="btwButton"
-        type="button"
-        class="btn ghost composer-btw"
-        :aria-label="tr('BTW · 临时对话', 'BTW · Temporary chat')"
-        :aria-expanded="btwOpen"
-        aria-haspopup="dialog"
-        aria-controls="btw-bubble"
-        @click="toggleBtw"
-      >
-        BTW
-      </button>
       <slot name="tools" />
       <slot name="selection" />
       <div class="grow" />
     </div>
-    <ComposerAttachmentTray v-if="attachments.length > 0 && !btwMode" :items="attachments">
+    <ComposerAttachmentTray v-if="attachments.length > 0" :items="attachments">
       <div
         v-for="(img, i) in attachments"
         :key="img.localUrl || img.placeholder || img.stored?.id"
@@ -657,7 +592,7 @@ function onKeydown(e: KeyboardEvent) {
         </button>
       </div>
     </ComposerAttachmentTray>
-    <div v-if="capsFailed && !btwMode" class="caps-error">
+    <div v-if="capsFailed" class="caps-error">
       <span>{{ i18n.t('chat.capError') }}</span>
       <button class="btn ghost sm" @click="() => chat.reloadCapabilities()">{{ i18n.t('common.retry') }}</button>
     </div>
@@ -669,54 +604,41 @@ function onKeydown(e: KeyboardEvent) {
           }}</span>
         </template>
         <template #trigger>
-          <button ref="btwButton" class="btn ghost icon-only composer-menu" :aria-label="i18n.t('chatbar.more')">
+          <button class="btn ghost icon-only composer-menu" :aria-label="i18n.t('chatbar.more')">
             <Icon name="plus" />
           </button>
         </template>
       </Menu>
-      <slot v-if="!btwMode" name="tools" />
+      <slot name="tools" />
       <div v-if="start" class="composer-start-selection"><slot name="selection" /></div>
       <div v-else class="grow" />
     </div>
     <div class="composer-editor">
       <InlineMessageEditor
         ref="ta"
-        :scope="`${owner}:${btwMode}`"
-        :attachments="btwMode ? [] : attachments"
+        :scope="owner"
+        :navigation="live && !start"
+        :attachments="attachments"
         @reference="locateReference"
         :placeholder="
-          btwMode
-            ? tr('顺便问一下…', 'By the way…')
-            : start
-              ? 'Wish your dreams come true ...'
-              : running
-                ? i18n.t('chat.placeholderRunning')
-                : i18n.t('chat.placeholder')
+          start
+            ? 'Wish your dreams come true ...'
+            : running
+              ? i18n.t('chat.placeholderRunning')
+              : i18n.t('chat.placeholder')
         "
-        :label="btwMode ? tr('顺便问一下', 'By the way') : i18n.t('chat.placeholder')"
+        :label="i18n.t('chat.placeholder')"
         :text="editorText"
         @update:text="onEditorInput"
         @keydown="onKeydown"
         @paste="onEditorPaste"
       />
-      <Hint
-        v-if="mobile && btwMode"
-        :text="btwBusy ? tr('停止回答', 'Stop answering') : tr('发送问题', 'Send question')"
-        ><button
-          class="send-btn"
-          :class="{ stop: btwBusy }"
-          :disabled="!btwBusy && !btwDraft.trim()"
-          :aria-label="btwBusy ? tr('停止回答', 'Stop answering') : tr('发送问题', 'Send question')"
-          @click="btwBusy ? btwChat?.stopAnswer() : submitBtw()"
-        >
-          <Icon :name="btwBusy ? 'square' : 'send'" /></button
-      ></Hint>
       <ComposerSendButtons
-        v-else-if="!start"
+        v-if="!start"
         :running="running"
         :sending="sending"
         :can-send="canSend"
-        :queueable="queueable && !btwMode"
+        :queueable="queueable"
         :show-shortcut="!mobile"
         @send="submit()"
         @stop="onStop()"
@@ -734,31 +656,6 @@ function onKeydown(e: KeyboardEvent) {
         @stop="onStop()"
       />
     </div>
-    <Teleport v-if="live" to="body">
-      <Transition name="btw-popup" @after-leave="btwHidden = true">
-        <div
-          v-show="btwOpen"
-          id="btw-bubble"
-          data-keyboard-boundary
-          ref="btwBubble"
-          class="btw-bubble"
-          :class="{ mobile }"
-          role="dialog"
-          :aria-label="tr('BTW 临时对话', 'BTW temporary chat')"
-          :style="btwPosition"
-        >
-          <BubbleSurface side="bottom" :tail-x="parseFloat(btwPosition['--bubble-tail-x'] || '24')" />
-          <AskContext
-            ref="btwChat"
-            :key="owner"
-            :session-id="owner"
-            :hidden="btwHidden"
-            :external-input="mobile"
-            @cleared="btwDraft = ''"
-          />
-        </div>
-      </Transition>
-    </Teleport>
   </div>
 </template>
 <style scoped>
@@ -800,69 +697,5 @@ function onKeydown(e: KeyboardEvent) {
   margin-right: auto;
   min-width: 0;
   max-width: calc(100% - 52px);
-}
-.composer-btw {
-  height: 32px;
-  min-height: 32px;
-  padding: 0 9px;
-  flex: none;
-  font-size: 11px;
-  font-weight: var(--weight-latin-bold);
-  letter-spacing: 0.05em;
-  color: var(--fg-subtle);
-}
-.composer-btw[aria-expanded='true'] {
-  background: var(--bg-hover);
-  color: var(--fg);
-}
-:global(.btw-bubble) {
-  --bubble-surface: var(--bg-raised);
-  position: fixed;
-  z-index: 72;
-  display: flex;
-  flex-direction: column;
-  width: min(460px, calc(100vw - 16px));
-  height: min(440px, calc(100dvh - 120px));
-  min-height: 0;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 14px;
-  isolation: isolate;
-  transform-origin: bottom left;
-}
-:global(.btw-bubble > .ask-context) {
-  overflow: hidden;
-  border-radius: inherit;
-  background: var(--bg);
-}
-:global(.btw-popup-enter-active),
-:global(.btw-popup-leave-active) {
-  transition:
-    opacity 180ms var(--ease-out),
-    transform 180ms var(--ease-out);
-}
-:global(.btw-popup-enter-from),
-:global(.btw-popup-leave-to) {
-  opacity: 0;
-  transform: translateY(8px) scale(0.98);
-}
-@media (prefers-reduced-motion: reduce) {
-  :global(.btw-popup-enter-active),
-  :global(.btw-popup-leave-active) {
-    transition-duration: 1ms;
-  }
-}
-:global(.btw-bubble.mobile) {
-  --bubble-surface: var(--bg);
-  width: min(460px, calc(100vw - 40px));
-  height: min(390px, calc(100dvh - 150px));
-  border-radius: 12px;
-}
-@media (max-width: 899px) {
-  .composer-btw {
-    height: 32px;
-    min-height: 32px;
-    padding: 0 7px;
-  }
 }
 </style>

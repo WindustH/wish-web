@@ -26,11 +26,41 @@ export const browserShortcutKeys: Record<BrowserShortcut, string> = {
   devTools: 'F12',
   caretBrowsing: 'F7',
 };
+export const navigationDefaults = {
+  focus: 'i',
+  exit: 'Escape',
+  down: 'j',
+  up: 'k',
+  nextMessage: 'J',
+  previousMessage: 'K',
+  command: ':',
+};
+export type NavigationAction = keyof typeof navigationDefaults;
+export interface NavigationPreferences {
+  enabled: boolean;
+  keys: Record<NavigationAction, string>;
+  exitSequence: string;
+  sequenceTimeout: number;
+}
+export const defaultNavigation = (): NavigationPreferences => ({
+  enabled: true,
+  keys: { ...navigationDefaults },
+  exitSequence: '',
+  sequenceTimeout: 300,
+});
+export function validNavigationKey(key: unknown): key is string {
+  return (
+    typeof key === 'string' &&
+    (key === '' || key === 'Escape' || /^[!-~]$/.test(key) || /^F(?:[1-9]|1[0-2])$/.test(key))
+  );
+}
 export interface ShortcutPreferences {
+  navigation: NavigationPreferences;
   bindings: Bindings;
   blockedBrowser: Record<BrowserShortcut, boolean>;
 }
 export const defaultShortcuts = (): ShortcutPreferences => ({
+  navigation: defaultNavigation(),
   bindings: Object.fromEntries(shortcutIds.map((id) => [id, { ...defaultBindings[id] }])) as Bindings,
   blockedBrowser: { find: true, print: true, save: true, devTools: true, caretBrowsing: true },
 });
@@ -115,6 +145,31 @@ export function readShortcuts(value: unknown): ShortcutPreferences {
   for (const id of Object.keys(browserShortcutKeys) as BrowserShortcut[]) {
     const blocked = stored.blockedBrowser?.[id];
     if (typeof blocked === 'boolean') result.blockedBrowser[id] = blocked;
+  }
+  const nav = stored.navigation;
+  if (nav && typeof nav === 'object') {
+    if (typeof nav.enabled === 'boolean') result.navigation.enabled = nav.enabled;
+    const seen = new Set<string>();
+    for (const id of Object.keys(navigationDefaults) as NavigationAction[]) {
+      const key = nav.keys?.[id];
+      if (validNavigationKey(key)) result.navigation.keys[id] = key;
+      const next = result.navigation.keys[id];
+      if (next && seen.has(next)) result.navigation.keys[id] = '';
+      else seen.add(next);
+    }
+    if (typeof nav.exitSequence === 'string' && (nav.exitSequence === '' || /^[!-~]{2,6}$/.test(nav.exitSequence)))
+      result.navigation.exitSequence = nav.exitSequence;
+    if (typeof nav.sequenceTimeout === 'number' && Number.isFinite(nav.sequenceTimeout))
+      result.navigation.sequenceTimeout = Math.max(100, Math.min(2000, Math.round(nav.sequenceTimeout)));
+  }
+  for (const id of Object.keys(navigationDefaults) as NavigationAction[]) {
+    const key = result.navigation.keys[id];
+    const binding = {
+      key: key.length === 1 ? key.toLowerCase() : key,
+      shift: key.length === 1 && key.toLowerCase() !== key,
+    };
+    if (key && Object.values(result.bindings).some((other) => sameBinding(other, binding)))
+      result.navigation.keys[id] = '';
   }
   return result;
 }

@@ -1,4 +1,5 @@
 import { browserShortcut, keyBinding, sameBinding, shortcutIds, type ShortcutId } from '../../core/shortcuts.ts';
+import { browserBlockedKeys as browserBlocked } from '../../ui/shortcutEvents.ts';
 import { shortcuts } from '../../core/state/shortcutsSlice.ts';
 
 export interface ShortcutCommands {
@@ -12,7 +13,6 @@ export interface ShortcutCommands {
   sidebarToggle: (side: 'left' | 'right') => (() => void) | null;
 }
 export function installShortcuts(commands: ShortcutCommands) {
-  const browserBlocked = new WeakSet<KeyboardEvent>();
   const localKey = (event: KeyboardEvent, physicalSpace = false, palette = false) =>
     (event.defaultPrevented && !browserBlocked.has(event)) ||
     (!physicalSpace && (event.isComposing || event.keyCode === 229)) ||

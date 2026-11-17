@@ -6,6 +6,7 @@ import {
   sameBinding,
   shortcutIds,
   validBinding,
+  type NavigationPreferences,
   type BrowserShortcut,
   type KeyBinding,
   type ShortcutId,
@@ -38,6 +39,9 @@ export const shortcuts = {
   },
   setBrowserBlocked(id: BrowserShortcut, blocked: boolean) {
     replace({ ...value.value, blockedBrowser: { ...value.value.blockedBrowser, [id]: blocked } });
+  },
+  setNavigation(navigation: NavigationPreferences) {
+    replace({ ...value.value, navigation });
   },
   reset() {
     replace(defaultShortcuts());

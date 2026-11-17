@@ -42,6 +42,9 @@ import { chat } from '../../core/state/chatSlice.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
 import ChatLog from './ChatLog.vue';
+import SessionCommands from './SessionCommands.vue';
+const commandsRef = ref<InstanceType<typeof SessionCommands>>();
+const logRef = ref<InstanceType<typeof ChatLog>>();
 import Composer from '../../domain/chat/Composer.vue';
 import QueueDock from './QueueDock.vue';
 import InfoPane from './InfoPane.vue';
@@ -119,13 +122,15 @@ watch(chat.missingSessionId, (missingId) => {
 const snapshot = computed(() => chat.snapshot.value);
 const renameTarget = ref<ActionTarget | null>(null);
 const titleActions = computed(() => [
+  { key: 'commands', icon: 'terminal', label: tr('命令面板', 'Command palette') },
   { key: 'rename', icon: 'pencil', label: i18n.t('manage.rename') },
   { key: 'generate-name', icon: 'sparkles', label: tr('自动重命名', 'Auto rename') },
 ]);
 function titleAction(key: string) {
   const session = snapshot.value;
   if (!session || session.id !== id.value) return;
-  if (key === 'generate-name') void sessionNaming.generate(session.id);
+  if (key === 'commands') commandsRef.value?.open();
+  else if (key === 'generate-name') void sessionNaming.generate(session.id);
   else if (key === 'rename') renameTarget.value = { id: session.id, name: session.name, kind: 'session' };
 }
 watch(id, () => {
@@ -133,6 +138,7 @@ watch(id, () => {
 });
 const tabs = computed(() => [{ key: 'info', icon: 'info', label: i18n.t('chatbar.info') }]);
 const mobileActions = computed(() => [
+  { key: 'commands', icon: 'terminal', label: tr('命令面板', 'Command palette') },
   ...tabs.value,
   { key: 'library', icon: 'library', label: i18n.t('library.title') },
   { key: 'tasks', icon: 'terminal', label: backgroundTaskLabel.value },
@@ -163,12 +169,14 @@ const headerActions = computed(() =>
     : mobileActions.value,
 );
 function headerAction(key: string) {
-  if (key === 'model') modelOpen.value = true;
+  if (key === 'commands') commandsRef.value?.open();
+  else if (key === 'model') modelOpen.value = true;
   else if (key === 'reasoning') reasoningOpen.value = true;
   else if (['library', 'tasks', 'info', 'settings'].includes(key)) openSidebar(key as SidebarView);
 }
 const queued = computed(() => chat.deliveries.value);
 const composerRef = ref<{
+  focus: () => void;
   fill: InstanceType<typeof Composer>['fill'];
   reference: (reference: ReplyReference, image?: Blob) => Promise<void>;
   mention: (reference: StoredAttachmentReference) => Promise<void>;
@@ -659,7 +667,14 @@ watch(
           </Hint>
         </div>
         <div class="chat-pane" ref="paneEl">
-          <ChatLog :session-id="id" :mobile="isMobile" />
+          <SessionCommands
+            ref="commandsRef"
+            :session-id="id"
+            :mobile="isMobile"
+            @focus="composerRef?.focus()"
+            @scroll="(direction, message) => logRef?.navigate(direction, message)"
+          />
+          <ChatLog ref="logRef" :session-id="id" :mobile="isMobile" />
           <Composer ref="composerRef" :owner="id" :mobile="isMobile">
             <template #tools>
               <Transition name="queue-dock" appear>

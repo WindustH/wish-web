@@ -1,166 +1,45 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
-import { absUrl, apiFetch } from '../../core/api/client.ts';
+import { computed, nextTick, ref, watch } from 'vue';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import Icon from '../../ui/components/Icon.vue';
-import Markdown from '../../domain/references/ReferenceMarkdown.vue';
+import Markdown from '../references/ReferenceMarkdown.vue';
 import MessageContext from './entries/MessageContext.vue';
-import { readAskResponse } from './readAskResponse.ts';
+import { askBtw, btwSession, stopBtw, saveBtw } from './btwSessions.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { isSendKey } from '../../ui/sendKey.ts';
-import { streamingText } from '../../ui/streamingText.ts';
-
-const props = defineProps<{ sessionId: string; hidden: boolean; externalInput?: boolean }>();
-const emit = defineEmits<{ cleared: [] }>();
-type AskTurn = { id: number; question: string; answer: string; error: string; busy: boolean };
+const props = defineProps<{ sessionId: string; hidden?: boolean; externalInput?: boolean }>();
+const state = computed(() => btwSession(props.sessionId));
+const turns = computed(() => state.value.turns);
+const busy = computed(() => state.value.busy);
 const question = ref('');
-const turns = ref<AskTurn[]>([]);
-const busy = ref(false);
-const completed = ref(false);
 const log = ref<HTMLElement | null>(null);
-let nextId = 0;
-let generation = 0;
-let controller: AbortController | undefined;
-let scrollFrame = 0;
-onBeforeUnmount(() => {
-  generation++;
-  controller?.abort();
-  cancelAnimationFrame(scrollFrame);
-});
-
-function clearConversation() {
-  generation++;
-  controller?.abort();
-  controller = undefined;
-  turns.value = [];
-  question.value = '';
-  busy.value = false;
-  completed.value = false;
-  cancelAnimationFrame(scrollFrame);
-  scrollFrame = 0;
-  emit('cleared');
-}
-watch([() => props.hidden, busy, completed], ([hidden, isBusy, isComplete]) => {
-  if (hidden && !isBusy && isComplete) clearConversation();
-});
-
-function contextHistory() {
-  const history = turns.value
-    .filter((turn) => !turn.busy && !turn.error && turn.answer.trim())
-    .slice(-32)
-    .map((turn) => ({ question: turn.question, answer: turn.answer }));
-  const encoder = new TextEncoder();
-  while (history.length && encoder.encode(JSON.stringify(history)).byteLength > 120_000) history.shift();
-  return history;
-}
-
-function atBottom() {
-  const el = log.value;
-  return !el || el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-}
-function followAnswer() {
-  if (!atBottom() || scrollFrame) return;
-  scrollFrame = requestAnimationFrame(() => {
-    scrollFrame = 0;
-    if (log.value) log.value.scrollTop = log.value.scrollHeight;
-  });
-}
-
+watch(
+  () => turns.value.at(-1)?.answer,
+  async () => {
+    const el = log.value;
+    const follow = el && el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    await nextTick();
+    if (follow && log.value === el) el.scrollTop = el.scrollHeight;
+  },
+);
 function submitQuestion(value?: string) {
-  const text = (value ?? question.value).trim();
-  if (!text || busy.value) return false;
-  const history = contextHistory();
-  const turn = reactive<AskTurn>({ id: ++nextId, question: text, answer: '', error: '', busy: true });
-  turns.value.push(turn);
-  question.value = '';
-  busy.value = true;
-  completed.value = false;
-  void runQuestion(text, history, turn, generation);
-  return true;
+  const accepted = askBtw(props.sessionId, value ?? question.value);
+  if (accepted) question.value = '';
+  return accepted;
 }
-
-async function runQuestion(
-  text: string,
-  history: { question: string; answer: string }[],
-  turn: AskTurn,
-  owner: number,
-) {
-  await nextTick();
-  if (owner !== generation) return;
-  if (log.value) log.value.scrollTop = log.value.scrollHeight;
-  const current = new AbortController();
-  let timedOut = false;
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    current.abort();
-  }, 10 * 60_000);
-  controller = current;
-  let answer = '';
-  const display = streamingText((text) => {
-    if (owner !== generation) return;
-    followAnswer();
-    turn.answer = text;
-  });
-  try {
-    const response = await apiFetch(absUrl(`/sessions/${encodeURIComponent(props.sessionId)}/ask`), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, stream: true, history }),
-      signal: current.signal,
-    });
-    await readAskResponse(response, (delta: string) => {
-      if (owner !== generation) return;
-      answer += delta;
-      display.write(answer);
-    });
-    if (owner === generation) completed.value = true;
-  } catch (error: any) {
-    if (owner === generation)
-      turn.error = timedOut
-        ? tr('回答超时，请重试。', 'The answer timed out. Please retry.')
-        : current.signal.aborted
-          ? tr('已停止回答。', 'Answer stopped.')
-          : String(error?.message || error);
-  } finally {
-    display.flush();
-    clearTimeout(timeout);
-    if (owner === generation) {
-      turn.busy = false;
-      busy.value = false;
-      controller = undefined;
-      followAnswer();
-    }
-  }
-}
-
 function stopAnswer() {
-  controller?.abort();
+  stopBtw(props.sessionId);
 }
-defineExpose({ submitQuestion, stopAnswer, busy });
-
 function onKeydown(event: KeyboardEvent) {
   if (!isSendKey(event, prefs.sendOnEnter.value)) return;
   event.preventDefault();
   submitQuestion();
 }
+defineExpose({ submitQuestion, stopAnswer, busy });
 </script>
 
 <template>
   <section class="ask-context" :class="{ 'external-input': externalInput }">
-    <header class="ask-heading">
-      <div>
-        <strong>BTW</strong><span>{{ tr('临时对话', 'Temporary chat') }}</span>
-      </div>
-      <button
-        v-if="turns.length"
-        type="button"
-        class="btn ghost icon-only ask-clear"
-        :aria-label="tr('清除 BTW 上下文', 'Clear BTW context')"
-        @click="clearConversation"
-      >
-        <Icon name="trash-2" />
-      </button>
-    </header>
     <div ref="log" class="ask-log chatlog" role="log" :aria-label="tr('BTW 问答', 'BTW conversation')">
       <div v-for="turn in turns" :key="turn.id" class="ask-turn">
         <MessageContext :text="turn.question" kind="user">
@@ -176,6 +55,13 @@ function onKeydown(event: KeyboardEvent) {
                 ><Icon name="loader-circle" class="spin" />{{ tr('正在回答…', 'Answering…') }}</span
               >
               <p v-if="turn.error" class="ask-error" role="alert">{{ turn.error }}</p>
+              <p v-if="turn.saving || turn.saved" class="ask-save" role="status">
+                {{ turn.saving ? tr('正在保存到库…', 'Saving to library…') : tr('已保存到库', 'Saved to library') }}
+              </p>
+              <p v-if="turn.saveError" class="ask-error" role="alert">
+                {{ turn.saveError }}
+                <button class="btn ghost" @click="saveBtw(sessionId, turn)">{{ tr('重试保存', 'Retry save') }}</button>
+              </p>
             </div>
           </div>
         </MessageContext>
@@ -221,43 +107,6 @@ function onKeydown(event: KeyboardEvent) {
   flex: 1;
   min-height: 0;
 }
-.ask-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex: none;
-  padding: 10px 22px 6px;
-}
-.ask-heading > div {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-.ask-heading strong {
-  font-size: 14px;
-  line-height: 1.5;
-}
-.ask-heading span {
-  color: var(--fg-subtle);
-  font-size: 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.ask-clear {
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
-  min-height: 30px;
-  padding: 0;
-  color: var(--fg-subtle);
-}
-.ask-clear .icon {
-  width: 15px;
-  height: 15px;
-}
 .ask-log {
   flex: 1;
   min-height: 0;
@@ -288,6 +137,10 @@ function onKeydown(event: KeyboardEvent) {
 .ask-thinking .icon {
   width: 14px;
   height: 14px;
+}
+.ask-save {
+  color: var(--fg-subtle);
+  font-size: 12px;
 }
 .ask-error {
   margin: 8px 0 0;
@@ -326,9 +179,6 @@ function onKeydown(event: KeyboardEvent) {
   min-height: 36px;
 }
 @media (max-width: 899px) {
-  .ask-heading {
-    padding: 9px 20px 4px;
-  }
   .ask-log {
     padding: 12px 20px 16px;
   }

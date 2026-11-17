@@ -16,6 +16,7 @@ import {
   type ShortcutId,
 } from '../../core/shortcuts.ts';
 import Icon from '../../ui/components/Icon.vue';
+import NavigationShortcuts from './NavigationShortcuts.vue';
 
 const commands = computed(() => [
   {
@@ -201,6 +202,7 @@ function browserLabel(id: BrowserShortcut) {
         </div>
       </div>
     </section>
+    <NavigationShortcuts />
     <section class="set-section">
       <header class="set-section-head">
         <h3>{{ tr('浏览器快捷键', 'Browser shortcuts') }}</h3>

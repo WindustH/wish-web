@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { bus } from '../../core/bus.ts';
 import type { LibraryTarget } from './libraryTarget.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
@@ -811,6 +812,11 @@ function reload(quiet = false) {
   loading.value = false;
   return load(false, quiet);
 }
+onBeforeUnmount(
+  bus.on('library.files.changed', ({ session }) => {
+    if (session === props.session) void reload(true);
+  }),
+);
 async function load(more = false, quiet = false) {
   if (loading.value || !active.value) return;
   const request = new AbortController();

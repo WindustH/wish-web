@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
+import { handledShortcut } from '../../ui/shortcutEvents.ts';
+import { shortcuts } from '../../core/state/shortcutsSlice.ts';
+import { ExitSequence } from './exitSequence.ts';
 import { shortcutDeletion } from './editorShortcuts.ts';
 import { useAttachmentTokenDrag } from './useAttachmentTokenDrag.ts';
 import { splitAttachmentText } from '../../core/attachmentPlaceholders.ts';
@@ -10,6 +13,7 @@ const props = defineProps<{
   placeholder: string;
   label: string;
   scope: string;
+  navigation?: boolean;
 }>();
 const emit = defineEmits<{
   'update:text': [text: string];
@@ -243,7 +247,53 @@ function beforeInput(event: InputEvent) {
     replace('', { start: token.start, end: token.start + token.text.length });
   }
 }
+const exitSequence = new ExitSequence();
+function navigationKey(event: KeyboardEvent) {
+  const nav = shortcuts.value.value.navigation;
+  if (
+    handledShortcut(event) ||
+    !props.navigation ||
+    !nav.enabled ||
+    event.isComposing ||
+    composing.value ||
+    event.keyCode === 229 ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    event.repeat
+  ) {
+    exitSequence.reset();
+    return false;
+  }
+  const selected = selection();
+  const remove = exitSequence.press(
+    event.key,
+    value,
+    selected.start,
+    selected.end,
+    nav.exitSequence,
+    nav.sequenceTimeout,
+    performance.now(),
+  );
+  if (event.key !== nav.keys.exit && !remove) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  if (remove) {
+    const original = value.slice(0, selected.start - remove) + value.slice(selected.start);
+    const beforeSequence = history.findLastIndex((step, index) => index <= historyIndex && step.text === original);
+    replace('', { start: selected.start - remove, end: selected.start });
+    if (beforeSequence >= 0) {
+      history = history.slice(0, beforeSequence + 1);
+      historyIndex = beforeSequence;
+      history[historyIndex]!.selection = selection();
+    }
+  }
+  exitSequence.reset();
+  el.value?.blur();
+  return true;
+}
 function keydown(event: KeyboardEvent) {
+  if (navigationKey(event)) return;
   if (!composing.value) rememberSelection();
   if (tokenDrag.isActive()) {
     event.preventDefault();
@@ -349,6 +399,7 @@ watch(
   () => props.scope,
   () => {
     tokenDrag.cancel();
+    exitSequence.reset();
     bookmarks.clear();
     history = [{ text: props.text, selection: { start: props.text.length, end: props.text.length } }];
     historyIndex = 0;
@@ -399,6 +450,7 @@ defineExpose({
     :aria-label="label"
     :data-placeholder="placeholder"
     @input="input"
+    @pointerdown.capture="exitSequence.reset()"
     @beforeinput="beforeInput"
     @keydown="keydown"
     @paste="paste"
@@ -414,9 +466,13 @@ defineExpose({
     "
     @pointercancel="tokenDrag.cancel"
     @lostpointercapture="tokenDrag.cancel"
-    @blur="rememberSelection"
+    @blur="
+      exitSequence.reset();
+      rememberSelection();
+    "
     @keyup="rememberSelection"
     @compositionstart="
+      exitSequence.reset();
       rememberSelection();
       composing = true;
     "

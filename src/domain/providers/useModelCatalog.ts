@@ -21,7 +21,7 @@ const restore = (snapshot: Snapshot): ModelGroup[] =>
 
 // The picker opens with the last catalog and replaces it as fresh lists arrive;
 // only a first-ever open (nothing cached) waits on the network.
-export function useModelCatalog() {
+export function useModelCatalog(immediate = true) {
   const groups = ref<ModelGroup[]>([]);
   const loading = ref(false);
   const error = ref<unknown>();
@@ -79,7 +79,7 @@ export function useModelCatalog() {
       if (!signal.aborted) loading.value = false;
     }
   }
-  void reload();
+  if (immediate) void reload();
   onScopeDispose(() => controller.abort());
   return { groups, pending, error, reload, loadGroup };
 }
