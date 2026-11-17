@@ -121,4 +121,4 @@ Default keyboard shortcuts (customizable in **Settings → Keyboard shortcuts**)
 
 ## Quick session switching
 
-Press **Ctrl + Space** to search sessions by name, folder path, tag, provider or model. The compact list shows folder paths to the left of session names, without provider or model labels. Use **↑/↓** and **Enter** to open a result; **Esc** closes the window. Sessions you opened most recently appear first; unvisited sessions follow by last update. Visits are stored in this browser per server (up to 500). The binding can be changed in **Settings → Keyboard shortcuts**.
+Press **Ctrl + Space** to search sessions by name, folder path, tag, provider or model. The compact list shows folder paths to the right of session names, without provider or model labels. Use **↑/↓** and **Enter** to open a result; **Esc** closes the window. Sessions you opened most recently appear first; unvisited sessions follow by last update. Visits are stored in this browser per server (up to 500). The binding can be changed in **Settings → Keyboard shortcuts**.

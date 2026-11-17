@@ -177,9 +177,8 @@ function keyboard(event: KeyboardEvent) {
         @click="choose(row)"
       >
         <Icon :name="row.parent ? 'folder' : 'chat'" class="quick-kind" />
-        <span v-if="folderPath(row)" class="quick-path" :title="folderPath(row)">{{ folderPath(row) }}</span>
-        <span v-if="folderPath(row)" class="quick-separator" aria-hidden="true">/</span>
         <strong>{{ row.name || row.id.slice(0, 8) }}</strong>
+        <span v-if="folderPath(row)" class="quick-path" :title="folderPath(row)">{{ folderPath(row) }}</span>
         <Icon v-if="row.running" name="loader-circle" class="spinner quick-state" />
         <span
           v-else-if="row.pending_questions?.length"
@@ -311,15 +310,12 @@ function keyboard(event: KeyboardEvent) {
 }
 .quick-path {
   max-width: 32%;
+  text-align: right;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--fg-subtle);
   font-size: 12px;
-}
-.quick-separator {
-  color: var(--fg-subtle);
-  opacity: 0.5;
 }
 .quick-result strong {
   flex: 1;
