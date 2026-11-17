@@ -158,6 +158,13 @@ defineExpose({ close });
   margin: 0;
   padding-inline: 8px;
 }
+.command-panel :deep(.picker-after) {
+  padding: 0 16px 12px;
+}
+.command-panel :deep(.picker-after > .hint) {
+  margin: 0;
+  font-size: 12px;
+}
 .command-panel :deep(.command-status) {
   flex: none;
   margin: 0;

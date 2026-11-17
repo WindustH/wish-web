@@ -42,10 +42,7 @@ const rows = computed(
 const keys = computed(() => filtered.value.map((item) => item.key));
 const estimate = (index: number) => (rows.value.get(keys.value[index]!)!.heading ? 84 : 52);
 const listHeight = computed(() =>
-  Math.max(
-    80,
-    keys.value.reduce((height, _, index) => height + estimate(index), 0),
-  ),
+  keys.value.length ? keys.value.reduce((height, _, index) => height + estimate(index), 0) : 80,
 );
 const textContent = (key: string) => rows.value.get(key)!.title;
 // Reka caches row sizes by index. A stable groupKey reserves the heading's
@@ -101,9 +98,9 @@ const listFingerprint = computed(() => pickerFingerprint(filtered.value));
           </template>
         </ListboxVirtualizer>
         <p v-if="!keys.length" class="hint">{{ i18n.t('picker.empty') }}</p>
-        <slot name="after" />
       </ListboxContent>
     </div>
+    <div v-if="$slots.after" class="picker-after"><slot name="after" /></div>
   </ListboxRoot>
 </template>
 
@@ -116,6 +113,17 @@ const listFingerprint = computed(() => pickerFingerprint(filtered.value));
 }
 .picker > :not(.picker-viewport) {
   flex-shrink: 0;
+}
+/* Notices do not belong to the virtual row estimate: keep their own measured
+   space so a short list cannot clip a wrapped explanation or retry control. */
+.picker-after {
+  display: flow-root;
+  max-height: 32dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.picker-after:empty {
+  display: none;
 }
 .picker-search {
   display: flex;
