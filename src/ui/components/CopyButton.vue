@@ -6,9 +6,11 @@ import { i18n } from '../../core/i18n/index.ts';
 
 import { copyText } from '../clipboard.ts';
 
+defineOptions({ inheritAttrs: false });
+
 let timer: ReturnType<typeof setTimeout> | undefined;
 onUnmounted(() => clearTimeout(timer));
-const props = defineProps<{ text: string }>();
+const props = defineProps<{ text: string; label?: string }>();
 const done = ref(false);
 
 async function copy() {
@@ -22,8 +24,14 @@ async function copy() {
 </script>
 
 <template>
-  <Hint :text="i18n.t('common.copy')"
-    ><button class="btn ghost icon-only copy-btn" :aria-label="i18n.t('common.copy')" @click="copy">
+  <Hint :text="label ?? i18n.t('common.copy')"
+    ><button
+      v-bind="$attrs"
+      type="button"
+      class="btn ghost icon-only copy-btn"
+      :aria-label="label ?? i18n.t('common.copy')"
+      @click="copy"
+    >
       <Icon :name="done ? 'check' : 'copy'" /></button
   ></Hint>
 </template>

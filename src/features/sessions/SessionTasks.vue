@@ -3,6 +3,7 @@ import { useDocumentVisible } from '../../ui/composables/useDocumentVisible.ts';
 import { computed, nextTick, ref, watch } from 'vue';
 import IslandSidebar from '../../ui/components/IslandSidebar.vue';
 import Icon from '../../ui/components/Icon.vue';
+import CopyButton from '../../ui/components/CopyButton.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
 import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
@@ -179,12 +180,15 @@ watch(
       <p v-if="error" class="task-message" role="alert">{{ error }}</p>
       <template v-if="current">
         <div class="task-details">
-          <span
-            >{{ label(current)
-            }}<template v-if="current.process.exit_code !== null">
-              · {{ tr('退出码', 'Exit code') }} {{ current.process.exit_code }}</template
-            ></span
-          >
+          <div class="task-heading">
+            <span
+              >{{ label(current)
+              }}<template v-if="current.process.exit_code !== null">
+                · {{ tr('退出码', 'Exit code') }} {{ current.process.exit_code }}</template
+              ></span
+            >
+            <CopyButton :key="current.task_id" :text="current.command" :label="tr('复制命令', 'Copy command')" />
+          </div>
           <div v-if="current.process.status === 'running'" class="task-controls" :aria-busy="terminating">
             <button class="btn sm" :disabled="terminating" @click="terminate('graceful')">
               {{ terminating ? tr('正在结束…', 'Stopping…') : tr('终止', 'Terminate') }}
@@ -218,11 +222,14 @@ watch(
           }}
         </p>
         <div class="task-list">
-          <button v-for="task in tasks" :key="task.task_id" class="task-card" @click="saved.selected = task.task_id">
-            <span class="task-state" :class="{ running: task.process.status === 'running' }">{{ label(task) }}</span>
-            <code>{{ task.command }}</code
-            ><small>{{ fmtDateTime(task.started_at) }}</small>
-          </button>
+          <div v-for="task in tasks" :key="task.task_id" class="task-card">
+            <button class="task-open" @click="saved.selected = task.task_id">
+              <span class="task-state" :class="{ running: task.process.status === 'running' }">{{ label(task) }}</span>
+              <code>{{ task.command }}</code
+              ><small>{{ fmtDateTime(task.started_at) }}</small>
+            </button>
+            <CopyButton class="task-copy" :text="task.command" :label="tr('复制命令', 'Copy command')" />
+          </div>
         </div>
       </template>
     </div>
@@ -250,15 +257,43 @@ watch(
   gap: 8px;
 }
 .task-card {
-  display: grid;
-  gap: 6px;
-  padding: 12px;
+  position: relative;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg);
   color: var(--fg);
   text-align: left;
   cursor: pointer;
+}
+.task-open {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.task-open .task-state {
+  padding-right: 36px;
+}
+.task-card :deep(.task-copy) {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+}
+.task-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.task-heading > span {
+  min-width: 0;
 }
 .task-card code {
   display: -webkit-box;
