@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { MediaOptions } from '../../core/mediaGeneration.ts';
 import { tr } from '../../core/i18n/tr.ts';
-import KeyValueEditor from './KeyValueEditor.vue';
+import KeyValueEditor from '../../domain/settings/KeyValueEditor.vue';
 import SwitchRow from '../../domain/settings/SwitchRow.vue';
 const options = defineModel<MediaOptions>({ required: true });
 function codec(event: Event) {

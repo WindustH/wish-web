@@ -19,7 +19,7 @@ import { useSettingsReturn } from './settingsReturn.ts';
 import ProviderModels from './ProviderModels.vue';
 import { ACCOUNT_PROTOCOLS } from '../../core/provider-presets.ts';
 import SettingsItemCard, { type ItemState } from './SettingsItemCard.vue';
-import KeyValueEditor from './KeyValueEditor.vue';
+import KeyValueEditor from '../../domain/settings/KeyValueEditor.vue';
 // `listTitle` names the provider in the phone list, where no ID is shown beside it.
 const props = defineProps<{
   id: string;

@@ -18,6 +18,7 @@ import CompactionRows from '../../domain/settings/CompactionRows.vue';
 import type { ToolSwitches } from '../../core/api/projections.ts';
 import ServerShellSettings from '../../domain/settings/ServerShellSettings.vue';
 import type { ShellCatalog } from '../../core/api/endpoints.ts';
+import type { ShellSettings } from '../../core/api/types.ts';
 import '../../domain/settings/settings.css';
 import ToolSwitchRows from '../../domain/settings/ToolSwitchRows.vue';
 import ExtensionCategoryPicker from '../../domain/settings/ExtensionCategoryPicker.vue';
@@ -35,7 +36,13 @@ const snapshot = computed(() => chat.snapshot.value);
 const running = computed(() => !!snapshot.value && ['running', 'compacting', 'queued'].includes(snapshot.value.phase));
 
 type Compaction = { trigger_tokens: number; target_tokens: number; segment_tokens: number; [key: string]: unknown };
-type Shell = { program: string; args: string[] | null };
+type Shell = ShellSettings;
+const copyShell = (value?: Shell | null): Shell => ({
+  program: value?.program ?? '',
+  args: value?.args ? [...value.args] : null,
+  env: value?.env ? { ...value.env } : undefined,
+  use_network_proxy: value?.use_network_proxy ?? false,
+});
 const compaction = ref<Compaction | null>(null);
 const tools = ref<ToolSwitches>({
   image_generate: false,
@@ -90,7 +97,7 @@ function reset() {
   cwd.value = current.descriptor?.cwd ?? '';
   const own = current.descriptor?.shell_command;
   ownShell.value = !!own;
-  shell.value = own ? { program: own.program ?? '', args: own.args ?? null } : { program: '', args: null };
+  shell.value = copyShell(own);
   source.value = draftValue();
 }
 // The page can open before the session's snapshot arrives (a direct link);
@@ -145,7 +152,7 @@ function setOwnShell(own: boolean) {
   ownShell.value = own;
   // In place: the shell fields may write the program chosen right after.
   if (own && !snapshot.value?.descriptor?.shell_command && globalShell.value)
-    Object.assign(shell.value, { program: globalShell.value.program ?? '', args: globalShell.value.args ?? null });
+    Object.assign(shell.value, copyShell(globalShell.value));
 }
 const useDefaults = () => {
   compaction.value = structuredClone(defaults.value);

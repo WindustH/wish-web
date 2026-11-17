@@ -3,6 +3,7 @@ import type { MediaService } from './mediaGeneration.ts';
 import type { ImageService } from './imageGeneration.ts';
 import type { ProviderConfig } from './provider-presets.ts';
 import type { ToolSwitches } from './api/projections.ts';
+import type { ShellSettings } from './api/types.ts';
 export interface AccountConfig {
   name: string;
   preset?: string | null;
@@ -49,7 +50,7 @@ export interface SettingsConfig {
   providers: Record<string, ProviderConfig>;
   accounts: Record<string, AccountConfig>;
   proxy: { mode: 'environment' | 'manual' | 'direct'; url: string; username: string; password: string };
-  shell: { program: string; args: string[] | null };
+  shell: ShellSettings;
   mcp: { servers: Record<string, McpServerConfig> };
   search: { order: string[]; providers: Record<string, WebProviderConfig> };
   fetch: { order: string[]; providers: Record<string, WebProviderConfig> };

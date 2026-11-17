@@ -42,6 +42,14 @@ export function useConfigDraft() {
   const revision = ref('');
   const source = ref('');
   const busy = ref(false);
+  const shellProxyPrompt = ref(false);
+  let answerShellProxy: ((value: boolean | null) => void) | undefined;
+  function resolveShellProxy(value: boolean | null) {
+    shellProxyPrompt.value = false;
+    const resolve = answerShellProxy;
+    answerShellProxy = undefined;
+    resolve?.(value);
+  }
 
   const catalog = ref<ConfigCatalog>({ presets: [] });
   // Read with the configuration, so a search provider shows its name from the start.
@@ -115,6 +123,7 @@ export function useConfigDraft() {
   let loadGeneration = 0;
   onScopeDispose(() => {
     loadGeneration++;
+    resolveShellProxy(null);
   });
   async function load() {
     const own = ++loadGeneration;
@@ -182,13 +191,29 @@ export function useConfigDraft() {
   }
 
   async function saveConfig() {
+    if (busy.value) return false;
     for (const id of Object.keys(advancedPending.value)) {
       if (advancedPending.value[id] && !applyAdvanced(id)) return false;
     }
     busy.value = true;
     try {
+      const savedConfig: SettingsConfig = JSON.parse(source.value);
+      if (
+        draft.value.proxy.mode === 'manual' &&
+        draft.value.proxy.url.trim() &&
+        !draft.value.shell.use_network_proxy &&
+        !savedConfig.shell.use_network_proxy &&
+        JSON.stringify(draft.value.proxy) !== JSON.stringify(savedConfig.proxy)
+      ) {
+        const useProxy = await new Promise<boolean | null>((resolve) => {
+          answerShellProxy = resolve;
+          shellProxyPrompt.value = true;
+        });
+        if (useProxy === null) return false;
+        if (useProxy) draft.value.shell.use_network_proxy = true;
+      }
       const defaults = draft.value.defaults;
-      const savedDefaults = JSON.parse(source.value).defaults;
+      const savedDefaults = savedConfig.defaults;
       if (
         defaults?.provider &&
         defaults?.model &&
@@ -330,6 +355,8 @@ export function useConfigDraft() {
     revision,
     source,
     busy,
+    shellProxyPrompt,
+    resolveShellProxy,
     catalog,
     searchCatalog,
     fetchCatalog,

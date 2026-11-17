@@ -6,7 +6,7 @@ import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
 import SelectField from '../../domain/providers/SelectField.vue';
 import AnimatedDetails from '../../ui/components/AnimatedDetails.vue';
-import KeyValueEditor from './KeyValueEditor.vue';
+import KeyValueEditor from '../../domain/settings/KeyValueEditor.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { mcpCheck, type McpServerStatus } from '../../core/api/endpoints.ts';
 import { showError } from '../../ui/errorDialog.ts';

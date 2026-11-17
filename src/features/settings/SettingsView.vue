@@ -26,6 +26,7 @@ import { configDraftKey, useConfigDraft } from './useConfigDraft.ts';
 import SessionDefaults from './SessionDefaults.vue';
 const ProviderSettings = defineAsyncComponent(() => import('./ProviderSettings.vue'));
 import NetworkSettings from './NetworkSettings.vue';
+import ShellProxyDialog from './ShellProxyDialog.vue';
 import { searchSettings } from './settingsSearch.ts';
 import Wordmark from '../../ui/components/Wordmark.vue';
 import { cfg } from '../../core/config.ts';
@@ -141,6 +142,8 @@ const {
   revision,
   source,
   busy,
+  shellProxyPrompt,
+  resolveShellProxy,
   shells,
   serverDirty,
   providerOptions,
@@ -349,6 +352,7 @@ onActivated(() => {
             </footer>
           </section>
 
+          <ShellProxyDialog :open="shellProxyPrompt" @answer="resolveShellProxy" />
           <Modal compact :open="discard" :title="tr('放弃修改？', 'Discard changes?')" @close="discard = false"
             ><p>
               {{

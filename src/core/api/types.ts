@@ -65,6 +65,8 @@ export interface ModelChange {
 export interface ShellSettings {
   program: string;
   args: string[] | null;
+  env?: Record<string, string>;
+  use_network_proxy?: boolean;
 }
 
 // History.

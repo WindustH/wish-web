@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Names and values edited as rows: an MCP server's environment or headers. A value the server
+// Names and values edited as rows: shell/MCP environment variables or headers. A value the server
 // hides comes back as "<redacted>"; left empty, it keeps the stored one. Nothing is written back
 // until a row changes, so opening the editor leaves the draft as it was.
 import { ref, toRaw, watch } from 'vue';

@@ -67,6 +67,16 @@ const zh: Rule[] = [
   [/^default cwd must be absolute$/, () => '默认工作目录必须是绝对路径。'],
   [/^shell program must be an absolute path$/, () => 'Shell 程序必须填写绝对路径。'],
   [/^shell program (.+) is not an executable file$/, (path) => `Shell 程序 ${path} 不是可执行文件。`],
+  [
+    /^shell environment names must start with a letter or underscore and contain only letters, digits and underscores$/,
+    () => '环境变量名只能包含英文字母、数字和下划线，且不能以数字开头。',
+  ],
+  [/^shell environment names starting with WISH_ are reserved$/, () => 'WISH_ 开头的环境变量由 Wish 管理，不能覆盖。'],
+  [/^shell environment values cannot contain NUL$/, () => '环境变量值不能包含空字符（NUL）。'],
+  [
+    /^redacted shell env value `(.+)` has no stored value$/,
+    (name) => `变量 ${name} 没有可保留的已存值，请重新填写；若修改了变量名，也需要填写对应的值。`,
+  ],
   [/^manual proxy requires a URL$/, () => '手动代理需要填写代理地址。'],
   [/^proxy URL must be valid$/, () => '代理地址格式不正确。'],
   [/^manual proxy URL must use http:\/\/ or https:\/\/$/, () => '代理地址必须以 http:// 或 https:// 开头。'],

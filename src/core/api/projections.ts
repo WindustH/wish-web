@@ -1,6 +1,7 @@
 import { instructionSections, type InstructionKind, type InstructionSection } from '../instructions.ts';
 import { orderedUserContent, type ContentBlock } from './userContent.ts';
 import { operationFailure, type DisplayFailure } from './failures.ts';
+import type { ShellSettings } from './types.ts';
 export type { ContentBlock } from './userContent.ts';
 
 // Native session settings; nested protocol values stay raw.
@@ -27,7 +28,7 @@ export interface SessionDescriptor {
   /** The session's optional built-in tools. */
   tools: ToolSwitches;
   /** This session's own shell; absent while it follows the application's. */
-  shell_command?: { program: string; args: string[] | null };
+  shell_command?: ShellSettings;
   pending_selection?: unknown;
 }
 /** `mcp` adds no tool of its own: the model reaches MCP servers with `wish mcp` in the shell. */

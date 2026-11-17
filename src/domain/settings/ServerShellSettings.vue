@@ -4,10 +4,12 @@
 // rest waits until another is chosen.
 import { computed, ref } from 'vue';
 import SelectField from '../providers/SelectField.vue';
+import KeyValueEditor from './KeyValueEditor.vue';
+import SwitchRow from './SwitchRow.vue';
 import { tr } from '../../core/i18n/tr.ts';
 
 import type { ShellCatalog } from '../../core/api/endpoints.ts';
-type ShellSettings = { program: string; args: string[] | null };
+import type { ShellSettings } from '../../core/api/types.ts';
 
 const props = defineProps<{
   value: ShellSettings;
@@ -107,6 +109,35 @@ const preview = computed(() => {
           ><span>{{ tr('执行方式', 'Runs as') }}</span
           ><small>{{ tr('每条命令实际的启动方式', 'How each command is started') }}</small></span
         ><code>{{ preview }}</code>
+      </div>
+      <SwitchRow
+        :model-value="value.use_network_proxy ?? false"
+        @update:model-value="value.use_network_proxy = $event"
+        :name="tr('跟随网络代理', 'Follow network proxy')"
+        :hint="
+          tr(
+            '自动设置 HTTP_PROXY、HTTPS_PROXY、ALL_PROXY 及其小写形式。',
+            'Set HTTP_PROXY, HTTPS_PROXY, ALL_PROXY and their lowercase forms automatically.',
+          )
+        "
+      />
+      <div class="set-row stacked shell-environment">
+        <span class="set-label">
+          <span>{{ tr('预置环境变量', 'Preset environment variables') }}</span>
+          <small>{{
+            tr(
+              '从下一条命令生效；自定义值优先，按原样传入。',
+              'Apply to the next command; custom values take priority and are passed literally.',
+            )
+          }}</small>
+        </span>
+        <KeyValueEditor
+          v-model="value.env"
+          secret-values
+          :name-placeholder="tr('变量名', 'Variable name')"
+          :value-placeholder="tr('变量值', 'Value')"
+          :add-label="tr('添加环境变量', 'Add environment variable')"
+        />
       </div>
     </template>
   </div>

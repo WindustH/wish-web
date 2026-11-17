@@ -51,3 +51,9 @@ Runs **Connection diagnostics** (`/#/selftest?auto=1`) or previews the **First-r
 | `localStorage` (`wish.modelColors`, `wish.providerGate.ready`) | Chart colors and cached onboarding status | No |
 | IndexedDB (`wish-response-cache`) | Cached stats, charts, model catalogs, and provider labels | Yes |
 | Service worker caches | App shell bundles and loaded font subsets | No |
+
+## Shell environment variables
+
+Under **Tools → Shell**, add preset variables as name/value rows. They apply from the next command, and existing processes retain their environment. Values are passed literally; saved values are masked and can be left untouched to preserve them. Session settings offer the same fields when using an independent Shell configuration.
+
+When saving a new or changed manual network proxy, Wish asks whether Shell should use it too. **Use for both** enables **Follow network proxy**, which sets `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` and their lowercase forms and follows future proxy changes. **Network only** saves without enabling it; **Cancel** keeps the draft unsaved. You can change this option later under Shell settings. Custom variables with the same names take priority. Network direct mode clears generated proxy variables; `NO_PROXY` stays inherited unless you provide a custom value.
