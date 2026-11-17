@@ -315,6 +315,23 @@ export function markdownSourceMap(md: MarkdownIt) {
         state.tokens = tokens;
       }
     });
+  // Incremental block parsing uses a suffix, but inline caches and selection
+  // mappings keep document-wide normalized offsets. Shift freshly parsed block
+  // locations before resolving their inline children; never shift cached tokens.
+  md.core.ruler.before('inline', 'source_offset', (state) => {
+    const offset = (state.env.sourceOffset as number | undefined) ?? 0;
+    if (!offset) return;
+    for (const token of state.tokens) {
+      const location = locations.get(token);
+      if (!location) continue;
+      location.start += offset;
+      location.end += offset;
+      for (const run of location.runs ?? []) {
+        run.start += offset;
+        run.end += offset;
+      }
+    }
+  });
   md.core.ruler.at('inline', (state) => {
     const cache = state.env.sourceCache as SourceCache | undefined;
     const references = JSON.stringify(state.env.references ?? {});

@@ -1,4 +1,4 @@
-import MarkdownIt, { type Token } from 'markdown-it';
+import MarkdownIt, { type Env, type Token } from 'markdown-it';
 import { highlightCode } from './codeHighlight.ts';
 import DOMPurify from 'dompurify';
 import { tex } from '@mdit/plugin-tex';
@@ -25,13 +25,20 @@ const markdown = new MarkdownIt({
 markdown.use(cjkEmphasis);
 markdown.use(markdownBreaks);
 markdown.use(tex, {
-  render: (content, displayMode) =>
-    temml.renderToString(content, {
-      displayMode,
-      annotate: true,
-      trust: false,
-      throwOnError: false,
-    }),
+  render: (content, displayMode) => {
+    try {
+      return temml.renderToString(content, {
+        displayMode,
+        annotate: true,
+        trust: false,
+        throwOnError: false,
+      });
+    } catch {
+      // An incomplete streamed formula can trigger a parser exception even
+      // with throwOnError disabled. Keep its source visible until it completes.
+      return `<code>${markdown.utils.escapeHtml(content)}</code>`;
+    }
+  },
   delimiters: 'all',
 });
 const validateLink = markdown.validateLink;
@@ -80,10 +87,7 @@ export interface MarkdownBlock {
   mappings: SourceMapping[];
 }
 
-/** Retain only this document's current blocks, never all its growing intermediate versions.
- * Parsing remains document-wide: a later reference definition can change an earlier link.
- * Unchanged blocks reuse both sanitized HTML and their Vue-owned DOM nodes.
- */
+/** Retain only this document's current blocks, never its intermediate versions. */
 interface CachedBlock {
   fingerprint: string;
   children: (Token[] | null)[];
@@ -92,11 +96,20 @@ interface CachedBlock {
 export function createMarkdownBlocks() {
   const sourceCache: SourceCache = { previous: new Map(), next: new Map() };
   let previous = new Map<string, CachedBlock>();
-  return (text: string, copyLabel: string, streaming = false): MarkdownBlock[] => {
+  const origins = new WeakMap<MarkdownBlock, { line: number; normalized: number }>();
+  const renderTail = (
+    text: string,
+    copyLabel: string,
+    streaming: boolean,
+    offset: number,
+    lineOffset: number,
+    normalizedOffset: number,
+  ) => {
     const removed: number[] = [];
     for (let i = 0; i < text.length; i++)
       if (text[i] === '\r' && text[i + 1] === '\n') removed.push(i - removed.length);
     const originalAt = (position: number) => {
+      position -= normalizedOffset;
       let lo = 0,
         hi = removed.length;
       while (lo < hi) {
@@ -104,13 +117,26 @@ export function createMarkdownBlocks() {
         if (removed[mid]! < position) lo = mid + 1;
         else hi = mid;
       }
-      return position + lo;
+      return offset + position + lo;
     };
     sourceCache.next = new Map();
-    const environment = { copyLabel, originalAt, sourceCache, sourceEntries: [] as SourceMapping[] };
+    const environment = {
+      copyLabel,
+      originalAt,
+      sourceOffset: normalizedOffset,
+      sourceCache,
+      sourceEntries: [] as SourceMapping[],
+      references: undefined as Env['references'],
+    };
     const tokens = markdown.parse(text, environment);
-    sourceCache.previous = sourceCache.next;
-    const current = new Map<string, CachedBlock>();
+    if (!offset) sourceCache.previous = sourceCache.next;
+    else {
+      // Retain stable inline arrays so the final full parse can reuse them too.
+      for (const key of sourceCache.previous.keys()) if (key >= normalizedOffset) sourceCache.previous.delete(key);
+      for (const [key, value] of sourceCache.next) sourceCache.previous.set(key, value);
+    }
+    const current = offset ? new Map(previous) : new Map<string, CachedBlock>();
+    for (const [key, value] of current) if (value.block.start >= offset) current.delete(key);
     const blocks: MarkdownBlock[] = [];
     let group: ReturnType<typeof markdown.parse> = [];
     const lines = text.replace(/\r\n?/g, '\n').split('\n');
@@ -120,7 +146,7 @@ export function createMarkdownBlocks() {
       group.push(token);
       if (token.level !== 0 || token.nesting === 1) continue;
       const first = group[0]!;
-      const key = `${first.map?.[0] ?? blocks.length}:${first.type}`;
+      const key = `${lineOffset + (first.map?.[0] ?? blocks.length)}:${first.type}`;
       // A growing, unclosed code fence is escaped now and highlighted once it closes.
       const closingLine = first.map ? (lines[first.map[1] - 1]?.trim() ?? '') : '';
       const unclosedFence =
@@ -133,8 +159,8 @@ export function createMarkdownBlocks() {
         );
       const normalizedStart = offsets[first.map?.[0] ?? 0]!;
       const normalizedEnd = Math.min(text.length - removed.length, offsets[first.map?.[1] ?? lines.length]!);
-      const start = originalAt(normalizedStart);
-      const end = originalAt(normalizedEnd);
+      const start = originalAt(normalizedOffset + normalizedStart);
+      const end = originalAt(normalizedOffset + normalizedEnd);
       // Inline parsing already reuses immutable child arrays only when content,
       // source positions and references match. Compare those identities instead
       // of serializing the same child AST and source runs on every stream update.
@@ -144,9 +170,15 @@ export function createMarkdownBlocks() {
         unclosedFence,
         start,
         end,
-        group.map(({ children, content, ...fields }) => ({ ...fields, ...(children ? {} : { content }) })),
+        group.map(({ children, content, map, ...fields }) => ({
+          ...fields,
+          map: map?.map((line) => line + lineOffset) ?? null,
+          ...(children ? {} : { content }),
+        })),
         group.map(sourceLocation),
-        removed.slice(start - normalizedStart, end - normalizedEnd),
+        removed
+          .slice(start - offset - normalizedStart, end - offset - normalizedEnd)
+          .map((position) => position + normalizedOffset),
       ]);
       const cached = previous.get(key);
       environment.sourceEntries = [];
@@ -166,11 +198,64 @@ export function createMarkdownBlocks() {
                 ),
               ),
             };
+      origins.set(block, { line: lineOffset + (first.map?.[0] ?? 0), normalized: normalizedOffset + normalizedStart });
       current.set(key, { fingerprint, children, block });
       blocks.push(block);
       group = [];
     }
     previous = current;
+    return {
+      blocks,
+      hasReferences: !!environment.references && Object.keys(environment.references).length > 0,
+    };
+  };
+
+  let snapshot:
+    | {
+        text: string;
+        copyLabel: string;
+        streaming: boolean;
+        blocks: MarkdownBlock[];
+        hasReferences: boolean;
+      }
+    | undefined;
+  return (text: string, copyLabel: string, streaming = false): MarkdownBlock[] => {
+    if (snapshot?.text === text && snapshot.copyLabel === copyLabel && snapshot.streaming === streaming)
+      return snapshot.blocks;
+
+    // A top-level list, quote, table, paragraph or open fence can still grow.
+    // Keep TWO trailing blocks mutable: a trailing "2" paragraph can become
+    // "2. item" and merge into the preceding ordered list on the next chunk.
+    // Edits, locale changes and stream completion always get a full parse.
+    const append =
+      streaming &&
+      snapshot?.streaming &&
+      snapshot.copyLabel === copyLabel &&
+      !snapshot.hasReferences &&
+      // Unlike an open $$ block, the TeX plugin treats an unclosed \[ block
+      // as ordinary paragraphs. A later \] can change any of those blocks.
+      !text.includes('\\[') &&
+      text.startsWith(snapshot.text);
+    const stableCount = append ? Math.max(0, snapshot!.blocks.length - 2) : 0;
+    const tail = stableCount ? snapshot!.blocks[stableCount] : undefined;
+    let offset = tail?.start ?? 0;
+    const origin = tail ? origins.get(tail) : undefined;
+    let parsed = renderTail(
+      text.slice(offset),
+      copyLabel,
+      streaming,
+      offset,
+      origin?.line ?? 0,
+      origin?.normalized ?? 0,
+    );
+    // Reference definitions have document-wide effects, including when they
+    // arrive after a link in the frozen prefix. Fall back for these documents.
+    if (offset && parsed.hasReferences) {
+      offset = 0;
+      parsed = renderTail(text, copyLabel, streaming, 0, 0, 0);
+    }
+    const blocks = offset ? [...snapshot!.blocks.slice(0, stableCount), ...parsed.blocks] : parsed.blocks;
+    snapshot = { text, copyLabel, streaming, ...parsed, blocks };
     return blocks;
   };
 }

@@ -17,7 +17,8 @@ Portaled overlays managed by Reka UI mark `data-keyboard-boundary` so applicatio
 
 ## Streaming Markdown, virtualization, and viewport
 
-- **Streaming Markdown (`ui/Markdown.vue`, `useLiveMarkdown.ts`)**: Reuses sanitized block DOM nodes while keeping document-wide parsing (preserving forward references, tables, lists, and math), defers highlighting on unclosed code fences, renders explicit `<br>` tags inside tables, and caps full-document caching at 2M UTF-16 code units.
+- **Streaming Markdown (`ui/markdown.ts`, `ui/components/Markdown.vue`, `useLiveMarkdown.ts`)**: During append-only generation, reuses stable blocks and parses the last two top-level blocks plus new text. Two mutable blocks allow a provisional paragraph such as `2` to become a list item and merge into the preceding list. Each list, table, quote and open fence stays a single mutable block. Reference definitions and bracket-delimited display math (`\[` / `\]`) use whole-document parsing because later text can reinterpret earlier blocks. Edits, locale changes and stream completion also trigger a full parse. Inline caches use document-wide normalized offsets; source selection maps back to original UTF-16 offsets, including CRLF. Stable HTML and inline caches survive the final parse. Incomplete formulas that throw are escaped as text until they become renderable. Unclosed code fences defer highlighting; explicit `<br>` tags work inside tables; the separate full-document HTML cache is capped at 2M UTF-16 code units.
+- **Incremental parsing checks**: `wish-test/web/frontend/markdown-incremental-browser.mjs` compares streaming prefixes and edits against fresh full parses, including HTML and source mappings. Run `BASELINE_REF=<previous-web-commit> node --import ../wish-test/web/register.mjs ../wish-test/web/benchmarks/markdown-incremental.mjs` from `wish-web` for cold/update/final timings. These measure parsing, mapping and sanitization, excluding Vue layout and network time. A single growing block and documents requiring global interpretation still need full parsing; this is not a constant-time guarantee. New syntax plugins must be checked for cross-block dependencies before enabling incremental parsing for them.
 - **Virtualized chat**: `@tanstack/vue-virtual` shares one batched `ResizeObserver` per tick and discards stale scroll corrections on backgrounded tabs.
 - **Mobile visual viewport (`ui/viewport.ts`)**: Publishes visual viewport height and offsets while locking outer document scroll so opening or dismissing mobile keyboards adjusts forms smoothly without losing transcript scroll or blurring active editors.
 
@@ -37,5 +38,6 @@ Portaled overlays managed by Reka UI mark `data-keyboard-boundary` so applicatio
 - `tools/pdf-assets.mjs` copies `pdfjs-dist` worker, CMaps, and standard fonts into build output.
 
 Two `pnpm` patches in `patches/` fix upstream issues and should be re-verified on upgrades:
+
 - `reka-ui@2.10.4.patch`: Stops scroll-lock from altering document `pointer-events` and ensures closing portals unmount if exit animations don't finish.
 - `@tanstack__virtual-core@3.17.9.patch`: Drops stale scroll-correction offsets when virtualized lists stay mounted in background tabs.
