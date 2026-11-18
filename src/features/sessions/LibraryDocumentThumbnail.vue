@@ -97,7 +97,7 @@ const html = computed(() =>
 .document-page pre {
   margin: 0;
   white-space: pre;
-  font: 16px / 1.65 var(--font-mono);
+  font: 16px / 1.65 var(--mono);
 }
 .document-markdown :deep(:first-child) {
   margin-top: 0;
@@ -127,7 +127,7 @@ const html = computed(() =>
   color: var(--fg-muted);
 }
 .document-markdown :deep(code) {
-  font-family: var(--font-mono);
+  font-family: var(--mono);
   font-size: 0.9em;
 }
 .document-markdown :deep(.code-head) {

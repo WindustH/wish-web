@@ -35,7 +35,7 @@ const tags = computed<string[]>(() =>
 );
 // The menu opens with a right click, or a long press on a touch screen. Only with a mouse is there
 // also a button, shown on hover.
-const withButton = useMedia('(hover: hover) and (pointer: fine) and (min-width: 900px)');
+const withButton = useMedia('(min-width: 900px), (pointer: coarse)');
 const actions = computed<MenuItem[]>(() => [
   ...(props.arranged
     ? [

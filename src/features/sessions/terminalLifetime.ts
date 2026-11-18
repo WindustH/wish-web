@@ -1,7 +1,12 @@
-// Browser ownership is independent of cached views. Hidden terminals drain output
-// without rendering, and keep their PTY alive until the document is left.
+// Browser ownership is independent of cached views. Hidden terminals pause output
+// on capable servers, retaining only control traffic until their view returns.
 import { ApiError, authHeaders, absUrl } from '../../core/api/client.ts';
-import { terminalSocket, type TerminalState, type TerminalOutput } from '../../core/api/terminal.ts';
+import {
+  pauseTerminalOutput,
+  terminalSocket,
+  type TerminalState,
+  type TerminalOutput,
+} from '../../core/api/terminal.ts';
 interface Owner {
   session: string;
   state: TerminalState;
@@ -10,6 +15,7 @@ interface Owner {
   socket?: WebSocket;
   controller?: AbortController;
   timer?: ReturnType<typeof setTimeout>;
+  heartbeat?: ReturnType<typeof setInterval>;
   background: boolean;
   offset: number;
   retries: number;
@@ -19,6 +25,7 @@ let exited = false;
 export const terminalFrontendOpen = () => !exited;
 function stopTransport(owner: Owner, preserve?: WebSocket) {
   clearTimeout(owner.timer);
+  clearInterval(owner.heartbeat);
   owner.controller?.abort();
   owner.controller = undefined;
   if (owner.socket !== preserve) owner.socket?.close();
@@ -106,17 +113,39 @@ function retry(owner: Owner) {
 }
 function adopt(owner: Owner, socket: WebSocket) {
   owner.socket = socket;
+  let lastPong = performance.now();
+  const keepAlive = () => {
+    clearInterval(owner.heartbeat);
+    pauseTerminalOutput(socket);
+    owner.heartbeat = setInterval(() => {
+      if (!retained(owner) || owner.socket !== socket) {
+        clearInterval(owner.heartbeat);
+        return;
+      }
+      if (performance.now() - lastPong > 45000) {
+        socket.close();
+        return;
+      }
+      if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'ping', time: performance.now() }));
+    }, 15000);
+  };
+  if (socket.readyState === WebSocket.OPEN) keepAlive();
   socket.onopen = () => {
     if (!retained(owner)) {
       socket.close();
       return;
     }
     owner.retries = 0;
+    keepAlive();
   };
   socket.onmessage = (event) => {
     if (exited || owners.get(owner.session) !== owner || !owner.background) return;
     try {
       const message = JSON.parse(event.data);
+      if (message.type === 'pong') {
+        lastPong = performance.now();
+        return;
+      }
       if (message.type !== 'output') return;
       const output: TerminalOutput = message.output;
       owner.state = output.terminal;
@@ -132,6 +161,7 @@ function adopt(owner: Owner, socket: WebSocket) {
   };
   socket.onerror = () => {}; // onclose owns bounded reconnect, never input replay.
   socket.onclose = () => {
+    clearInterval(owner.heartbeat);
     if (retained(owner) && owner.socket === socket) retry(owner);
   };
 }
@@ -140,6 +170,11 @@ export function parkTerminal(session: string, state: TerminalState, socket: WebS
     socket?.close();
     return;
   }
+  const claimed = owners.get(session);
+  // An older view's delayed Start response must not take a newer view's live
+  // foreground connection away while that newer view is already using it.
+  if (!socket && claimed && !claimed.background && claimed.socket && claimed.socket.readyState < WebSocket.CLOSING)
+    return;
   rememberTerminal(session, state);
   const owner = owners.get(session);
   if (!owner || exited) {

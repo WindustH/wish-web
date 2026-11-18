@@ -24,11 +24,20 @@ export const terminalColorNames = [
 export function wishTerminalTheme(overrides: Record<string, string> = {}): ITheme {
   const style = getComputedStyle(document.documentElement);
   const token = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
-  const bg = token('--bg', '#202020');
-  const dark = !/^#(?:f|e|d|c)/i.test(bg);
+  const bg = overrides.background || token('--bg', '#202020');
+  const hex = bg.replace(/^#/, '');
+  const expanded = hex.length === 3 ? [...hex].map((c) => c + c).join('') : hex;
+  const rgb = /^[\da-f]{6}$/i.test(expanded)
+    ? [0, 2, 4].map((offset) => parseInt(expanded.slice(offset, offset + 2), 16))
+    : (bg
+        .match(/[\d.]+/g)
+        ?.slice(0, 3)
+        .map(Number) ?? [32, 32, 32]);
+  const linear = rgb.map((c) => (c / 255 <= 0.04045 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4));
+  const dark = 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]! < 0.179;
   return {
     background: bg,
-    foreground: token('--fg', '#e5e0da'),
+    foreground: overrides.background ? (dark ? '#e5e0da' : '#2e2d2a') : token('--fg', '#e5e0da'),
     cursor: token('--accent', '#de947b'),
     cursorAccent: overrides.background || bg,
     selectionBackground: dark ? '#59483f' : '#e7cdc0',

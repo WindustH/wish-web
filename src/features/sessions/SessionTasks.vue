@@ -205,11 +205,24 @@ watch(
           class="terminal-tabs-compact"
           v-model="selectedTab"
           segmented
+          :aria-label="tr('终端视图', 'Terminal views')"
           :options="[
             { value: 'terminal', label: tr('终端', 'Terminal'), icon: 'terminal' },
-            { value: 'background', label: tr('后台任务', 'Background tasks'), icon: 'steps' },
+            {
+              value: 'background',
+              label: tr('后台任务', 'Background tasks') + (running ? ` · ${running}` : ''),
+              icon: 'steps',
+            },
           ]"
-        />
+          ><template #segmented-option="{ option }"
+            ><Icon :name="option.icon!" /><span
+              v-if="option.value === 'background' && running"
+              class="task-tab-count"
+              aria-hidden="true"
+              >{{ running }}</span
+            ></template
+          ></SelectField
+        >
         <SelectField
           class="terminal-tabs-wide"
           v-model="selectedTab"
@@ -225,7 +238,7 @@ watch(
       v-show="saved.tab !== 'background'"
       :key="session"
       :session="session"
-      :active="(props.active ?? open) && saved.tab !== 'background'"
+      :active="open && (props.active ?? open) && saved.tab !== 'background'"
       :mobile="mobile"
     />
     <div v-show="saved.tab === 'background'" class="task-sidebar">
@@ -288,6 +301,12 @@ watch(
   </IslandSidebar>
 </template>
 <style scoped>
+.task-tab-count {
+  margin-left: 4px;
+  font-size: 10px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
 .terminal-tabs {
   display: flex;
   flex: none;

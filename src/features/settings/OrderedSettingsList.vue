@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { watch } from 'vue';
 import { ReorderGroup, ReorderItem, useDragControls } from 'motion-v';
-import { useIsMobile } from '../../ui/composables/useMedia.ts';
+import { useIsMobile, useMedia } from '../../ui/composables/useMedia.ts';
 
 const order = defineModel<string[]>({ required: true });
 const emit = defineEmits<{ open: [id: string] }>();
 const mobile = useIsMobile();
+const coarsePointer = useMedia('(pointer: coarse)');
 const controls = new Map<string, ReturnType<typeof useDragControls>>();
 const controlsOf = (id: string) => controls.get(id) ?? controls.set(id, useDragControls()).get(id)!;
 let suppressOpenUntil = 0;
@@ -32,7 +33,7 @@ watch(order, (ids) => {
       :key="id"
       :value="id"
       as="div"
-      :drag-listener="!mobile"
+      :drag-listener="!mobile && !coarsePointer"
       :drag-controls="controlsOf(id)"
       @drag-start="suppressOpenUntil = Infinity"
       @drag-end="suppressOpenUntil = Date.now() + 250"

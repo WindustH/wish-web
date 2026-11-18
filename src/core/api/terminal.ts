@@ -28,7 +28,7 @@ export const startTerminal = (session: string, cols: number, rows: number, signa
 export const pollTerminal = (session: string, id: string, offset: number, signal?: AbortSignal) =>
   request<TerminalOutput>(session, { action: 'poll', id, offset }, signal);
 export const writeTerminal = (session: string, id: string, bytes: Uint8Array, signal?: AbortSignal) =>
-  request(session, { action: 'write', id, data: btoa(String.fromCharCode(...bytes)) }, signal);
+  request(session, { action: 'write', id, data: encodeBytes(bytes) }, signal);
 export const resizeTerminal = (session: string, id: string, cols: number, rows: number, signal?: AbortSignal) =>
   request(session, { action: 'resize', id, cols, rows }, signal);
 export const closeTerminal = (session: string, id: string, signal?: AbortSignal) =>
@@ -36,12 +36,14 @@ export const closeTerminal = (session: string, id: string, signal?: AbortSignal)
 
 export const leaveTerminal = (session: string, id: string, force = false) =>
   request<{ confirmation_required: boolean; terminal: TerminalState }>(session, { action: 'leave', id, force });
+const pausableSockets = new WeakSet<WebSocket>();
+export function pauseTerminalOutput(socket: WebSocket) {
+  if (pausableSockets.has(socket) && socket.readyState === WebSocket.OPEN)
+    socket.send(JSON.stringify({ type: 'pause', paused: true }));
+}
 export async function terminalSocket(session: string, id: string, offset: number, signal: AbortSignal) {
-  const { ticket, replay_until }: { ticket: string; replay_until: number } = await post(
-    `/sessions/${encodeURIComponent(session)}/terminal/connect`,
-    { id },
-    { signal },
-  );
+  const { ticket, replay_until, pause_output }: { ticket: string; replay_until: number; pause_output?: boolean } =
+    await post(`/sessions/${encodeURIComponent(session)}/terminal/connect`, { id }, { signal });
   if (!Number.isSafeInteger(replay_until) || replay_until < 0)
     throw new Error('The Wish server needs an update to restore terminals safely.');
   if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -49,5 +51,13 @@ export async function terminalSocket(session: string, id: string, offset: number
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   url.searchParams.set('ticket', ticket);
   url.searchParams.set('offset', String(offset));
-  return { socket: new WebSocket(url), replayUntil: replay_until };
+  const socket = new WebSocket(url);
+  if (pause_output) pausableSockets.add(socket);
+  return { socket, replayUntil: replay_until };
+}
+
+function encodeBytes(bytes: Uint8Array): string {
+  const chunks: string[] = [];
+  for (let i = 0; i < bytes.length; i += 8192) chunks.push(String.fromCharCode(...bytes.subarray(i, i + 8192)));
+  return btoa(chunks.join(''));
 }

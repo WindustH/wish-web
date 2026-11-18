@@ -229,7 +229,9 @@ server.on('upgrade', (req, socket, head) => {
     upstream.setNoDelay(true);
     socket.write(
       `HTTP/1.1 101 Switching Protocols\r\n${Object.entries(response.headers)
-        .map(([key, value]) => `${key}: ${value}`)
+        .flatMap(([key, value]) =>
+          value == null ? [] : (Array.isArray(value) ? value : [value]).map((item) => `${key}: ${item}`),
+        )
         .join('\r\n')}\r\n\r\n`,
     );
     if (head.length) upstream.write(head);

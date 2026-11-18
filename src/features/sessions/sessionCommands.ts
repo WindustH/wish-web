@@ -4,10 +4,11 @@ export interface CommandModel {
   provider: ProviderInfo;
   model: ModelInfo;
 }
+export const commandText = (input: string) => input.trimStart().replace(/^:/, '').trimStart();
 export function parseSessionCommand(input: string) {
-  const text = input.trim().replace(/^:/, '').trimStart();
+  const text = commandText(input).trimEnd();
   const [name = '', ...args] = text.split(/\s+/);
-  return { name, args, question: text.slice(name.length).trim() };
+  return { name: name.toLowerCase(), args, question: text.slice(name.length).trim() };
 }
 export function resolveCommandModel(value: string, models: CommandModel[]) {
   const qualified = models.filter(({ provider, model }) => `${provider.id}/${model.id}` === value);

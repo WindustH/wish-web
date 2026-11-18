@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { shortcuts } from '../../core/state/shortcutsSlice.ts';
 import {
@@ -13,6 +13,20 @@ import { tr } from '../../core/i18n/tr.ts';
 import KeyCaps from '../../ui/components/KeyCaps.vue';
 const nav = computed(() => shortcuts.value.value.navigation);
 const error = ref('');
+const sequenceDraft = ref(nav.value.exitSequence);
+const intervalDraft = ref(String(nav.value.sequenceTimeout));
+watch(
+  () => nav.value.exitSequence,
+  (value) => {
+    sequenceDraft.value = value;
+  },
+);
+watch(
+  () => nav.value.sequenceTimeout,
+  (value) => {
+    intervalDraft.value = String(value);
+  },
+);
 const actions = computed<{ id: NavigationAction; label: string }[]>(() => [
   { id: 'focus', label: tr('聚焦消息输入框', 'Focus message input') },
   { id: 'exit', label: tr('退出消息输入框', 'Leave message input') },
@@ -54,6 +68,7 @@ function key(event: KeyboardEvent, id: NavigationAction) {
 }
 function sequence(event: Event) {
   const value = (event.target as HTMLInputElement).value;
+  sequenceDraft.value = value;
   if (value && !/^[!-~]{2,6}$/.test(value)) {
     error.value = tr(
       '退出序列需要 2–6 个非空白英文字符，留空则停用。',
@@ -65,6 +80,7 @@ function sequence(event: Event) {
   shortcuts.setNavigation({ ...nav.value, exitSequence: value });
 }
 function intervalInput(event: Event) {
+  intervalDraft.value = (event.target as HTMLInputElement).value;
   const value = Number((event.target as HTMLInputElement).value);
   if (!Number.isInteger(value) || value < 100 || value > 2000) {
     error.value = tr('按键间隔需要为 100–2000 毫秒。', 'Use an interval of 100–2000 ms.');
@@ -75,8 +91,10 @@ function intervalInput(event: Event) {
 }
 function interval(event: Event) {
   const input = event.target as HTMLInputElement;
-  shortcuts.setNavigation({ ...nav.value, sequenceTimeout: Number(input.value) });
-  input.value = String(nav.value.sequenceTimeout);
+  if (input.value !== '') shortcuts.setNavigation({ ...nav.value, sequenceTimeout: Number(input.value) });
+  intervalDraft.value = String(nav.value.sequenceTimeout);
+  input.value = intervalDraft.value;
+  error.value = '';
 }
 </script>
 <template>
@@ -107,7 +125,7 @@ function interval(event: Event) {
         <button
           type="button"
           class="navigation-binding navigation-key"
-          :aria-label="action.label"
+          :aria-label="`${action.label}: ${nav.keys[action.id] || tr('未绑定', 'Unassigned')}`"
           @keydown="key($event, action.id)"
         >
           <KeyCaps v-if="nav.keys[action.id]" :label="nav.keys[action.id]" />
@@ -118,12 +136,16 @@ function interval(event: Event) {
         ><span>{{ tr('退出输入的键序列', 'Sequence to leave input') }}</span
         ><input
           class="input navigation-binding"
-          :value="nav.exitSequence"
+          :value="sequenceDraft"
           placeholder="ji"
           maxlength="6"
           autocomplete="off"
           spellcheck="false"
           @input="sequence"
+          @change="
+            sequenceDraft = nav.exitSequence;
+            error = '';
+          "
       /></label>
       <label class="navigation-row"
         ><span>{{ tr('序列按键最大间隔（毫秒）', 'Maximum interval between keys (ms)') }}</span
@@ -133,7 +155,7 @@ function interval(event: Event) {
           min="100"
           max="2000"
           step="50"
-          :value="nav.sequenceTimeout"
+          :value="intervalDraft"
           @input="intervalInput"
           @change="interval"
       /></label>
@@ -145,6 +167,8 @@ function interval(event: Event) {
         class="btn ghost sm"
         @click="
           shortcuts.setNavigation(defaultNavigation());
+          sequenceDraft = nav.exitSequence;
+          intervalDraft = String(nav.sequenceTimeout);
           error = '';
         "
       >
@@ -206,10 +230,10 @@ function interval(event: Event) {
   cursor: pointer;
   font: 12px var(--mono);
 }
-.navigation-key:focus-visible {
+.navigation-key:focus {
   outline: none;
 }
-.navigation-key:focus-visible :deep(.keycap) {
+.navigation-key:focus :deep(.keycap) {
   border-color: var(--accent);
 }
 .navigation-key > span:not(.keycaps) {
@@ -217,7 +241,7 @@ function interval(event: Event) {
   border: 1px dashed var(--line-strong);
   border-radius: 6px;
 }
-.navigation-key:focus-visible > span:not(.keycaps) {
+.navigation-key:focus > span:not(.keycaps) {
   border-color: var(--accent);
 }
 @media (hover: hover) {

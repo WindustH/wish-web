@@ -13,6 +13,7 @@ import { tr } from '../../core/i18n/tr.ts';
 import { toast } from '../../ui/toast.ts';
 import {
   commandEfforts,
+  commandText,
   parseSessionCommand,
   resolveCommandModel,
   validateCommandEffort,
@@ -56,13 +57,14 @@ const commands = computed(() => [
     hint: tr('设置当前模型的思考强度', 'Set reasoning effort for the current model'),
   },
 ]);
+const normalized = computed(() => commandText(query.value));
 const parsed = computed(() => parseSessionCommand(query.value));
 const completingModel = computed(
   () =>
     parsed.value.name === 'model' &&
-    /\s/.test(query.value.trimStart()) &&
+    /\s/.test(normalized.value) &&
     parsed.value.args.length <= 1 &&
-    !/\S\s+\S+\s+$/.test(query.value),
+    !/\S\s+\S+\s+$/.test(normalized.value),
 );
 let loadedCatalog = false;
 watch(
@@ -76,12 +78,12 @@ watch(
 );
 const choices = computed(() => {
   const { name, args } = parsed.value;
-  const argumentsStarted = /\s/.test(query.value.trimStart());
+  const argumentsStarted = /\s/.test(normalized.value);
   if (name === 'model' && argumentsStarted) {
-    if (args.length > 1 || /\S\s+\S+\s+$/.test(query.value)) {
+    if (args.length > 1 || /\S\s+\S+\s+$/.test(normalized.value)) {
       const choice = resolveCommandModel(args[0] ?? '', models.value);
       return commandEfforts(choice.length === 1 ? choice[0] : undefined)
-        .filter((level) => level.startsWith(args[1] ?? ''))
+        .filter((level) => level.toLowerCase().startsWith((args[1] ?? '').toLowerCase()))
         .map((level) => ({
           value: `model ${args[0]} ${level}`,
           label: level,
@@ -91,12 +93,17 @@ const choices = computed(() => {
     const term = (args[0] ?? '').toLowerCase();
     return models.value
       .filter(({ provider, model }) =>
-        `${provider.id}/${model.id} ${model.display_name ?? ''}`.toLowerCase().includes(term),
+        `${provider.id}/${model.id} ${provider.display_name ?? ''} ${model.display_name ?? ''}`
+          .toLowerCase()
+          .includes(term),
       )
       .map(({ provider, model }) => ({
         value: `model ${provider.id}/${model.id} `,
-        label: model.id,
-        hint: provider.display_name || provider.id,
+        label: model.display_name && model.display_name !== model.id ? `${model.id} · ${model.display_name}` : model.id,
+        hint:
+          provider.display_name && provider.display_name !== provider.id
+            ? `${provider.display_name} · ${provider.id}`
+            : provider.id,
       }));
   }
   if (name === 'effort' && argumentsStarted) {
@@ -105,7 +112,7 @@ const choices = computed(() => {
       (item) => item.provider.id === current?.provider && item.model.id === current?.model,
     );
     return commandEfforts(choice)
-      .filter((level) => level.startsWith(args[0] ?? ''))
+      .filter((level) => level.toLowerCase().startsWith((args[0] ?? '').toLowerCase()))
       .map((level) => ({ value: `effort ${level}`, label: level, hint: tr('思考强度', 'Reasoning effort') }));
   }
   if (argumentsStarted) return [];
@@ -113,15 +120,15 @@ const choices = computed(() => {
 });
 const matching = computed(() => {
   const { name, args } = parsed.value;
-  if (/\s/.test(query.value.trimStart()))
-    return name === 'model' && (args.length > 1 || /\S\s+\S+\s+$/.test(query.value))
+  if (/\s/.test(normalized.value))
+    return name === 'model' && (args.length > 1 || /\S\s+\S+\s+$/.test(normalized.value))
       ? (args[1] ?? '')
       : (args[0] ?? '');
   return name;
 });
 const argumentHint = computed(() => {
   const { name } = parsed.value;
-  if (!/\s/.test(query.value.trimStart())) return '';
+  if (!/\s/.test(normalized.value)) return '';
   return (
     (
       {
@@ -494,6 +501,15 @@ footer .btn {
   }
   footer .btn {
     min-height: 36px;
+  }
+}
+</style>
+
+<style scoped>
+@media (forced-colors: active) {
+  [aria-selected='true'] {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
   }
 }
 </style>

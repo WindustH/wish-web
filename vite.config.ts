@@ -86,7 +86,7 @@ export default defineConfig({
           {
             urlPattern: /\/assets\/(?:noto-|sarasa-|maple-|STIXTwoMath-|montserrat-|bitter-).*\.woff2$/,
             handler: 'CacheFirst',
-            options: { cacheName: 'wish-fonts', expiration: { maxEntries: 180, maxAgeSeconds: 31536000 } },
+            options: { cacheName: 'wish-fonts', expiration: { maxEntries: 1200, maxAgeSeconds: 31536000 } },
           },
         ],
       },

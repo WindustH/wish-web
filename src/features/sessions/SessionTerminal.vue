@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMedia } from '../../ui/composables/useMedia.ts';
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
@@ -17,6 +18,7 @@ import {
   type TerminalOutput,
 } from '../../core/api/terminal.ts';
 import '@xterm/xterm/css/xterm.css';
+const coarsePointer = useMedia('(pointer: coarse)');
 const props = defineProps<{ session: string; active: boolean; mobile: boolean }>();
 const host = ref<HTMLElement>();
 const state = ref<TerminalState | null>(null);
@@ -41,6 +43,8 @@ let themeObserver: MutationObserver | undefined,
 let inputBlocked = false;
 const lifetime = new AbortController();
 let initialization: Promise<void> | undefined;
+let fontMetricsDirty = false;
+let renderIdle = Promise.resolve();
 async function initialize() {
   if (initialization) return initialization;
   initialization = (async () => {
@@ -69,7 +73,7 @@ async function initialize() {
         sixelSupport: true,
         iipSupport: true,
         storageLimit: 32,
-        pixelLimit: 4096 * 4096,
+        pixelLimit: 8 * 1024 * 1024,
         sixelSizeLimit: 32 * 1024 * 1024,
         iipSizeLimit: 32 * 1024 * 1024,
       }),
@@ -86,13 +90,27 @@ async function initialize() {
       attributeFilter: ['style', 'class', 'data-theme'],
     });
     document.fonts.addEventListener('loadingdone', refreshFontMetrics);
-    void document.fonts.ready.then(refreshFontMetrics);
+    void document.fonts.ready.then(() => refreshFontMetrics());
     scheduleFit();
   })();
   return initialization;
 }
-function refreshFontMetrics() {
+function refreshFontMetrics(event?: Event) {
   if (disposed || !terminal) return;
+  const fonts = (event as FontFaceSetLoadEvent | undefined)?.fontfaces;
+  if (
+    fonts?.length &&
+    !fonts.some((font) =>
+      terminal!.options.fontFamily!.toLowerCase().includes(font.family.replace(/["']/g, '').toLowerCase()),
+    )
+  )
+    return;
+  fontMetricsDirty = true;
+  scheduleFit();
+}
+function applyFontMetrics() {
+  if (!fontMetricsDirty || !terminal) return;
+  fontMetricsDirty = false;
   // Maple's CJK subsets load on demand. xterm 6's DOM renderer retains fallback
   // glyph widths even after refresh()/fit(). Reapply the equivalent font stack
   // through its public options API to invalidate that cache, including when the
@@ -100,10 +118,10 @@ function refreshFontMetrics() {
   const family = terminal.options.fontFamily!.trim();
   terminal.options.fontFamily = terminal.options.fontFamily === family ? `${family} ` : family;
   terminal.refresh(0, terminal.rows - 1);
-  scheduleFit();
 }
 async function fitTerminal() {
   if (!props.active || !terminal || !fit || !host.value?.clientHeight || !host.value.clientWidth) return;
+  applyFontMetrics();
   fit.fit();
   if (!state.value?.running) return;
   const cols = Math.min(500, Math.max(2, terminal.cols)),
@@ -143,6 +161,7 @@ function enqueue(bytes: Uint8Array) {
     error.value = tr('粘贴内容过大，请分段输入。', 'Paste is too large. Send smaller sections.');
     return;
   }
+  error.value = '';
   for (let index = 0; index < bytes.length; index += 8192) queue.push(bytes.slice(index, index + 8192));
   queuedBytes += bytes.length;
   flushInput();
@@ -195,6 +214,9 @@ async function connect() {
   try {
     await nextTick();
     await initialize();
+    // A write already handed to xterm can finish after the view parks. Wait for
+    // its cursor update before asking the server to replay from that cursor.
+    await renderIdle;
     if (controller.signal.aborted || !terminal) return;
     const current = await terminalState(props.session, controller.signal);
     applySettings(current.settings);
@@ -238,6 +260,7 @@ async function connect() {
         ws.close();
       }
     };
+    let lastPong = performance.now();
     ws.onopen = () => {
       if (own !== generation) {
         ws.close();
@@ -250,17 +273,24 @@ async function connect() {
       reconnects = 0;
       error.value = '';
       scheduleFit();
-      if (!inputBlocked) terminal?.focus();
       const ping = () => {
+        if (performance.now() - lastPong > 45000) {
+          ws.close();
+          return;
+        }
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping', time: performance.now() }));
       };
       ping();
-      heartbeat = setInterval(ping, 3000);
+      heartbeat = setInterval(ping, 15000);
     };
     ws.onmessage = (event) => {
       let message: { type: string; output: TerminalOutput; bytes: number; message: string };
       try {
         message = JSON.parse(event.data);
+        if (message.type === 'pong') {
+          lastPong = performance.now();
+          return;
+        }
         if (message.type === 'output') receivedOffset = message.output.next_offset;
       } catch (cause) {
         failed(cause);
@@ -295,14 +325,14 @@ async function connect() {
               inputBlocked = true;
               terminal.options.disableStdin = true;
               await new Promise<void>((resolve) => terminal!.write(bytes.subarray(0, replayBytes), resolve));
+              offset = Math.max(offset, output.next_offset - bytes.length + replayBytes);
             }
             if (own !== generation) return;
             if (replayBytes < bytes.length) {
-              const restoredInput = inputBlocked;
               inputBlocked = false;
               terminal.options.disableStdin = false;
-              if (restoredInput && props.active && pageActive.value) terminal.focus();
               await new Promise<void>((resolve) => terminal!.write(bytes.subarray(replayBytes), resolve));
+              offset = Math.max(offset, output.next_offset);
             }
           }
           if (own !== generation) return;
@@ -310,12 +340,12 @@ async function connect() {
           if (offset >= replayUntil && inputBlocked) {
             inputBlocked = false;
             terminal.options.disableStdin = false;
-            if (props.active && pageActive.value) terminal.focus();
           }
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ack', offset }));
           eof = !output.terminal.running && output.eof;
         })
         .catch(failed);
+      renderIdle = rendered;
     };
     ws.onerror = () => {
       if (own === generation)
@@ -418,7 +448,11 @@ onBeforeUnmount(() => {
       {{ error }} <button class="btn ghost sm" @click="reconnect">{{ tr('重试', 'Retry') }}</button>
     </div>
     <div class="terminal-stage" data-sheet-drag-ignore><div ref="host" class="terminal-host" /></div>
-    <div v-if="mobile && state?.running" class="terminal-keys" :aria-label="tr('终端按键', 'Terminal keys')">
+    <div
+      v-if="(mobile || coarsePointer) && state?.running"
+      class="terminal-keys"
+      :aria-label="tr('终端按键', 'Terminal keys')"
+    >
       <button
         v-for="key in [
           { label: 'Esc', data: '\x1b' },

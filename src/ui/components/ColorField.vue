@@ -72,6 +72,9 @@ function editHex() {
   draft.value = color.toUpperCase();
   emit('update:modelValue', color);
 }
+watch(open, (value, previous) => {
+  if (!value && previous) editHex();
+});
 function point(event: PointerEvent) {
   if (event.type !== 'pointerdown' && !(event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) return;
   if (event.type === 'pointerdown') (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);

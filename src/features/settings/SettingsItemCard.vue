@@ -7,7 +7,7 @@ import { computed, nextTick } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 import Hint from '../../ui/components/Hint.vue';
 import Icon from '../../ui/components/Icon.vue';
-import { useIsMobile } from '../../ui/composables/useMedia.ts';
+import { useIsMobile, useMedia } from '../../ui/composables/useMedia.ts';
 
 export type ItemState = { kind: 'ok' | 'error' | 'idle' | 'disabled'; text: string };
 const props = defineProps<{
@@ -36,6 +36,7 @@ const props = defineProps<{
 // `grab`: a finger pressed the row's grip, to move the item; `move`: a key moved it by one place.
 const emit = defineEmits<{ open: []; remove: []; check: []; grab: [event: PointerEvent]; move: [delta: number] }>();
 const isMobile = useIsMobile();
+const coarsePointer = useMedia('(pointer: coarse)');
 const name = computed(() => props.label ?? props.title);
 const phoneState = computed(() => (props.mobileState === undefined ? props.state : props.mobileState));
 // A click anywhere on the header but its buttons opens the editor.
@@ -98,6 +99,17 @@ function moveBy(delta: number, event: KeyboardEvent) {
         >
       </div>
       <div class="settings-item-actions">
+        <button
+          v-if="draggable && coarsePointer"
+          type="button"
+          class="btn ghost icon-only"
+          :aria-label="moveHint"
+          @pointerdown="emit('grab', $event)"
+          @keydown.up.prevent="moveBy(-1, $event)"
+          @keydown.down.prevent="moveBy(1, $event)"
+        >
+          <Icon name="grip" />
+        </button>
         <slot name="actions" />
         <Hint v-if="checkHint" :text="checkHint"
           ><button

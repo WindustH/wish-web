@@ -94,7 +94,9 @@ watch(pageActive, (active) => {
       :disabled="option.disabled"
       :aria-label="option.label"
       :data-hint="option.label"
-      ><Icon v-if="option.icon" :name="option.icon" /><template v-else>{{ option.label }}</template></ToggleGroupItem
+      ><slot name="segmented-option" :option="option"
+        ><Icon v-if="option.icon" :name="option.icon" /><template v-else>{{ option.label }}</template></slot
+      ></ToggleGroupItem
     >
   </ToggleGroupRoot>
   <template v-else-if="mobilePage && mobile">

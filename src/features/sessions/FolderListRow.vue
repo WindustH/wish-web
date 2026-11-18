@@ -14,7 +14,7 @@ import type { FolderRow } from '../../core/state/sessionsSlice.ts';
 export type FolderAction = 'pin' | 'unpin' | 'move' | 'rename' | 'delete';
 const props = defineProps<{ row: FolderRow; selecting?: boolean }>();
 const emit = defineEmits<{ open: []; action: [kind: FolderAction] }>();
-const withButton = useMedia('(hover: hover) and (pointer: fine) and (min-width: 900px)');
+const withButton = useMedia('(min-width: 900px), (pointer: coarse)');
 const actions = computed<MenuItem[]>(() => [
   props.row.pinned
     ? { key: 'unpin', icon: 'pin', label: tr('取消置顶', 'Unpin') }

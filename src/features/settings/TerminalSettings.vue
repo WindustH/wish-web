@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref, onScopeDispose } from 'vue';
+import { computed, inject, ref, onScopeDispose, onDeactivated } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { configDraftKey } from './useConfigDraft.ts';
 import SelectField from '../../ui/components/SelectField.vue';
@@ -41,6 +41,11 @@ let disposed = false,
   importVersion = 0;
 onScopeDispose(() => {
   disposed = true;
+});
+onDeactivated(() => {
+  importVersion++;
+  importMessage.value = '';
+  importFailed.value = false;
 });
 async function importTheme(event: Event) {
   const input = event.target as HTMLInputElement;
@@ -106,7 +111,8 @@ function fontCommit(event: Event) {
           >
           <input
             :value="settings.shell"
-            @input="update('shell', ($event.target as HTMLInputElement).value.trim())"
+            @input="update('shell', ($event.target as HTMLInputElement).value)"
+            @change="update('shell', ($event.target as HTMLInputElement).value.trim())"
             class="input"
             list="terminal-shells"
             :placeholder="tr('本机默认 Shell', 'Host default shell')"
@@ -162,7 +168,8 @@ function fontCommit(event: Event) {
             }}</small></span
           ><input
             :value="settings.session_name"
-            @input="update('session_name', ($event.target as HTMLInputElement).value.trim())"
+            @input="update('session_name', ($event.target as HTMLInputElement).value)"
+            @change="update('session_name', ($event.target as HTMLInputElement).value.trim())"
             class="input"
             :placeholder="tr('自动选择', 'Automatic')"
             maxlength="128"
