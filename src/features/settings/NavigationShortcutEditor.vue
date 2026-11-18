@@ -10,6 +10,7 @@ import {
   type NavigationAction,
 } from '../../core/shortcuts.ts';
 import { tr } from '../../core/i18n/tr.ts';
+import KeyCaps from '../../ui/components/KeyCaps.vue';
 const nav = computed(() => shortcuts.value.value.navigation);
 const error = ref('');
 const actions = computed<{ id: NavigationAction; label: string }[]>(() => [
@@ -103,13 +104,15 @@ function interval(event: Event) {
       </div>
       <label v-for="action in actions" :key="action.id" class="navigation-row">
         <span>{{ action.label }}</span>
-        <input
-          class="input navigation-binding"
-          readonly
-          :value="nav.keys[action.id] || tr('未绑定', 'Unassigned')"
+        <button
+          type="button"
+          class="navigation-binding navigation-key"
           :aria-label="action.label"
           @keydown="key($event, action.id)"
-        />
+        >
+          <KeyCaps v-if="nav.keys[action.id]" :label="nav.keys[action.id]" />
+          <span v-else>{{ tr('未绑定', 'Unassigned') }}</span>
+        </button>
       </label>
       <label class="navigation-row"
         ><span>{{ tr('退出输入的键序列', 'Sequence to leave input') }}</span
@@ -190,6 +193,38 @@ function interval(event: Event) {
   border-radius: 6px;
   font: 12px var(--mono);
 }
+.navigation-key {
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-width: 44px;
+  min-height: 36px;
+  padding: 3px 0 3px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font: 12px var(--mono);
+}
+.navigation-key:focus-visible {
+  outline: none;
+}
+.navigation-key:focus-visible :deep(.keycap) {
+  border-color: var(--accent);
+}
+.navigation-key > span:not(.keycaps) {
+  padding: 6px 8px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 6px;
+}
+.navigation-key:focus-visible > span:not(.keycaps) {
+  border-color: var(--accent);
+}
+@media (hover: hover) {
+  .navigation-key:hover :deep(.keycap) {
+    border-color: var(--accent);
+  }
+}
 footer {
   display: flex;
   align-items: center;
@@ -214,6 +249,9 @@ footer {
     height: 36px;
     min-height: 36px;
     font-size: 16px;
+  }
+  .navigation-key {
+    min-height: 44px;
   }
 }
 </style>

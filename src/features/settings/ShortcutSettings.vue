@@ -17,6 +17,7 @@ import {
   type ShortcutId,
 } from '../../core/shortcuts.ts';
 import Icon from '../../ui/components/Icon.vue';
+import KeyCaps from '../../ui/components/KeyCaps.vue';
 import NavigationShortcuts from './NavigationShortcuts.vue';
 
 const commands = computed(() => [
@@ -150,7 +151,7 @@ function browserLabel(id: BrowserShortcut) {
         <div
           v-for="command in commands"
           :key="command.id"
-          class="set-row inline shortcut-row"
+          class="set-row inline shortcut-row shortcut-binding-row"
           :data-shortcut="command.id"
         >
           <div class="set-label shortcut-name">
@@ -160,7 +161,7 @@ function browserLabel(id: BrowserShortcut) {
           <div class="shortcut-actions">
             <button
               type="button"
-              class="btn shortcut-binding"
+              class="shortcut-binding"
               :class="{ recording: recording === command.id }"
               :aria-labelledby="`shortcut-${command.id}`"
               aria-describedby="shortcut-help"
@@ -172,13 +173,11 @@ function browserLabel(id: BrowserShortcut) {
               @blur="recording = null"
               @keydown="record($event, command.id)"
             >
-              {{
-                recording === command.id
-                  ? tr('请按快捷键…', 'Press keys…')
-                  : bindings[command.id]
-                    ? shortcutLabel(bindings[command.id]!)
-                    : tr('未绑定', 'Unassigned')
-              }}
+              <span v-if="recording === command.id" class="binding-placeholder">{{
+                tr('请按快捷键…', 'Press keys…')
+              }}</span>
+              <KeyCaps v-else-if="bindings[command.id]" :label="shortcutLabel(bindings[command.id]!)" />
+              <span v-else class="binding-placeholder">{{ tr('未绑定', 'Unassigned') }}</span>
             </button>
             <button
               type="button"
@@ -259,6 +258,9 @@ function browserLabel(id: BrowserShortcut) {
 </template>
 
 <style scoped>
+.shortcut-settings {
+  container: shortcut-settings / inline-size;
+}
 .shortcut-heading {
   display: flex;
   align-items: center;
@@ -280,14 +282,38 @@ function browserLabel(id: BrowserShortcut) {
   gap: 4px;
 }
 .shortcut-binding {
-  min-width: 136px;
-  font-family: var(--mono);
-  font-size: 12px;
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 36px;
+  padding: 3px 4px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--fg-muted);
+  font: 12px/1.4 var(--mono);
 }
-.shortcut-binding.recording {
+.shortcut-binding:focus-visible {
+  outline: none;
+}
+.shortcut-binding:focus-visible :deep(.keycap),
+.shortcut-binding:focus-visible .binding-placeholder,
+.shortcut-binding.recording .binding-placeholder {
   border-color: var(--accent);
+}
+.binding-placeholder {
+  padding: 6px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 6px;
+}
+.shortcut-binding.recording .binding-placeholder {
   color: var(--accent);
   background: var(--accent-soft);
+}
+@media (hover: hover) {
+  .shortcut-binding:hover :deep(.keycap) {
+    border-color: var(--accent);
+  }
 }
 .shortcut-error {
   color: var(--danger);
@@ -296,11 +322,7 @@ function browserLabel(id: BrowserShortcut) {
 @media (max-width: 899px) {
   .shortcut-binding {
     min-width: 0;
-    padding-inline: 10px;
-    max-width: 140px;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    line-height: 1.4;
+    min-height: 44px;
   }
   .shortcut-heading .btn {
     padding-inline: 4px;
@@ -311,6 +333,20 @@ function browserLabel(id: BrowserShortcut) {
   }
   .shortcut-name label {
     font-size: 13.5px;
+  }
+}
+@container shortcut-settings (max-width: 420px) {
+  .set-row.shortcut-binding-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .shortcut-binding-row .shortcut-actions {
+    min-width: 0;
+    justify-content: flex-end;
+  }
+  .shortcut-binding {
+    min-width: 0;
+    flex: 1;
   }
 }
 </style>
