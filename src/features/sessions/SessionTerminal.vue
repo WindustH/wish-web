@@ -44,7 +44,11 @@ let initialization: Promise<void> | undefined;
 async function initialize() {
   if (initialization) return initialization;
   initialization = (async () => {
-    const [{ Terminal }, { FitAddon }] = await Promise.all([import('@xterm/xterm'), import('@xterm/addon-fit')]);
+    const [{ Terminal }, { FitAddon }, { ImageAddon }] = await Promise.all([
+      import('@xterm/xterm'),
+      import('@xterm/addon-fit'),
+      import('@xterm/addon-image'),
+    ]);
     if (disposed || !host.value) return;
     terminal = new Terminal({
       cursorBlink: true,
@@ -57,6 +61,16 @@ async function initialize() {
     fit = new FitAddon();
     terminal.loadAddon(fit);
     terminal.open(host.value);
+    terminal.loadAddon(
+      new ImageAddon({
+        sixelSupport: true,
+        iipSupport: true,
+        storageLimit: 32,
+        pixelLimit: 4096 * 4096,
+        sixelSizeLimit: 32 * 1024 * 1024,
+        iipSizeLimit: 32 * 1024 * 1024,
+      }),
+    );
     terminal.onData((text) => enqueue(new TextEncoder().encode(text)));
     terminal.onBinary((text) => enqueue(Uint8Array.from(text, (character) => character.charCodeAt(0))));
     observer = new ResizeObserver(scheduleFit);

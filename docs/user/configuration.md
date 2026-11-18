@@ -67,3 +67,9 @@ Persistence is off by default. Switching tabs, Wish sessions or pages keeps ordi
 The terminal connects automatically. Without persistence, Ctrl-D starts a new shell while the page remains open. Detaching from tmux/zellij stays disconnected until you reconnect. Its dedicated WebSocket carries input, output and resize messages, without a status/path bar taking space from the terminal.
 
 Advanced keyboard settings are a secondary page on mobile, reached from **Keyboard shortcuts → Advanced settings**. Desktop uses a compact editor.
+
+### Terminal image previews and terminal type
+
+The terminal supports Sixel and iTerm2 inline images. Programs such as Yazi can detect Sixel automatically. Kitty graphics (including its Unicode placeholders) are not supported by the pinned stable image addon; do not force a Kitty renderer for Wish.
+
+Keep the `TERM` value supplied by the terminal. A login profile that unconditionally exports `TERM=xterm-kitty` can cause image placeholder glyphs and incorrect Neovim colors in Wish. Remove that override, or use `export TERM="${TERM:-xterm-256color}"` as a fallback. After changing the profile, start a new shell; an existing Wish shell can use `export TERM=xterm-256color` before restarting Yazi/Neovim. Genuine Kitty terminals retain their own `TERM` value.
