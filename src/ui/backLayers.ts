@@ -11,6 +11,7 @@ type Layer = { close: () => unknown; priority: () => number };
 export function createBackLayers(browser: BackLayerBrowser, canArm = () => true) {
   const layers: Layer[] = [];
   let pageBack: (() => unknown) | undefined;
+  let keyboardPageBack: (() => unknown) | undefined;
   let sentinel: { token: string; url: string } | undefined;
   let cleanup: { promise: Promise<void>; resolve: () => void; url: string; state: Record<string, unknown> } | undefined;
   let queuedPop: ReturnType<typeof setTimeout> | undefined;
@@ -142,6 +143,21 @@ export function createBackLayers(browser: BackLayerBrowser, canArm = () => true)
   );
 
   return {
+    // Keyboard Back uses the same owners and guards without traversing browser history.
+    // Keep its page callback separate: desktop navigation must not arm a mobile sentinel.
+    setKeyboardPageBack(handler: (() => unknown) | undefined) {
+      keyboardPageBack = handler;
+    },
+    keyboardBack(pageOnly = false) {
+      const top = pageOnly
+        ? undefined
+        : layers.reduce<Layer | undefined>(
+            (top, layer) => (!top || layer.priority() >= top.priority() ? layer : top),
+            undefined,
+          );
+      if (top) top.close();
+      else keyboardPageBack?.();
+    },
     // The page boundary uses the same history entry as local dialogs. It is not a dialog:
     // route changes must not invoke it as part of dismissing the previous page's windows.
     setPageBack(handler: (() => unknown) | undefined) {

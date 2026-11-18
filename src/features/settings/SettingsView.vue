@@ -195,7 +195,7 @@ onActivated(() => {
         @close-auto-focus="focus.closed"
         @interact-outside="handleOutside"
       >
-        <div class="page native-settings">
+        <div class="page native-settings" data-navigation-page>
           <aside v-show="!isMobile || !mobileSection" class="settings-sidebar">
             <header class="settings-heading settings-home-heading page-bar">
               <button

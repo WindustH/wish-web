@@ -42,6 +42,7 @@ const close = inject(closeOverlayKey)!;
       >
         <div
           class="overlay-window"
+          data-navigation-page
           v-bind="$attrs"
           :style="{
             '--overlay-gutter': gutter,

@@ -13,6 +13,13 @@ export function useMobileBackNavigation(router: Router, mobile: Ref<boolean>, ba
   let leaving = false;
   const navigation = backLayers();
 
+  navigation?.setKeyboardPageBack(() => {
+    const route = router.currentRoute.value;
+    const parent = pageBackTarget(route.path, route.query, backgroundPath());
+    // q returns within Wish; only the system Back flow offers to exit the frontend.
+    if (parent && parent !== route.fullPath) void router.replace(parent);
+  });
+
   function back() {
     if (exitRequested.value) {
       exitRequested.value = false;
@@ -31,6 +38,7 @@ export function useMobileBackNavigation(router: Router, mobile: Ref<boolean>, ba
   onScopeDispose(() => {
     removeRouteListener();
     navigation?.setPageBack(undefined);
+    navigation?.setKeyboardPageBack(undefined);
   });
 
   async function confirmExit() {

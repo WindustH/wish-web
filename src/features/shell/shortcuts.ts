@@ -1,5 +1,6 @@
 import { browserShortcut, keyBinding, sameBinding, shortcutIds, type ShortcutId } from '../../core/shortcuts.ts';
 import { browserBlockedKeys as browserBlocked } from '../../ui/shortcutEvents.ts';
+import { navigateOverlay } from '../../ui/keyboardNavigation.ts';
 import { shortcuts } from '../../core/state/shortcutsSlice.ts';
 
 export interface ShortcutCommands {
@@ -78,6 +79,7 @@ export function installShortcuts(commands: ShortcutCommands) {
   function capture(event: KeyboardEvent) {
     if (event.composedPath().some((node) => node instanceof HTMLElement && node.hasAttribute('data-terminal-input')))
       return;
+    if (navigateOverlay(event, shortcuts.value.value.navigation)) return;
     // These browser commands stay blocked even inside an editor or local dialog.
     const browserCommand = browserShortcut(event);
     if (browserCommand && shortcuts.value.value.blockedBrowser[browserCommand]) {

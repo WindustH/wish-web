@@ -39,7 +39,7 @@ function keydown(event: KeyboardEvent) {
   )
     return;
   const action = Object.entries(nav.keys).find(([, key]) => key && key === event.key)?.[0];
-  if (!action || action === 'exit') return;
+  if (!action || action === 'exit' || action === 'back') return;
   const editing = (node: EventTarget | null) =>
     node instanceof HTMLElement &&
     (node.isContentEditable || node.matches('input,textarea,select,[role="textbox"],[role="combobox"]'));

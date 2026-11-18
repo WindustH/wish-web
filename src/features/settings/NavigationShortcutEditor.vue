@@ -30,11 +30,12 @@ watch(
 const actions = computed<{ id: NavigationAction; label: string }[]>(() => [
   { id: 'focus', label: tr('聚焦消息输入框', 'Focus message input') },
   { id: 'exit', label: tr('退出消息输入框', 'Leave message input') },
-  { id: 'down', label: tr('向下滚动对话', 'Scroll conversation down') },
-  { id: 'up', label: tr('向上滚动对话', 'Scroll conversation up') },
+  { id: 'down', label: tr('向下滚动 / 下一项', 'Scroll down / next item') },
+  { id: 'up', label: tr('向上滚动 / 上一项', 'Scroll up / previous item') },
   { id: 'nextMessage', label: tr('下一条用户消息', 'Next user message') },
   { id: 'previousMessage', label: tr('上一条用户消息', 'Previous user message') },
   { id: 'command', label: tr('命令面板', 'Command palette') },
+  { id: 'back', label: tr('返回上级 / 关闭弹窗', 'Go back / close window') },
 ]);
 function key(event: KeyboardEvent, id: NavigationAction) {
   if (event.key === 'Tab') return;
@@ -103,8 +104,8 @@ function interval(event: Event) {
       <p>
         {{
           tr(
-            '会话与侧栏都可使用。输入框内保留文字输入；会话输入框仅响应退出键和退出序列。大写键使用 Shift。',
-            'Navigate from the conversation or either sidebar. Text fields keep ordinary typing; only exit bindings apply inside the message input. Use Shift for uppercase keys.',
+            '会话、侧栏和弹窗都可导航。弹窗内 j/k 对应的按键滚动内容或选择菜单项，J/K 对应的按键翻页。输入框保留文字输入；会话输入框仅响应退出键和退出序列。',
+            'Navigate conversations, sidebars and dialogs. The j/k bindings scroll dialog content or move through menu items; J/K page through dialogs. Text fields keep ordinary typing; only exit bindings apply inside the message input.',
           )
         }}
       </p>
@@ -125,6 +126,7 @@ function interval(event: Event) {
         <button
           type="button"
           class="navigation-binding navigation-key"
+          data-navigation-ignore
           :aria-label="`${action.label}: ${nav.keys[action.id] || tr('未绑定', 'Unassigned')}`"
           @keydown="key($event, action.id)"
         >

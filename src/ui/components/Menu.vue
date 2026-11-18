@@ -379,7 +379,13 @@ onBeforeUnmount(() => {
               <Icon name="chevron-right" class="menu-check" />
             </DropdownMenuSubTrigger>
             <DropdownMenuPortal :to="portalTarget ?? 'body'">
-              <DropdownMenuSubContent class="menu-pop" :side-offset="4" :collision-padding="8" data-keyboard-boundary>
+              <DropdownMenuSubContent
+                data-navigation-submenu
+                class="menu-pop"
+                :side-offset="4"
+                :collision-padding="8"
+                data-keyboard-boundary
+              >
                 <template v-for="child in item.children" :key="child.key">
                   <DropdownMenuSeparator v-if="child.separator" class="menu-separator" />
                   <DropdownMenuItem

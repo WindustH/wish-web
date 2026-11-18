@@ -162,6 +162,7 @@ function browserLabel(id: BrowserShortcut) {
             <button
               type="button"
               class="shortcut-binding"
+              data-navigation-ignore
               :class="{ recording: recording === command.id }"
               :aria-label="`${command.label}: ${bindings[command.id] ? shortcutLabel(bindings[command.id]!) : tr('未绑定', 'Unassigned')}`"
               aria-describedby="shortcut-help"

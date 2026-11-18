@@ -35,6 +35,7 @@ export const navigationDefaults = {
   nextMessage: 'J',
   previousMessage: 'K',
   command: ':',
+  back: 'q',
 };
 export type NavigationAction = keyof typeof navigationDefaults;
 export interface NavigationPreferences {
