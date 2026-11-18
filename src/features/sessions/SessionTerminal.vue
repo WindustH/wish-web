@@ -85,12 +85,22 @@ async function initialize() {
       attributes: true,
       attributeFilter: ['style', 'class', 'data-theme'],
     });
-    void document.fonts.ready.then(() => {
-      if (!disposed) scheduleFit();
-    });
+    document.fonts.addEventListener('loadingdone', refreshFontMetrics);
+    void document.fonts.ready.then(refreshFontMetrics);
     scheduleFit();
   })();
   return initialization;
+}
+function refreshFontMetrics() {
+  if (disposed || !terminal) return;
+  // Maple's CJK subsets load on demand. xterm 6's DOM renderer retains fallback
+  // glyph widths even after refresh()/fit(). Reapply the equivalent font stack
+  // through its public options API to invalidate that cache, including when the
+  // Latin cell width is unchanged. Whitespace changes no font selection.
+  const family = terminal.options.fontFamily!.trim();
+  terminal.options.fontFamily = terminal.options.fontFamily === family ? `${family} ` : family;
+  terminal.refresh(0, terminal.rows - 1);
+  scheduleFit();
 }
 async function fitTerminal() {
   if (!props.active || !terminal || !fit || !host.value?.clientHeight || !host.value.clientWidth) return;
@@ -390,6 +400,7 @@ onBeforeUnmount(() => {
   disconnect(true);
   lifetime.abort();
   window.removeEventListener('pageshow', restored);
+  document.fonts.removeEventListener('loadingdone', refreshFontMetrics);
   cancelAnimationFrame(frame);
   observer?.disconnect();
   themeObserver?.disconnect();
@@ -431,7 +442,8 @@ onBeforeUnmount(() => {
 </template>
 <style scoped>
 .session-terminal {
-  /* xterm measures fixed cells without the app's prose tracking or ligatures. */
+  /* Prose spacing must not add width between xterm's measured cells. */
+  text-autospace: no-autospace;
   letter-spacing: 0;
   font-variant-ligatures: none;
   font-kerning: none;
