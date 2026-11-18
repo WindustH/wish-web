@@ -12,7 +12,7 @@ import { useAccountStates } from './useAccountStates.ts';
 const isMobile = useIsMobile();
 const props = defineProps<{ open: boolean }>();
 defineEmits<{ close: [] }>();
-const { rows, unconfigured, loading, error, checkedAt, refresh } = useAccountStates();
+const { rows, loading, error, checkedAt, refresh } = useAccountStates();
 // Each opening reads again; the last readings stay on screen meanwhile.
 watch(
   () => props.open,
@@ -49,7 +49,7 @@ watch(
         </div>
       </div>
     </template>
-    <AccountStatus :rows="rows" :unconfigured="unconfigured" :loading="loading" :error="error" />
+    <AccountStatus :rows="rows" :loading="loading" :error="error" />
   </Modal>
 </template>
 

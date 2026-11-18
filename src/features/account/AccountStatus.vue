@@ -17,10 +17,10 @@ import {
   resetLabel,
   type AccountState,
 } from './accountState.ts';
-import type { AccountRow, ProviderSummary } from './useAccountStates.ts';
+import type { AccountRow } from './useAccountStates.ts';
 import { useProviderTitles } from '../../domain/providers/useProviderTitles.ts';
 
-defineProps<{ rows: AccountRow[]; unconfigured: ProviderSummary[]; loading: boolean; error: string }>();
+defineProps<{ rows: AccountRow[]; loading: boolean; error: string }>();
 
 // Relative times tick while the list stays open.
 const now = ref(Date.now());
@@ -114,22 +114,8 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
 
     <div v-if="!rows.length && !loading && !error" class="account-empty">
       <Icon name="account" />
-      <p>{{ tr('还没有提供商开启账户查询。', 'No provider has account readings turned on.') }}</p>
+      <p>{{ tr('暂无可查询的账户信息。', 'No account information available.') }}</p>
     </div>
-    <p v-if="unconfigured.length" class="account-note account-unconfigured">
-      {{
-        tr(
-          `未开启账户查询：${unconfigured.map(title).join('、')}。`,
-          `Not reading accounts: ${unconfigured.map(title).join(', ')}.`,
-        )
-      }}
-      {{
-        tr(
-          '可在 设置 → 提供商 → 高级设置 中选择“账户查询协议”。',
-          'Choose an Account protocol under Settings → Providers → Advanced settings.',
-        )
-      }}
-    </p>
   </div>
 </template>
 
@@ -326,9 +312,6 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
 }
 .account-empty p {
   margin: 0;
-}
-.account-unconfigured {
-  padding: 0 4px;
 }
 @media (max-width: 899px) {
   .account-card {

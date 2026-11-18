@@ -22,12 +22,10 @@ interface CachedReading {
 
 const cacheKey = (id: string) => `account-state:${id}`;
 const PROVIDERS_KEY = 'account-providers';
-export type ProviderSummary = { id: string; brand?: string | null; readable: boolean };
+type ProviderSummary = { id: string; brand?: string | null; readable: boolean };
 
 export function useAccountStates() {
   const rows = ref<AccountRow[]>([]);
-  // Enabled providers without an account reading.
-  const unconfigured = ref<ProviderSummary[]>([]);
   const loading = shallowRef(false);
   const error = shallowRef('');
   let controller: AbortController | undefined;
@@ -42,7 +40,6 @@ export function useAccountStates() {
         // Keep the last reading on screen; take names from the fresh list.
         return { ...cached, ...previous.get(item.id), id: item.id, brand: item.brand, loading: true, error: undefined };
       });
-    unconfigured.value = providers.filter((item) => !item.readable);
   }
 
   async function refresh() {
@@ -101,5 +98,5 @@ export function useAccountStates() {
   // When the freshest reading was taken, for the "updated" note.
   const checkedAt = computed(() => Math.max(0, ...rows.value.map((row) => row.checkedAt ?? 0)) || null);
 
-  return { rows, unconfigured, loading, error, checkedAt, refresh };
+  return { rows, loading, error, checkedAt, refresh };
 }

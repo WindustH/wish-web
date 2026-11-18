@@ -11,7 +11,7 @@ import { useAccountStates } from './useAccountStates.ts';
 const router = useRouter();
 // Opened from within the app, go back there; opened directly, go home.
 const leave = () => (window.history.state?.back ? router.back() : router.push('/sessions'));
-const { rows, unconfigured, loading, error, checkedAt, refresh } = useAccountStates();
+const { rows, loading, error, checkedAt, refresh } = useAccountStates();
 let lastRefresh = 0;
 const load = () => {
   lastRefresh = Date.now();
@@ -34,7 +34,7 @@ onActivated(() => {
       <div class="account-page-actions"><RefreshStamp :at="checkedAt" :loading="loading" @refresh="load" /></div>
     </header>
     <div class="account-page-body">
-      <AccountStatus :rows="rows" :unconfigured="unconfigured" :loading="loading" :error="error" />
+      <AccountStatus :rows="rows" :loading="loading" :error="error" />
     </div>
   </div>
 </template>
