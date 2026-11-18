@@ -57,6 +57,13 @@ const commands = computed(() => [
   },
 ]);
 const parsed = computed(() => parseSessionCommand(query.value));
+const completingModel = computed(
+  () =>
+    parsed.value.name === 'model' &&
+    /\s/.test(query.value.trimStart()) &&
+    parsed.value.args.length <= 1 &&
+    !/\S\s+\S+\s+$/.test(query.value),
+);
 let loadedCatalog = false;
 watch(
   () => parsed.value.name,
@@ -327,9 +334,9 @@ function keydown(event: KeyboardEvent) {
           @click="complete(index)"
         >
           <span class="completion-name" :title="choice.label"
-            ><MatchText :text="choice.label" :query="matching"
+            ><MatchText :text="choice.label" :query="matching" :prefix="!completingModel"
           /></span>
-          <small :title="choice.hint"><MatchText :text="choice.hint" :query="matching" /></small>
+          <small :title="choice.hint"><MatchText :text="choice.hint" :query="completingModel ? matching : ''" /></small>
           <kbd :class="{ visible: selected === index }" aria-hidden="true">⇥</kbd>
         </button>
       </div>
@@ -415,7 +422,6 @@ function keydown(event: KeyboardEvent) {
 .command-options button.active {
   background: var(--accent-soft);
 }
-.command-options button.active .completion-name,
 .command-options button.active kbd {
   color: var(--accent);
 }
