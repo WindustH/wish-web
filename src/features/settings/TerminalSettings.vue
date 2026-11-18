@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue';
+import { computed, inject, ref, onScopeDispose } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { configDraftKey } from './useConfigDraft.ts';
 import SelectField from '../../ui/components/SelectField.vue';
+import ColorField from '../../ui/components/ColorField.vue';
+import { parseTerminalTheme, terminalThemeSizeLimit } from '../../ui/terminalThemeImport.ts';
 import { terminalColorNames, wishTerminalTheme } from '../../ui/terminalTheme.ts';
 import { tr } from '../../core/i18n/tr.ts';
 const { draft, busy, shells } = inject(configDraftKey)!;
@@ -32,6 +34,51 @@ const labels: Record<string, string> = {
   cursor: tr('光标', 'Cursor'),
   selectionBackground: tr('选区', 'Selection'),
 };
+const themeFile = ref<HTMLInputElement>();
+const importMessage = ref(''),
+  importFailed = ref(false);
+let disposed = false,
+  importVersion = 0;
+onScopeDispose(() => {
+  disposed = true;
+});
+async function importTheme(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) return;
+  const version = ++importVersion;
+  importMessage.value = '';
+  importFailed.value = false;
+  try {
+    if (file.size > terminalThemeSizeLimit) throw new Error('theme_size');
+    const colors = parseTerminalTheme(await file.text());
+    if (disposed || version !== importVersion) return;
+    update('colors', colors);
+    importMessage.value = tr(
+      `已导入 ${file.name} · ${Object.keys(colors).length} 色，保存后生效`,
+      `Imported ${file.name} · ${Object.keys(colors).length} colors. Save to apply.`,
+    );
+  } catch (cause) {
+    if (disposed || version !== importVersion) return;
+    importFailed.value = true;
+    const code = cause instanceof Error ? cause.message : '';
+    importMessage.value =
+      code === 'theme_size'
+        ? tr('主题文件不能超过 256 KiB。', 'Theme files must be no larger than 256 KiB.')
+        : code === 'theme_empty'
+          ? tr(
+              '文件中没有可用的终端颜色。支持 Wish/xterm JSON 和 .itermcolors。',
+              'No terminal colors found. Use Wish/xterm JSON or .itermcolors.',
+            )
+          : code === 'theme_color'
+            ? tr('主题中有无效颜色，原配色未改动。', 'The theme contains an invalid color. Existing colors were kept.')
+            : tr(
+                '无法读取主题格式，请选择 JSON 或 .itermcolors 文件。',
+                'Could not read this theme. Choose a JSON or .itermcolors file.',
+              );
+  }
+}
 function fontInput(event: Event) {
   const input = event.target as HTMLInputElement;
   const value = Number(input.value);
@@ -125,8 +172,8 @@ function fontCommit(event: Event) {
         {{
           settings.persistence === 'none'
             ? tr(
-                '离开终端时关闭 Shell；有任务运行时先询问。Ctrl-D 退出后会自动启动新的 Shell。',
-                'Leaving closes the shell, with confirmation for running jobs. After Ctrl-D, a new shell starts automatically.',
+                '切换页面保留终端，退出 Wish 前端时关闭。Ctrl-D 退出后自动启动新的 Shell。',
+                'Keeps running across pages; closes when leaving Wish. After Ctrl-D, a new shell starts automatically.',
               )
             : tr(
                 '离开时断开连接，任务继续运行。再次打开恢复同一终端会话。',
@@ -162,11 +209,39 @@ function fontCommit(event: Event) {
         /></label>
       </div>
       <div class="theme-heading">
-        <span>Wish · {{ tr('跟随界面明暗模式', 'Follows interface appearance') }}</span
-        ><button type="button" class="btn ghost sm" @click="update('colors', {})">
-          {{ tr('恢复默认配色', 'Reset colors') }}
-        </button>
+        <span>Wish · {{ tr('跟随界面明暗模式', 'Follows interface appearance') }}</span>
+        <div class="theme-actions">
+          <input
+            ref="themeFile"
+            class="theme-file"
+            type="file"
+            accept=".json,.itermcolors,application/json"
+            :aria-label="tr('导入终端主题', 'Import terminal theme')"
+            @change="importTheme"
+          />
+          <button type="button" class="btn ghost sm" @click="themeFile?.click()">
+            {{ tr('导入主题', 'Import theme') }}
+          </button>
+          <button
+            type="button"
+            class="btn ghost sm"
+            @click="
+              update('colors', {});
+              importMessage = '';
+            "
+          >
+            {{ tr('恢复默认', 'Reset') }}
+          </button>
+        </div>
       </div>
+      <p
+        v-if="importMessage"
+        class="theme-import-message"
+        :class="{ error: importFailed }"
+        :role="importFailed ? 'alert' : 'status'"
+      >
+        {{ importMessage }}
+      </p>
       <div
         class="terminal-preview"
         :style="{ background: theme.background, color: theme.foreground, fontSize: settings.font_size + 'px' }"
@@ -181,22 +256,23 @@ function fontCommit(event: Event) {
         </div>
       </div>
       <div class="terminal-colors">
-        <label v-for="name in terminalColorNames" :key="name"
-          ><input
-            type="color"
-            :value="theme[name]"
-            @input="color(name, ($event.target as HTMLInputElement).value)"
-          /><span>{{ labels[name] || name }}</span
-          ><button
-            v-if="settings.colors[name]"
+        <div v-for="name in terminalColorNames" :key="name" class="terminal-color">
+          <span>{{ labels[name] || name }}</span>
+          <ColorField
+            :model-value="theme[name] || '#000000'"
+            :label="labels[name] || name"
+            @update:model-value="color(name, $event)"
+          />
+          <button
             type="button"
-            class="btn ghost sm"
-            :aria-label="tr('恢复默认', 'Reset')"
+            class="btn ghost sm color-reset"
+            :disabled="!settings.colors[name]"
+            :aria-label="tr('恢复默认', 'Reset') + ': ' + (labels[name] || name)"
             @click="color(name)"
           >
             ↺
-          </button></label
-        >
+          </button>
+        </div>
       </div>
     </section>
   </fieldset>
@@ -254,21 +330,50 @@ function fontCommit(event: Event) {
 }
 .terminal-colors {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 8px 16px;
   margin-top: 16px;
 }
-.terminal-colors label {
+.terminal-color {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 12px;
+  min-width: 0;
 }
-.terminal-colors input {
-  width: 28px;
-  height: 28px;
-  border: 0;
-  background: transparent;
-  padding: 0;
+.terminal-color > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.color-reset {
+  min-height: 28px;
+  width: 24px;
+  padding: 2px;
+}
+.color-reset:disabled {
+  opacity: 0;
+}
+.theme-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.theme-file {
+  display: none;
+}
+.theme-import-message {
+  font-size: 12px;
+  color: var(--fg-muted);
+  margin: 6px 0;
+}
+.theme-import-message.error {
+  color: var(--err);
+}
+@media (max-width: 599px) {
+  .theme-heading {
+    flex-wrap: wrap;
+  }
 }
 </style>

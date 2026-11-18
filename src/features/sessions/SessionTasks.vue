@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { leaveSessionTerminal } from './terminalLeave.ts';
 import SessionSidebarTitle from './SessionSidebarTitle.vue';
 import { useDocumentVisible } from '../../ui/composables/useDocumentVisible.ts';
 import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
@@ -28,10 +27,7 @@ const saved = useWorkspaceState('tasks', () => props.session, { selected: '', ta
 const selectedTab = computed({
   get: () => saved.value.tab,
   set: (value) => {
-    const owner = props.session;
-    void (value === 'background' ? leaveSessionTerminal(owner) : Promise.resolve(true)).then((allowed) => {
-      if (allowed && owner === props.session) saved.value.tab = value;
-    });
+    saved.value.tab = value;
   },
 });
 const tasks = ref<BackgroundTask[]>([]);

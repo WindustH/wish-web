@@ -35,8 +35,7 @@ import {
   watch,
   type ComponentPublicInstance,
 } from 'vue';
-import { leaveSessionTerminal } from './terminalLeave.ts';
-import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { chat } from '../../core/state/chatSlice.ts';
@@ -403,12 +402,7 @@ const sidebarKind = computed(() =>
 const sidebarOpen = computed({
   get: () => sidebarState.value.open,
   set: (value) => {
-    if (!value && sidebarState.value.open) {
-      const owner = id.value;
-      void leaveSessionTerminal(owner).then((allowed) => {
-        if (allowed && id.value === owner) sidebarState.value.open = false;
-      });
-    } else sidebarState.value.open = value;
+    sidebarState.value.open = value;
   },
 });
 const sidebarToggle = ref<HTMLButtonElement>();
@@ -507,18 +501,7 @@ watch(
   { immediate: true },
 );
 const libraryRevision = ref(0);
-onBeforeRouteLeave((to) =>
-  ['settings', 'stats', 'data'].includes(String(to.meta.section)) ? true : leaveSessionTerminal(id.value),
-);
-onBeforeRouteUpdate((to, from) =>
-  to.params.id !== from.params.id || to.name !== from.name ? leaveSessionTerminal(id.value) : true,
-);
-let sidebarRequest = 0;
-async function openSidebar(kind: SidebarView) {
-  const request = ++sidebarRequest;
-  const owner = id.value;
-  if (kind !== 'tasks' && !(await leaveSessionTerminal(owner))) return;
-  if (owner !== id.value || request !== sidebarRequest) return;
+function openSidebar(kind: SidebarView) {
   if (kind === 'settings') {
     infoInitialSection.value = 'settings';
     kind = 'info';

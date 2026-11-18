@@ -3,19 +3,16 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { TerminalSettings } from '../../core/configTypes.ts';
-import Modal from '../../ui/components/Modal.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
-import { ApiError } from '../../core/api/client.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { bus } from '../../core/bus.ts';
 import { wishTerminalTheme } from '../../ui/terminalTheme.ts';
-import { registerTerminalLeave } from './terminalLeave.ts';
+import { rememberTerminal, claimTerminal, parkTerminal, terminalFrontendOpen } from './terminalLifetime.ts';
 import {
   terminalState,
   startTerminal,
   terminalSocket,
-  leaveTerminal,
   type TerminalState,
   type TerminalOutput,
 } from '../../core/api/terminal.ts';
@@ -32,19 +29,9 @@ const settings = ref<TerminalSettings>({
   colors: {},
 });
 const error = ref(''),
-  notice = ref(''),
-  connected = ref(false),
-  latency = ref<number | null>(null);
-const confirmClose = ref(false);
-const unreachable = ref(false);
+  connected = ref(false);
 const pageActive = usePageActivity();
 let inFlightBytes = 0;
-let answerClose: ((yes: boolean) => void) | undefined;
-function answer(yes: boolean) {
-  confirmClose.value = false;
-  answerClose?.(yes);
-  answerClose = undefined;
-}
 let terminal: Terminal | undefined, fit: FitAddon | undefined, observer: ResizeObserver | undefined;
 let themeObserver: MutationObserver | undefined,
   frame = 0,
@@ -112,9 +99,10 @@ let inputTimer: ReturnType<typeof setTimeout> | undefined;
 const queue: Uint8Array[] = [];
 let queuedBytes = 0,
   generation = 0,
-  leaving = false,
   reconnects = 0;
-let starting: Promise<void> | undefined, pendingLeave: Promise<boolean> | undefined;
+let starting: Promise<void> | undefined;
+let reconnectPending = false;
+let receivedOffset = 0;
 const exits: number[] = [];
 function clearInput() {
   queue.length = 0;
@@ -123,7 +111,7 @@ function clearInput() {
   clearTimeout(inputTimer);
 }
 function enqueue(bytes: Uint8Array) {
-  if (!connected.value || !state.value?.running || inputBlocked || disposed || leaving) return;
+  if (!connected.value || !state.value?.running || inputBlocked || disposed) return;
   if (queuedBytes + inFlightBytes + bytes.length > 1024 * 1024) {
     error.value = tr('粘贴内容过大，请分段输入。', 'Paste is too large. Send smaller sections.');
     return;
@@ -149,7 +137,7 @@ function special(text: string) {
   enqueue(new TextEncoder().encode(text));
   terminal?.focus();
 }
-function disconnect() {
+function disconnect(park = false) {
   generation++;
   connection?.abort();
   connection = undefined;
@@ -158,7 +146,8 @@ function disconnect() {
   clearInput();
   const old = socket;
   socket = undefined;
-  old?.close();
+  if (park && state.value?.running) parkTerminal(props.session, state.value, old, Math.max(offset, receivedOffset));
+  else old?.close();
   connected.value = false;
 }
 function applySettings(value?: TerminalSettings) {
@@ -171,7 +160,7 @@ function applySettings(value?: TerminalSettings) {
   }
 }
 async function connect() {
-  if (!props.active || disposed || leaving) return;
+  if (!props.active || !pageActive.value || disposed || !terminalFrontendOpen()) return;
   disconnect();
   const own = generation;
   const controller = new AbortController();
@@ -186,19 +175,21 @@ async function connect() {
     if (controller.signal.aborted) return;
     if (!state.value?.running) {
       fit?.fit();
-      // Keep start completion observable by the leave guard even if navigation begins mid-request.
+      // Observe a completed start even after navigation so document ownership can retain or release it.
       const created = await startTerminal(
         props.session,
         Math.min(500, Math.max(2, terminal.cols || 80)),
         Math.min(300, Math.max(2, terminal.rows || 24)),
       );
       state.value = created.terminal;
+      rememberTerminal(props.session, created.terminal);
       applySettings(created.settings);
       if (controller.signal.aborted || disposed) {
-        await leaveTerminal(props.session, created.terminal.id, true);
+        parkTerminal(props.session, created.terminal, undefined, 0);
         return;
       }
     }
+    rememberTerminal(props.session, state.value);
     if (renderedId !== state.value.id) {
       terminal.reset();
       offset = 0;
@@ -211,6 +202,7 @@ async function connect() {
       return;
     }
     socket = ws;
+    receivedOffset = offset;
     let rendered = Promise.resolve();
     let eof = false;
     const failed = (cause: unknown) => {
@@ -224,6 +216,7 @@ async function connect() {
         ws.close();
         return;
       }
+      claimTerminal(props.session, state.value!.id, ws);
       connected.value = true;
       inputBlocked = false;
       reconnects = 0;
@@ -237,26 +230,32 @@ async function connect() {
       heartbeat = setInterval(ping, 3000);
     };
     ws.onmessage = (event) => {
+      let message: { type: string; output: TerminalOutput; bytes: number; message: string };
+      try {
+        message = JSON.parse(event.data);
+        if (message.type === 'output') receivedOffset = message.output.next_offset;
+      } catch (cause) {
+        failed(cause);
+        return;
+      }
       rendered = rendered
         .then(async () => {
           if (own !== generation || !terminal) return;
-          const message = JSON.parse(event.data);
           if (message.type === 'input_ack') {
             inFlightBytes = Math.max(0, inFlightBytes - message.bytes);
             flushInput();
             return;
           }
           if (message.type === 'pong') {
-            latency.value = Math.round(performance.now() - message.time);
             return;
           }
           if (message.type === 'error') throw new Error(message.message);
           if (message.type !== 'output') return;
           const output: TerminalOutput = message.output;
           state.value = output.terminal;
+          if (state.value.running || (output.eof && !output.data)) rememberTerminal(props.session, state.value);
           if (output.reset) {
             terminal.reset();
-            notice.value = tr('较早输出已清理，显示最近内容。', 'Earlier output was cleared. Showing recent output.');
           }
           if (output.data) {
             const bytes = Uint8Array.from(atob(output.data), (c) => c.charCodeAt(0));
@@ -282,7 +281,7 @@ async function connect() {
         connected.value = false;
         clearInterval(heartbeat);
         clearInput();
-        if (!props.active || leaving) return;
+        if (!props.active || !terminalFrontendOpen()) return;
         if (eof && state.value?.persistent) {
           error.value = tr(
             '已与持久化终端断开。可重新连接；若连接失败，请检查已有会话设置。',
@@ -309,95 +308,49 @@ async function connect() {
   }
 }
 function reconnect() {
-  if (starting) return;
+  if (starting) {
+    reconnectPending = true;
+    return;
+  }
+  reconnectPending = false;
   error.value = '';
   starting = connect().finally(() => {
     starting = undefined;
-  });
-}
-async function leave() {
-  if (pendingLeave) return pendingLeave;
-  pendingLeave = (async () => {
-    leaving = true;
-    try {
-      await starting;
-      if (state.value?.running) {
-        const id = state.value.id;
-        let result = await leaveTerminal(props.session, id);
-        if (result.confirmation_required) {
-          unreachable.value = false;
-          confirmClose.value = true;
-          if (
-            !(await new Promise<boolean>((resolve) => {
-              answerClose = resolve;
-            }))
-          )
-            return false;
-          result = await leaveTerminal(props.session, id, true);
-        }
-        state.value = result.terminal;
-      }
-      disconnect();
-      return true;
-    } catch (cause) {
-      if (cause instanceof ApiError && cause.status === 404) {
-        state.value = null;
-        disconnect();
-        return true;
-      }
-      error.value = describeError(cause).message;
-      unreachable.value = true;
-      confirmClose.value = true;
-      const allowed = await new Promise<boolean>((resolve) => {
-        answerClose = resolve;
-      });
-      if (allowed) disconnect();
-      return allowed;
-    } finally {
-      leaving = false;
-      // The shell or network can close while the confirmation is open. Cancelling
-      // must resume the connection rather than leave an apparently connected pane.
-      if (!disposed && props.active && socket?.readyState === WebSocket.CLOSED) retryTimer = setTimeout(reconnect, 150);
+    if (reconnectPending) {
+      reconnectPending = false;
+      if (!disposed && props.active && pageActive.value && terminalFrontendOpen()) reconnect();
     }
-  })().finally(() => {
-    pendingLeave = undefined;
   });
-  return pendingLeave;
 }
-const unregister = registerTerminalLeave(props.session, leave);
 const offConfig = bus.on('configuration.changed', () => {
   void terminalState(props.session, lifetime.signal)
     .then((value) => applySettings(value.settings))
     .catch(() => {});
 });
-function beforeUnload(event: BeforeUnloadEvent) {
-  if (state.value?.running && !state.value.persistent) {
-    event.preventDefault();
-    event.returnValue = '';
-  }
+function restored(event: PageTransitionEvent) {
+  if (event.persisted && props.active) reconnect();
 }
 onMounted(() => {
-  window.addEventListener('beforeunload', beforeUnload);
+  window.addEventListener('pageshow', restored);
   watch(pageActive, (visible) => {
-    if (visible && props.active && !connected.value && !starting) reconnect();
+    if (visible && props.active && !connected.value) reconnect();
+    else if (!visible) disconnect(true);
   });
   watch(
     () => props.active,
     (active) => {
       if (active) reconnect();
-      else disconnect();
+      else disconnect(true);
     },
     { immediate: true },
   );
 });
 onBeforeUnmount(() => {
   disposed = true;
-  answer(false);
-  unregister();
   offConfig();
-  disconnect();
+  disconnect(true);
   lifetime.abort();
-  window.removeEventListener('beforeunload', beforeUnload);
+  window.removeEventListener('pageshow', restored);
   cancelAnimationFrame(frame);
   observer?.disconnect();
   themeObserver?.disconnect();
@@ -411,20 +364,9 @@ onBeforeUnmount(() => {
     data-terminal-input
     :aria-label="tr('交互终端', 'Interactive terminal')"
   >
-    <div class="terminal-connection" role="status">
-      <span :class="{ connected }" />{{
-        connected
-          ? state?.persistent
-            ? tr('已连接 · 持久化', 'Connected · Persistent')
-            : tr('已连接', 'Connected')
-          : tr('正在连接…', 'Connecting…')
-      }}<small v-if="connected && latency !== null">{{ latency }} ms</small
-      ><code v-if="state" :title="state.cwd">{{ state.cwd }}</code>
-    </div>
     <div v-if="error" class="terminal-message" role="alert">
       {{ error }} <button class="btn ghost sm" @click="reconnect">{{ tr('重试', 'Retry') }}</button>
     </div>
-    <p v-if="notice" class="terminal-message">{{ notice }}</p>
     <div class="terminal-stage" data-sheet-drag-ignore><div ref="host" class="terminal-host" /></div>
     <div v-if="mobile && state?.running" class="terminal-keys" :aria-label="tr('终端按键', 'Terminal keys')">
       <button
@@ -446,30 +388,6 @@ onBeforeUnmount(() => {
         {{ key.label }}
       </button>
     </div>
-    <Modal
-      :open="confirmClose"
-      :title="tr('关闭正在运行的终端？', 'Close the running terminal?')"
-      @close="answer(false)"
-      ><p>
-        {{
-          unreachable
-            ? tr(
-                '无法确认终端状态。仍要离开吗？未启用持久化的任务可能在断线宽限期后结束。',
-                'Cannot confirm terminal state. Leave anyway? Nonpersistent jobs may end after the reconnect grace period.',
-              )
-            : tr(
-                '终端中仍有任务运行。离开会结束 Shell 和这些任务。',
-                'Jobs are still running in this terminal. Leaving ends the shell and these jobs.',
-              )
-        }}
-      </p>
-      <template #footer
-        ><button class="btn ghost" @click="answer(false)">{{ tr('留在终端', 'Stay') }}</button
-        ><button class="btn danger" @click="answer(true)">
-          {{ unreachable ? tr('仍要离开', 'Leave anyway') : tr('结束并离开', 'End and leave') }}
-        </button></template
-      ></Modal
-    >
   </section>
 </template>
 <style scoped>
@@ -480,33 +398,6 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-}
-.terminal-connection {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 24px;
-  padding: 0 10px;
-  color: var(--fg-muted);
-  font-size: 10px;
-  flex: none;
-}
-.terminal-connection > span {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--fg-subtle);
-}
-.terminal-connection > span.connected {
-  background: var(--accent);
-}
-.terminal-connection code {
-  margin-left: auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 55%;
-  font-size: 10px;
 }
 .terminal-stage {
   flex: 1;

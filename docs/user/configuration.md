@@ -60,10 +60,10 @@ When saving a new or changed manual network proxy, Wish asks whether Shell shoul
 
 ## Terminal
 
-**Settings → Terminal** lets you select the login shell, font size and terminal colors. The default Wish palette follows the app's appearance; individual text, background, cursor, selection and ANSI colors can be customized or reset.
+**Settings → Terminal** lets you select the login shell, font size and terminal colors. The default Wish palette follows the app's appearance; individual text, background, cursor, selection and ANSI colors can be customized or reset in a compact color picker. **Import theme** accepts JSON (flat xterm colors, or a `colors`, `theme` or `terminal.colors` object) and iTerm2 `.itermcolors` files, up to 256 KiB. JSON colors use `#RGB` or `#RRGGBB`. Import replaces the custom palette; unspecified colors use Wish defaults. Preview first, then save to apply; invalid files leave your palette unchanged.
 
-Persistence is off by default. Leaving an ordinary terminal closes its shell and asks before ending running jobs. Select tmux or zellij to attach to an existing session, optionally by name. Enable **Separate session for each Wish session** only when you want Wish to create isolated sessions automatically. Persistent sessions resume when you return; existing sessions keep their original shell.
+Persistence is off by default. Switching tabs, Wish sessions or pages keeps ordinary terminals running. Exiting or refreshing the Wish frontend closes them, including their jobs; use persistence for work that must survive this. Select tmux or zellij to attach to an existing session, optionally by name. Enable **Separate session for each Wish session** only when you want Wish to create isolated sessions automatically. Persistent sessions resume when you return; existing sessions keep their original shell.
 
-The terminal connects automatically. Without persistence, Ctrl-D starts a new shell while the page remains open. Detaching from tmux/zellij stays disconnected until you reconnect. Its dedicated WebSocket carries input, output and resize messages, and the compact status line shows round-trip latency.
+The terminal connects automatically. Without persistence, Ctrl-D starts a new shell while the page remains open. Detaching from tmux/zellij stays disconnected until you reconnect. Its dedicated WebSocket carries input, output and resize messages, without a status/path bar taking space from the terminal.
 
 Advanced keyboard settings are a secondary page on mobile, reached from **Keyboard shortcuts → Advanced settings**. Desktop uses a compact editor.
