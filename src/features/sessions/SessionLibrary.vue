@@ -7,6 +7,8 @@ import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
 import { useVirtualGrid } from '../../ui/composables/useVirtualGrid.ts';
 import { computed, nextTick, onBeforeUnmount, provide, ref, useId, watch } from 'vue';
 import {
+  directoriesList,
+  linkSessionFile,
   sessionBlobs,
   openLinkedFolderFile,
   renameLinkedFolderChild,
@@ -18,7 +20,13 @@ import {
   deleteBlob,
   moveLibraryItems,
 } from '../../core/api/endpoints.ts';
-import type { LibraryBlob, LibraryBookmark, LibraryFolder, LinkedFolderChild } from '../../core/api/types.ts';
+import type {
+  DirectoryListing,
+  LibraryBlob,
+  LibraryBookmark,
+  LibraryFolder,
+  LinkedFolderChild,
+} from '../../core/api/types.ts';
 import type { StoredAttachmentReference } from '../../core/attachments.ts';
 import type { EntryView } from '../../core/api/projections.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -54,15 +62,46 @@ import { useTouchRangeSelection } from './useTouchRangeSelection.ts';
 
 const previewRef = ref<InstanceType<typeof SessionBlobPreview>>();
 const mediaToolbar = ref<HTMLElement>();
+const localTrail = ref<DirectoryListing[]>([]);
+const localDirectory = computed(() => localTrail.value.at(-1));
 let opening = 0;
-async function openTarget(target: LibraryTarget['target']) {
+async function openLocalChild(name: string, directory: boolean) {
+  const parent = localDirectory.value;
+  if (!parent) return;
+  const separator = parent.path.startsWith('/') ? '/' : '\\';
+  const path = parent.path.endsWith(separator) ? parent.path + name : parent.path + separator + name;
+  const request = ++opening;
+  try {
+    if (directory) {
+      const listing = await directoriesList(path, true);
+      if (opening === request && active.value && localDirectory.value === parent) localTrail.value.push(listing);
+    } else {
+      const owner = props.session;
+      const blob = await linkSessionFile(owner, path, true);
+      if (opening === request && active.value && localDirectory.value === parent && props.session === owner)
+        await openTarget({ owner, id: blob.id, name }, request);
+    }
+  } catch (cause) {
+    if (opening === request && active.value) toast(describeError(cause).message);
+  }
+}
+async function openTarget(target: LibraryTarget['target'], childRequest?: number) {
   const owner = 'owner' in target ? target.owner : target.session;
+  if ('directory' in target) {
+    if (owner !== props.session) return;
+    opening++;
+    stopSelecting();
+    selectBlob(null);
+    localTrail.value = [target.directory];
+    return;
+  }
   const id = 'owner' in target ? target.id : target.blob;
   if (!id || owner !== props.session) return;
-  const request = ++opening;
+  const request = childRequest ?? ++opening;
   const blob = await blobMetadata(`${owner}/${id}`);
   if (request !== opening || owner !== props.session) return;
   const name = 'owner' in target ? target.name : (target.fileName ?? target.label);
+  if (childRequest === undefined) localTrail.value = [];
   if (name) uploadedNames.value.set(blob.id, name);
   selectBlob({ ...blob, modified_at: 0 });
   await nextTick();
@@ -773,7 +812,10 @@ function parentFolder() {
 function back() {
   if (selecting.value) stopSelecting();
   else if (selected.value) selectBlob(null);
-  else if (filter.value === 'bookmarks') filter.value = 'all';
+  else if (localDirectory.value) {
+    opening++;
+    localTrail.value.pop();
+  } else if (filter.value === 'bookmarks') filter.value = 'all';
   else if (folder.value) parentFolder();
   else emit('close');
 }
@@ -802,7 +844,14 @@ useBackLayer(
 watch(
   () => props.libraryRevision,
   () => {
+    localTrail.value = [];
     selectBlob(null);
+  },
+);
+watch(
+  () => props.session,
+  () => {
+    localTrail.value = [];
   },
 );
 let controller: AbortController | undefined;
@@ -990,12 +1039,20 @@ watch(
     @back="back"
   >
     <template #leading>
-      <button v-if="selected" class="btn ghost icon-only" :aria-label="i18n.t('library.back')" @click="back">
+      <button
+        v-if="selected || localDirectory"
+        class="btn ghost icon-only"
+        :aria-label="i18n.t('library.back')"
+        @click="back"
+      >
         <Icon name="arrow-left" />
       </button>
     </template>
     <template #title>
-      <SessionSidebarTitle v-if="!selected" current="library" @select="emit('navigate', $event)" />
+      <span v-if="!selected && localDirectory" class="library-file-title" :title="localDirectory.path"
+        ><span>{{ localDirectory.path }}</span></span
+      >
+      <SessionSidebarTitle v-else-if="!selected" current="library" @select="emit('navigate', $event)" />
       <span
         v-else
         class="library-file-title"
@@ -1010,7 +1067,7 @@ watch(
     <template v-if="selected" #toolbar><div ref="mediaToolbar" class="library-media-toolbar" /></template>
     <template #actions>
       <Menu
-        v-if="!selected"
+        v-if="!selected && !localDirectory"
         :items="libraryActions"
         :disabled="batchBusy"
         content-class="library-menu"
@@ -1067,6 +1124,18 @@ watch(
         "
       />
     </template>
+    <div v-else-if="localDirectory" class="library-scroll local-directory">
+      <button v-for="name in localDirectory.directories" :key="name" @click="openLocalChild(name, true)">
+        <Icon name="folder" /><span>{{ name }}</span
+        ><Icon name="chevron-right" :size="14" />
+      </button>
+      <button v-for="name in localDirectory.files" :key="name" @click="openLocalChild(name, false)">
+        <Icon name="instruction" /><span>{{ name }}</span>
+      </button>
+      <p v-if="!localDirectory.directories.length && !localDirectory.files?.length" class="library-empty">
+        {{ tr('文件夹为空', 'Folder is empty') }}
+      </p>
+    </div>
     <template v-else>
       <div v-if="filter !== 'all'" class="library-filter-status">
         <span><Icon name="filter" :size="14" />{{ filterOptions.find((item) => item.value === filter)?.label }}</span>
@@ -1541,6 +1610,27 @@ watch(
 </template>
 
 <style scoped>
+.local-directory button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--fg);
+  text-align: start;
+  cursor: pointer;
+}
+.local-directory button:hover {
+  background: var(--bg-hover);
+}
+.local-directory button span {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
 .library-link-error {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

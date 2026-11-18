@@ -1,13 +1,7 @@
 <script setup lang="ts">
 import { replyContextKey } from '../../domain/references/context.ts';
 import { validReference, type ReplyReference, type ReplyLink } from '../../core/replyReferences.ts';
-import {
-  addLibraryBookmark,
-  replyLinks,
-  replyMessage,
-  linkSessionFile,
-  sessionEnvironment,
-} from '../../core/api/endpoints.ts';
+import { addLibraryBookmark, replyLinks, replyMessage, sessionEnvironment } from '../../core/api/endpoints.ts';
 import { resolveEnvironmentMention } from '../../core/blobMentions.ts';
 import { fileMentionKey } from '../../domain/references/useFileMention.ts';
 import { toast } from '../../ui/toast.ts';
@@ -61,7 +55,7 @@ import SessionTasks from './SessionTasks.vue';
 import { useBackgroundTaskCount } from './useBackgroundTaskCount.ts';
 import SessionLibrary from './SessionLibrary.vue';
 import type { StoredAttachmentReference } from '../../core/attachments.ts';
-import type { LibraryTarget } from './libraryTarget.ts';
+import { openLocalMention, type LibraryTarget } from './libraryTarget.ts';
 
 const backTouch = touchButton();
 const panelClose = shallowRef<(() => void) | null>(null);
@@ -210,10 +204,7 @@ provide(fileMentionKey, async (file) => {
     file = resolved;
   }
   if (request !== openingFile || sourceSession !== id.value) return;
-  const blob =
-    file.kind === 'local'
-      ? { ...file, owner: sourceSession, id: (await linkSessionFile(sourceSession, file.path, true)).id }
-      : file;
+  const blob = file.kind === 'local' ? await openLocalMention(sourceSession, file) : file;
   if (request !== openingFile || sourceSession !== id.value) return;
   if (blob.owner !== id.value) await router.push({ name: 'chat', params: { id: blob.owner } });
   if (request !== openingFile || blob.owner !== id.value) return;

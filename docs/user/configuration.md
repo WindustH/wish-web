@@ -70,6 +70,6 @@ Advanced keyboard settings are a secondary page on mobile, reached from **Keyboa
 
 ### Terminal image previews and terminal type
 
-The terminal supports Sixel and iTerm2 inline images. Programs such as Yazi can detect Sixel automatically. Kitty graphics (including its Unicode placeholders) are not supported by the pinned stable image addon; do not force a Kitty renderer for Wish.
+Direct Yazi sessions prefer Kitty graphics. Applications such as img-tui can probe for Kitty and use direct transfers and regular image placements. Sixel and iTerm2 inline images are also supported. The pinned xterm.js beta does not implement Kitty Unicode placeholders. Inside a multiplexer, the application and multiplexer negotiate the image protocol.
 
 Keep the `TERM` value supplied by the terminal. A login profile that unconditionally exports `TERM=xterm-kitty` can cause image placeholder glyphs and incorrect Neovim colors in Wish. Remove that override, or use `export TERM="${TERM:-xterm-256color}"` as a fallback. After changing the profile, start a new shell; an existing Wish shell can use `export TERM=xterm-256color` before restarting Yazi/Neovim. Genuine Kitty terminals retain their own `TERM` value.

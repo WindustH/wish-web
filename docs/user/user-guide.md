@@ -99,6 +99,8 @@ In a video preview, use **Reference video region** beside the playback controls.
 
 The parent-folder button sits beside the folder path, below the Library heading. Use the **Filter** and **View** submenus for file types and icon, compact, or detailed layouts.
 
+Click a local directory link in a message to browse its contents in the sidebar. Open a file to preview it, or use the back arrow to return through the directories. This preview is temporary.
+
 Choose **Link** from the Library menu. Paste one absolute path per line (up to 100), mixing files and directories freely, or browse and select them together. Successful items are added to the current Library folder; failed paths remain in the form with an explanation so you can correct and retry them. Linking a directory lets you browse its live children, including subfolders. Files stay in their original location and are linked for preview as you open them. The directory is read-only in the Library: removing its link does not delete the source folder or its files.
 
 Use **Rename** in an item's menu to change its display name. This works for files, folders, linked children and bookmarks; it does not rename files on disk or change their contents.

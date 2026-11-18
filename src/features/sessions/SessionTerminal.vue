@@ -70,6 +70,8 @@ async function initialize() {
     terminal.open(host.value);
     terminal.loadAddon(
       new ImageAddon({
+        kittySupport: true,
+        kittySizeLimit: 32 * 1024 * 1024,
         sixelSupport: true,
         iipSupport: true,
         storageLimit: 32,
@@ -78,7 +80,21 @@ async function initialize() {
         iipSizeLimit: 32 * 1024 * 1024,
       }),
     );
-    terminal.onData((text) => enqueue(new TextEncoder().encode(text)));
+    // Multi-protocol clients probe Kitty before requesting primary device attributes.
+    // Prefer direct Kitty placement for that negotiation only. Sixel-only clients
+    // and multiplexers still receive the addon's normal capability report.
+    let kittyReplyAt = -Infinity;
+    terminal.parser.registerCsiHandler({ final: 'c' }, ([parameter]) => {
+      const negotiatedKitty = performance.now() - kittyReplyAt < 500;
+      kittyReplyAt = -Infinity;
+      if (parameter || !negotiatedKitty || state.value?.persistent) return false;
+      terminal?.input('\x1b[?62;9;22c', false);
+      return true;
+    });
+    terminal.onData((text) => {
+      if (!inputBlocked && text.startsWith('\x1b_Gi=') && text.endsWith(';OK\x1b\\')) kittyReplyAt = performance.now();
+      enqueue(new TextEncoder().encode(text));
+    });
     terminal.onBinary((text) => enqueue(Uint8Array.from(text, (character) => character.charCodeAt(0))));
     observer = new ResizeObserver(scheduleFit);
     observer.observe(host.value);
@@ -119,7 +135,21 @@ function applyFontMetrics() {
   terminal.options.fontFamily = terminal.options.fontFamily === family ? `${family} ` : family;
   terminal.refresh(0, terminal.rows - 1);
 }
-async function fitTerminal() {
+let writing = false;
+let fitPending = false;
+async function writeOutput(bytes: Uint8Array) {
+  writing = true;
+  try {
+    await new Promise<void>((resolve) => terminal!.write(bytes, resolve));
+  } finally {
+    writing = false;
+    if (fitPending) fitTerminal();
+  }
+}
+function fitTerminal() {
+  // resize() flushes xterm synchronously, which would interrupt an async image placement.
+  fitPending = writing;
+  if (writing || disposed) return;
   if (!props.active || !terminal || !fit || !host.value?.clientHeight || !host.value.clientWidth) return;
   applyFontMetrics();
   fit.fit();
@@ -324,14 +354,14 @@ async function connect() {
             if (replayBytes) {
               inputBlocked = true;
               terminal.options.disableStdin = true;
-              await new Promise<void>((resolve) => terminal!.write(bytes.subarray(0, replayBytes), resolve));
+              await writeOutput(bytes.subarray(0, replayBytes));
               offset = Math.max(offset, output.next_offset - bytes.length + replayBytes);
             }
             if (own !== generation) return;
             if (replayBytes < bytes.length) {
               inputBlocked = false;
               terminal.options.disableStdin = false;
-              await new Promise<void>((resolve) => terminal!.write(bytes.subarray(replayBytes), resolve));
+              await writeOutput(bytes.subarray(replayBytes));
               offset = Math.max(offset, output.next_offset);
             }
           }
