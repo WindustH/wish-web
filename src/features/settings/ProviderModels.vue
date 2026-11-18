@@ -24,7 +24,6 @@ const editing = ref(false),
   originalId = ref(''),
   modelId = ref(''),
   draft = ref<Record<string, any>>({});
-const allowUnknownId = ref(false);
 const catalogOpen = ref(false),
   catalogBusy = ref(false),
   catalogFailed = ref(false),
@@ -83,7 +82,6 @@ const efforts = reactive(useReasoningEfforts(draft, () => props.preset));
 function edit(id = '', seed: Record<string, any> = {}) {
   originalId.value = id;
   modelId.value = id;
-  allowUnknownId.value = false;
   draft.value = JSON.parse(JSON.stringify(id ? props.value.models[id] : withNewModelDefaults(seed)));
   efforts.input = draft.value.reasoning_efforts ? Object.keys(draft.value.reasoning_efforts).join(', ') : '';
   advanced.value = JSON.stringify(draft.value, null, 2);
@@ -97,38 +95,10 @@ function apply(close = true) {
     if (!id) throw new Error(tr('请输入模型 ID。', 'Enter a model ID.'));
     if (id !== originalId.value && id in props.value.models)
       throw new Error(tr('模型 ID 已存在。', 'Model ID already exists.'));
-    if (
-      !originalId.value &&
-      catalog.value.length &&
-      !catalog.value.some((model) => model.id === id) &&
-      !allowUnknownId.value
-    ) {
-      const matched = catalog.value.find(
-        (model) =>
-          modelLabel(model.id).toLowerCase() === id.toLowerCase() || model.name?.toLowerCase() === id.toLowerCase(),
-      );
-      throw new Error(
-        matched
-          ? tr(
-              `这是显示名。请使用上游模型 ID：${matched.id}`,
-              `That is a display name. Use upstream model ID: ${matched.id}`,
-            )
-          : tr(
-              '上游目录中没有这个 ID；如确认是自定义模型，请勾选下方选项。',
-              'This ID is absent from the upstream catalog. Confirm a custom ID below if intended.',
-            ),
-      );
-    }
     const value = advancedChanged.value ? JSON.parse(advanced.value) : draft.value;
     if (!value || typeof value !== 'object' || Array.isArray(value))
       throw new Error(tr('模型属性必须是 JSON 对象。', 'Model metadata must be a JSON object.'));
-    if (
-      !originalId.value &&
-      allowUnknownId.value &&
-      catalog.value.length &&
-      !catalog.value.some((model) => model.id === id)
-    )
-      value.custom_model_id = true;
+    if (id !== originalId.value && !catalog.value.some((model) => model.id === id)) value.custom_model_id = true;
     for (const field of ['context_window_tokens', 'max_output_tokens'])
       if (value[field] != null && (!Number.isSafeInteger(value[field]) || value[field] <= 0))
         throw new Error(tr('Token 上限必须是正整数。', 'Token limits must be positive integers.'));
@@ -305,20 +275,6 @@ const choices = computed(() =>
         <label
           >{{ tr('模型 ID', 'Model ID') }}<input class="input" v-model="modelId" autocomplete="off" spellcheck="false"
         /></label>
-        <div
-          v-if="
-            !originalId && catalog.length && modelId.trim() && !catalog.some((model) => model.id === modelId.trim())
-          "
-          class="model-toggle"
-        >
-          <span>{{ tr('确认使用目录外的自定义 ID', 'Use this custom ID outside the catalog') }}</span
-          ><SwitchRoot
-            v-model="allowUnknownId"
-            class="cfg-switch"
-            :aria-label="tr('确认使用目录外的自定义 ID', 'Use this custom ID outside the catalog')"
-            ><SwitchThumb class="cfg-switch-thumb"
-          /></SwitchRoot>
-        </div>
         <label
           >{{ tr('上下文窗口', 'Context window')
           }}<input
