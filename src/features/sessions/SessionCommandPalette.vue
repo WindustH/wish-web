@@ -413,8 +413,16 @@ function keydown(event: KeyboardEvent) {
   color: var(--fg);
 }
 .command-options button.active {
-  background: var(--bg-hover);
-  box-shadow: inset 2px 0 var(--accent);
+  background: var(--accent-soft);
+}
+.command-options button.active .completion-name,
+.command-options button.active kbd {
+  color: var(--accent);
+}
+@media (hover: hover) {
+  .command-options button:not(.active):hover {
+    background: var(--bg-hover);
+  }
 }
 .completion-name {
   font-weight: 500;
