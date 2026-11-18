@@ -85,7 +85,7 @@ async function connectBackground(owner: Owner) {
   const controller = new AbortController();
   owner.controller = controller;
   try {
-    const socket = await terminalSocket(owner.session, owner.state.id, owner.offset, controller.signal);
+    const { socket } = await terminalSocket(owner.session, owner.state.id, owner.offset, controller.signal);
     if (!retained(owner) || controller.signal.aborted) {
       socket.close();
       return;

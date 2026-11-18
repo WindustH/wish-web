@@ -37,11 +37,17 @@ export const closeTerminal = (session: string, id: string, signal?: AbortSignal)
 export const leaveTerminal = (session: string, id: string, force = false) =>
   request<{ confirmation_required: boolean; terminal: TerminalState }>(session, { action: 'leave', id, force });
 export async function terminalSocket(session: string, id: string, offset: number, signal: AbortSignal) {
-  const { ticket } = await post(`/sessions/${encodeURIComponent(session)}/terminal/connect`, { id }, { signal });
+  const { ticket, replay_until }: { ticket: string; replay_until: number } = await post(
+    `/sessions/${encodeURIComponent(session)}/terminal/connect`,
+    { id },
+    { signal },
+  );
+  if (!Number.isSafeInteger(replay_until) || replay_until < 0)
+    throw new Error('The Wish server needs an update to restore terminals safely.');
   if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
   const url = new URL(absUrl(`/sessions/${encodeURIComponent(session)}/terminal/socket`));
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   url.searchParams.set('ticket', ticket);
   url.searchParams.set('offset', String(offset));
-  return new WebSocket(url);
+  return { socket: new WebSocket(url), replayUntil: replay_until };
 }

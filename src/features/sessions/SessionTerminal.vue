@@ -44,10 +44,11 @@ let initialization: Promise<void> | undefined;
 async function initialize() {
   if (initialization) return initialization;
   initialization = (async () => {
-    const [{ Terminal }, { FitAddon }, { ImageAddon }] = await Promise.all([
+    const [{ Terminal }, { FitAddon }, { ImageAddon }, { Unicode11Addon }] = await Promise.all([
       import('@xterm/xterm'),
       import('@xterm/addon-fit'),
       import('@xterm/addon-image'),
+      import('@xterm/addon-unicode11'),
     ]);
     if (disposed || !host.value) return;
     terminal = new Terminal({
@@ -56,10 +57,12 @@ async function initialize() {
       fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--mono'),
       scrollback: 5000,
       theme: wishTerminalTheme(settings.value.colors),
-      allowProposedApi: false,
+      allowProposedApi: true,
     });
     fit = new FitAddon();
     terminal.loadAddon(fit);
+    terminal.loadAddon(new Unicode11Addon());
+    terminal.unicode.activeVersion = '11';
     terminal.open(host.value);
     terminal.loadAddon(
       new ImageAddon({
@@ -210,7 +213,7 @@ async function connect() {
       renderedId = state.value.id;
       clearInput();
     }
-    const ws = await terminalSocket(props.session, state.value.id, offset, controller.signal);
+    const { socket: ws, replayUntil } = await terminalSocket(props.session, state.value.id, offset, controller.signal);
     if (controller.signal.aborted) {
       ws.close();
       return;
@@ -232,11 +235,12 @@ async function connect() {
       }
       claimTerminal(props.session, state.value!.id, ws);
       connected.value = true;
-      inputBlocked = false;
+      inputBlocked = offset < replayUntil;
+      terminal!.options.disableStdin = inputBlocked;
       reconnects = 0;
       error.value = '';
       scheduleFit();
-      terminal?.focus();
+      if (!inputBlocked) terminal?.focus();
       const ping = () => {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping', time: performance.now() }));
       };
@@ -273,10 +277,29 @@ async function connect() {
           }
           if (output.data) {
             const bytes = Uint8Array.from(atob(output.data), (c) => c.charCodeAt(0));
-            await new Promise<void>((resolve) => terminal!.write(bytes, resolve));
+            // Parser-generated replies from old DA/DSR/OSC queries must never
+            // reach today's foreground program. Split exactly at the server's
+            // attachment cursor, even when a frame spans replay and live output.
+            const replayBytes = Math.max(0, Math.min(bytes.length, replayUntil - (output.next_offset - bytes.length)));
+            if (replayBytes) {
+              inputBlocked = true;
+              terminal.options.disableStdin = true;
+              await new Promise<void>((resolve) => terminal!.write(bytes.subarray(0, replayBytes), resolve));
+            }
+            if (own !== generation) return;
+            if (replayBytes < bytes.length) {
+              inputBlocked = false;
+              terminal.options.disableStdin = false;
+              await new Promise<void>((resolve) => terminal!.write(bytes.subarray(replayBytes), resolve));
+            }
           }
           if (own !== generation) return;
           offset = output.next_offset;
+          if (offset >= replayUntil && inputBlocked) {
+            inputBlocked = false;
+            terminal.options.disableStdin = false;
+            if (props.active && pageActive.value) terminal.focus();
+          }
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ack', offset }));
           eof = !output.terminal.running && output.eof;
         })
@@ -406,6 +429,10 @@ onBeforeUnmount(() => {
 </template>
 <style scoped>
 .session-terminal {
+  /* xterm measures fixed cells without the app's prose tracking or ligatures. */
+  letter-spacing: 0;
+  font-variant-ligatures: none;
+  font-kerning: none;
   display: flex;
   flex: 1;
   flex-direction: column;
