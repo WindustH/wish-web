@@ -13,4 +13,11 @@ minimumReleaseAgeExclude:
 # expiry and in-range scroll writes (see ../wish-test/web/frontend/virtual-clamped-adjustment.test.ts).
 patchedDependencies:
   '@tanstack/virtual-core@3.17.9': patches/@tanstack__virtual-core@3.17.9.patch
+  '@xterm/addon-image@0.10.0-beta.333': patches/@xterm__addon-image@0.10.0-beta.333.patch
   reka-ui@2.10.4: patches/reka-ui@2.10.4.patch
+# Build the patched image addon from its published TypeScript sources.
+packageExtensions:
+  '@xterm/addon-image@0.10.0-beta.333':
+    dependencies:
+      sixel: 0.16.0
+      xterm-wasm-parts: 0.4.1
