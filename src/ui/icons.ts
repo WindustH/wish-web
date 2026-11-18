@@ -121,6 +121,7 @@ export const ICONS: Record<string, string> = {
   pin: `<path d="M9 3.5h6l-.9 5.6 3.4 3.4H6.5l3.4-3.4Z" ${SOFT}/><path d="M12 12.5v8"/>`,
   house: `<path d="M4 10.5 12 4l8 6.5v8a1.5 1.5 0 0 1-1.5 1.5H15v-5.5H9V20H5.5A1.5 1.5 0 0 1 4 18.5Z" ${SOFT}/>`,
   'file-diff': documentIcon('<path d="M9.5 12.5h5M12 10.5v4m-2.5 3.5h5"/>'),
+  'command-palette': `<rect x="3" y="3.5" width="18" height="17" rx="3.5" ${SOFT}/><circle cx="8" cy="8.5" r="1.5"/><path d="m9.1 9.6 1.4 1.4M13.5 8.5H17M7 14h.01M10.5 14H17M7 17h.01M10.5 17h4"/>`,
   terminal: `<rect x="3" y="4" width="18" height="16" rx="3.5" ${SOFT}/><path d="m7 9.5 3 2.5-3 2.5m6 .5h4"/>`,
   globe: `<circle cx="12" cy="12" r="9" ${SOFT}/><path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9S9.6 5.5 12 3Z"/>`,
   // A chunky six-tooth gear.

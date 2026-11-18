@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SessionSidebarTitle from './SessionSidebarTitle.vue';
 import { useDocumentVisible } from '../../ui/composables/useDocumentVisible.ts';
 import { computed, nextTick, ref, watch } from 'vue';
 import IslandSidebar from '../../ui/components/IslandSidebar.vue';
@@ -14,7 +15,7 @@ import { fmtDateTime } from '../../core/util/fmt.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
 const props = defineProps<{ session: string; open: boolean; mobile: boolean }>();
-const emit = defineEmits<{ close: []; count: [count: number] }>();
+const emit = defineEmits<{ close: []; navigate: [view: 'info' | 'library' | 'tasks']; count: [count: number] }>();
 const parentActive = usePageActivity();
 const visible = useDocumentVisible();
 const active = computed(() => props.open && parentActive.value && visible.value);
@@ -168,6 +169,7 @@ watch(
     @close="emit('close')"
     @back="back"
   >
+    <template #title><SessionSidebarTitle current="tasks" @select="emit('navigate', $event)" /></template>
     <template #leading
       ><button v-if="saved.selected" class="btn ghost icon-only" :aria-label="tr('返回', 'Back')" @click="back">
         <Icon name="arrow-left" /></button

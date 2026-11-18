@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SessionSidebarTitle from './SessionSidebarTitle.vue';
 import { useDocumentVisible } from '../../ui/composables/useDocumentVisible.ts';
 import SessionHistorySearch from './SessionHistorySearch.vue';
 import SessionSettingsPane from './SessionSettingsPane.vue';
@@ -30,7 +31,11 @@ const props = withDefaults(
   defineProps<{ initialSection?: 'overview' | 'search' | 'settings'; sidebar?: boolean; open?: boolean }>(),
   { initialSection: 'overview', open: true },
 );
-const emit = defineEmits<{ close: []; 'update:section': [value: 'overview' | 'search' | 'settings'] }>();
+const emit = defineEmits<{
+  close: [];
+  navigate: [view: 'info' | 'library' | 'tasks'];
+  'update:section': [value: 'overview' | 'search' | 'settings'];
+}>();
 const section = ref(props.initialSection);
 const settingsMounted = ref(false);
 watch(
@@ -156,6 +161,7 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
     :page="isMobile"
     @close="$emit('close')"
   >
+    <template v-if="sidebar" #title><SessionSidebarTitle current="info" @select="emit('navigate', $event)" /></template>
     <div class="info-sections">
       <SelectField
         segmented

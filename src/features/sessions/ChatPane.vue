@@ -122,7 +122,7 @@ watch(chat.missingSessionId, (missingId) => {
 const snapshot = computed(() => chat.snapshot.value);
 const renameTarget = ref<ActionTarget | null>(null);
 const titleActions = computed(() => [
-  { key: 'commands', icon: 'terminal', label: tr('命令面板', 'Command palette') },
+  { key: 'commands', icon: 'command-palette', label: tr('命令面板', 'Command palette') },
   { key: 'rename', icon: 'pencil', label: i18n.t('manage.rename') },
   { key: 'generate-name', icon: 'sparkles', label: tr('自动重命名', 'Auto rename') },
 ]);
@@ -138,7 +138,7 @@ watch(id, () => {
 });
 const tabs = computed(() => [{ key: 'info', icon: 'info', label: i18n.t('chatbar.info') }]);
 const mobileActions = computed(() => [
-  { key: 'commands', icon: 'terminal', label: tr('命令面板', 'Command palette') },
+  { key: 'commands', icon: 'command-palette', label: tr('命令面板', 'Command palette') },
   ...tabs.value,
   { key: 'library', icon: 'library', label: i18n.t('library.title') },
   { key: 'tasks', icon: 'terminal', label: backgroundTaskLabel.value },
@@ -690,6 +690,7 @@ watch(
         </div>
       </div>
       <InfoPane
+        @navigate="openSidebar"
         v-if="infoMounted && id"
         :key="`info:${id}`"
         sidebar
@@ -699,6 +700,7 @@ watch(
         @close="sidebarOpen = false"
       />
       <SessionTasks
+        @navigate="openSidebar"
         @count="backgroundTaskCount = $event"
         v-if="tasksMounted && id"
         :key="`tasks:${id}`"
@@ -708,6 +710,7 @@ watch(
         @close="sidebarOpen = false"
       />
       <SessionLibrary
+        @navigate="openSidebar"
         v-if="libraryMounted && id"
         :open="sidebarOpen && sidebarDisplayedKind === 'library'"
         :key="`library:${id}`"

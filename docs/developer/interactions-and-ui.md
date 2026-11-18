@@ -10,6 +10,10 @@ Keyboard events follow native DOM focus and bubbling rather than a global priori
 
 Portaled overlays managed by Reka UI mark `data-keyboard-boundary` so application shortcuts don't escape modal/menu subtrees; `SessionCommands` owns a compact command panel and a separate BTW result modal. BTW requests and completed answers live outside component scope in `domain/chat/btwSessions.ts`, so window dismissal or route changes do not abort them; successful answers upload to their original session and publish `library.files.changed`. `Tab` / `Shift + Tab` toggle sidebars on session pages (without repeating while held), while inside the composer `Tab` inserts literal indentation preserving undo history. `Esc` clears list multi-selection only inside the list scope and leaves the composer when keyboard navigation is enabled. Interrupting a reply uses the configurable `interruptReply` action (Ctrl / ⌘ + P by default). Advanced navigation keys run in document capture phase across the chat workspace and non-modal sidebars. They are case-sensitive and guarded against focused editable fields, composition, and any visible popup (including before focus enters its portal); optional exit sequences verify contiguous text and caret state before consuming their prefix.
 
+## Session sidebar navigation
+
+`SessionSidebarTitle` provides an icon, title and dropdown for Session, Library and Background tasks on desktop and mobile. Selection delegates to `ChatPane`'s existing sidebar state and retained panels, preserving settings drafts and file previews. Library headings omit item counts; an open file keeps its filename and Back control. `SessionPanelModal` forwards custom title content to its sidebar host. The command palette uses its own search-and-action-list glyph, distinct from shell/background tasks.
+
 ## Dialogs and mobile Back navigation
 
 - **`ActivityDialogs` & `useDialogLifecycle`**: Activity modals mount at the session pane level outside virtualized rows so row recycling never closes an open dialog. `useDialogLifecycle` pairs close guards with a 220 ms fallback timer so portals unmount cleanly even if exit transitions don't fire `transitionend`.

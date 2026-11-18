@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SessionSidebarTitle from './SessionSidebarTitle.vue';
 import { bus } from '../../core/bus.ts';
 import type { LibraryTarget } from './libraryTarget.ts';
 import { tr } from '../../core/i18n/tr.ts';
@@ -81,6 +82,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
   close: [];
+  navigate: [view: 'info' | 'library' | 'tasks'];
   targetHandled: [request: number];
   mention: [files: StoredAttachmentReference[]];
 }>();
@@ -612,9 +614,6 @@ const catalogItems = computed<LibraryItem[]>(() => {
   }
   return combined.concat(saved.slice(index));
 });
-const displayCount = computed(() =>
-  filter.value === 'bookmarks' ? shownBookmarks.value.length : total.value + shownBookmarks.value.length,
-);
 const chosenFiles = computed(() => shown.value.filter((blob) => chosen.value.has(blob.id)));
 const allChosen = computed(() => shown.value.length > 0 && shown.value.every((blob) => chosen.value.has(blob.id)));
 const allPinned = computed(() => chosenFiles.value.length > 0 && chosenFiles.value.every((blob) => blob.pinned));
@@ -996,12 +995,7 @@ watch(
       </button>
     </template>
     <template #title>
-      <span v-if="!selected" class="library-title-controls">
-        <Icon name="library" /><span>{{ i18n.t('library.title') }}</span>
-        <span v-if="!linkedFolder" class="library-count" :title="tr(`${displayCount} 项`, `${displayCount} items`)">{{
-          displayCount
-        }}</span>
-      </span>
+      <SessionSidebarTitle v-if="!selected" current="library" @select="emit('navigate', $event)" />
       <span
         v-else
         class="library-file-title"
@@ -1566,12 +1560,6 @@ watch(
 .library-path-picker .btn {
   flex: none;
 }
-.library-title-controls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
 .library-filter-status {
   display: flex;
   align-items: center;
@@ -1585,11 +1573,6 @@ watch(
   gap: 6px;
   color: var(--fg-muted);
   font-size: 12px;
-}
-.library-count {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--fg-muted);
 }
 .library-card {
   width: 100%;

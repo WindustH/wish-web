@@ -65,6 +65,7 @@ defineExpose({ close });
     @close="close"
     @back="close"
   >
+    <template v-if="$slots.title" #title><slot name="title" /></template>
     <template v-if="$slots.actions" #actions><slot name="actions" /></template>
     <div class="session-sidebar-content" :class="contentClass"><slot /></div>
     <template v-if="$slots.footer" #footer
