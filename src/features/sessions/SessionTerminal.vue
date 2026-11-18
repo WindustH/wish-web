@@ -36,6 +36,8 @@ const error = ref(''),
   connected = ref(false);
 const pageActive = usePageActivity();
 let inFlightBytes = 0;
+// The server accepts four pending PTY input frames, including short probe replies.
+let inFlightFrames = 0;
 let terminal: TerminalView | undefined, xterm: Terminal | undefined, observer: ResizeObserver | undefined;
 let themeObserver: MutationObserver | undefined,
   frame = 0,
@@ -232,6 +234,7 @@ function clearInput() {
   queue.length = 0;
   queuedBytes = 0;
   inFlightBytes = 0;
+  inFlightFrames = 0;
   clearTimeout(inputTimer);
 }
 function enqueue(bytes: Uint8Array) {
@@ -250,13 +253,14 @@ function flushInput() {
     clearInput();
     return;
   }
-  while (queue.length && socket.bufferedAmount < 65536 && inFlightBytes < 32768) {
+  while (queue.length && socket.bufferedAmount < 65536 && inFlightFrames < 4) {
     const bytes = queue.shift()!;
     queuedBytes -= bytes.length;
     inFlightBytes += bytes.length;
+    inFlightFrames++;
     socket.send(bytes);
   }
-  if (queue.length && inFlightBytes < 32768) inputTimer = setTimeout(flushInput, 8);
+  if (queue.length && inFlightFrames < 4) inputTimer = setTimeout(flushInput, 8);
 }
 function special(text: string) {
   enqueue(new TextEncoder().encode(text));
@@ -370,6 +374,14 @@ async function connect() {
           lastPong = performance.now();
           return;
         }
+        if (message.type === 'input_ack') {
+          if (own === generation) {
+            inFlightFrames = Math.max(0, inFlightFrames - 1);
+            inFlightBytes = Math.max(0, inFlightBytes - message.bytes);
+            flushInput();
+          }
+          return;
+        }
         if (message.type === 'output') receivedOffset = message.output.next_offset;
       } catch (cause) {
         failed(cause);
@@ -378,14 +390,6 @@ async function connect() {
       rendered = rendered
         .then(async () => {
           if (own !== generation || !terminal) return;
-          if (message.type === 'input_ack') {
-            inFlightBytes = Math.max(0, inFlightBytes - message.bytes);
-            flushInput();
-            return;
-          }
-          if (message.type === 'pong') {
-            return;
-          }
           if (message.type === 'error') throw new Error(message.message);
           if (message.type !== 'output') return;
           const output: TerminalOutput = message.output;
