@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
+import { accountDialogOpen } from '../account/accountDialog.ts';
 import MatchText from '../../ui/components/MatchText.vue';
 import { computed, nextTick, onScopeDispose, ref, watch } from 'vue';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
@@ -20,6 +22,7 @@ import {
   type CommandModel,
 } from './sessionCommands.ts';
 const router = useRouter();
+const isMobile = useIsMobile();
 const props = defineProps<{ sessionId: string }>();
 const emit = defineEmits<{ close: []; btw: [] }>();
 const panel = ref<InstanceType<typeof CommandPanel>>();
@@ -38,6 +41,7 @@ const models = computed<CommandModel[]>(() =>
 );
 const commands = computed(() => [
   { value: 'new', label: 'new', hint: tr('打开新会话页面', 'Open a new session') },
+  { value: 'status', label: 'status', hint: tr('打开账户面板', 'Open account status') },
   {
     value: 'btw ',
     label: 'btw',
@@ -180,6 +184,18 @@ async function execute() {
       btwSession(owner);
       emit('btw');
       emit('close');
+      return;
+    }
+    if (name === 'status') {
+      if (args.length) throw new Error(tr('status 不接受参数。', 'status does not accept arguments.'));
+      busy.value = true;
+      if (isMobile.value) {
+        const failure = await router.push('/account');
+        if (!failure && mounted) emit('close');
+      } else {
+        accountDialogOpen.value = true;
+        emit('close');
+      }
       return;
     }
     if (name === 'new') {

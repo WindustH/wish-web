@@ -154,4 +154,4 @@ Press **F4** to search sessions by name, folder path, tag, provider or model. Th
 
 ### Session commands
 
-Open the command palette with `:` outside text fields. `:new` opens the new-session page; `:rename New title` renames the current session (spaces are allowed). Completion highlights matching text; use Tab to complete, arrow keys to select and Enter to execute. The existing `btw`, `clear`, `compact`, `model` and `effort` commands remain available.
+Open the command palette with `:` outside text fields. `:status` opens account status (a desktop panel or a mobile page); `:new` opens the new-session page; `:rename New title` renames the current session (spaces are allowed). Completion highlights matching text; use Tab to complete, arrow keys to select and Enter to execute. The existing `btw`, `clear`, `compact`, `model` and `effort` commands remain available.
