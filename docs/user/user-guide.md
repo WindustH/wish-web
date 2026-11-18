@@ -151,3 +151,7 @@ Default keyboard shortcuts (customizable in **Settings → Keyboard shortcuts**)
 ## Quick session switching
 
 Press **F4** to search sessions by name, folder path, tag, provider or model. The compact list shows folder paths to the right of session names, without provider or model labels. The left icon indicates the session’s work status, such as running, queued, compacting or awaiting a reply. Use **↑/↓** and **Enter** to open a result; **Esc** closes the window. Sessions you opened most recently appear first; unvisited sessions follow by last update. Visits are stored in this browser per server (up to 500). The binding can be changed in **Settings → Keyboard shortcuts**.
+
+### Session commands
+
+Open the command palette with `:` outside text fields. `:new` opens the new-session page; `:rename New title` renames the current session (spaces are allowed). Completion highlights matching text; use Tab to complete, arrow keys to select and Enter to execute. The existing `btw`, `clear`, `compact`, `model` and `effort` commands remain available.

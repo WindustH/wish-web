@@ -11,10 +11,12 @@ import { useDialogFocus } from '../../ui/composables/useDialogFocus.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import UiSettings from './UiSettings.vue';
 import ShortcutSettings from './ShortcutSettings.vue';
+import NavigationShortcutEditor from './NavigationShortcutEditor.vue';
 const DebugSettings = defineAsyncComponent(() => import('../debug/DebugSettings.vue'));
 import MobileSessionSettings from './MobileSessionSettings.vue';
 import Modal from '../../ui/components/Modal.vue';
 import ToolSettings from './ToolSettings.vue';
+const TerminalSettings = defineAsyncComponent(() => import('./TerminalSettings.vue'));
 const ExtensionToolsSettings = defineAsyncComponent(() => import('./ExtensionToolsSettings.vue'));
 const McpSettings = defineAsyncComponent(() => import('./McpSettings.vue'));
 const SkillsSettings = defineAsyncComponent(() => import('./SkillsSettings.vue'));
@@ -131,7 +133,9 @@ watch([tab, extensionSection, mobileExtension], () => {
 });
 
 function backToCategories() {
-  void router.replace(settingsBackTarget(route.query) ?? '/settings');
+  const target = settingsBackTarget(route.query) ?? '/settings';
+  if (router.options.history.state.back === target) router.back();
+  else void router.replace(target);
 }
 
 const configDraft = useConfigDraft();
@@ -276,7 +280,13 @@ onActivated(() => {
                 <Icon name="arrow-left" />
               </button>
               <div class="settings-heading-text">
-                <h2 class="page-bar-title">{{ current?.label }}</h2>
+                <h2 class="page-bar-title">
+                  {{
+                    isMobile && tab === 'shortcuts' && route.query.advanced === 'navigation'
+                      ? tr('高级快捷键', 'Advanced shortcuts')
+                      : current?.label
+                  }}
+                </h2>
               </div>
               <DraftActions v-if="isMobile" />
               <button
@@ -290,7 +300,9 @@ onActivated(() => {
             </header>
             <div ref="content" class="settings-content" data-scroll-preserve>
               <UiSettings v-if="tab === 'ui'" />
-              <ShortcutSettings v-else-if="tab === 'shortcuts'" />
+              <NavigationShortcutEditor
+                v-else-if="tab === 'shortcuts' && isMobile && route.query.advanced === 'navigation'"
+              /><ShortcutSettings v-else-if="tab === 'shortcuts'" />
               <DebugSettings v-else-if="tab === 'debug'" />
               <template v-else-if="ready">
                 <MobileSessionSettings
@@ -328,7 +340,9 @@ onActivated(() => {
                 />
                 <SkillsSettings v-else-if="tab === 'skills'" :config="draft" :busy="busy" :revision="revision" />
                 <AccountSettings v-else-if="tab === 'accounts'" />
-                <NetworkSettings v-else-if="tab === 'network'" /><ProviderSettings v-else :save="save" />
+                <TerminalSettings v-else-if="tab === 'terminal'" /><NetworkSettings
+                  v-else-if="tab === 'network'"
+                /><ProviderSettings v-else :save="save" />
               </template>
               <div v-else-if="!busy" class="settings-empty">
                 <p>{{ tr('设置尚未载入。', 'Settings are not loaded.') }}</p>

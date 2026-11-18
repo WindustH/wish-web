@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { leaveOtherSessionTerminals } from './features/sessions/terminalLeave.ts';
 import { useMobileNavigationMotion } from './features/shell/useMobileNavigationMotion.ts';
 import SessionQuickSwitch from './features/shell/SessionQuickSwitch.vue';
 import { rememberSessionVisit } from './features/shell/quickSwitch.ts';
@@ -43,6 +44,12 @@ const signedOut = isSignedOut();
 const gate = signedOut ? null : useProviderGate();
 const route = useRoute();
 const router = useRouter();
+const removeTerminalGuard = router.beforeEach((to) =>
+  ['settings', 'stats', 'data'].includes(String(to.meta.section))
+    ? true
+    : leaveOtherSessionTerminals(String(to.params.id ?? '')),
+);
+onBeforeUnmount(removeTerminalGuard);
 watch(
   () => route.params.id,
   (id) => {

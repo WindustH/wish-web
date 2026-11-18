@@ -19,8 +19,8 @@
     "selftest:api": "node ../wish-test/web/run.mjs api",
     "test": "node ../wish-test/web/run.mjs unit",
     "lint": "node ../wish-test/web/run.mjs boundaries",
-    "format": "prettier --write src",
-    "format:check": "prettier --check src",
+    "format": "prettier --write src serve.ts vite.config.ts",
+    "format:check": "prettier --check src serve.ts vite.config.ts",
     "check": "pnpm lint && pnpm typecheck && pnpm format:check"
   },
   "engines": {

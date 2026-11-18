@@ -10,6 +10,7 @@ import {
   defaultBindings,
   keyBinding,
   shortcutLabel,
+  sameBinding,
   validBinding,
   type BrowserShortcut,
   type KeyBinding,
@@ -54,6 +55,29 @@ function set(id: ShortcutId, binding: KeyBinding | null) {
     error.value = tr(
       `此按键已用于“${name}”，请先更改或停用该快捷键。`,
       `This key is assigned to “${name}”. Change or disable that shortcut first.`,
+    );
+    return;
+  }
+  if (
+    binding &&
+    Object.values(shortcuts.value.value.navigation.keys).some(
+      (key) =>
+        key &&
+        sameBinding(
+          binding,
+          keyBinding({
+            key,
+            ctrlKey: false,
+            metaKey: false,
+            altKey: false,
+            shiftKey: key.length === 1 && key !== key.toLowerCase(),
+          }),
+        ),
+    )
+  ) {
+    error.value = tr(
+      '此按键已用于高级键盘导航，请先修改或停用该导航键。',
+      'This key is assigned to keyboard navigation. Change or disable it in advanced settings first.',
     );
     return;
   }

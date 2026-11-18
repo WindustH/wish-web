@@ -75,6 +75,13 @@ export const sections = computed(() => [
     ),
   },
   {
+    id: 'terminal',
+    icon: 'terminal',
+    label: tr('终端', 'Terminal'),
+    summary: tr('Shell、持久化、字号与配色', 'Shell, persistence, font and colors'),
+    description: tr('交互终端的连接与外观。', 'Connection and appearance of interactive terminals.'),
+  },
+  {
     id: 'network',
     icon: 'network',
     label: tr('网络', 'Network'),

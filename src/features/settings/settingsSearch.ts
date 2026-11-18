@@ -50,6 +50,7 @@ export const settingTerms: Record<string, string[]> = {
     '使用代理 Proxy',
   ],
   skills: ['Skill 技能', '目录 路径 Directory path'],
+  terminal: ['终端 terminal shell tmux zellij 持久化 字号 主题 配色 font theme colors'],
   network: [
     '网络代理 Network proxy',
     '代理模式 Proxy mode',

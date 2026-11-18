@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router';
+import MatchText from '../../ui/components/MatchText.vue';
 import { computed, nextTick, onScopeDispose, ref, watch } from 'vue';
 import CommandPanel from '../../ui/components/CommandPanel.vue';
 import { useModelCatalog } from '../../domain/providers/useModelCatalog.ts';
 import { askBtw, btwSession } from '../../domain/chat/btwSessions.ts';
+import { sessions } from '../../core/state/sessionsSlice.ts';
 import { chat } from '../../core/state/chatSlice.ts';
 import * as api from '../../core/api/endpoints.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
@@ -15,6 +18,7 @@ import {
   validateCommandEffort,
   type CommandModel,
 } from './sessionCommands.ts';
+const router = useRouter();
 const props = defineProps<{ sessionId: string }>();
 const emit = defineEmits<{ close: []; btw: [] }>();
 const panel = ref<InstanceType<typeof CommandPanel>>();
@@ -32,11 +36,13 @@ const models = computed<CommandModel[]>(() =>
   catalog.groups.value.flatMap((group) => group.models.map((model) => ({ provider: group.provider, model }))),
 );
 const commands = computed(() => [
+  { value: 'new', label: 'new', hint: tr('打开新会话页面', 'Open a new session') },
   {
     value: 'btw ',
     label: 'btw',
     hint: tr('临时提问；不带问题则打开上次回答', 'Ask aside; without a question, reopen the last answer'),
   },
+  { value: 'rename ', label: 'rename <name>', hint: tr('重命名当前会话', 'Rename this session') },
   { value: 'clear', label: 'clear', hint: tr('清空当前上下文，保留历史', 'Clear context, keep history') },
   { value: 'compact', label: 'compact', hint: tr('压缩当前上下文', 'Compact context') },
   {
@@ -98,6 +104,31 @@ const choices = computed(() => {
   if (argumentsStarted) return [];
   return commands.value.filter((command) => command.value.startsWith(name));
 });
+const matching = computed(() => {
+  const { name, args } = parsed.value;
+  if (/\s/.test(query.value.trimStart()))
+    return name === 'model' && (args.length > 1 || /\S\s+\S+\s+$/.test(query.value))
+      ? (args[1] ?? '')
+      : (args[0] ?? '');
+  return name;
+});
+const argumentHint = computed(() => {
+  const { name } = parsed.value;
+  if (!/\s/.test(query.value.trimStart())) return '';
+  return (
+    (
+      {
+        rename: tr('新名称 · 支持空格，按 Enter 保存', 'New name · Spaces allowed, Enter to save'),
+        btw: tr('输入临时问题；留空重新打开上次回答', 'Ask aside, or leave empty to reopen the last answer'),
+        model: tr(
+          '模型 [思考强度] · 同名模型使用 provider/model',
+          'model [effort] · Qualify duplicate names with provider/model',
+        ),
+        effort: tr('输入或选择思考强度', 'Enter or select reasoning effort'),
+      } as Record<string, string>
+    )[name] ?? ''
+  );
+});
 const shown = computed(() => choices.value.slice(0, 80));
 const catalogError = computed(() => catalog.error.value || catalog.groups.value.find((group) => group.error)?.error);
 watch(query, () => {
@@ -121,8 +152,9 @@ async function execute() {
     else error.value = tr('未知命令，请从补全列表选择。', 'Unknown command. Select a completion.');
     return;
   }
-  if ((name === 'model' || name === 'effort') && !args.length) {
-    query.value = name + ' ';
+  if (['model', 'effort', 'rename'].includes(name) && !args.length) {
+    if (name !== 'rename' && /\s$/.test(query.value) && shown.value.length) complete();
+    else query.value = name + ' ';
     return;
   }
   const owner = props.sessionId;
@@ -134,6 +166,21 @@ async function execute() {
       btwSession(owner);
       emit('btw');
       emit('close');
+      return;
+    }
+    if (name === 'new') {
+      if (args.length) throw new Error(tr('new 不接受参数。', 'new does not accept arguments.'));
+      busy.value = true;
+      const failure = await router.push('/new');
+      if (!failure && mounted) emit('close');
+      return;
+    }
+    if (name === 'rename') {
+      busy.value = true;
+      const next = await sessions.rename(owner, question);
+      if (chat.sessionId.value === owner) chat.adoptSnapshot(owner, next);
+      toast(tr('会话已重命名', 'Session renamed'));
+      if (mounted) emit('close');
       return;
     }
     if (name === 'model' || name === 'effort') {
@@ -241,7 +288,7 @@ function keydown(event: KeyboardEvent) {
 }
 </script>
 <template>
-  <CommandPanel ref="panel" :title="tr('命令面板', 'Command palette')" :busy="busy" @close="emit('close')">
+  <CommandPanel compact ref="panel" :title="tr('命令面板', 'Command palette')" :busy="busy" @close="emit('close')">
     <div class="session-commands" data-keyboard-boundary>
       <div class="command-input">
         <span aria-hidden="true">:</span
@@ -279,10 +326,20 @@ function keydown(event: KeyboardEvent) {
           @mousedown.prevent
           @click="complete(index)"
         >
-          <span>{{ choice.label }}</span
-          ><small>{{ choice.hint }}</small>
+          <span class="completion-name" :title="choice.label"
+            ><MatchText :text="choice.label" :query="matching"
+          /></span>
+          <small :title="choice.hint"><MatchText :text="choice.hint" :query="matching" /></small>
+          <kbd :class="{ visible: selected === index }" aria-hidden="true">⇥</kbd>
         </button>
       </div>
+      <p v-if="argumentHint" class="command-argument-hint">{{ argumentHint }}</p>
+      <p
+        v-if="!shown.length && ['model', 'effort'].includes(parsed.name) && !catalog.pending.value"
+        class="command-feedback"
+      >
+        {{ tr('没有匹配项', 'No matches') }}
+      </p>
       <p v-if="error" class="command-feedback error" role="alert">{{ error }}</p>
       <p v-if="['model', 'effort'].includes(parsed.name) && catalogError" class="command-feedback error" role="alert">
         {{ tr('无法完整获取模型目录', 'Could not load the complete model catalog') }}
@@ -303,6 +360,7 @@ function keydown(event: KeyboardEvent) {
 </template>
 <style scoped>
 .session-commands {
+  min-height: 0;
   width: 100%;
   min-width: 0;
   display: flex;
@@ -311,13 +369,15 @@ function keydown(event: KeyboardEvent) {
 .command-input {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 52px 16px 20px;
+  gap: 8px;
+  flex: none;
+  min-height: 44px;
+  padding: 8px 42px 8px 14px;
+  font: 14px/1.5 var(--mono);
   border-bottom: 1px solid var(--line);
 }
 .command-input > span {
   color: var(--accent);
-  font-size: 22px;
 }
 .command-input input {
   width: 100%;
@@ -330,32 +390,60 @@ function keydown(event: KeyboardEvent) {
 .command-options {
   overflow: auto;
   min-height: 0;
-  padding: 6px;
-  max-height: 42dvh;
+  padding: 4px;
+  max-height: 40dvh;
+  font: 12px/1.5 var(--mono);
+}
+.command-options:empty {
+  display: none;
 }
 .command-options button {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 14px;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
   width: 100%;
   text-align: start;
-  padding: 10px 12px;
+  min-height: 32px;
+  padding: 6px 10px;
+  font: inherit;
   border: 0;
-  border-radius: 7px;
+  border-radius: 5px;
   background: transparent;
   color: var(--fg);
 }
 .command-options button.active {
   background: var(--bg-hover);
+  box-shadow: inset 2px 0 var(--accent);
 }
-.command-options span {
-  overflow-wrap: anywhere;
+.completion-name {
+  font-weight: 500;
+}
+.command-options kbd {
+  visibility: hidden;
+  font: 12px var(--mono);
+  color: var(--fg-subtle);
+}
+.command-options kbd.visible {
+  visibility: visible;
+}
+.command-argument-hint {
+  margin: 0;
+  padding: 6px 14px;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+.command-options .completion-name,
+.command-options small {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .command-options small {
   color: var(--fg-subtle);
-  margin-left: auto;
   text-align: end;
-  font-size: 12px;
+  font: 11px/1.5 var(--mono);
 }
 footer {
   display: flex;
@@ -363,27 +451,35 @@ footer {
   align-items: center;
   gap: 8px;
   border-top: 1px solid var(--line);
-  padding: 8px 16px;
+  flex: none;
+  min-height: 32px;
+  padding: 3px 10px 3px 14px;
   color: var(--fg-subtle);
   font-size: 11px;
 }
+footer .btn {
+  min-height: 26px;
+  padding: 3px 7px;
+  font-size: 11px;
+}
 .command-feedback {
-  padding: 8px 18px;
+  padding: 6px 14px;
   margin: 0;
   font-size: 13px;
 }
 .error {
   color: var(--err);
 }
-@media (max-width: 599px) {
-  .command-options button {
-    align-items: start;
-    flex-direction: column;
-    gap: 3px;
+@media (pointer: coarse), (max-width: 599px) {
+  .command-input {
+    min-height: 48px;
+    font-size: 16px;
   }
-  .command-options small {
-    margin-left: 0;
-    text-align: start;
+  .command-options button {
+    min-height: 40px;
+  }
+  footer .btn {
+    min-height: 36px;
   }
 }
 </style>

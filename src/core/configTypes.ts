@@ -41,7 +41,16 @@ export interface McpServerConfig {
   idle_timeout: number;
   timeout: number;
 }
+export interface TerminalSettings {
+  shell: string;
+  persistence: 'none' | 'tmux' | 'zellij';
+  per_session: boolean;
+  session_name: string;
+  font_size: number;
+  colors: Record<string, string>;
+}
 export interface SettingsConfig {
+  terminal?: TerminalSettings;
   listen: string;
   data_dir: string;
   bearer_token_env?: string | null;

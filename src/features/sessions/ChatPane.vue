@@ -35,7 +35,8 @@ import {
   watch,
   type ComponentPublicInstance,
 } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { leaveSessionTerminal } from './terminalLeave.ts';
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { chat } from '../../core/state/chatSlice.ts';
@@ -217,8 +218,7 @@ provide(fileMentionKey, async (file) => {
   if (request !== openingFile || sourceSession !== id.value) return;
   if (blob.owner !== id.value) await router.push({ name: 'chat', params: { id: blob.owner } });
   if (request !== openingFile || blob.owner !== id.value) return;
-  sidebarState.value.view = 'library';
-  sidebarOpen.value = true;
+  await openSidebar('library');
   libraryTarget.value = { request, target: blob };
 });
 const replyRevision = ref(0);
@@ -316,8 +316,7 @@ provide(replyContextKey, {
     }
     if (reference.blob) {
       focusedReference.value = undefined;
-      sidebarState.value.view = 'library';
-      sidebarOpen.value = true;
+      await openSidebar('library');
       libraryTarget.value = { request: ++openingFile, target: reference };
     }
   },
@@ -404,7 +403,12 @@ const sidebarKind = computed(() =>
 const sidebarOpen = computed({
   get: () => sidebarState.value.open,
   set: (value) => {
-    sidebarState.value.open = value;
+    if (!value && sidebarState.value.open) {
+      const owner = id.value;
+      void leaveSessionTerminal(owner).then((allowed) => {
+        if (allowed && id.value === owner) sidebarState.value.open = false;
+      });
+    } else sidebarState.value.open = value;
   },
 });
 const sidebarToggle = ref<HTMLButtonElement>();
@@ -503,7 +507,18 @@ watch(
   { immediate: true },
 );
 const libraryRevision = ref(0);
-function openSidebar(kind: SidebarView) {
+onBeforeRouteLeave((to) =>
+  ['settings', 'stats', 'data'].includes(String(to.meta.section)) ? true : leaveSessionTerminal(id.value),
+);
+onBeforeRouteUpdate((to, from) =>
+  to.params.id !== from.params.id || to.name !== from.name ? leaveSessionTerminal(id.value) : true,
+);
+let sidebarRequest = 0;
+async function openSidebar(kind: SidebarView) {
+  const request = ++sidebarRequest;
+  const owner = id.value;
+  if (kind !== 'tasks' && !(await leaveSessionTerminal(owner))) return;
+  if (owner !== id.value || request !== sidebarRequest) return;
   if (kind === 'settings') {
     infoInitialSection.value = 'settings';
     kind = 'info';
@@ -706,6 +721,7 @@ watch(
         :key="`tasks:${id}`"
         :session="id"
         :open="sidebarOpen && sidebarDisplayedKind === 'tasks'"
+        :active="sidebarOpen && sidebarKind === 'tasks'"
         :mobile="isMobile"
         @close="sidebarOpen = false"
       />

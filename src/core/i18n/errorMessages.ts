@@ -34,6 +34,20 @@ const mcpReason = (reason: string) => {
 };
 
 const zh: Rule[] = [
+  [/^terminal\.font_size must be between 8 and 32$/, () => '终端字号需要在 8 到 32 之间。'],
+  [/^terminal\.session_name must be at most 128 bytes.*$/, () => '终端会话名不能超过 128 字节，也不能包含控制字符。'],
+  [/^terminal\.session_name cannot start.*$/, () => '终端会话名不能以短横线开头，也不能使用复用器命令名。'],
+  [/^terminal\.colors must use.*$/, () => '请使用有效的终端颜色名称和 #RRGGBB 颜色值。'],
+  [
+    /^(?:terminal\.shell must.*|the selected terminal shell is not executable)$/,
+    () => '请填写已安装且可执行的 Shell 绝对路径。',
+  ],
+  [/^too many open terminals.*$/, () => '已达到 16 个运行终端的上限，请先关闭不再使用的终端。'],
+  [/^too many pending terminal connections$/, () => '待连接终端过多，请稍后重试。'],
+  [/^terminal size must.*$/, () => '终端窗口需要为 2–500 列、2–300 行。'],
+  [/^terminal input exceeds 32 KiB$/, () => '单次终端输入不能超过 32 KiB。'],
+  [/^terminal input is busy$/, () => '终端正在处理输入，请稍后继续。'],
+  [/^terminal input writer closed.*$/, () => '终端输入通道已关闭；为避免重复执行，不会自动重发输入。'],
   [/^(?:media|image) service requires an account$/, () => '请先为此服务关联账户。'],
   [/^invalid (?:image|media) provider order$/, () => '服务优先顺序无效，请检查重复或已删除的服务。'],
   [/^provider belongs to a different media category$/, () => '此供应商不支持当前媒体类别。'],

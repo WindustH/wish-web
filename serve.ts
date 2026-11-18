@@ -13,6 +13,7 @@
 // Usage: node serve.ts   (PORT=8790 by default)
 import { createServer, request as httpRequest } from 'node:http';
 import type { IncomingMessage, OutgoingHttpHeaders, ServerResponse } from 'node:http';
+import { Socket } from 'node:net';
 import { request as httpsRequest } from 'node:https';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
@@ -25,8 +26,12 @@ const ROOT = fileURLToPath(new URL('./dist', import.meta.url));
 await stat(join(ROOT, 'index.html'));
 
 const BACKENDS = [
-  { prefix: '/api', base: (process.env.WISH_UPSTREAM || 'http://127.0.0.1:9780').replace(/\/+$/, '') + '/api', token: process.env.WISH_HTTP_TOKEN || '' },
-].map(backend => {
+  {
+    prefix: '/api',
+    base: (process.env.WISH_UPSTREAM || 'http://127.0.0.1:9780').replace(/\/+$/, '') + '/api',
+    token: process.env.WISH_HTTP_TOKEN || '',
+  },
+].map((backend) => {
   const url = new URL(backend.base);
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     throw new Error(`serve.ts: unsupported ${backend.prefix} protocol ${url.protocol} (http/https only)`);
@@ -37,23 +42,37 @@ type Backend = (typeof BACKENDS)[number];
 
 // Loopback by default; LAN access explicitly adds trusted HTTP authorities.
 const HOSTS = new Set([
-  `127.0.0.1:${PORT}`, `localhost:${PORT}`, `[::1]:${PORT}`,
+  `127.0.0.1:${PORT}`,
+  `localhost:${PORT}`,
+  `[::1]:${PORT}`,
   ...(PORT === 80 ? ['127.0.0.1', 'localhost', '[::1]'] : []),
-  ...(process.env.ALLOWED_HOSTS || '').split(',').map(h => h.trim().toLowerCase()).filter(Boolean),
+  ...(process.env.ALLOWED_HOSTS || '')
+    .split(',')
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean),
 ]);
 const MUTATION = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 const MIME: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
   '.wasm': 'application/wasm',
-  '.json': 'application/json', '.webmanifest': 'application/manifest+json',
-  '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2', '.map': 'application/json',
+  '.json': 'application/json',
+  '.webmanifest': 'application/manifest+json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+  '.map': 'application/json',
 };
 
 function reject(res: ServerResponse, status: number, why: string): void {
-  if (res.headersSent) { res.destroy(); return; }
+  if (res.headersSent) {
+    res.destroy();
+    return;
+  }
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
   res.end(JSON.stringify({ error: 'rejected', detail: why }));
 }
@@ -67,7 +86,8 @@ const server = createServer(async (req, res) => {
     const origin = req.headers.origin ? String(req.headers.origin) : null;
     const fetchSite = req.headers['sec-fetch-site'] ? String(req.headers['sec-fetch-site']) : null;
     if (MUTATION.has(req.method ?? '')) {
-      if (origin && origin !== `http://${host}` && origin !== `https://${host}`) return reject(res, 403, 'cross-origin mutation');
+      if (origin && origin !== `http://${host}` && origin !== `https://${host}`)
+        return reject(res, 403, 'cross-origin mutation');
       if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none') {
         return reject(res, 403, `cross-site mutation (${fetchSite})`);
       }
@@ -78,17 +98,23 @@ const server = createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'application/json' });
       return res.end(JSON.stringify({ ok: true }));
     }
-    const backend = BACKENDS.find(b => url.pathname === b.prefix || url.pathname.startsWith(b.prefix + '/'));
+    const backend = BACKENDS.find((b) => url.pathname === b.prefix || url.pathname.startsWith(b.prefix + '/'));
     if (backend) return proxyApi(req, res, url, backend);
 
     // ── static ────────────────────────────────────────────────────────────
     let decoded: string;
-    try { decoded = decodeURIComponent(url.pathname); }
-    catch { return reject(res, 400, 'invalid path encoding'); }
+    try {
+      decoded = decodeURIComponent(url.pathname);
+    } catch {
+      return reject(res, 400, 'invalid path encoding');
+    }
     let path = normalize(decoded).replace(/^(\.\.[/\\])+/, '');
     if (path === '/' || path === '') path = '/index.html';
     const file = join(ROOT, path);
-    if (file !== ROOT && !file.startsWith(ROOT + sep)) { res.writeHead(403); return res.end('forbidden'); }
+    if (file !== ROOT && !file.startsWith(ROOT + sep)) {
+      res.writeHead(403);
+      return res.end('forbidden');
+    }
     try {
       const st = await stat(file);
       if (st.isDirectory()) throw new Error('dir');
@@ -110,7 +136,7 @@ const server = createServer(async (req, res) => {
       return res.end('not found');
     }
   } catch (err) {
-    console.error('[serve]', (err as Error | undefined)?.message || err);   // server-side log only
+    console.error('[serve]', (err as Error | undefined)?.message || err); // server-side log only
     if (!res.headersSent) {
       res.writeHead(500, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ error: 'internal' }));
@@ -124,21 +150,29 @@ function proxyApi(req: IncomingMessage, res: ServerResponse, url: URL, backend: 
   const up = backend.url;
   const target = backend.path + url.pathname.slice(backend.prefix.length) + url.search;
   const headers: OutgoingHttpHeaders = { ...req.headers, host: up.host };
-  delete headers['accept-encoding'];            // avoid compressed SSE buffering
-  delete headers.referer; delete headers.origin;
-  delete headers['sec-fetch-site']; delete headers['sec-fetch-mode'];
+  delete headers['accept-encoding']; // avoid compressed SSE buffering
+  delete headers.referer;
+  delete headers.origin;
+  delete headers['sec-fetch-site'];
+  delete headers['sec-fetch-mode'];
   delete headers['sec-fetch-dest'];
   if (backend.token) headers.authorization = `Bearer ${backend.token}`;
 
   const doRequest = up.protocol === 'https:' ? httpsRequest : httpRequest;
   const prox = doRequest(
-    { hostname: up.hostname, port: up.port || (up.protocol === 'https:' ? 443 : 80),
-      path: target, method: req.method, headers },
+    {
+      hostname: up.hostname,
+      port: up.port || (up.protocol === 'https:' ? 443 : 80),
+      path: target,
+      method: req.method,
+      headers,
+    },
     (pr) => {
       const h = { ...pr.headers };
       res.writeHead(pr.statusCode || 502, h);
-      pr.pipe(res);                              // streams SSE frames unbuffered
-    });
+      pr.pipe(res); // streams SSE frames unbuffered
+    },
+  );
 
   // Browser disconnected (SSE closed, tab killed) → release the upstream
   // connection immediately instead of pinning daemon streams.
@@ -156,6 +190,66 @@ function proxyApi(req: IncomingMessage, res: ServerResponse, url: URL, backend: 
   });
   req.pipe(prox);
 }
+
+// A dedicated unbuffered tunnel for the authenticated, single-use PTY ticket.
+server.on('upgrade', (req, socket, head) => {
+  const refuse = (status: number) => socket.end(`HTTP/1.1 ${status} Rejected\r\nConnection: close\r\n\r\n`);
+  const host = String(req.headers.host || '').toLowerCase();
+  if (!HOSTS.has(host)) return refuse(421);
+  const origin = req.headers.origin;
+  const site = req.headers['sec-fetch-site'];
+  if (
+    (origin && origin !== `http://${host}` && origin !== `https://${host}`) ||
+    (site && site !== 'same-origin' && site !== 'none')
+  )
+    return refuse(403);
+  let url: URL;
+  try {
+    url = new URL(req.url || '/', `http://${host}`);
+  } catch {
+    return refuse(400);
+  }
+  if (!/^\/api\/sessions\/[^/]+\/terminal\/socket$/.test(url.pathname)) return refuse(404);
+  const backend = BACKENDS.find((item) => url.pathname.startsWith(item.prefix + '/'));
+  if (!backend) return refuse(404);
+  const headers = { ...req.headers, host: backend.url.host };
+  delete headers.origin;
+  delete headers['sec-fetch-site'];
+  const request = (backend.url.protocol === 'https:' ? httpsRequest : httpRequest)({
+    hostname: backend.url.hostname,
+    port: backend.url.port || (backend.url.protocol === 'https:' ? 443 : 80),
+    path: backend.path + url.pathname.slice(backend.prefix.length) + url.search,
+    headers,
+  });
+  request.setTimeout(10000, () => request.destroy());
+  if (socket instanceof Socket) socket.setNoDelay(true);
+  request.on('upgrade', (response, upstream, upstreamHead) => {
+    request.setTimeout(0);
+    upstream.setTimeout(0);
+    upstream.setNoDelay(true);
+    socket.write(
+      `HTTP/1.1 101 Switching Protocols\r\n${Object.entries(response.headers)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join('\r\n')}\r\n\r\n`,
+    );
+    if (head.length) upstream.write(head);
+    if (upstreamHead.length) socket.write(upstreamHead);
+    socket.pipe(upstream);
+    upstream.pipe(socket);
+    socket.on('close', () => upstream.destroy());
+    upstream.on('close', () => socket.destroy());
+    upstream.on('error', () => socket.destroy());
+    socket.on('error', () => upstream.destroy());
+  });
+  request.on('response', (response) => {
+    response.resume();
+    refuse(response.statusCode || 502);
+  });
+  request.on('error', () => refuse(502));
+  socket.on('close', () => request.destroy());
+  socket.on('error', () => request.destroy());
+  request.end();
+});
 
 server.listen(PORT, LISTEN_HOST, () => {
   console.log(`wish-web listening on ${LISTEN_HOST}:${PORT}; wish API routes enabled`);

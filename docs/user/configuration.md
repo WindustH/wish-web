@@ -57,3 +57,13 @@ Runs **Connection diagnostics** (`/#/selftest?auto=1`) or previews the **First-r
 Under **Tools → Shell**, add preset variables as name/value rows. They apply from the next command, and existing processes retain their environment. Values are passed literally; saved values are masked and can be left untouched to preserve them. Session settings offer the same fields when using an independent Shell configuration.
 
 When saving a new or changed manual network proxy, Wish asks whether Shell should use it too. **Use for both** enables **Follow network proxy**, which sets `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` and their lowercase forms and follows future proxy changes. **Network only** saves without enabling it; **Cancel** keeps the draft unsaved. You can change this option later under Shell settings. Custom variables with the same names take priority. Network direct mode clears generated proxy variables; `NO_PROXY` stays inherited unless you provide a custom value.
+
+## Terminal
+
+**Settings → Terminal** lets you select the login shell, font size and terminal colors. The default Wish palette follows the app's appearance; individual text, background, cursor, selection and ANSI colors can be customized or reset.
+
+Persistence is off by default. Leaving an ordinary terminal closes its shell and asks before ending running jobs. Select tmux or zellij to attach to an existing session, optionally by name. Enable **Separate session for each Wish session** only when you want Wish to create isolated sessions automatically. Persistent sessions resume when you return; existing sessions keep their original shell.
+
+The terminal connects automatically. Without persistence, Ctrl-D starts a new shell while the page remains open. Detaching from tmux/zellij stays disconnected until you reconnect. Its dedicated WebSocket carries input, output and resize messages, and the compact status line shows round-trip latency.
+
+Advanced keyboard settings are a secondary page on mobile, reached from **Keyboard shortcuts → Advanced settings**. Desktop uses a compact editor.

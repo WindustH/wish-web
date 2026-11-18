@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { leaveSessionTerminal } from './terminalLeave.ts';
 import SessionSidebarTitle from './SessionSidebarTitle.vue';
 import { useDocumentVisible } from '../../ui/composables/useDocumentVisible.ts';
 import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
@@ -16,12 +17,23 @@ import { fmtDateTime } from '../../core/util/fmt.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
 const SessionTerminal = defineAsyncComponent(() => import('./SessionTerminal.vue'));
-const props = defineProps<{ session: string; open: boolean; mobile: boolean }>();
+const props = withDefaults(defineProps<{ session: string; open: boolean; active?: boolean; mobile: boolean }>(), {
+  active: undefined,
+});
 const emit = defineEmits<{ close: []; navigate: [view: 'info' | 'library' | 'tasks']; count: [count: number] }>();
 const parentActive = usePageActivity();
 const visible = useDocumentVisible();
 const active = computed(() => props.open && parentActive.value && visible.value);
 const saved = useWorkspaceState('tasks', () => props.session, { selected: '', tab: 'terminal' });
+const selectedTab = computed({
+  get: () => saved.value.tab,
+  set: (value) => {
+    const owner = props.session;
+    void (value === 'background' ? leaveSessionTerminal(owner) : Promise.resolve(true)).then((allowed) => {
+      if (allowed && owner === props.session) saved.value.tab = value;
+    });
+  },
+});
 const tasks = ref<BackgroundTask[]>([]);
 const current = computed(() => tasks.value.find((task) => task.task_id === saved.value.selected));
 const loaded = ref(false);
@@ -191,22 +203,33 @@ watch(
       >
         <Icon name="refresh-cw" /></button
     ></template>
-    <div class="terminal-tabs">
-      <SelectField
-        v-model="saved.tab"
-        segmented
-        :aria-label="tr('终端视图', 'Terminal views')"
-        :options="[
-          { value: 'terminal', label: tr('终端', 'Terminal') },
-          { value: 'background', label: tr('后台任务', 'Background tasks') + (running ? ` · ${running}` : '') },
-        ]"
-      />
-    </div>
+    <template #toolbar
+      ><div class="terminal-tabs">
+        <SelectField
+          class="terminal-tabs-compact"
+          v-model="selectedTab"
+          segmented
+          :options="[
+            { value: 'terminal', label: tr('终端', 'Terminal'), icon: 'terminal' },
+            { value: 'background', label: tr('后台任务', 'Background tasks'), icon: 'steps' },
+          ]"
+        />
+        <SelectField
+          class="terminal-tabs-wide"
+          v-model="selectedTab"
+          segmented
+          :aria-label="tr('终端视图', 'Terminal views')"
+          :options="[
+            { value: 'terminal', label: tr('终端', 'Terminal') },
+            { value: 'background', label: tr('后台任务', 'Background tasks') + (running ? ` · ${running}` : '') },
+          ]"
+        /></div
+    ></template>
     <SessionTerminal
       v-show="saved.tab !== 'background'"
       :key="session"
       :session="session"
-      :active="active && saved.tab !== 'background'"
+      :active="(props.active ?? open) && saved.tab !== 'background'"
       :mobile="mobile"
     />
     <div v-show="saved.tab === 'background'" class="task-sidebar">
@@ -272,9 +295,25 @@ watch(
 .terminal-tabs {
   display: flex;
   flex: none;
-  padding: 8px 12px 12px;
+  min-width: 0;
+  margin-left: auto;
 }
 
+.terminal-tabs-compact {
+  display: none;
+}
+@container (max-width: 430px) {
+  .terminal-tabs-wide {
+    display: none;
+  }
+  .terminal-tabs-compact {
+    display: flex;
+  }
+  .terminal-tabs :deep(button) {
+    min-width: 32px;
+    padding-inline: 8px;
+  }
+}
 .task-sidebar {
   display: flex;
   flex-direction: column;

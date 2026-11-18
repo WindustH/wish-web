@@ -1175,12 +1175,12 @@ watch(
             <div
               class="library-card library-folder"
               :class="{ 'drop-target': drag.over.value === item.id }"
-              :data-drop-place="item.id"
+              :data-drop-place="item.linked_path ? undefined : item.id"
               :data-drop-opens="item.linked_path ? undefined : ''"
-              @dragenter="drag.hover($event, item.id, !item.linked_path)"
-              @dragover="drag.hover($event, item.id)"
+              @dragenter="!item.linked_path && drag.hover($event, item.id, true)"
+              @dragover="!item.linked_path && drag.hover($event, item.id)"
               @dragleave="drag.leave($event, item.id)"
-              @drop="drag.drop($event, item.id)"
+              @drop="!item.linked_path && drag.drop($event, item.id)"
             >
               <button
                 type="button"
