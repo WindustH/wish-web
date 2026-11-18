@@ -45,3 +45,11 @@ Two `pnpm` patches in `patches/` fix upstream issues and should be re-verified o
 
 - `reka-ui@2.10.4.patch`: Stops scroll-lock from altering document `pointer-events` and ensures closing portals unmount if exit animations don't finish.
 - `@tanstack__virtual-core@3.17.9.patch`: Drops stale scroll-correction offsets when virtualized lists stay mounted in background tabs.
+
+## Session terminal
+
+The `tasks` sidebar key remains stable for saved layouts, but the destination is titled **Terminal**, with **Terminal** and **Background tasks** tabs. `SessionTerminal.vue` lazily loads `@xterm/xterm` and `@xterm/addon-fit`; opening the panel only reads state. An explicit Start creates a PTY through `core/api/terminal.ts`. One PTY belongs to each session; tab changes pause polling and component remounts replay the bounded server output without restarting the shell.
+
+The authenticated HTTP transport long-polls base64 byte chunks with a cursor. xterm consumes bytes directly, preserving split UTF-8/ANSI sequences; its write callback applies backpressure before the next request. Writes are ordered and bounded, never retried automatically after uncertainty. ResizeObserver fits visible containers and synchronizes dimensions. Unmount disposes xterm, observers and requests, but only explicit Stop closes the server process. The terminal has its own keyboard boundary, including the global browser-shortcut capture, so Ctrl+C, Ctrl+P, Tab, and typed navigation keys reach the shell. Mobile offers a compact special-key strip. Themes follow the application tokens, and xterm scrollback is capped at 5,000 lines.
+
+The backend retains only the latest 1 MiB, not a screen snapshot: reconnecting to extremely long output can truncate earlier screen state, in which case the UI reports retention loss and resets its display. Output is transient and does not survive server restarts. Multiple clients attached to one session share terminal size and input. Linux process lifecycle and browser interaction checks live in `wish-test/tests/server_api/test_terminal.py` and `wish-test/web/frontend/terminal-browser.mjs`.

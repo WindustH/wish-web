@@ -85,7 +85,7 @@ const id = computed(() =>
 const taskPanelOpen = ref(false);
 const backgroundTaskCount = useBackgroundTaskCount(id, () => taskPanelOpen.value);
 const backgroundTaskLabel = computed(
-  () => tr('后台任务', 'Background tasks') + (backgroundTaskCount.value ? ` (${backgroundTaskCount.value})` : ''),
+  () => tr('终端', 'Terminal') + (backgroundTaskCount.value ? ` (${backgroundTaskCount.value})` : ''),
 );
 type SessionTab = 'info' | 'settings';
 type SidebarView = SessionTab | 'library' | 'tasks';

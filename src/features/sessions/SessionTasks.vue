@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import SessionSidebarTitle from './SessionSidebarTitle.vue';
 import { useDocumentVisible } from '../../ui/composables/useDocumentVisible.ts';
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
 import IslandSidebar from '../../ui/components/IslandSidebar.vue';
 import Icon from '../../ui/components/Icon.vue';
 import CopyButton from '../../ui/components/CopyButton.vue';
@@ -14,12 +14,13 @@ import { describeError } from '../../core/i18n/errorMessages.ts';
 import { fmtDateTime } from '../../core/util/fmt.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
+const SessionTerminal = defineAsyncComponent(() => import('./SessionTerminal.vue'));
 const props = defineProps<{ session: string; open: boolean; mobile: boolean }>();
 const emit = defineEmits<{ close: []; navigate: [view: 'info' | 'library' | 'tasks']; count: [count: number] }>();
 const parentActive = usePageActivity();
 const visible = useDocumentVisible();
 const active = computed(() => props.open && parentActive.value && visible.value);
-const saved = useWorkspaceState('tasks', () => props.session, { selected: '' });
+const saved = useWorkspaceState('tasks', () => props.session, { selected: '', tab: 'terminal' });
 const tasks = ref<BackgroundTask[]>([]);
 const current = computed(() => tasks.value.find((task) => task.task_id === saved.value.selected));
 const loaded = ref(false);
@@ -62,7 +63,7 @@ const label = (task: BackgroundTask) =>
     unknown: tr('状态未知', 'Unknown'),
   })[task.process.status] ?? task.process.status;
 function back() {
-  if (saved.value.selected) saved.value.selected = '';
+  if (saved.value.tab === 'background' && saved.value.selected) saved.value.selected = '';
   else emit('close');
 }
 useBackLayer(
@@ -115,12 +116,12 @@ watch(
   { immediate: true },
 );
 watch(
-  [active, () => props.session, () => saved.value.selected, revision],
+  [active, () => props.session, () => saved.value.selected, () => saved.value.tab, revision],
   (_, __, cleanup) => {
     output.value = '';
     outputError.value = '';
     truncated.value = false;
-    if (!active.value || !saved.value.selected) return;
+    if (!active.value || saved.value.tab !== 'background' || !saved.value.selected) return;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     cleanup(() => {
@@ -163,7 +164,7 @@ watch(
   <IslandSidebar
     :open="open"
     :overlay="mobile"
-    :title="tr('后台任务', 'Background tasks')"
+    :title="tr('终端', 'Terminal')"
     :width="prefs.rightSidebarWidth.value"
     @update:width="prefs.setRightSidebarWidth"
     @close="emit('close')"
@@ -171,14 +172,40 @@ watch(
   >
     <template #title><SessionSidebarTitle current="tasks" @select="emit('navigate', $event)" /></template>
     <template #leading
-      ><button v-if="saved.selected" class="btn ghost icon-only" :aria-label="tr('返回', 'Back')" @click="back">
+      ><button
+        v-if="saved.tab === 'background' && saved.selected"
+        class="btn ghost icon-only"
+        :aria-label="tr('返回', 'Back')"
+        @click="back"
+      >
         <Icon name="arrow-left" /></button
     ></template>
     <template #actions
-      ><button class="btn ghost icon-only" :disabled="loading" :aria-label="tr('刷新', 'Refresh')" @click="revision++">
+      ><button
+        v-if="saved.tab === 'background'"
+        class="btn ghost icon-only"
+        :disabled="loading"
+        :aria-label="tr('刷新', 'Refresh')"
+        @click="revision++"
+      >
         <Icon name="refresh-cw" /></button
     ></template>
-    <div class="task-sidebar">
+    <div class="terminal-tabs" role="tablist" :aria-label="tr('终端视图', 'Terminal views')">
+      <button role="tab" :aria-selected="saved.tab !== 'background'" @click="saved.tab = 'terminal'">
+        {{ tr('终端', 'Terminal') }}
+      </button>
+      <button role="tab" :aria-selected="saved.tab === 'background'" @click="saved.tab = 'background'">
+        {{ tr('后台任务', 'Background tasks') }}<span v-if="running" class="terminal-task-count">{{ running }}</span>
+      </button>
+    </div>
+    <SessionTerminal
+      v-show="saved.tab !== 'background'"
+      :key="session"
+      :session="session"
+      :active="active && saved.tab !== 'background'"
+      :mobile="mobile"
+    />
+    <div v-show="saved.tab === 'background'" class="task-sidebar">
       <p v-if="error" class="task-message" role="alert">{{ error }}</p>
       <template v-if="current">
         <div class="task-details">
@@ -238,6 +265,35 @@ watch(
   </IslandSidebar>
 </template>
 <style scoped>
+.terminal-tabs {
+  display: flex;
+  flex-shrink: 0;
+  gap: 18px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+.terminal-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 0;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.terminal-tabs button[aria-selected='true'] {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+.terminal-task-count {
+  color: var(--accent);
+  font-size: 11px;
+}
+
 .task-sidebar {
   display: flex;
   flex-direction: column;

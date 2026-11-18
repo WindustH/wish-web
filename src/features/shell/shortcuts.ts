@@ -76,6 +76,8 @@ export function installShortcuts(commands: ShortcutCommands) {
     if (!event.repeat) void run();
   }
   function capture(event: KeyboardEvent) {
+    if (event.composedPath().some((node) => node instanceof HTMLElement && node.hasAttribute('data-terminal-input')))
+      return;
     // These browser commands stay blocked even inside an editor or local dialog.
     const browserCommand = browserShortcut(event);
     if (browserCommand && shortcuts.value.value.blockedBrowser[browserCommand]) {
