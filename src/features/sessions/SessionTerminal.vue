@@ -288,8 +288,10 @@ async function connect() {
             }
             if (own !== generation) return;
             if (replayBytes < bytes.length) {
+              const restoredInput = inputBlocked;
               inputBlocked = false;
               terminal.options.disableStdin = false;
+              if (restoredInput && props.active && pageActive.value) terminal.focus();
               await new Promise<void>((resolve) => terminal!.write(bytes.subarray(replayBytes), resolve));
             }
           }
