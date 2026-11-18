@@ -21,6 +21,9 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { pdfAssets } from './tools/pdf-assets.ts';
 
 export default defineConfig({
+  // Wraith resolves its module worker and Wasm relative to the published package.
+  optimizeDeps: { exclude: ['wraithterm'] },
+  worker: { format: 'es' },
   cacheDir: '.cache/vite',
   // Adjust only the CJK faces, including Fontsource's generated shards.
   // Latin, monospace and math retain their own metrics.
@@ -75,7 +78,7 @@ export default defineConfig({
       workbox: {
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
-        globIgnores: ['pdfjs/**'],
+        globIgnores: ['pdfjs/**', 'assets/restty-*.js'],
         // Requests the auth proxy in front of the app must answer itself: the service worker's
         // shell would otherwise stand in for a login page (and for a logout that redirects).
         navigateFallbackDenylist: [/^\/api(?:\/|$)/, /^\/healthz$/, /^\/login(?:\/|\?|$)/, /^\/logout(?:\/|\?|$)/],

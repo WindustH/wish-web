@@ -173,6 +173,9 @@ importers:
       reka-ui:
         specifier: 2.10.4
         version: 2.10.4(patch_hash=da5d98c02e500eab13e85a381638a8b734f7e7af0f50e32ad5cd1ca0308b5e15)(vue@3.5.42(typescript@5.9.3))
+      restty:
+        specifier: 0.3.0
+        version: 0.3.0
       temml:
         specifier: 0.13.5
         version: 0.13.5
@@ -182,6 +185,9 @@ importers:
       vue-router:
         specifier: 4.6.4
         version: 4.6.4(vue@3.5.42(typescript@5.9.3))
+      wraithterm:
+        specifier: 0.6.1
+        version: 0.6.1(vue@3.5.42(typescript@5.9.3))
     devDependencies:
       '@types/markdown-it':
         specifier: 14.2.0
@@ -1306,6 +1312,9 @@ packages:
     peerDependencies:
       '@xterm/xterm': ^6.1.0-beta.338
 
+  '@xterm/xterm@6.0.0':
+    resolution: {integrity: sha512-TQwDdQGtwwDt+2cgKDLn0IRaSxYu1tSUjgKarSDkUM0ZNiSRXFpjxEsvc/Zgc5kq5omJ+V0a8/kIM2WD3sMOYg==}
+
   '@xterm/xterm@6.1.0-beta.338':
     resolution: {integrity: sha512-VBygvapFKV5gsqvVFsk6gYpArn4AXnUtZvt3tfN2LXI284i0mivC6Kus84GMJo0GJPLRFziWcSPVz95nViPuWw==}
 
@@ -2105,6 +2114,10 @@ packages:
     engines: {node: '>= 0.4'}
     hasBin: true
 
+  restty@0.3.0:
+    resolution: {integrity: sha512-ppNLeZRnJHmGMCJKHYkYzphi1DUSLWqiZbPHOOv0KT1j5wp2yfLDMXjQQmNgqb4evYhItab0D72HpYhdbNY6Fw==}
+    engines: {bun: '>=1.2.0'}
+
   rolldown@1.2.7:
     resolution: {integrity: sha512-g0EtLvBjTUB7jhyV0S/TCup3v/XSVl45vUIGbOGU4QPiyjTenCe4mKuFvW9fEgYmS2Fo42AUssRmNuMziXdrig==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -2249,6 +2262,9 @@ packages:
     resolution: {integrity: sha512-bWnjSNscmuI+GJze6ZupnHP8G/cTcsJF+bXCeQknk2SHQsgbNJnLrqiH9jZ2W4STPVXH2mDKKRX3iwPhc9Cn/Q==}
     engines: {node: '>=10'}
     hasBin: true
+
+  text-shaper@0.1.28:
+    resolution: {integrity: sha512-uwm6+tkgYJ4hsTV0wZVHkZeoXR1/mthLxDiJvfU9o/FiibNinpFRC8PAMTNx8SaOjaK/5ZjDG1XAkPbKlIe2Jg==}
 
   tinyglobby@0.2.17:
     resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
@@ -2497,6 +2513,21 @@ packages:
 
   workbox-window@7.4.1:
     resolution: {integrity: sha512-notZDH2u8VXaqyuD7xaqIfEFi6SRM4SUSd7ewe9PDsVqADuepxX2ZMY3uvuZGxzY5ZOsGC/vD3A/3smFtJt4/A==}
+
+  wraithterm@0.6.1:
+    resolution: {integrity: sha512-Gvi+ZHlLH4qT3fIRICtuvN4yMDsKFBtf7fuqayR0J3/4RA1wa4Vz3cyfKeqF46jNxlq8p2U7kz6zjLvByTrXYQ==}
+    hasBin: true
+    peerDependencies:
+      react: '>=18'
+      svelte: '>=3'
+      vue: '>=3.3'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
 
   xterm-wasm-parts@0.4.1:
     resolution: {integrity: sha512-/qwoasrSyrzs90WHTN4wpISAEz1u9sOpLsDhkd9a2h27l1pz/KZd9h4p+X2pUR7OqyXvDsOdj0dV3906s3wh8g==}
@@ -3643,6 +3674,8 @@ snapshots:
     dependencies:
       '@xterm/xterm': 6.1.0-beta.338
 
+  '@xterm/xterm@6.0.0': {}
+
   '@xterm/xterm@6.1.0-beta.338': {}
 
   acorn@8.18.0: {}
@@ -4489,6 +4522,10 @@ snapshots:
       path-parse: 1.0.7
       supports-preserve-symlinks-flag: 1.0.0
 
+  restty@0.3.0:
+    dependencies:
+      text-shaper: 0.1.28
+
   rolldown@1.2.7:
     dependencies:
       '@oxc-project/types': 0.148.0
@@ -4714,6 +4751,8 @@ snapshots:
       acorn: 8.18.0
       commander: 2.20.3
       source-map-support: 0.5.21
+
+  text-shaper@0.1.28: {}
 
   tinyglobby@0.2.17:
     dependencies:
@@ -5014,6 +5053,12 @@ snapshots:
     dependencies:
       '@types/trusted-types': 2.0.7
       workbox-core: 7.4.1
+
+  wraithterm@0.6.1(vue@3.5.42(typescript@5.9.3)):
+    dependencies:
+      '@wraith-terminal/xterm-base': '@xterm/xterm@6.0.0'
+    optionalDependencies:
+      vue: 3.5.42(typescript@5.9.3)
 
   xterm-wasm-parts@0.4.1:
     dependencies:

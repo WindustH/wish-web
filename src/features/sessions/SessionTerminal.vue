@@ -2,7 +2,8 @@
 import { useMedia } from '../../ui/composables/useMedia.ts';
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Terminal } from '@xterm/xterm';
-import type { FitAddon } from '@xterm/addon-fit';
+import { prefs } from '../../core/state/prefsSlice.ts';
+import type { TerminalView } from './gpuTerminal.ts';
 import type { TerminalSettings } from '../../core/configTypes.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
@@ -30,11 +31,12 @@ const settings = ref<TerminalSettings>({
   font_size: 13,
   colors: {},
 });
+const fallback = ref('');
 const error = ref(''),
   connected = ref(false);
 const pageActive = usePageActivity();
 let inFlightBytes = 0;
-let terminal: Terminal | undefined, fit: FitAddon | undefined, observer: ResizeObserver | undefined;
+let terminal: TerminalView | undefined, xterm: Terminal | undefined, observer: ResizeObserver | undefined;
 let themeObserver: MutationObserver | undefined,
   frame = 0,
   disposed = false,
@@ -48,58 +50,102 @@ let renderIdle = Promise.resolve();
 async function initialize() {
   if (initialization) return initialization;
   initialization = (async () => {
-    const [{ Terminal }, { FitAddon }, { ImageAddon }, { Unicode11Addon }] = await Promise.all([
-      import('@xterm/xterm'),
-      import('@xterm/addon-fit'),
-      import('@xterm/addon-image'),
-      import('@xterm/addon-unicode11'),
-    ]);
     if (disposed || !host.value) return;
-    terminal = new Terminal({
-      cursorBlink: true,
-      fontSize: settings.value.font_size,
-      fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--mono'),
-      scrollback: 5000,
-      theme: wishTerminalTheme(settings.value.colors),
-      allowProposedApi: true,
-    });
-    fit = new FitAddon();
-    terminal.loadAddon(fit);
-    terminal.loadAddon(new Unicode11Addon());
-    terminal.unicode.activeVersion = '11';
-    terminal.open(host.value);
-    terminal.loadAddon(
-      new ImageAddon({
-        kittySupport: true,
-        kittySizeLimit: 32 * 1024 * 1024,
-        sixelSupport: true,
-        iipSupport: true,
-        storageLimit: 32,
-        pixelLimit: 8 * 1024 * 1024,
-        sixelSizeLimit: 32 * 1024 * 1024,
-        iipSizeLimit: 32 * 1024 * 1024,
-      }),
-    );
-    // Multi-protocol clients probe Kitty before requesting primary device attributes.
-    // Prefer direct Kitty placement for that negotiation only. Sixel-only clients
-    // and multiplexers still receive the addon's normal capability report.
-    let kittyReplyAt = -Infinity;
-    terminal.parser.registerCsiHandler({ final: 'c' }, ([parameter]) => {
-      const negotiatedKitty = performance.now() - kittyReplyAt < 500;
-      kittyReplyAt = -Infinity;
-      if (parameter || !negotiatedKitty || state.value?.persistent) return false;
-      terminal?.input('\x1b[?62;9;22c', false);
-      return true;
-    });
-    terminal.onData((text) => {
-      if (!inputBlocked && text.startsWith('\x1b_Gi=') && text.endsWith(';OK\x1b\\')) kittyReplyAt = performance.now();
-      enqueue(new TextEncoder().encode(text));
-    });
-    terminal.onBinary((text) => enqueue(Uint8Array.from(text, (character) => character.charCodeAt(0))));
+    const engine = prefs.terminalEngine.value;
+    if (engine !== 'xterm') {
+      try {
+        const { gpuTerminal } = await import('./gpuTerminal.ts');
+        if (disposed || !host.value) return;
+        terminal = await gpuTerminal(
+          engine,
+          host.value,
+          settings.value.font_size,
+          wishTerminalTheme(settings.value.colors),
+          enqueue,
+          scheduleFit,
+        );
+      } catch (cause) {
+        if (disposed) return;
+        fallback.value = tr('已改用 xterm.js', 'Using xterm.js') + ' · ' + describeError(cause).message;
+      }
+      if (disposed) {
+        terminal?.dispose();
+        return;
+      }
+    }
+    if (!terminal) {
+      const [{ Terminal }, { FitAddon }, { ImageAddon }, { Unicode11Addon }] = await Promise.all([
+        import('@xterm/xterm'),
+        import('@xterm/addon-fit'),
+        import('@xterm/addon-image'),
+        import('@xterm/addon-unicode11'),
+      ]);
+      if (disposed || !host.value) return;
+      const term = (xterm = new Terminal({
+        cursorBlink: true,
+        fontSize: settings.value.font_size,
+        fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--mono'),
+        scrollback: 5000,
+        theme: wishTerminalTheme(settings.value.colors),
+        allowProposedApi: true,
+      }));
+      const fit = new FitAddon();
+      term.loadAddon(fit);
+      term.loadAddon(new Unicode11Addon());
+      term.unicode.activeVersion = '11';
+      term.open(host.value);
+      term.loadAddon(
+        new ImageAddon({
+          kittySupport: true,
+          kittySizeLimit: 32 * 1024 * 1024,
+          sixelSupport: true,
+          iipSupport: true,
+          storageLimit: 32,
+          pixelLimit: 8 * 1024 * 1024,
+          sixelSizeLimit: 32 * 1024 * 1024,
+          iipSizeLimit: 32 * 1024 * 1024,
+        }),
+      );
+      // Multi-protocol clients probe Kitty before requesting primary device attributes.
+      // Prefer direct Kitty placement for that negotiation only. Sixel-only clients
+      // and multiplexers still receive the addon's normal capability report.
+      let kittyReplyAt = -Infinity;
+      term.parser.registerCsiHandler({ final: 'c' }, ([parameter]) => {
+        const negotiatedKitty = performance.now() - kittyReplyAt < 500;
+        kittyReplyAt = -Infinity;
+        if (parameter || !negotiatedKitty || state.value?.persistent) return false;
+        term.input('\x1b[?62;9;22c', false);
+        return true;
+      });
+      term.onData((text) => {
+        if (!inputBlocked && text.startsWith('\x1b_Gi=') && text.endsWith(';OK\x1b\\'))
+          kittyReplyAt = performance.now();
+        enqueue(new TextEncoder().encode(text));
+      });
+      term.onBinary((text) => enqueue(Uint8Array.from(text, (character) => character.charCodeAt(0))));
+      terminal = {
+        get cols() {
+          return term.cols;
+        },
+        get rows() {
+          return term.rows;
+        },
+        focus: () => term.focus(),
+        fit: () => fit.fit(),
+        reset: () => term.reset(),
+        write: (bytes) => new Promise((resolve) => term.write(bytes, resolve)),
+        configure(size, theme) {
+          term.options.fontSize = size;
+          term.options.theme = theme;
+        },
+        dispose: () => term.dispose(),
+      };
+    }
+    host.value.dataset.engine = xterm ? 'xterm' : engine;
     observer = new ResizeObserver(scheduleFit);
     observer.observe(host.value);
     themeObserver = new MutationObserver(() => {
-      if (terminal) terminal.options.theme = wishTerminalTheme(settings.value.colors);
+      terminal?.configure(settings.value.font_size, wishTerminalTheme(settings.value.colors));
     });
     themeObserver.observe(document.documentElement, {
       attributes: true,
@@ -108,16 +154,19 @@ async function initialize() {
     document.fonts.addEventListener('loadingdone', refreshFontMetrics);
     void document.fonts.ready.then(() => refreshFontMetrics());
     scheduleFit();
-  })();
+  })().catch((cause) => {
+    initialization = undefined;
+    throw cause;
+  });
   return initialization;
 }
 function refreshFontMetrics(event?: Event) {
-  if (disposed || !terminal) return;
+  if (disposed || !xterm) return;
   const fonts = (event as FontFaceSetLoadEvent | undefined)?.fontfaces;
   if (
     fonts?.length &&
     !fonts.some((font) =>
-      terminal!.options.fontFamily!.toLowerCase().includes(font.family.replace(/["']/g, '').toLowerCase()),
+      xterm!.options.fontFamily!.toLowerCase().includes(font.family.replace(/["']/g, '').toLowerCase()),
     )
   )
     return;
@@ -125,22 +174,22 @@ function refreshFontMetrics(event?: Event) {
   scheduleFit();
 }
 function applyFontMetrics() {
-  if (!fontMetricsDirty || !terminal) return;
+  if (!fontMetricsDirty || !xterm) return;
   fontMetricsDirty = false;
   // Maple's CJK subsets load on demand. xterm 6's DOM renderer retains fallback
   // glyph widths even after refresh()/fit(). Reapply the equivalent font stack
   // through its public options API to invalidate that cache, including when the
   // Latin cell width is unchanged. Whitespace changes no font selection.
-  const family = terminal.options.fontFamily!.trim();
-  terminal.options.fontFamily = terminal.options.fontFamily === family ? `${family} ` : family;
-  terminal.refresh(0, terminal.rows - 1);
+  const family = xterm.options.fontFamily!.trim();
+  xterm.options.fontFamily = xterm.options.fontFamily === family ? `${family} ` : family;
+  xterm.refresh(0, xterm.rows - 1);
 }
 let writing = false;
 let fitPending = false;
 async function writeOutput(bytes: Uint8Array) {
   writing = true;
   try {
-    await new Promise<void>((resolve) => terminal!.write(bytes, resolve));
+    await terminal!.write(bytes);
   } finally {
     writing = false;
     if (fitPending) fitTerminal();
@@ -150,9 +199,9 @@ function fitTerminal() {
   // resize() flushes xterm synchronously, which would interrupt an async image placement.
   fitPending = writing;
   if (writing || disposed) return;
-  if (!props.active || !terminal || !fit || !host.value?.clientHeight || !host.value.clientWidth) return;
+  if (!props.active || !terminal || !host.value?.clientHeight || !host.value.clientWidth) return;
   applyFontMetrics();
-  fit.fit();
+  terminal.fit();
   if (!state.value?.running) return;
   const cols = Math.min(500, Math.max(2, terminal.cols)),
     rows = Math.min(300, Math.max(2, terminal.rows));
@@ -230,8 +279,7 @@ function applySettings(value?: TerminalSettings) {
   if (!value) return;
   settings.value = value;
   if (terminal) {
-    terminal.options.fontSize = value.font_size;
-    terminal.options.theme = wishTerminalTheme(value.colors);
+    terminal.configure(value.font_size, wishTerminalTheme(value.colors));
     scheduleFit();
   }
 }
@@ -244,7 +292,7 @@ async function connect() {
   try {
     await nextTick();
     await initialize();
-    // A write already handed to xterm can finish after the view parks. Wait for
+    // A write already handed to the emulator can finish after the view parks. Wait for
     // its cursor update before asking the server to replay from that cursor.
     await renderIdle;
     if (controller.signal.aborted || !terminal) return;
@@ -253,7 +301,7 @@ async function connect() {
     state.value = current.terminal;
     if (controller.signal.aborted) return;
     if (!state.value?.running) {
-      fit?.fit();
+      terminal.fit();
       // Observe a completed start even after navigation so document ownership can retain or release it.
       const created = await startTerminal(
         props.session,
@@ -270,7 +318,8 @@ async function connect() {
     }
     rememberTerminal(props.session, state.value);
     if (renderedId !== state.value.id) {
-      terminal.reset();
+      await terminal.reset();
+      if (controller.signal.aborted) return;
       offset = 0;
       renderedId = state.value.id;
       clearInput();
@@ -299,7 +348,7 @@ async function connect() {
       claimTerminal(props.session, state.value!.id, ws);
       connected.value = true;
       inputBlocked = offset < replayUntil;
-      terminal!.options.disableStdin = inputBlocked;
+      if (xterm) xterm.options.disableStdin = inputBlocked;
       reconnects = 0;
       error.value = '';
       scheduleFit();
@@ -343,7 +392,7 @@ async function connect() {
           state.value = output.terminal;
           if (state.value.running || (output.eof && !output.data)) rememberTerminal(props.session, state.value);
           if (output.reset) {
-            terminal.reset();
+            await terminal.reset();
           }
           if (output.data) {
             const bytes = Uint8Array.from(atob(output.data), (c) => c.charCodeAt(0));
@@ -353,14 +402,14 @@ async function connect() {
             const replayBytes = Math.max(0, Math.min(bytes.length, replayUntil - (output.next_offset - bytes.length)));
             if (replayBytes) {
               inputBlocked = true;
-              terminal.options.disableStdin = true;
+              if (xterm) xterm.options.disableStdin = true;
               await writeOutput(bytes.subarray(0, replayBytes));
               offset = Math.max(offset, output.next_offset - bytes.length + replayBytes);
             }
             if (own !== generation) return;
             if (replayBytes < bytes.length) {
               inputBlocked = false;
-              terminal.options.disableStdin = false;
+              if (xterm) xterm.options.disableStdin = false;
               await writeOutput(bytes.subarray(replayBytes));
               offset = Math.max(offset, output.next_offset);
             }
@@ -369,7 +418,7 @@ async function connect() {
           offset = output.next_offset;
           if (offset >= replayUntil && inputBlocked) {
             inputBlocked = false;
-            terminal.options.disableStdin = false;
+            if (xterm) xterm.options.disableStdin = false;
           }
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ack', offset }));
           eof = !output.terminal.running && output.eof;
@@ -474,6 +523,7 @@ onBeforeUnmount(() => {
     data-terminal-input
     :aria-label="tr('交互终端', 'Interactive terminal')"
   >
+    <div v-if="fallback" role="status" class="terminal-message">{{ fallback }}</div>
     <div v-if="error" class="terminal-message" role="alert">
       {{ error }} <button class="btn ghost sm" @click="reconnect">{{ tr('重试', 'Retry') }}</button>
     </div>

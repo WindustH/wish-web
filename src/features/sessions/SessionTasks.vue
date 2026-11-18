@@ -236,7 +236,7 @@ watch(
     ></template>
     <SessionTerminal
       v-show="saved.tab !== 'background'"
-      :key="session"
+      :key="JSON.stringify([session, prefs.terminalEngine.value])"
       :session="session"
       :active="open && (props.active ?? open) && saved.tab !== 'background'"
       :mobile="mobile"

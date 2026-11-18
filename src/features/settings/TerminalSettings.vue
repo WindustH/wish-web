@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, ref, onScopeDispose, onDeactivated } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
+import { prefs, type TerminalEngine } from '../../core/state/prefsSlice.ts';
 import { configDraftKey } from './useConfigDraft.ts';
 import SelectField from '../../ui/components/SelectField.vue';
 import ColorField from '../../ui/components/ColorField.vue';
@@ -100,6 +101,21 @@ function fontCommit(event: Event) {
   <fieldset class="settings-form" :disabled="busy">
     <section class="set-section">
       <div class="set-card">
+        <div class="set-row">
+          <span class="set-label"
+            >{{ tr('终端引擎', 'Terminal engine')
+            }}<small>{{ tr('仅在此设备生效', 'Applies to this device') }}</small></span
+          >
+          <SelectField
+            :model-value="prefs.terminalEngine.value"
+            @update:model-value="prefs.setTerminalEngine($event as TerminalEngine)"
+            :options="[
+              { value: 'xterm', label: 'xterm.js' },
+              { value: 'restty', label: 'restty · WebGPU / WebGL2' },
+              { value: 'wraith', label: 'Wraith · WebGPU' },
+            ]"
+          />
+        </div>
         <label class="set-row"
           ><span class="set-label"
             >Shell<small>{{

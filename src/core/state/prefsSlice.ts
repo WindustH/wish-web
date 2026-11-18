@@ -23,7 +23,13 @@ function toggle(key: string, fallback: boolean) {
   };
 }
 
+export type TerminalEngine = 'xterm' | 'restty' | 'wraith';
 export const prefs = (() => {
+  const terminalEngine = shallowRef<TerminalEngine>('xterm');
+  function setTerminalEngine(engine: TerminalEngine) {
+    terminalEngine.value = engine;
+    platform('storage').set('pref.terminalEngine', engine);
+  }
   const originalImages = toggle('pref.originalImages', false);
   const sourceWrap = toggle('pref.sourceWrap', true);
   const sendOnEnter = toggle('pref.sendOnEnter', cfg.composer.sendOnEnter);
@@ -60,6 +66,8 @@ export const prefs = (() => {
 
   function load() {
     shortcuts.load();
+    const engine = platform('storage').get('pref.terminalEngine');
+    terminalEngine.value = engine === 'restty' || engine === 'wraith' ? engine : 'xterm';
     const width = Number(platform('storage').get('pref.rightSidebarWidth'));
     rightSidebarWidth.value = Number.isFinite(width) && width >= 280 ? width : 0;
     for (const pref of [sendOnEnter, keepAwake, notifyOnFailure, defaultListCollapsed, originalImages, sourceWrap])
@@ -71,6 +79,8 @@ export const prefs = (() => {
   }
 
   return {
+    terminalEngine,
+    setTerminalEngine,
     rightSidebarWidth,
     setRightSidebarWidth,
     originalImages: originalImages.value,
