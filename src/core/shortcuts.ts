@@ -1,18 +1,19 @@
-/** Platform-neutral shortcut definitions. Mod means Ctrl on PCs or Command on Macs. */
+/** Shortcut modifiers are literal: Control and Meta are separate keys. */
 export const defaultBindings = {
   toggleRightSidebar: { key: 'Tab' },
   toggleLeftSidebar: { key: 'Tab', shift: true },
-  searchSessions: { key: 'k', mod: true },
-  searchChat: { key: 'f', mod: true, shift: true },
-  openSettings: { key: ',', mod: true },
-  newSession: { key: 'o', mod: true, shift: true },
+  searchSessions: { key: 'k', ctrl: true },
+  searchChat: { key: 'f', ctrl: true, shift: true },
+  openSettings: { key: ',', ctrl: true },
+  newSession: { key: 'o', ctrl: true, shift: true },
   quickSwitchSessions: { key: 'F4' },
-  interruptReply: { key: 'p', mod: true },
+  interruptReply: { key: 'p', ctrl: true },
 } satisfies Record<string, KeyBinding>;
 export type ShortcutId = keyof typeof defaultBindings;
 export interface KeyBinding {
   key: string;
-  mod?: boolean;
+  ctrl?: boolean;
+  meta?: boolean;
   alt?: boolean;
   shift?: boolean;
 }
@@ -91,14 +92,22 @@ export function keyBinding(
 ): KeyBinding {
   return {
     key: event.key.length === 1 ? event.key.toLowerCase() : event.key,
-    mod: event.ctrlKey || event.metaKey,
+    ctrl: event.ctrlKey,
+    meta: event.metaKey,
     alt: event.altKey,
     shift: event.shiftKey,
   };
 }
 export function sameBinding(a: KeyBinding | null, b: KeyBinding | null): boolean {
   return (
-    a === b || (!!a && !!b && a.key === b.key && !!a.mod === !!b.mod && !!a.alt === !!b.alt && !!a.shift === !!b.shift)
+    a === b ||
+    (!!a &&
+      !!b &&
+      a.key === b.key &&
+      !!a.ctrl === !!b.ctrl &&
+      !!a.meta === !!b.meta &&
+      !!a.alt === !!b.alt &&
+      !!a.shift === !!b.shift)
   );
 }
 export function validBinding(value: unknown): value is KeyBinding {
@@ -106,19 +115,21 @@ export function validBinding(value: unknown): value is KeyBinding {
   const binding = value as KeyBinding;
   if (
     typeof binding.key !== 'string' ||
-    ![binding.mod, binding.alt, binding.shift].every((v) => v === undefined || typeof v === 'boolean')
+    'mod' in binding ||
+    ![binding.ctrl, binding.meta, binding.alt, binding.shift].every((v) => v === undefined || typeof v === 'boolean')
   )
     return false;
   return (
     /^(Tab|F(?:[1-9]|1[0-2]))$/.test(binding.key) ||
-    (!!(binding.mod || binding.alt) &&
+    (!!(binding.ctrl || binding.meta || binding.alt) &&
       (binding.key.length === 1 ||
         /^(Enter|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Home|End|PageUp|PageDown)$/.test(binding.key)))
   );
 }
 export function shortcutLabel(binding: KeyBinding): string {
   return [
-    binding.mod && 'Ctrl / ⌘',
+    binding.ctrl && 'Ctrl',
+    binding.meta && '⌘',
     binding.alt && 'Alt',
     binding.shift && 'Shift',
     binding.key.length === 1 ? (binding.key === ' ' ? 'Space' : binding.key.toUpperCase()) : binding.key,
@@ -131,7 +142,15 @@ export function readShortcuts(value: unknown): ShortcutPreferences {
   if (!value || typeof value !== 'object') return result;
   const stored = value as Partial<ShortcutPreferences>;
   for (const id of shortcutIds) {
-    const binding = stored.bindings?.[id];
+    let binding: unknown = stored.bindings?.[id];
+    // Older preferences merged Control and Meta into `mod` and cannot recover
+    // which physical key was recorded. Migrate that legacy modifier to Control;
+    // explicit bindings in the new format always retain their own modifiers.
+    if (binding && typeof binding === 'object' && 'mod' in binding) {
+      const { mod, ...rest } = binding as Record<string, unknown>;
+      if (typeof mod !== 'boolean') continue;
+      binding = 'ctrl' in rest || 'meta' in rest ? rest : { ...rest, ctrl: mod };
+    }
     if (binding === null || validBinding(binding)) result.bindings[id] = binding;
   }
   // A malformed or manually edited value must not give two commands the same key.

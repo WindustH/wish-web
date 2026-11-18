@@ -109,8 +109,8 @@ function record(event: KeyboardEvent, id: ShortcutId) {
   const binding = keyBinding(event);
   if (!validBinding(binding)) {
     error.value = tr(
-      '请使用 Ctrl / ⌘ 或 Alt 组合键，也可以使用 Tab 或 F1–F12。',
-      'Use Ctrl / ⌘ or Alt with a key, or use Tab or F1–F12.',
+      '请使用 Ctrl、⌘ 或 Alt 组合键，也可以使用 Tab 或 F1–F12。',
+      'Use Ctrl, ⌘ or Alt with a key, or use Tab or F1–F12.',
     );
     return;
   }
@@ -126,7 +126,7 @@ function browserLabel(id: BrowserShortcut) {
   if (id === 'find') return 'Ctrl / ⌘ + F · F3 / Shift + F3 · Ctrl / ⌘ + G / Ctrl / ⌘ + Shift + G';
   if (id === 'caretBrowsing') return 'F7';
   if (id === 'devTools') return 'F12 · Ctrl + Shift + I / J / C · ⌘ + Alt + I / J / C';
-  return shortcutLabel({ key: browserShortcutKeys[id], mod: true });
+  return `${shortcutLabel({ key: browserShortcutKeys[id], ctrl: true })} · ${shortcutLabel({ key: browserShortcutKeys[id], meta: true })}`;
 }
 </script>
 

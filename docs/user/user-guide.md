@@ -14,7 +14,7 @@ You can preview this setup screen anytime via **Settings → Debug → First-run
 
 ## Starting a conversation
 
-Click **New session** (or press `Ctrl/⌘ + Shift + O`) to open the start page. Above the composer, pick a **Model** (models that accept images carry a **Vision** badge) and a **Reasoning effort**. Below the composer, choose the **working directory** on the server where commands should run.
+Click **New session** (or press `Ctrl + Shift + O`) to open the start page. Above the composer, pick a **Model** (models that accept images carry a **Vision** badge) and a **Reasoning effort**. Below the composer, choose the **working directory** on the server where commands should run.
 
 Sending your first message creates the session, generates a suggested title in the background, and saves your chosen model and reasoning effort as the default for future sessions. If you already have a folder open in the session list, the new session is created inside it.
 
@@ -36,7 +36,7 @@ When the agent asks for input, an inline **Waiting for you** card lets you pick 
 
 Sending a message while a reply is active adds it to **Queued** above the composer rather than making you wait. You can drag queued entries to reorder them (or use `↑`/`↓`), pull one back into the composer to edit, or remove it before it starts.
 
-Press **Stop** or `Ctrl / ⌘ + P` to interrupt a running turn. You can also switch the model or reasoning effort from the header chips mid-run; the new selection takes effect at the next model turn without cancelling the active request.
+Press **Stop** or `Ctrl + P` to interrupt a running turn. You can also switch the model or reasoning effort from the header chips mid-run; the new selection takes effect at the next model turn without cancelling the active request.
 
 ### Quick side questions (`BTW`)
 
@@ -113,7 +113,7 @@ The **Session** sidebar combines **Overview**, **History search**, and **Setting
 
 ### History search
 
-Press `Ctrl/⌘ + Shift + F` to search the entire session transcript—including turns compacted out of the active context—and jump straight to any match.
+Press `Ctrl + Shift + F` to search the entire session transcript—including turns compacted out of the active context—and jump straight to any match.
 
 ## Organizing sessions, stats, accounts, and data
 
@@ -121,7 +121,7 @@ On desktop, the left sidebar (`Shift + Tab`) organizes folders and sessions into
 
 From the app menu:
 
-- **Settings** (`Ctrl/⌘ + ,`): Opens the 11-section configuration window (see [Configuration](configuration.md)).
+- **Settings** (`Ctrl + ,`): Opens the 11-section configuration window (see [Configuration](configuration.md)).
 - **Stats**: Shows an activity calendar, **Estimated TPS** and **Token usage** charts per model, cache hit rates, service status, and storage totals.
 - **Account status**: Displays balances, plan tiers, and rolling quota countdowns for configured providers.
 - **Sessions & data**: Shows disk usage per session (**History**, **Attachments**, **Command output**), lets you prune old out-of-context history, clean up leftover usage stats from deleted sessions, or delete sessions cleanly.
@@ -140,12 +140,12 @@ Default keyboard shortcuts (customizable in **Settings → Keyboard shortcuts**)
 | Shortcut                   | Action                                                |
 | -------------------------- | ----------------------------------------------------- |
 | `Tab` / `Shift + Tab`      | Toggle right sidebar / toggle left desktop sidebar    |
-| `Ctrl/⌘ + K`               | Search sessions                                       |
-| `Ctrl/⌘ + Shift + F`       | Search current session history                        |
-| `Ctrl/⌘ + ,`               | Open Settings                                         |
-| `Ctrl/⌘ + Shift + O`       | New session                                           |
+| `Ctrl + K`               | Search sessions                                       |
+| `Ctrl + Shift + F`       | Search current session history                        |
+| `Ctrl + ,`               | Open Settings                                         |
+| `Ctrl + Shift + O`       | New session                                           |
 | `Enter` / `Ctrl/⌘ + Enter` | Send message (configurable under **Send with Enter**) |
-| `Ctrl / ⌘ + P`             | Interrupt the current model response                  |
+| `Ctrl + P`             | Interrupt the current model response                  |
 | `Esc`                      | Clear list selection or close dialog                  |
 
 ## Quick session switching

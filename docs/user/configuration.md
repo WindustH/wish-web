@@ -1,6 +1,6 @@
 # Configuration
 
-**Settings** (`Ctrl/⌘ + ,`) brings together server settings and browser preferences across eleven sections. The first eight sections read and write `config.json` on the Wish server; **Interface** and **Keyboard shortcuts** apply immediately in your browser; **Debug** runs read-only diagnostics.
+**Settings** (`Ctrl + ,`) brings together server settings and browser preferences across eleven sections. The first eight sections read and write `config.json` on the Wish server; **Interface** and **Keyboard shortcuts** apply immediately in your browser; **Debug** runs read-only diagnostics.
 
 For low-level fields not exposed in the UI, see the server's [Configuration Reference](https://github.com/WindustH/wish-core/blob/master/docs/user/configuration.md).
 

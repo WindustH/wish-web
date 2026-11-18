@@ -9,9 +9,9 @@ export function useShortcutHint(id: ShortcutId) {
     const key = binding.value;
     if (!key) return undefined;
     const name = key.key === ' ' ? 'Space' : key.key.length === 1 ? key.key.toUpperCase() : key.key;
-    return (key.mod ? ['Control', 'Meta'] : [''])
-      .map((mod) => [mod, key.alt && 'Alt', key.shift && 'Shift', name].filter(Boolean).join('+'))
-      .join(' ');
+    return [key.ctrl && 'Control', key.meta && 'Meta', key.alt && 'Alt', key.shift && 'Shift', name]
+      .filter(Boolean)
+      .join('+');
   });
   return { label, aria };
 }
