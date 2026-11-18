@@ -4,6 +4,7 @@ import { useDocumentVisible } from '../../ui/composables/useDocumentVisible.ts';
 import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
 import IslandSidebar from '../../ui/components/IslandSidebar.vue';
 import Icon from '../../ui/components/Icon.vue';
+import SelectField from '../../ui/components/SelectField.vue';
 import CopyButton from '../../ui/components/CopyButton.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
@@ -190,13 +191,16 @@ watch(
       >
         <Icon name="refresh-cw" /></button
     ></template>
-    <div class="terminal-tabs" role="tablist" :aria-label="tr('终端视图', 'Terminal views')">
-      <button role="tab" :aria-selected="saved.tab !== 'background'" @click="saved.tab = 'terminal'">
-        {{ tr('终端', 'Terminal') }}
-      </button>
-      <button role="tab" :aria-selected="saved.tab === 'background'" @click="saved.tab = 'background'">
-        {{ tr('后台任务', 'Background tasks') }}<span v-if="running" class="terminal-task-count">{{ running }}</span>
-      </button>
+    <div class="terminal-tabs">
+      <SelectField
+        v-model="saved.tab"
+        segmented
+        :aria-label="tr('终端视图', 'Terminal views')"
+        :options="[
+          { value: 'terminal', label: tr('终端', 'Terminal') },
+          { value: 'background', label: tr('后台任务', 'Background tasks') + (running ? ` · ${running}` : '') },
+        ]"
+      />
     </div>
     <SessionTerminal
       v-show="saved.tab !== 'background'"
@@ -267,31 +271,8 @@ watch(
 <style scoped>
 .terminal-tabs {
   display: flex;
-  flex-shrink: 0;
-  gap: 18px;
-  padding: 0 14px;
-  border-bottom: 1px solid var(--line);
-}
-.terminal-tabs button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 0;
-  background: none;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  color: var(--fg-muted);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-.terminal-tabs button[aria-selected='true'] {
-  color: var(--fg);
-  border-bottom-color: var(--accent);
-}
-.terminal-task-count {
-  color: var(--accent);
-  font-size: 11px;
+  flex: none;
+  padding: 8px 12px 12px;
 }
 
 .task-sidebar {
