@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
+import Modal from '../../ui/components/Modal.vue';
+import Icon from '../../ui/components/Icon.vue';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { shortcuts } from '../../core/state/shortcutsSlice.ts';
 import {
   defaultNavigation,
@@ -12,6 +15,8 @@ import {
 import { tr } from '../../core/i18n/tr.ts';
 const nav = computed(() => shortcuts.value.value.navigation);
 const error = ref('');
+const opened = ref(false);
+const isMobile = useIsMobile();
 const actions = computed<{ id: NavigationAction; label: string }[]>(() => [
   { id: 'focus', label: tr('聚焦消息输入框', 'Focus message input') },
   { id: 'exit', label: tr('退出消息输入框', 'Leave message input') },
@@ -65,76 +70,104 @@ function sequence(event: Event) {
 }
 </script>
 <template>
-  <details class="set-section navigation-settings">
-    <summary>{{ tr('高级设置', 'Advanced settings') }}</summary>
-    <header class="set-section-head">
-      <p>
-        {{
-          tr(
-            '会话与侧栏都可使用。输入框内保留文字输入；会话输入框仅响应退出键和退出序列。大写键使用 Shift。',
-            'Navigate from the conversation or either sidebar. Text fields keep ordinary typing; only exit bindings apply inside the message input. Use Shift for uppercase keys.',
-          )
-        }}
-      </p>
-    </header>
-    <div class="set-card">
-      <div class="set-row inline">
-        <label for="navigation-enabled">{{ tr('启用键盘导航', 'Enable keyboard navigation') }}</label
-        ><SwitchRoot
-          id="navigation-enabled"
-          class="cfg-switch"
-          :model-value="nav.enabled"
-          @update:model-value="shortcuts.setNavigation({ ...nav, enabled: $event })"
-          ><SwitchThumb class="cfg-switch-thumb"
-        /></SwitchRoot>
-      </div>
-      <label v-for="action in actions" :key="action.id" class="set-row inline">
-        <span>{{ action.label }}</span>
-        <input
-          class="input navigation-binding"
-          readonly
-          :value="nav.keys[action.id] || tr('未绑定', 'Unassigned')"
-          :aria-label="action.label"
-          @keydown="key($event, action.id)"
-        />
-      </label>
-      <label class="set-row inline"
-        ><span>{{ tr('退出输入的键序列', 'Sequence to leave input') }}</span
-        ><input
-          class="input navigation-binding"
-          :value="nav.exitSequence"
-          placeholder="ji"
-          maxlength="6"
-          autocomplete="off"
-          spellcheck="false"
-          @change="sequence"
-      /></label>
-      <label class="set-row inline"
-        ><span>{{ tr('序列按键最大间隔（毫秒）', 'Maximum interval between keys (ms)') }}</span
-        ><input
-          class="input navigation-binding"
-          type="number"
-          min="100"
-          max="2000"
-          step="50"
-          :value="nav.sequenceTimeout"
-          @change="
-            shortcuts.setNavigation({ ...nav, sequenceTimeout: Number(($event.target as HTMLInputElement).value) })
-          "
-      /></label>
-    </div>
-    <p v-if="error" role="alert">{{ error }}</p>
-    <button class="btn ghost" @click="shortcuts.setNavigation(defaultNavigation())">
-      {{ tr('恢复导航默认设置', 'Reset navigation defaults') }}
+  <section class="set-section navigation-settings">
+    <button
+      class="btn ghost"
+      aria-haspopup="dialog"
+      @click="
+        error = '';
+        opened = true;
+      "
+    >
+      <Icon name="settings" />{{ tr('高级设置', 'Advanced settings') }}
     </button>
-  </details>
+    <Modal
+      :open="opened"
+      :title="tr('高级快捷键设置', 'Advanced shortcut settings')"
+      :sheet="isMobile"
+      content-class="navigation-settings-dialog"
+      @close="opened = false"
+    >
+      <header class="set-section-head">
+        <p>
+          {{
+            tr(
+              '会话与侧栏都可使用。输入框内保留文字输入；会话输入框仅响应退出键和退出序列。大写键使用 Shift。',
+              'Navigate from the conversation or either sidebar. Text fields keep ordinary typing; only exit bindings apply inside the message input. Use Shift for uppercase keys.',
+            )
+          }}
+        </p>
+      </header>
+      <div class="set-card">
+        <div class="set-row inline">
+          <label for="navigation-enabled">{{ tr('启用键盘导航', 'Enable keyboard navigation') }}</label
+          ><SwitchRoot
+            id="navigation-enabled"
+            class="cfg-switch"
+            :model-value="nav.enabled"
+            @update:model-value="shortcuts.setNavigation({ ...nav, enabled: $event })"
+            ><SwitchThumb class="cfg-switch-thumb"
+          /></SwitchRoot>
+        </div>
+        <label v-for="action in actions" :key="action.id" class="set-row inline">
+          <span>{{ action.label }}</span>
+          <input
+            class="input navigation-binding"
+            readonly
+            :value="nav.keys[action.id] || tr('未绑定', 'Unassigned')"
+            :aria-label="action.label"
+            @keydown="key($event, action.id)"
+          />
+        </label>
+        <label class="set-row inline"
+          ><span>{{ tr('退出输入的键序列', 'Sequence to leave input') }}</span
+          ><input
+            class="input navigation-binding"
+            :value="nav.exitSequence"
+            placeholder="ji"
+            maxlength="6"
+            autocomplete="off"
+            spellcheck="false"
+            @change="sequence"
+        /></label>
+        <label class="set-row inline"
+          ><span>{{ tr('序列按键最大间隔（毫秒）', 'Maximum interval between keys (ms)') }}</span
+          ><input
+            class="input navigation-binding"
+            type="number"
+            min="100"
+            max="2000"
+            step="50"
+            :value="nav.sequenceTimeout"
+            @change="
+              shortcuts.setNavigation({ ...nav, sequenceTimeout: Number(($event.target as HTMLInputElement).value) })
+            "
+        /></label>
+      </div>
+      <p v-if="error" role="alert">{{ error }}</p>
+      <template #footer>
+        <button
+          class="btn ghost"
+          @click="
+            shortcuts.setNavigation(defaultNavigation());
+            error = '';
+          "
+        >
+          {{ tr('恢复导航默认设置', 'Reset navigation defaults') }}
+        </button>
+        <button class="btn primary" @click="opened = false">{{ tr('完成', 'Done') }}</button>
+      </template>
+    </Modal>
+  </section>
 </template>
 <style scoped>
-summary {
-  cursor: pointer;
-  font-weight: 600;
-  padding-block: 12px;
+:global(.modal-card.navigation-settings-dialog:not(.modal-page):not(.modal-sheet)) {
+  width: min(560px, calc(100vw - 32px));
 }
+.set-section-head p {
+  margin-top: 0;
+}
+
 .set-row > .navigation-binding {
   width: 120px;
   text-align: center;
