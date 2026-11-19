@@ -58,7 +58,7 @@ The palette provides completions: **↑/↓** selects, **Tab** fills the selecte
 
 Model and effort completions load the available provider catalogs. When multiple providers offer the same model ID, use `provider/model`; selecting a completion supplies this qualification. Reasoning levels follow model capabilities, including required reasoning and models without reasoning. Model changes follow the same revision checks and next-turn behavior as the model picker.
 
-Under **Settings → Keyboard shortcuts → Advanced settings**, customize or disable the navigation keys. Defaults are **i** to focus the message input, **Esc** to leave it, **j/k** to scroll down/up, **J/K** to move to the next/previous user message (skipping assistant replies), and **:** to open commands. Navigation has priority across the conversation and both sidebars, including when a sidebar button or file preview has focus. In the topmost dialog or sheet, **j/k** scroll its content and **J/K** page through it; in menus and select lists, **j/k** move between options. **i** focuses a text field in that dialog. **q** closes the topmost popup or returns to the parent page, honoring unsaved-change and busy-state guards. Its binding is configurable alongside the other navigation keys. Keyboard navigation never reaches the conversation behind a popup. Focused inputs, text areas, selectors, and editable content always keep ordinary typing and input-method composition; only the configured exit key or exit sequence leaves the session message input. These keys do not interrupt an answer; use the separate **Interrupt model response** shortcut.
+Under **Settings → Keyboard shortcuts → Open keymap**, customize or disable the navigation keys. Defaults are **i** to focus the message input, **Esc** to leave it, **j/k** to scroll down/up, **J/K** to move to the next/previous user message (skipping assistant replies), and **:** to open commands. In the session list and Library, use **j/k** to select an item, **o** or **Enter** to open it, and **q** to go back. **[** and **]** cycle through Session, Library and Terminal. **Ctrl + Shift + H/L** moves focus between the session list, conversation and sidebar, including from terminal input. Enable the focus indicator in the keymap to see a dot in the active region. In the topmost dialog or sheet, **j/k** scroll its content and **J/K** page through it; in menus and select lists, **j/k** move between options. **i** focuses a text field in that dialog. **q** closes the topmost popup or returns to the parent page, honoring unsaved-change and busy-state guards. Its binding is configurable alongside the other navigation keys. Keyboard navigation never reaches the conversation behind a popup. Focused inputs, text areas, selectors, and editable content always keep ordinary typing and input-method composition; only the configured exit key or exit sequence leaves the session message input. These keys do not interrupt an answer; use the separate **Interrupt model response** shortcut.
 
 An optional exit sequence (for example `ji`) can leave the message input. It is **unset by default**. Configure a maximum interval between keys (default **300 ms**, range **100–2000 ms**). A recognized sequence is removed from the input; slower typing remains literal. Moving the caret, using an input method, or other intervening edits cancels recognition.
 
@@ -115,7 +115,7 @@ The **Session** sidebar combines **Overview**, **History search**, and **Setting
 
 ### History search
 
-Press `Ctrl + Shift + F` to search the entire session transcript—including turns compacted out of the active context—and jump straight to any match.
+Open **Session → History search** to search the entire session transcript—including turns compacted out of the active context—and jump straight to any match.
 
 ## Organizing sessions, stats, accounts, and data
 
@@ -142,13 +142,16 @@ Default keyboard shortcuts (customizable in **Settings → Keyboard shortcuts**)
 | Shortcut                   | Action                                                |
 | -------------------------- | ----------------------------------------------------- |
 | `Tab` / `Shift + Tab`      | Toggle right sidebar / toggle left desktop sidebar    |
-| `Ctrl + K`               | Search sessions                                       |
-| `Ctrl + Shift + F`       | Search current session history                        |
+| `Ctrl + Shift + H / L`     | Move focus to the region on the left / right          |
 | `Ctrl + ,`               | Open Settings                                         |
 | `Ctrl + Shift + O`       | New session                                           |
 | `Enter` / `Ctrl/⌘ + Enter` | Send message (configurable under **Send with Enter**) |
 | `Ctrl + P`             | Interrupt the current model response                  |
 | `Esc`                      | Clear list selection or close dialog                  |
+
+In **Settings → Keyboard shortcuts → Open keymap**, filter by action or keystroke. Select a binding to change it or use **Add binding** to assign another key to the same action. Search sessions and Search current session start unbound.
+
+Wish blocks **Ctrl + W** and **Ctrl + T** when the browser delivers them. In Chrome, open **Settings → Keyboard shortcuts → Browser shortcuts → Capture in fullscreen** and grant keyboard lock to capture these reserved shortcuts. This requires HTTPS or localhost. Leave fullscreen to release the lock.
 
 ## Quick session switching
 

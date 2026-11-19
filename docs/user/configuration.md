@@ -66,7 +66,7 @@ Persistence is off by default. Switching tabs, Wish sessions or pages keeps ordi
 
 The terminal connects automatically. Without persistence, Ctrl-D starts a new shell while the page remains open. Detaching from tmux/zellij stays disconnected until you reconnect. Its dedicated WebSocket carries input, output and resize messages, without a status/path bar taking space from the terminal.
 
-Advanced keyboard settings are a secondary page on mobile, reached from **Keyboard shortcuts → Advanced settings**. Desktop uses a compact editor.
+Open **Keyboard shortcuts → Open keymap** to edit bindings, enable keyboard navigation or its focus indicator, and configure the exit sequence and timeout. On mobile the keymap opens as a secondary page.
 
 ### Terminal image previews and terminal type
 

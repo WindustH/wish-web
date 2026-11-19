@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isSidebarCycle, navigationAction } from '../../core/shortcuts.ts';
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { handledShortcut } from '../../ui/shortcutEvents.ts';
 import { shortcuts } from '../../core/state/shortcutsSlice.ts';
@@ -38,8 +39,8 @@ function keydown(event: KeyboardEvent) {
     btwOpen.value
   )
     return;
-  const action = Object.entries(nav.keys).find(([, key]) => key && key === event.key)?.[0];
-  if (!action || action === 'exit' || action === 'back') return;
+  const action = navigationAction(nav, event.key);
+  if (!action || isSidebarCycle(action) || action === 'openItem' || action === 'exit' || action === 'back') return;
   const editing = (node: EventTarget | null) =>
     node instanceof HTMLElement &&
     (node.isContentEditable || node.matches('input,textarea,select,[role="textbox"],[role="combobox"]'));

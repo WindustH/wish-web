@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { focusRegion, rememberWorkspaceFocus } from './workspaceKeyboard.ts';
+import { shortcuts } from '../../core/state/shortcutsSlice.ts';
 import SessionListToggle from './SessionListToggle.vue';
 import { useSessionMotion } from './useSessionMotion.ts';
 useSessionMotion();
@@ -7,7 +9,7 @@ import Hint from '../../ui/components/Hint.vue';
 // side routes between (empty) and chat; chat stays mounted while its
 // info/search/manage child routes change. Mobile: list and chat are
 // exclusive full views.
-import { computed, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import SessionList from './SessionList.vue';
@@ -36,6 +38,26 @@ const showList = computed(() => (isMobile.value ? route.name === 'all-sessions' 
 const home = computed(() => route.name === 'sessions' || route.name === 'all-sessions');
 const split = ref<HTMLElement | null>(null);
 useRecentsSheet(split);
+const returnChat = ref('');
+async function openWorkspaceList() {
+  returnChat.value = route.fullPath;
+  await router.push({ name: 'all-sessions' });
+  await nextTick();
+  if (split.value) focusRegion(split.value, 'list');
+}
+async function returnToChat() {
+  if (!returnChat.value) return;
+  if (router.options.history.state.back === returnChat.value) router.back();
+  else await router.replace(returnChat.value);
+}
+watch(
+  () => route.fullPath,
+  (path, previous) => {
+    if (router.resolve(previous).name !== 'all-sessions' || route.name === 'all-sessions') return;
+    if (path === returnChat.value) void nextTick(() => split.value && focusRegion(split.value, 'chat'));
+    returnChat.value = '';
+  },
+);
 
 watch(
   [isMobile, () => route.name],
@@ -50,7 +72,20 @@ onBeforeUnmount(cancelListResize);
 </script>
 
 <template>
-  <div ref="split" class="sessions-split" :class="{ 'sidebar-collapsed': !isMobile && !showList }">
+  <div
+    ref="split"
+    class="sessions-split"
+    data-focus-region="chat"
+    :data-chat-navigation="
+      route.params.id || (isMobile && route.name === 'all-sessions' && returnChat) ? '' : undefined
+    "
+    :data-focus-indicator="shortcuts.value.value.navigation.indicator || undefined"
+    @workspace-open-list="openWorkspaceList"
+    @workspace-return-chat="returnToChat"
+    @focusin="rememberWorkspaceFocus"
+    @pointerdown.capture="rememberWorkspaceFocus"
+    :class="{ 'sidebar-collapsed': !isMobile && !showList }"
+  >
     <SessionListToggle />
     <SessionList
       v-if="!isMobile || home"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { navigationAction } from '../../core/shortcuts.ts';
 import { onMounted, ref, watch } from 'vue';
 import { handledShortcut } from '../../ui/shortcutEvents.ts';
 import { shortcuts } from '../../core/state/shortcutsSlice.ts';
@@ -275,7 +276,7 @@ function navigationKey(event: KeyboardEvent) {
     nav.sequenceTimeout,
     performance.now(),
   );
-  if (event.key !== nav.keys.exit && !remove) return false;
+  if (navigationAction(nav, event.key) !== 'exit' && !remove) return false;
   event.preventDefault();
   event.stopPropagation();
   if (remove) {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { DialogRoot, DialogContent, DialogOverlay, DialogTitle } from 'reka-ui';
 import { computed, onMounted, onBeforeUnmount, provide, ref, watch } from 'vue';
-import { sidebarResizingKey } from '../composables/useSidebarResize.ts';
+import { drawerWorkspaceWidth, sidebarResizingKey } from '../composables/useSidebarResize.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
@@ -14,6 +14,12 @@ const props = withDefaults(
   { retainContent: true },
 );
 const emit = defineEmits<{ close: []; back: [] }>();
+function onEscape(event: KeyboardEvent) {
+  event.preventDefault(); // Suppress the dialog's automatic dismissal.
+  if (event.composedPath().some((node) => node instanceof HTMLElement && node.hasAttribute('data-terminal-input')))
+    return;
+  emit('back');
+}
 const focus = useDialogFocus();
 const resizing = ref(false);
 provide(sidebarResizingKey, resizing);
@@ -42,7 +48,7 @@ const available = ref(window.innerWidth);
 const minimum = 280;
 // Preserve a readable conversation when a wide session list or a tablet leaves
 // too little room for two docked panels. Measure the workspace, not the screen.
-const drawer = computed(() => !props.overlay && available.value < 800);
+const drawer = computed(() => !props.overlay && available.value < drawerWorkspaceWidth);
 const modal = computed(() => !!props.overlay || drawer.value);
 const maximum = computed(() =>
   modal.value ? Math.min(460, available.value) : Math.max(minimum, available.value - 480),
@@ -151,6 +157,9 @@ onBeforeUnmount(() => {
     <DialogContent
       :id="open ? 'session-sidebar' : undefined"
       class="island-sidebar"
+      data-workspace-region="side"
+      tabindex="-1"
+      @workspace-back="emit('back')"
       :class="{
         'island-overlay': modal,
         'island-drawer': drawer,
@@ -168,7 +177,7 @@ onBeforeUnmount(() => {
       @open-auto-focus="focus.opened"
       @close-auto-focus="focus.closed"
       @interact-outside.prevent
-      @escape-key-down.prevent="emit('back')"
+      @escape-key-down="onEscape"
     >
       <button
         v-if="overlay"

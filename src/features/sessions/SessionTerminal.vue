@@ -49,6 +49,15 @@ const lifetime = new AbortController();
 let initialization: Promise<void> | undefined;
 let fontMetricsDirty = false;
 let renderIdle = Promise.resolve();
+let appearance = '';
+function applyAppearance() {
+  if (!terminal) return;
+  const theme = wishTerminalTheme(settings.value.colors);
+  const key = JSON.stringify([settings.value.font_size, theme]);
+  if (appearance === key) return;
+  terminal.configure(settings.value.font_size, theme);
+  appearance = key;
+}
 async function initialize() {
   if (initialization) return initialization;
   initialization = (async () => {
@@ -143,12 +152,11 @@ async function initialize() {
         dispose: () => term.dispose(),
       };
     }
+    if (document.activeElement === host.value.closest('[data-terminal-input]')) terminal.focus();
     host.value.dataset.engine = xterm ? 'xterm' : engine;
     observer = new ResizeObserver(scheduleFit);
     observer.observe(host.value);
-    themeObserver = new MutationObserver(() => {
-      terminal?.configure(settings.value.font_size, wishTerminalTheme(settings.value.colors));
-    });
+    themeObserver = new MutationObserver(applyAppearance);
     themeObserver.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['style', 'class', 'data-theme'],
@@ -283,7 +291,7 @@ function applySettings(value?: TerminalSettings) {
   if (!value) return;
   settings.value = value;
   if (terminal) {
-    terminal.configure(value.font_size, wishTerminalTheme(value.colors));
+    applyAppearance();
     scheduleFit();
   }
 }
@@ -295,12 +303,11 @@ async function connect() {
   connection = controller;
   try {
     await nextTick();
-    await initialize();
+    const [, current] = await Promise.all([initialize(), terminalState(props.session, controller.signal)]);
     // A write already handed to the emulator can finish after the view parks. Wait for
     // its cursor update before asking the server to replay from that cursor.
     await renderIdle;
     if (controller.signal.aborted || !terminal) return;
-    const current = await terminalState(props.session, controller.signal);
     applySettings(current.settings);
     state.value = current.terminal;
     if (controller.signal.aborted) return;
@@ -525,6 +532,8 @@ onBeforeUnmount(() => {
     class="session-terminal"
     data-keyboard-boundary
     data-terminal-input
+    tabindex="-1"
+    @workspace-focus="terminal?.focus()"
     :aria-label="tr('交互终端', 'Interactive terminal')"
   >
     <div v-if="fallback" role="status" class="terminal-message">{{ fallback }}</div>

@@ -407,7 +407,9 @@ const choices = computed(() =>
         <div class="dialog-topline">
           <h2>{{ tr('上游模型目录', 'Upstream model catalog') }}</h2>
           <div class="dialog-toolbar catalog-toolbar">
-            <button class="btn ghost catalog-custom" @click="openCustom">{{ tr('自定义', 'Custom') }}</button>
+            <button class="btn ghost catalog-custom" @click="openCustom">
+              {{ tr('自定义', 'Custom') }}<Icon name="arrow-up-right" :size="14" />
+            </button>
             <button
               class="btn ghost icon-only"
               :disabled="catalogBusy"

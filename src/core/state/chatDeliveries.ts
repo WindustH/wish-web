@@ -50,12 +50,10 @@ export function createChatDeliveries({
   let generation = 0;
   let deliveriesVersion = 0;
   let directSending = false;
-  const directInputs = new Set<string>();
   const current = (own: number) => own === generation;
   function reset() {
     generation++;
     deliveriesVersion++;
-    directInputs.clear();
     directSending = false;
     sending.value = false;
     sentRun.value = null;
@@ -89,7 +87,6 @@ export function createChatDeliveries({
 
       if (current(own)) {
         deliveriesVersion++;
-        if (direct) directInputs.add(result.id);
         if (!direct && stream.value.active && !deliveries.value.some((item) => item.id === result.id)) {
           deliveries.value = [
             ...deliveries.value,
@@ -110,9 +107,6 @@ export function createChatDeliveries({
         scheduleRefresh();
       }
       return result.id;
-    } catch (cause) {
-      if (current(own)) error.value = cause;
-      throw cause;
     } finally {
       if (current(own)) {
         sending.value = false;
@@ -131,7 +125,7 @@ export function createChatDeliveries({
     try {
       const page = await requests.deliveriesList(id, { limit: 50 }, options());
       if (current(own) && version === deliveriesVersion && !directSending) {
-        deliveries.value = page.items.filter((item) => !directInputs.has(item.id));
+        deliveries.value = page.items;
       }
     } catch (cause) {
       if (current(own) && version === deliveriesVersion) {

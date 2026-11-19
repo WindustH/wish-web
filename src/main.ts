@@ -17,6 +17,7 @@ import { sessionSearchCommands } from './features/sessions/searchCommands.ts';
 import { sessionSidebarCommands } from './features/sessions/sidebarCommands.ts';
 import { quickSwitchOpen } from './features/shell/quickSwitch.ts';
 import { interruptReply } from './domain/chat/interruptReply.ts';
+import { navigateWorkspace } from './features/sessions/workspaceKeyboard.ts';
 import { installShortcuts } from './features/shell/shortcuts.ts';
 import App from './App.vue';
 import { createUnhandledRejectionReporter } from './ui/unhandledErrors.ts';
@@ -27,11 +28,8 @@ import { applyConnection, isSignedOut } from './core/connection.ts';
 
 import './generated/fonts/montserrat.css';
 import './generated/fonts/bitter.css';
-import './generated/fonts/sarasa.css';
-import './generated/fonts/maple.css';
 import './styles/math.css';
 import './styles/codeHighlight.css';
-import '@fontsource-variable/noto-serif-sc';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/layout.css';
@@ -165,8 +163,15 @@ app.onUnmount(() => {
 });
 app.use(router);
 app.mount('#app');
+// Keep the large Unicode-range tables off the render-blocking stylesheet.
+void Promise.all([
+  import('./generated/fonts/sarasa.css'),
+  import('./generated/fonts/maple.css'),
+  import('@fontsource-variable/noto-serif-sc/index.css'),
+]).catch((error) => console.warn('Font styles unavailable', error));
 
 stopShortcuts = installShortcuts({
+  navigateWorkspace,
   interruptReply: () => {
     const current = router.currentRoute.value;
     if (current.meta.section === 'sessions' && typeof current.params.id === 'string')

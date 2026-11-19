@@ -1,9 +1,11 @@
-import { browserShortcut, keyBinding, sameBinding, shortcutIds, type ShortcutId } from '../../core/shortcuts.ts';
+import { browserShortcut, keyBinding, shortcutAction, type ShortcutId } from '../../core/shortcuts.ts';
 import { browserBlockedKeys as browserBlocked } from '../../ui/shortcutEvents.ts';
 import { navigateOverlay } from '../../ui/keyboardNavigation.ts';
+import { trackTabCapture } from '../../ui/tabShortcutCapture.ts';
 import { shortcuts } from '../../core/state/shortcutsSlice.ts';
 
 export interface ShortcutCommands {
+  navigateWorkspace?: (event: KeyboardEvent) => boolean;
   quickSwitchSessions?: () => void;
   interruptReply?: () => void;
   openNewSession: () => void;
@@ -14,6 +16,7 @@ export interface ShortcutCommands {
   sidebarToggle: (side: 'left' | 'right') => (() => void) | null;
 }
 export function installShortcuts(commands: ShortcutCommands) {
+  const stopTabCapture = trackTabCapture();
   const localKey = (event: KeyboardEvent, physicalSpace = false, palette = false) =>
     (event.defaultPrevented && !browserBlocked.has(event)) ||
     (!physicalSpace && (event.isComposing || event.keyCode === 229)) ||
@@ -69,7 +72,7 @@ export function installShortcuts(commands: ShortcutCommands) {
       return;
     const binding = keyBinding(event);
     if (physicalSpace) binding.key = ' ';
-    const id = shortcutIds.find((key) => sameBinding(shortcuts.value.value.bindings[key], binding));
+    const id = shortcutAction(shortcuts.value.value, binding);
     const run = id && action(id);
     if (!run) return;
     event.preventDefault();
@@ -77,8 +80,11 @@ export function installShortcuts(commands: ShortcutCommands) {
     if (!event.repeat) void run();
   }
   function capture(event: KeyboardEvent) {
-    if (event.composedPath().some((node) => node instanceof HTMLElement && node.hasAttribute('data-terminal-input')))
+    if (commands.navigateWorkspace?.(event)) return;
+    if (event.composedPath().some((node) => node instanceof HTMLElement && node.hasAttribute('data-terminal-input'))) {
+      // Terminal input handlers get the key first; cancel the browser action after it bubbles.
       return;
+    }
     if (navigateOverlay(event, shortcuts.value.value.navigation)) return;
     // These browser commands stay blocked even inside an editor or local dialog.
     const browserCommand = browserShortcut(event);
@@ -92,7 +98,7 @@ export function installShortcuts(commands: ShortcutCommands) {
     const physicalSpace = event.code === 'Space' && (event.ctrlKey || event.metaKey);
     const binding = keyBinding(event);
     if (physicalSpace) binding.key = ' ';
-    if (sameBinding(shortcuts.value.value.bindings.quickSwitchSessions, binding)) {
+    if (shortcutAction(shortcuts.value.value, binding) === 'quickSwitchSessions') {
       command(event, physicalSpace, true);
       return;
     }
@@ -100,10 +106,19 @@ export function installShortcuts(commands: ShortcutCommands) {
     // to handle their own commands first.
     if (event.key === 'Tab') command(event);
   }
+  function terminalTabKey(event: KeyboardEvent) {
+    if (!event.composedPath().some((node) => node instanceof HTMLElement && node.hasAttribute('data-terminal-input')))
+      return;
+    const id = browserShortcut(event);
+    if ((id === 'closeTab' || id === 'newTab') && shortcuts.value.value.blockedBrowser[id]) event.preventDefault();
+  }
+  window.addEventListener('keydown', terminalTabKey);
   window.addEventListener('keydown', capture, true);
   document.addEventListener('keydown', command);
   return () => {
+    window.removeEventListener('keydown', terminalTabKey);
     window.removeEventListener('keydown', capture, true);
     document.removeEventListener('keydown', command);
+    stopTabCapture();
   };
 }

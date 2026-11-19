@@ -10,8 +10,8 @@ import { useDialogNesting } from '../../ui/composables/useDialogNesting.ts';
 import { useDialogFocus } from '../../ui/composables/useDialogFocus.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import UiSettings from './UiSettings.vue';
+import KeymapEditor from './KeymapEditor.vue';
 import ShortcutSettings from './ShortcutSettings.vue';
-import NavigationShortcutEditor from './NavigationShortcutEditor.vue';
 const DebugSettings = defineAsyncComponent(() => import('../debug/DebugSettings.vue'));
 import MobileSessionSettings from './MobileSessionSettings.vue';
 import Modal from '../../ui/components/Modal.vue';
@@ -102,6 +102,9 @@ const mobileSection = computed(() =>
       : '',
 );
 const tab = computed(() => (isMobile.value ? mobileSection.value : desktopSection.value));
+const keymapOpen = computed(
+  () => tab.value === 'shortcuts' && (route.query.advanced === 'keymap' || route.query.advanced === 'navigation'),
+);
 
 function selectSection(id: string) {
   if (id === 'extensions' && searchQuery.value.trim()) {
@@ -115,7 +118,10 @@ function selectSection(id: string) {
         ...(id === 'extensions' && searchQuery.value.trim() ? { tool: extensionSection.value } : {}),
       },
     });
-  else desktopSection.value = id;
+  else {
+    desktopSection.value = id;
+    if (route.query.section || route.query.advanced) void router.replace({ path: '/settings', query: { section: id } });
+  }
 }
 
 // Desktop tabs share one scroller; each tab starts at its top.
@@ -270,7 +276,7 @@ onActivated(() => {
           >
             <header class="settings-heading page-bar">
               <button
-                v-if="isMobile"
+                v-if="isMobile || keymapOpen"
                 class="btn ghost icon-only"
                 :aria-label="
                   mobileExtension ? tr('返回扩展工具', 'Back to extension tools') : tr('返回设置', 'Back to settings')
@@ -281,11 +287,7 @@ onActivated(() => {
               </button>
               <div class="settings-heading-text">
                 <h2 class="page-bar-title">
-                  {{
-                    isMobile && tab === 'shortcuts' && route.query.advanced === 'navigation'
-                      ? tr('高级快捷键', 'Advanced shortcuts')
-                      : current?.label
-                  }}
+                  {{ keymapOpen ? tr('键位绑定', 'Key bindings') : current?.label }}
                 </h2>
               </div>
               <DraftActions v-if="isMobile" />
@@ -300,9 +302,8 @@ onActivated(() => {
             </header>
             <div ref="content" class="settings-content" data-scroll-preserve>
               <UiSettings v-if="tab === 'ui'" />
-              <NavigationShortcutEditor
-                v-else-if="tab === 'shortcuts' && isMobile && route.query.advanced === 'navigation'"
-              /><ShortcutSettings v-else-if="tab === 'shortcuts'" />
+              <KeymapEditor v-else-if="keymapOpen" />
+              <ShortcutSettings v-else-if="tab === 'shortcuts'" />
               <DebugSettings v-else-if="tab === 'debug'" />
               <template v-else-if="ready">
                 <MobileSessionSettings

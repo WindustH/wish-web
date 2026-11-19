@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TranscriptRow } from '../../domain/chat/transcript.ts';
-import { describeError } from '../../core/i18n/errorMessages.ts';
+import RunFailureCard from '../../domain/chat/RunFailureCard.vue';
 import { displayFailure } from '../../core/api/failures.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
@@ -512,8 +512,6 @@ watch(
             :ref="measureElement"
             :data-index="v.index"
             :class="{
-              'status-error-row':
-                groups[v.index]?.type === 'status_request_error' || groups[v.index]?.type === 'status_run_error',
               'history-target': holdsTarget(groups[v.index]),
               'row-enter': fresh.has(groups[v.index]?.key ?? ''),
             }"
@@ -526,27 +524,20 @@ watch(
               :session="sessionId"
               :locate-seq="chat.pendingSeq.value ?? undefined"
             />
-            <div
+            <RunFailureCard
               v-else-if="groups[v.index]?.type === 'status_request_error' && requestFailure"
-              class="chat-run-error"
-              role="alert"
+              :failure="requestFailure"
+              :heading="i18n.t('chat.requestFailed')"
             >
-              <strong>{{ i18n.t('chat.requestFailed') }}</strong>
-              <p>{{ describeError(requestFailure.message).message }}</p>
-              <small v-if="requestFailure.family">{{ requestFailure.family }}</small>
               <button class="btn ghost sm" @click="chat.reload()">{{ i18n.t('chat.reload') }}</button>
               <button class="btn ghost sm" @click="chat.error.value = null">{{ i18n.t('common.close') }}</button>
-            </div>
-            <div
+            </RunFailureCard>
+            <RunFailureCard
               v-else-if="groups[v.index]?.type === 'status_run_error' && runFailure"
-              class="chat-run-error"
-              role="alert"
+              :failure="runFailure"
             >
-              <strong>{{ i18n.t('chat.runFailed') }}</strong>
-              <p>{{ describeError(runFailure.message).message }}</p>
-              <small v-if="runFailure.family">{{ runFailure.family }}</small>
               <RetryRunButton :session="sessionId" />
-            </div>
+            </RunFailureCard>
           </div>
         </div>
         <Transition name="live-work">
@@ -721,30 +712,5 @@ watch(
     opacity: 0;
     translate: 0 14px;
   }
-}
-.status-error-row {
-  padding: 16px 0;
-}
-.chat-run-error {
-  margin: 0 auto;
-  padding: 12px 16px;
-  max-width: var(--max-content);
-  border: 1px solid var(--err-border);
-  border-radius: var(--radius);
-  background: var(--err-bg);
-  color: var(--err);
-  overflow-wrap: anywhere;
-}
-.chat-run-error strong {
-  color: var(--err);
-  font-size: 13px;
-}
-.chat-run-error p {
-  margin: 6px 0;
-  font-size: 13px;
-}
-.chat-run-error small {
-  color: inherit;
-  font: calc(1em * var(--mono-scale))/1.6 var(--mono);
 }
 </style>

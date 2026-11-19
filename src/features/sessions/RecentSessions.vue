@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { sessionNaming } from '../../core/state/sessionNaming.ts';
-import { computed, onScopeDispose, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onScopeDispose, ref, watch } from 'vue';
 import { conversationsList } from '../../core/api/endpoints.ts';
 import { bus } from '../../core/bus.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { createCachedResource } from '../../core/util/cachedResource.ts';
 import SessionListRow, { type RowAction } from './SessionListRow.vue';
-import SessionListAction, { type ActionTarget } from './SessionListAction.vue';
-import PruneDialog from './PruneDialog.vue';
+import type { ActionTarget } from './SessionListAction.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import { sessionTitle, type ListRow, type SessionRow } from '../../core/state/sessionsSlice.ts';
+const SessionListAction = defineAsyncComponent(() => import('./SessionListAction.vue'));
+const PruneDialog = defineAsyncComponent(() => import('./PruneDialog.vue'));
 const active = usePageActivity();
 // The home page comes and goes with every trip to a conversation or a setting; it shows the last
 // session list at once, even after a reload, and swaps in the fresh one when it arrives.

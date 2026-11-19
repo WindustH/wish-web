@@ -130,7 +130,7 @@ const shown = computed(() =>
         ></Menu>
       </div>
     </Menu>
-    <button v-if="next" class="btn ghost" :disabled="loading" @click="load(true)">
+    <button data-workspace-item v-if="next" class="btn ghost" :disabled="loading" @click="load(true)">
       {{ tr('加载更多', 'Load more') }}
     </button>
     <p v-if="loading" role="status">{{ tr('加载中…', 'Loading…') }}</p>
@@ -177,6 +177,15 @@ const shown = computed(() =>
   background: none;
   color: var(--fg);
   cursor: pointer;
+}
+.linked-child:focus-visible {
+  outline: none;
+  background: var(--bg-hover);
+}
+@media (forced-colors: active) {
+  .linked-child:focus-visible strong {
+    text-decoration: underline;
+  }
 }
 .linked-child > span {
   display: grid;

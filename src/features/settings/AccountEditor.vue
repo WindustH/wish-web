@@ -176,9 +176,9 @@ function field(name: string, text: string) {
               : tr('通过 ChatGPT 登录', 'Sign in with ChatGPT')
           }}
         </button>
-        <a v-if="login.url" :href="login.url" target="_blank" rel="noopener noreferrer">{{
-          tr('打开授权页面', 'Open authorization page')
-        }}</a>
+        <a v-if="login.url" :href="login.url" target="_blank" rel="noopener noreferrer"
+          >{{ tr('打开授权页面', 'Open authorization page') }} <Icon name="arrow-up-right" :size="14"
+        /></a>
         <p v-if="login.message">{{ login.message }}</p>
         <template v-if="login.busy"
           ><input
@@ -201,9 +201,9 @@ function field(name: string, text: string) {
         </button>
         <p>{{ copilot.message }}</p>
         <strong v-if="copilot.code">{{ copilot.code }}</strong
-        ><a v-if="copilot.url" :href="copilot.url" target="_blank" rel="noopener noreferrer">{{
-          tr('打开授权页面', 'Open authorization page')
-        }}</a>
+        ><a v-if="copilot.url" :href="copilot.url" target="_blank" rel="noopener noreferrer"
+          >{{ tr('打开授权页面', 'Open authorization page') }} <Icon name="arrow-up-right" :size="14"
+        /></a>
       </div>
       <div class="set-card">
         <SwitchRow

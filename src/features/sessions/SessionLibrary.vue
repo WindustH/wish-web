@@ -1624,8 +1624,10 @@ watch(
   text-align: start;
   cursor: pointer;
 }
-.local-directory button:hover {
-  background: var(--bg-hover);
+@media (hover: hover) {
+  .local-directory button:hover {
+    background: var(--bg-hover);
+  }
 }
 .local-directory button span {
   flex: 1;
@@ -1729,12 +1731,6 @@ watch(
   color: var(--accent);
   border-radius: 10px;
 }
-.library-view-icons .library-folder .library-item:focus-visible {
-  box-shadow: none;
-}
-.library-folder .library-item:focus-visible .library-folder-thumbnail {
-  border-color: var(--accent);
-}
 .library-file-icon {
   color: var(--fg-muted);
   grid-column: 1;
@@ -1795,13 +1791,6 @@ watch(
 .library-view-compact :is(.library-file-icon, .library-filesize) {
   grid-row: 1;
 }
-:is(.library-view-compact, .library-view-details) .library-item:focus-visible {
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-.library-folder .library-item:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
 .library-view-details .library-item {
   grid-template-rows: 1fr 1fr;
 }
@@ -1832,9 +1821,16 @@ watch(
   cursor: pointer;
   border-radius: 12px;
 }
-/* Keep the keyboard focus indicator on the thumbnail, clear of the filename and size. */
-.library-item:focus-visible {
-  border: 0 !important;
+.library-item:focus-visible,
+.local-directory button:focus-visible {
+  outline: none;
+  background: var(--bg-hover);
+}
+@media (forced-colors: active) {
+  .library-item:focus-visible .library-filename,
+  .local-directory button:focus-visible span {
+    text-decoration: underline;
+  }
 }
 .library-filename {
   width: 100%;
@@ -1866,10 +1862,6 @@ watch(
 }
 .selecting .library-item {
   user-select: none;
-}
-.library-card.chosen :deep(.library-thumbnail),
-.library-item:focus-visible :deep(.library-thumbnail) {
-  border-color: var(--accent);
 }
 .library-card.chosen :deep(.library-thumbnail) {
   background-color: var(--accent-soft);

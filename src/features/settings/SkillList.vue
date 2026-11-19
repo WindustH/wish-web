@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Rows of skills and the folders they sit in, as cards: a folder opens to show what it holds, a
+// Rows of skills and the folders they sit in, in the catalog: a folder opens to show what it holds, a
 // skill to show what it says, and each has a box that turns it on - a folder's ticked with all of
 // its skills on and a dash with some.
 import { CheckboxIndicator, CheckboxRoot } from 'reka-ui';
@@ -43,17 +43,20 @@ const reduced = prefersReducedMotion();
       :exit="reduced ? undefined : { height: 0, opacity: 0 }"
       :transition="{ duration: 0.18, ease: 'easeOut' }"
     >
-      <div v-if="row.folder" class="set-row toggle-row skill-row skill-folder-row">
-        <button type="button" class="skill-fold" aria-haspopup="dialog" @click="emit('open', row.folder)">
+      <div v-if="row.folder" class="skill-row skill-folder-row">
+        <button type="button" class="skill-fold" :title="row.folder.name" @click="emit('open', row.folder)">
           <Icon name="folder" class="skill-folder-icon" />
-          <span class="set-label">
-            <span>{{ row.folder.name }}</span>
-            <small
-              >{{ row.state.summary
-              }}<template v-if="row.state.conflict">
-                · <span class="skill-warn">{{ tr('有重名的 Skill', 'Has skills sharing a name') }}</span></template
-              ></small
-            >
+          <span class="folder-name">{{ row.folder.name }}</span>
+          <span v-if="row.state.conflict" class="skill-warn">{{ tr('重名', 'Name conflict') }}</span>
+          <span class="folder-count" :title="row.state.summary">
+            <span aria-hidden="true">{{
+              row.state.total
+                ? row.state.on === row.state.total
+                  ? row.state.total
+                  : row.state.on + ' / ' + row.state.total
+                : '—'
+            }}</span>
+            <span class="visually-hidden">{{ row.state.summary }}</span>
           </span>
           <Icon name="chevron-right" class="skill-chevron" />
         </button>
@@ -68,16 +71,15 @@ const reduced = prefersReducedMotion();
             ><Icon :name="row.state.checked === 'indeterminate' ? 'minus' : 'check'" /></CheckboxIndicator
         ></CheckboxRoot>
       </div>
-      <div
-        v-else
-        class="set-row toggle-row skill-row"
-        :class="{ off: row.skill.standing !== 'used' || !enabled(row.skill.name) }"
-      >
+      <div v-else class="skill-row" :class="{ off: row.skill.standing !== 'used' || !enabled(row.skill.name) }">
         <button type="button" class="skill-open" @click="emit('view', row.skill)">
-          <span class="set-label">
-            <span class="skill-name">{{ row.skill.name }}</span>
-            <small class="skill-description">{{ row.skill.description }}</small>
-            <small v-if="row.note" class="skill-note" :class="{ 'skill-warn': row.note.warn }">{{
+          <Icon name="file" class="skill-file-icon" />
+          <span class="skill-metadata">
+            <span class="skill-name" :title="row.skill.name">{{ row.skill.name }}</span>
+            <small v-if="row.skill.description" class="skill-description" :title="row.skill.description">{{
+              row.skill.description
+            }}</small>
+            <small v-if="row.note" class="skill-note" :title="row.note.text" :class="{ 'skill-warn': row.note.warn }">{{
               row.note.text
             }}</small>
           </span>
@@ -97,102 +99,117 @@ const reduced = prefersReducedMotion();
 </template>
 
 <style scoped>
-.skill-open {
-  display: block;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+.skill-line + .skill-line {
+  border-top: 1px solid var(--line);
+}
+.skill-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  align-items: center;
+  column-gap: 2px;
+  border-radius: 5px;
+}
+.skill-row:focus-within {
+  background: var(--bg-hover);
 }
 @media (hover: hover) {
-  .skill-open:hover .skill-name {
-    color: var(--accent);
+  .skill-row:hover {
+    background: var(--bg-hover);
   }
 }
-.skill-open:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 4px;
-  border-radius: 4px;
-}
-.skill-name {
-  min-width: 0;
-  font-family: var(--mono);
-  overflow-wrap: anywhere;
-  transition: color var(--dur-fast);
-}
-.skill-description {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-.set-label > small.skill-note {
-  color: var(--fg-faint);
-  overflow-wrap: anywhere;
-}
-.set-label > small .skill-warn,
-.set-label > small.skill-warn {
-  color: var(--warn);
-}
-.skill-row.off .skill-name,
-.skill-row.off .skill-description {
-  opacity: 0.55;
-}
-/* A card for each folder and skill. */
-.skill-line {
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--bg-raised);
-}
-.skill-fold {
+.skill-fold,
+.skill-open {
   display: flex;
+  gap: 9px;
   align-items: center;
-  gap: 10px;
   min-width: 0;
-  padding: 0;
+  min-height: 35px;
+  padding: 5px 2px 5px 8px;
   border: 0;
+  border-radius: 5px;
   background: none;
   color: inherit;
-  font: inherit;
-  text-align: left;
+  font: 500 13px/1.4 var(--font);
+  text-align: start;
   cursor: pointer;
 }
-.skill-fold > .set-label {
-  flex: 1;
+.skill-fold:focus-visible,
+.skill-open:focus-visible {
+  outline-offset: -2px;
+}
+.folder-name,
+.skill-name,
+.skill-description,
+.skill-note {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.skill-fold:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 4px;
-  border-radius: 4px;
+.folder-name {
+  flex: 1;
 }
-.skill-folder-icon {
-  flex: none;
-  width: 16px;
-  height: 16px;
-  color: var(--fg-subtle);
-}
-.skill-chevron {
+.skill-folder-icon,
+.skill-file-icon {
   flex: none;
   width: 15px;
   height: 15px;
+  color: var(--fg-subtle);
+}
+.skill-chevron {
+  width: 12px;
+  height: 12px;
+  flex: none;
   color: var(--fg-faint);
 }
-@media (hover: hover) {
-  .skill-fold:hover .set-label > span {
-    color: var(--accent);
-  }
+.folder-count {
+  flex: none;
+  font: 11px var(--mono);
+  color: var(--fg-subtle);
 }
-@media (max-width: 899px) {
-  .skill-line {
-    border: 0;
-    border-radius: 16px;
-    background: var(--bg-group);
+.skill-metadata {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.skill-name {
+  font: 500 12.5px/1.4 var(--mono);
+}
+.skill-description,
+.skill-note,
+.skill-warn {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--fg-subtle);
+}
+.skill-warn {
+  color: var(--warn);
+}
+.off .skill-name {
+  color: var(--fg-muted);
+}
+.skill-check {
+  justify-self: center;
+}
+@media (pointer: coarse), (max-width: 899px) {
+  .skill-row {
+    grid-template-columns: minmax(0, 1fr) 44px;
+  }
+  .skill-fold,
+  .skill-open {
+    min-height: 44px;
+  }
+  .skill-check {
+    position: relative;
+  }
+  .skill-check::after {
+    content: '';
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
   }
 }
 </style>

@@ -16,6 +16,7 @@ import subprocess
 import sys
 import urllib.request
 import zipfile
+import zlib
 
 ROOT = Path(__file__).resolve().parent.parent
 PINS = ROOT / 'tools/fonts.json'
@@ -64,22 +65,17 @@ def stamp(pins):
 def main():
     pins = json.loads(PINS.read_text())
     sources = {key: fetch(pin) for key, pin in pins.items()}
-    # GPU terminal engines shape glyphs from a single OpenType face, including CJK.
-    face = ROOT / 'src/generated/terminal-font' / 'MapleMono-NF-CN-Regular.ttf'
-    with zipfile.ZipFile(sources['maple']) as archive:
-        info = archive.getinfo(face.name)
-        if not face.exists() or face.stat().st_size != info.file_size or sources['maple'].stat().st_mtime_ns > face.stat().st_mtime_ns:
-            face.parent.mkdir(parents=True, exist_ok=True)
-            with archive.open(info) as source, face.with_suffix('.part').open('wb') as target:
-                shutil.copyfileobj(source, target)
-            face.with_suffix('.part').replace(face)
+    terminal_face = OUT / 'MapleMono-NF-CN-Regular.ttf.deflate'
     current = stamp(pins)
     record = OUT / '.stamp'
-    if record.exists() and record.read_text() == current:
+    if terminal_face.is_file() and record.exists() and record.read_text() == current:
         return
     if OUT.exists():
         shutil.rmtree(OUT)
     OUT.mkdir(parents=True)
+    # Both GPU renderers need the complete SFNT, including CJK and Nerd Font glyphs.
+    with zipfile.ZipFile(sources['maple']) as archive:
+        terminal_face.write_bytes(zlib.compress(archive.read(terminal_face.stem), level=9))
     for key in ('sarasa', 'maple'):
         subprocess.run([sys.executable, ROOT / 'tools/build-cjk-fonts.py', key, sources[key]], check=True)
     subprocess.run([sys.executable, ROOT / 'tools/build-latin-fonts.py'], check=True)

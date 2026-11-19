@@ -110,6 +110,14 @@
 .sl-item:has(:focus-visible) {
   background: var(--bg-hover);
 }
+.sl-row:focus-visible {
+  outline: none;
+}
+@media (forced-colors: active) {
+  .sl-row:focus-visible .sl-name {
+    text-decoration: underline;
+  }
+}
 @media (hover: hover) {
   .sl-item:hover {
     background: var(--bg-hover);

@@ -12,7 +12,8 @@ export function extensionSection(value: unknown): string | undefined {
 
 /** The header and system Back must follow the same settings hierarchy, including old deep links. */
 export function settingsBackTarget(query: SettingsQuery): string | null {
-  if (query.section === 'shortcuts' && query.advanced === 'navigation') return '/settings?section=shortcuts';
+  if (query.section === 'shortcuts' && (query.advanced === 'navigation' || query.advanced === 'keymap'))
+    return '/settings?section=shortcuts';
   if ((query.section === 'extensions' && extensionSection(query.tool)) || extensionSection(query.section))
     return '/settings?section=extensions';
   return query.section ? '/settings' : null;

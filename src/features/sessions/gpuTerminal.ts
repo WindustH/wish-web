@@ -1,7 +1,33 @@
 // GPU emulators share Wish's existing PTY connection, replay boundary and input queue.
 import type { ITheme } from '@xterm/xterm';
 import { terminalColorNames } from '../../ui/terminalTheme.ts';
-import fontUrl from '../../generated/terminal-font/MapleMono-NF-CN-Regular.ttf?url';
+import fontUrl from '../../generated/fonts/MapleMono-NF-CN-Regular.ttf.deflate?url';
+
+let decodedFont: Promise<Uint8Array<ArrayBuffer>> | undefined;
+let fontExpiry: ReturnType<typeof setTimeout> | undefined;
+async function loadTerminalFont() {
+  clearTimeout(fontExpiry);
+  const font = (decodedFont ??= decodeTerminalFont());
+  try {
+    const bytes = await font;
+    // Share the decode across mounts, then release the cache while the terminal is idle.
+    clearTimeout(fontExpiry);
+    fontExpiry = setTimeout(() => {
+      decodedFont = undefined;
+    }, 60_000);
+    return bytes;
+  } catch (error) {
+    if (decodedFont === font) decodedFont = undefined;
+    throw error;
+  }
+}
+
+async function decodeTerminalFont() {
+  const response = await fetch(fontUrl);
+  if (!response.ok || !response.body) throw new Error(`Maple Mono: HTTP ${response.status}`);
+  const stream = response.body.pipeThrough(new DecompressionStream('deflate'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
 
 export interface TerminalView {
   readonly cols: number;
@@ -26,7 +52,7 @@ export async function gpuTerminal(
   if (engine === 'wraith') {
     if (!('gpu' in navigator))
       throw new Error(window.isSecureContext ? 'WebGPU unavailable' : 'WebGPU requires HTTPS or localhost');
-    const { Wraith } = await import('wraithterm');
+    const [Wraith, font] = await Promise.all([import('wraithterm').then((m) => m.Wraith), loadTerminalFont()]);
     const colors = (t: ITheme) => ({
       foreground: t.foreground,
       background: t.background,
@@ -34,7 +60,7 @@ export async function gpuTerminal(
       palette: palette(t),
     });
     const term = await Wraith.mount(host, {
-      font: fontUrl,
+      font,
       fontSize: size,
       scrollback: 5000,
       imageStorageLimit: 32 * 1024 * 1024,
@@ -73,7 +99,11 @@ export async function gpuTerminal(
     };
   }
 
-  const { Restty, parseGhosttyTheme } = await import('restty');
+  // Select exports inside the import so Vite can omit restty's bundled theme catalog.
+  const [{ Restty, parseGhosttyTheme }, font] = await Promise.all([
+    import('restty').then(({ Restty, parseGhosttyTheme }) => ({ Restty, parseGhosttyTheme })),
+    loadTerminalFont(),
+  ]);
   const colors = (t: ITheme) =>
     parseGhosttyTheme(
       [
@@ -100,7 +130,7 @@ export async function gpuTerminal(
       createInitialPane: { focus: false },
     },
     terminal: {
-      fonts: [{ url: fontUrl, name: 'Maple Mono NF CN' }],
+      fonts: [{ data: font, name: 'Maple Mono NF CN' }],
       fontSize: size,
       theme: colors(theme),
       showResizeOverlay: false,

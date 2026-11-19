@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { drawerWorkspaceWidth } from '../../ui/composables/useSidebarResize.ts';
+import { sidebarViews } from './sidebarViews.ts';
 import { replyContextKey } from '../../domain/references/context.ts';
 import { validReference, type ReplyReference, type ReplyLink } from '../../core/replyReferences.ts';
 import { addLibraryBookmark, replyLinks, replyMessage, sessionEnvironment } from '../../core/api/endpoints.ts';
@@ -147,12 +149,18 @@ const modelActions = computed(() => [
 ]);
 const chatbar = ref<HTMLElement>();
 const toolbarWidth = ref(Infinity);
+const workspace = ref<HTMLElement>();
+const workspaceWidth = ref(Infinity);
 watch(chatbar, (element, _, onCleanup) => {
   if (!element) return;
-  const observer = new ResizeObserver(([entry]) => {
-    if (entry) toolbarWidth.value = entry.contentRect.width;
+  const observer = new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.target === element) toolbarWidth.value = entry.contentRect.width;
+      else workspaceWidth.value = entry.contentRect.width;
+    }
   });
   observer.observe(element);
+  if (workspace.value) observer.observe(workspace.value);
   onCleanup(() => observer.disconnect());
 });
 const compactActions = computed(() => isMobile.value || toolbarWidth.value < 620);
@@ -492,6 +500,11 @@ watch(
   { immediate: true },
 );
 const libraryRevision = ref(0);
+function cycleSidebar(direction: number) {
+  const views = sidebarViews.value;
+  const index = views.findIndex((view) => view.key === sidebarKind.value);
+  openSidebar(views[(index + direction + views.length) % views.length].key);
+}
 function openSidebar(kind: SidebarView) {
   if (kind === 'settings') {
     infoInitialSection.value = 'settings';
@@ -521,7 +534,12 @@ watch(
 </script>
 
 <template>
-  <div class="chat-workspace" :class="{ 'sidebar-open': sidebarOpen }">
+  <div
+    ref="workspace"
+    class="chat-workspace"
+    @cycle-sidebar="cycleSidebar(($event as CustomEvent<number>).detail)"
+    :class="{ 'sidebar-open': sidebarOpen }"
+  >
     <Hint
       :text="
         [i18n.t(sidebarOpen ? 'library.collapseSidebar' : 'library.expandSidebar'), sidebarShortcut.label.value]
@@ -550,7 +568,12 @@ watch(
         'sidebar-fading': sidebarFading,
       }"
     >
-      <div class="chat-main">
+      <div
+        class="chat-main"
+        data-workspace-region="chat"
+        tabindex="-1"
+        :inert="sidebarOpen && !isMobile && workspaceWidth < drawerWorkspaceWidth"
+      >
         <div ref="chatbar" class="chatbar">
           <button
             v-if="isMobile"

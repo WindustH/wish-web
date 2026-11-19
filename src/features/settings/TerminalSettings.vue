@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref, onScopeDispose, onDeactivated } from 'vue';
+import { computed, inject, ref, watch, onScopeDispose, onDeactivated } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { prefs, type TerminalEngine } from '../../core/state/prefsSlice.ts';
 import { configDraftKey } from './useConfigDraft.ts';
@@ -22,6 +22,26 @@ const settings = computed(() => draft.value.terminal ?? defaults);
 function update<K extends keyof TerminalSettings>(key: K, value: TerminalSettings[K]) {
   draft.value.terminal = { ...settings.value, [key]: value };
 }
+const customShell = 'custom:';
+const editingShell = ref(false);
+watch(draft, () => {
+  editingShell.value = false;
+});
+const shellOptions = computed(() => [
+  { value: '', label: tr('本机默认 Shell', 'Host default shell'), annotation: shells.value?.default.program },
+  ...(shells.value?.installed ?? []).map(({ program }) => ({ value: program, label: program })),
+  { value: customShell, label: tr('自定义路径…', 'Custom path…') },
+]);
+const shellSelection = computed({
+  get: () =>
+    editingShell.value || !shellOptions.value.some(({ value }) => value === settings.value.shell)
+      ? customShell
+      : settings.value.shell,
+  set: (value: string) => {
+    editingShell.value = value === customShell;
+    if (!editingShell.value) update('shell', value);
+  },
+});
 function color(name: string, value?: string) {
   const colors = { ...settings.value.colors };
   if (value) colors[name] = value;
@@ -116,26 +136,31 @@ function fontCommit(event: Event) {
             ]"
           />
         </div>
-        <label class="set-row"
-          ><span class="set-label"
-            >Shell<small>{{
-              tr(
-                '留空使用本机默认 Shell，启动时加载 profile。',
-                'Leave empty for the host login shell. Loads its profile on startup.',
-              )
-            }}</small></span
+        <div class="set-row">
+          <span class="set-label"
+            >Shell<small>{{ tr('启动时加载 profile。', 'Loads its profile on startup.') }}</small></span
           >
+          <SelectField
+            mobile-page
+            aria-label="Shell"
+            picker-title="Shell"
+            v-model="shellSelection"
+            :options="shellOptions"
+            :disabled="busy"
+          />
+        </div>
+        <label v-if="shellSelection === customShell" class="set-row">
+          <span class="set-label">{{ tr('程序路径', 'Program path') }}</span>
           <input
             :value="settings.shell"
             @input="update('shell', ($event.target as HTMLInputElement).value)"
             @change="update('shell', ($event.target as HTMLInputElement).value.trim())"
-            class="input"
-            list="terminal-shells"
+            class="input set-mono"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
             :placeholder="tr('本机默认 Shell', 'Host default shell')"
           />
-          <datalist id="terminal-shells">
-            <option v-for="shell in shells?.installed ?? []" :key="shell.program" :value="shell.program" />
-          </datalist>
         </label>
         <div class="set-row">
           <span class="set-label"
@@ -218,7 +243,7 @@ function fontCommit(event: Event) {
         <h3>{{ tr('外观', 'Appearance') }}</h3>
       </header>
       <div class="set-card">
-        <label class="set-row"
+        <label class="set-row inline"
           ><span class="set-label">{{ tr('字号（px）', 'Font size (px)') }}</span
           ><input
             :value="settings.font_size"
@@ -315,6 +340,8 @@ function fontCommit(event: Event) {
   max-width: 220px;
 }
 .set-row > .terminal-size {
+  justify-self: end;
+  margin-inline-start: auto;
   width: 90px;
 }
 .theme-heading {

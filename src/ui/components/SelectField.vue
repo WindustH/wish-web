@@ -35,7 +35,7 @@ const props = defineProps<{
   segmented?: boolean;
 }>();
 const emptyText = computed(() => tr('没有匹配的选项', 'No matching options'));
-const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
+const emit = defineEmits<{ 'update:modelValue': [value: string]; closeAutoFocus: [event: Event] }>();
 const pageActive = usePageActivity();
 const mobile = useIsMobile();
 const open = ref(false);
@@ -169,6 +169,7 @@ watch(pageActive, (active) => {
     </SelectTrigger>
     <SelectPortal v-if="pageActive">
       <SelectContent
+        @close-auto-focus="emit('closeAutoFocus', $event)"
         data-keyboard-boundary
         class="control-select-popover"
         position="popper"

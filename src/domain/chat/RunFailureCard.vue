@@ -2,11 +2,11 @@
 import type { DisplayFailure } from '../../core/api/failures.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import { i18n } from '../../core/i18n/index.ts';
-defineProps<{ failure: DisplayFailure }>();
+defineProps<{ failure: DisplayFailure; heading?: string }>();
 </script>
 <template>
   <div class="history-error" role="alert">
-    <strong>{{ i18n.t('chat.runFailed') }}</strong>
+    <strong>{{ heading ?? i18n.t('chat.runFailed') }}</strong>
     <p>{{ describeError(failure.message).message }}</p>
     <small v-if="failure.family">{{ failure.family }}</small>
     <slot />

@@ -96,6 +96,10 @@ a {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
+/* A dialog can hold keyboard focus between controls. Keep the ring on the controls themselves. */
+:is([role='dialog'], [role='alertdialog']):focus-visible {
+  outline: none;
+}
 .hint {
   font-size: 13px;
   line-height: 1.75;

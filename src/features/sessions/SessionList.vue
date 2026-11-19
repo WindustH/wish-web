@@ -9,7 +9,7 @@ import Hint from '../../ui/components/Hint.vue';
 // rows (TanStack) and endless next-page loading — data unbounded, DOM bounded.
 // It shows one folder at a time: opening a folder replaces the rows with what it holds, and the
 // path above them leads back up; what is made here - sessions and folders - goes in it.
-import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { computed, defineAsyncComponent, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { cfg } from '../../core/config.ts';
@@ -22,16 +22,12 @@ import {
 } from '../../core/state/sessionsSlice.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import SessionListRow, { type RowAction } from './SessionListRow.vue';
-import SessionListAction, { type ActionTarget } from './SessionListAction.vue';
+import type { ActionTarget } from './SessionListAction.vue';
 import FolderListRow, { type FolderAction } from './FolderListRow.vue';
-import MoveDialog from './MoveDialog.vue';
-import NewFolderDialog from './NewFolderDialog.vue';
 import { errorDetail } from '../../core/errors.ts';
 import { toast } from '../../ui/toast.ts';
 import { useListDrag } from './useListDrag.ts';
 import { useMedia } from '../../ui/composables/useMedia.ts';
-import DeleteSessionsDialog from './DeleteSessionsDialog.vue';
-import PruneDialog from './PruneDialog.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
 import type { MenuItem } from '../../ui/components/menuTypes.ts';
@@ -43,6 +39,12 @@ import { goHome } from './useRecentsSheet.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { platform } from '../../platform/index.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
+
+const SessionListAction = defineAsyncComponent(() => import('./SessionListAction.vue'));
+const MoveDialog = defineAsyncComponent(() => import('./MoveDialog.vue'));
+const NewFolderDialog = defineAsyncComponent(() => import('./NewFolderDialog.vue'));
+const DeleteSessionsDialog = defineAsyncComponent(() => import('./DeleteSessionsDialog.vue'));
+const PruneDialog = defineAsyncComponent(() => import('./PruneDialog.vue'));
 
 const route = useRoute();
 const router = useRouter();
@@ -378,7 +380,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="keyboardRoot" class="sessions-pane" tabindex="-1">
+  <div ref="keyboardRoot" class="sessions-pane" data-workspace-region="list" tabindex="-1">
     <header v-if="!isMobile" class="sl-brand">
       <span class="sl-toggle-space" aria-hidden="true" />
       <img class="sl-brand-mark" src="/app-icons/mark.svg" alt="" /><Wordmark class="sl-brand-word" />

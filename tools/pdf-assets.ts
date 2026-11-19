@@ -32,6 +32,8 @@ export function pdfAssets(): Plugin {
       for (const directory of ['cmaps', 'standard_fonts', 'wasm']) {
         for (const name of await readdir(resolve(root, directory))) {
           if (!/\.(bcmap|ttf|pfb|wasm|js)$/.test(name) && !name.startsWith('LICENSE')) continue;
+          // Wish renders PDF pages without the PDF.js scripting sandbox.
+          if (directory === 'wasm' && name.startsWith('quickjs-eval.')) continue;
           this.emitFile({
             type: 'asset',
             fileName: `pdfjs/${directory}/${name}`,

@@ -1,4 +1,4 @@
-import { readonly, shallowRef } from 'vue';
+import { readonly, shallowRef, type DeepReadonly } from 'vue';
 import { platform } from '../../platform/index.ts';
 import {
   defaultShortcuts,
@@ -15,12 +15,15 @@ import {
 
 const storageKey = 'pref.shortcuts';
 const value = shallowRef(defaultShortcuts());
-function replace(next: ShortcutPreferences) {
+function replace(next: DeepReadonly<ShortcutPreferences>) {
   value.value = readShortcuts(next);
   platform('storage').set(storageKey, JSON.stringify(value.value));
 }
 function conflict(id: ShortcutId, binding: KeyBinding) {
-  return shortcutIds.find((other) => other !== id && sameBinding(value.value.bindings[other], binding));
+  return (
+    shortcutIds.find((other) => other !== id && sameBinding(value.value.bindings[other], binding)) ??
+    value.value.alternates.find((row) => sameBinding(row.binding, binding))?.action
+  );
 }
 export const shortcuts = {
   value: readonly(value),
@@ -40,7 +43,7 @@ export const shortcuts = {
   setBrowserBlocked(id: BrowserShortcut, blocked: boolean) {
     replace({ ...value.value, blockedBrowser: { ...value.value.blockedBrowser, [id]: blocked } });
   },
-  setNavigation(navigation: NavigationPreferences) {
+  setNavigation(navigation: DeepReadonly<NavigationPreferences>) {
     replace({ ...value.value, navigation });
   },
   reset() {

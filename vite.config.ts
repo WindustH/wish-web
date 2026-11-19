@@ -78,7 +78,7 @@ export default defineConfig({
       workbox: {
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
-        globIgnores: ['pdfjs/**', 'assets/restty-*.js'],
+        globIgnores: ['pdfjs/**', 'assets/{restty,wraith*,dist,worker,replay-worker,pdf,xterm,UsagePlot}-*.js'],
         // Requests the auth proxy in front of the app must answer itself: the service worker's
         // shell would otherwise stand in for a login page (and for a logout that redirects).
         navigateFallbackDenylist: [/^\/api(?:\/|$)/, /^\/healthz$/, /^\/login(?:\/|\?|$)/, /^\/logout(?:\/|\?|$)/],
@@ -86,6 +86,17 @@ export default defineConfig({
         // Fontsource splits CJK by unicode range. Cache only requested shards;
         // precaching the complete font families would download unused glyphs.
         runtimeCaching: [
+          {
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && /^\/assets\/.+\.(?:m?js|wasm|deflate|ttf)$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: { cacheName: 'wish-feature-assets', expiration: { maxEntries: 384, maxAgeSeconds: 31536000 } },
+          },
+          {
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/pdfjs/'),
+            handler: 'NetworkFirst',
+            options: { cacheName: 'wish-pdf-resources', expiration: { maxEntries: 256 } },
+          },
           {
             urlPattern: /\/assets\/(?:noto-|sarasa-|maple-|STIXTwoMath-|montserrat-|bitter-).*\.woff2$/,
             handler: 'CacheFirst',
@@ -96,7 +107,7 @@ export default defineConfig({
     }),
   ],
   define: { __BUILD_ID__: JSON.stringify(buildId), __WEB_BUILD_ID__: JSON.stringify(webBuildId) },
-  build: { target: 'es2022', manifest: true },
+  build: { target: 'es2022' },
   server: {
     proxy: {
       '/api': {

@@ -1,4 +1,5 @@
-import type { NavigationPreferences } from '../core/shortcuts.ts';
+import type { DeepReadonly } from 'vue';
+import { isSidebarCycle, navigationAction, type NavigationPreferences } from '../core/shortcuts.ts';
 import { backLayers } from './backLayers.ts';
 
 const surfaces =
@@ -17,7 +18,7 @@ function layer(node: HTMLElement) {
   return z;
 }
 
-function topSurface() {
+export function topSurface() {
   return (
     [...document.querySelectorAll<HTMLElement>(surfaces)]
       .filter(visible)
@@ -40,7 +41,7 @@ function forward(target: HTMLElement, key: string) {
   target.dispatchEvent(event);
 }
 
-function scrollContainer(surface: HTMLElement) {
+export function scrollContainer(surface: HTMLElement) {
   const scrollable = (node: HTMLElement) =>
     visible(node) && node.scrollHeight > node.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(node).overflowY);
   // Prefer the focused pane (e.g. a two-column picker), then the main reading area.
@@ -57,7 +58,7 @@ function scrollContainer(surface: HTMLElement) {
 }
 
 /** Own single-key navigation before chat shortcuts, while preserving text and terminal input. */
-export function navigateOverlay(event: KeyboardEvent, navigation: NavigationPreferences): boolean {
+export function navigateOverlay(event: KeyboardEvent, navigation: DeepReadonly<NavigationPreferences>): boolean {
   if (
     !navigation.enabled ||
     forwarded.has(event) ||
@@ -69,8 +70,9 @@ export function navigateOverlay(event: KeyboardEvent, navigation: NavigationPref
     event.altKey
   )
     return false;
-  const action = Object.entries(navigation.keys).find(([, key]) => key && key === event.key)?.[0];
-  if (!action || action === 'exit' || action === 'command') return false;
+  const action = navigationAction(navigation, event.key);
+  if (!action || isSidebarCycle(action) || action === 'openItem' || action === 'exit' || action === 'command')
+    return false;
   const path = event.composedPath();
   if (
     editing(document.activeElement) ||

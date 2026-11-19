@@ -5,7 +5,7 @@
 // all are; a search lists what it finds under its box. The model is told of none of them; it looks
 // with `wish skill` in its shell. Folders and switches are part of the configuration draft, saved with
 // the rest of settings.
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onDeactivated, ref, watch } from 'vue';
 import { CheckboxIndicator, CheckboxRoot, PopoverAnchor, PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui';
 import { tr } from '../../core/i18n/tr.ts';
 import { skillContent, skillsList } from '../../core/api/endpoints.ts';
@@ -25,7 +25,17 @@ const props = defineProps<{ config: any; busy: boolean; revision: string }>();
 const snapshot = ref<SkillsSnapshot | null>(null);
 const loading = ref(false);
 const query = ref('');
+const browsing = ref(false);
+function closeBrowser() {
+  viewingRequest?.abort();
+  viewing.value = null;
+  browsing.value = false;
+  stack.value = [];
+  query.value = '';
+  searchOpen.value = false;
+}
 const viewing = ref<SkillContent | null>(null);
+onDeactivated(closeBrowser);
 const settings = computed<{ dirs: string[]; disabled: string[] }>(() => props.config.skills);
 
 let loadingRequest: AbortController | undefined;
@@ -292,19 +302,30 @@ function closeDetail() {
   </section>
 
   <section class="set-section">
-    <header class="set-section-head skill-head">
-      <div>
-        <h3>{{ tr('Skill', 'Skills') }}</h3>
-        <p v-if="snapshot">
-          {{
-            tr(
-              `找到 ${all.length} 个，会话可用 ${usable} 个。点开可以查看内容。`,
-              `${all.length} found, ${usable} available to sessions. Open one to read it.`,
-            )
-          }}
-        </p>
+    <div class="set-card">
+      <div class="set-row inline">
+        <span class="set-label"
+          >Skill<small v-if="snapshot">{{
+            tr(`找到 ${all.length} 个，会话可用 ${usable} 个`, `${all.length} found, ${usable} available`)
+          }}</small></span
+        >
+        <button class="btn" type="button" aria-haspopup="dialog" @click="browsing = true">
+          {{ tr('浏览 Skill', 'Browse skills') }}<Icon name="arrow-up-right" :size="15" />
+        </button>
       </div>
+    </div>
+  </section>
+  <Modal
+    :open="browsing"
+    :page="isMobile"
+    :title="current?.name ?? tr('浏览 Skill', 'Browse skills')"
+    :back="current ? backFolder : undefined"
+    :content-class="isMobile ? 'mobile-settings-page skill-browser' : 'skill-browser'"
+    @close="closeBrowser"
+  >
+    <template #actions>
       <button
+        v-if="!current"
         type="button"
         class="btn ghost icon-only"
         :aria-label="tr('重新读取', 'Read again')"
@@ -313,127 +334,118 @@ function closeDetail() {
       >
         <Icon name="refresh-cw" :class="{ spin: loading }" />
       </button>
-    </header>
-    <PopoverRoot v-if="all.length > 8" :open="searchOpen && searching" @update:open="searchOpen = $event">
-      <PopoverAnchor as-child>
-        <div class="skill-search" tabindex="-1">
-          <Icon name="search" /><input
-            ref="searchInput"
-            v-model="query"
-            type="search"
-            :placeholder="tr('搜索 Skill', 'Search skills')"
-            :aria-label="tr('搜索 Skill', 'Search skills')"
-            autocomplete="off"
-            spellcheck="false"
-            :aria-expanded="searchOpen && searching"
-            aria-controls="skill-results"
-            @focus="searchOpen = true"
-            @click="searchOpen = true"
-            @keydown.escape="closeSearch"
-            @keydown.down="intoResults"
-            @keydown.tab="intoResults"
-          />
-        </div>
-      </PopoverAnchor>
-      <PopoverPortal>
-        <PopoverContent
-          class="skill-results"
-          side="bottom"
-          align="start"
-          :side-offset="6"
-          :collision-padding="12"
-          @open-auto-focus.prevent
-          @close-auto-focus.prevent
-          @interact-outside="outsideSearch"
-          @keydown="moveInResults"
-        >
-          <!-- reka names the popover itself; this names what the box controls. -->
-          <div id="skill-results" class="skill-results-list">
-            <p v-if="!found.length" class="skill-results-empty">{{ tr('没有匹配的 Skill。', 'No skill matches.') }}</p>
-            <div
-              v-for="skill in found"
-              :key="skill.dir"
-              class="skill-result"
-              :class="{ off: skill.standing !== 'used' || !enabled(skill.name) }"
-            >
-              <button type="button" class="skill-result-open" @click="view(skill, true)">
-                <span class="skill-result-name">{{ skill.name }}</span>
-                <small>{{ [skill.category, skill.description].filter(Boolean).join(' · ') }}</small>
-              </button>
-              <CheckboxRoot
-                v-if="skill.standing === 'used'"
-                :model-value="enabled(skill.name)"
-                class="skill-check"
-                :aria-label="skill.name"
-                :disabled="busy"
-                @update:model-value="setEnabled(skill.name, $event === true)"
-                ><CheckboxIndicator class="skill-check-mark"><Icon name="check" /></CheckboxIndicator
-              ></CheckboxRoot>
-            </div>
-            <p v-if="matches.length > found.length" class="skill-results-empty">
-              {{
-                tr(
-                  `还有 ${matches.length - found.length} 个，再多输入一些来缩小范围`,
-                  `${matches.length - found.length} more; type more to narrow it down`,
-                )
-              }}
-            </p>
-          </div>
-        </PopoverContent>
-      </PopoverPortal>
-    </PopoverRoot>
-    <div class="skill-list skill-tree">
-      <p v-if="!snapshot" class="skill-empty">
-        {{ loading ? tr('正在读取…', 'Reading…') : tr('没有读取到 Skill。', 'Skills could not be read.') }}
-      </p>
-      <p v-else-if="!all.length" class="skill-empty">
-        {{
-          tr(
-            '还没有 Skill。把 Skill 文件夹（每个里面有一个 SKILL.md）放进上面的目录即可，也可以按类别放在子文件夹里。',
-            'No skills yet. Put skill folders, each holding a SKILL.md, in a folder above, in subfolders by kind if you like.',
-          )
-        }}
-      </p>
-      <SkillList
-        :rows="rows"
-        :busy="busy"
-        :enabled="enabled"
-        @open="openFolder"
-        @view="view"
-        @set-folder="setFolder"
-        @set-skill="setEnabled"
-      />
-    </div>
-    <div v-if="snapshot?.problems.length" class="skill-problems" role="status">
-      <p>{{ tr('这些文件读取失败：', 'These files could not be read:') }}</p>
-      <p v-for="problem in snapshot.problems" :key="problem.path">
-        <span class="set-mono">{{ problem.path }}</span> · {{ problem.message }}
-      </p>
-    </div>
-  </section>
-
-  <Modal
-    :open="!!current"
-    :page="isMobile"
-    wide
-    :content-class="isMobile ? 'mobile-settings-page' : undefined"
-    :title="current?.name ?? ''"
-    :back="stack.length > 1 ? backFolder : undefined"
-    @close="stack = []"
-  >
-    <template v-if="current" #actions>
       <CheckboxRoot
-        v-if="folderState(current).total"
-        :model-value="folderState(current).checked"
+        v-else-if="folderState(current!).total"
+        :model-value="folderState(current!).checked"
         class="skill-check"
         :aria-label="tr(`开启 ${current.name} 中的全部 Skill`, `Turn on every skill in ${current.name}`)"
         :disabled="busy"
         @update:model-value="setFolder(folderState(current!).switchable, $event === true)"
         ><CheckboxIndicator class="skill-check-mark"
-          ><Icon :name="folderState(current).checked === 'indeterminate' ? 'minus' : 'check'" /></CheckboxIndicator
+          ><Icon :name="folderState(current!).checked === 'indeterminate' ? 'minus' : 'check'" /></CheckboxIndicator
       ></CheckboxRoot>
     </template>
-    <div class="skill-list skill-tree">
+    <template v-if="!current">
+      <PopoverRoot v-if="all.length > 8" :open="searchOpen && searching" @update:open="searchOpen = $event">
+        <PopoverAnchor as-child>
+          <div class="skill-search" tabindex="-1">
+            <Icon name="search" /><input
+              ref="searchInput"
+              v-model="query"
+              type="search"
+              :placeholder="tr('搜索 Skill', 'Search skills')"
+              :aria-label="tr('搜索 Skill', 'Search skills')"
+              autocomplete="off"
+              spellcheck="false"
+              :aria-expanded="searchOpen && searching"
+              aria-controls="skill-results"
+              @focus="searchOpen = true"
+              @click="searchOpen = true"
+              @keydown.escape="closeSearch"
+              @keydown.down="intoResults"
+              @keydown.tab="intoResults"
+            />
+          </div>
+        </PopoverAnchor>
+        <PopoverPortal>
+          <PopoverContent
+            class="skill-results"
+            side="bottom"
+            align="start"
+            :side-offset="6"
+            :collision-padding="12"
+            @open-auto-focus.prevent
+            @close-auto-focus.prevent
+            @interact-outside="outsideSearch"
+            @keydown="moveInResults"
+          >
+            <!-- reka names the popover itself; this names what the box controls. -->
+            <div id="skill-results" class="skill-results-list">
+              <p v-if="!found.length" class="skill-results-empty">
+                {{ tr('没有匹配的 Skill。', 'No skill matches.') }}
+              </p>
+              <div
+                v-for="skill in found"
+                :key="skill.dir"
+                class="skill-result"
+                :class="{ off: skill.standing !== 'used' || !enabled(skill.name) }"
+              >
+                <button type="button" class="skill-result-open" @click="view(skill, true)">
+                  <span class="skill-result-name">{{ skill.name }}</span>
+                  <small>{{ [skill.category, skill.description].filter(Boolean).join(' · ') }}</small>
+                </button>
+                <CheckboxRoot
+                  v-if="skill.standing === 'used'"
+                  :model-value="enabled(skill.name)"
+                  class="skill-check"
+                  :aria-label="skill.name"
+                  :disabled="busy"
+                  @update:model-value="setEnabled(skill.name, $event === true)"
+                  ><CheckboxIndicator class="skill-check-mark"><Icon name="check" /></CheckboxIndicator
+                ></CheckboxRoot>
+              </div>
+              <p v-if="matches.length > found.length" class="skill-results-empty">
+                {{
+                  tr(
+                    `还有 ${matches.length - found.length} 个，再多输入一些来缩小范围`,
+                    `${matches.length - found.length} more; type more to narrow it down`,
+                  )
+                }}
+              </p>
+            </div>
+          </PopoverContent>
+        </PopoverPortal>
+      </PopoverRoot>
+      <div class="skill-list skill-tree">
+        <p v-if="!snapshot" class="skill-empty">
+          {{ loading ? tr('正在读取…', 'Reading…') : tr('没有读取到 Skill。', 'Skills could not be read.') }}
+        </p>
+        <p v-else-if="!all.length" class="skill-empty">
+          {{
+            tr(
+              '还没有 Skill。把 Skill 文件夹（每个里面有一个 SKILL.md）放进上面的目录即可，也可以按类别放在子文件夹里。',
+              'No skills yet. Put skill folders, each holding a SKILL.md, in a folder above, in subfolders by kind if you like.',
+            )
+          }}
+        </p>
+        <SkillList
+          :rows="rows"
+          :busy="busy"
+          :enabled="enabled"
+          @open="openFolder"
+          @view="view"
+          @set-folder="setFolder"
+          @set-skill="setEnabled"
+        />
+      </div>
+      <div v-if="snapshot?.problems.length" class="skill-problems" role="status">
+        <p>{{ tr('这些文件读取失败：', 'These files could not be read:') }}</p>
+        <p v-for="problem in snapshot.problems" :key="problem.path">
+          <span class="set-mono">{{ problem.path }}</span> · {{ problem.message }}
+        </p>
+      </div>
+    </template>
+    <div v-else class="skill-list skill-tree">
       <SkillList
         :rows="folderRows"
         :busy="busy"
@@ -468,6 +480,30 @@ function closeDetail() {
 </template>
 
 <style scoped>
+:global(.modal-card.skill-browser:not(.modal-page)) {
+  width: min(492px, calc(100vw - 32px));
+}
+:global(.skill-browser:not(.modal-page) > .modal-head) {
+  padding: 6px 10px 6px 16px;
+  gap: 8px;
+}
+:global(.skill-browser:not(.modal-page) .modal-title) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+:global(.skill-browser:not(.modal-page) > .modal-head .btn.icon-only) {
+  min-height: 28px;
+  width: 28px;
+  padding: 4px;
+}
+:global(.skill-browser:not(.modal-page) .modal-body) {
+  padding: 5px 8px 8px;
+}
+
 /* One compact path list, with a shared border and an inline add action. */
 .skill-paths {
   min-width: 0;
@@ -553,41 +589,26 @@ function closeDetail() {
 .skill-missing {
   color: var(--warn);
 }
-/* The discovered skills keep their own card layout below the path list. */
-.skill-list {
-  display: grid;
-  gap: 10px;
-}
-.skill-list.skill-tree {
-  gap: 8px;
-}
 .skill-pending {
   margin: 8px 4px 0;
-}
-.skill-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-.skill-head .btn .icon {
-  width: 16px;
-  height: 16px;
 }
 .skill-search {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  padding: 0 12px;
-  height: 40px;
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
-  background: var(--bg-raised);
+  gap: 9px;
+  margin: 0 0 4px;
+  padding: 0 8px;
+  height: 36px;
+  border-bottom: 1px solid var(--line-strong);
   color: var(--fg-subtle);
 }
 .skill-search:focus-within {
-  border-color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+@media (pointer: coarse), (max-width: 899px) {
+  .skill-search {
+    height: 44px;
+  }
 }
 .skill-search .icon {
   width: 16px;
@@ -602,6 +623,7 @@ function closeDetail() {
   background: transparent;
   color: var(--fg);
   font: inherit;
+  font-size: max(13px, 1em);
 }
 .skill-empty {
   margin: 0;

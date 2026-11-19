@@ -162,3 +162,38 @@ html.resizing * {
 .shell.desktop .sessions-split.sidebar-collapsed .chatbar {
   padding-left: 56px;
 }
+
+.chat-main[data-workspace-region],
+.sessions-pane[data-workspace-region] {
+  position: relative;
+  outline: none;
+}
+
+.sessions-split[data-chat-navigation][data-focus-indicator] {
+  &[data-focus-region='list'] > .sessions-pane::after,
+  &[data-focus-region='side'] #session-sidebar::after,
+  &[data-focus-region='chat'] .chat-main::after,
+  &[data-focus-region='side']:not(:has(#session-sidebar)) .chat-main::after,
+  &[data-focus-region='list'].sidebar-collapsed .chat-main::after {
+    content: '';
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    z-index: 24;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.65;
+    pointer-events: none;
+    animation: region-cursor 1.4s ease-in-out infinite alternate;
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+}
+@keyframes region-cursor {
+  to {
+    opacity: 0.2;
+  }
+}

@@ -1,7 +1,6 @@
 // Hash routing (works from any static host, no server rewrites).
 import { createRouter, createWebHashHistory } from 'vue-router';
 import SessionsView from './features/sessions/SessionsView.vue';
-import StartChat from './features/sessions/StartChat.vue';
 import { installSessionNavigation } from './features/shell/sessionNavigation.ts';
 import { createBackLayers, setBackLayers } from './ui/backLayers.ts';
 
@@ -22,6 +21,8 @@ const windows = createBackLayers(
 );
 setBackLayers(windows);
 
+const startChat = () => import('./features/sessions/StartChat.vue');
+
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
@@ -33,10 +34,10 @@ export const router = createRouter({
       component: SessionsView,
       children: [
         { path: '', redirect: '/sessions' },
-        { path: 'sessions', name: 'sessions', component: StartChat },
+        { path: 'sessions', name: 'sessions', component: startChat },
         // On a phone the full list is a sheet over the home page, which stays beneath it.
-        { path: 'sessions/all', name: 'all-sessions', component: StartChat },
-        { path: 'new', name: 'new-chat', component: StartChat },
+        { path: 'sessions/all', name: 'all-sessions', component: startChat },
+        { path: 'new', name: 'new-chat', component: startChat },
         {
           path: 's/:id',
           component: () => import('./features/sessions/ChatPane.vue'),

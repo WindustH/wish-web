@@ -217,6 +217,10 @@ const zh: Rule[] = [
   [/^it has no API key$/, () => '还没有填写 API Key。'],
   [/^no answer within (\d+) seconds$/, (seconds) => `${seconds} 秒内没有响应。`],
   // Model catalog and runtime failures.
+  [
+    /^session provider '(.+)' is unavailable; select an enabled provider and model for this session$/,
+    (id) => `此会话的提供商「${id}」已移除或停用。请为会话选择一个已启用的提供商和模型。`,
+  ],
   [/^model_list_path is not configured$/, () => '这个提供商没有配置模型列表路径。'],
   [/^server is shutting down$/, () => '服务正在关闭，请稍后重试。'],
   [/^not found$/, () => '请求的内容不存在。'],
