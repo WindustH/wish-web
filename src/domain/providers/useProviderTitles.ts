@@ -1,5 +1,5 @@
 import { computed, readonly, ref } from 'vue';
-import { getBaseUrl } from '../../core/api/client.ts';
+import { getConnectionScope } from '../../core/api/client.ts';
 import { bus } from '../../core/bus.ts';
 import { providerConfigs } from '../../core/api/endpoints.ts';
 import { providerTitles } from './providerPresentation.ts';
@@ -16,13 +16,13 @@ let pending: Promise<void> | undefined;
 /** Whether provider names can be shown yet; until then, what shows one keeps its place empty. */
 export const providerTitlesRead = readonly(read);
 
-let scope = getBaseUrl();
+let scope = getConnectionScope();
 let controller: AbortController | undefined;
 let loadedAt = 0;
 let revision = 0;
 function load() {
-  if (scope !== getBaseUrl()) {
-    scope = getBaseUrl();
+  if (scope !== getConnectionScope()) {
+    scope = getConnectionScope();
     revision++;
     controller?.abort();
     pending = undefined;
@@ -33,7 +33,7 @@ function load() {
   }
   const requestedRevision = revision;
   const requestedScope = scope;
-  const current = () => requestedRevision === revision && requestedScope === getBaseUrl();
+  const current = () => requestedRevision === revision && requestedScope === getConnectionScope();
   if (Date.now() - loadedAt < 30_000) return;
   // Names from the last launch cover the wait; the fresh list replaces them.
   if (!Object.keys(known.value).length)
@@ -82,7 +82,7 @@ export function useProviderTitles() {
 
 // One application-lifetime subscriber, shared by all consumers.
 bus.on('sync.snapshot', () => {
-  if (scope !== getBaseUrl()) load();
+  if (scope !== getConnectionScope()) load();
 });
 bus.on('configuration.changed', () => {
   revision++;

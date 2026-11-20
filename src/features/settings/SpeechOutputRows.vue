@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import SelectField from '../../ui/components/SelectField.vue';
 import type { MediaOptions } from '../../core/mediaGeneration.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import KeyValueEditor from '../../domain/settings/KeyValueEditor.vue';
 import SwitchRow from '../../domain/settings/SwitchRow.vue';
 const options = defineModel<MediaOptions>({ required: true });
-function codec(event: Event) {
-  const value = (event.target as HTMLSelectElement).value as 'mp3' | 'wav' | '';
+function codec(value: string) {
+  if (value !== '' && value !== 'mp3' && value !== 'wav') return;
   options.value = {
     ...options.value,
     speech_output: value
@@ -17,8 +18,7 @@ function codec(event: Event) {
       : null,
   };
 }
-function number(key: 'sample_rate' | 'bit_rate', event: Event) {
-  const value = (event.target as HTMLSelectElement).value;
+function number(key: 'sample_rate' | 'bit_rate', value: string) {
   options.value = {
     ...options.value,
     speech_output: { codec: 'mp3', ...options.value.speech_output, [key]: value ? Number(value) : null },
@@ -28,27 +28,40 @@ function number(key: 'sample_rate' | 'bit_rate', event: Event) {
 <template>
   <label class="set-row stacked"
     ><span class="set-label">{{ tr('音频格式', 'Audio format') }}</span>
-    <select class="input" :value="options.speech_output?.codec || ''" @change="codec">
-      <option value="">{{ tr('服务默认值（MP3）', 'Service default (MP3)') }}</option>
-      <option value="mp3">MP3</option>
-      <option value="wav">WAV</option>
-    </select>
+    <SelectField
+      :aria-label="tr('音频格式', 'Audio format')"
+      :model-value="String(options.speech_output?.codec ?? '')"
+      :options="[
+        { value: '', label: tr('服务默认值（MP3）', 'Service default (MP3)') },
+        { value: 'mp3', label: 'MP3' },
+        { value: 'wav', label: 'WAV' },
+      ]"
+      @update:model-value="codec"
+    />
   </label>
   <label class="set-row stacked"
     ><span class="set-label">{{ tr('采样率', 'Sample rate') }}</span>
-    <select class="input" :value="options.speech_output?.sample_rate ?? ''" @change="number('sample_rate', $event)">
-      <option value="">{{ tr('服务默认值', 'Service default') }}</option>
-      <option v-for="rate in [8000, 16000, 22050, 24000, 44100, 48000]" :key="rate" :value="rate">{{ rate }} Hz</option>
-    </select>
+    <SelectField
+      :aria-label="tr('采样率', 'Sample rate')"
+      :model-value="String(options.speech_output?.sample_rate ?? '')"
+      :options="[
+        { value: '', label: tr('服务默认值', 'Service default') },
+        ...[8000, 16000, 22050, 24000, 44100, 48000].map((rate) => ({ value: String(rate), label: rate + ' Hz' })),
+      ]"
+      @update:model-value="number('sample_rate', $event)"
+    />
   </label>
   <label v-if="options.speech_output?.codec !== 'wav'" class="set-row stacked"
     ><span class="set-label">{{ tr('比特率', 'Bit rate') }}</span>
-    <select class="input" :value="options.speech_output?.bit_rate ?? ''" @change="number('bit_rate', $event)">
-      <option value="">{{ tr('服务默认值', 'Service default') }}</option>
-      <option v-for="rate in [32000, 64000, 96000, 128000, 192000]" :key="rate" :value="rate">
-        {{ rate / 1000 }} kbps
-      </option>
-    </select>
+    <SelectField
+      :aria-label="tr('比特率', 'Bit rate')"
+      :model-value="String(options.speech_output?.bit_rate ?? '')"
+      :options="[
+        { value: '', label: tr('服务默认值', 'Service default') },
+        ...[32000, 64000, 96000, 128000, 192000].map((rate) => ({ value: String(rate), label: rate / 1000 + ' kbps' })),
+      ]"
+      @update:model-value="number('bit_rate', $event)"
+    />
   </label>
   <SwitchRow
     :model-value="options.text_normalization ?? false"

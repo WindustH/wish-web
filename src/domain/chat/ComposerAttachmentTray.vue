@@ -52,7 +52,7 @@ function outside(event: Event) {
       </PopoverTrigger>
       <PopoverPortal>
         <PopoverContent
-          class="composer-attachments-window"
+          class="composer-attachments-window popup-palette"
           data-keyboard-boundary
           side="top"
           align="start"
@@ -111,9 +111,9 @@ function outside(event: Event) {
   padding: 12px;
   border: 1px solid var(--line-strong);
   border-radius: 14px;
-  background: var(--bg-raised);
+  background: var(--bg-overlay);
   color: var(--fg);
-  box-shadow: 0 8px 28px rgb(0 0 0 / 16%);
+  box-shadow: var(--shadow-menu);
 }
 .dialog-topline {
   flex: none;

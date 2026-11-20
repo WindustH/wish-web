@@ -14,34 +14,6 @@
   background: var(--bg);
   color: var(--fg);
 }
-.setup-preview-bar {
-  position: sticky;
-  top: calc(-1 * var(--setup-pad-y));
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: calc(-1 * var(--setup-pad-y)) calc(-1 * var(--setup-pad-x)) 32px;
-  padding: 8px var(--setup-pad-x);
-  border-bottom: 1px solid var(--line);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 13px;
-  font-weight: 500;
-}
-.setup-preview-bar span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.setup-preview-bar .icon {
-  width: 15px;
-  height: 15px;
-}
-.setup-preview-bar .btn {
-  color: var(--accent);
-}
 .setup-column {
   width: min(100%, 560px);
   margin: 0 auto;
@@ -463,7 +435,6 @@ p.setup-status {
 }
 .setup-secret .input {
   padding-right: 50px;
-  font-family: var(--mono);
 }
 .setup-reveal {
   position: absolute;
@@ -800,4 +771,35 @@ p.setup-status {
   .setup-callback-row {
     flex-direction: column;
   }
+}
+
+.modal-card.setup-preview-window {
+  width: min(92vw, 36rem);
+}
+.setup-preview-window .modal-body {
+  padding: 0;
+}
+.provider-setup.preview {
+  --setup-pad-x: 18px;
+  height: auto;
+  max-height: min(62dvh, 34rem);
+  padding: 16px var(--setup-pad-x);
+  background: var(--bg);
+}
+.preview .setup-head {
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.preview .setup-column {
+  padding-bottom: 0;
+}
+.preview .setup-title h1 {
+  font-size: 21px;
+}
+.preview .setup-title {
+  margin-bottom: 16px;
+}
+.preview .setup-steps li + li::before {
+  width: 6px;
 }

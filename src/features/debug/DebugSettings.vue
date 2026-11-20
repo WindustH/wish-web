@@ -1,20 +1,18 @@
 <script setup lang="ts">
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { activityEnabled, activityCount, setActivityEnabled } from '../../domain/diagnostics/activityStore.ts';
-import Modal from '../../ui/components/Modal.vue';
-import { ICONS } from '../../ui/icons.ts';
+import SettingsPage from '../../ui/components/SettingsPage.vue';
 import Icon from '../../ui/components/Icon.vue';
 // Local diagnostic tools and previews.
-import { computed, inject, defineAsyncComponent, ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { openOnboardingPreview } from '../onboarding/preview.ts';
+import { computed, defineAsyncComponent, ref } from 'vue';
+import Modal from '../../ui/components/Modal.vue';
 import { cfg } from '../../core/config.ts';
 import { useMedia } from '../../ui/composables/useMedia.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import DebugToolRow from './DebugToolRow.vue';
-import { closeOverlayKey } from '../../ui/composables/overlay.ts';
 import { stalls } from '../../domain/diagnostics/scrollStalls.ts';
 
+defineProps<{ deviceOnly?: boolean }>();
 const ConnectionDiagnostics = defineAsyncComponent(() => import('../selftest/ConnectionDiagnostics.vue'));
 const ActivityLogPanel = defineAsyncComponent(() => import('./ActivityLogPanel.vue'));
 const StylePreview = defineAsyncComponent(() => import('./StylePreview.vue'));
@@ -30,20 +28,23 @@ const windowTitles = computed(() => ({
 }));
 const previewTitle = computed(() => (preview.value ? windowTitles.value[preview.value] : ''));
 // Every icon of Wish's own set, for looking them over together.
-const iconNames = Object.keys(ICONS);
+const IconGallery = defineAsyncComponent(() => import('./IconGallery.vue'));
 const desktop = useMedia(`(min-width: ${cfg.breakpoints.desktop}px)`);
-// This page renders with the settings route; the router knows where navigation ended.
-const router = useRouter();
-const closeSettings = inject(closeOverlayKey, undefined);
-async function previewOnboarding() {
-  // The desktop settings dialog is modal and would take every click meant for
-  // the preview, so leave it first (unless the user keeps editing).
-  if (desktop.value && closeSettings) {
-    await closeSettings();
-    if (router.currentRoute.value.meta.section === 'settings') return;
-  }
-  openOnboardingPreview();
-}
+const onboarding = ref(false);
+const ProviderSetup = defineAsyncComponent(() => import('../onboarding/ProviderSetup.vue'));
+const previewLinks = computed(
+  () =>
+    [
+      { key: 'styles', icon: 'appearance', title: windowTitles.value.styles, action: tr('浏览样式', 'Browse styles') },
+      {
+        key: 'onboarding',
+        icon: 'sparkles',
+        title: tr('首次使用引导', 'First-run setup'),
+        action: tr('预览引导', 'Preview setup'),
+      },
+      { key: 'icons', icon: 'shapes', title: windowTitles.value.icons, action: tr('浏览图标', 'Browse icons') },
+    ] as const,
+);
 </script>
 
 <template>
@@ -110,36 +111,33 @@ async function previewOnboarding() {
     </section>
     <section class="debug-group" aria-labelledby="debug-preview-heading">
       <h2 id="debug-preview-heading">{{ tr('界面预览', 'Interface previews') }}</h2>
-      <div class="debug-card">
-        <div id="settings-debug-styles">
-          <DebugToolRow
-            icon="appearance"
-            :title="tr('样式预览', 'Style preview')"
-            :description="tr('检查卡片、附件和详情窗口的显示效果', 'Explore cards, attachments and detail windows')"
-            @open="preview = 'styles'"
-          />
-        </div>
-        <div id="settings-debug-onboarding" class="debug-divided">
-          <DebugToolRow
-            id="debug-onboarding-preview"
-            icon="sparkles"
-            :title="tr('首次使用引导', 'First-run setup')"
-            :description="tr('预览新用户的引导流程', 'Preview the new-user setup flow')"
-            @open="previewOnboarding"
-          />
-        </div>
-        <div id="settings-debug-icons" class="debug-divided">
-          <DebugToolRow
-            icon="shapes"
-            :title="tr('图标库', 'Icon library')"
-            :description="tr('浏览界面使用的全部图标', 'Browse all interface icons')"
-            :count="iconNames.length"
-            @open="preview = 'icons'"
-          />
-        </div>
+      <div class="debug-preview-links settings-link-list">
+        <template v-for="link in previewLinks" :key="link.key">
+          <div v-if="link.key !== 'onboarding' || !deviceOnly" :id="'settings-debug-' + link.key" class="set-card">
+            <div class="set-row inline">
+              <span class="settings-link-label"><Icon :name="link.icon" />{{ link.title }}</span>
+              <button
+                class="btn settings-page-link"
+                type="button"
+                :aria-haspopup="link.key === 'onboarding' ? 'dialog' : undefined"
+                @click="link.key === 'onboarding' ? (onboarding = true) : (preview = link.key)"
+              >
+                {{ link.action }}<Icon name="arrow-up-right" :size="15" />
+              </button>
+            </div>
+          </div>
+        </template>
       </div>
     </section>
     <Modal
+      :open="onboarding"
+      :title="tr('首次使用引导预览', 'First-run setup preview')"
+      content-class="setup-preview-window"
+      @close="onboarding = false"
+    >
+      <ProviderSetup preview @complete="onboarding = false" />
+    </Modal>
+    <SettingsPage
       v-if="preview"
       :open="true"
       :page="!desktop"
@@ -161,14 +159,9 @@ async function previewOnboarding() {
       <StylePreview v-if="preview === 'styles'" />
       <ActivityLogPanel v-else-if="preview === 'activity'" />
       <ScrollStallsPanel v-else-if="preview === 'scroll'" />
-      <ConnectionDiagnostics v-else-if="preview === 'diagnostics'" />
-      <div v-else class="icon-gallery">
-        <figure v-for="name in iconNames" :key="name">
-          <Icon :name="name" />
-          <figcaption>{{ name }}</figcaption>
-        </figure>
-      </div>
-    </Modal>
+      <ConnectionDiagnostics v-else-if="preview === 'diagnostics'" :device-only="deviceOnly" />
+      <IconGallery v-else />
+    </SettingsPage>
   </div>
 </template>
 
@@ -240,33 +233,5 @@ async function previewOnboarding() {
 
 :global(.debug-detail-window.compact .modal-body) {
   padding: 14px 16px 16px;
-}
-.icon-gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: 4px;
-  padding: 8px 0;
-}
-.icon-gallery figure {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 14px 4px 10px;
-  border-radius: var(--radius);
-  color: var(--fg);
-}
-.icon-gallery .icon {
-  width: 22px;
-  height: 22px;
-}
-.icon-gallery figcaption {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  color: var(--fg-subtle);
 }
 </style>

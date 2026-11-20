@@ -75,7 +75,7 @@ export function useLibraryBookmarks(owner: Readonly<Ref<string>>, active: Readon
       await deleteLibraryBookmark(session, item.id, { signal: request.signal });
       if (!request.signal.aborted && session === owner.value) items.value = items.value.filter((b) => b.id !== item.id);
     } catch (cause) {
-      if (!request.signal.aborted && session === owner.value) toast(describeError(cause).message);
+      if (!request.signal.aborted && session === owner.value) toast(describeError(cause).message, { tone: 'error' });
     } finally {
       removals.delete(request);
       if (!request.signal.aborted) busy.value.delete(item.id);

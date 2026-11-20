@@ -105,6 +105,10 @@ watch(
 .album-thumbnails :deep(figcaption) {
   display: none;
 }
+.album-thumbnails :deep(.image-frame) {
+  width: 100%;
+  aspect-ratio: var(--album-ratio);
+}
 .album-thumbnails :deep(img),
 .album-thumbnails :deep(.entry.user .bubble.image-bubble img) {
   display: block;

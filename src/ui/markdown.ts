@@ -51,11 +51,17 @@ markdown.renderer.rules.link_open = (tokens, index, options, _env, renderer) => 
     return `<a href="#" class="file-mention" data-file-mention="${markdown.utils.escapeHtml(href)}">${fileIcon}`;
   return renderer.renderToken(tokens, index, options).replace('<a ', '<a target="_blank" rel="noopener noreferrer" ');
 };
+markdown.renderer.rules.table_open = () => '<div class="markdown-table-scroll" data-hscroll><table>';
+markdown.renderer.rules.table_close = () => '</table></div>';
 const renderImage = markdown.renderer.rules.image!;
 markdown.renderer.rules.image = (tokens, index, options, env, renderer) => {
   const token = tokens[index]!;
   const href = String(token.attrGet('src') ?? '');
-  if (!parseFileMention(href)) return renderImage(tokens, index, options, env, renderer);
+  if (!parseFileMention(href)) {
+    token.attrSet('loading', 'lazy');
+    token.attrSet('decoding', 'async');
+    return `<span class="image-frame markdown-image">${renderImage(tokens, index, options, env, renderer)}</span>`;
+  }
   const label = renderer.renderInlineAsText(token.children ?? [], options, env) || href.split(/[\\/]/).at(-1)!;
   return `<a href="#" class="file-mention" data-file-mention="${markdown.utils.escapeHtml(href)}">${fileIcon}${markdown.utils.escapeHtml(label)}</a>`;
 };

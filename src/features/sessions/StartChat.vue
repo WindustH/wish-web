@@ -17,6 +17,7 @@ import { useModelCatalog } from '../../domain/providers/useModelCatalog.ts';
 import { bus } from '../../core/bus.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import type { ModelSelection } from './useSessionSelection.ts';
+import SessionCommands from './SessionCommands.vue';
 import RecentSessions from './RecentSessions.vue';
 import Composer from '../../domain/chat/Composer.vue';
 import DirectoryPicker from '../../ui/components/DirectoryPicker.vue';
@@ -53,6 +54,7 @@ onDeactivated(() => {
 });
 const catalog = useModelCatalog();
 const selection = ref<ModelSelection>({ provider: '', model: '' });
+const page = ref<HTMLElement>();
 const composer = ref<InstanceType<typeof Composer>>();
 const modelOpen = ref(false),
   reasoningOpen = ref(false),
@@ -208,7 +210,19 @@ async function send(text: string, attachments: AttachmentInput[]) {
 </script>
 
 <template>
-  <div class="start-chat" :class="{ 'mobile-home': mobile && home }">
+  <div
+    ref="page"
+    class="start-chat"
+    tabindex="-1"
+    :data-workspace-region="route.name !== 'all-sessions' ? 'chat' : undefined"
+    :class="{ 'mobile-home': mobile && home }"
+  >
+    <SessionCommands
+      v-if="route.name !== 'all-sessions'"
+      :mobile="mobile"
+      @focus="composer?.focus()"
+      @scroll="(direction) => page?.scrollBy({ top: direction * 96 })"
+    />
     <button
       v-if="mobile && !home"
       class="btn ghost icon-only start-back"

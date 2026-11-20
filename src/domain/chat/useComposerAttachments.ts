@@ -61,6 +61,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
           `最多添加 ${count} 个${isImage ? '图片' : '文件'}附件`,
           `Too many ${isImage ? 'images' : 'files'} (limit: ${count})`,
         ),
+        { tone: 'warning' },
       );
       return false;
     }
@@ -71,7 +72,9 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
     const isImage = file.kind === 'image';
     const bytes = isImage ? limits.value.imageBytes : limits.value.fileBytes;
     if (file.size > bytes) {
-      toast(tr(`附件超过大小限制（${fmtBytes(bytes)}）`, `Attachment exceeds size limit (${fmtBytes(bytes)})`));
+      toast(tr(`附件超过大小限制（${fmtBytes(bytes)}）`, `Attachment exceeds size limit (${fmtBytes(bytes)})`), {
+        tone: 'warning',
+      });
       return false;
     }
     return hasAttachmentSpace(file.kind);
@@ -194,6 +197,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
                 '附件无法恢复，可能已被清理。请移除或重新添加原文件。',
                 'Attachment unavailable; it may have been cleaned up. Remove it or attach the original file again.',
               ),
+              { tone: 'warning' },
             );
           }
         }
@@ -272,6 +276,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
               `附件超过大小限制（${fmtBytes(Math.max(limits.value.imageBytes, limits.value.fileBytes))}）`,
               `Attachment exceeds size limit (${fmtBytes(Math.max(limits.value.imageBytes, limits.value.fileBytes))})`,
             ),
+            { tone: 'warning' },
           );
           continue;
         }
@@ -281,6 +286,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
               '超过 50 MiB 的附件请上传到库，再引用到消息中。',
               'Upload attachments larger than 50 MiB to the Library, then reference them in the message.',
             ),
+            { tone: 'warning' },
           );
           continue;
         }
@@ -293,6 +299,7 @@ export function useComposerAttachments(sessionId: Ref<string>, limits: Ref<Attac
         if (kind !== file.kind) {
           toast(
             tr('此图片格式不受支持，已转为文件附件。', 'This image format is unsupported; added as a file attachment.'),
+            { tone: 'warning' },
           );
         }
         const placeholder = `<${file.pastedText ? 'paste' : kind}-${await attachmentDigest(bytes)}>`;

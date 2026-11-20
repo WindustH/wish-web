@@ -167,6 +167,9 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
     minute: '2-digit',
   });
   const date = (at: number, time = false) => (time ? timeFormat : dateFormat).format(at + heat.offsetMinutes * 60_000);
+  const clockFormat = new Intl.DateTimeFormat(locale, { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' });
+  const showClock = heat.buckets.length * heat.bucketMs <= 86_400_000;
+  const labelCount = Math.max(1, Math.min(5, Math.floor(width / (showClock ? 96 : 54))));
   const interval = heat.bucketMs !== 86_400_000;
   return {
     animation: true,
@@ -186,7 +189,10 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
       textStyle: { color: style.foreground, fontFamily: style.font, fontSize: 12 },
       formatter: (params: any) => {
         const bucket = heat.buckets[params.data[3]]!;
-        const range = `${date(bucket.start_ms, interval)}${interval ? ' – ' + date(Math.min(bucket.start_ms + heat.bucketMs, heat.endMs), true) : ''}`;
+        const end = Math.min(bucket.start_ms + heat.bucketMs, heat.endMs);
+        const endLabel =
+          date(end) === date(bucket.start_ms) ? clockFormat.format(end + heat.offsetMinutes * 60_000) : date(end, true);
+        const range = date(bucket.start_ms, interval) + (interval ? ' – ' + endLabel : '');
         const content = document.createElement('div');
         const period = document.createElement('div');
         period.textContent = range;
@@ -215,10 +221,10 @@ export function calendarOptions(heat: HeatData, style: ChartStyle, locale: strin
         color: style.muted,
         fontSize: 10,
         hideOverlap: true,
-        interval: Math.max(0, Math.ceil(columns / 5) - 1),
+        interval: Math.max(0, Math.ceil(columns / labelCount) - 1),
         formatter: (column: string) => {
           const bucket = heat.buckets[Number(column) * rows];
-          return bucket ? date(bucket.start_ms, heat.buckets.length * heat.bucketMs <= 86_400_000) : '';
+          return bucket ? date(bucket.start_ms, showClock) : '';
         },
       },
     },

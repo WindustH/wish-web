@@ -171,7 +171,7 @@ function onFolderAction(row: FolderRow, kind: FolderAction) {
   else action.value = { target: { id: row.id, name: row.name, kind: 'folder' }, kind };
 }
 function pin(ids: string[], pinned: boolean) {
-  sessions.pin(ids, pinned).catch((error) => toast(errorDetail(error)));
+  sessions.pin(ids, pinned).catch((error) => toast(errorDetail(error), { tone: 'error' }));
 }
 // Moving: one row from its menu, or the chosen ones from the bar.
 const moving = ref<{ ids: string[]; title: string; from: string | null } | null>(null);
@@ -214,7 +214,7 @@ const drag = useListDrag(
       () => {
         if (ended) stopSelecting();
       },
-      (error) => toast(errorDetail(error)),
+      (error) => toast(errorDetail(error), { tone: 'error' }),
     );
   },
   (folder) => sessions.open(folder),
@@ -321,7 +321,18 @@ watch(entries, (rows) => {
   if (retained.size !== chosen.value.size) chosen.value = retained;
 });
 const rowFingerprint = () => rows.value.map((row) => row.id).join('|');
-watch(rowFingerprint, () => {
+const awaitingFolderRows = ref(false);
+const folderContentKey = computed(
+  () => (awaitingFolderRows.value ? 'loading:' : 'folder:') + (sessions.folder.value ?? ''),
+);
+watch([sessions.folder, rowFingerprint, sessions.loading], ([folder, ids, loading], [previousFolder, previousIds]) => {
+  if (folder !== previousFolder || awaitingFolderRows.value) {
+    clearTimeout(motionTimer);
+    rearranging.value = false;
+    awaitingFolderRows.value = loading;
+    return;
+  }
+  if (ids === previousIds) return;
   rearranging.value = true;
   clearTimeout(motionTimer);
   motionTimer = setTimeout(() => {
@@ -347,6 +358,7 @@ const virtualizer = useVirtualizer(
     estimateSize: (i: number) =>
       lines.value[i]?.kind === 'heading' ? HEADING_HEIGHT : cfg.design.sessionRowHeight + cfg.design.sessionRowGap,
     overscan: 8,
+    useAnimationFrameWithResizeObserver: true,
     getItemKey: (i: number) => lines.value[i]?.key ?? `i${i}`,
   })),
 );
@@ -489,77 +501,95 @@ onMounted(() => {
       @dragleave="drag.leave($event, here)"
       @drop="dropHere"
     >
-      <div v-if="sessions.loading.value && !rows.length" class="sl-state"><Spinner /></div>
-      <div v-else-if="sessions.error.value" class="sl-state load-error" role="alert">
-        <span>{{ String(sessions.error.value?.detail || sessions.error.value?.message || sessions.error.value) }}</span>
-        <button class="btn ghost sm" @click="() => sessions.refresh()">{{ i18n.t('common.retry') }}</button>
-      </div>
-      <div v-else-if="!rows.length" class="sl-state hint">
-        {{ here ? tr('这个文件夹是空的', 'This folder is empty') : i18n.t('sessions.empty') }}
-      </div>
-      <div :class="{ rearranging }" :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }">
-        <template v-for="{ v, line } in shown" :key="line.key">
+      <Transition
+        name="sl-folder"
+        mode="out-in"
+        @after-leave="listEl?.scrollTo(0, 0)"
+        @before-leave="(el) => el.setAttribute('inert', '')"
+      >
+        <div :key="folderContentKey">
           <div
-            v-if="line.kind === 'heading'"
-            :ref="(el) => el && virtualizer.measureElement(el as HTMLElement)"
-            :data-index="v.index"
-            class="sl-heading"
-            :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }"
+            v-if="sessions.loading.value && !rows.length"
+            class="sl-skeleton"
+            role="status"
+            :aria-label="i18n.t('sessions.loading')"
           >
-            <button type="button" :aria-expanded="!line.folded" @click="fold(line.section)">
-              {{ line.label }}<Icon name="chevron-down" />
-            </button>
+            <span v-for="n in 5" :key="n" class="chat-skeleton" aria-hidden="true" />
           </div>
-          <div
-            v-else
-            :ref="(el) => el && virtualizer.measureElement(el as HTMLElement)"
-            :data-index="v.index"
-            :style="{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              paddingBottom: `${cfg.design.sessionRowGap}px`,
-              transform: `translateY(${v.start}px)`,
-            }"
-            :draggable="canDrag"
-            :class="{
-              'sl-drop': drag.over.value === line.row.id,
-              'sl-dragged': drag.dragging.value?.ids.includes(line.row.id),
-            }"
-            :data-drop-place="line.row.kind === 'folder' ? line.row.id : undefined"
-            :data-drop-opens="line.row.kind === 'folder' ? '' : undefined"
-            @touchstart.passive="pressRow(line.row, $event)"
-            @dragstart="startDrag(line.row, $event)"
-            @dragenter="line.row.kind === 'folder' && drag.hover($event, line.row.id, true)"
-            @dragover="line.row.kind === 'folder' && drag.hover($event, line.row.id)"
-            @dragleave="line.row.kind === 'folder' && drag.leave($event, line.row.id)"
-            @drop="line.row.kind === 'folder' && drag.drop($event, line.row.id)"
-          >
-            <FolderListRow
-              v-if="line.row.kind === 'folder'"
-              :row="line.row"
-              :selecting="selecting"
-              @open="sessions.open(line.row.id)"
-              @action="(kind) => onFolderAction(line.row as FolderRow, kind)"
-            />
-            <SessionListRow
-              v-else
-              :row="line.row"
-              :index="v.index"
-              :active="line.row.id === activeId"
-              arranged
-              :pin-mark="sessions.filtered.value"
-              selectable
-              :selecting="selecting"
-              :chosen="chosen.has(line.row.id)"
-              @activate="(event) => activateRow(line.row.id, event)"
-              @action="(kind) => onRowAction(line.row as SessionRow, kind)"
-              @toggle="toggle(line.row.id)"
-            />
+          <div v-else-if="sessions.error.value" class="sl-state load-error" role="alert">
+            <span>{{
+              String(sessions.error.value?.detail || sessions.error.value?.message || sessions.error.value)
+            }}</span>
+            <button class="btn ghost sm" @click="() => sessions.refresh()">{{ i18n.t('common.retry') }}</button>
           </div>
-        </template>
-      </div>
+          <div v-else-if="!rows.length" class="sl-state hint">
+            {{ here ? tr('这个文件夹是空的', 'This folder is empty') : i18n.t('sessions.empty') }}
+          </div>
+          <div :class="{ rearranging }" :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }">
+            <template v-for="{ v, line } in shown" :key="line.key">
+              <div
+                v-if="line.kind === 'heading'"
+                :ref="(el) => el && virtualizer.measureElement(el as HTMLElement)"
+                :data-index="v.index"
+                class="sl-heading"
+                :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }"
+              >
+                <button type="button" :aria-expanded="!line.folded" @click="fold(line.section)">
+                  {{ line.label }}<Icon name="chevron-down" />
+                </button>
+              </div>
+              <div
+                v-else
+                :ref="(el) => el && virtualizer.measureElement(el as HTMLElement)"
+                :data-index="v.index"
+                :style="{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  paddingBottom: `${cfg.design.sessionRowGap}px`,
+                  transform: `translateY(${v.start}px)`,
+                }"
+                :draggable="canDrag"
+                :class="{
+                  'sl-drop': drag.over.value === line.row.id,
+                  'sl-dragged': drag.dragging.value?.ids.includes(line.row.id),
+                }"
+                :data-drop-place="line.row.kind === 'folder' ? line.row.id : undefined"
+                :data-drop-opens="line.row.kind === 'folder' ? '' : undefined"
+                @touchstart.passive="pressRow(line.row, $event)"
+                @dragstart="startDrag(line.row, $event)"
+                @dragenter="line.row.kind === 'folder' && drag.hover($event, line.row.id, true)"
+                @dragover="line.row.kind === 'folder' && drag.hover($event, line.row.id)"
+                @dragleave="line.row.kind === 'folder' && drag.leave($event, line.row.id)"
+                @drop="line.row.kind === 'folder' && drag.drop($event, line.row.id)"
+              >
+                <FolderListRow
+                  v-if="line.row.kind === 'folder'"
+                  :row="line.row"
+                  :selecting="selecting"
+                  @open="sessions.open(line.row.id)"
+                  @action="(kind) => onFolderAction(line.row as FolderRow, kind)"
+                />
+                <SessionListRow
+                  v-else
+                  :row="line.row"
+                  :index="v.index"
+                  :active="line.row.id === activeId"
+                  arranged
+                  :pin-mark="sessions.filtered.value"
+                  selectable
+                  :selecting="selecting"
+                  :chosen="chosen.has(line.row.id)"
+                  @activate="(event) => activateRow(line.row.id, event)"
+                  @action="(kind) => onRowAction(line.row as SessionRow, kind)"
+                  @toggle="toggle(line.row.id)"
+                />
+              </div>
+            </template>
+          </div>
+        </div>
+      </Transition>
     </div>
     <Transition name="sl-dock">
       <div v-if="selecting" class="sl-select-bar" role="toolbar" :aria-label="tr('已选的会话', 'Chosen sessions')">
@@ -664,6 +694,30 @@ onMounted(() => {
 /* When rows come and go, a row leaving is simply gone, and the rows after it slide up into its
    place: each row's place is its transform, which only moves smoothly just after the rows change,
    never as the list measures itself. */
+.sl-folder-enter-active,
+.sl-folder-leave-active {
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.sl-folder-enter-from,
+.sl-folder-leave-to {
+  opacity: 0;
+}
+.sl-skeleton {
+  display: grid;
+  grid-auto-rows: var(--h-session-row);
+  align-items: center;
+  padding: 8px 12px;
+}
+.sl-skeleton .chat-skeleton {
+  width: 62%;
+  height: 14px;
+}
+.sl-skeleton .chat-skeleton:nth-child(2n) {
+  width: 44%;
+}
+.sl-skeleton .chat-skeleton:nth-child(3n) {
+  width: 76%;
+}
 .rearranging {
   transition: height 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
@@ -671,6 +725,8 @@ onMounted(() => {
   transition: transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 @media (prefers-reduced-motion: reduce) {
+  .sl-folder-enter-active,
+  .sl-folder-leave-active,
   .rearranging,
   .rearranging > div {
     transition: none !important;

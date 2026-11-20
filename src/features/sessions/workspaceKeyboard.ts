@@ -94,8 +94,11 @@ export function navigateWorkspace(event: KeyboardEvent) {
         root.dispatchEvent(new Event('workspace-return-chat'));
         return consume();
       }
-      if (next === 'side' && !panel(root, 'side'))
-        root.querySelector<HTMLButtonElement>('[data-sidebar-toggle]')?.click();
+      if (next === 'side' && !panel(root, 'side')) {
+        const toggle = root.querySelector<HTMLButtonElement>('[data-sidebar-toggle]');
+        if (!toggle) return false;
+        toggle.click();
+      }
       if (next === 'chat' && current?.matches('.island-drawer,.island-sheet'))
         root.querySelector<HTMLButtonElement>('[data-sidebar-toggle]')?.click();
       void nextTick(() => focusRegion(root, next));

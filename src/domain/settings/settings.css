@@ -194,6 +194,17 @@
   vertical-align: middle;
   cursor: help;
 }
+.setting-help-icon.always-visible {
+  display: inline-flex;
+}
+.set-field-heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.setting-help-popup {
+  white-space: pre-line;
+}
 .setting-help-icon:focus-visible {
   color: var(--fg);
 }
@@ -256,14 +267,6 @@
 
 /* Mobile settings use navigation rows and focused editing pages. */
 @media (max-width: 899px) {
-  .mobile-settings-page > .modal-head {
-    background: var(--bg);
-    min-height: 54px;
-    padding: 6px 8px;
-  }
-  .mobile-settings-page .modal-title {
-    font-size: 17px;
-  }
   .mobile-settings-page > .modal-body {
     padding: 20px max(16px, calc((100% - 640px) / 2)) max(32px, env(safe-area-inset-bottom));
   }
@@ -828,9 +831,6 @@
   height: 14px;
   stroke-width: 3;
 }
-.modal-head-actions > .skill-check {
-  margin-right: 6px;
-}
 @media (max-width: 899px) {
   .skill-check {
     width: 24px;
@@ -863,4 +863,23 @@
 }
 .btn.ghost.settings-delete:disabled {
   color: var(--fg-subtle);
+}
+
+.settings-link-list {
+  display: grid;
+  gap: 10px;
+}
+.settings-link-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.settings-link-label .icon {
+  flex: none;
+  color: var(--fg-muted);
+}
+
+.settings-page-link {
+  justify-self: end;
 }

@@ -15,13 +15,14 @@ import Icon from '../../ui/components/Icon.vue';
 const props = defineProps<{
   src: string;
   alt: string;
-  stateKey: string;
+  stateKey?: string;
   reference?: { session: string; blob: string };
   focus?: ReplyReference;
   toolbar?: HTMLElement;
 }>();
 const localToolbar = usePreviewToolbar(() => props.toolbar);
-const saved = useWorkspaceState('image', () => props.stateKey, { zoom: 1, x: 0, y: 0 });
+const initial = { zoom: 1, x: 0, y: 0 };
+const saved = props.stateKey ? useWorkspaceState('image', () => props.stateKey!, initial) : ref(initial);
 const emit = defineEmits<{ error: [] }>();
 const surface = ref<HTMLElement>(),
   picture = ref<HTMLImageElement>();
@@ -29,6 +30,7 @@ useMiddleButtonGuard(surface);
 const zoom = ref(Math.max(1, Math.min(8, saved.value.zoom))),
   x = ref(0),
   y = ref(0);
+const loadedSrc = ref('');
 const style = computed(() => ({ transform: `translate(${x.value}px, ${y.value}px) scale(${zoom.value})` }));
 function clamp() {
   const image = picture.value,
@@ -177,9 +179,9 @@ onBeforeUnmount(() => {
         ref="picture"
         :src="src"
         :alt="alt"
-        :style="style"
+        :style="[style, { opacity: loadedSrc === src ? 1 : 0 }]"
         draggable="false"
-        @load="loaded"
+        @load="loadedSrc = src; loaded()"
         @error="emit('error')"
       />
     </div>

@@ -17,12 +17,12 @@ const parts = computed(() => imageParts<any>(props.item.blocks || []));
 const locateIndex = computed(() =>
   props.locateSeq == null ? undefined : props.item.imageSeqs?.indexOf(props.locateSeq),
 );
-const blobSrc = (b: any) =>
-  b.data_base64
-    ? `data:${b.mime_type || 'image/png'};base64,${b.data_base64}`
-    : b.blob_id || b.sha256
-      ? blobUrl(b.blob_id || b.sha256)
-      : null;
+const blobSrc = (block: any) => {
+  const reference = block.blob_id || (!block.data_base64 && block.sha256);
+  if (reference && (reference.includes('/') || props.session))
+    return blobUrl(reference.includes('/') ? reference : `${props.session}/${reference}`);
+  return block.data_base64 ? `data:${block.mime_type || 'image/png'};base64,${block.data_base64}` : null;
+};
 const usage = computed(() => props.item?.usage ?? null); // grouping projection: last body segment only
 const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
 </script>
@@ -48,6 +48,7 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
               <BlobImage
                 v-if="blobSrc(image)"
                 :src="blobSrc(image)!"
+                :dimensions="image.dimensions"
                 :alt="image.filename || ''"
                 loading="lazy"
                 decoding="async"
@@ -66,6 +67,7 @@ const joined = computed(() => texts.value.map((b: any) => b.text).join('\n\n'));
             v-else-if="part.block.type === 'image' && blobSrc(part.block)"
             class="assistant-img"
             :src="blobSrc(part.block)!"
+            :dimensions="part.block.dimensions"
             alt=""
             loading="lazy"
             decoding="async"

@@ -21,7 +21,8 @@
     "lint": "node ../wish-test/web/run.mjs boundaries",
     "format": "prettier --write src serve.ts vite.config.ts",
     "format:check": "prettier --check src serve.ts vite.config.ts",
-    "check": "pnpm lint && pnpm typecheck && pnpm format:check"
+    "check": "pnpm lint && pnpm typecheck && pnpm format:check",
+    "tauri": "tauri"
   },
   "engines": {
     "node": ">=22.19.0"
@@ -33,6 +34,7 @@
     "@lobehub/icons-static-svg": "1.95.0",
     "@mdit/plugin-tex": "1.1.1",
     "@tanstack/vue-virtual": "3.13.37",
+    "@tauri-apps/api": "^2.12.5",
     "@tokenizer/range": "0.13.1",
     "@xterm/addon-fit": "0.12.0-beta.334",
     "@xterm/addon-image": "0.10.0-beta.333",
@@ -47,15 +49,18 @@
     "pdfjs-dist": "6.4.299",
     "reka-ui": "2.10.4",
     "restty": "0.3.0",
+    "ssh2": "1.17.0",
     "temml": "0.13.5",
     "vue": "3.5.42",
     "vue-router": "4.6.4",
     "wraithterm": "0.6.1"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.12.6",
     "@types/markdown-it": "14.2.0",
     "@types/node": "22.20.2",
     "@types/postcss-pxtorem": "6.1.0",
+    "@types/ssh2": "1.15.6",
     "@vitejs/plugin-vue": "6.0.8",
     "postcss-pxtorem": "6.1.0",
     "prettier": "3.9.10",

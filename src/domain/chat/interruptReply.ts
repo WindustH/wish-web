@@ -12,7 +12,7 @@ export async function interruptReply(session: string) {
   try {
     await chat.interrupt();
   } catch (error) {
-    toast(i18n.t('chat.stopFailed') + ': ' + describeError(error).message);
+    toast(i18n.t('chat.stopFailed') + ': ' + describeError(error).message, { tone: 'error' });
   } finally {
     pending.delete(session);
   }

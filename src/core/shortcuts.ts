@@ -145,7 +145,7 @@ export function sameBinding(a: KeyBinding | null, b: KeyBinding | null): boolean
       !!a.shift === !!b.shift)
   );
 }
-export function validBinding(value: unknown): value is KeyBinding {
+export function validBinding(value: unknown, action?: ShortcutId): value is KeyBinding {
   if (!value || typeof value !== 'object') return false;
   const binding = value as KeyBinding;
   if (
@@ -155,6 +155,7 @@ export function validBinding(value: unknown): value is KeyBinding {
   )
     return false;
   return (
+    (action === 'quickSwitchSessions' && binding.key === ';') ||
     /^(Tab|F(?:[1-9]|1[0-2]))$/.test(binding.key) ||
     (!!(binding.ctrl || binding.meta || binding.alt) &&
       (binding.key.length === 1 ||
@@ -202,7 +203,7 @@ export function readShortcuts(value: unknown): ShortcutPreferences {
       if (typeof mod !== 'boolean') continue;
       binding = 'ctrl' in rest || 'meta' in rest ? rest : { ...rest, ctrl: mod };
     }
-    if (binding === null || validBinding(binding)) {
+    if (binding === null || validBinding(binding, id)) {
       // Legacy versions saved the entire defaults table, even for untouched actions.
       const oldSearch =
         id === 'searchSessions'
@@ -226,7 +227,12 @@ export function readShortcuts(value: unknown): ShortcutPreferences {
   }
   if (Array.isArray(stored.alternates)) {
     for (const row of stored.alternates) {
-      if (row && shortcutIds.includes(row.action) && validBinding(row.binding) && !shortcutAction(result, row.binding))
+      if (
+        row &&
+        shortcutIds.includes(row.action) &&
+        validBinding(row.binding, row.action) &&
+        !shortcutAction(result, row.binding)
+      )
         result.alternates.push({ action: row.action, binding: row.binding });
     }
   }

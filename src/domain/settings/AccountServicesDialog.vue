@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import Modal from '../../ui/components/Modal.vue';
+import SettingsPage from '../../ui/components/SettingsPage.vue';
 import ProviderIcon from '../providers/ProviderIcon.vue';
 import { tr } from '../../core/i18n/tr.ts';
 
@@ -18,7 +18,7 @@ watch(
 </script>
 
 <template>
-  <Modal
+  <SettingsPage
     :open="open"
     compact
     :layer="110"
@@ -74,7 +74,7 @@ watch(
         {{ tr('添加所选服务', 'Add selected services') }}<span v-if="selected.length"> · {{ selected.length }}</span>
       </button>
     </template>
-  </Modal>
+  </SettingsPage>
 </template>
 
 <style scoped>

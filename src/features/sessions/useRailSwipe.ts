@@ -103,7 +103,9 @@ export function useRailSwipe(options: {
     }
     if (!event.isPrimary) return;
     // A block that scrolls sideways scrolls itself; the gesture stays out of its way.
-    const hscroll = (event.target as HTMLElement | null)?.closest('pre, table, [data-hscroll]');
+    const hscroll =
+      (event.target as HTMLElement | null)?.closest('pre, [data-hscroll]') ??
+      (event.target as HTMLElement | null)?.closest('table');
     if (hscroll && hscroll.scrollWidth > hscroll.clientWidth) return;
     phase = 'pending';
     pointerId = event.pointerId;

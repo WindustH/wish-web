@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, watchEffect } from 'vue';
+import { computed, ref, watchEffect, type ObjectDirective } from 'vue';
+import { tr } from '../../core/i18n/tr.ts';
 import { i18n } from '../../core/i18n/index.ts';
+import { frameSize, rememberImage } from '../imageFrame.ts';
 import { createMarkdownBlocks } from '../markdown.ts';
 import { registerMarkdownSource } from '../markdownSelection.ts';
 import { toast } from '../toast.ts';
@@ -14,6 +16,30 @@ watchEffect(() => {
 });
 const renderBlocks = createMarkdownBlocks();
 const blocks = computed(() => renderBlocks(props.text, i18n.t('common.copy'), props.streaming));
+function imageState(event: Event) {
+  const img = event.target;
+  if (!(img instanceof HTMLImageElement) || !img.parentElement?.classList.contains('markdown-image')) return;
+  if (event.type === 'load') {
+    rememberImage(img.src, img);
+    img.parentElement.classList.add('image-ready');
+  } else {
+    img.parentElement.classList.add('image-unavailable');
+    img.parentElement.dataset.errorLabel = img.alt || tr('图片加载失败', 'Image unavailable');
+  }
+}
+function sizeImages(block: HTMLElement) {
+  for (const img of block.querySelectorAll<HTMLImageElement>('.markdown-image > img')) {
+    for (const [name, value] of Object.entries(frameSize(img.src))) {
+      img.parentElement!.style.setProperty(name, value!);
+    }
+  }
+}
+const vImageSlots: ObjectDirective<HTMLElement, string> = {
+  mounted: sizeImages,
+  updated(el, binding) {
+    if (binding.value !== binding.oldValue) sizeImages(el);
+  },
+};
 async function handleClick(event: MouseEvent) {
   const target = event.target;
   if (!(target instanceof Element)) return;
@@ -30,7 +56,7 @@ async function handleClick(event: MouseEvent) {
 </script>
 
 <template>
-  <div ref="root" class="markdown" @click="handleClick">
+  <div ref="root" class="markdown" @load.capture="imageState" @error.capture="imageState" @click="handleClick">
     <div
       v-for="block in blocks"
       :key="block.key"
@@ -38,6 +64,7 @@ async function handleClick(event: MouseEvent) {
       :data-source-key="block.key"
       :data-source-start="block.start"
       :data-source-end="block.end"
+      v-image-slots="block.html"
       v-html="block.html"
     />
   </div>

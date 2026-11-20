@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import LoadingState from '../../ui/components/LoadingState.vue';
+import { useOpenImage } from './useOpenImage.ts';
+import ImageFrame from '../../ui/components/ImageFrame.vue';
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import { imagePreviewUrl } from '../../core/api/endpoints.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
@@ -10,8 +11,8 @@ import { tr } from '../../core/i18n/tr.ts';
 const props = defineProps<{ src: string; mime: string; path: string }>();
 const url = ref(''),
   error = ref(false),
-  size = ref(''),
-  zoom = ref(false);
+  size = ref('');
+const openImage = useOpenImage();
 const surface = ref<HTMLElement>();
 const visible = ref(false);
 let observer: IntersectionObserver | undefined;
@@ -38,7 +39,7 @@ function failed() {
   releaseImage();
 }
 watch(
-  () => [imagePreviewUrl(props.src, 768, zoom.value || prefs.originalImages.value), visible.value] as const,
+  () => [imagePreviewUrl(props.src, 768, prefs.originalImages.value), visible.value] as const,
   async ([src, ready], _, onCleanup) => {
     const controller = new AbortController();
     let objectUrl = '';
@@ -92,12 +93,6 @@ watch(
   },
   { immediate: true },
 );
-watch(
-  () => props.src,
-  () => {
-    zoom.value = false;
-  },
-);
 function loaded(event: Event) {
   const img = event.target as HTMLImageElement;
   size.value = `${img.naturalWidth} × ${img.naturalHeight}`;
@@ -106,16 +101,14 @@ function loaded(event: Event) {
 <template>
   <figure ref="surface" class="tool-image">
     <button
-      v-if="url && !error"
+      :disabled="!url || error"
       class="image-surface"
-      :class="{ zoom }"
-      :aria-label="tr('切换原始尺寸', 'Toggle original size')"
-      @click="zoom = !zoom"
+      type="button"
+      :aria-label="tr('在侧栏查看图片', 'View image in sidebar')"
+      @click="openImage(src, path)"
     >
-      <img :src="url" :alt="path" loading="lazy" decoding="async" @load="loaded" @error="failed" />
+      <ImageFrame :source="src" :url="url" :alt="path" :failed="error" @load="loaded" @error="failed" />
     </button>
-    <p v-if="error" role="status">{{ tr('图片暂时无法加载。', 'Image could not be loaded.') }}</p>
-    <LoadingState v-else-if="!url" variant="inline" :label="tr('正在读取图片…', 'Loading image…')" />
     <figcaption>
       <span>{{ path }}</span
       ><span>{{ size }}</span>
@@ -141,19 +134,9 @@ function loaded(event: Event) {
   cursor: zoom-in;
   text-align: center;
 }
-.image-surface img {
-  display: block;
-  max-width: 100%;
-  max-height: 60dvh;
-  object-fit: contain;
+.image-surface .image-frame {
+  --image-height-limit: 60dvh;
   margin: auto;
-}
-.image-surface.zoom {
-  cursor: zoom-out;
-}
-.zoom img {
-  max-width: none;
-  max-height: none;
 }
 figcaption {
   display: flex;

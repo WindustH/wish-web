@@ -2,6 +2,8 @@ import { nextTick, onScopeDispose, ref, watch, type Ref } from 'vue';
 import type { Router } from 'vue-router';
 import { backLayers } from '../../ui/backLayers.ts';
 import { pageBackTarget } from './pageBackTarget.ts';
+import { isNativeApp, exitNativeApp } from '../../platform/native.ts';
+import { describeError } from '../../core/i18n/errorMessages.ts';
 import { toast } from '../../ui/toast.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
@@ -42,7 +44,17 @@ export function useMobileBackNavigation(router: Router, mobile: Ref<boolean>, ba
   });
 
   async function confirmExit() {
+    if (leaving) return;
     leaving = true;
+    if (isNativeApp()) {
+      try {
+        await exitNativeApp();
+      } catch (error) {
+        leaving = false;
+        toast(describeError(error).message, { tone: 'error' });
+      }
+      return;
+    }
     exitRequested.value = false;
     // The confirmation host unmounts before removing the history boundary, releasing its
     // focus and pointer locks even when the browser cannot close an installed web app.

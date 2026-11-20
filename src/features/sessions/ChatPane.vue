@@ -5,6 +5,7 @@ import { replyContextKey } from '../../domain/references/context.ts';
 import { validReference, type ReplyReference, type ReplyLink } from '../../core/replyReferences.ts';
 import { addLibraryBookmark, replyLinks, replyMessage, sessionEnvironment } from '../../core/api/endpoints.ts';
 import { resolveEnvironmentMention } from '../../core/blobMentions.ts';
+import { inlineImageKey } from '../../domain/media/useOpenImage.ts';
 import { fileMentionKey } from '../../domain/references/useFileMention.ts';
 import { toast } from '../../ui/toast.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
@@ -203,7 +204,11 @@ async function mentionBlobs(files: StoredAttachmentReference[]) {
 
 const libraryTarget = shallowRef<LibraryTarget>();
 let openingFile = 0;
-provide(fileMentionKey, async (file) => {
+provide(inlineImageKey, (image) => {
+  openSidebar('library');
+  libraryTarget.value = { request: ++openingFile, target: { owner: id.value, image } };
+});
+provide(fileMentionKey, async (file, view) => {
   const request = ++openingFile;
   const sourceSession = id.value;
   if (file.kind === 'environment') {
@@ -217,7 +222,7 @@ provide(fileMentionKey, async (file) => {
   if (blob.owner !== id.value) await router.push({ name: 'chat', params: { id: blob.owner } });
   if (request !== openingFile || blob.owner !== id.value) return;
   await openSidebar('library');
-  libraryTarget.value = { request, target: blob };
+  libraryTarget.value = { request, target: blob, view };
 });
 const replyRevision = ref(0);
 const focusedReference = ref<ReplyReference>();
@@ -308,7 +313,7 @@ provide(replyContextKey, {
         }, 4000);
       } else {
         focusedReference.value = undefined;
-        toast(tr('原消息已不可用', 'Message is no longer available'));
+        toast(tr('原消息已不可用', 'Message is no longer available'), { tone: 'warning' });
       }
       return;
     }
@@ -357,7 +362,7 @@ provide(replyContextKey, {
   },
   jump(seq) {
     void chat.locate(id.value, seq).then((ok) => {
-      if (!ok) toast(tr('原消息已不可用', 'Message is no longer available'));
+      if (!ok) toast(tr('原消息已不可用', 'Message is no longer available'), { tone: 'warning' });
     });
   },
 });
@@ -385,12 +390,10 @@ watch(
   { immediate: true, flush: 'sync' },
 );
 const infoInitialSection = computed({
-  get: (): 'overview' | 'search' | 'settings' =>
-    sidebarState.value.section === 'settings'
-      ? 'settings'
-      : sidebarState.value.section === 'search'
-        ? 'search'
-        : 'overview',
+  get: () => {
+    const section = sidebarState.value.section;
+    return section === 'context' || section === 'search' || section === 'settings' ? section : 'overview';
+  },
   set: (value) => {
     sidebarState.value.section = value;
   },
@@ -718,7 +721,7 @@ watch(
         :key="`tasks:${id}`"
         :session="id"
         :open="sidebarOpen && sidebarDisplayedKind === 'tasks'"
-        :active="sidebarOpen && sidebarKind === 'tasks'"
+        :active="sidebarOpen && sidebarDisplayedKind === 'tasks'"
         :mobile="isMobile"
         @close="sidebarOpen = false"
       />

@@ -396,7 +396,7 @@ onBeforeUnmount(() => {
     <div
       v-if="range && bar && barOpen"
       ref="toolbar"
-      class="touch-selection-ui ts-bar"
+      class="touch-selection-ui ts-bar popup-palette"
       :class="{ below: bar.below }"
       role="toolbar"
       :aria-label="tr('选中的文字', 'Selected text')"

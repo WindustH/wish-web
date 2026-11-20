@@ -3,6 +3,9 @@
 // `follow`, the program list starts with that choice - following a shell set elsewhere - and the
 // rest waits until another is chosen.
 import { computed, ref } from 'vue';
+import SettingsPage from '../../ui/components/SettingsPage.vue';
+import Icon from '../../ui/components/Icon.vue';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import SelectField from '../providers/SelectField.vue';
 import KeyValueEditor from './KeyValueEditor.vue';
 import SwitchRow from './SwitchRow.vue';
@@ -24,6 +27,8 @@ const CUSTOM = 'custom:';
 const FOLLOW = 'follow:';
 const installed = computed(() => props.catalog?.installed ?? []);
 const customChosen = ref(false);
+const environmentOpen = ref(false);
+const mobile = useIsMobile();
 const known = computed(() =>
   !props.value.program
     ? props.catalog?.default
@@ -85,7 +90,7 @@ const preview = computed(() => {
           ><span>{{ tr('程序路径', 'Program path') }}</span
           ><small>{{ tr('可执行文件的绝对路径', 'Absolute path to the executable') }}</small></span
         ><input
-          class="input set-mono"
+          class="input"
           v-model.trim="value.program"
           placeholder="/usr/bin/zsh"
           autocomplete="off"
@@ -97,7 +102,7 @@ const preview = computed(() => {
           ><span>{{ tr('启动参数', 'Arguments') }}</span
           ><small>{{ tr('留空时按 Shell 类型自动选择', 'Chosen from the shell type when empty') }}</small></span
         ><input
-          class="input set-mono"
+          class="input"
           v-model.lazy="argsText"
           :placeholder="defaultArgs ? tr('默认：', 'Default: ') + defaultArgs : tr('自动', 'Automatic')"
           autocomplete="off"
@@ -121,16 +126,26 @@ const preview = computed(() => {
           )
         "
       />
-      <div class="set-row stacked shell-environment">
-        <span class="set-label">
-          <span>{{ tr('预置环境变量', 'Preset environment variables') }}</span>
-          <small>{{
+      <div class="set-row inline">
+        <span class="set-label">{{ tr('预置环境变量', 'Preset environment variables') }}</span>
+        <button type="button" class="btn settings-page-link shell-env-open" @click="environmentOpen = true">
+          {{ tr('配置变量', 'Configure variables') }}<Icon name="arrow-up-right" :size="15" />
+        </button>
+      </div>
+      <SettingsPage
+        :open="environmentOpen"
+        :page="mobile"
+        :title="tr('预置环境变量', 'Preset environment variables')"
+        @close="environmentOpen = false"
+      >
+        <p class="hint">
+          {{
             tr(
               '从下一条命令生效；自定义值优先，按原样传入。',
-              'Apply to the next command; custom values take priority and are passed literally.',
+              'Changes apply to the next command. Custom values take priority and are passed literally.',
             )
-          }}</small>
-        </span>
+          }}
+        </p>
         <KeyValueEditor
           v-model="value.env"
           secret-values
@@ -138,15 +153,12 @@ const preview = computed(() => {
           :value-placeholder="tr('变量值', 'Value')"
           :add-label="tr('添加环境变量', 'Add environment variable')"
         />
-      </div>
+      </SettingsPage>
     </template>
   </div>
 </template>
 
 <style scoped>
-.set-row input::placeholder {
-  font-family: var(--font);
-}
 .shell-preview code {
   justify-self: stretch;
   padding: 7px 10px;

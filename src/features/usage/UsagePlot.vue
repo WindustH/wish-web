@@ -27,6 +27,7 @@ const root = ref<HTMLElement>();
 const active = usePageActivity();
 const style = ref<ChartStyle>();
 let calendarObserver: ResizeObserver | undefined;
+let measureFrame = 0;
 // The heatmap must not paint using a guessed width while its card is entering
 // the layout: that first oversized frame is visible before ResizeObserver runs.
 const width = ref(0);
@@ -61,13 +62,17 @@ onMounted(async () => {
   readStyle();
   await nextTick();
   if (props.heat && root.value) {
-    calendarObserver = new ResizeObserver(measureCalendar);
+    calendarObserver = new ResizeObserver(() => {
+      cancelAnimationFrame(measureFrame);
+      measureFrame = requestAnimationFrame(measureCalendar);
+    });
     calendarObserver.observe(root.value);
     measureCalendar();
   }
 });
 onBeforeUnmount(() => {
   calendarObserver?.disconnect();
+  cancelAnimationFrame(measureFrame);
   clearTimeout(columnTimer);
 });
 watch([theme.resolved, active], async () => {

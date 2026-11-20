@@ -1,13 +1,18 @@
 // DOM-free application events. Publishers and subscribers share one payload contract.
 import type { SessionView } from './api/projections.ts';
+import type { UpstreamRetry } from './upstreamRetry.ts';
+import type { DisplayFailure } from './api/failures.ts';
 export interface BusEvents {
   'library.files.changed': { session: string };
   'library.bookmarks.changed': { session: string };
-  notice: string;
+  notice: string | { text: string; tone: 'warning' | 'success' | 'error' };
   'upsert.session': { id: string; body: SessionView };
   'tombstone.session': { id: string };
   'list.changed': Record<string, never> | undefined;
-  'sync.snapshot': Record<string, never>;
+  'sync.snapshot': { sessionFailures?: boolean };
+  'session.retry': { id: string; name: string; retry: UpstreamRetry };
+  'session.recovery': { id: string; name: string; attempt: number };
+  'session.failed': { id: string; name: string; failure: DisplayFailure };
   'configuration.changed': Record<string, never>;
 }
 type Topic = keyof BusEvents;

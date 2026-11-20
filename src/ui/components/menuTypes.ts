@@ -6,6 +6,7 @@ export type MenuItem = {
   shortcut?: string;
   separator?: boolean;
   checked?: boolean;
+  role?: 'menuitemcheckbox';
   disabled?: boolean;
   children?: Omit<MenuItem, 'children'>[];
 };

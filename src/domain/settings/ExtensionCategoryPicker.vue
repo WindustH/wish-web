@@ -78,4 +78,12 @@ const options = computed(() =>
   width: 16px;
   color: var(--fg-faint);
 }
+@media (hover: hover) {
+  .extension-pages button:hover {
+    background-color: var(--bg-hover);
+  }
+}
+.extension-pages button:focus-visible {
+  outline-offset: -2px;
+}
 </style>

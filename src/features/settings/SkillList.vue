@@ -99,9 +99,6 @@ const reduced = prefersReducedMotion();
 </template>
 
 <style scoped>
-.skill-line + .skill-line {
-  border-top: 1px solid var(--line);
-}
 .skill-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 34px;
@@ -120,16 +117,16 @@ const reduced = prefersReducedMotion();
 .skill-fold,
 .skill-open {
   display: flex;
-  gap: 9px;
+  gap: 12px;
   align-items: center;
   min-width: 0;
-  min-height: 35px;
-  padding: 5px 2px 5px 8px;
+  min-height: var(--text-list-row-height);
+  padding: 10px 4px 10px 8px;
   border: 0;
   border-radius: 5px;
   background: none;
   color: inherit;
-  font: 500 13px/1.4 var(--font);
+  font: 500 var(--text-list-size)/var(--text-list-leading) var(--font);
   text-align: start;
   cursor: pointer;
 }
@@ -164,23 +161,24 @@ const reduced = prefersReducedMotion();
 }
 .folder-count {
   flex: none;
-  font: 11px var(--mono);
+  font-size: var(--text-list-secondary);
+  font-variant-numeric: tabular-nums;
   color: var(--fg-subtle);
 }
 .skill-metadata {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 3px;
 }
 .skill-name {
-  font: 500 12.5px/1.4 var(--mono);
+  font: inherit;
 }
 .skill-description,
 .skill-note,
 .skill-warn {
-  font-size: 11.5px;
-  line-height: 1.4;
+  font-size: var(--text-list-secondary);
+  line-height: var(--text-list-leading);
   color: var(--fg-subtle);
 }
 .skill-warn {
@@ -195,10 +193,6 @@ const reduced = prefersReducedMotion();
 @media (pointer: coarse), (max-width: 899px) {
   .skill-row {
     grid-template-columns: minmax(0, 1fr) 44px;
-  }
-  .skill-fold,
-  .skill-open {
-    min-height: 44px;
   }
   .skill-check {
     position: relative;

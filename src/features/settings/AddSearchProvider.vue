@@ -78,6 +78,7 @@ function choose(key: string) {
 
 <template>
   <PickerDialog
+    force-dialog
     :title="tr('添加搜索提供商', 'Add search provider')"
     :items="items"
     :placeholder="tr('搜索服务或订阅…', 'Search services or subscriptions…')"

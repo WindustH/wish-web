@@ -116,7 +116,7 @@ onBeforeUnmount(() => {
         :id="id"
         ref="tooltip"
         role="tooltip"
-        class="control-tooltip delegated-tooltip"
+        class="control-tooltip delegated-tooltip popup-palette"
         :style="position"
       >
         {{ text }}

@@ -59,8 +59,8 @@ function resetOptions() {
 }
 </script>
 <template>
-  <div class="navigation-editor" data-keyboard-boundary>
-    <header>
+  <section class="set-section navigation-editor" data-keyboard-boundary>
+    <header class="set-section-head">
       <h3>{{ tr('键盘导航', 'Keyboard navigation') }}</h3>
       <button
         type="button"
@@ -72,9 +72,10 @@ function resetOptions() {
         <Icon name="undo" :size="15" />
       </button>
     </header>
-    <div class="navigation-rows">
-      <div class="navigation-row">
-        <label for="navigation-enabled">{{ tr('启用键盘导航', 'Enable keyboard navigation') }}</label
+    <div class="set-card">
+      <div class="set-row inline toggle-row">
+        <label class="set-label" for="navigation-enabled"
+          ><span>{{ tr('启用键盘导航', 'Enable keyboard navigation') }}</span></label
         ><SwitchRoot
           id="navigation-enabled"
           class="cfg-switch"
@@ -83,8 +84,10 @@ function resetOptions() {
           ><SwitchThumb class="cfg-switch-thumb"
         /></SwitchRoot>
       </div>
-      <div class="navigation-row">
-        <label for="focus-indicator">{{ tr('区域焦点指示器', 'Region focus indicator') }}</label>
+      <div class="set-row inline toggle-row">
+        <label class="set-label" for="focus-indicator"
+          ><span>{{ tr('区域焦点指示器', 'Region focus indicator') }}</span></label
+        >
         <SwitchRoot
           id="focus-indicator"
           class="cfg-switch"
@@ -93,10 +96,13 @@ function resetOptions() {
           ><SwitchThumb class="cfg-switch-thumb"
         /></SwitchRoot>
       </div>
-      <label class="navigation-row"
-        ><span>{{ tr('退出输入的键序列', 'Sequence to leave input') }}</span
-        ><input
-          class="input navigation-binding"
+      <div class="set-row inline">
+        <label class="set-label" for="navigation-sequence"
+          ><span>{{ tr('退出输入的键序列', 'Sequence to leave input') }}</span></label
+        >
+        <input
+          id="navigation-sequence"
+          class="input navigation-binding set-end"
           :value="sequenceDraft"
           placeholder="ji"
           maxlength="6"
@@ -107,11 +113,15 @@ function resetOptions() {
             sequenceDraft = nav.exitSequence;
             error = '';
           "
-      /></label>
-      <label class="navigation-row"
-        ><span>{{ tr('序列按键最大间隔（毫秒）', 'Maximum interval between keys (ms)') }}</span
-        ><input
-          class="input navigation-binding"
+        />
+      </div>
+      <div class="set-row inline">
+        <label class="set-label" for="navigation-timeout"
+          ><span>{{ tr('序列按键最大间隔（毫秒）', 'Maximum interval between keys (ms)') }}</span></label
+        >
+        <input
+          id="navigation-timeout"
+          class="input navigation-binding set-end"
           type="number"
           min="100"
           max="2000"
@@ -119,71 +129,22 @@ function resetOptions() {
           :value="intervalDraft"
           @input="intervalInput"
           @change="interval"
-      /></label>
+        />
+      </div>
     </div>
     <p v-if="error" role="alert">{{ error }}</p>
-  </div>
+  </section>
 </template>
 <style scoped>
 .navigation-editor {
-  font-size: 13px;
+  margin-bottom: 24px;
 }
-header {
+.set-section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-h3 {
-  font-size: 13px;
-  margin: 0;
-}
-.navigation-editor {
-  margin: 0 0 18px;
-}
-.navigation-rows {
-  display: grid;
-  column-gap: 24px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-@container (max-width: 550px) {
-  .navigation-rows {
-    grid-template-columns: 1fr;
-  }
-}
-.navigation-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 42px;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--line);
-}
-.navigation-binding.input {
+.set-row > .navigation-binding {
   width: 86px;
-  flex: none;
-  height: 30px;
-  min-height: 30px;
-  text-align: center;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font: 12px var(--mono);
-}
-[role='alert'] {
-  color: var(--err);
-  font-size: 12px;
-}
-@media (max-width: 899px) {
-  .navigation-editor {
-    font-size: 14px;
-  }
-  .navigation-row {
-    min-height: 48px;
-  }
-  .navigation-binding.input {
-    height: 36px;
-    min-height: 36px;
-    font-size: 16px;
-  }
 }
 </style>

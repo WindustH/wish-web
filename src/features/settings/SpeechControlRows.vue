@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SelectField from '../../ui/components/SelectField.vue';
 import { computed } from 'vue';
 import SpeechOutputRows from './SpeechOutputRows.vue';
 import type { MediaOptions } from '../../core/mediaGeneration.ts';
@@ -15,7 +16,7 @@ const controls = computed(() =>
         { key: 'pitch' as const, label: tr('音高', 'Pitch'), min: -12, max: 12, step: 1, placeholder: '0' },
       ],
 );
-const emotions = computed(() => [
+const emotions = computed<[string, string][]>(() => [
   ['happy', tr('开心', 'Happy')],
   ['sad', tr('悲伤', 'Sad')],
   ['angry', tr('愤怒', 'Angry')],
@@ -24,10 +25,7 @@ const emotions = computed(() => [
   ['surprised', tr('惊讶', 'Surprised')],
   ['calm', tr('平静', 'Calm')],
   ...(['speech-2.6-hd', 'speech-2.6-turbo'].includes(props.model)
-    ? [
-        ['fluent', tr('流畅', 'Fluent')],
-        ['whisper', tr('耳语', 'Whisper')],
-      ]
+    ? [['fluent', tr('流畅', 'Fluent')] as [string, string], ['whisper', tr('耳语', 'Whisper')] as [string, string]]
     : []),
 ]);
 function setNumber(key: 'speed' | 'volume' | 'pitch', event: Event) {
@@ -67,14 +65,15 @@ function setNumber(key: 'speed' | 'volume' | 'pitch', event: Event) {
   </label>
   <label v-if="!xai" class="set-row stacked">
     <span class="set-label">{{ tr('情绪', 'Emotion') }}</span>
-    <select
-      class="input"
-      :value="options.emotion ?? ''"
-      @change="options = { ...options, emotion: ($event.target as HTMLSelectElement).value || null }"
-    >
-      <option value="">{{ tr('根据文本自动选择', 'Automatic from text') }}</option>
-      <option v-for="[value, label] in emotions" :key="value" :value="value">{{ label }}</option>
-    </select>
+    <SelectField
+      :aria-label="tr('情绪', 'Emotion')"
+      :model-value="options.emotion ?? ''"
+      :options="[
+        { value: '', label: tr('根据文本自动选择', 'Automatic from text') },
+        ...emotions.map(([value, label]) => ({ value, label })),
+      ]"
+      @update:model-value="options = { ...options, emotion: $event || null }"
+    />
     <small v-if="options.emotion && !emotions.some(([value]) => value === options.emotion)">
       {{
         tr(

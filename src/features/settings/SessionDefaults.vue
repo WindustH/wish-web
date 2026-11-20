@@ -37,12 +37,7 @@ const { draft, busy, providerOptions, effortOptions } = inject(configDraftKey)!;
             ><small>{{
               tr('命令执行的起始目录，需要绝对路径', 'Where commands start. Use an absolute path.')
             }}</small></span
-          ><input
-            class="input set-mono"
-            v-model="draft.defaults.cwd"
-            autocomplete="off"
-            autocapitalize="off"
-            spellcheck="false"
+          ><input class="input" v-model="draft.defaults.cwd" autocomplete="off" autocapitalize="off" spellcheck="false"
         /></label>
         <label class="set-row stacked"
           ><span class="set-label"

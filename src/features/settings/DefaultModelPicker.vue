@@ -3,7 +3,7 @@ import type { ModelInfo } from '../../core/provider-catalog.ts';
 import type { SettingsConfig } from '../../core/configTypes.ts';
 import { computed, effectScope, onScopeDispose, ref, shallowRef, watch, type EffectScope } from 'vue';
 import { modelLabel } from '../../domain/providers/modelLabel.ts';
-import CommandPanel from '../../ui/components/CommandPanel.vue';
+import SettingsPage from '../../ui/components/SettingsPage.vue';
 import PickerList from '../../domain/providers/PickerList.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
@@ -101,7 +101,7 @@ function selectEffort(value: string) {
         {{ (defaults.reasoning?.effort || tr('默认', 'Default')).toUpperCase() }}
       </button>
     </div>
-    <CommandPanel v-if="open === 'model'" :title="tr('默认模型', 'Default model')" @close="open = ''">
+    <SettingsPage command v-if="open === 'model'" :title="tr('默认模型', 'Default model')" @close="open = ''">
       <PickerList
         :model-value="selected"
         :items="choices"
@@ -132,8 +132,13 @@ function selectEffort(value: string) {
           </template>
         </template>
       </PickerList>
-    </CommandPanel>
-    <CommandPanel v-if="open === 'effort'" :title="tr('默认思考强度', 'Default reasoning effort')" @close="open = ''">
+    </SettingsPage>
+    <SettingsPage
+      command
+      v-if="open === 'effort'"
+      :title="tr('默认思考强度', 'Default reasoning effort')"
+      @close="open = ''"
+    >
       <PickerList
         :model-value="defaults.reasoning?.effort || ''"
         :items="efforts"
@@ -142,7 +147,7 @@ function selectEffort(value: string) {
         :placeholder="tr('搜索或输入思考强度…', 'Search or enter reasoning effort…')"
         @select="selectEffort"
       />
-    </CommandPanel>
+    </SettingsPage>
   </div>
 </template>
 <style scoped>

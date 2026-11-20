@@ -8,7 +8,7 @@ export async function copyText(text: string): Promise<boolean> {
     await platform('clipboard').writeText(text);
     return true;
   } catch (error) {
-    toast(tr('复制失败：', 'Copy failed: ') + String(error));
+    toast(tr('复制失败：', 'Copy failed: ') + String(error), { tone: 'error' });
     return false;
   }
 }

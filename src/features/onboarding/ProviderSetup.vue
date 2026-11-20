@@ -12,7 +12,7 @@ import SetupAuthStep from './SetupAuthStep.vue';
 import SetupModelStep from './SetupModelStep.vue';
 
 const props = defineProps<{ preview?: boolean }>();
-const emit = defineEmits<{ complete: []; exit: [] }>();
+const emit = defineEmits<{ complete: [] }>();
 const setup = reactive(useProviderSetup({ preview: props.preview }));
 const isMobile = useIsMobile();
 const LABELS: Record<SetupStep, () => string> = {
@@ -52,10 +52,6 @@ async function finish() {
 
 <template>
   <main ref="page" class="provider-setup" :class="{ preview }">
-    <div v-if="preview" class="setup-preview-bar" role="status">
-      <span><Icon name="sparkles" />{{ tr('引导预览 · 不会保存任何配置', 'Setup preview · nothing is saved') }}</span>
-      <button type="button" class="btn ghost" @click="emit('exit')">{{ tr('退出预览', 'Exit preview') }}</button>
-    </div>
     <div class="setup-column">
       <header class="setup-head">
         <img class="setup-brand" src="/app-icons/mark.svg" alt="Wish" />

@@ -1,5 +1,7 @@
 export interface PieItem {
   name: string;
+  model?: string;
+  provider?: string;
   value: number;
   colorIndex?: number;
 }
@@ -14,8 +16,9 @@ export function pieDistribution(items: PieItem[], otherName: string): PieSlice[]
   const positive = items.filter((item) => item.value > 0).sort((a, b) => b.value - a.value);
   const total = positive.reduce((sum, item) => sum + item.value, 0);
   if (!total) return [];
+  // A five-entry legend leaves the largest four comparable when the tail grows.
+  let merged = positive.length > 5 ? positive.splice(4) : [];
   const groups = positive.map((item) => ({ ...item, members: [item] }));
-  let merged: PieItem[] = [];
   for (;;) {
     const candidate = merged.length
       ? [

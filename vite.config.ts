@@ -18,6 +18,7 @@ const webBuildId = `${buildId}-${Date.now().toString(36)}`;
 import vue from '@vitejs/plugin-vue';
 import pxtorem from 'postcss-pxtorem';
 import { VitePWA } from 'vite-plugin-pwa';
+import { appIcons } from './tools/app-icons.ts';
 import { pdfAssets } from './tools/pdf-assets.ts';
 
 export default defineConfig({
@@ -54,6 +55,7 @@ export default defineConfig({
   },
   plugins: [
     pdfAssets(),
+    appIcons(),
     // Kept out of Workbox's precache (which only includes HTML/CSS/JS/images).
     // Fetching this file therefore asks the live server even from an old tab.
     {
@@ -74,7 +76,7 @@ export default defineConfig({
       registerType: 'prompt',
       injectRegister: false,
       manifest: false,
-      includeAssets: ['manifest.webmanifest', 'app-icons/*.png'],
+      includeAssets: ['manifest.webmanifest'],
       workbox: {
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],

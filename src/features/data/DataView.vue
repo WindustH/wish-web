@@ -12,6 +12,7 @@ import SessionListAction, { type ActionTarget } from '../sessions/SessionListAct
 import PruneDialog from '../sessions/PruneDialog.vue';
 import OverlayWindow from '../../ui/components/OverlayWindow.vue';
 import DataRow, { type DataItem } from './DataRow.vue';
+import StorageCard from './StorageCard.vue';
 import UsageRecords from './UsageRecords.vue';
 import DeleteSessionsDialog from '../sessions/DeleteSessionsDialog.vue';
 import * as api from '../../core/api/endpoints.ts';
@@ -185,7 +186,7 @@ function deleted() {
 </script>
 
 <template>
-  <OverlayWindow :title="tr('会话与数据', 'Sessions & data')" gutter="clamp(24px, 4vw, 40px)">
+  <OverlayWindow :title="i18n.t('stats.storage')" gutter="clamp(24px, 4vw, 40px)">
     <template #tools><RefreshStamp :at="snapshot?.at" :loading="loading" @refresh="refresh" /></template>
     <div class="data-body">
       <p v-if="failed" class="load-error" role="alert">
@@ -194,25 +195,13 @@ function deleted() {
       <Spinner v-if="loading && !snapshot" />
       <template v-if="snapshot">
         <div class="data-top">
+          <StorageCard v-if="snapshot.storage" :storage="snapshot.storage" />
           <section class="data-summary">
             <div class="data-total">
               <strong>{{ fmtBytes(snapshot.bytes.total) }}</strong>
-              <span
-                >{{
-                  tr(
-                    `${snapshot.sessions} 个会话`,
-                    `${snapshot.sessions} session${snapshot.sessions === 1 ? '' : 's'}`,
-                  )
-                }}<template v-if="snapshot.storage">
-                  ·
-                  {{
-                    tr(
-                      `数据目录共 ${fmtBytes(snapshot.storage.bytes.total)}`,
-                      `${fmtBytes(snapshot.storage.bytes.total)} in the data directory`,
-                    )
-                  }}</template
-                ></span
-              >
+              <span>{{
+                tr(`${snapshot.sessions} 个会话`, `${snapshot.sessions} session${snapshot.sessions === 1 ? '' : 's'}`)
+              }}</span>
               <button
                 type="button"
                 class="btn data-clear"
@@ -371,13 +360,17 @@ function deleted() {
   display: grid;
   gap: 16px;
 }
-.data-summary {
-  display: grid;
-  gap: 10px;
+.data-summary,
+.storage-card {
+  min-width: 0;
   padding: 16px 18px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--bg-raised);
+}
+.data-summary {
+  display: grid;
+  gap: 10px;
 }
 .data-total {
   display: flex;
@@ -561,7 +554,8 @@ function deleted() {
 }
 
 @media (max-width: 899px) {
-  .data-summary {
+  .data-summary,
+  .storage-card {
     border: 0;
     border-radius: 18px;
     background: var(--bg-group);

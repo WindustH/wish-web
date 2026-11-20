@@ -21,6 +21,10 @@ import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.env.PORT || 8790);
 const LISTEN_HOST = process.env.LISTEN_HOST || '127.0.0.1';
+const sshMode = process.env.WISH_SSH_CLIENT === '1';
+if (sshMode && (!['127.0.0.1', '::1'].includes(LISTEN_HOST) || process.env.ALLOWED_HOSTS?.trim()))
+  throw new Error('WISH_SSH_CLIENT requires a loopback LISTEN_HOST and no extra ALLOWED_HOSTS');
+const ssh = sshMode ? await import('./serve-ssh.ts') : undefined;
 const ROOT = fileURLToPath(new URL('./dist', import.meta.url));
 // Missing builds are a startup error, not an apparently healthy empty server.
 await stat(join(ROOT, 'index.html'));
@@ -28,8 +32,8 @@ await stat(join(ROOT, 'index.html'));
 const BACKENDS = [
   {
     prefix: '/api',
-    base: (process.env.WISH_UPSTREAM || 'http://127.0.0.1:9780').replace(/\/+$/, '') + '/api',
-    token: process.env.WISH_HTTP_TOKEN || '',
+    base: (ssh?.apiUrl.origin || process.env.WISH_UPSTREAM || 'http://127.0.0.1:9780').replace(/\/+$/, '') + '/api',
+    token: ssh ? '' : process.env.WISH_HTTP_TOKEN || '',
   },
 ].map((backend) => {
   const url = new URL(backend.base);
@@ -95,6 +99,7 @@ const server = createServer(async (req, res) => {
     }
 
     const url = new URL(req.url ?? '/', `http://${host}`);
+    if (ssh && url.pathname.startsWith('/ssh/')) return await ssh.handle(req, res, url.pathname);
     if (url.pathname === '/healthz') {
       res.writeHead(200, { 'content-type': 'application/json' });
       return res.end(JSON.stringify({ ok: true }));
@@ -148,10 +153,13 @@ const server = createServer(async (req, res) => {
 });
 
 function proxyApi(req: IncomingMessage, res: ServerResponse, url: URL, backend: Backend): void {
+  const agent = ssh?.proxyAgent(req);
+  if (ssh && !agent) return reject(res, 401, 'SSH login required');
   const up = backend.url;
   const target = backend.path + url.pathname.slice(backend.prefix.length) + url.search;
   const headers: OutgoingHttpHeaders = { ...req.headers, host: up.host };
   delete headers['accept-encoding']; // avoid compressed SSE buffering
+  if (ssh) delete headers.cookie;
   delete headers.referer;
   delete headers.origin;
   delete headers['sec-fetch-site'];
@@ -162,6 +170,7 @@ function proxyApi(req: IncomingMessage, res: ServerResponse, url: URL, backend: 
   const doRequest = up.protocol === 'https:' ? httpsRequest : httpRequest;
   const prox = doRequest(
     {
+      agent,
       hostname: up.hostname,
       port: up.port || (up.protocol === 'https:' ? 443 : 80),
       path: target,
@@ -170,6 +179,7 @@ function proxyApi(req: IncomingMessage, res: ServerResponse, url: URL, backend: 
     },
     (pr) => {
       const h = { ...pr.headers };
+      if (ssh) delete h['set-cookie'];
       res.writeHead(pr.statusCode || 502, h);
       pr.pipe(res); // streams SSE frames unbuffered
     },
@@ -213,19 +223,24 @@ server.on('upgrade', (req, socket, head) => {
   if (!/^\/api\/sessions\/[^/]+\/terminal\/socket$/.test(url.pathname)) return refuse(404);
   const backend = BACKENDS.find((item) => url.pathname.startsWith(item.prefix + '/'));
   if (!backend) return refuse(404);
+  const agent = ssh?.proxyAgent(req);
+  if (ssh && !agent) return refuse(401);
   const headers = { ...req.headers, host: backend.url.host };
+  if (ssh) delete headers.cookie;
   delete headers.origin;
   delete headers['sec-fetch-site'];
   const request = (backend.url.protocol === 'https:' ? httpsRequest : httpRequest)({
+    agent,
     hostname: backend.url.hostname,
     port: backend.url.port || (backend.url.protocol === 'https:' ? 443 : 80),
     path: backend.path + url.pathname.slice(backend.prefix.length) + url.search,
     headers,
   });
-  request.setTimeout(10000, () => request.destroy());
+  const upgradeTimeout = setTimeout(() => request.destroy(), 10000);
+  request.once('close', () => clearTimeout(upgradeTimeout));
   if (socket instanceof Socket) socket.setNoDelay(true);
   request.on('upgrade', (response, upstream, upstreamHead) => {
-    request.setTimeout(0);
+    clearTimeout(upgradeTimeout);
     upstream.setTimeout(0);
     upstream.setNoDelay(true);
     socket.write(

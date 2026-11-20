@@ -5,7 +5,7 @@ import LoadingState from '../../ui/components/LoadingState.vue';
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import type { BlobMetadata, LibraryBlob } from '../../core/api/types.ts';
 import { blobMetadata, blobUrl } from '../../core/api/endpoints.ts';
-import { absUrl, apiFetch } from '../../core/api/client.ts';
+import { absUrl } from '../../core/api/client.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import Icon from '../../ui/components/Icon.vue';
@@ -13,9 +13,9 @@ import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useDocumentVisible } from '../../ui/composables/useDocumentVisible.ts';
 import VideoPlayer from '../../domain/media/VideoPlayer.vue';
 import ImagePreview from '../../domain/media/ImagePreview.vue';
+import { SourcePages, sourcePageBytes } from '../../domain/media/sourcePages.ts';
 import SourcePreview from '../../domain/media/SourcePreview.vue';
 import { sourcePreviewKind } from '../../ui/codeLanguage.ts';
-import { copyText } from '../../ui/clipboard.ts';
 import { blobKind } from './libraryFiles.ts';
 import type { BlobLocation } from '../../core/blobMentions.ts';
 
@@ -74,7 +74,7 @@ const source = ref(''),
   text = ref(''),
   error = ref('');
 const loading = ref(false),
-  truncated = ref(false),
+  pages = shallowRef<SourcePages>(),
   revision = ref(0);
 let loadController: AbortController | undefined;
 let checking = false;
@@ -93,12 +93,14 @@ defineExpose({
   refresh,
   loading,
   canCopy: computed(() => kind.value === 'text'),
-  copy: () => copyText(text.value),
+  copy: async () => (await sourcePreview.value?.copyAll()) ?? false,
   canWrap: computed(() => kind.value === 'text' && sourceMode.value === 'source'),
   locate: (reference: import('../../core/replyReferences.ts').ReplyReference) => {
     focusReference.value = { ...reference };
   },
-  locateFile: (location: BlobLocation) => {
+  locateFile: (location: BlobLocation, view?: 'image') => {
+    if (view === 'image' && sourcePreviewKind(props.blob.name || props.name, props.blob.mime_type) === 'svg')
+      sourceMode.value = 'preview';
     focusReference.value = undefined;
     fileLocation.value = { ...location };
     pendingTime = location.time;
@@ -117,7 +119,7 @@ watch(
     source.value = '';
     text.value = '';
     error.value = '';
-    truncated.value = false;
+    pages.value = undefined;
     loading.value = true;
     try {
       const info = await blobMetadata(`${props.session}/${props.blob.id}`, { signal: controller.signal });
@@ -126,16 +128,12 @@ watch(
       emit('metadata', info);
       if (kind.value === 'text') {
         if (metadata.value.byte_count === 0) return;
-        const response = await apiFetch(blobUrl(`${props.session}/${props.blob.id}`), {
-          signal: controller.signal,
-          cache: 'no-cache',
-          headers: { Range: 'bytes=0-262143' },
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const bytes = await response.arrayBuffer();
+        const url = blobUrl(`${props.session}/${props.blob.id}`);
+        const document = new SourcePages(url, info.byte_count, info.version, controller.signal);
+        await document.next();
         if (controller.signal.aborted) return;
-        truncated.value = metadata.value.byte_count > bytes.byteLength;
-        text.value = new TextDecoder('utf-8', { fatal: true }).decode(bytes, { stream: truncated.value });
+        if (info.byte_count <= sourcePageBytes && document.blocks.length <= 6) text.value = document.cache.get(0) ?? '';
+        else pages.value = document;
       } else if (kind.value !== 'file' && kind.value !== 'pdf') {
         const grant = await mediaPlayback(props.session, props.blob.id, { signal: controller.signal }, info.version);
         if (!controller.signal.aborted) source.value = absUrl(grant.path);
@@ -288,7 +286,8 @@ async function handleLoadFailure(cause?: unknown) {
         :version="metadata?.version"
         :scroll="saved.scroll"
         :preview-scroll="saved.previewScroll"
-        :truncated="truncated"
+        :pages="pages"
+        @error="handleLoadFailure"
         :focus="focusReference"
         :toolbar="toolbar"
         @scroll="saved.scroll = $event"

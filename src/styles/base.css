@@ -77,7 +77,7 @@ textarea {
 }
 input::placeholder,
 textarea::placeholder {
-  color: var(--fg-subtle);
+  color: var(--fg-placeholder);
   opacity: 1;
 }
 a {

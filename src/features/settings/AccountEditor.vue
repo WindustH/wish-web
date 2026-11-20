@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, inject, reactive, ref, shallowRef, watch } from 'vue';
+import { computed, inject, reactive, ref, shallowRef, useId, watch } from 'vue';
+import SettingHint from '../../domain/settings/SettingHint.vue';
 import AccountServicesDialog from '../../domain/settings/AccountServicesDialog.vue';
 import { accountServices } from '../../domain/settings/accountServices.ts';
 import Icon from '../../ui/components/Icon.vue';
-import Modal from '../../ui/components/Modal.vue';
+import SettingsPage from '../../ui/components/SettingsPage.vue';
 import SwitchRow from '../../domain/settings/SwitchRow.vue';
 import SelectField from '../../domain/providers/SelectField.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
@@ -13,7 +14,7 @@ import { useCopilotLogin } from '../providers/useCopilotLogin.ts';
 import { REDACTED, secretText, readSecret, writeCredential } from '../../core/secretRef.ts';
 import { useAccountCatalog } from './useAccountCatalog.ts';
 import { tr } from '../../core/i18n/tr.ts';
-const props = defineProps<{ id: string; allowRemove?: boolean; linked?: boolean; suggestServices?: boolean }>();
+const props = defineProps<{ id: string; allowRemove?: boolean; suggestServices?: boolean }>();
 const emit = defineEmits<{ close: []; remove: [] }>();
 const { draft, saveConfig, load, catalog, searchCatalog, fetchCatalog, imageCatalog, mediaCatalog } =
   inject(configDraftKey)!;
@@ -69,6 +70,18 @@ function credentialLabel(name: string) {
   if (name === 'session_token') return tr('临时安全令牌（可选）', 'Session token (optional)');
   return name;
 }
+const apiKeyInputId = useId();
+const apiKeyHelp = computed(() =>
+  savedSecrets.value.api_key === REDACTED
+    ? tr(
+        '输入密钥或 ${ENV_NAME}。留空会保留已保存的密钥。',
+        'Enter a key or ${ENV_NAME}. Leave the field empty to keep the saved key.',
+      )
+    : tr(
+        '输入密钥，或用 ${ENV_NAME} 引用服务器上的环境变量。',
+        'Enter a key or use ${ENV_NAME} to reference a server environment variable.',
+      ),
+);
 function key(text: string) {
   const x = readSecret(text, savedSecrets.value.api_key === REDACTED ? REDACTED : null);
   account.value.api_key = x.value;
@@ -85,7 +98,7 @@ function field(name: string, text: string) {
 }
 </script>
 <template>
-  <Modal
+  <SettingsPage
     v-if="account"
     :open="!suggesting"
     :page="mobile"
@@ -119,7 +132,7 @@ function field(name: string, text: string) {
         /></label>
       </div>
       <div class="set-card">
-        <label
+        <div
           v-if="
             account.preset === 'custom' ||
             !account.preset ||
@@ -128,19 +141,28 @@ function field(name: string, text: string) {
             (!fields.includes('access_key_id') && !fields.includes('secret_access_key'))
           "
           class="set-row stacked"
-          ><span class="set-label">{{
-            account.preset === 'novelai' ? 'Persistent API Token' : 'API Key / Access token'
-          }}</span
-          ><input
+        >
+          <div class="set-field-heading">
+            <label :for="apiKeyInputId">{{
+              account.preset === 'novelai' ? 'Persistent API Token' : 'API Key / Access token'
+            }}</label>
+            <SettingHint
+              icon-only
+              :id="apiKeyInputId + '-help'"
+              :text="apiKeyHelp"
+              :label="tr('密钥说明', 'About this key')"
+            />
+          </div>
+          <input
+            :id="apiKeyInputId"
+            :aria-describedby="apiKeyInputId + '-help'"
             class="input"
             :type="account.api_key_env ? 'text' : 'password'"
             :value="secretText(account.api_key, account.api_key_env)"
-            :placeholder="
-              tr('输入密钥或 ${ENV_NAME}；留空保留已保存值', 'Key or ${ENV_NAME}; leave unchanged to retain')
-            "
             autocomplete="new-password"
             @input="key(($event.target as HTMLInputElement).value)"
-        /></label>
+          />
+        </div>
         <label v-if="account.preset === 'custom' || !account.preset" class="set-row stacked">
           <span class="set-label">{{ tr('添加凭据字段', 'Add credential field') }}</span>
           <SelectField
@@ -228,10 +250,10 @@ function field(name: string, text: string) {
         :aria-label="tr('删除账户', 'Delete account')"
         @click="emit('remove')"
       >
-        <Icon :name="allowRemove && !linked ? 'trash-2' : 'trash-off'" /></button
+        <Icon :name="allowRemove ? 'trash-2' : 'trash-off'" /></button
       ><button class="btn primary" @click="done">{{ tr('完成', 'Done') }}</button></template
     >
-  </Modal>
+  </SettingsPage>
   <AccountServicesDialog
     v-if="account"
     :open="suggesting"

@@ -3,7 +3,8 @@ import { usePreviewToolbar } from './usePreviewToolbar.ts';
 import { computed, inject, ref, shallowRef, watch } from 'vue';
 import DOMPurify from 'dompurify';
 import { tr } from '../../core/i18n/tr.ts';
-import { i18n } from '../../core/i18n/index.ts';
+import { useSourceWindow } from './useSourceWindow.ts';
+import type { SourcePages, SourceBlock } from './sourcePages.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import { replyReferenceId, type ReplyReference } from '../../core/replyReferences.ts';
 import { replyContextKey } from '../references/context.ts';
@@ -18,6 +19,7 @@ import { toast } from '../../ui/toast.ts';
 import Menu from '../../ui/components/Menu.vue';
 import type { MenuItem } from '../../ui/components/menuTypes.ts';
 import Icon from '../../ui/components/Icon.vue';
+import Hint from '../../ui/components/Hint.vue';
 import CopyButton from '../../ui/components/CopyButton.vue';
 import SegmentedControl from '../../ui/components/SegmentedControl.vue';
 import Markdown from '../references/ReferenceMarkdown.vue';
@@ -32,11 +34,11 @@ const props = defineProps<{
   version?: string;
   scroll: number;
   previewScroll?: number;
-  truncated: boolean;
+  pages?: SourcePages;
   toolbar?: HTMLElement;
   focus?: ReplyReference;
 }>();
-const emit = defineEmits<{ scroll: [top: number]; previewScroll: [top: number] }>();
+const emit = defineEmits<{ scroll: [top: number]; previewScroll: [top: number]; error: [cause: unknown] }>();
 const active = usePageActivity();
 const mobile = useIsMobile();
 const separateToolbar = usePreviewToolbar(() => props.toolbar);
@@ -54,11 +56,64 @@ const localToolbar = computed(
 const language = computed(() => codeLanguage(props.name, props.mime) ?? 'plaintext');
 const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const html = computed(() => sourceLines(highlightCode(props.text, language.value) || escape(props.text)));
-const gutter = computed(() => `${Math.max(2, String(props.text.split(/\r\n?|\n/).length).length)}ch`);
+const gutter = computed(
+  () =>
+    `${Math.max(2, String(props.pages ? (props.pages.blocks[props.pages.count.value - 1]?.line ?? 1) : props.text.split(/\r\n?|\n/).length).length)}ch`,
+);
 const viewport = ref<HTMLElement>();
 const previewViewport = ref<HTMLElement>();
 const code = ref<HTMLElement>();
+const { items, before, after, measure, restore } = useSourceWindow(
+  () => props.pages,
+  viewport,
+  () => active.value && mode.value === 'source',
+  (cause) => emit('error', cause),
+);
+function blockHtml(block: SourceBlock) {
+  const doc = props.pages!;
+  const text = doc.cache.get(block.page.start)?.slice(block.from, block.to);
+  if (text === undefined) return '';
+  return sourceLines(
+    highlightCode(text, language.value) || escape(text),
+    block.line,
+    doc.complete && block.offset + text.length === doc.length,
+  );
+}
+async function copyAll() {
+  const pages = props.pages;
+  try {
+    const text = pages ? await pages.all() : props.text;
+    return !pages?.signal.aborted && (await copyText(text));
+  } catch (cause) {
+    if (!pages?.signal.aborted) emit('error', cause);
+    return false;
+  }
+}
+const richText = ref('');
+const richReady = ref(false);
+watch(
+  [mode, () => props.pages],
+  async ([view, pages], _, cleanup) => {
+    const request = new AbortController();
+    cleanup(() => request.abort());
+    richReady.value = false;
+    richText.value = '';
+    if (view !== 'preview' || !pages) return;
+    try {
+      const text = await pages.all(request.signal);
+      if (!request.signal.aborted) {
+        richText.value = text;
+        richReady.value = true;
+      }
+    } catch (cause) {
+      if (!request.signal.aborted && !pages.signal.aborted) emit('error', cause);
+    }
+  },
+  { immediate: true },
+);
+const formattedText = computed(() => (props.pages ? richText.value : props.text));
 defineExpose({
+  copyAll,
   rememberScroll: () => {
     if (viewport.value && mode.value === 'source') emit('scroll', viewport.value.scrollTop);
     if (previewViewport.value) emit('previewScroll', previewViewport.value.scrollTop);
@@ -73,15 +128,39 @@ const selectionItems = computed<MenuItem[]>(() => [
     ? [{ key: 'reply', icon: 'reply', label: tr('引用选区', 'Quote selection'), disabled: quoting.value }]
     : []),
 ]);
+function selectionFor(range: Range) {
+  if (!code.value) return;
+  const doc = props.pages;
+  if (!doc) return sourceSelection(code.value, props.text, range);
+  if (range.collapsed || !code.value.contains(range.commonAncestorContainer)) return;
+  const endpoint = (node: Node, offset: number) => {
+    const element = (node instanceof Element ? node : node.parentElement)?.closest<HTMLElement>('[data-index]');
+    if (!element) return;
+    const block = doc.blocks[Number(element.dataset.index)]!;
+    const prefix = range.cloneRange();
+    prefix.selectNodeContents(element);
+    prefix.setEnd(node, offset);
+    const text = prefix.toString();
+    return { offset: block.offset + text.length, line: block.line + (text.match(/\r\n?|\n/g)?.length ?? 0) };
+  };
+  const start = endpoint(range.startContainer, range.startOffset),
+    end = endpoint(range.endContainer, range.endOffset);
+  const text = range.toString();
+  if (!start || !end || end.offset - start.offset !== text.length) return;
+  return {
+    start: start.offset,
+    end: end.offset,
+    lineStart: start.line,
+    lineEnd: Math.max(start.line, end.line - Number(/[\r\n]$/.test(text))),
+    text,
+  };
+}
 function selectedRange() {
   const selected = document.getSelection();
-  return code.value && selected?.rangeCount
-    ? sourceSelection(code.value, props.text, selected.getRangeAt(0))
-    : undefined;
+  return selected?.rangeCount ? selectionFor(selected.getRangeAt(0)) : undefined;
 }
 function captureSelection(range: Range) {
-  selection.value =
-    mode.value === 'source' && active.value && code.value ? sourceSelection(code.value, props.text, range) : undefined;
+  selection.value = mode.value === 'source' && active.value ? selectionFor(range) : undefined;
   return selection.value?.text ?? '';
 }
 watch([() => props.session, () => props.blob, () => props.version, () => props.text, mode, active], () => {
@@ -90,7 +169,10 @@ watch([() => props.session, () => props.blob, () => props.version, () => props.t
 watch(
   [viewport, previewViewport],
   ([element, preview]) => {
-    if (element && mode.value === 'source') element.scrollTop = props.scroll;
+    if (element && mode.value === 'source') {
+      if (props.pages && !props.focus) void restore(props.scroll);
+      else element.scrollTop = props.scroll;
+    }
     if (preview) preview.scrollTop = props.previewScroll ?? 0;
   },
   { flush: 'post' },
@@ -103,13 +185,14 @@ function copySelection(event: ClipboardEvent) {
 }
 function choose(key: string, text?: string) {
   if (key === 'reply') void quote();
-  else void copyText(key === 'copy-selection' ? (text ?? '') : props.text);
+  else if (key === 'copy-selection') void copyText(text ?? '');
+  else void copyAll();
 }
 async function quote() {
   const current = selection.value;
   if (!current || !replies || !canQuote.value || quoting.value) return;
   if (current.text.length > 16000) {
-    toast(tr('选区过长，请缩小范围', 'Selection too long; select a smaller excerpt'));
+    toast(tr('选区过长，请缩小范围', 'Selection too long; select a smaller excerpt'), { tone: 'warning' });
     return;
   }
   quoting.value = true;
@@ -140,6 +223,10 @@ watch(
 watch(
   [code, () => props.focus],
   ([element, focus]) => {
+    if (props.pages && element && focus?.blob === props.blob && focus.start !== undefined && focus.end !== undefined) {
+      void restore(0, { start: focus.start, end: focus.end, text: focus.text });
+      return;
+    }
     if (
       !element ||
       !focus ||
@@ -162,7 +249,7 @@ watch(
 
 const documentHtml = computed(() => {
   if (mode.value !== 'preview' || previewKind.value !== 'html') return '';
-  const clean = DOMPurify.sanitize(props.text, {
+  const clean = DOMPurify.sanitize(formattedText.value, {
     WHOLE_DOCUMENT: true,
     ADD_TAGS: ['style'],
     FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'base', 'meta', 'link', 'form'],
@@ -175,7 +262,7 @@ const documentHtml = computed(() => {
 });
 const svgUrl = ref('');
 watch(
-  [mode, previewKind, () => props.text],
+  [mode, previewKind, formattedText],
   ([mode, kind, text], _, cleanup) => {
     svgUrl.value = '';
     if (mode !== 'preview' || kind !== 'svg') return;
@@ -221,7 +308,16 @@ watch(
           ]"
         />
         <div v-if="!compactToolbar" class="source-actions">
-          <CopyButton v-if="mode === 'source'" :text="text" />
+          <Hint v-if="mode === 'source' && pages" :text="tr('复制全文', 'Copy all text')"
+            ><button
+              type="button"
+              class="btn ghost icon-only"
+              :aria-label="tr('复制全文', 'Copy all text')"
+              @click="copyAll"
+            >
+              <Icon name="copy" /></button
+          ></Hint>
+          <CopyButton v-else-if="mode === 'source'" :text="text" />
         </div>
       </div>
     </Teleport>
@@ -248,10 +344,14 @@ watch(
             data-selection-host
             tabindex="0"
             :aria-label="name"
-          ><code ref="code" class="code-highlight" data-selectable-text :data-language="language" v-html="html" /></pre>
+          ><code v-if="pages" ref="code" class="code-highlight" data-selectable-text :data-language="language"><span class="source-spacer" :style="{height: before + 'px'}" /><span
+              v-for="item in items" :key="item.index" :ref="measure" :data-index="item.index" class="source-block"
+              :style="pages.cache.has(pages.blocks[item.index]!.page.start) ? undefined : {height: item.size + 'px'}"
+              v-html="blockHtml(pages.blocks[item.index]!)" /><span class="source-spacer" :style="{height: after + 'px'}" /></code><code v-else ref="code" class="code-highlight" data-selectable-text :data-language="language" v-html="html" /></pre>
         </Menu>
       </div>
     </div>
+    <div v-else-if="pages && !richReady" role="status">{{ tr('正在加载…', 'Loading…') }}</div>
     <ImagePreview
       v-else-if="previewKind === 'svg' && svgUrl"
       :src="svgUrl"
@@ -274,9 +374,8 @@ watch(
       class="source-markdown"
       @scroll.passive="emit('previewScroll', ($event.target as HTMLElement).scrollTop)"
     >
-      <Markdown :text="text" />
+      <Markdown :text="formattedText" />
     </div>
-    <p v-if="truncated" class="source-truncated">{{ i18n.t('library.truncated') }}</p>
   </section>
 </template>
 
@@ -395,10 +494,8 @@ watch(
   background: white;
   color-scheme: light;
 }
-.source-truncated {
-  flex: none;
-  color: var(--fg-muted);
-  font-size: 12px;
-  margin: 8px 0;
+.source-block,
+.source-spacer {
+  display: block;
 }
 </style>

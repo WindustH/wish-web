@@ -1,12 +1,21 @@
+import { isNativeApp, nativeHttp, nativeSession, nativeLogout } from '../platform/native.ts';
 import { createAbortScope } from './util/abortScope.ts';
 // Which Wish server this browser talks to. By default it is the server that
 // served the page, reached through its /api proxy, which adds the access token
 // itself. Connecting to another server stores its address and token here, and
-// requests then go to it directly. Signing out forgets both.
+// requests then go to it directly. Saved accounts survive sign-out.
 import { tryPlatform } from '../platform/index.ts';
 import { cfg } from './config.ts';
-import { setAccessToken, setBaseUrl } from './api/client.ts';
-import { clearCached } from './util/responseCache.ts';
+import { getConnectionScope, setAccessToken, setBaseUrl } from './api/client.ts';
+import {
+  savedAccounts,
+  hostPinKey,
+  activeAccountKey,
+  updateAccount,
+  rememberAccount,
+  type AccountLogin,
+} from './connectionAccounts.ts';
+import { suspendCached } from './util/responseCache.ts';
 import { tr } from './i18n/tr.ts';
 
 type Connection = { baseUrl: string; token: string };
@@ -26,11 +35,67 @@ function read(): Connection | null {
   }
 }
 
-/** Points the API client at the saved server. Call once, before any request. */
-export function applyConnection() {
+let sshCapability: Promise<boolean> | undefined;
+export function isDeviceSshClient() {
+  if (isNativeApp()) return Promise.resolve(true);
+  if (!['localhost', '127.0.0.1', '[::1]'].includes(globalThis.location?.hostname)) return Promise.resolve(false);
+  return (sshCapability ??= fetch('/ssh/status', { cache: 'no-store', signal: AbortSignal.timeout(3000) })
+    .then(
+      async (response) =>
+        response.ok &&
+        response.headers.get('content-type')?.includes('application/json') === true &&
+        (await response.json()).enabled === true,
+    )
+    .catch(() => false));
+}
+
+/** A device switched to SSH mode must not resume a previously saved direct HTTP connection. */
+export async function applyConnection(restoreSsh?: () => Promise<void>, signal?: AbortSignal) {
+  if (isSignedOut()) {
+    // Older native builds could mark the account signed out while leaving its key in use.
+    if (isNativeApp()) storage()?.remove('ssh.connected');
+    return;
+  }
   const saved = read();
-  if (!saved) return;
-  setBaseUrl(saved.baseUrl);
+  const account = savedAccounts().find((a) => a.id === storage()?.get(activeAccountKey));
+  if (isNativeApp()) {
+    const ssh = storage()?.get('ssh.connected') === '1';
+    let base = await nativeSession();
+    signal?.throwIfAborted();
+    if (!base && ssh) {
+      if (restoreSsh) await restoreSsh();
+      base = await nativeSession();
+      if (!base) throw new Error(tr('SSH 连接尚未恢复。', 'The SSH connection could not be restored.'));
+    } else if (!base && saved && saved.baseUrl !== cfg.api.baseUrl) {
+      await nativeHttp(saved.baseUrl);
+      base = await nativeSession();
+    }
+    signal?.throwIfAborted();
+    if (base) {
+      // The loopback capability changes on login. Never use it as a persisted cache key.
+      const identity = storage()?.get('ssh.address') || '';
+      const scope = ssh
+        ? 'ssh:' + identity + ':' + (storage()?.get('ssh.apiPort') || '9780')
+        : (saved?.baseUrl ?? cfg.api.baseUrl);
+      setBaseUrl(base, account?.scope ?? scope);
+      setAccessToken(saved?.token);
+    } else {
+      storage()?.set(SIGNED_OUT, '1');
+    }
+    return;
+  }
+  if (!saved) {
+    if (account) setBaseUrl(cfg.api.baseUrl, account.scope);
+    return;
+  }
+  if (saved.baseUrl !== cfg.api.baseUrl && (await isDeviceSshClient())) {
+    storage()?.remove(CONNECTION);
+    storage()?.remove('wish.providerGate.ready');
+    storage()?.remove(activeAccountKey);
+    storage()?.set(SIGNED_OUT, '1');
+    return;
+  }
+  setBaseUrl(saved.baseUrl, account?.scope);
   setAccessToken(saved.token);
 }
 
@@ -41,6 +106,10 @@ export const lastAddress = () => storage()?.get(LAST_ADDRESS) ?? '';
 export function serverName() {
   const saved = read();
   try {
+    if (storage()?.get('ssh.connected') === '1') {
+      const address = storage()?.get('ssh.address') || '';
+      return new URL(address.includes('://') ? address : 'ssh://' + address).host;
+    }
     return saved ? new URL(saved.baseUrl).host : globalThis.location.host;
   } catch {
     return globalThis.location.host;
@@ -51,7 +120,9 @@ export function serverName() {
 export function apiBaseFor(address: string) {
   const text = address.trim();
   if (!text) return cfg.api.baseUrl;
-  const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(text) ? text : `${location.protocol}//${text}`);
+  const url = new URL(
+    /^[a-z][a-z\d+.-]*:\/\//i.test(text) ? text : `${isNativeApp() ? 'http:' : location.protocol}//${text}`,
+  );
   if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('protocol');
   const path = url.pathname.replace(/\/+$/, '');
   return url.origin + (path.endsWith('/api') ? path : `${path}/api`);
@@ -62,17 +133,26 @@ const loopback = (host: string) => ['localhost', '127.0.0.1', '[::1]'].includes(
 /** Clearing local preferences is not signing out: returns a function that restores the connection. */
 export function keepConnection() {
   const store = storage();
-  const saved = [CONNECTION, SIGNED_OUT, LAST_ADDRESS].map((key) => [key, store?.get(key)] as const);
+  const keys =
+    store?.keys().filter((key) => key === CONNECTION || key.startsWith('connection.') || key.startsWith('ssh.')) ?? [];
+  const saved = keys.map((key) => [key, store?.get(key)] as const);
   return () => {
     for (const [key, value] of saved) if (value != null) store?.set(key, value);
   };
 }
 
 /** Checks that a Wish server answers at this address with this token; throws a readable error otherwise. */
-export async function checkConnection(address: string, token: string) {
+export async function checkConnection(address: string, token: string, signal?: AbortSignal) {
   let base: string;
   try {
-    base = new URL(apiBaseFor(address), location.href).href.replace(/\/+$/, '');
+    let apiBase = apiBaseFor(address);
+    if (isNativeApp()) {
+      if (address.trim()) await nativeHttp(apiBase, signal);
+      const session = await nativeSession();
+      if (!session) throw new Error('No native connection');
+      apiBase = session;
+    }
+    base = new URL(apiBase, location.href).href.replace(/\/+$/, '');
   } catch {
     throw new Error(
       tr(
@@ -90,7 +170,7 @@ export async function checkConnection(address: string, token: string) {
       ),
     );
   }
-  const cancellation = createAbortScope([], 10_000);
+  const cancellation = createAbortScope(signal ? [signal] : [], 10_000);
   try {
     let response: Response;
     try {
@@ -130,10 +210,30 @@ export async function checkConnection(address: string, token: string) {
 }
 
 /** Saves a checked connection and restarts the app on it. */
-export async function connect(address: string, token: string) {
+export async function connect(
+  address: string,
+  token: string,
+  name = '',
+  existingId?: string,
+  signal?: AbortSignal,
+  ssh?: AccountLogin,
+) {
+  await suspendCached();
+  signal?.throwIfAborted();
   const baseUrl = apiBaseFor(address);
-  await clearCached({ suspend: true });
   const store = storage();
+  const login = ssh ?? httpAccount(baseUrl, token);
+  if (ssh) {
+    store?.set(hostPinKey(ssh.address), ssh.fingerprint);
+    store?.set('ssh.address', ssh.address);
+    if (isNativeApp()) store?.set('ssh.apiPort', String(ssh.apiPort));
+    store?.set('ssh.identity', ssh.identity);
+    store?.set('ssh.connected', '1');
+  } else store?.remove('ssh.connected');
+  if (existingId) {
+    updateAccount(existingId, login, name);
+    store?.set(activeAccountKey, existingId);
+  } else rememberAccount(login, name);
   if (baseUrl === cfg.api.baseUrl && !token) store?.remove(CONNECTION);
   else store?.set(CONNECTION, JSON.stringify({ baseUrl, token }));
   store?.set(LAST_ADDRESS, address.trim());
@@ -141,12 +241,83 @@ export async function connect(address: string, token: string) {
   location.replace(location.pathname + location.search);
 }
 
-/** Forgets the server and its token, drops cached responses and shows the sign-in page. */
+function accountLogin(baseUrl: string, token: string): AccountLogin {
+  const store = storage();
+  if (store?.get('ssh.connected') === '1') {
+    const address = store.get('ssh.address') || '';
+    return sshAccount(address, token);
+  }
+  return httpAccount(baseUrl, token);
+}
+
+export function httpAccount(baseUrl: string, token: string): AccountLogin {
+  return {
+    method: 'http',
+    address: baseUrl === cfg.api.baseUrl ? '' : baseUrl,
+    token,
+    identity: '',
+    apiPort: 0,
+    fingerprint: '',
+  };
+}
+
+function sshAccount(address: string, token: string): AccountLogin {
+  const store = storage();
+  return {
+    method: 'ssh',
+    address,
+    token,
+    identity: store?.get('ssh.identity') || '',
+    apiPort: Number(store?.get('ssh.apiPort') || 9780),
+    fingerprint: store?.get(hostPinKey(address)) || '',
+  };
+}
+
+export function loginAccounts() {
+  const store = storage();
+  if (isSignedOut() && store && store.get('connection.accounts') === null) {
+    const last = store.get(LAST_ADDRESS);
+    const sshAddress = store.get('ssh.address');
+    if (last !== null) {
+      const saved = read();
+      const login =
+        !last && sshAddress
+          ? sshAccount(sshAddress, saved?.token || '')
+          : accountLogin(apiBaseFor(last), saved?.token || '');
+      rememberAccount(login, '');
+      store.remove(activeAccountKey);
+    }
+  }
+  return savedAccounts();
+}
+
+export async function disconnectBrowserSsh() {
+  await fetch('/ssh/logout', {
+    signal: AbortSignal.timeout(1500),
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+  }).catch(() => {});
+}
+
+/** Disconnect the transport while preserving this account and its on-device cache. */
 export async function signOut() {
   const store = storage();
-  store?.remove(CONNECTION);
+  if (!isSignedOut() && !store?.get(activeAccountKey)) {
+    const saved = read();
+    rememberAccount(accountLogin(saved?.baseUrl ?? cfg.api.baseUrl, saved?.token || ''), '', getConnectionScope());
+  }
+  await suspendCached();
   store?.set(SIGNED_OUT, '1');
+  store?.remove(activeAccountKey);
+  store?.remove(CONNECTION);
+  if (isNativeApp()) {
+    store?.remove('ssh.connected');
+    await nativeLogout();
+  } else if (store?.get('ssh.connected') === '1') {
+    await disconnectBrowserSsh();
+    store.remove('ssh.connected');
+  }
   store?.remove('wish.providerGate.ready');
-  await clearCached({ suspend: true });
   location.replace(location.pathname + location.search);
 }

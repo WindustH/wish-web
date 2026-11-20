@@ -36,8 +36,10 @@ export interface RequestOptions {
 // One backend base URL; browsers resolve the relative default against their origin.
 function createClient(initialBase: string) {
   let baseUrl = initialBase;
+  let scope = initialBase;
   let resolvedBase: string | null = null;
-  const setBaseUrl = (url: string) => {
+  const setBaseUrl = (url: string, storageScope = url) => {
+    scope = storageScope;
     baseUrl = url;
     resolvedBase = null;
   };
@@ -74,6 +76,7 @@ function createClient(initialBase: string) {
   return {
     setBaseUrl,
     getBaseUrl,
+    getConnectionScope: () => scope,
     absUrl,
     api,
     isApiUrl,
@@ -85,9 +88,8 @@ function createClient(initialBase: string) {
   };
 }
 
-export const { get, post, patch, put, del, api, absUrl, getBaseUrl, setBaseUrl, isApiUrl } = createClient(
-  cfg.api.baseUrl,
-);
+export const { get, post, patch, put, del, api, absUrl, getBaseUrl, getConnectionScope, setBaseUrl, isApiUrl } =
+  createClient(cfg.api.baseUrl);
 
 // A backend reached directly (not through the page's own proxy) needs its access
 // token on every request; the proxy adds it server-side otherwise.

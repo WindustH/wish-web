@@ -1,0 +1,39 @@
+diff --git a/lib/Channel.js b/lib/Channel.js
+--- a/lib/Channel.js
++++ b/lib/Channel.js
+@@ -155,6 +155,8 @@
+ 
+   _write(data, encoding, cb) {
+     const protocol = this._client._protocol;
++    if (!protocol._destruct)
++      return cb(new Error('SSH connection closed'));
+     const outgoing = this.outgoing;
+     const packetSize = outgoing.packetSize;
+     const id = outgoing.id;
+@@ -198,14 +200,15 @@
+   }
+ 
+   eof() {
+-    if (this.outgoing.state === 'open') {
++    if (this._client._protocol._destruct && this.outgoing.state === 'open') {
+       this.outgoing.state = 'eof';
+       this._client._protocol.channelEOF(this.outgoing.id);
+     }
+   }
+ 
+   close() {
+-    if (this.outgoing.state === 'open' || this.outgoing.state === 'eof') {
++    if (this._client._protocol._destruct
++        && (this.outgoing.state === 'open' || this.outgoing.state === 'eof')) {
+       this.outgoing.state = 'closing';
+       this._client._protocol.channelClose(this.outgoing.id);
+     }
+@@ -277,7 +280,7 @@
+ }
+ 
+ function windowAdjust(self) {
+-  if (self.outgoing.state === 'closed')
++  if (!self._client._protocol._destruct || self.outgoing.state === 'closed')
+     return;
+   const amt = MAX_WINDOW - self.incoming.window;
+   if (amt <= 0)

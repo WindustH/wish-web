@@ -1,9 +1,9 @@
 import { ref } from 'vue';
 import { platform } from '../../platform/index.ts';
-import { getBaseUrl } from '../../core/api/client.ts';
+import { getConnectionScope } from '../../core/api/client.ts';
 
 export const quickSwitchOpen = ref(false);
-const storageKey = () => `sessions.visits.${getBaseUrl()}`;
+const storageKey = () => `sessions.visits.${getConnectionScope()}`;
 export function sessionVisits(): Record<string, number> {
   try {
     const value = JSON.parse(platform('storage').get(storageKey()) ?? '{}');

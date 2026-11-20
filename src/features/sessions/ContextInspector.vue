@@ -258,7 +258,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .inspection-note {
   font-size: 12px;
-  opacity: 0.7;
+  color: var(--fg-subtle);
   line-height: 1.6;
   margin: 0 0 8px;
 }
@@ -279,21 +279,23 @@ onBeforeUnmount(() => {
   height: 100%;
   padding: 12px;
   border: 0;
-  border-bottom: 1px solid #8883;
+  border-bottom: 1px solid var(--line);
   background: transparent;
   color: inherit;
   text-align: left;
   cursor: pointer;
 }
-.inspection-row:hover {
-  background: #8881;
+@media (hover: hover) {
+  .inspection-row:hover {
+    background: var(--bg-hover);
+  }
 }
 .inspection-row small {
   width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  opacity: 0.65;
+  color: var(--fg-subtle);
 }
 .inspection-json {
   white-space: pre-wrap;

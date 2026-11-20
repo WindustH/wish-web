@@ -188,7 +188,7 @@ export function createChat(deps: ChatDependencies = {}) {
       void reload();
     },
     onNotice(message) {
-      bus.emit('notice', message);
+      bus.emit('notice', { text: message, tone: 'warning' });
     },
     onScheduleRefresh() {
       scheduleRefresh();

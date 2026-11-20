@@ -9,7 +9,7 @@ import { showError } from '../../ui/errorDialog.ts';
 import { peekCached, readCached, writeCached } from '../../core/util/responseCache.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
-import Modal from '../../ui/components/Modal.vue';
+import SettingsPage from '../../ui/components/SettingsPage.vue';
 import PickerList from '../../domain/providers/PickerList.vue';
 import SelectField from '../../domain/providers/SelectField.vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
@@ -28,7 +28,7 @@ const catalogOpen = ref(false),
   catalogBusy = ref(false),
   catalogFailed = ref(false),
   catalog = ref<any[]>([]);
-const catalogModal = ref<InstanceType<typeof Modal>>();
+const catalogModal = ref<InstanceType<typeof SettingsPage>>();
 let catalogRequest = 0;
 let catalogController: AbortController | undefined;
 onScopeDispose(() => {
@@ -262,11 +262,12 @@ const choices = computed(() =>
           <Icon name="trash-2" /></button
       ></Hint>
     </div>
-    <Modal
+    <SettingsPage
       compact
       :before-close="isMobile ? confirmModelReturn : undefined"
       :content-class="isMobile ? 'settings-editor mobile-settings-page' : 'settings-editor'"
       :page="isMobile"
+      :force-dialog="!originalId"
       :open="editing"
       :title="originalId ? tr('编辑模型', 'Edit model') : tr('添加模型', 'Add model')"
       @close="editing = false"
@@ -392,13 +393,14 @@ const choices = computed(() =>
           {{ tr('应用到配置', 'Apply to configuration') }}
         </button></template
       >
-    </Modal>
-    <Modal
+    </SettingsPage>
+    <SettingsPage
       ref="catalogModal"
       compact
       :sheet="isMobile"
       body-scroll="content"
       content-class="catalog-picker"
+      force-dialog
       :open="catalogOpen"
       :title="tr('上游模型目录', 'Upstream model catalog')"
       @close="closeCatalog"
@@ -451,10 +453,14 @@ const choices = computed(() =>
           <p v-else-if="catalogBusy" class="catalog-status hint" role="status">{{ tr('正在读取…', 'Loading…') }}</p>
         </template>
       </PickerList>
-    </Modal>
+    </SettingsPage>
   </div>
 </template>
 <style scoped>
+:global(.catalog-picker .dialog-topline) {
+  margin-bottom: 12px;
+}
+
 .models-editor,
 .model-form {
   display: grid;
@@ -693,8 +699,6 @@ const choices = computed(() =>
 }
 .model-form > details textarea {
   margin: 0 0 14px;
-  font-family: var(--mono);
-  font-size: calc(12.5px * var(--mono-scale));
 }
 @media (max-width: 899px) {
   .models-editor > .hint {

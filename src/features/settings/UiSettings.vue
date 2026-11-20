@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isNativeApp } from '../../platform/native.ts';
 import Icon from '../../ui/components/Icon.vue';
 import { computed, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
@@ -8,8 +9,7 @@ import { prefs } from '../../core/state/prefsSlice.ts';
 import { platform } from '../../platform/index.ts';
 import { showError } from '../../ui/errorDialog.ts';
 import { toast } from '../../ui/toast.ts';
-import { hasNewWebBuild } from '../../ui/buildUpdate.ts';
-import { needRefresh, prepareWebUpdate } from '../../ui/pwa.ts';
+import { needRefresh, checkWebUpdate } from '../../ui/pwa.ts';
 import { clearCached } from '../../core/util/responseCache.ts';
 import { keepConnection } from '../../core/connection.ts';
 import { tr } from '../../core/i18n/tr.ts';
@@ -43,15 +43,12 @@ async function checkUpdate() {
   if (checkingUpdate.value) return;
   checkingUpdate.value = true;
   try {
-    if (needRefresh.value) {
-      toast(tr('新版本已就绪，请确认更新。', 'An update is ready; confirm to reload.'));
-      return;
-    }
-    if (!(await hasNewWebBuild(__WEB_BUILD_ID__))) {
+    if (needRefresh.value) return;
+    const state = await checkWebUpdate();
+    if (state === 'current') {
       toast(tr('当前已是最新版本。', 'You are up to date.'));
       return;
     }
-    const state = await prepareWebUpdate();
     if (state === 'waiting')
       toast(
         tr(
@@ -211,14 +208,14 @@ async function clearPreferences() {
           </div>
           <div class="setting-row">
             <div>
-              <label for="failure-notifications">{{ tr('需要我处理时通知我', "Notify me when I'm needed") }}</label>
+              <label for="failure-notifications">{{ tr('后台会话通知', 'Background session notifications') }}</label>
             </div>
             <SettingHint
               id="failure-notifications-hint"
               :text="
                 tr(
-                  '运行失败或模型向你提问时，如果页面在后台，显示系统通知。',
-                  'Show a system notification when a run fails or the model asks you something while the page is in the background.',
+                  '页面在后台时，会话转为空闲、运行失败或模型提问都会触发系统通知。',
+                  'Show a system notification when a session becomes idle, a run fails, or the model asks a question while the page is in the background.',
                 )
               "
             /><SwitchRoot
@@ -232,7 +229,7 @@ async function clearPreferences() {
           </div>
         </template>
         <template v-if="section === 'local'">
-          <div class="setting-row">
+          <div v-if="!isNativeApp()" class="setting-row">
             <div>
               <span>{{ tr('Web 更新', 'Web updates') }}</span>
             </div>
@@ -247,7 +244,7 @@ async function clearPreferences() {
               {{ checkingUpdate ? tr('正在检查…', 'Checking…') : tr('检查更新', 'Check for updates') }}
             </button>
           </div>
-          <div class="setting-row">
+          <div v-if="!isNativeApp()" class="setting-row">
             <div>
               <span>{{ tr('安装 Wish', 'Install Wish') }}</span>
             </div>

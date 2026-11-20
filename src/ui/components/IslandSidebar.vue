@@ -10,7 +10,7 @@ import { useSheetExpansion } from '../composables/useSheetExpansion.ts';
 import Icon from './Icon.vue';
 
 const props = withDefaults(
-  defineProps<{ title: string; overlay?: boolean; open: boolean; retainContent?: boolean }>(),
+  defineProps<{ title: string; overlay?: boolean; standalone?: boolean; open: boolean; retainContent?: boolean }>(),
   { retainContent: true },
 );
 const emit = defineEmits<{ close: []; back: [] }>();
@@ -48,7 +48,7 @@ const available = ref(window.innerWidth);
 const minimum = 280;
 // Preserve a readable conversation when a wide session list or a tablet leaves
 // too little room for two docked panels. Measure the workspace, not the screen.
-const drawer = computed(() => !props.overlay && available.value < drawerWorkspaceWidth);
+const drawer = computed(() => !props.overlay && (props.standalone || available.value < drawerWorkspaceWidth));
 const modal = computed(() => !!props.overlay || drawer.value);
 const maximum = computed(() =>
   modal.value ? Math.min(460, available.value) : Math.max(minimum, available.value - 480),
@@ -140,7 +140,7 @@ onBeforeUnmount(() => {
 
 <template>
   <DialogRoot
-    :modal="!!overlay"
+    :modal="!!overlay || !!standalone"
     :open="open"
     :unmount-on-hide="retainContent === false"
     @update:open="!$event && emit('close')"
@@ -155,7 +155,7 @@ onBeforeUnmount(() => {
       <div v-if="drawer && open" class="island-scrim" aria-hidden="true" @click="closeFromScrim" />
     </Transition>
     <DialogContent
-      :id="open ? 'session-sidebar' : undefined"
+      :id="open ? (standalone ? 'image-sidebar' : 'session-sidebar') : undefined"
       class="island-sidebar"
       data-workspace-region="side"
       tabindex="-1"
@@ -220,7 +220,7 @@ onBeforeUnmount(() => {
         <div class="island-actions">
           <slot name="actions" />
           <button
-            v-if="overlay"
+            v-if="overlay || standalone"
             type="button"
             class="btn ghost icon-only island-close"
             :aria-label="i18n.t('common.close')"
@@ -340,7 +340,6 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   border-top: 1px solid var(--line);
   border-radius: 18px 18px 0 0;
-  background: var(--bg-overlay);
 }
 .island-sheet-expanded {
   height: var(--sheet-max-height);

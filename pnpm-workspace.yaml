@@ -4,7 +4,9 @@ storeDir: .cache/pnpm/store
 cacheDir: .cache/pnpm/cache
 saveExact: true
 allowBuilds:
+  cpu-features: false
   esbuild: true
+  ssh2: false
   vue-demi: true
 minimumReleaseAgeExclude:
   - '@types/node@22.20.2'
@@ -14,6 +16,7 @@ minimumReleaseAgeExclude:
 patchedDependencies:
   '@tanstack/virtual-core@3.17.9': patches/@tanstack__virtual-core@3.17.9.patch
   '@xterm/addon-image@0.10.0-beta.333': patches/@xterm__addon-image@0.10.0-beta.333.patch
+  ssh2@1.17.0: patches/ssh2@1.17.0.patch
   reka-ui@2.10.4: patches/reka-ui@2.10.4.patch
 # Build the patched image addon from its published TypeScript sources.
 packageExtensions:

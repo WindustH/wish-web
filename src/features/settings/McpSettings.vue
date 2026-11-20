@@ -3,7 +3,7 @@
 import { computed, ref, toRef } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
 import SwitchRow from '../../domain/settings/SwitchRow.vue';
-import Modal from '../../ui/components/Modal.vue';
+import SettingsPage from '../../ui/components/SettingsPage.vue';
 import SelectField from '../../domain/providers/SelectField.vue';
 import McpServer from './McpServer.vue';
 import type { McpServerConfig, SettingsConfig } from '../../core/configTypes.ts';
@@ -111,12 +111,18 @@ function add() {
       </button>
     </div>
   </section>
-  <Modal compact :open="adding" :title="tr('添加 MCP 服务器', 'Add MCP server')" @close="adding = false">
+  <SettingsPage
+    compact
+    force-dialog
+    :open="adding"
+    :title="tr('添加 MCP 服务器', 'Add MCP server')"
+    @close="adding = false"
+  >
     <form class="mcp-add" @submit.prevent="add">
       <label class="mcp-add-field"
         >{{ tr('名称', 'Name')
         }}<input
-          class="input set-mono"
+          class="input"
           v-model="newName"
           placeholder="context7"
           autocomplete="off"
@@ -136,7 +142,7 @@ function add() {
         {{ tr('添加', 'Add') }}
       </button></template
     >
-  </Modal>
+  </SettingsPage>
 </template>
 
 <style scoped>
@@ -171,9 +177,6 @@ function add() {
 }
 .mcp-add-field small.problem {
   color: var(--err);
-}
-.mcp-add .input::placeholder {
-  font-family: var(--font);
 }
 @media (max-width: 899px) {
   .mcp-list {

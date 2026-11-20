@@ -1,5 +1,8 @@
 import { computed, inject, onScopeDispose, provide, ref, watch, type InjectionKey, type Ref } from 'vue';
 
+// Read-only detail windows yield to a file opened in the workspace behind them.
+export const closeForNavigationKey: InjectionKey<() => void> = Symbol('close for workspace navigation');
+
 const dialogChildren: InjectionKey<Ref<number>> = Symbol('dialogChildren');
 
 /** A portalled child's scrim is outside its parent's DOM, but belongs to the child.

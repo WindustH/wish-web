@@ -7,6 +7,8 @@ import { tr } from '../../core/i18n/tr.ts';
 import type { ToolSwitches } from '../../core/api/projections.ts';
 import SegmentedControl from '../../ui/components/SegmentedControl.vue';
 import type { ToolDelivery } from '../../core/api/projections.ts';
+import SelectField from '../../ui/components/SelectField.vue';
+import SettingHint from './SettingHint.vue';
 import SwitchRow from './SwitchRow.vue';
 
 const props = defineProps<{
@@ -17,6 +19,8 @@ const props = defineProps<{
     hint: string;
   }[];
   compact?: boolean;
+  dropdown?: boolean;
+  deliveryHelp?: string;
   include?: readonly (keyof ToolSwitches)[];
   /** Said in every row instead of what the tool does, while the switches cannot be saved. */
   note?: string;
@@ -71,6 +75,11 @@ const taskOptions = computed(() => [
 const capabilityOptions = computed(() => [
   { value: 'off', icon: 'x', tone: 'danger' as const, label: i18n.t('tools.off') },
   ...deliveryOptions.value,
+]);
+const deliveryChoices = computed(() => [
+  { value: 'off', label: tr('停用', 'Off') },
+  { value: 'command', label: tr('通过命令调用', 'Use as a command'), disabled: !tools.value.shell },
+  { value: 'tool', label: tr('作为工具调用', 'Use as a tool') },
 ]);
 function setCapability(
   key:
@@ -135,6 +144,10 @@ function delivery(
     tools.value[deliveryKey(key)] ?? (key === 'shell' || key === 'sessions' || key === 'blob' ? 'command' : 'tool')
   );
 }
+function capabilityValue(key: Exclude<(typeof rows.value)[number]['key'], 'shell'>) {
+  const off = key === 'history_search' || key === 'blob' ? tools.value[key] === false : !tools.value[key];
+  return off ? 'off' : tools.value.shell ? delivery(key) : 'tool';
+}
 </script>
 
 <template>
@@ -144,22 +157,33 @@ function delivery(
     <SwitchRow v-if="row.key === 'shell'" v-model="tools.shell" :name="row.name" :hint="note ?? row.hint" />
     <div v-else class="set-row inline capability-row" :class="{ compact }" :data-tool="row.key">
       <div v-if="$slots.label" class="capability-picker"><slot name="label" :row="row" /></div>
+      <div v-else-if="deliveryHelp" class="set-field-heading">
+        <span>{{ tr('启用方式', 'Delivery mode') }}</span>
+        <SettingHint
+          icon-only
+          :text="[row.hint, deliveryHelp].join('\n\n')"
+          :label="tr('启用方式说明', 'About delivery modes')"
+        />
+      </div>
       <template v-else>
         <span class="set-label"
           ><span>{{ row.name }}</span
           ><small v-if="!compact || note">{{ note ?? row.hint }}</small></span
         >
       </template>
+      <SelectField
+        v-if="dropdown"
+        class="delivery-select"
+        :aria-label="tr('启用方式', 'Delivery mode')"
+        :model-value="capabilityValue(row.key)"
+        :options="deliveryChoices"
+        @update:model-value="setCapability(row.key, $event)"
+      />
       <SegmentedControl
+        v-else
         class="tool-delivery"
         :label="`${row.name} ${i18n.t('tools.delivery')}`"
-        :model-value="
-          (row.key === 'history_search' || row.key === 'blob' ? tools[row.key] === false : !tools[row.key])
-            ? 'off'
-            : tools.shell
-              ? delivery(row.key)
-              : 'tool'
-        "
+        :model-value="capabilityValue(row.key)"
         :options="capabilityOptions"
         @update:model-value="setCapability(row.key, $event)"
       />
@@ -187,6 +211,10 @@ function delivery(
   justify-self: end;
   margin-inline-start: auto;
 }
+.delivery-select {
+  justify-self: end;
+  max-width: 100%;
+}
 .capability-row {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
@@ -211,6 +239,12 @@ function delivery(
   border-color: transparent;
   background: transparent;
   min-width: 0;
+}
+@media (min-width: 900px) {
+  .capability-row:has(.delivery-select) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+    column-gap: 24px;
+  }
 }
 @media (max-width: 640px) {
   .capability-row {

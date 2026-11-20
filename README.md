@@ -16,12 +16,6 @@
 
 Wish is a clean, capable, and reliable AI agent harness. This repository holds its web interface, crafted specifically for both mobile and desktop so you can access your sessions comfortably from any device. Here's to turning your wishes into reality.
 
-<p align="center">
-  <img src="docs/assets/screenshot-desktop.png" alt="Wish on desktop" width="74%">
-  &nbsp;
-  <img src="docs/assets/screenshot-mobile.png" alt="Wish on mobile" width="22%">
-</p>
-
 ## Download & run
 
 The built web UI already comes bundled inside `wish-agent` packages and [Wish Core Releases](https://github.com/WindustH/wish-core/releases). Installing `wish-agent` and running `wish` brings up both the server and the UI at `http://127.0.0.1:8790`:
@@ -48,3 +42,5 @@ WISH_UPSTREAM=http://127.0.0.1:9780 node serve.ts
 ## License
 
 [MIT](LICENSE) · [Third-party licenses](THIRD_PARTY.md)
+
+The [Tauri 2 native client](docs/user/native.md) packages this UI with a device-local SSH and HTTP(S) transport for desktop and mobile.

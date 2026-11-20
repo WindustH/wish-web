@@ -21,6 +21,7 @@
 //    rows deleted while disconnected disappear.
 //  · Errors are surfaced (signal `error`), never swallowed into an empty
 //    or partial "success" list.
+import { getConnectionScope } from '../api/client.ts';
 import { cfg } from '../config.ts';
 import { bus } from '../bus.ts';
 import { shallowRef, computed } from 'vue';
@@ -56,7 +57,8 @@ export interface SessionMetaTarget {
 }
 
 // Where the list was, kept for the next visit.
-const FOLDER_KEY = 'list.folder';
+const folderKey = () =>
+  getConnectionScope() === cfg.api.baseUrl ? 'list.folder' : 'list.folder.' + getConnectionScope();
 
 // metadata accessors — the defined keys only; everything else is the
 // user's own JSON, carried untouched (decision-json-metadata).
@@ -226,7 +228,7 @@ export const sessions = (() => {
     if (id === folder.value) return;
     folder.value = id;
     try {
-      platform('storage').set(FOLDER_KEY, id ?? '');
+      platform('storage').set(folderKey(), id ?? '');
     } catch {
       /* the list opens at the root next time */
     }
@@ -396,7 +398,7 @@ export type SessionsApi = typeof sessions;
 
 function readFolder(): string | null {
   try {
-    return platform('storage').get(FOLDER_KEY) || null;
+    return platform('storage').get(folderKey()) || null;
   } catch {
     return null;
   }

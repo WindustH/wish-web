@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import * as api from '../../core/api/endpoints.ts';
 import { tr } from '../../core/i18n/tr.ts';
+import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import SelectField from '../../domain/providers/SelectField.vue';
@@ -11,7 +12,7 @@ import { generationText, generationToolResult } from './generationText.ts';
 import { measureChatElement, observeChatRect } from '../../domain/chat/virtualMeasurements.ts';
 const props = defineProps<{ sessionId: string }>();
 const isMobile = useIsMobile();
-defineEmits<{ close: [] }>();
+const filtersOpen = ref(false);
 const generations = shallowRef<api.StoredGeneration[]>([]),
   page = shallowRef<api.GenerationStructure>();
 const selected = ref<number>(),
@@ -23,16 +24,28 @@ const busy = ref(false),
 const detail = ref<{
   title: string;
   text: string;
+  json: string;
   result?: NonNullable<ReturnType<typeof generationToolResult>>;
 } | null>(null);
-const resultView = ref<'execution' | 'model'>('execution');
-const detailText = computed(() => detail.value?.result?.[resultView.value] ?? detail.value?.text ?? '');
-function showToolResult(entry: api.GenerationStructure['items'][number], view: 'execution' | 'model') {
-  const result = generationToolResult(entry.message);
-  if (!result) return;
-  resultView.value = view;
-  detail.value = { title: `ToolResult · Entry ${entry.id}`, text: '', result };
-}
+const resultView = ref('text');
+const detailText = computed(() => {
+  const value = detail.value;
+  if (!value) return '';
+  if (resultView.value === 'json') return value.json;
+  if (value.result) return resultView.value === 'model' ? value.result.model : value.result.execution;
+  return value.text;
+});
+const roleNames = computed<Record<string, string>>(() => ({
+  Tools: tr('工具定义', 'Tool definitions'),
+  System: tr('系统', 'System'),
+  Developer: tr('开发者', 'Developer'),
+  User: tr('用户', 'User'),
+  Assistant: tr('助手', 'Assistant'),
+  Reasoning: tr('思考', 'Reasoning'),
+  ToolUse: tr('工具调用', 'Tool call'),
+  ToolResult: tr('工具结果', 'Tool result'),
+  UpstreamCompaction: tr('上游压缩', 'Upstream compaction'),
+}));
 const kinds = [
   'Tools',
   'System',
@@ -60,7 +73,7 @@ const generationOptions = computed(() =>
 );
 const kindOptions = computed(() => [
   { value: 'all', label: tr('全部类型', 'All types') },
-  ...kinds.map((value) => ({ value, label: value })),
+  ...kinds.map((value) => ({ value, label: roleNames.value[value] ?? value })),
 ]);
 const originOptions = computed(() => [
   { value: 'all', label: tr('全部来源', 'All origins') },
@@ -97,7 +110,7 @@ const virtualizer = useVirtualizer(
     count: cards.value.length,
     getScrollElement: () => scroll.value ?? null,
     getItemKey: (index: number) => `${page.value?.generation.id}:${cards.value[index]!.position}`,
-    estimateSize: () => 200,
+    estimateSize: () => 84,
     overscan: 3,
     observeElementRect: observeChatRect,
     measureElement: measureChatElement,
@@ -117,6 +130,24 @@ const visible = computed(() =>
     };
   }),
 );
+function read(card: (typeof visible.value)[number]) {
+  resultView.value = card.result ? 'execution' : card.tools ? 'json' : 'text';
+  detail.value = {
+    title: card.tools ? roleNames.value.Tools! : (roleNames.value[card.role] ?? card.role) + ' · #' + card.entry.id,
+    text: card.text,
+    json: JSON.stringify(card.tools ? card.entry.message.Tools : card.entry, null, 2),
+    result: card.result ?? undefined,
+  };
+}
+function readConfig() {
+  if (!page.value) return;
+  resultView.value = 'json';
+  detail.value = {
+    title: tr('上下文配置', 'Context configuration'),
+    text: '',
+    json: JSON.stringify(page.value.generation, null, 2),
+  };
+}
 function measure(element: unknown) {
   if (element) virtualizer.value.measureElement(element as HTMLElement);
 }
@@ -190,7 +221,10 @@ async function refresh() {
       ? selected.value
       : (list.find((g) => g.status === 'Active')?.id ?? list[0]?.id);
     if (selected.value != null) await replace(!!page.value);
-    else busy.value = false;
+    else {
+      page.value = undefined;
+      busy.value = false;
+    }
   } catch (e) {
     if (own === version) {
       error.value = String(e);
@@ -221,23 +255,26 @@ watch(
   () => [virtualizer.value.getVirtualItems().at(-1)?.index, cards.value.length, page.value?.next, busy.value],
   () => {
     const last = virtualizer.value.getVirtualItems().at(-1)?.index;
-    if (last != null && last >= cards.value.length - 4) void more();
+    if (!cards.value.length || (last != null && last >= cards.value.length - 4)) void more();
   },
   { flush: 'post' },
 );
 function selectGeneration(value: string) {
   selected.value = Number(value);
   detail.value = null;
+  page.value = undefined;
   void replace();
 }
 function selectKind(value: string) {
   kind.value = value === 'all' ? '' : value;
   detail.value = null;
+  page.value = undefined;
   void replace();
 }
 function selectOrigin(value: string) {
   origin.value = value === 'all' ? '' : value;
   detail.value = null;
+  page.value = undefined;
   void replace();
 }
 watch(
@@ -262,411 +299,219 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Modal
-    :open="true"
-    :page="isMobile"
-    wide
-    :title="tr('上下文结构', 'Context structure')"
-    body-scroll="content"
-    content-class="generation-inspector"
-    @close="$emit('close')"
-  >
+  <section class="generation-inspector" :aria-label="tr('上下文', 'Context')">
     <div class="generation-filters">
-      <label
-        ><span class="generation-filter-label">Generation</span
-        ><SelectField
-          :model-value="String(selected ?? '')"
-          :options="generationOptions"
-          :disabled="busy"
-          aria-label="Generation"
-          @update:model-value="selectGeneration"
-      /></label>
-      <label
-        ><span class="generation-filter-label">{{ tr('消息类型', 'Message type') }}</span
-        ><SelectField
+      <SelectField
+        :model-value="String(selected ?? '')"
+        :options="generationOptions"
+        :disabled="busy"
+        aria-label="Generation"
+        :placeholder="tr('选择代次', 'Select generation')"
+        @update:model-value="selectGeneration"
+      />
+      <button class="btn ghost sm" :aria-expanded="filtersOpen" @click="filtersOpen = !filtersOpen">
+        <Icon name="filter" :size="16" />{{ tr('筛选', 'Filter')
+        }}<span v-if="kind || origin">{{ Number(!!kind) + Number(!!origin) }}</span>
+      </button>
+      <button
+        class="btn ghost icon-only generation-refresh"
+        :disabled="busy"
+        :aria-label="tr('刷新', 'Refresh')"
+        @click="refresh"
+      >
+        <Icon name="refresh-cw" :size="16" />
+      </button>
+      <div v-if="filtersOpen" class="generation-filter-fields">
+        <SelectField
           :model-value="kind || 'all'"
           :options="kindOptions"
           :disabled="busy"
           :aria-label="tr('消息类型', 'Message type')"
           @update:model-value="selectKind"
-      /></label>
-      <label
-        ><span class="generation-filter-label">{{ tr('来源', 'Origin') }}</span
-        ><SelectField
+        />
+        <SelectField
           :model-value="origin || 'all'"
           :options="originOptions"
           :disabled="busy"
           :aria-label="tr('来源', 'Origin')"
           @update:model-value="selectOrigin"
-      /></label>
-      <button class="btn ghost sm generation-refresh" :disabled="busy" @click="refresh">
-        {{ tr('刷新', 'Refresh') }}
-      </button>
+        />
+      </div>
     </div>
     <div v-if="page" class="generation-meta">
-      <span>{{ status(page.generation.status) }} · {{ page.count }} {{ tr('条目', 'entries') }}</span>
-      <span>{{ tr('压缩游标', 'Compaction cursor') }}: {{ page.generation.compaction_cursor }}</span>
-      <span v-if="page.generation.source"
-        >{{ tr('来源', 'Source') }}: #{{ page.generation.source[0] }} · [0, {{ page.generation.source[1] }})</span
-      >
-      <button
-        class="btn ghost sm"
-        @click="detail = { title: `Generation #${page.generation.id}`, text: JSON.stringify(page.generation, null, 2) }"
-      >
-        {{ tr('结构与配置 JSON', 'Structure and settings JSON') }}
+      <span>{{ tr('条目', 'Entries') }} · {{ page.count }}</span>
+      <button class="btn ghost sm" @click="readConfig">
+        <Icon name="tune" :size="14" />{{ tr('查看配置', 'View configuration') }}
       </button>
     </div>
     <p v-if="error" role="alert">
       {{ error }} <button class="btn ghost sm" @click="retry()">{{ tr('重试', 'Retry') }}</button>
     </p>
-    <div ref="scroll" class="generation-cards modal-scroll-region" :aria-busy="busy">
-      <p v-if="page && !cards.length">{{ tr('没有符合条件的条目', 'No matching entries') }}</p>
-      <div class="generation-space" :style="{ height: `${virtualizer.getTotalSize()}px` }">
+    <div ref="scroll" class="generation-cards" :aria-busy="busy">
+      <p v-if="!busy && !error && !generations.length" class="hint">
+        {{ tr('暂无上下文记录', 'No context recorded yet') }}
+      </p>
+      <p v-else-if="page && page.next == null && !cards.length" class="hint">
+        {{ tr('没有符合条件的条目', 'No matching entries') }}
+      </p>
+      <div class="generation-space" :style="{ height: virtualizer.getTotalSize() + 'px' }">
         <div
           v-for="card in visible"
           :key="String(card.row.key)"
           :ref="measure"
           :data-index="card.row.index"
           class="generation-virtual-row"
-          :style="{ transform: `translateY(${card.row.start}px)` }"
+          :style="{ transform: 'translateY(' + card.row.start + 'px)' }"
         >
-          <article
-            class="generation-entry"
-            :data-role="card.role"
-            :class="{
-              summary: card.entry.origin === 'Summary',
-              prefix: card.position < page!.generation.compaction_cursor,
-            }"
-          >
-            <header>
-              <strong>{{ card.role }}</strong
-              ><span v-if="card.tools">{{ tr('Generation 配置', 'Generation configuration') }}</span
-              ><span v-else>#{{ card.position }} · Entry {{ card.entry.id }} · {{ card.entry.origin }}</span
-              ><span v-if="card.entry.message[card.role]?.fixed === true" class="cursor-tag">{{
-                tr('固定指令', 'Pinned instruction')
-              }}</span
-              ><span v-if="card.entry.message[card.role]?.metadata?.source">{{
-                card.entry.message[card.role].metadata.source
-              }}</span
-              ><span v-if="card.entry.model_call_id != null">Call {{ card.entry.model_call_id }}</span
-              ><span v-if="card.position === page!.generation.compaction_cursor" class="cursor-tag">{{
+          <button type="button" class="generation-entry" :data-role="card.role" @click="read(card)">
+            <span class="generation-entry-head"
+              ><strong>{{ roleNames[card.role] ?? card.role }}</strong>
+              <span v-if="!card.tools">#{{ card.position }}</span>
+              <span v-if="card.entry.message[card.role]?.fixed">{{ tr('固定指令', 'Pinned') }}</span>
+              <span v-if="card.entry.origin === 'Summary'">{{ tr('摘要', 'Summary') }}</span>
+              <span v-if="card.position === page!.generation.compaction_cursor">{{
                 tr('压缩游标', 'Compaction cursor')
               }}</span>
-            </header>
-            <p v-if="card.result" class="generation-result-label">
-              {{ tr('完整执行结果（已保存）', 'Full execution result (recorded)') }}
-            </p>
-            <pre v-if="card.result">{{
-              card.result.execution.length > 6000 ? card.result.execution.slice(0, 6000) + '\n…' : card.result.execution
-            }}</pre>
-            <pre v-else>{{ card.text.length > 6000 ? card.text.slice(0, 6000) + '\n…' : card.text }}</pre>
-            <footer>
-              <template v-if="card.result">
-                <button class="btn ghost sm" @click="showToolResult(card.entry, 'execution')">
-                  {{ tr('完整执行结果', 'Full execution result') }}
-                </button>
-                <button class="btn ghost sm" @click="showToolResult(card.entry, 'model')">
-                  {{ tr('模型可见结果', 'Model-visible result') }}
-                </button>
-              </template>
-              <button
-                v-else
-                class="btn ghost sm"
-                @click="
-                  detail = {
-                    title: card.tools
-                      ? `Tools · Generation #${page!.generation.id}`
-                      : `${card.role} · Entry ${card.entry.id}`,
-                    text: card.text,
-                  }
-                "
-              >
-                {{ tr('查看全文', 'Full text') }}</button
-              ><button
-                class="btn ghost sm"
-                @click="
-                  detail = {
-                    title: card.tools ? `Tools · Generation #${page!.generation.id}` : `Entry ${card.entry.id} · JSON`,
-                    text: JSON.stringify(card.tools ? card.entry.message.Tools : card.entry, null, 2),
-                  }
-                "
-              >
-                JSON</button
-              ><CopyButton :text="card.result?.execution ?? card.text" />
-            </footer>
-          </article>
+              <Icon name="chevron-right" :size="14" />
+            </span>
+            <span class="generation-preview">{{
+              card.tools && Array.isArray(card.entry.message.Tools)
+                ? tr(card.entry.message.Tools.length + ' 个工具', card.entry.message.Tools.length + ' tools')
+                : (card.result?.execution ?? card.text).slice(0, 320)
+            }}</span>
+          </button>
         </div>
       </div>
     </div>
     <div class="generation-load-status" role="status">
-      <span v-if="busy">{{ tr('加载中…', 'Loading…') }}</span
-      ><span v-else-if="page"
-        >{{ tr('已加载', 'Loaded') }} {{ cards.length }} {{ tr('项', 'items')
-        }}<template v-if="page.next == null || kind === 'Tools'">
-          · {{ tr('已全部加载', 'All loaded') }}</template
-        ></span
-      >
+      <span v-if="busy">{{ tr('加载中…', 'Loading…') }}</span>
     </div>
-  </Modal>
-  <Modal v-if="detail" :open="true" :page="isMobile" wide :title="detail.title" @close="detail = null"
-    ><template #actions><CopyButton :text="detailText" /></template>
-    <template v-if="detail.result">
-      <div class="generation-result-tabs" role="group" :aria-label="tr('结果视图', 'Result view')">
-        <button class="btn ghost sm" :aria-pressed="resultView === 'execution'" @click="resultView = 'execution'">
-          {{ tr('完整执行结果', 'Full execution result') }}
-        </button>
-        <button class="btn ghost sm" :aria-pressed="resultView === 'model'" @click="resultView = 'model'">
-          {{ tr('模型可见结果', 'Model-visible result') }}
-        </button>
-      </div>
-      <p class="generation-result-label">
-        {{
-          resultView === 'execution'
-            ? tr(
-                '展示已保存的执行数据；工具执行时的输出限制仍然适用。',
-                'Shows recorded execution data; output limits applied by the tool still apply.',
-              )
-            : detail.result.projected
-              ? tr(
-                  '展示发送给模型的结果正文；不同模型协议可能另附状态字段。',
-                  'Shows the result text sent to the model; provider protocols may also include status fields.',
-                )
-              : tr(
-                  '此结果没有单独的精简版本，模型收到相同内容。',
-                  'This result has no separate condensed version; the model receives the same content.',
-                )
-        }}
-      </p>
-    </template>
-    <pre class="generation-full-text">{{ detailText }}</pre>
+  </section>
+  <Modal v-if="detail" :open="true" :page="isMobile" wide :title="detail.title" @close="detail = null">
+    <template #actions><CopyButton :text="detailText" /></template>
+    <div v-if="detail.result || (detail.text && detail.text !== detail.json)" class="generation-result-tabs">
+      <SelectField
+        segmented
+        v-model="resultView"
+        :aria-label="tr('内容格式', 'Content format')"
+        :options="
+          detail.result
+            ? [
+                { value: 'execution', label: tr('完整执行结果', 'Execution result') },
+                { value: 'model', label: tr('模型可见结果', 'Model-visible result') },
+                { value: 'json', label: 'JSON' },
+              ]
+            : [
+                { value: 'text', label: tr('正文', 'Text') },
+                { value: 'json', label: 'JSON' },
+              ]
+        "
+      />
+    </div>
+    <pre class="generation-full-text" :class="{ code: resultView !== 'text' }">{{ detailText }}</pre>
   </Modal>
 </template>
-
 <style scoped>
-.generation-result-tabs {
+.generation-inspector {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-.generation-result-tabs [aria-pressed='true'] {
-  background: var(--bg-sunken);
-  color: var(--accent);
-}
-.generation-result-label {
-  color: var(--fg-subtle);
-  font-size: 12px;
-  line-height: 1.6;
-  margin: 0 0 10px;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 .generation-filters {
-  display: flex;
-  align-items: end;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding-bottom: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
 }
-.generation-filters label {
+.generation-filter-fields {
+  grid-column: 1/-1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.generation-meta,
+.generation-entry-head {
   display: flex;
-  flex: 1;
-  min-width: 110px;
-  flex-direction: column;
-  gap: 5px;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg-subtle);
   font-size: 12px;
-}
-.generation-filters :deep(.control-select) {
-  width: 100%;
-  min-width: 0;
 }
 .generation-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 14px;
-  font-size: 12px;
-  padding-bottom: 12px;
-  opacity: 0.8;
+  justify-content: space-between;
+  padding: 8px 0;
 }
 .generation-cards {
-  height: min(60dvh, 600px);
-  min-height: 160px;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
   overflow-anchor: none;
 }
 .generation-space {
   position: relative;
-  width: 100%;
 }
 .generation-virtual-row {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  padding-bottom: 12px;
-  box-sizing: border-box;
+  inset: 0 0 auto;
 }
 .generation-entry {
-  --entry-accent: var(--fg-subtle);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  margin-bottom: 0;
-  padding: 12px 14px;
-  background: var(--bg-sunken);
+  display: block;
+  width: 100%;
+  padding: 12px 6px;
+  text-align: start;
+  font: inherit;
+  color: var(--fg);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
 }
-.generation-entry[data-role='System'],
-.generation-entry[data-role='Developer'] {
-  --entry-accent: var(--accent);
+.generation-entry:focus-visible {
+  outline-offset: -2px;
 }
-.generation-entry[data-role='User'] {
-  --entry-accent: var(--ok);
+@media (hover: hover) {
+  .generation-entry:hover {
+    background: var(--bg-hover);
+  }
 }
-.generation-entry[data-role='Reasoning'] {
-  --entry-accent: var(--warn);
+.generation-entry-head strong {
+  font-size: 14px;
+  color: var(--fg);
+  font-weight: 600;
 }
-.generation-entry.summary {
-  border-color: var(--warn);
+.generation-entry-head .icon {
+  margin-inline-start: auto;
 }
-.generation-entry header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-  font-size: 11px;
-  margin-bottom: 10px;
-}
-.generation-entry header strong {
-  font-size: 13px;
-  color: var(--entry-accent);
-}
-.generation-entry header span {
-  opacity: 0.7;
-}
-.generation-entry header .cursor-tag {
-  color: var(--warn);
-  opacity: 1;
-  border: 1px solid currentColor;
-  border-radius: 4px;
-  padding: 1px 4px;
-}
-.generation-entry pre,
-.generation-full-text {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.65;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font-family: var(--mono);
-}
-.generation-entry pre {
-  max-height: 220px;
+.generation-preview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-}
-.generation-entry footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 4px;
-  padding-top: 8px;
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
 }
 .generation-load-status {
-  min-height: 24px;
-  padding-top: 8px;
-  font-size: 12px;
+  flex: none;
   color: var(--fg-subtle);
+  font-size: 12px;
 }
-@media (min-width: 900px) {
-  .generation-filters {
-    align-items: center;
-    gap: 8px 16px;
-    padding-bottom: 8px;
-  }
-  .generation-filters label {
-    flex: 0 1 auto;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-  }
-  .generation-filter-label {
-    white-space: nowrap;
-    color: var(--fg-subtle);
-    font-size: 11px;
-  }
-  .generation-filters :deep(.control-select) {
-    width: 136px;
-    min-height: 32px;
-    padding: 4px 8px;
-    font-size: 12px;
-  }
-  .generation-refresh {
-    margin-left: auto;
-    min-height: 32px;
-  }
-  .generation-meta {
-    gap: 4px 12px;
-    padding-bottom: 8px;
-    font-size: 11px;
-  }
-  .generation-meta .btn {
-    min-height: 26px;
-    padding: 2px 6px;
-    font-size: 11px;
-  }
+.generation-result-tabs {
+  margin-bottom: 12px;
 }
-@media (max-width: 899px) {
-  .generation-cards {
-    height: auto;
-  }
-  .generation-filters {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
-    padding-bottom: 8px;
-  }
-  .generation-filters label {
-    min-width: 0;
-    grid-column: span 2;
-  }
-  .generation-filter-label {
-    display: none;
-  }
-  .generation-filters :deep(.control-select) {
-    min-height: 40px;
-    padding: 6px 10px;
-    font-size: 14px;
-  }
-  .generation-filters label:first-child {
-    grid-column: 1 / 4;
-    grid-row: 1;
-  }
-  .generation-refresh {
-    grid-column: 4;
-    grid-row: 1;
-    min-height: 40px;
-    padding-inline: 6px;
-  }
-  .generation-meta {
-    gap: 4px 10px;
-    padding-bottom: 8px;
-  }
+.generation-full-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  line-height: 1.65;
 }
-</style>
-
-<style>
-@media (min-width: 900px) {
-  .generation-inspector > .modal-head {
-    padding: 6px 16px;
-  }
-  .generation-inspector > .modal-head .modal-title {
-    font-size: 14px;
-  }
-  .generation-inspector > .modal-head .btn.icon-only {
-    width: 32px;
-    height: 32px;
-    min-height: 32px;
-  }
-  .generation-inspector > .modal-body {
-    padding: 12px 16px;
-  }
+.generation-full-text.code {
+  font: 13px/1.6 var(--mono);
 }
 </style>

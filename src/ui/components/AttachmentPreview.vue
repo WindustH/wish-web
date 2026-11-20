@@ -88,7 +88,7 @@ function untrack() {
 watch(attachmentPreview, async (item) => {
   untrack();
   if (!item) return;
-  title.value = item.name || (item.kind === 'image' ? tr('图片预览', 'Image preview') : tr('文本预览', 'Text preview'));
+  title.value = item.name || tr('文本预览', 'Text preview');
   await nextTick();
   if (attachmentPreview.value !== item) return;
   place();
@@ -103,15 +103,11 @@ watch(attachmentPreview, async (item) => {
   window.visualViewport?.addEventListener('scroll', schedule);
 });
 const text = ref('');
-const image = ref('');
 const loading = ref(false);
 const error = ref('');
 let controller: AbortController | undefined;
-let ownedUrl: string | undefined;
 function dispose() {
   controller?.abort();
-  if (ownedUrl) URL.revokeObjectURL(ownedUrl);
-  ownedUrl = undefined;
 }
 watch(attachmentPreview, async (item) => {
   if (!item) {
@@ -120,24 +116,10 @@ watch(attachmentPreview, async (item) => {
   }
   dispose();
   text.value = '';
-  image.value = '';
   error.value = '';
   loading.value = false;
   const request = new AbortController();
   controller = request;
-  if (item.kind === 'image' && item.mime === 'image/tiff' && item.bytes) {
-    error.value = tr(
-      '此图片将在发送时自动转换；可在库中查看预览。',
-      'This image will be converted when sent; preview it in the Library.',
-    );
-    return;
-  }
-  if (item.kind === 'image') {
-    image.value = item.bytes
-      ? (ownedUrl = URL.createObjectURL(new Blob([item.bytes], { type: item.mime || 'image/png' })))
-      : item.url || item.localUrl || '';
-    return;
-  }
   loading.value = true;
   try {
     let bytes = item.bytes;
@@ -181,28 +163,20 @@ onBeforeUnmount(() => {
         tabindex="-1"
         data-keyboard-boundary
         id="attachment-preview"
-        class="attachment-preview-pop"
+        class="attachment-preview-pop popup-palette"
         :class="side"
         :style="position"
         role="dialog"
-        :aria-labelledby="attachmentPreview.kind === 'image' ? undefined : 'attachment-preview-title'"
-        :aria-label="attachmentPreview.kind === 'image' ? title : undefined"
+        aria-labelledby="attachment-preview-title"
       >
         <BubbleSurface
           :side="side === 'above' ? 'bottom' : 'top'"
           :tail-x="parseFloat(position['--arrow-x'] || '24')"
         />
-        <header v-if="attachmentPreview.kind !== 'image'" id="attachment-preview-title">{{ title }}</header>
+        <header id="attachment-preview-title">{{ title }}</header>
         <div class="attachment-preview-content">
           <p v-if="loading" role="status">{{ tr('正在加载…', 'Loading…') }}</p>
           <p v-else-if="error" role="alert">{{ error }}</p>
-          <img
-            v-else-if="image"
-            :src="image"
-            :alt="title"
-            @load="schedule"
-            @error="error = tr('图片加载失败', 'Could not load the image')"
-          />
           <div v-else-if="attachmentPreview.pastedText && attachmentPreview.editText" class="pasted-text-editor">
             <pre aria-hidden="true">{{ text + '\n' }}</pre>
             <textarea
@@ -224,7 +198,7 @@ onBeforeUnmount(() => {
 </template>
 <style scoped>
 .attachment-preview-pop {
-  --bubble-surface: var(--bg-raised);
+  --bubble-surface: var(--bg-overlay);
   position: fixed;
   z-index: 80;
   display: flex;
@@ -252,13 +226,6 @@ onBeforeUnmount(() => {
   min-width: 0;
   overflow: auto;
   overscroll-behavior: contain;
-}
-.attachment-preview-content img {
-  display: block;
-  max-width: 100%;
-  max-height: 60dvh;
-  object-fit: contain;
-  margin: auto;
 }
 .attachment-preview-content pre {
   margin: 0;

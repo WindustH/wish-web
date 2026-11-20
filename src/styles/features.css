@@ -59,9 +59,6 @@
   color: var(--fg);
   font-size: 13px;
 }
-.sl-head input::placeholder {
-  color: var(--fg-subtle);
-}
 .sl-head:focus-within {
   border-color: var(--accent);
 }
@@ -666,8 +663,7 @@ button.sl-row {
   gap: 6px;
   padding: 6px 0 18px;
 }
-.thinking-tool,
-.live-status {
+.thinking-tool {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -682,8 +678,7 @@ button.sl-row {
   cursor: pointer;
   transition: color var(--dur-fast);
 }
-.thinking-tool .icon,
-.live-status .icon {
+.thinking-tool .icon {
   flex: none;
   width: 14px;
   height: 14px;
@@ -827,14 +822,14 @@ button.sl-row {
   padding: 3px 8px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: var(--bg-raised);
+  background: var(--bg-overlay);
   color: var(--fg-muted);
   font: 400 12px/1.4 var(--font);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  box-shadow: var(--shadow-menu);
 }
 @media (hover: hover) {
   .history-rail-node:hover > .history-rail-tip {
@@ -1071,7 +1066,7 @@ button.sl-row {
   border-radius: 50%;
   color: var(--fg);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  box-shadow: var(--shadow-menu);
   transition: background var(--dur-fast);
 }
 @media (hover: hover) {
@@ -1655,6 +1650,35 @@ button.sl-row {
   /* Compact rows on a 16px gutter, the dot 12px in; home's recent rows line up with them exactly. */
   .sl-scroll {
     padding-inline: 16px;
+    scrollbar-gutter: auto;
+    scrollbar-width: none;
+  }
+  .sl-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .sl-scroll .sl-item {
+    position: relative;
+  }
+  /* Touch opens the row menu with a long press. Keep its keyboard trigger out
+     of the layout so both the title and the tap target reach the trailing gutter. */
+  .sl-scroll .sl-menu-trigger {
+    position: absolute;
+    inset-inline-end: 0;
+    top: 50%;
+    margin: 0;
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+  .sl-scroll .sl-item:has(:focus-visible) .sl-menu-trigger,
+  .sl-scroll .sl-menu-trigger[data-state='open'] {
+    pointer-events: auto;
+    background: var(--bg-raised);
+  }
+  @media (hover: hover) {
+    .sl-scroll .sl-item:hover .sl-menu-trigger {
+      pointer-events: auto;
+      background: var(--bg-raised);
+    }
   }
   .sl-row {
     min-height: 34px;
@@ -1840,33 +1864,16 @@ button.sl-row {
   }
 }
 
-.live-status,
-.stop-marker {
-  cursor: default;
-}
-
-.work-status-slot {
-  position: relative;
-  min-height: 35px;
-}
-.work-status-enter-active,
-.work-status-leave-active,
 .live-work-enter-active,
 .live-work-leave-active {
   transition:
     opacity 180ms ease,
     transform 180ms ease;
 }
-.work-status-leave-active {
-  position: absolute;
-  inset: 0 auto auto 0;
-}
-.work-status-enter-from,
 .live-work-enter-from {
   opacity: 0;
   transform: translateY(5px);
 }
-.work-status-leave-to,
 .live-work-leave-to {
   opacity: 0;
   transform: translateY(-5px);
@@ -1880,8 +1887,6 @@ button.sl-row {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .work-status-enter-active,
-  .work-status-leave-active,
   .live-work-enter-active,
   .live-work-leave-active {
     transition: none;

@@ -3,7 +3,7 @@
 import { computed, inject, ref } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
-import Modal from '../../ui/components/Modal.vue';
+import SettingsPage from '../../ui/components/SettingsPage.vue';
 import AccountPicker from './AccountPicker.vue';
 import { searchAccountPreset } from './useAccountCatalog.ts';
 import ProviderIcon from '../../domain/providers/ProviderIcon.vue';
@@ -46,6 +46,7 @@ const emit = defineEmits<{ remove: []; checked: []; grab: [event: PointerEvent];
 const isMobile = useIsMobile();
 const configDraft = inject(configDraftKey);
 const editing = ref(props.initiallyOpen ?? false);
+const creating = ref(editing.value);
 const checking = ref(false);
 
 const name = computed(() => props.preset?.name ?? props.value.preset);
@@ -117,7 +118,10 @@ async function check() {
     :check-hint="tr('测试', 'Test')"
     :checking="checking"
     :busy="busy"
-    @open="editing = true"
+    @open="
+      creating = false;
+      editing = true;
+    "
     @remove="emit('remove')"
     @check="check"
     @grab="emit('grab', $event)"
@@ -129,11 +133,12 @@ async function check() {
       <p>{{ problem }}</p>
     </div>
 
-    <Modal
+    <SettingsPage
       compact
       wide
       :page="isMobile"
       :open="editing"
+      :force-dialog="creating"
       :content-class="isMobile ? 'settings-editor mobile-settings-page' : 'settings-editor'"
       :title="isMobile ? name : tr('编辑搜索提供商 · ', 'Edit search provider · ') + name"
       @close="editing = false"
@@ -170,7 +175,7 @@ async function check() {
                   : tr('留空使用服务商的默认地址', "Empty uses the service's own address")
               }}</small></span
             ><input
-              class="input set-mono"
+              class="input"
               v-model="baseUrl"
               :placeholder="
                 preset?.base_url_placeholder ||
@@ -222,7 +227,7 @@ async function check() {
         }}</span
         ><button class="btn primary" @click="editing = false">{{ tr('完成', 'Done') }}</button></template
       >
-    </Modal>
+    </SettingsPage>
   </SettingsItemCard>
 </template>
 
@@ -249,9 +254,6 @@ async function check() {
 .search-form {
   display: grid;
   gap: 16px;
-}
-.search-form .set-row input::placeholder {
-  font-family: var(--font);
 }
 .search-form .set-row.inline > .btn {
   display: inline-flex;

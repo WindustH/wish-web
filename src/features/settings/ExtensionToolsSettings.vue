@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { extensionSwitchRows } from '../../extensions/settings.ts';
 
-import { computed, inject, ref, watch } from 'vue';
+import { computed, inject } from 'vue';
 import type { SearchProviderStatus } from '../../core/api/endpoints.ts';
+import Icon from '../../ui/components/Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import ExtensionCategoryPicker from '../../domain/settings/ExtensionCategoryPicker.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
@@ -23,72 +24,62 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ checked: []; selected: [section: string] }>();
 const { draft, busy, serverDirty, providerOptions, searchCatalog } = inject(configDraftKey)!;
-type Section = (typeof extensionSections.value)[number]['id'];
 const mobile = useIsMobile();
-const selected = ref<Section>('image_generation');
-const overview = computed(() => mobile.value && !props.initialSection);
-watch(
-  () => props.initialSection,
-  (value) => {
-    if (value && extensionSections.value.some((section) => section.id === value)) selected.value = value as Section;
-  },
-  { immediate: true },
-);
-const current = computed(() => extensionSections.value.find((item) => item.id === selected.value)!);
+const current = computed(() => extensionSections.value.find((item) => item.id === props.initialSection));
 </script>
 
 <template>
   <div class="extension-tools-settings">
-    <ExtensionCategoryPicker
-      :categories="extensionSections"
-      v-if="overview"
-      :model-value="selected"
-      pages
-      @update:model-value="
-        selected = $event as Section;
-        emit('selected', $event);
-      "
-    />
-    <template v-if="!overview">
+    <template v-if="!current">
+      <ExtensionCategoryPicker
+        v-if="mobile"
+        :categories="extensionSections"
+        pages
+        @update:model-value="emit('selected', $event)"
+      />
+      <nav v-else class="extension-categories settings-link-list" :aria-label="tr('扩展工具', 'Extension tools')">
+        <div v-for="item in extensionSections" :key="item.id" class="set-card">
+          <div class="set-row inline">
+            <span class="settings-link-label"><Icon :name="item.icon" />{{ item.label }}</span>
+            <button
+              class="btn settings-page-link"
+              type="button"
+              :aria-label="tr('配置', 'Configure') + ' ' + item.label"
+              @click="emit('selected', item.id)"
+            >
+              {{ tr('配置', 'Configure') }}<Icon name="arrow-up-right" :size="15" />
+            </button>
+          </div>
+        </div>
+      </nav>
+    </template>
+    <template v-else>
       <fieldset v-if="draft.defaults.tools" class="settings-form extension-defaults" :disabled="busy">
         <div class="set-card">
           <ToolSwitchRows
             :extension-rows="extensionSwitchRows"
             v-model="draft.defaults.tools"
-            :compact="!mobile"
+            dropdown
+            :delivery-help="
+              tr(
+                '此设置用于新会话，已有会话可以单独配置。命令方式需要启用 Shell。',
+                'This sets the default for new sessions. Existing sessions can be configured separately. Command mode requires Shell.',
+              )
+            "
             :include="[current.toolKey]"
             :search-available="searchAvailable"
-          >
-            <template v-if="!mobile" #label>
-              <ExtensionCategoryPicker
-                :categories="extensionSections"
-                :model-value="selected"
-                @update:model-value="
-                  selected = $event as Section;
-                  emit('selected', $event);
-                "
-              />
-            </template>
-          </ToolSwitchRows>
+          />
         </div>
-        <p class="extension-defaults-note">
-          {{
-            tr(
-              '启用方式作为新会话的默认值，已有会话可单独配置。',
-              'Delivery modes are defaults for new sessions. Existing sessions keep their own settings.',
-            )
-          }}
-        </p>
       </fieldset>
-      <ImageGenerationSettings v-if="selected === 'image_generation'" />
+      <ImageGenerationSettings v-if="current.id === 'image_generation'" />
       <MediaGenerationSettings
         v-else-if="
-          selected === 'video_generation' || selected === 'audio_generation' || selected === 'audio_transcription'
+          current.id === 'video_generation' || current.id === 'audio_generation' || current.id === 'audio_transcription'
         "
-        :key="selected"
-        :section="selected"
+        :key="current.id"
+        :section="current.id"
       />
-      <FetchSettings v-else-if="selected === 'fetch'" :save="save" />
+      <FetchSettings v-else-if="current.id === 'fetch'" :save="save" />
       <SearchSettings
         v-else
         :config="draft"
@@ -110,11 +101,5 @@ const current = computed(() => extensionSections.value.find((item) => item.id ==
   display: grid;
   gap: 20px;
   min-width: 0;
-}
-.extension-defaults-note {
-  margin: 10px 0 0;
-  color: var(--fg-subtle);
-  font-size: 12px;
-  line-height: 1.6;
 }
 </style>

@@ -28,7 +28,7 @@ const items = computed<MenuItem[]>(() => [
     shortcut: props.placement === 'sidebar' ? settingsShortcut.label.value : undefined,
   },
   { key: 'stats', icon: 'stats', label: i18n.t('nav.stats') },
-  { key: 'data', icon: 'storage', label: tr('会话与数据', 'Sessions & data') },
+  { key: 'data', icon: 'storage', label: tr('存储', 'Storage') },
   { key: 'account', icon: 'account', label: tr('账户状态', 'Account status') },
   { key: 'sign-out', icon: 'log-out', label: tr('退出登录', 'Sign out'), separator: true },
 ]);

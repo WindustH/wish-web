@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SettingHint from '../../domain/settings/SettingHint.vue';
+import { watch } from 'vue';
 import { serviceOrder } from './serviceOrder.ts';
 import { computed, inject, ref } from 'vue';
 import { configDraftKey } from './useConfigDraft.ts';
@@ -7,7 +9,7 @@ import SettingsItemCard from './SettingsItemCard.vue';
 import OrderedSettingsList from './OrderedSettingsList.vue';
 import PickerDialog from '../../domain/providers/PickerDialog.vue';
 import ProviderIcon from '../../domain/providers/ProviderIcon.vue';
-import Modal from '../../ui/components/Modal.vue';
+import SettingsPage from '../../ui/components/SettingsPage.vue';
 import Icon from '../../ui/components/Icon.vue';
 import SwitchRow from '../../domain/settings/SwitchRow.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
@@ -46,6 +48,10 @@ const choices = computed(() =>
     search: group.presets.map((p) => `${p.name} ${p.model} ${p.id} ${p.protocol}`).join(' '),
   })),
 );
+const creating = ref('');
+watch(editing, (id) => {
+  if (id !== creating.value) creating.value = '';
+});
 function add(id: string) {
   const preset = services.value.find((group) => group.id === id)?.defaultPreset;
   if (!preset) return;
@@ -60,7 +66,7 @@ function add(id: string) {
   };
   config.value.order.push(key);
   adding.value = false;
-  editing.value = key;
+  creating.value = editing.value = key;
 }
 function chooseModel(id: string) {
   const previous = current.value && spec(current.value.preset);
@@ -90,16 +96,24 @@ function parameters(event: Event) {
 </script>
 <template>
   <section class="set-section image-generation-settings">
-    <header class="set-section-head">
+    <header class="set-section-head set-field-heading">
       <h3>{{ tr('图片生成提供商', 'Image providers') }}</h3>
-      <p>
-        {{
-          tr(
-            '默认使用第一个启用且支持当前用途的服务，可以复用已有账户。拖动可以调整顺序。',
-            'Uses the first enabled service supporting the request. Services can share existing accounts. Drag to reorder.',
-          )
-        }}
-      </p>
+      <SettingHint
+        icon-only
+        :label="tr('提供商说明', 'About providers')"
+        :text="
+          [
+            tr(
+              '默认使用第一个启用且支持当前用途的服务，可以复用已有账户。拖动可以调整顺序。',
+              'Uses the first enabled service supporting the request. Services can share existing accounts. Drag to reorder.',
+            ),
+            tr(
+              '生图可能产生费用，提交中断时不会自动重试或切换服务。',
+              'Generation may incur charges; interrupted submissions are not automatically retried or routed to another service.',
+            ),
+          ].join('\n\n')
+        "
+      />
     </header>
     <div class="image-services">
       <OrderedSettingsList
@@ -111,7 +125,6 @@ function parameters(event: Event) {
         <SettingsItemCard
           draggable
           :title="generationServiceName(spec(config.providers[id].preset)) || id"
-          :summary="`${config.providers[id].model} · ${draft.accounts[config.providers[id].credential_id]?.name || tr('未关联账户', 'No account')}`"
           :position="index + 1"
           :state="{
             kind: config.providers[id].enabled ? 'ok' : 'disabled',
@@ -132,15 +145,9 @@ function parameters(event: Event) {
         <span class="provider-add-icon"><Icon name="plus" /></span>{{ tr('添加生图服务', 'Add image service') }}
       </button>
     </div>
-    <p class="hint">
-      {{
-        tr(
-          '在「扩展工具」中启用 Image Generate。生图可能产生费用，提交中断时不会自动重试或切换服务。',
-          'Enable Image Generate under Tools. Generation may incur charges; interrupted submissions are not automatically retried or routed to another service.',
-        )
-      }}
-    </p>
+
     <PickerDialog
+      force-dialog
       v-if="adding"
       :title="tr('添加生图服务', 'Add image service')"
       :items="choices"
@@ -148,7 +155,8 @@ function parameters(event: Event) {
       @close="adding = false"
       @choose="add"
     />
-    <Modal
+    <SettingsPage
+      :force-dialog="!!creating && creating === editing"
       v-if="current"
       :open="true"
       :page="mobile"
@@ -273,7 +281,7 @@ function parameters(event: Event) {
         </button>
         <button class="btn primary" @click="editing = ''">{{ tr('完成', 'Done') }}</button>
       </template>
-    </Modal>
+    </SettingsPage>
   </section>
 </template>
 <style scoped>
@@ -290,7 +298,6 @@ function parameters(event: Event) {
 }
 .parameters {
   min-height: 140px;
-  font-family: var(--mono);
   resize: vertical;
 }
 .image-editor small {

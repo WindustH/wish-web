@@ -5,7 +5,7 @@ import type { LibraryTarget } from './libraryTarget.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
 import { useVirtualGrid } from '../../ui/composables/useVirtualGrid.ts';
-import { computed, nextTick, onBeforeUnmount, provide, ref, useId, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, provide, ref, shallowRef, useId, watch } from 'vue';
 import {
   directoriesList,
   linkSessionFile,
@@ -36,6 +36,8 @@ import { fmtBytes, fmtDateTime } from '../../core/util/fmt.ts';
 import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
 import { pageActivityKey, usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { saveApiFile } from '../../ui/download.ts';
+import InlineImagePreview from '../../domain/media/InlineImagePreview.vue';
+import type { InlineImage } from '../../domain/media/useOpenImage.ts';
 import IslandSidebar from '../../ui/components/IslandSidebar.vue';
 import Menu from '../../ui/components/Menu.vue';
 import type { MenuItem } from '../../ui/components/menuTypes.ts';
@@ -60,6 +62,7 @@ import { folderTrail, type LibraryFolderAction } from './libraryFolders.ts';
 import { useListDrag } from './useListDrag.ts';
 import { useTouchRangeSelection } from './useTouchRangeSelection.ts';
 
+const inlineImage = shallowRef<InlineImage>();
 const previewRef = ref<InstanceType<typeof SessionBlobPreview>>();
 const mediaToolbar = ref<HTMLElement>();
 const localTrail = ref<DirectoryListing[]>([]);
@@ -82,11 +85,20 @@ async function openLocalChild(name: string, directory: boolean) {
         await openTarget({ owner, id: blob.id, name }, request);
     }
   } catch (cause) {
-    if (opening === request && active.value) toast(describeError(cause).message);
+    if (opening === request && active.value) toast(describeError(cause).message, { tone: 'error' });
   }
 }
-async function openTarget(target: LibraryTarget['target'], childRequest?: number) {
+async function openTarget(target: LibraryTarget['target'], childRequest?: number, view?: 'image') {
   const owner = 'owner' in target ? target.owner : target.session;
+  if ('image' in target) {
+    if (owner !== props.session) return;
+    opening++;
+    stopSelecting();
+    selectBlob(null);
+    localTrail.value = [];
+    inlineImage.value = target.image;
+    return;
+  }
   if ('directory' in target) {
     if (owner !== props.session) return;
     opening++;
@@ -106,7 +118,7 @@ async function openTarget(target: LibraryTarget['target'], childRequest?: number
   selectBlob({ ...blob, modified_at: 0 });
   await nextTick();
   if (request !== opening || owner !== props.session) return;
-  if ('owner' in target) previewRef.value?.locateFile(target);
+  if ('owner' in target) previewRef.value?.locateFile(target, view);
   else previewRef.value?.locate(target);
 }
 
@@ -187,7 +199,7 @@ async function openLinkedChild(child: LinkedFolderChild) {
     linkedSelection.value = { folder: folderId, path: child.path };
   } catch (cause) {
     if (!controller.signal.aborted && request === opening && props.session === owner)
-      toast(describeError(cause).message);
+      toast(describeError(cause).message, { tone: 'error' });
   } finally {
     if (linkedOpenController === controller) linkedOpenController = undefined;
   }
@@ -218,7 +230,7 @@ async function moveFiles(ids: string[], into: string | null) {
       await reload();
     }
   } catch (cause) {
-    if (!request.signal.aborted) toast(describeError(cause).message);
+    if (!request.signal.aborted) toast(describeError(cause).message, { tone: 'error' });
   } finally {
     if (moveController === request) {
       moveController = undefined;
@@ -268,7 +280,7 @@ function folderChanged() {
 }
 onBeforeUnmount(() => moveController?.abort());
 const filter = ref<BlobKind | 'all' | 'bookmarks'>('all');
-const showAll = ref(false);
+const includeHidden = ref(false);
 const updating = ref(new Set<string>());
 const selecting = ref(false);
 const chosen = ref(new Set<string>());
@@ -284,6 +296,7 @@ function stopSelecting() {
   selectionAnchor = undefined;
 }
 function selectBlob(blob: LibraryBlob | null) {
+  inlineImage.value = undefined;
   linkedSelection.value = undefined;
   if (blob) stopSelecting();
   selected.value = blob;
@@ -299,6 +312,7 @@ const bookmarks = useLibraryBookmarks(
 );
 watch(active, (visible) => {
   if (!visible) {
+    inlineImage.value = undefined;
     cancelOperations();
     drag.cancel();
     folderAction.value = undefined;
@@ -402,9 +416,9 @@ async function upload() {
         failures.push(`${file.name}: ${describeError(cause).message}`);
       }
     }
-    if (failures.length) toast(failures.join('\n'));
+    if (failures.length) toast(failures.join('\n'), { tone: 'error' });
   } catch (cause) {
-    if (!request.signal.aborted) toast(describeError(cause).message);
+    if (!request.signal.aborted) toast(describeError(cause).message, { tone: 'error' });
   } finally {
     if (uploadController === request) {
       uploadController = undefined;
@@ -416,16 +430,44 @@ async function upload() {
     }
   }
 }
+const canFilterHidden = computed(() => !linkedFolder.value && filter.value !== 'bookmarks');
+const hiddenFilesLabel = computed(() => tr('显示隐藏文件', 'Show hidden files'));
+const filterSummary = computed(() =>
+  [
+    filter.value !== 'all' && filterOptions.value.find((item) => item.value === filter.value)?.label,
+    canFilterHidden.value && includeHidden.value && hiddenFilesLabel.value,
+  ]
+    .filter(Boolean)
+    .join(' · '),
+);
+function clearFilters() {
+  filter.value = 'all';
+  includeHidden.value = false;
+}
 const filterMenu = computed<MenuItem>(() => ({
   key: 'filter',
   label: tr('筛选', 'Filter'),
   icon: 'filter',
-  children: filterOptions.value.map((item) => ({
-    key: `filter:${item.value}`,
-    label: item.label,
-    icon: item.icon,
-    checked: filter.value === item.value,
-  })),
+  children: [
+    ...filterOptions.value.map((item) => ({
+      key: `filter:${item.value}`,
+      label: item.label,
+      icon: item.icon,
+      checked: filter.value === item.value,
+    })),
+    ...(canFilterHidden.value
+      ? [
+          {
+            key: 'include-hidden',
+            label: hiddenFilesLabel.value,
+            icon: 'eye',
+            role: 'menuitemcheckbox' as const,
+            checked: includeHidden.value,
+            separator: true,
+          },
+        ]
+      : []),
+  ],
 }));
 const libraryActions = computed<MenuItem[]>(() =>
   linkedFolder.value && filter.value !== 'bookmarks'
@@ -445,12 +487,6 @@ const libraryActions = computed<MenuItem[]>(() =>
         ...(selecting.value
           ? []
           : [
-              {
-                key: 'all',
-                label: showAll.value ? tr('返回展示库', 'Return to Library') : tr('查看全部文件', 'Show all files'),
-                icon: 'eye',
-                checked: showAll.value,
-              },
               { key: 'link', label: i18n.t('library.linkFile'), icon: 'link', disabled: linking.value },
               { key: 'upload', label: i18n.t('library.upload'), icon: 'upload', disabled: uploading.value },
               ...(supportsFolders.value
@@ -497,7 +533,7 @@ function libraryAction(key: string) {
     return;
   }
   if (key === 'select') selecting.value ? stopSelecting() : (selecting.value = true);
-  else if (key === 'all') showAll.value = !showAll.value;
+  else if (key === 'include-hidden') includeHidden.value = !includeHidden.value;
   else if (key === 'link') {
     linkError.value = '';
     linkOpen.value = true;
@@ -516,7 +552,7 @@ const menuItems = (blob: LibraryBlob) => [
   ...(supportsFolders.value ? [{ key: 'move', label: tr('移动到…', 'Move to…'), icon: 'folder' }] : []),
   {
     key: blob.visible === false ? 'show' : 'hide',
-    label: blob.visible === false ? tr('加入展示库', 'Show in Library') : tr('从库中隐藏', 'Hide from Library'),
+    label: blob.visible === false ? tr('在文件库中显示', 'Show in Library') : tr('从库中隐藏', 'Hide from Library'),
     icon: blob.visible === false ? 'eye' : 'eye-off',
   },
   {
@@ -619,7 +655,7 @@ async function act(key: string, blob: LibraryBlob) {
     if (owner !== props.session) return;
     await reload(true);
   } catch (cause) {
-    toast(describeError(cause).message);
+    toast(describeError(cause).message, { tone: 'error' });
   } finally {
     updating.value.delete(blob.id);
   }
@@ -631,7 +667,13 @@ function attachmentReference(blob: LibraryBlob): StoredAttachmentReference {
   return { owner: props.session, id: blob.id, mime: blob.mime_type, name: filename(blob), size: blob.byte_count };
 }
 const filename = (blob: LibraryBlob) => blobName(blob, names.value);
-const title = computed(() => (selected.value ? filename(selected.value) : i18n.t('library.title')));
+const title = computed(() =>
+  inlineImage.value
+    ? inlineImage.value.name || tr('图片', 'Image')
+    : selected.value
+      ? filename(selected.value)
+      : i18n.t('library.title'),
+);
 const shown = computed(() => items.value.filter((blob) => filter.value === 'all' || blobKind(blob) === filter.value));
 type LibraryItem = LibraryBlob | LibraryBookmark;
 function isBookmark(item: LibraryItem): item is LibraryBookmark {
@@ -727,7 +769,7 @@ async function actOnChosen(key: LibraryAction, targets = [...chosenFiles.value])
     if (!current()) return;
     if (failures.length) {
       if (selecting.value) chosen.value = new Set(failures.map((failure) => failure.id));
-      toast(failures.map((failure) => failure.message).join('\n'));
+      toast(failures.map((failure) => failure.message).join('\n'), { tone: 'error' });
     } else stopSelecting();
   } finally {
     if (batchController === request) {
@@ -767,7 +809,7 @@ watch([() => props.session, folder], () => {
   renameTarget.value = undefined;
   opening++;
 });
-watch(showAll, () => {
+watch(includeHidden, () => {
   stopSelecting();
   controller?.abort();
   loading.value = false;
@@ -811,7 +853,7 @@ function parentFolder() {
 }
 function back() {
   if (selecting.value) stopSelecting();
-  else if (selected.value) selectBlob(null);
+  else if (selected.value || inlineImage.value) selectBlob(null);
   else if (localDirectory.value) {
     opening++;
     localTrail.value.pop();
@@ -830,7 +872,7 @@ useBackLayer(
   () => 45,
 );
 useBackLayer(
-  () => props.open && props.mobile && !!selected.value,
+  () => props.open && props.mobile && (!!selected.value || !!inlineImage.value),
   () => {
     selectBlob(null);
   },
@@ -877,7 +919,7 @@ async function load(more = false, quiet = false) {
     const readPage = (scoped: boolean) =>
       sessionBlobs(owner, more ? (next.value ?? 0) : 0, {
         signal: request.signal,
-        query: { include_hidden: showAll.value, ...(scoped ? { folder: origin ?? '/' } : {}) },
+        query: { include_hidden: includeHidden.value, ...(scoped ? { folder: origin ?? '/' } : {}) },
       });
     let page;
     try {
@@ -1017,9 +1059,9 @@ watch(
       opening++;
     });
     try {
-      await openTarget(pending.target);
+      await openTarget(pending.target, undefined, pending.view);
     } catch (cause) {
-      if (current) toast(describeError(cause).message);
+      if (current) toast(describeError(cause).message, { tone: 'error' });
     } finally {
       if (current) emit('targetHandled', pending.request);
     }
@@ -1040,7 +1082,7 @@ watch(
   >
     <template #leading>
       <button
-        v-if="selected || localDirectory"
+        v-if="selected || inlineImage || localDirectory"
         class="btn ghost icon-only"
         :aria-label="i18n.t('library.back')"
         @click="back"
@@ -1049,7 +1091,8 @@ watch(
       </button>
     </template>
     <template #title>
-      <span v-if="!selected && localDirectory" class="library-file-title" :title="localDirectory.path"
+      <span v-if="inlineImage" class="library-file-title">{{ title }}</span>
+      <span v-else-if="!selected && localDirectory" class="library-file-title" :title="localDirectory.path"
         ><span>{{ localDirectory.path }}</span></span
       >
       <SessionSidebarTitle v-else-if="!selected" current="library" @select="emit('navigate', $event)" />
@@ -1064,10 +1107,12 @@ watch(
         >
       </span>
     </template>
-    <template v-if="selected" #toolbar><div ref="mediaToolbar" class="library-media-toolbar" /></template>
+    <template v-if="selected || inlineImage" #toolbar
+      ><div ref="mediaToolbar" class="library-media-toolbar"
+    /></template>
     <template #actions>
       <Menu
-        v-if="!selected && !localDirectory"
+        v-if="!selected && !inlineImage && !localDirectory"
         :items="libraryActions"
         :disabled="batchBusy"
         content-class="library-menu"
@@ -1077,7 +1122,7 @@ watch(
           <button
             type="button"
             class="btn ghost icon-only library-menu-trigger"
-            :class="{ active: selecting || showAll }"
+            :class="{ active: selecting || filterSummary }"
             :aria-label="tr('文件库操作', 'Library actions')"
             :title="tr('文件库操作', 'Library actions')"
             :aria-busy="uploading || batchBusy"
@@ -1109,7 +1154,8 @@ watch(
         </template>
       </Menu>
     </template>
-    <template v-if="selected">
+    <InlineImagePreview v-if="inlineImage" :image="inlineImage" :toolbar="mediaToolbar" />
+    <template v-else-if="selected">
       <SessionBlobPreview
         ref="previewRef"
         :key="`${session}/${selected.id}`"
@@ -1137,13 +1183,9 @@ watch(
       </p>
     </div>
     <template v-else>
-      <div v-if="filter !== 'all'" class="library-filter-status">
-        <span><Icon name="filter" :size="14" />{{ filterOptions.find((item) => item.value === filter)?.label }}</span>
-        <button
-          class="btn ghost icon-only sm"
-          :aria-label="tr('清除筛选', 'Clear filter')"
-          @click="selectFilter('all')"
-        >
+      <div v-if="filterSummary" class="library-filter-status">
+        <span><Icon name="filter" :size="14" />{{ filterSummary }}</span>
+        <button class="btn ghost icon-only sm" :aria-label="tr('清除筛选', 'Clear filter')" @click="clearFilters">
           <Icon name="x" :size="14" />
         </button>
       </div>
@@ -1211,9 +1253,6 @@ watch(
         @dragover="!$event.defaultPrevented && drag.hover($event, folder)"
         @drop="!$event.defaultPrevented && drag.drop($event, folder)"
       >
-        <p v-if="showAll" class="library-all-hint">
-          {{ tr('全部文件 · 可将需要的文件加入展示库', 'All files · Add files you need to your Library') }}
-        </p>
         <div
           v-if="bookmarks.error.value && !folder && (filter === 'all' || filter === 'bookmarks')"
           class="library-empty"
@@ -1675,11 +1714,6 @@ watch(
 .library-menu-trigger.active {
   background: var(--accent-soft);
   color: var(--accent);
-}
-.library-all-hint {
-  color: var(--fg-muted);
-  font-size: 11px;
-  padding: 0 2px 12px;
 }
 .library-badges {
   position: absolute;

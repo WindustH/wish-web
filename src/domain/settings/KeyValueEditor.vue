@@ -57,7 +57,7 @@ watch(
   <div class="kv-editor">
     <div v-for="(row, index) in rows" :key="row.id" class="kv-row">
       <input
-        class="input set-mono"
+        class="input"
         v-model="row.name"
         :placeholder="namePlaceholder"
         :aria-label="namePlaceholder"
@@ -66,7 +66,7 @@ watch(
         spellcheck="false"
       />
       <input
-        class="input set-mono"
+        class="input"
         v-model="row.value"
         :type="row.hidden ? 'password' : 'text'"
         :placeholder="row.hidden ? tr('已配置，留空保留', 'Configured; leave empty to keep') : valuePlaceholder"
@@ -105,9 +105,6 @@ watch(
   grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
   gap: 8px;
   align-items: center;
-}
-.kv-row .input::placeholder {
-  font-family: var(--font);
 }
 .kv-remove {
   color: var(--fg-subtle);

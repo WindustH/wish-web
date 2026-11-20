@@ -25,8 +25,8 @@ async function leave() {
     <p>
       {{
         tr(
-          `将断开与 ${serverName()} 的连接，并清除这个浏览器缓存的数据。之后可以重新连接它，或连接其他 Wish 服务器。`,
-          `This disconnects from ${serverName()} and clears the data this browser cached. You can then connect to it again or to another Wish server.`,
+          `将断开与 ${serverName()} 的连接。账户和缓存会保留在这台设备上，你可以选择账户重新登录。`,
+          `This disconnects from ${serverName()}. Your accounts and cache stay on this device. Choose an account to sign in again.`,
         )
       }}
     </p>

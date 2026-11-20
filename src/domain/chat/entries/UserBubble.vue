@@ -76,7 +76,12 @@ const imageSrc = () =>
           <Icon name="quote" />{{ block.reference.label }}
         </button>
         <figure v-else-if="block.type === 'image'" class="message-image">
-          <BlobImage :src="imageSrc()" :alt="block.filename || block.placeholder || ''" loading="lazy" />
+          <BlobImage
+            :src="imageSrc()"
+            :dimensions="block.dimensions"
+            :alt="block.filename || block.placeholder || ''"
+            loading="lazy"
+          />
           <figcaption v-if="block.filename">{{ block.filename }}</figcaption>
         </figure>
         <div v-else-if="block.type === 'file' && block.blob_id" class="attachment-file message-file">

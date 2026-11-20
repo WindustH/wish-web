@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import SettingHint from '../../domain/settings/SettingHint.vue';
+import { watch } from 'vue';
 import { serviceOrder } from './serviceOrder.ts';
 import { computed, inject, ref } from 'vue';
 import OrderedSettingsList from './OrderedSettingsList.vue';
 import { post } from '../../core/api/client.ts';
-import Modal from '../../ui/components/Modal.vue';
+import SettingsPage from '../../ui/components/SettingsPage.vue';
 import PickerDialog from '../../domain/providers/PickerDialog.vue';
 import ProviderIcon from '../../domain/providers/ProviderIcon.vue';
 import Icon from '../../ui/components/Icon.vue';
@@ -56,12 +58,16 @@ const choices = computed(() =>
           : tr('关联已有账户，或添加新的 API Key', 'Link an existing account or add an API key'),
   })),
 );
+const creating = ref('');
+watch(editing, (id) => {
+  if (id !== creating.value) creating.value = '';
+});
 function add(preset: string) {
   const id = uniqueId(preset, (id) => id in config.value.providers);
   config.value.providers[id] = { preset, enabled: true, credential_id: null, proxy_enabled: true };
   config.value.order.push(id);
   adding.value = false;
-  editing.value = id;
+  creating.value = editing.value = id;
 }
 function remove(id: string) {
   delete config.value.providers[id];
@@ -83,16 +89,18 @@ async function check(id: string) {
 </script>
 <template>
   <section class="set-section">
-    <header class="set-section-head">
+    <header class="set-section-head set-field-heading">
       <h3>{{ tr('网页读取提供商', 'Webpage readers') }}</h3>
-      <p>
-        {{
+      <SettingHint
+        icon-only
+        :label="tr('提供商说明', 'About providers')"
+        :text="
           tr(
             '按顺序尝试读取服务，可以复用已有账户。拖动可以调整顺序。',
             'Readers are tried in order and can share existing accounts. Drag to reorder.',
           )
-        }}
-      </p>
+        "
+      />
     </header>
     <div class="fetch-list">
       <OrderedSettingsList
@@ -134,6 +142,7 @@ async function check(id: string) {
       </button>
     </div>
     <PickerDialog
+      force-dialog
       v-if="adding"
       :title="tr('添加网页读取提供商', 'Add webpage reader')"
       :items="choices"
@@ -141,7 +150,8 @@ async function check(id: string) {
       @close="adding = false"
       @choose="add"
     />
-    <Modal
+    <SettingsPage
+      :force-dialog="!!creating && creating === editing"
       v-if="current"
       compact
       :open="true"
@@ -187,7 +197,7 @@ async function check(id: string) {
           }}</button
         ><button class="btn primary" @click="editing = ''">{{ tr('完成', 'Done') }}</button></template
       >
-    </Modal>
+    </SettingsPage>
   </section>
 </template>
 <style scoped>

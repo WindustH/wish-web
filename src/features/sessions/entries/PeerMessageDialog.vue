@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import type { PeerMessageDetail } from '../activityDialogs.ts';
-import { openImageLightbox } from '../../../ui/imageLightbox.ts';
+import BlobImage from '../../../domain/media/BlobImage.vue';
 import CopyButton from '../../../ui/components/CopyButton.vue';
 import Icon from '../../../ui/components/Icon.vue';
 import Markdown from '../../../domain/references/ReferenceMarkdown.vue';
@@ -48,15 +48,14 @@ const title = computed(() =>
         <span v-if="note">· {{ note }}</span>
       </p>
       <Markdown v-if="text.trim()" :text="text" />
-      <img
+      <BlobImage
         v-for="(src, index) in images"
         :key="index"
         class="peer-card-image zoomable"
         :src="src"
-        alt=""
+        :alt="i18n.t('chat.image') + ' ' + (index + 1)"
         loading="lazy"
         decoding="async"
-        @click.stop="openImageLightbox(src)"
       />
     </div>
   </Modal>

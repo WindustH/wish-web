@@ -91,6 +91,7 @@ const filtered = computed(() =>
 );
 const editing = ref<{ id: Action; index: number; adding: boolean } | null>(null);
 const recorder = ref<HTMLButtonElement>();
+const addButton = ref<HTMLButtonElement>();
 const focusAfterSelection = ref(false);
 function restoreRecorder(event: Event) {
   if (!focusAfterSelection.value || !recorder.value) return;
@@ -98,6 +99,7 @@ function restoreRecorder(event: Event) {
   event.preventDefault();
   recorder.value.focus();
 }
+const selectedAction = computed(() => actions.value.find((action) => action.value === editing.value?.id));
 const error = ref('');
 function begin(id: Action, index: number, adding = false) {
   editing.value = { id, index, adding };
@@ -105,8 +107,10 @@ function begin(id: Action, index: number, adding = false) {
   void nextTick(() => recorder.value?.focus());
 }
 function cancel() {
+  const adding = editing.value?.adding;
   editing.value = null;
   error.value = '';
+  if (adding) void nextTick(() => addButton.value?.focus({ preventScroll: true }));
 }
 function assign(id: Action, index: number, value: string | KeyBinding | null, adding = false) {
   const p = readShortcuts(settings.value);
@@ -135,10 +139,13 @@ function record(e: KeyboardEvent) {
     return;
   }
   const combo = keyBinding(e);
-  const app = isApp(edit.id);
-  if (app ? !validBinding(combo) : e.ctrlKey || e.metaKey || e.altKey || !validNavigationKey(e.key)) {
+  const { id } = edit;
+  const app = isApp(id);
+  if (app ? !validBinding(combo, id) : e.ctrlKey || e.metaKey || e.altKey || !validNavigationKey(e.key)) {
     error.value = app
-      ? tr('使用组合键、Tab 或 F1–F12。', 'Use a modifier combination, Tab or F1–F12.')
+      ? edit.id === 'quickSwitchSessions'
+        ? tr('使用分号（;）、组合键、Tab 或 F1–F12。', 'Use a semicolon (;), a modifier combination, Tab or F1–F12.')
+        : tr('使用组合键、Tab 或 F1–F12。', 'Use a modifier combination, Tab or F1–F12.')
       : tr('使用单个字符、Enter、Esc 或 F1–F12。', 'Use a character, Enter, Esc or F1–F12.');
     return;
   }
@@ -175,7 +182,12 @@ function reset() {
           :aria-label="tr('筛选绑定', 'Filter bindings')"
           :placeholder="tr('搜索动作或按键…', 'Find action or key…')"
       /></label>
-      <button class="btn sm" @click="begin(filtered[0]?.id ?? 'openSettings', -1, true)">
+      <button
+        ref="addButton"
+        class="btn ghost sm add-binding"
+        :disabled="editing?.adding"
+        @click="begin(filtered[0]?.id ?? 'openSettings', -1, true)"
+      >
         <Icon name="plus" :size="15" />{{ tr('添加绑定', 'Add binding') }}
       </button>
       <button
@@ -187,27 +199,6 @@ function reset() {
         <Icon name="undo" :size="16" />
       </button>
     </div>
-    <div v-if="editing" class="map-edit">
-      <SelectField
-        v-if="editing.adding"
-        v-model="editing.id"
-        :options="actions"
-        :aria-label="tr('动作', 'Action')"
-        @update:model-value="
-          error = '';
-          focusAfterSelection = true;
-        "
-        @close-auto-focus="restoreRecorder"
-      />
-      <span v-else>{{ actions.find((a) => a.value === editing?.id)?.label }}</span>
-      <button ref="recorder" type="button" class="btn sm record" data-navigation-ignore @keydown="record">
-        {{ tr('请按快捷键…', 'Press keys…') }}
-      </button>
-      <button class="btn ghost icon-only" :aria-label="tr('取消', 'Cancel')" @click="cancel">
-        <Icon name="x" :size="16" />
-      </button>
-    </div>
-    <p v-if="error" role="alert">{{ error }}</p>
     <table>
       <thead>
         <tr>
@@ -218,6 +209,53 @@ function reset() {
           <th></th>
         </tr>
       </thead>
+      <tbody v-if="editing" class="draft-binding">
+        <tr class="map-edit">
+          <td>
+            <SelectField
+              v-if="editing.adding"
+              class="edit-action"
+              v-model="editing.id"
+              :options="actions"
+              :aria-label="tr('动作', 'Action')"
+              @update:model-value="
+                error = '';
+                focusAfterSelection = true;
+              "
+              @close-auto-focus="restoreRecorder"
+            />
+            <span v-else>{{ selectedAction?.label }}</span>
+          </td>
+          <td>
+            <button
+              ref="recorder"
+              type="button"
+              class="record"
+              data-navigation-ignore
+              @keydown="record"
+              :aria-label="tr('录制快捷键', 'Record shortcut')"
+              :aria-describedby="error ? 'binding-error' : undefined"
+            >
+              <Icon name="keyboard" :size="14" />{{ tr('按下快捷键', 'Press keys…') }}
+            </button>
+          </td>
+          <td class="context">{{ selectedAction?.context }}</td>
+          <td class="source"></td>
+          <td>
+            <button
+              type="button"
+              class="btn ghost icon-only cancel-edit"
+              :aria-label="tr('取消', 'Cancel')"
+              @click="cancel"
+            >
+              <Icon name="x" :size="14" />
+            </button>
+          </td>
+        </tr>
+        <tr v-if="error">
+          <td colspan="5" id="binding-error" role="alert">{{ error }}</td>
+        </tr>
+      </tbody>
       <tbody>
         <tr v-for="r in filtered" :key="r.id + ':' + r.index" :data-shortcut="r.id">
           <td>{{ r.label }}</td>
@@ -254,7 +292,6 @@ function reset() {
   font-size: 13px;
 }
 .map-toolbar,
-.map-edit,
 .map-search {
   display: flex;
   align-items: center;
@@ -278,16 +315,56 @@ function reset() {
   min-width: 0;
   font: inherit;
 }
-.map-edit {
-  flex-wrap: wrap;
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  padding: 8px;
-  margin-bottom: 8px;
-  border-radius: 7px;
+.add-binding {
+  gap: 4px;
+  white-space: nowrap;
+}
+.draft-binding {
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-raised));
+}
+.map-edit :deep(.edit-action.control-select) {
+  display: inline-flex;
+  width: auto;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 0;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+}
+.map-edit :deep(.edit-action:focus-visible) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .record {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 25px;
+  padding: 2px 7px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--bg-hover);
+  color: var(--fg-muted);
+  font: 500 12px/1.4 var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.record:focus {
+  outline: none;
+  background: var(--accent-soft);
   color: var(--accent);
+}
+@media (pointer: coarse) {
+  .map-edit :deep(.edit-action.control-select),
+  .record,
+  .cancel-edit.btn,
+  .add-binding {
+    min-height: 44px;
+  }
 }
 table {
   width: 100%;
@@ -338,8 +415,8 @@ td:last-child {
 .keymap [role='alert'] {
   color: var(--err);
 }
-tbody tr:focus-within,
-tbody tr:hover {
+tbody:not(.draft-binding) tr:focus-within,
+tbody:not(.draft-binding) tr:hover {
   background: var(--bg-raised);
 }
 @container (max-width:600px) {

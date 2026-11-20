@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import SettingHint from '../../domain/settings/SettingHint.vue';
+import SelectField from '../../ui/components/SelectField.vue';
+import { watch } from 'vue';
 import type { VideoMode } from '../../core/mediaGeneration.ts';
 import { serviceOrder } from './serviceOrder.ts';
 import { computed, inject, ref } from 'vue';
@@ -8,7 +11,7 @@ import SettingsItemCard from './SettingsItemCard.vue';
 import OrderedSettingsList from './OrderedSettingsList.vue';
 import PickerDialog from '../../domain/providers/PickerDialog.vue';
 import ProviderIcon from '../../domain/providers/ProviderIcon.vue';
-import Modal from '../../ui/components/Modal.vue';
+import SettingsPage from '../../ui/components/SettingsPage.vue';
 import Icon from '../../ui/components/Icon.vue';
 import SpeechControlRows from './SpeechControlRows.vue';
 import SwitchRow from '../../domain/settings/SwitchRow.vue';
@@ -35,6 +38,30 @@ const catalog = computed(() =>
         : ['speech', 'music', 'sound_effect'].includes(p.kind),
   ),
 );
+const videoLanguages = [
+  'Chinese',
+  'English',
+  'Japanese',
+  'Thai',
+  'SouthAfrican',
+  'French',
+  'Turkish',
+  'Malay',
+  'German',
+  'Korean',
+  'Russian',
+  'Spanish',
+  'Indonesian',
+  'Italian',
+  'Portuguese',
+  'Filipino',
+  'Vietnamese',
+  'Dutch',
+  'Arabic',
+];
+function serviceOptions(values: string[], defaultLabel = tr('使用服务默认值', 'Service default')) {
+  return [{ value: '', label: defaultLabel }, ...values.map((value) => ({ value, label: value }))];
+}
 const adding = ref(false),
   editing = ref('');
 const current = computed(() => config.value.providers[editing.value]);
@@ -89,6 +116,10 @@ const order = computed<string[]>({
     config.value.order = ids;
   },
 });
+const creating = ref('');
+watch(editing, (id) => {
+  if (id !== creating.value) creating.value = '';
+});
 function add(id: string) {
   const preset = services.value.find((group) => group.id === id)?.defaultPreset;
   if (!preset) return;
@@ -103,7 +134,7 @@ function add(id: string) {
   };
   config.value.order.push(key);
   adding.value = false;
-  editing.value = key;
+  creating.value = editing.value = key;
 }
 function chooseModel(id: string) {
   const next = currentGroup.value?.presets.find((p) => p.id === id);
@@ -123,7 +154,7 @@ function applyDurationInput(event: Event) {
 </script>
 <template>
   <section class="set-section media-settings">
-    <header class="set-section-head">
+    <header class="set-section-head set-field-heading">
       <h3>
         {{
           section === 'video_generation'
@@ -133,14 +164,27 @@ function applyDurationInput(event: Event) {
               : tr('语音转写提供商', 'Transcription providers')
         }}
       </h3>
-      <p>
-        {{
-          tr(
-            '默认使用第一个启用且支持当前用途的服务，可以复用已有账户。拖动可以调整顺序。',
-            'Uses the first enabled service supporting the request. Services can share existing accounts. Drag to reorder.',
-          )
-        }}
-      </p>
+      <SettingHint
+        icon-only
+        :label="tr('提供商说明', 'About providers')"
+        :text="
+          [
+            tr(
+              '默认使用第一个启用且支持当前用途的服务，可以复用已有账户。拖动可以调整顺序。',
+              'Uses the first enabled service supporting the request. Services can share existing accounts. Drag to reorder.',
+            ),
+            props.section === 'audio_transcription'
+              ? tr(
+                  '文件格式、大小、时长和语言选项取决于服务。',
+                  'File formats, size, duration and language options depend on the service.',
+                )
+              : tr(
+                  '生成请求中断后不会自动重发或切换服务。',
+                  'Interrupted submissions are not automatically repeated or switched to another provider.',
+                ),
+          ].join('\n\n')
+        "
+      />
     </header>
     <div class="services">
       <OrderedSettingsList
@@ -173,20 +217,9 @@ function applyDurationInput(event: Event) {
         <span class="provider-add-icon"><Icon name="plus" /></span>{{ tr('添加服务', 'Add service') }}
       </button>
     </div>
-    <p class="hint">
-      {{
-        props.section === 'audio_transcription'
-          ? tr(
-              '在「扩展工具」中启用 Audio Transcribe。文件格式、大小、时长和语言选项取决于服务。',
-              'Enable Audio Transcribe under Tools. File formats, size, duration and language options depend on the service.',
-            )
-          : tr(
-              '在「扩展工具」中启用对应生成工具。生成请求中断后不会自动重发或切换服务。',
-              'Enable the corresponding generation tool under Tools. Interrupted submissions are not automatically repeated or switched to another provider.',
-            )
-      }}
-    </p>
+
     <PickerDialog
+      force-dialog
       v-if="adding"
       :title="tr('添加服务', 'Add service')"
       :items="choices"
@@ -194,7 +227,8 @@ function applyDurationInput(event: Event) {
       @close="adding = false"
       @choose="add"
     />
-    <Modal
+    <SettingsPage
+      :force-dialog="!!creating && creating === editing"
       v-if="current"
       :open="true"
       :page="mobile"
@@ -238,14 +272,15 @@ function applyDurationInput(event: Event) {
           <template v-if="currentSpec?.protocol === 'deepseek_speech'">
             <label class="set-row stacked">
               <span class="set-label">{{ tr('默认音色', 'Default voice') }}</span>
-              <select
-                class="input"
-                :value="current.parameters.voice ?? 'stella'"
-                @change="current.parameters.voice = ($event.target as HTMLSelectElement).value"
-              >
-                <option value="stella">{{ tr('海星 · 女声', 'Stella · Female') }}</option>
-                <option value="tide">{{ tr('暗潮 · 男声', 'Tide · Male') }}</option>
-              </select>
+              <SelectField
+                :aria-label="tr('默认音色', 'Default voice')"
+                :model-value="current.parameters.voice ?? 'stella'"
+                :options="[
+                  { value: 'stella', label: tr('海星 · 女声', 'Stella · Female') },
+                  { value: 'tide', label: tr('暗潮 · 男声', 'Tide · Male') },
+                ]"
+                @update:model-value="current.parameters.voice = $event"
+              />
             </label>
             <SwitchRow
               :model-value="current.parameters.filter_markdown ?? true"
@@ -282,12 +317,14 @@ function applyDurationInput(event: Event) {
           <template v-if="currentSpec?.protocol === 'xiaoyunque_video'">
             <label class="set-row stacked"
               ><span class="set-label">{{ tr('目标时长', 'Target duration') }}</span>
-              <select class="input" v-model="current.parameters.duration_hint">
-                <option :value="null">{{ tr('由服务决定', 'Let the service choose') }}</option>
-                <option v-for="duration in ['～15s', '～30s', '40～60s', '1min+']" :key="duration">
-                  {{ duration }}
-                </option></select
-              ><small>{{
+              <SelectField
+                :aria-label="tr('目标时长', 'Target duration')"
+                :model-value="current.parameters.duration_hint ?? ''"
+                :options="
+                  serviceOptions(['～15s', '～30s', '40～60s', '1min+'], tr('由服务决定', 'Let the service choose'))
+                "
+                @update:model-value="current.parameters.duration_hint = $event || null"
+              /><small>{{
                 tr(
                   '最终时长由服务决定，可能与目标值不同。',
                   'The service determines the final duration, which may differ from this target.',
@@ -296,35 +333,12 @@ function applyDurationInput(event: Event) {
             </label>
             <label class="set-row stacked"
               ><span class="set-label">{{ tr('视频语言', 'Video language') }}</span>
-              <select class="input" v-model="current.parameters.language">
-                <option :value="null">{{ tr('使用服务默认值', 'Service default') }}</option>
-                <option
-                  v-for="language in [
-                    'Chinese',
-                    'English',
-                    'Japanese',
-                    'Thai',
-                    'SouthAfrican',
-                    'French',
-                    'Turkish',
-                    'Malay',
-                    'German',
-                    'Korean',
-                    'Russian',
-                    'Spanish',
-                    'Indonesian',
-                    'Italian',
-                    'Portuguese',
-                    'Filipino',
-                    'Vietnamese',
-                    'Dutch',
-                    'Arabic',
-                  ]"
-                  :key="language"
-                >
-                  {{ language }}
-                </option>
-              </select>
+              <SelectField
+                :aria-label="tr('视频语言', 'Video language')"
+                :model-value="current.parameters.language ?? ''"
+                :options="serviceOptions(videoLanguages)"
+                @update:model-value="current.parameters.language = $event || null"
+              />
             </label>
             <SwitchRow
               :model-value="current.parameters.watermark ?? true"
@@ -335,21 +349,20 @@ function applyDurationInput(event: Event) {
           <template v-if="currentSpec?.kind === 'video'">
             <label class="set-row stacked"
               ><span class="set-label">{{ tr('画幅', 'Aspect ratio') }}</span
-              ><select class="input" v-model="current.parameters.aspect_ratio">
-                <option :value="null">{{ tr('使用服务默认值', 'Service default') }}</option>
-                <option v-for="ratio in (modelSpec ?? currentSpec)?.aspect_ratios ?? []" :key="ratio">
-                  {{ ratio }}
-                </option>
-              </select></label
-            >
+              ><SelectField
+                :aria-label="tr('画幅', 'Aspect ratio')"
+                :model-value="current.parameters.aspect_ratio ?? ''"
+                :options="serviceOptions((modelSpec ?? currentSpec)?.aspect_ratios ?? [])"
+                @update:model-value="current.parameters.aspect_ratio = $event || null"
+            /></label>
             <label v-if="(modelSpec ?? currentSpec)?.resolutions?.length" class="set-row stacked"
               ><span class="set-label">{{ tr('分辨率', 'Resolution') }}</span
-              ><select class="input" v-model="current.parameters.resolution">
-                <option :value="null">{{ tr('使用服务默认值', 'Service default') }}</option>
-                <option v-for="resolution in (modelSpec ?? currentSpec)?.resolutions ?? []" :key="resolution">
-                  {{ resolution }}
-                </option></select
-              ><small>{{ tr('可选分辨率取决于模型。', 'Supported resolutions depend on the model.') }}</small></label
+              ><SelectField
+                :aria-label="tr('分辨率', 'Resolution')"
+                :model-value="current.parameters.resolution ?? ''"
+                :options="serviceOptions((modelSpec ?? currentSpec)?.resolutions ?? [])"
+                @update:model-value="current.parameters.resolution = $event || null"
+              /><small>{{ tr('可选分辨率取决于模型。', 'Supported resolutions depend on the model.') }}</small></label
             >
           </template>
           <SwitchRow
@@ -406,7 +419,7 @@ function applyDurationInput(event: Event) {
         </button>
         <button class="btn primary" @click="editing = ''">{{ tr('完成', 'Done') }}</button>
       </template>
-    </Modal>
+    </SettingsPage>
   </section>
 </template>
 <style scoped>

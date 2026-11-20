@@ -6,7 +6,6 @@ import { providerReady } from '../../core/providerReadiness.ts';
 import { readDraftCatalogModels } from '../../core/provider-catalog.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { showError } from '../../ui/errorDialog.ts';
-import { toast } from '../../ui/toast.ts';
 import { uniqueId } from '../../core/util/uniqueId.ts';
 import { REDACTED, secretText, readSecret, writeCredential } from '../../core/secretRef.ts';
 import { configSnapshot, providerPresets } from '../../core/api/endpoints.ts';
@@ -133,7 +132,10 @@ export function useProviderSetup({ preview = false } = {}) {
       id: model,
       tag: configured ? 'configured' : 'recommended',
     }));
-    model.value = configured === snapshot.value.config.defaults.provider ? snapshot.value.config.defaults.model : '';
+    model.value =
+      configured && configured === snapshot.value.config.defaults.provider
+        ? (snapshot.value.config.defaults.model ?? '')
+        : '';
     models.value = [];
     catalogState.value = 'idle';
     verifyFailed.value = false;
@@ -151,12 +153,14 @@ export function useProviderSetup({ preview = false } = {}) {
     error.value = '';
     try {
       const [config, presets] = await Promise.allSettled([
-        configSnapshot({ signal: controller.signal }),
+        preview
+          ? Promise.resolve({ config: { defaults: {}, providers: {}, accounts: {} } })
+          : configSnapshot({ signal: controller.signal }),
         providerPresets({ signal: controller.signal }),
       ]);
       if (own !== generation) return;
       if (config.status === 'rejected') throw config.reason;
-      snapshot.value = preview ? { ...config.value, config: { ...config.value.config, providers: {} } } : config.value;
+      snapshot.value = config.value;
       catalog.value = presets.status === 'fulfilled' ? presets.value : { presets: [] };
       step.value = 'provider';
     } catch (cause) {
@@ -191,6 +195,7 @@ export function useProviderSetup({ preview = false } = {}) {
   };
   /** Why the credentials cannot be checked yet, or nothing when they can. */
   const authMissing = computed(() => {
+    if (preview) return '';
     const current = provider.value;
     if (!validUrl(current.base_url))
       return tr(
@@ -236,6 +241,14 @@ export function useProviderSetup({ preview = false } = {}) {
   /** Reads the catalog with the credentials entered, which also checks them; on success, moves on. */
   async function verify() {
     if (authMissing.value || verifying.value) return;
+    if (preview) {
+      models.value = named.value.length
+        ? named.value
+        : [{ id: 'example-model', name: tr('示例模型', 'Example model') }];
+      catalogState.value = 'ready';
+      step.value = 'model';
+      return;
+    }
     const attempt = new AbortController();
     verification = attempt;
     verifying.value = true;
@@ -347,20 +360,11 @@ export function useProviderSetup({ preview = false } = {}) {
     const selectedModel = model.value.trim();
     try {
       if (!selectedModel) throw new Error(tr('请选择或填写一个模型。', 'Choose or enter a model.'));
+      if (preview) return true;
       const config = configWith(selectedModel);
       if (!providerReady(config.providers[id.value.trim()], selectedModel))
         throw new Error(tr('请填写完整的连接地址和认证信息。', 'Complete the connection and credentials.'));
       saving.value = true;
-      if (preview) {
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        toast(
-          tr(
-            '预览完成：输入已通过检查，没有保存任何配置。',
-            'Preview finished: the entries passed the checks. Nothing was saved.',
-          ),
-        );
-        return true;
-      }
       snapshot.value = await saveConfigEdits(snapshot.value, config, { signal: controller?.signal });
       bus.emit('configuration.changed', {});
       return true;

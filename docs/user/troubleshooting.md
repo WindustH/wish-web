@@ -24,7 +24,7 @@ From the browser, open `/#/selftest?auto=1` or **Settings → Debug → Connecti
 
 ## Plain HTTP on LAN
 
-Over plain `http://192.168.x.x`, browsers disable service workers (so app install and automatic update banners aren't available), notifications, and Wake Lock. Put Wish behind HTTPS ([Deployment](deployment.md#lan-and-https-access)) to enable them.
+An open, visible Wish tab checks for new web releases every minute, including on plain LAN HTTP. Choose **Update now** to load the release when you are ready. Over plain `http://192.168.x.x`, service workers, notifications, and Wake Lock are unavailable. Put Wish behind HTTPS ([Deployment](deployment.md#lan-and-https-access)) to enable them.
 
 ## Sessions, Library, and settings
 

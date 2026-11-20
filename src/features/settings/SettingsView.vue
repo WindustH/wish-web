@@ -33,6 +33,7 @@ import { searchSettings } from './settingsSearch.ts';
 import Wordmark from '../../ui/components/Wordmark.vue';
 import { cfg } from '../../core/config.ts';
 import { useSettingsGuard } from './useSettingsGuard.ts';
+import { provideSettingsPages } from '../../ui/composables/settingsPages.ts';
 import { closeOverlayKey } from '../../ui/composables/overlay.ts';
 import { extensionSection as validExtension, settingsBackTarget } from '../shell/settingsNavigation.ts';
 
@@ -42,13 +43,23 @@ const focus = useDialogFocus();
 const hasChildDialog = useDialogNesting(() => pageActive.value);
 
 function handleOutside(event: CustomEvent) {
-  if (hasChildDialog.value || (event.detail.originalEvent.target as Element)?.closest?.('.pwa-update'))
+  if (hasChildDialog.value || (event.detail.originalEvent.target as Element)?.closest?.('.toast-region'))
     event.preventDefault();
 }
 
 const closeSettings = inject(closeOverlayKey)!;
+const { target: settingsPageHost, current: editorPage } = provideSettingsPages(closeSettings);
+function setPageHost(element: unknown) {
+  settingsPageHost.value = element instanceof HTMLElement ? element : undefined;
+}
 
-import { sections, extensionSections } from './settingsSections.ts';
+import { sections as allSections, extensionSections } from './settingsSections.ts';
+const props = defineProps<{ deviceOnly?: boolean }>();
+const sections = computed(() =>
+  props.deviceOnly
+    ? allSections.value.filter((item) => ['ui', 'shortcuts', 'debug'].includes(item.id))
+    : allSections.value,
+);
 const searchQuery = ref('');
 const visibleSections = computed(() => searchSettings(sections.value, searchQuery.value));
 function openFirstResult() {
@@ -56,8 +67,8 @@ function openFirstResult() {
   if (first) selectSection(first.id);
 }
 const current = computed(() =>
-  isMobile.value && mobileExtension.value
-    ? extensionSections.value.find((item) => item.id === mobileExtension.value)
+  extensionSection.value
+    ? extensionSections.value.find((item) => item.id === extensionSection.value)
     : sections.value.find((item) => item.id === tab.value),
 );
 // Whether some search provider could answer now, for the Web Search switch's hint.
@@ -65,37 +76,32 @@ const current = computed(() =>
 const route = useRoute();
 const router = useRouter();
 const desktopSection = ref(
-  extensionSections.value.some((item) => item.id === route.query.section)
+  !props.deviceOnly && extensionSections.value.some((item) => item.id === route.query.section)
     ? 'extensions'
     : sections.value.some((item) => item.id === route.query.section)
       ? String(route.query.section)
-      : 'service',
+      : props.deviceOnly
+        ? 'ui'
+        : 'service',
 );
 watch(
   () => route.query.section,
   (value) => {
-    if (extensionSections.value.some((item) => item.id === value)) desktopSection.value = 'extensions';
+    if (!props.deviceOnly && extensionSections.value.some((item) => item.id === value))
+      desktopSection.value = 'extensions';
     else if (sections.value.some((item) => item.id === value)) desktopSection.value = String(value);
   },
 );
-const mobileExtension = computed(() => validExtension(route.query.tool) ?? validExtension(route.query.section));
-const extensionSection = ref(
-  validExtension(route.query.tool) ?? validExtension(route.query.section) ?? 'image_generation',
-);
-watch(
-  () => [route.query.tool, route.query.section],
-  () => {
-    const selected = validExtension(route.query.tool) ?? validExtension(route.query.section);
-    if (selected) extensionSection.value = selected;
-  },
+const extensionSection = computed(() =>
+  props.deviceOnly || tab.value !== 'extensions'
+    ? undefined
+    : (validExtension(route.query.tool) ?? validExtension(route.query.section)),
 );
 function selectExtension(id: string) {
-  if (!validExtension(id)) return;
-  extensionSection.value = id;
-  if (isMobile.value) void router.push({ path: '/settings', query: { section: 'extensions', tool: id } });
+  if (validExtension(id)) void router.push({ path: '/settings', query: { section: 'extensions', tool: id } });
 }
 const mobileSection = computed(() =>
-  extensionSections.value.some((item) => item.id === route.query.section)
+  !props.deviceOnly && extensionSections.value.some((item) => item.id === route.query.section)
     ? 'extensions'
     : sections.value.some((item) => item.id === route.query.section)
       ? String(route.query.section)
@@ -106,21 +112,40 @@ const keymapOpen = computed(
   () => tab.value === 'shortcuts' && (route.query.advanced === 'keymap' || route.query.advanced === 'navigation'),
 );
 
-function selectSection(id: string) {
-  if (id === 'extensions' && searchQuery.value.trim()) {
-    extensionSection.value = searchSettings(extensionSections.value, searchQuery.value)[0]?.id ?? 'image_generation';
+const browserShortcutsOpen = computed(() => tab.value === 'shortcuts' && route.query.advanced === 'browser');
+const skillSearchReturn = ref('');
+const skillFoldersOpen = computed(() => tab.value === 'skills' && route.query.advanced === 'folders');
+const skillBrowserOpen = computed(() => tab.value === 'skills' && route.query.advanced === 'browse');
+const detailTitle = computed(() => {
+  if (browserShortcutsOpen.value) return tr('浏览器快捷键', 'Browser shortcuts');
+  if (keymapOpen.value) return tr('键位绑定', 'Key bindings');
+  if (skillFoldersOpen.value) return tr('Skill 目录', 'Skill folders');
+  if (skillBrowserOpen.value) {
+    if (typeof route.query.skill === 'string') return route.query.skill;
+    if (typeof route.query.folder === 'string') return route.query.folder.split('/').at(-1);
+    return tr('浏览 Skill', 'Browse skills');
   }
-  if (isMobile.value)
-    router.push({
-      path: '/settings',
-      query: {
-        section: id,
-        ...(id === 'extensions' && searchQuery.value.trim() ? { tool: extensionSection.value } : {}),
-      },
-    });
+  return current.value?.label;
+});
+
+watch(skillBrowserOpen, (open) => {
+  if (!open) skillSearchReturn.value = '';
+});
+
+async function selectSection(id: string) {
+  while (editorPage.value) {
+    const page = editorPage.value;
+    if (!(await page.back()) || page === editorPage.value) return;
+  }
+  const tool =
+    id === 'extensions' && searchQuery.value.trim()
+      ? searchSettings(extensionSections.value, searchQuery.value)[0]?.id
+      : undefined;
+  const destination = { path: '/settings', query: { section: id, ...(tool ? { tool } : {}) } };
+  if (isMobile.value) void router.push(destination);
   else {
     desktopSection.value = id;
-    if (route.query.section || route.query.advanced) void router.replace({ path: '/settings', query: { section: id } });
+    if (tool || route.query.section || route.query.advanced) void router.replace(destination);
   }
 }
 
@@ -134,7 +159,7 @@ function showSidebarScrollbar() {
   sidebarScrollTimer = setTimeout(() => (sidebarScrolling.value = false), 600);
 }
 onScopeDispose(() => clearTimeout(sidebarScrollTimer));
-watch([tab, extensionSection, mobileExtension], () => {
+watch([tab, extensionSection, () => route.fullPath], () => {
   if (content.value) content.value.scrollTop = 0;
 });
 
@@ -163,8 +188,8 @@ const {
   saveConfig,
 } = configDraft;
 // Search providers as the server knows them: whether web search can run, and each one's state.
-const search = useStatuses(searchProviders, (reply) => reply.providers, revision);
-const searchAvailable = computed(() => search.reply.value?.available ?? null);
+const search = props.deviceOnly ? null : useStatuses(searchProviders, (reply) => reply.providers, revision);
+const searchAvailable = computed(() => search?.reply.value?.available ?? null);
 
 const { dirty, save, discard, discardChanges, leave, leaveBusy, resolveLeave, saveAndReturn } = useSettingsGuard({
   isMobile,
@@ -178,7 +203,7 @@ const { dirty, save, discard, discardChanges, leave, leaveBusy, resolveLeave, sa
 });
 
 onActivated(() => {
-  if (!serverDirty.value && !busy.value) void load();
+  if (!props.deviceOnly && !serverDirty.value && !busy.value) void load();
 });
 </script>
 <template>
@@ -200,6 +225,20 @@ onActivated(() => {
         @open-auto-focus="focus.opened"
         @close-auto-focus="focus.closed"
         @interact-outside="handleOutside"
+        @escape-key-down="
+          (event) => {
+            if (editorPage && !hasChildDialog) {
+              event.preventDefault();
+              void editorPage.back();
+            } else if (
+              !hasChildDialog &&
+              (extensionSection || keymapOpen || browserShortcutsOpen || skillBrowserOpen || skillFoldersOpen)
+            ) {
+              event.preventDefault();
+              backToCategories();
+            }
+          }
+        "
       >
         <div class="page native-settings" data-navigation-page>
           <aside v-show="!isMobile || !mobileSection" class="settings-sidebar">
@@ -274,12 +313,19 @@ onActivated(() => {
             :key="isMobile ? mobileSection : 'desktop'"
             class="settings-detail"
           >
-            <header class="settings-heading page-bar">
+            <header v-show="!editorPage" class="settings-heading page-bar">
               <button
-                v-if="isMobile || keymapOpen"
+                v-if="
+                  isMobile ||
+                  extensionSection ||
+                  keymapOpen ||
+                  browserShortcutsOpen ||
+                  skillBrowserOpen ||
+                  skillFoldersOpen
+                "
                 class="btn ghost icon-only"
                 :aria-label="
-                  mobileExtension ? tr('返回扩展工具', 'Back to extension tools') : tr('返回设置', 'Back to settings')
+                  extensionSection ? tr('返回扩展工具', 'Back to extension tools') : tr('返回设置', 'Back to settings')
                 "
                 @click="backToCategories"
               >
@@ -287,7 +333,7 @@ onActivated(() => {
               </button>
               <div class="settings-heading-text">
                 <h2 class="page-bar-title">
-                  {{ keymapOpen ? tr('键位绑定', 'Key bindings') : current?.label }}
+                  {{ detailTitle }}
                 </h2>
               </div>
               <DraftActions v-if="isMobile" />
@@ -300,11 +346,11 @@ onActivated(() => {
                 <Icon name="x" />
               </button>
             </header>
-            <div ref="content" class="settings-content" data-scroll-preserve>
+            <div v-show="!editorPage" ref="content" class="settings-content" data-scroll-preserve>
               <UiSettings v-if="tab === 'ui'" />
               <KeymapEditor v-else-if="keymapOpen" />
-              <ShortcutSettings v-else-if="tab === 'shortcuts'" />
-              <DebugSettings v-else-if="tab === 'debug'" />
+              <ShortcutSettings v-else-if="tab === 'shortcuts'" :browser-page="browserShortcutsOpen" />
+              <DebugSettings v-else-if="tab === 'debug'" :device-only="deviceOnly" />
               <template v-else-if="ready">
                 <MobileSessionSettings
                   v-if="isMobile && tab === 'service'"
@@ -322,13 +368,13 @@ onActivated(() => {
                 />
                 <ExtensionToolsSettings
                   v-else-if="tab === 'extensions'"
-                  :initial-section="isMobile ? mobileExtension : extensionSection"
+                  :initial-section="extensionSection"
                   @selected="selectExtension"
                   :save="save"
                   :search-available="searchAvailable"
-                  :statuses="search.statuses.value"
-                  :statuses-known="search.known.value"
-                  @checked="search.refresh"
+                  :statuses="search?.statuses.value ?? {}"
+                  :statuses-known="search?.known.value ?? false"
+                  @checked="search?.refresh()"
                 />
                 <McpSettings
                   v-else-if="tab === 'mcp'"
@@ -339,18 +385,29 @@ onActivated(() => {
                   :dirty="serverDirty"
                   :revision="revision"
                 />
-                <SkillsSettings v-else-if="tab === 'skills'" :config="draft" :busy="busy" :revision="revision" />
+                <SkillsSettings
+                  v-else-if="tab === 'skills'"
+                  v-model:search-return="skillSearchReturn"
+                  :config="draft"
+                  :busy="busy"
+                  :revision="revision"
+                />
                 <AccountSettings v-else-if="tab === 'accounts'" />
                 <TerminalSettings v-else-if="tab === 'terminal'" /><NetworkSettings
                   v-else-if="tab === 'network'"
                 /><ProviderSettings v-else :save="save" />
               </template>
-              <div v-else-if="!busy" class="settings-empty">
+              <div v-else-if="!busy && !deviceOnly" class="settings-empty">
                 <p>{{ tr('设置尚未载入。', 'Settings are not loaded.') }}</p>
                 <button class="btn" @click="load"><Icon name="refresh-cw" />{{ tr('重新载入', 'Reload') }}</button>
               </div>
             </div>
-            <footer v-if="ready && !['ui', 'debug', 'shortcuts'].includes(tab) && !isMobile" class="settings-footer">
+            <div :ref="setPageHost" class="settings-page-host" />
+            <footer
+              v-show="!editorPage"
+              v-if="ready && !['ui', 'debug', 'shortcuts'].includes(tab) && !isMobile"
+              class="settings-footer"
+            >
               <span class="settings-status" :class="{ dirty }"
                 ><i aria-hidden="true" />{{
                   dirty ? tr('有未保存的修改', 'Unsaved changes') : tr('所有修改已保存', 'All changes saved')
@@ -486,9 +543,6 @@ onActivated(() => {
   font: inherit;
   font-size: 13px;
 }
-.settings-search input::placeholder {
-  color: var(--fg-subtle);
-}
 .settings-search input::-webkit-search-cancel-button {
   display: none;
 }
@@ -595,6 +649,7 @@ onActivated(() => {
 }
 
 .settings-detail {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -640,13 +695,6 @@ onActivated(() => {
 .settings-empty .icon {
   width: 15px;
   height: 15px;
-}
-.code {
-  width: 100%;
-  padding: 0.75em;
-  font-family: var(--mono);
-  font-size: calc(1em * var(--mono-scale));
-  line-height: 1.8;
 }
 .input {
   min-width: 0;

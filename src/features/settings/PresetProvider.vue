@@ -14,7 +14,7 @@ import AnimatedDetails from '../../ui/components/AnimatedDetails.vue';
 import Hint from '../../ui/components/Hint.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import Icon from '../../ui/components/Icon.vue';
-import Modal from '../../ui/components/Modal.vue';
+import SettingsPage from '../../ui/components/SettingsPage.vue';
 import { useSettingsReturn } from './settingsReturn.ts';
 import ProviderModels from './ProviderModels.vue';
 import { ACCOUNT_PROTOCOLS } from '../../core/provider-presets.ts';
@@ -33,6 +33,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ remove: []; protocol: [value: string]; loginComplete: [] }>();
 const editing = ref(props.initiallyOpen ?? false);
+const creating = ref(editing.value);
 // On a desktop the models open in a window of their own, from the button beside "edit".
 const modelsOpen = ref(false);
 const mobilePanel = ref('');
@@ -90,21 +91,18 @@ const optional = (items: string[]) => [{ value: '', label: tr('不使用', 'Disa
   <SettingsItemCard
     class="provider-item"
     :title="isMobile ? listTitle || displayName : displayName"
-    :summary="`${Object.keys(value.models).length} ${tr('个模型', 'models')}${preset ? ' · ' + presetDescription(preset) : ''}`"
     :state="state"
     :label="id"
     :edit-hint="tr('编辑提供商', 'Edit provider')"
     :remove-hint="tr('删除提供商', 'Delete provider')"
     @open="
+      creating = false;
       mobilePanel = '';
       editing = true;
     "
     @remove="emit('remove')"
   >
     <template #mark><ProviderIcon :brand="preset?.provider" /></template>
-    <template #detail
-      >{{ id }}<template v-if="preset"> · {{ presetDescription(preset) }}</template></template
-    >
     <template v-if="!isMobile" #actions
       ><Hint :text="tr('模型', 'Models')"
         ><button
@@ -117,7 +115,7 @@ const optional = (items: string[]) => [{ value: '', label: tr('不使用', 'Disa
         </button></Hint
       ></template
     >
-    <Modal
+    <SettingsPage
       v-if="!isMobile"
       :open="modelsOpen"
       :title="tr('模型 · ', 'Models · ') + displayName"
@@ -135,14 +133,15 @@ const optional = (items: string[]) => [{ value: '', label: tr('不使用', 'Disa
             <Icon name="plus" /></button></Hint
       ></template>
       <ProviderModels ref="modelEditor" :id="id" :value="value" :preset="preset" />
-    </Modal>
-    <Modal
+    </SettingsPage>
+    <SettingsPage
       compact
       :before-close="isMobile ? returns.confirm : undefined"
       :content-class="isMobile ? 'settings-editor mobile-settings-page provider-panel' : 'settings-editor'"
       :back="isMobile && mobilePanel ? backToProvider : undefined"
       :page="isMobile"
       :open="editing"
+      :force-dialog="creating"
       :title="
         isMobile
           ? panels.find((p) => p.id === mobilePanel)?.label || displayName
@@ -392,7 +391,7 @@ const optional = (items: string[]) => [{ value: '', label: tr('不使用', 'Disa
         }}</span
         ><button class="btn primary" @click="editing = false">{{ tr('完成', 'Done') }}</button></template
       >
-    </Modal>
+    </SettingsPage>
   </SettingsItemCard>
 </template>
 <style scoped>

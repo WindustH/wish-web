@@ -795,10 +795,21 @@ export async function pdfPage(session: string, blob: string, page: number, signa
   }
 }
 
+export function blobImageReference(src: string) {
+  if (!src || !isApiUrl(src)) return;
+  const path = new URL(src, globalThis.location?.href).pathname;
+  const match = /\/sessions\/([^/]+)\/blobs\/([a-f0-9]{64})$/.exec(path);
+  if (!match) return;
+  try {
+    return { owner: decodeURIComponent(match[1]!), id: match[2]! };
+  } catch {
+    return;
+  }
+}
+
 export function imagePreviewUrl(src: string, width: 384 | 768 | 1536, original: boolean): string {
-  if (original || !isApiUrl(src)) return src;
+  if (original || !blobImageReference(src)) return src;
   const parsed = new URL(src, globalThis.location?.href);
-  if (!/\/sessions\/[^/]+\/blobs\/[a-f0-9]{64}$/.test(parsed.pathname)) return src;
   parsed.pathname += '/image';
   parsed.search = `?width=${width}`;
   return parsed.href;

@@ -118,13 +118,32 @@
     border-color var(--dur-fast),
     background var(--dur-fast);
 }
+/* Native option pickers use the Wish control surface and keep their platform picker. */
+select.input {
+  appearance: none;
+  padding-inline-end: 30px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--fg-muted) 50%),
+    linear-gradient(135deg, var(--fg-muted) 50%, transparent 50%);
+  background-size: 4px 4px;
+  background-position:
+    right 15px center,
+    right 11px center;
+  background-repeat: no-repeat;
+}
+@media (forced-colors: active) {
+  select.input {
+    appearance: auto;
+    background-image: none;
+  }
+}
 .input:focus,
 .textarea:focus,
 .control-select:focus-visible,
 .control-select[data-state='open'] {
   outline: none;
   border-color: var(--accent);
-  background: var(--bg-control);
+  background-color: var(--bg-control);
 }
 /* Bordered controls use their existing edge for keyboard focus, without a second ring. */
 :is(.btn, .input, .textarea, .control-select):focus-visible {
@@ -193,7 +212,7 @@
   transform: translate(-50%, -50%);
   width: min(92vw, 32rem);
   max-height: min(calc(var(--viewport-height, 100dvh) * 0.84), 44rem);
-  background: var(--bg-overlay);
+  background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--line-strong);
   border-radius: 12px;
@@ -266,8 +285,8 @@
   padding: 14px 16px 0;
 }
 .modal-flow-title {
-  font: 600 14px/1.5 var(--font);
-  margin: 0 0 6px;
+  font: var(--dialog-heading);
+  margin: 0 0 8px;
 }
 /* A compact window's heading: the title in the content's flow and its tools beside it, no band. */
 .dialog-topline {
@@ -281,7 +300,7 @@
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  font: 600 15px/1.4 var(--font);
+  font: var(--dialog-heading);
   color: var(--fg);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -397,43 +416,6 @@
 .menu-danger,
 .menu-danger > .icon {
   color: var(--err);
-}
-.toast-region {
-  position: fixed;
-  bottom: calc(env(safe-area-inset-bottom) + 16px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 90;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  pointer-events: none;
-  max-width: calc(100vw - 32px);
-}
-.desktop .toast-region {
-  bottom: 24px;
-}
-.toast {
-  background: var(--bg-overlay);
-  color: var(--fg);
-  border: 1px solid var(--line);
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  font-size: 13px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-  box-shadow: var(--shadow-pop);
-}
-.toast-enter-active,
-.toast-leave-active {
-  transition:
-    opacity var(--dur-fast),
-    transform var(--dur-fast);
-}
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-  transform: translateY(6px);
 }
 /* Text is the primary surface. Long prose, code and tables have distinct rhythms, kept close
    together: a reply reads as one piece, not as a page of spaced-out parts. */
@@ -598,50 +580,55 @@
 }
 /* Tables: a card of rows, each on one line. A table wider than the column scrolls sideways
    rather than wrap its cells into tall rows. */
-.markdown table {
+.markdown .markdown-table-scroll {
   display: block;
   width: max-content;
   max-width: 100%;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
-  border-collapse: collapse;
+  contain: paint;
   margin: 0.9em 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   font: 400 13.5px/1.55 var(--font);
   font-variant-numeric: tabular-nums;
 }
+.markdown .markdown-table-scroll > table {
+  width: max-content;
+  border-collapse: collapse;
+  font: inherit;
+}
 /* Sideways scrollbars on tables and code sit on the card they belong to, thin and rounded,
    with no square end buttons; the thumb is a line until hover warms it up. */
-.markdown table,
+.markdown .markdown-table-scroll,
 .markdown pre,
 .code-block pre {
   scrollbar-width: thin;
   scrollbar-color: var(--line-strong) transparent;
 }
-.markdown table::-webkit-scrollbar,
+.markdown .markdown-table-scroll::-webkit-scrollbar,
 .markdown pre::-webkit-scrollbar,
 .code-block pre::-webkit-scrollbar {
   height: 8px;
 }
-.markdown table::-webkit-scrollbar-track,
+.markdown .markdown-table-scroll::-webkit-scrollbar-track,
 .markdown pre::-webkit-scrollbar-track,
 .code-block pre::-webkit-scrollbar-track {
   background: transparent;
 }
-.markdown table::-webkit-scrollbar-thumb,
+.markdown .markdown-table-scroll::-webkit-scrollbar-thumb,
 .markdown pre::-webkit-scrollbar-thumb,
 .code-block pre::-webkit-scrollbar-thumb {
   background: var(--line-strong);
   border-radius: 999px;
 }
-.markdown table::-webkit-scrollbar-thumb:hover,
+.markdown .markdown-table-scroll::-webkit-scrollbar-thumb:hover,
 .markdown pre::-webkit-scrollbar-thumb:hover,
 .code-block pre::-webkit-scrollbar-thumb:hover {
   background: var(--fg-faint);
 }
-.markdown table::-webkit-scrollbar-button,
+.markdown .markdown-table-scroll::-webkit-scrollbar-button,
 .markdown pre::-webkit-scrollbar-button,
 .code-block pre::-webkit-scrollbar-button {
   display: none;
@@ -669,139 +656,8 @@
   height: auto;
   border-radius: var(--radius);
 }
-/* The offer of a new version: a card at the bottom - what is new, what updating does, and the two
-   choices beside it, or under it where a phone has no room. Centred with `translate`, so the
-   entrance's transform does not move it off centre. */
-/* A picture in the log opens whole: the cursor says so, and the overlay is the page dimmed,
-   the image as large as the window allows, closed by a click anywhere or by Escape. */
-img.zoomable {
+.zoomable {
   cursor: zoom-in;
-}
-/* Above every window, and answering to the pointer itself: an open window locks the page with
-   `body { pointer-events: none }`, and this overlay is a child of the body - without its own
-   `auto` it would sit on top while every click fell through to the window underneath. */
-.image-lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  pointer-events: auto;
-  display: grid;
-  place-items: center;
-  padding: calc(env(safe-area-inset-top) + 20px) 20px calc(env(safe-area-inset-bottom) + 20px);
-  background: rgb(0 0 0 / 78%);
-  animation: fade-in var(--dur-fast) ease;
-  cursor: zoom-out;
-}
-.image-lightbox-img {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  max-width: calc(100% - 40px);
-  max-height: calc(100% - 40px);
-  object-fit: contain;
-  border-radius: 8px;
-  box-shadow: 0 18px 60px rgb(0 0 0 / 45%);
-  transform-origin: center;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-.image-lightbox.zoomed {
-  cursor: grab;
-}
-.image-lightbox.zoomed .image-lightbox-img {
-  cursor: grab;
-  border-radius: 0;
-  box-shadow: none;
-}
-.image-lightbox-img.dragging {
-  cursor: grabbing;
-}
-.image-lightbox-tools {
-  position: fixed;
-  right: 10px;
-  bottom: calc(env(safe-area-inset-bottom) + 12px);
-  display: flex;
-  gap: 6px;
-  padding: 4px;
-  border-radius: 999px;
-  background: rgb(0 0 0 / 45%);
-}
-.image-lightbox-tools .btn {
-  color: #fff;
-}
-.image-lightbox-tools .btn:hover:not(:disabled) {
-  background: rgb(255 255 255 / 14%);
-  color: #fff;
-}
-.image-lightbox-tools .btn:disabled {
-  opacity: 0.38;
-}
-.image-lightbox-close {
-  position: fixed;
-  top: calc(env(safe-area-inset-top) + 10px);
-  right: 10px;
-  color: #fff;
-  background: rgb(0 0 0 / 45%);
-}
-.image-lightbox-close:hover {
-  background: rgb(0 0 0 / 64%);
-  color: #fff;
-}
-@media (prefers-reduced-motion: reduce) {
-  .image-lightbox {
-    animation: none;
-  }
-}
-.pwa-update {
-  position: fixed;
-  left: 50%;
-  bottom: calc(18px + env(safe-area-inset-bottom));
-  translate: -50% 0;
-  z-index: 300;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  width: max-content;
-  max-width: calc(100vw - 24px);
-  padding: 12px 12px 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--bg-overlay);
-  color: var(--fg);
-  box-shadow: var(--shadow-pop);
-  font-size: 13.5px;
-  animation: menu-in var(--dur) var(--ease-out);
-}
-.pwa-update-mark {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-.pwa-update-mark .icon {
-  width: 17px;
-  height: 17px;
-}
-.pwa-update-text {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-}
-.pwa-update-text strong {
-  font-weight: 600;
-}
-.pwa-update-text small {
-  color: var(--fg-subtle);
-  font-size: 12px;
-}
-.pwa-update-actions {
-  display: flex;
-  gap: 6px;
 }
 @keyframes fade-in {
   from {
@@ -861,14 +717,6 @@ img.zoomable {
     padding: 8px 12px;
     font-size: 14px;
   }
-  .pwa-update {
-    grid-template-columns: auto minmax(0, 1fr);
-    width: calc(100vw - 24px);
-  }
-  .pwa-update-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-end;
-  }
 }
 
 .modal-head-actions {
@@ -916,7 +764,7 @@ img.zoomable {
   cursor: default;
 }
 .control-select[data-placeholder] {
-  color: var(--fg-subtle);
+  color: var(--fg-placeholder);
 }
 .control-select-popover {
   z-index: 80;
@@ -928,7 +776,9 @@ img.zoomable {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   box-shadow: var(--shadow-menu);
-  animation: menu-in var(--dur-fast) var(--ease-out);
+}
+.control-select-popover[data-state='open'] {
+  animation: fade-in var(--dur-fast) var(--ease-out);
 }
 .control-select-list {
   max-height: min(320px, var(--reka-select-content-available-height));
@@ -1066,7 +916,7 @@ img.zoomable {
     margin: 0;
     overflow: hidden;
     color: var(--fg);
-    font: 600 17px/1.4 var(--font);
+    font: var(--page-heading);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1187,7 +1037,6 @@ img.zoomable {
 .modal-overlay[data-state='closed'],
 .modal-card[data-state='closed'],
 .menu-pop[data-state='closed'],
-.control-select-popover[data-state='closed'],
 .control-tooltip[data-state='closed'] {
   animation: popup-fade-out 120ms ease-in;
 }
@@ -1260,4 +1109,197 @@ html.keyboard-open .modal-card.modal-sheet {
     opacity: 0;
     transform: translateX(20px);
   }
+}
+
+/* Shared by session switching and command completion. */
+.modal-card.launcher:not(.modal-page):not(.modal-sheet) {
+  width: min(600px, calc(100vw - 24px));
+  border-radius: 16px;
+  max-height: min(580px, calc(var(--viewport-height, 100dvh) - 40px));
+}
+.modal-card.launcher.compact > .modal-body {
+  padding: 0;
+  line-height: 1.4;
+}
+.launcher-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 18px;
+  border-bottom: 1px solid var(--line);
+  min-height: 58px;
+}
+.launcher-search > .icon {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+  flex: none;
+}
+.launcher-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 16px;
+  outline: none !important;
+  box-shadow: none !important;
+}
+.launcher-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg-subtle);
+  cursor: pointer;
+}
+.launcher-close:hover {
+  color: var(--fg);
+  background: var(--bg-hover);
+}
+.launcher-close .icon {
+  width: 16px;
+  height: 16px;
+}
+.launcher-results {
+  overflow: auto;
+  overscroll-behavior: contain;
+  max-height: min(48dvh, 360px);
+  padding: 6px;
+}
+.launcher-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  text-align: left;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.launcher-row[aria-selected='true'] {
+  background: var(--bg-hover);
+}
+.launcher-key {
+  visibility: hidden;
+  color: var(--fg-subtle);
+  flex: none;
+  font-size: 16px;
+}
+.launcher-row[aria-selected='true'] .launcher-key {
+  visibility: visible;
+}
+.launcher-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--line);
+  color: var(--fg-subtle);
+  font-size: 11px;
+}
+.launcher-hints,
+.launcher-hints > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.launcher-hints {
+  gap: 12px;
+}
+.launcher-hints kbd {
+  font: inherit;
+  font-size: 10px;
+  line-height: 16px;
+  min-width: 17px;
+  padding: 0 3px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  text-align: center;
+}
+@media (pointer: coarse) {
+  .launcher-row {
+    min-height: 44px;
+  }
+  .launcher-close {
+    width: 40px;
+    height: 40px;
+  }
+}
+@media (max-width: 420px) {
+  .launcher-hints {
+    gap: 7px;
+  }
+  .launcher-footer {
+    padding-inline: 12px;
+  }
+  .launcher-search {
+    padding-left: 14px;
+  }
+}
+
+.image-frame {
+  position: relative;
+  display: block;
+  width: min(var(--image-width, 320px), calc(var(--image-ratio, 1.5) * var(--image-height-limit, 420px)));
+  max-width: 100%;
+  aspect-ratio: var(--image-ratio, 1.5);
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--bg-active);
+}
+.image-frame.image-ready {
+  background: transparent;
+}
+.image-frame > img,
+.markdown .image-frame > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  object-fit: contain;
+  opacity: 0;
+}
+.image-frame.image-ready > img {
+  opacity: 1;
+}
+.image-failed {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--fg-subtle);
+}
+.markdown-image {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.markdown-image:empty {
+  display: none;
+}
+.markdown-image.image-unavailable::after {
+  content: attr(data-error-label);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  padding: 10px;
+  text-align: center;
+  overflow-wrap: anywhere;
+  color: var(--fg-subtle);
 }

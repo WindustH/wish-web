@@ -36,7 +36,7 @@ export const shortcuts = {
   },
   conflict,
   setBinding(id: ShortcutId, binding: KeyBinding | null) {
-    if (binding && (!validBinding(binding) || conflict(id, binding))) return false;
+    if (binding && (!validBinding(binding, id) || conflict(id, binding))) return false;
     replace({ ...value.value, bindings: { ...value.value.bindings, [id]: binding } });
     return true;
   },

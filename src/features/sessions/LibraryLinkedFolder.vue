@@ -162,7 +162,6 @@ const shown = computed(() =>
 .linked-folder-row {
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--line);
 }
 .linked-child {
   display: flex;

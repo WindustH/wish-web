@@ -1,0 +1,5 @@
+/target
+/gen/schemas
+/icons/
+/gen/android/app/src/main/res/mipmap-*/*.png
+/gen/android/gradle/wrapper/gradle-wrapper.jar

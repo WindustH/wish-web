@@ -13,7 +13,7 @@ export type ItemState = { kind: 'ok' | 'error' | 'idle' | 'disabled'; text: stri
 const props = defineProps<{
   title: string;
   // The phone row's second line; the desktop header's is the `detail` slot, or this.
-  summary: string;
+  summary?: string;
   state?: ItemState | null;
   // What the phone row shows of the state, when it differs from the header's.
   mobileState?: ItemState | null;
@@ -27,7 +27,6 @@ const props = defineProps<{
   editHint: string;
   removeHint: string;
   removeDisabled?: boolean;
-  removeWarning?: boolean;
   // An action that tries the item, when it has one, and whether that is under way.
   checkHint?: string;
   checking?: boolean;
@@ -57,9 +56,10 @@ function moveBy(delta: number, event: KeyboardEvent) {
     <div v-if="isMobile" class="settings-item-phone">
       <button type="button" class="mobile-settings-row settings-item-row" @click="emit('open')">
         <span class="settings-item-mark"><slot name="mark" /></span>
-        <span
-          >{{ title }}<small class="row-preview">{{ summary }}</small></span
-        >
+        <span class="settings-item-phone-identity">
+          {{ title }}<small v-if="summary" class="row-preview">{{ summary }}</small>
+          <slot name="trailing" />
+        </span>
         <small v-if="phoneState" class="settings-item-state" :class="phoneState.kind">{{ phoneState.text }}</small>
         <Icon name="chevron-right" />
       </button>
@@ -94,10 +94,11 @@ function moveBy(delta: number, event: KeyboardEvent) {
           <span v-if="state" class="settings-item-state" :class="state.kind">{{ state.text }}</span
           ><slot name="title-extra" />
         </div>
-        <small
+        <small v-if="$slots.detail || summary"
           ><slot name="detail">{{ summary }}</slot></small
         >
       </div>
+      <slot name="trailing" />
       <div class="settings-item-actions">
         <button
           v-if="draggable && coarsePointer"
@@ -133,7 +134,7 @@ function moveBy(delta: number, event: KeyboardEvent) {
             :aria-label="`${removeHint} ${name}`"
             @click="emit('remove')"
           >
-            <Icon :name="removeDisabled || removeWarning ? 'trash-off' : 'trash-2'" /></button
+            <Icon :name="removeDisabled ? 'trash-off' : 'trash-2'" /></button
         ></Hint>
       </div>
     </header>

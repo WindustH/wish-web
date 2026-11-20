@@ -27,6 +27,7 @@ const choose = (key: string) =>
 </script>
 <template>
   <PickerDialog
+    force-dialog
     :title="title || tr('添加提供商', 'Add provider')"
     :items="items"
     :placeholder="tr('搜索提供商、地区或套餐…', 'Search providers, regions or plans…')"

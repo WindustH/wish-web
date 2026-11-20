@@ -32,7 +32,7 @@ const props = defineProps<{
   options: SelectOption[];
   disabled?: boolean;
   searchable?: boolean;
-  segmented?: boolean;
+  segmented?: boolean | 'always';
 }>();
 const emptyText = computed(() => tr('没有匹配的选项', 'No matching options'));
 const emit = defineEmits<{ 'update:modelValue': [value: string]; closeAutoFocus: [event: Event] }>();
@@ -75,7 +75,7 @@ watch(pageActive, (active) => {
 
 <template>
   <ToggleGroupRoot
-    v-if="segmented && options.length <= 3 && options.length > 1"
+    v-if="segmented && (segmented === 'always' || options.length <= 3) && options.length > 1"
     v-bind="$attrs"
     type="single"
     class="choice-capsule"
@@ -171,7 +171,7 @@ watch(pageActive, (active) => {
       <SelectContent
         @close-auto-focus="emit('closeAutoFocus', $event)"
         data-keyboard-boundary
-        class="control-select-popover"
+        class="control-select-popover popup-palette"
         position="popper"
         :side-offset="5"
         :collision-padding="12"

@@ -3,6 +3,7 @@ import { computed, inject, ref, watch, onScopeDispose, onDeactivated } from 'vue
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { prefs, type TerminalEngine } from '../../core/state/prefsSlice.ts';
 import { configDraftKey } from './useConfigDraft.ts';
+import SettingHint from '../../domain/settings/SettingHint.vue';
 import SelectField from '../../ui/components/SelectField.vue';
 import ColorField from '../../ui/components/ColorField.vue';
 import { parseTerminalTheme, terminalThemeSizeLimit } from '../../ui/terminalThemeImport.ts';
@@ -48,6 +49,7 @@ function color(name: string, value?: string) {
   else delete colors[name];
   update('colors', colors);
 }
+const hasCustomColors = computed(() => Object.keys(settings.value.colors).length > 0);
 const theme = computed(() => wishTerminalTheme(settings.value.colors));
 const labels: Record<string, string> = {
   background: tr('背景', 'Background'),
@@ -55,6 +57,23 @@ const labels: Record<string, string> = {
   cursor: tr('光标', 'Cursor'),
   selectionBackground: tr('选区', 'Selection'),
 };
+const persistenceHelp = computed(() =>
+  [
+    settings.value.persistence === 'none'
+      ? tr(
+          '切换页面时终端保持运行。退出 Wish 时终端关闭。按 Ctrl-D 退出 Shell 后会自动启动新的 Shell。',
+          'The terminal stays open across pages and closes when you leave Wish. Pressing Ctrl-D starts a new shell.',
+        )
+      : tr(
+          '服务器需要安装所选工具。离开时任务继续运行，再次打开可连接到原会话。',
+          'Install the selected tool on the server. Jobs keep running when you leave. Reopen the terminal to reconnect.',
+        ),
+    tr(
+      'Shell 和持久化设置在下次连接时生效。已有的持久化会话沿用原 Shell。',
+      'Shell and persistence changes apply on the next connection. Existing persistent sessions keep their shell.',
+    ),
+  ].join('\n\n'),
+);
 const themeFile = ref<HTMLInputElement>();
 const importMessage = ref(''),
   importFailed = ref(false);
@@ -105,6 +124,12 @@ async function importTheme(event: Event) {
               );
   }
 }
+function resetColors() {
+  importVersion++;
+  update('colors', {});
+  importMessage.value = '';
+  importFailed.value = false;
+}
 function fontInput(event: Event) {
   const input = event.target as HTMLInputElement;
   const value = Number(input.value);
@@ -152,10 +177,11 @@ function fontCommit(event: Event) {
         <label v-if="shellSelection === customShell" class="set-row">
           <span class="set-label">{{ tr('程序路径', 'Program path') }}</span>
           <input
+            name="terminal-shell"
             :value="settings.shell"
             @input="update('shell', ($event.target as HTMLInputElement).value)"
             @change="update('shell', ($event.target as HTMLInputElement).value.trim())"
-            class="input set-mono"
+            class="input"
             autocomplete="off"
             autocapitalize="off"
             spellcheck="false"
@@ -163,15 +189,12 @@ function fontCommit(event: Event) {
           />
         </label>
         <div class="set-row">
-          <span class="set-label"
-            >{{ tr('持久化', 'Persistence')
-            }}<small>{{
-              tr(
-                '默认连接已有会话。需在服务器上安装所选工具。',
-                'Connects to an existing session by default. Install the selected tool on the server.',
-              )
-            }}</small></span
-          >
+          <div class="set-label">
+            <div class="set-field-heading">
+              <span>{{ tr('持久化', 'Persistence') }}</span>
+              <SettingHint icon-only :label="tr('持久化说明', 'About terminal persistence')" :text="persistenceHelp" />
+            </div>
+          </div>
           <SelectField
             :model-value="settings.persistence"
             @update:model-value="update('persistence', $event as TerminalSettings['persistence'])"
@@ -216,27 +239,6 @@ function fontCommit(event: Event) {
             maxlength="128"
         /></label>
       </div>
-      <p class="set-help">
-        {{
-          settings.persistence === 'none'
-            ? tr(
-                '切换页面保留终端，退出 Wish 前端时关闭。Ctrl-D 退出后自动启动新的 Shell。',
-                'Keeps running across pages; closes when leaving Wish. After Ctrl-D, a new shell starts automatically.',
-              )
-            : tr(
-                '离开时断开连接，任务继续运行。再次打开恢复同一终端会话。',
-                'Leaving detaches the terminal while jobs keep running. Reopening restores the same terminal session.',
-              )
-        }}
-      </p>
-      <p class="set-help">
-        {{
-          tr(
-            'Shell 与持久化设置从下一次连接起生效；已存在的持久化会话保留原 Shell。',
-            'Shell and persistence changes apply to the next connection. Existing persistent sessions keep their shell.',
-          )
-        }}
-      </p>
     </section>
     <section class="set-section">
       <header class="set-section-head">
@@ -257,7 +259,7 @@ function fontCommit(event: Event) {
         /></label>
       </div>
       <div class="theme-heading">
-        <span>Wish · {{ tr('跟随界面明暗模式', 'Follows interface appearance') }}</span>
+        <h4>{{ tr('终端配色', 'Terminal colors') }}</h4>
         <div class="theme-actions">
           <input
             ref="themeFile"
@@ -270,14 +272,7 @@ function fontCommit(event: Event) {
           <button type="button" class="btn ghost sm" @click="themeFile?.click()">
             {{ tr('导入主题', 'Import theme') }}
           </button>
-          <button
-            type="button"
-            class="btn ghost sm"
-            @click="
-              update('colors', {});
-              importMessage = '';
-            "
-          >
+          <button type="button" class="btn ghost sm" :disabled="!hasCustomColors" @click="resetColors">
             {{ tr('恢复默认', 'Reset') }}
           </button>
         </div>
@@ -349,9 +344,13 @@ function fontCommit(event: Event) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
   margin: 16px 0 8px;
-  font-size: 12px;
-  color: var(--fg-muted);
+}
+.theme-heading h4 {
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
 }
 .terminal-preview {
   padding: 20px;
@@ -420,10 +419,5 @@ function fontCommit(event: Event) {
 }
 .theme-import-message.error {
   color: var(--err);
-}
-@media (max-width: 599px) {
-  .theme-heading {
-    flex-wrap: wrap;
-  }
 }
 </style>

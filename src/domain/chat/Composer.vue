@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useOpenImage } from '../media/useOpenImage.ts';
 import { inject } from 'vue';
 import type { QueuedAttachment } from '../../core/api/types.ts';
 import { replyContextKey } from '../references/context.ts';
@@ -111,7 +112,7 @@ const replies = inject(replyContextKey, undefined);
 async function reference(reference: ReplyReference, image?: Blob) {
   if (reference.session !== props.owner || !live.value) return;
   if (attachments.value.filter((a) => a.reply).length >= 8 || reference.text.length > 16000) {
-    toast(tr('引用过多或选区过长，请缩小范围', 'Too many references or selection too long'));
+    toast(tr('引用过多或选区过长，请缩小范围', 'Too many references or selection too long'), { tone: 'warning' });
     return;
   }
   const owner = props.owner;
@@ -120,7 +121,7 @@ async function reference(reference: ReplyReference, image?: Blob) {
     (image.size > limits.value.imageBytes ||
       attachments.value.filter((a) => a.kind === 'image').length >= limits.value.imageCount)
   ) {
-    toast(tr('选区图片超过附件限制', 'Selected image exceeds attachment limits'));
+    toast(tr('选区图片超过附件限制', 'Selected image exceeds attachment limits'), { tone: 'warning' });
     return;
   }
   const bytes = image ? await image.arrayBuffer() : new ArrayBuffer(0);
@@ -128,7 +129,7 @@ async function reference(reference: ReplyReference, image?: Blob) {
   if (image) reference = { ...reference, imageId: await attachmentDigest(bytes) };
   if (owner !== props.owner || !live.value) return;
   if (image && attachments.value.filter((a) => a.kind === 'image').length >= limits.value.imageCount) {
-    toast(tr('选区图片超过附件限制', 'Selected image exceeds attachment limits'));
+    toast(tr('选区图片超过附件限制', 'Selected image exceeds attachment limits'), { tone: 'warning' });
     return;
   }
   const placeholder = `<reply-${reference.id}>`;
@@ -237,9 +238,15 @@ const pendingTextEdits = new Set<Promise<void>>();
 onBeforeUnmount(() => {
   for (const request of textEdits.values()) request.abort();
 });
+const openImage = useOpenImage();
 function openAttachmentPreview(item: Attachment, event: Event) {
   const owner = attachmentsOwnerId.value;
   const anchor = event.currentTarget;
+  if (item.kind === 'image') {
+    const url = item.stored ? blobUrl(`${item.stored.owner}/${item.stored.id}`) : item.localUrl || '';
+    const bytes = !item.stored && item.bytes.byteLength ? new Blob([item.bytes], { type: item.mime }) : undefined;
+    return openImage(url, item.name, bytes);
+  }
   previewAttachment(
     {
       ...item,
@@ -266,7 +273,7 @@ function openAttachmentPreview(item: Attachment, event: Event) {
               saveAttachmentDrafts(owner, attachments.value);
               if (attachmentPreview.value?.anchor === anchor) attachmentPreview.value.bytes = bytes;
             })().catch((error) => {
-              if (!request.signal.aborted) toast(errorDetail(error));
+              if (!request.signal.aborted) toast(errorDetail(error), { tone: 'error' });
             });
             pendingTextEdits.add(edit);
             void edit.finally(() => {
@@ -394,7 +401,7 @@ async function submit() {
     saveAttachmentDrafts(owner, attachments.value);
     revokeAll(submittedAttachments);
   } catch (e: any) {
-    if (attachmentsOwnerId.value === owner) toast(errorDetail(e));
+    if (attachmentsOwnerId.value === owner) toast(errorDetail(e), { tone: 'error' });
   } finally {
     submitting.value = false;
   }
@@ -472,7 +479,7 @@ async function browsePromptHistory(direction: -1 | 1) {
     await nextTick();
     if (!signal.aborted && owner === props.owner) ta.value?.moveCaretToEnd();
   } catch (error) {
-    if (!signal.aborted) toast(errorDetail(error));
+    if (!signal.aborted) toast(errorDetail(error), { tone: 'error' });
   } finally {
     if (!signal.aborted) historyLoading.value = false;
   }
@@ -561,8 +568,7 @@ function onKeydown(e: KeyboardEvent) {
             role="button"
             tabindex="0"
             aria-haspopup="dialog"
-            :aria-expanded="attachmentPreview?.localUrl === img.localUrl"
-            aria-controls="attachment-preview"
+            :aria-label="img.name || i18n.t('chat.image')"
             @click="openAttachmentPreview(img, $event)"
             @keydown.enter.prevent="openAttachmentPreview(img, $event)"
             @keydown.space.prevent="openAttachmentPreview(img, $event)"
@@ -617,7 +623,7 @@ function onKeydown(e: KeyboardEvent) {
       <InlineMessageEditor
         ref="ta"
         :scope="owner"
-        :navigation="live && !start"
+        :navigation="live || start"
         :attachments="attachments"
         @reference="locateReference"
         :placeholder="

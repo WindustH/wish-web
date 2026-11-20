@@ -1,3 +1,4 @@
+import { tr } from './i18n/tr.ts';
 import { displayFailure, type DisplayFailure } from './api/failures.ts';
 
 export interface UpstreamRetry {
@@ -34,3 +35,14 @@ export function readUpstreamRetry(value: any, serverTime = value?.observed_at, n
 export function retrySecondsLeft(retry: UpstreamRetry, now = Date.now()): number {
   return Math.max(0, Math.ceil((retry.retryAt - now) / 1_000));
 }
+
+export const retryOperationName = (operation: string) =>
+  ({
+    model: tr('模型请求', 'Model request'),
+    compaction: tr('上下文压缩', 'Context compaction'),
+    token_count: tr('Token 计数', 'Token count'),
+    model_list: tr('模型列表', 'Model list'),
+    account_state: tr('账户查询', 'Account query'),
+    web_search: tr('网页搜索', 'Web search'),
+    web_fetch: tr('网页读取', 'Web fetch'),
+  })[operation] ?? tr('上游请求', 'Upstream request');

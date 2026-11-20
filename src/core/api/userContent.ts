@@ -13,6 +13,7 @@ export interface AttachmentContent {
   blob_id?: string;
   filename?: string | null;
   image_id?: string;
+  dimensions?: [number, number];
   byte_count?: number;
   placeholder?: string;
   mime_type?: string;
@@ -38,7 +39,15 @@ export function orderedUserContent(message: any, sessionId: string, fallback: Co
       if (part.attachment.reference) return [{ type: 'reply', reference: part.attachment.reference }];
       const file = part.attachment.file;
       return file
-        ? [{ type: file.kind, blob_id: `${sessionId}/${file.id}`, filename: file.name, placeholder: file.placeholder }]
+        ? [
+            {
+              type: file.kind,
+              blob_id: `${sessionId}/${file.id}`,
+              filename: file.name,
+              dimensions: file.dimensions,
+              placeholder: file.placeholder,
+            },
+          ]
         : [];
     });
   }
@@ -55,6 +64,7 @@ export function orderedUserContent(message: any, sessionId: string, fallback: Co
             blob_id: `${sessionId}/${file.id}`,
             filename: file.name,
             image_id: file.id,
+            dimensions: file.dimensions,
             byte_count: file.byte_count,
             placeholder: file.placeholder,
           },

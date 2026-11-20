@@ -11,7 +11,7 @@ import { useDialogFocus } from '../composables/useDialogFocus.ts';
 import { prefersReducedMotion } from '../motion/reducedMotion.ts';
 import { useBackLayer } from '../composables/useBackLayer.ts';
 
-const props = defineProps<{ title: string; busy?: boolean; compact?: boolean }>();
+const props = defineProps<{ title: string; busy?: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 const focus = useDialogFocus();
 const layer = useDialogLayer();
@@ -79,7 +79,6 @@ defineExpose({ close });
         :disable-outside-pointer-events="false"
         @animationend="finished"
         class="command-panel"
-        :class="{ 'command-panel-compact': compact }"
         :style="{ zIndex: layer + 1 }"
         :aria-describedby="undefined"
         :aria-busy="busy"
@@ -122,23 +121,14 @@ defineExpose({ close });
   max-height: calc(100dvh - min(12dvh, 96px) - 24px);
   display: flex;
   overflow: hidden;
-  background: var(--bg-overlay);
+  background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--line-strong);
   border-radius: 10px;
   box-shadow: var(--shadow-pop);
   animation: command-in var(--dur-fast) var(--ease-out);
 }
-.command-panel-compact {
-  width: min(calc(100vw - 24px), 32rem);
-}
-.command-panel-compact .command-close {
-  top: 5px;
-  right: 5px;
-  width: 32px;
-  height: 32px;
-  min-height: 0;
-}
+
 .command-close {
   position: absolute;
   top: 7px;

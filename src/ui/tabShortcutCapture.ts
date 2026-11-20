@@ -27,7 +27,7 @@ async function updateLock() {
   } catch {
     if (current !== generation) return;
     release();
-    toast(tr('浏览器未授权键盘锁定。', 'The browser did not grant keyboard lock.'));
+    toast(tr('浏览器未授权键盘锁定。', 'The browser did not grant keyboard lock.'), { tone: 'warning' });
   }
 }
 function release() {
@@ -42,7 +42,7 @@ export async function enterTabCapture() {
     requested = true;
     await updateLock();
   } catch {
-    toast(tr('浏览器未允许进入全屏。', 'The browser did not allow fullscreen.'));
+    toast(tr('浏览器未允许进入全屏。', 'The browser did not allow fullscreen.'), { tone: 'warning' });
   }
 }
 export function trackTabCapture() {

@@ -359,7 +359,7 @@ onBeforeUnmount(() => {
     <DropdownMenuPortal v-if="pageActive" :to="portalTarget ?? 'body'">
       <DropdownMenuContent
         data-keyboard-boundary
-        class="menu-pop"
+        class="menu-pop popup-palette"
         :class="contentClass"
         :reference="context ? reference : undefined"
         :side="context ? 'bottom' : side"
@@ -381,7 +381,7 @@ onBeforeUnmount(() => {
             <DropdownMenuPortal :to="portalTarget ?? 'body'">
               <DropdownMenuSubContent
                 data-navigation-submenu
-                class="menu-pop"
+                class="menu-pop popup-palette"
                 :side-offset="4"
                 :collision-padding="8"
                 data-keyboard-boundary
@@ -391,6 +391,8 @@ onBeforeUnmount(() => {
                   <DropdownMenuItem
                     class="menu-item"
                     :class="{ 'menu-danger': child.danger }"
+                    :role="child.role ?? 'menuitem'"
+                    :aria-checked="child.role ? child.checked : undefined"
                     :disabled="child.disabled"
                     @select="emit('select', child.key, selected ?? undefined)"
                   >
@@ -406,6 +408,8 @@ onBeforeUnmount(() => {
             v-else
             class="menu-item"
             :class="{ 'menu-danger': item.danger }"
+            :role="item.role ?? 'menuitem'"
+            :aria-checked="item.role ? item.checked : undefined"
             :disabled="item.disabled"
             @select="emit('select', item.key, selected ?? undefined)"
           >

@@ -35,7 +35,7 @@ const returns = useSettingsReturn(
       </div>
       <button class="mobile-settings-row" @click="page = 'cwd'">
         <span>{{ titles.cwd }}</span
-        ><small class="mono">{{ defaults.cwd || tr('未设置', 'Not set') }}</small
+        ><small>{{ defaults.cwd || tr('未设置', 'Not set') }}</small
         ><Icon name="chevron-right" />
       </button>
       <button class="mobile-settings-row" @click="page = 'instructions'">
@@ -83,12 +83,7 @@ const returns = useSettingsReturn(
             ><span class="set-label"
               ><span>{{ tr('绝对路径', 'Absolute path') }}</span
               ><small>{{ tr('Shell 执行命令时的起始目录', 'Where shell commands start') }}</small></span
-            ><input
-              class="input set-mono"
-              v-model="defaults.cwd"
-              autocomplete="off"
-              autocapitalize="off"
-              spellcheck="false"
+            ><input class="input" v-model="defaults.cwd" autocomplete="off" autocapitalize="off" spellcheck="false"
           /></label></div
       ></template>
     </Modal>

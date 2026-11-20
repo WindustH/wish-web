@@ -9,6 +9,8 @@ import { computed, inject, nextTick, onUnmounted, provide, ref, watch } from 'vu
 import { replyContextKey } from '../../domain/references/context.ts';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { chat } from '../../core/state/chatSlice.ts';
+import WorkStatus from './WorkStatus.vue';
+import { workActivity } from './workActivity.ts';
 import { chatWorkIndicator } from './phaseIndicator.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
@@ -234,22 +236,7 @@ const workIndicator = computed(() =>
 );
 const streamText = computed(() => streamState.value?.text || '');
 const streamReasoning = computed(() => streamState.value?.reasoning || '');
-const workStatus = computed(() => {
-  if (streamState.value.recovery) {
-    return tr(
-      `正在恢复生成 · 第 ${streamState.value.recovery.attempt} 次`,
-      `Resuming generation · attempt ${streamState.value.recovery.attempt}`,
-    );
-  }
-  const state = streamState.value;
-  // A question waits on the user, not on work: say so rather than "tool call · ask_user".
-  // The open forms come with the snapshot, so this holds after a reload too.
-  if (awaitsAnswer(chat.snapshot.value)) return tr('等待你回答上面的问题', 'Waiting for your answers above');
-  if (state?.currentTool && (state.activity === 'preparingTool' || state.activity === 'tool')) {
-    return `${i18n.t(state.activity === 'preparingTool' ? 'chat.preparingTool' : 'chat.executingTool')} · ${state.currentTool}`;
-  }
-  return i18n.t(`chat.${state?.activity || 'working'}`);
-});
+const workStatus = computed(() => workActivity(streamState.value, awaitsAnswer(chat.snapshot.value)));
 const standbyPreparing = computed(() => {
   return chat.stream.value?.standbyPreparing || chat.snapshot.value?.standby_preparing;
 });
@@ -469,7 +456,7 @@ watch(
     :class="{ 'rail-drawer': railDrawer }"
     @wheel.passive="onWheel"
     @touchstart.passive="onTouchStart"
-    @touchmove="onTouchMove"
+    @touchmove.passive="onTouchMove"
     @touchend.passive="onTouchEnd"
     @touchcancel.passive="onTouchEnd"
   >
@@ -541,7 +528,7 @@ watch(
           </div>
         </div>
         <Transition name="live-work">
-          <div v-if="workIndicator === 'run'" :key="sessionId" class="live-row" aria-live="polite">
+          <div v-if="workIndicator === 'run'" :key="sessionId" class="live-row">
             <div v-if="streamText" class="live-text">
               <Markdown data-selectable-text :text="liveMarkdown" streaming />
             </div>
@@ -551,36 +538,27 @@ watch(
               :text="streamReasoning"
               :tool="streamState?.currentTool"
             />
-            <div v-if="!retries.length" class="work-status-slot">
-              <Transition name="work-status">
-                <div :key="workStatus" class="live-status" role="status">
-                  <Icon class="work-spinner" name="loader-circle" />
-                  <span>{{ workStatus }}</span>
-                  <span v-if="standbyPreparing" class="standby-status-hint">
-                    · {{ i18n.t('chat.standbyPreparing') }}</span
-                  >
-                </div>
-              </Transition>
-            </div>
+            <WorkStatus
+              v-if="!retries.length"
+              :activity="workStatus"
+              :note="standbyPreparing ? i18n.t('chat.standbyPreparing') : undefined"
+            />
           </div>
         </Transition>
         <RetryStatus v-if="retries.length" class="live-row" :retries="retries" />
         <Transition name="live-work">
-          <div v-if="workIndicator === 'compacting'" :key="sessionId" class="live-row" role="status">
-            <div class="work-status-slot">
-              <div class="live-status">
-                <Icon class="work-spinner" name="loader-circle" /><span>{{ i18n.t('chat.compacting') }}</span>
-              </div>
-            </div>
-          </div>
-        </Transition>
-        <Transition name="live-work">
-          <div v-if="workIndicator === 'stoppedResume'" :key="sessionId" class="live-row" role="status">
-            <div class="work-status-slot">
-              <div class="live-status stop-marker">
-                <Icon name="square" />{{ i18n.t('chat.resumeHint', { n: chat.snapshot.value?.queue ?? 0 }) }}
-              </div>
-            </div>
+          <div
+            v-if="workIndicator === 'compacting' || workIndicator === 'stoppedResume'"
+            :key="sessionId"
+            class="live-row"
+          >
+            <WorkStatus
+              :activity="
+                workIndicator === 'compacting'
+                  ? { glyph: 'compact', label: i18n.t('chat.compacting') }
+                  : { glyph: 'stopped', label: i18n.t('chat.resumeHint', { n: chat.snapshot.value?.queue ?? 0 }) }
+              "
+            />
           </div>
         </Transition>
         <!-- Font-instance warmup: instantiates variable font styles once to prevent frame drops -->
@@ -694,12 +672,6 @@ watch(
   white-space: normal;
 }
 
-.live-status.stop-marker {
-  color: var(--err);
-}
-.standby-status-hint {
-  opacity: 0.85;
-}
 .chat-virtual-row {
   display: flow-root;
 }

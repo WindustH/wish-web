@@ -1,4 +1,6 @@
 import { shallowRef } from 'vue';
+import { readUpstreamRetry } from '../upstreamRetry.ts';
+import { operationFailure } from '../api/failures.ts';
 import { bus } from '../bus.ts';
 import { createSse, type SseConnection, type SseFrame, type SseOptions } from '../api/sse.ts';
 import { absUrl } from '../api/client.ts';
@@ -49,7 +51,20 @@ export function createSync({
       if (event.type === 'snapshot' || event.type === 'gap') {
         sessions.clear();
         snapshotRevision.value++;
-        emit('sync.snapshot', {});
+        emit('sync.snapshot', { sessionFailures: event.session_failures === true });
+      } else if (event.type === 'session_retry' && event.id) {
+        const retry = readUpstreamRetry(event.retry);
+        if (retry?.phase === 'waiting') emit('session.retry', { id: event.id, name: event.name, retry });
+      } else if (
+        event.type === 'session_recovery' &&
+        event.id &&
+        Number.isInteger(event.attempt) &&
+        event.attempt > 0
+      ) {
+        emit('session.recovery', { id: event.id, name: event.name, attempt: event.attempt });
+      } else if (event.type === 'session_failed' && event.id) {
+        const failure = operationFailure(event.ending);
+        if (failure) emit('session.failed', { id: event.id, name: event.name, failure });
       } else if (event.type === 'configuration_changed') {
         emit('configuration.changed', {});
       } else if (event.type === 'session_deleted') {

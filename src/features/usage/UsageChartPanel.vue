@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { chartColor, modelColorIndex, modelKey } from './modelColors.ts';
+import ModelLegend from './ModelLegend.vue';
 import UsageRangePicker from './UsageRangePicker.vue';
 import type { RangeSelection } from '../../core/usage/windows.ts';
 import UsagePlot from './UsagePlot.vue';
@@ -48,6 +49,7 @@ const providerTitle = useProviderTitles();
 const models = computed(() =>
   (props.data?.models ?? [])
     .filter((model) => model.tokens > 0)
+    .sort((a, b) => b.tokens - a.tokens)
     .map((model) => {
       const key = modelKey(model.provider, model.model),
         colorIndex = modelColorIndex(key);
@@ -96,10 +98,13 @@ const activeDays = computed(() => props.days?.filter((day) => day[1] > 0).length
       </div>
       <template v-if="days">
         <div class="usage-calendar-summary">
-          <span
-            ><strong>{{ fmtTokens(dailyTotal) }}</strong> Token
-            <span>· {{ tr(`${activeDays} 天有用量记录`, `${activeDays} days with usage`) }}</span></span
-          ><UsageRangePicker :model-value="calendarRange" @update:model-value="emit('calendarRange', $event)" />
+          <div class="calendar-summary-text">
+            <span class="calendar-total"
+              ><strong>{{ fmtTokens(dailyTotal) }}</strong> Token</span
+            >
+            <span class="calendar-days">{{ tr(`${activeDays} 天有用量记录`, `${activeDays} days with usage`) }}</span>
+          </div>
+          <UsageRangePicker :model-value="calendarRange" @update:model-value="emit('calendarRange', $event)" />
         </div>
         <UsagePlot
           v-if="heat"
@@ -175,7 +180,7 @@ const activeDays = computed(() => props.days?.filter((day) => day[1] > 0).length
       </div>
       <div v-if="loading && !data" class="usage-empty" role="status">{{ tr('正在读取用量…', 'Loading usage…') }}</div>
       <template v-if="data">
-        <div v-if="models.length" class="usage-models" :aria-label="tr('模型图例', 'Model legend')">
+        <ModelLegend v-if="models.length" :count="models.length" :label="tr('模型图例', 'Model legend')">
           <button
             v-for="model in models"
             :key="model.key"
@@ -192,7 +197,7 @@ const activeDays = computed(() => props.days?.filter((day) => day[1] > 0).length
               }}<small>{{ metric === 'tokens' ? 'Token' : 'Token/s' }}</small></strong
             >
           </button>
-        </div>
+        </ModelLegend>
         <Transition name="usage-swap">
           <UsagePlot
             v-if="hasPoints"
@@ -230,6 +235,7 @@ const activeDays = computed(() => props.days?.filter((day) => day[1] > 0).length
   margin-block: 12px 24px;
 }
 .usage-chart-card {
+  container-type: inline-size;
   min-width: 0;
   padding: 16px;
   border: 1px solid var(--line);
@@ -267,13 +273,6 @@ const activeDays = computed(() => props.days?.filter((day) => day[1] > 0).length
 .btn[aria-pressed='true'] {
   background: var(--bg-active);
   color: var(--fg);
-}
-/* Equal cells line the figures up. */
-.usage-models {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 12px;
-  margin-bottom: 6px;
 }
 .usage-model {
   min-width: 0;
@@ -342,10 +341,6 @@ const activeDays = computed(() => props.days?.filter((day) => day[1] > 0).length
 }
 /* Phones: one compact row per model, provider and unit inline. */
 @media (max-width: 599px) {
-  .usage-models {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
   .usage-model {
     padding: 6px;
   }
@@ -391,18 +386,44 @@ const activeDays = computed(() => props.days?.filter((day) => day[1] > 0).length
 }
 .usage-calendar-summary {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 4px 16px;
-  margin: 4px 0 12px;
+  gap: 8px 12px;
+  margin: 0 0 10px;
   font-size: 12px;
   color: var(--fg-subtle);
 }
-.usage-calendar-summary > span:first-child {
-  min-width: 0;
+.calendar-summary-text {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  align-items: baseline;
 }
-.usage-calendar-summary :deep(.usage-range-picker) {
-  margin-left: auto;
+.calendar-total {
+  white-space: nowrap;
+}
+@container (max-width: 25rem) {
+  .calendar-summary-text {
+    flex-direction: column;
+    align-items: start;
+  }
+  .usage-calendar-meta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+  .usage-calendar-meta-info {
+    display: contents;
+  }
+  .usage-calendar-meta-info > .btn {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .usage-heat-legend {
+    grid-column: 1;
+    grid-row: 2;
+  }
 }
 .usage-calendar-summary strong {
   font-size: 21px;

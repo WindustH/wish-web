@@ -1,26 +1,30 @@
 <script setup lang="ts">
 // Blob images use bounded scene-specific WebP previews; opening details fetches
 // the original independently so virtualized thumbnails can unmount safely.
-import { toast } from '../../ui/toast.ts';
-import { describeError } from '../../core/i18n/errorMessages.ts';
+import { i18n } from '../../core/i18n/index.ts';
+import ImageFrame from '../../ui/components/ImageFrame.vue';
 import { computed, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue';
 import { apiFetch, needsAccessToken } from '../../core/api/client.ts';
 import { imagePreviewUrl } from '../../core/api/endpoints.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import { acquireImageLoad } from '../../core/util/imageLoad.ts';
 import { previewCache } from '../../core/util/previewCache.ts';
-import { openImageLightbox } from '../../ui/imageLightbox.ts';
+import { useOpenImage } from './useOpenImage.ts';
 
-const props = withDefaults(defineProps<{ src: string; zoom?: boolean; previewWidth?: 384 | 768 | 1536 }>(), {
-  zoom: true,
-  previewWidth: 768,
-});
+const props = withDefaults(
+  defineProps<{ src: string; dimensions?: readonly number[]; zoom?: boolean; previewWidth?: 384 | 768 | 1536 }>(),
+  {
+    zoom: true,
+    previewWidth: 768,
+  },
+);
 const attrs = useAttrs();
-const element = ref<HTMLImageElement>();
+const element = ref<InstanceType<typeof ImageFrame>>();
+const failed = ref(false);
 const visible = ref(attrs.loading !== 'lazy');
 const url = ref('');
 const preview = computed(() => imagePreviewUrl(props.src, props.previewWidth, prefs.originalImages.value));
-let loadedOriginal: { src: string; bytes: Blob } | undefined;
+const openImage = useOpenImage();
 let observer: IntersectionObserver | undefined;
 onMounted(() => {
   if (typeof IntersectionObserver === 'undefined') {
@@ -36,43 +40,11 @@ onMounted(() => {
     },
     { rootMargin: '200px' },
   );
-  if (element.value) observer.observe(element.value);
+  if (element.value) observer.observe(element.value.$el);
 });
-const opening = ref(false);
-let originalController: AbortController | undefined;
-async function onOpen() {
-  if (!props.zoom || opening.value) return;
-  const src = props.src,
-    alt = String(attrs.alt ?? '');
-  if (loadedOriginal?.src === src) {
-    openImageLightbox(src, alt, loadedOriginal.bytes);
-    return;
-  }
-  if (!needsAccessToken(src)) {
-    openImageLightbox(src, alt);
-    return;
-  }
-  opening.value = true;
-  const request = (originalController = new AbortController());
-  try {
-    const response = await apiFetch(src, { signal: request.signal });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const bytes = await response.blob();
-    if (!request.signal.aborted) openImageLightbox(src, alt, bytes);
-  } catch (error) {
-    if (!request.signal.aborted) toast(describeError(error).message);
-  } finally {
-    if (originalController === request) opening.value = false;
-  }
+function onOpen() {
+  if (props.zoom) void openImage(props.src, String(attrs.alt ?? ''));
 }
-watch(
-  () => props.src,
-  () => {
-    originalController?.abort();
-    originalController = undefined;
-    opening.value = false;
-  },
-);
 watch(
   [preview, visible],
   async ([src, shown], _, onCleanup) => {
@@ -83,7 +55,7 @@ watch(
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     });
     url.value = '';
-    loadedOriginal = undefined;
+    failed.value = false;
     if (!shown) return;
     if (src === props.src && !needsAccessToken(src)) {
       url.value = src;
@@ -104,6 +76,7 @@ watch(
           if (key) previewCache.set(key, null);
           url.value = '';
         }
+        failed.value = !url.value;
         return;
       }
       const version = response.headers.get('etag') ?? undefined;
@@ -113,13 +86,12 @@ watch(
       }
       const bytes = await response.blob();
       if (!controller.signal.aborted) {
-        if (src === props.src) loadedOriginal = { src, bytes };
         if (key) previewCache.set(key, bytes, version);
         if (objectUrl) URL.revokeObjectURL(objectUrl);
         url.value = objectUrl = URL.createObjectURL(bytes);
       }
     } catch {
-      /* Keep the original available through the detail action. */
+      if (!controller.signal.aborted) failed.value = !url.value;
     } finally {
       release?.();
     }
@@ -128,16 +100,19 @@ watch(
 );
 onBeforeUnmount(() => {
   observer?.disconnect();
-  originalController?.abort();
 });
 </script>
 
 <template>
-  <img
+  <ImageFrame
     ref="element"
-    :src="url || undefined"
-    :class="{ zoomable: zoom, 'image-opening': opening }"
-    :aria-busy="opening"
+    :source="src"
+    :url="url"
+    :dimensions="dimensions"
+    :failed="failed"
+    :alt="String(attrs.alt ?? '')"
+    :aria-label="zoom ? String(attrs.alt || i18n.t('chat.image')) : undefined"
+    :class="{ zoomable: zoom }"
     :tabindex="zoom ? 0 : undefined"
     :role="zoom ? 'button' : undefined"
     @click="onOpen"
@@ -145,10 +120,3 @@ onBeforeUnmount(() => {
     @keydown.space.prevent="onOpen"
   />
 </template>
-
-<style scoped>
-.image-opening {
-  cursor: progress;
-  opacity: 0.65;
-}
-</style>

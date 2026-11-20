@@ -103,7 +103,7 @@ function arrow(event: KeyboardEvent) {
     </PopoverTrigger>
     <PopoverPortal v-if="active">
       <PopoverContent
-        class="color-popover"
+        class="color-popover popup-palette"
         :style="{ zIndex: layer }"
         :side-offset="6"
         :collision-padding="12"
@@ -185,7 +185,7 @@ function arrow(event: KeyboardEvent) {
   border-radius: 9px;
   background: var(--bg-overlay);
   color: var(--fg);
-  box-shadow: var(--shadow-pop);
+  box-shadow: var(--shadow-menu);
 }
 .color-title {
   margin-bottom: 8px;
@@ -235,7 +235,7 @@ function arrow(event: KeyboardEvent) {
   display: flex;
   align-items: center;
   gap: 8px;
-  font: 10px var(--mono);
+  font-size: 10px;
   color: var(--fg-subtle);
 }
 .color-hex input {
@@ -246,7 +246,7 @@ function arrow(event: KeyboardEvent) {
   border-radius: 5px;
   background: var(--bg);
   color: var(--fg);
-  font: 12px var(--mono);
+  font-size: 12px;
 }
 .color-hex input:focus {
   outline: none;

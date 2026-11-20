@@ -40,32 +40,30 @@ function add(preset?: AccountPreset) {
   editing.value = id;
   created.value = id;
 }
-const accountUses = computed(() => {
-  const links = new Map<string, string[]>();
-  const groups = [
-    ['providers', tr('模型', 'Model')],
-    ['search', tr('搜索', 'Search')],
-    ['fetch', tr('网页读取', 'Web fetch')],
-    ['image_generation', tr('图片生成', 'Image generation')],
-    ['video_generation', tr('视频生成', 'Video generation')],
-    ['audio_generation', tr('音频生成', 'Audio generation')],
-    ['audio_transcription', tr('语音转写', 'Transcription')],
-  ] as const;
-  for (const [group, label] of groups) {
-    const services = group === 'providers' ? draft.value.providers : (draft.value[group]?.providers ?? {});
-    for (const [id, service] of Object.entries(services)) {
-      if (!service.credential_id) continue;
-      const names = links.get(service.credential_id) ?? [];
-      names.push(`${label} · ${'display_name' in service ? service.display_name || id : id}`);
-      links.set(service.credential_id, names);
-    }
-  }
-  return links;
-});
-const uses = (id: string) => accountUses.value.get(id) ?? [];
 const removing = ref(''),
   removalStep = ref(1);
 const removalPlan = computed(() => accountRemovalPlan(draft.value, removing.value));
+const serviceTags = computed(() =>
+  Object.fromEntries(
+    Object.keys(draft.value.accounts ?? {}).map((id) => {
+      const { models, searches, readers, images, media, mcp } = accountRemovalPlan(draft.value, id);
+      const groups = new Set(media.map((item) => item.group));
+      return [
+        id,
+        [
+          models.length && tr('模型', 'Models'),
+          searches.length && tr('搜索', 'Search'),
+          readers.length && tr('网页读取', 'Web fetch'),
+          images.length && tr('图片生成', 'Images'),
+          groups.has('video_generation') && tr('视频生成', 'Video'),
+          groups.has('audio_generation') && tr('音频生成', 'Audio'),
+          groups.has('audio_transcription') && tr('语音转写', 'Transcription'),
+          mcp.length && 'MCP',
+        ].filter((tag): tag is string => typeof tag === 'string'),
+      ];
+    }),
+  ),
+);
 const affected = computed(() => [
   ...removalPlan.value.mcp.map((id) => `MCP · ${id}`),
   ...removalPlan.value.media.map(({ id }) => `${tr('媒体服务', 'Media service')} · ${id}`),
@@ -96,13 +94,16 @@ function confirmRemoval() {
         v-for="(account, id) in draft.accounts"
         :key="id"
         :title="account.name || String(id)"
-        :summary="uses(String(id)).join('、') || tr('尚未关联服务', 'No linked services')"
         :edit-hint="tr('编辑账户', 'Edit account')"
         :remove-hint="tr('删除账户', 'Delete account')"
-        :remove-warning="uses(String(id)).length > 0"
         @open="editing = String(id)"
         @remove="remove(String(id))"
       >
+        <template v-if="serviceTags[id]?.length" #trailing>
+          <span class="account-service-tags"
+            ><span v-for="tag in serviceTags[id]" :key="tag">{{ tag }}</span></span
+          >
+        </template>
         <template #mark
           ><ProviderIcon
             :brand="accountCatalog.find((p) => p.id === account.preset)?.brand || presetBrand(account.preset || '')"
@@ -130,7 +131,6 @@ function confirmRemoval() {
       :id="editing"
       :suggest-services="editing === created"
       :allow-remove="true"
-      :linked="uses(editing).length > 0"
       @remove="remove(editing)"
       @close="
         editing = '';
@@ -179,6 +179,23 @@ function confirmRemoval() {
   </section>
 </template>
 <style scoped>
+.account-service-tags {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  max-width: 48%;
+}
+.account-service-tags > span {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 6px;
+  color: var(--fg-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
 .account-removal-list {
   max-height: 240px;
   overflow-y: auto;
@@ -192,6 +209,11 @@ function confirmRemoval() {
 @media (max-width: 899px) {
   .account-list {
     gap: 10px;
+  }
+  .account-service-tags {
+    max-width: none;
+    justify-content: flex-start;
+    margin-top: 4px;
   }
 }
 </style>

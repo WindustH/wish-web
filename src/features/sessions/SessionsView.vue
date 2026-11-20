@@ -77,7 +77,12 @@ onBeforeUnmount(cancelListResize);
     class="sessions-split"
     data-focus-region="chat"
     :data-chat-navigation="
-      route.params.id || (isMobile && route.name === 'all-sessions' && returnChat) ? '' : undefined
+      route.params.id ||
+      route.name === 'new-chat' ||
+      route.name === 'sessions' ||
+      (isMobile && route.name === 'all-sessions' && returnChat)
+        ? ''
+        : undefined
     "
     :data-focus-indicator="shortcuts.value.value.navigation.indicator || undefined"
     @workspace-open-list="openWorkspaceList"

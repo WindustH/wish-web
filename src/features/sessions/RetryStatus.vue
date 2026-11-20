@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
-import { retrySecondsLeft, type UpstreamRetry } from '../../core/upstreamRetry.ts';
+import { retryOperationName, retrySecondsLeft, type UpstreamRetry } from '../../core/upstreamRetry.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
+import WorkGlyph from './WorkGlyph.vue';
 import Icon from '../../ui/components/Icon.vue';
 
 const props = defineProps<{ retries: UpstreamRetry[] }>();
@@ -40,24 +41,14 @@ onMounted(() =>
   ),
 );
 onBeforeUnmount(() => clearInterval(timer));
-const name = (operation: string) =>
-  ({
-    model: tr('模型请求', 'Model request'),
-    compaction: tr('上下文压缩', 'Context compaction'),
-    token_count: tr('Token 计数', 'Token count'),
-    model_list: tr('模型列表', 'Model list'),
-    account_state: tr('账户查询', 'Account query'),
-    web_search: tr('网页搜索', 'Web search'),
-    web_fetch: tr('网页读取', 'Web fetch'),
-  })[operation] ?? tr('上游请求', 'Upstream request');
 </script>
 
 <template>
   <div class="retry-status-list">
     <div v-for="retry in retries" :key="retry.requestId" class="upstream-retry">
       <div class="retry-title" role="status">
-        <Icon class="work-spinner" name="loader-circle" /><strong
-          >{{ name(retry.operation) }} · {{ tr('正在重试', 'Retrying') }}（{{ retry.retry }}/{{
+        <WorkGlyph kind="recovery" /><strong
+          >{{ retryOperationName(retry.operation) }} · {{ tr('正在重试', 'Retrying') }}（{{ retry.retry }}/{{
             retry.maxRetries
           }}）</strong
         >

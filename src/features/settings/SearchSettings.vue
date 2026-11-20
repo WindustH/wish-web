@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SettingHint from '../../domain/settings/SettingHint.vue';
 import type { SettingsConfig } from '../../core/configTypes.ts';
 import { serviceOrder } from './serviceOrder.ts';
 // The search providers web_search asks, in order, edited in the settings draft.
@@ -91,16 +92,18 @@ const controlsOf = (id: string) => controls.get(id) ?? controls.set(id, useDragC
 
 <template>
   <section class="set-section">
-    <header class="set-section-head">
+    <header class="set-section-head set-field-heading">
       <h3>{{ tr('搜索提供商', 'Search providers') }}</h3>
-      <p>
-        {{
+      <SettingHint
+        icon-only
+        :label="tr('提供商说明', 'About providers')"
+        :text="
           tr(
             'Web Search 按这里的顺序询问，前一个用不了（额度用尽、密钥失效、服务故障）时自动换下一个。各服务可以选择公共账户池中的账户。拖动可以调整顺序。',
-            "Web Search asks these in order and moves on when one cannot answer - its quota spent, its key refused, its service down. Search that comes with a subscription uses the model provider's account. Drag to reorder.",
+            'Web Search asks these in order and moves on when one cannot answer - its quota spent, its key refused, its service down. Search that comes with a subscription uses the model provider account. Drag to reorder.',
           )
-        }}
-      </p>
+        "
+      />
     </header>
     <div class="search-list">
       <ReorderGroup v-if="order.length" v-model:values="order" as="div" axis="y" class="search-order">

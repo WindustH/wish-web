@@ -134,7 +134,9 @@ div.chat-pane
   min-height: 36px;
   height: 36px !important;
   grid-column: 2;
-  padding: calc(18px - 0.75em) 4px;
+  display: grid;
+  align-content: center;
+  padding: 0 4px;
   white-space: nowrap;
   overflow: hidden;
 }

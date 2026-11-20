@@ -306,7 +306,7 @@ async function reply() {
       if (props.once) emit('complete');
     }
   } catch (error) {
-    toast(tr('无法引用选区：', 'Could not reference selection: ') + String(error));
+    toast(tr('无法引用选区：', 'Could not reference selection: ') + String(error), { tone: 'error' });
   } finally {
     busy.value = false;
   }

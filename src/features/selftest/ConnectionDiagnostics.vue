@@ -16,7 +16,7 @@ import { get, absUrl } from '../../core/api/client.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 
-const props = defineProps<{ autoRun?: boolean }>();
+const props = defineProps<{ autoRun?: boolean; deviceOnly?: boolean }>();
 
 interface Entry {
   key: string;
@@ -287,14 +287,18 @@ const CHECKS: Check[] = [
   },
 ];
 
+const checks = computed(() =>
+  props.deviceOnly ? CHECKS.filter((check) => !['api', 'sessions', 'providers', 'events'].includes(check.key)) : CHECKS,
+);
+
 async function runAll() {
   cancelInFlight(); // abandon everything from the previous run
   const gen = runGen;
   const stillActive = () => gen === runGen;
   running.value = true;
-  results.value = CHECKS.map((c) => ({ key: c.key, status: 'pending' as const }));
+  results.value = checks.value.map((c) => ({ key: c.key, status: 'pending' as const }));
   const out: Entry[] = [];
-  for (const c of CHECKS) {
+  for (const c of checks.value) {
     if (!stillActive()) return;
     const t0 = performance.now();
     const entry: Entry = { key: c.key, status: 'running' };
@@ -321,7 +325,7 @@ async function runAll() {
   };
 }
 
-const labels = computed(() => Object.fromEntries(CHECKS.map((c) => [c.key, c.label()])));
+const labels = computed(() => Object.fromEntries(checks.value.map((c) => [c.key, c.label()])));
 const finished = computed(() =>
   results.value.filter((r) => r.status === 'pass' || r.status === 'fail' || r.status === 'skip'),
 );
@@ -329,8 +333,8 @@ const failed = computed(() => results.value.filter((r) => r.status === 'fail').l
 const summary = computed(() => {
   if (running.value)
     return tr(
-      `正在检查 ${finished.value.length + 1}/${CHECKS.length}…`,
-      `Checking ${finished.value.length + 1} of ${CHECKS.length}…`,
+      `正在检查 ${finished.value.length + 1}/${checks.value.length}…`,
+      `Checking ${finished.value.length + 1} of ${checks.value.length}…`,
     );
   if (!results.value.length)
     return tr(
@@ -339,7 +343,7 @@ const summary = computed(() => {
     );
   return failed.value
     ? tr(`${failed.value} 项未通过`, `${failed.value} check(s) failed`)
-    : tr(`${CHECKS.length} 项全部正常`, `All ${CHECKS.length} checks passed`);
+    : tr(`${checks.value.length} 项全部正常`, `All ${checks.value.length} checks passed`);
 });
 
 onMounted(() => {

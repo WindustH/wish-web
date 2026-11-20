@@ -88,7 +88,7 @@ An open file checks for changes every five seconds while the sidebar and browser
 
 Press `Tab` on desktop (or use the header tabs) to open the right sidebar:
 
-- **Library**: Displays files visible in the session alongside folders you organize. From the Library menu (`⋮`), you can switch between **Icons**, **Compact list**, and **Details** views, **Show all files** (including hidden generated artifacts), create folders, **Upload** files up to 1 GiB, **Link** (register existing paths on the Wish server without copying bytes), or **Clean up Library…** to safely remove broken links and unused hidden files. Clicking any file—or any `wish://blob/...` or local file link in chat—opens built-in previews for images (lossless WebP), PDFs (native selectable pages with page jump and bookmarks), audio/video, and syntax-highlighted code/Markdown/HTML/SVG.
+- **Library**: Displays files visible in the session alongside folders you organize. From the Library menu (`⋮`), you can switch between **Icons**, **Compact list**, and **Details** views, include hidden generated artifacts with **Filter → Show hidden files**, create folders, **Upload** files up to 1 GiB, **Link** (register existing paths on the Wish server without copying bytes), or **Clean up Library…** to safely remove broken links and unused hidden files. Clicking any file—or any `wish://blob/...` or local file link in chat—opens built-in previews for images (lossless WebP), PDFs (native selectable pages with page jump and bookmarks), audio/video, and syntax-highlighted code/Markdown/HTML/SVG.
 - **Background tasks**: Lists active and finished shell tasks in the session with live tail logs and terminate/force-kill controls.
 - **Session → Overview**: Shows the live **Context** gauge (current tokens vs compaction trigger and model window), standby summary status, web build ID, instructions, and session usage charts.
 - **Session → Settings**: Lets you override compaction thresholds, run **Compact now** or **Clear the context**, toggle tools and delivery modes (`command` vs direct `tool`), and set a session-specific working directory or shell.
@@ -124,9 +124,9 @@ On desktop, the left sidebar (`Shift + Tab`) organizes folders and sessions into
 From the app menu:
 
 - **Settings** (`Ctrl + ,`): Opens the 11-section configuration window (see [Configuration](configuration.md)).
-- **Stats**: Shows an activity calendar, **Estimated TPS** and **Token usage** charts per model, cache hit rates, service status, and storage totals.
+- **Stats**: Shows an activity calendar, **Estimated TPS** and **Token usage** charts per model, and cache hit rates.
 - **Account status**: Displays balances, plan tiers, and rolling quota countdowns for configured providers.
-- **Sessions & data**: Shows disk usage per session (**History**, **Attachments**, **Command output**), lets you prune old out-of-context history, clean up leftover usage stats from deleted sessions, or delete sessions cleanly.
+- **Storage**: Shows total disk usage by category, database details, and disk usage per session (**History**, **Attachments**, **Command output**), lets you prune old out-of-context history, clean up leftover usage stats from deleted sessions, or delete sessions cleanly.
 - **Sign out**: Disconnects or switches directly to another Wish server using its URL and access token.
 
 ## Mobile, PWA installation, and shortcuts
@@ -159,4 +159,4 @@ Press **F4** to search sessions by name, folder path, tag, provider or model. Th
 
 ### Session commands
 
-Open the command palette with `:` outside text fields. `:status` opens account status (a desktop panel or a mobile page); `:new` opens the new-session page; `:rename New title` renames the current session (spaces are allowed). Completion highlights matching text; use Tab to complete, arrow keys to select and Enter to execute. The existing `btw`, `clear`, `compact`, `model` and `effort` commands remain available.
+Open the command palette with `:` outside text fields. `:status` opens account status (a desktop panel or a mobile page); `:new` opens the new-session page; `:rename New title` renames the current session (spaces are allowed). `:config` opens settings, `:stats` opens statistics and `:storage` opens storage. Completion highlights matching text; use Tab to complete, arrow keys to select and Enter to execute. The existing `btw`, `clear`, `compact`, `model` and `effort` commands remain available.

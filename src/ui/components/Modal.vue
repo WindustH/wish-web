@@ -1,24 +1,27 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import { inject, provide, computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { usePageActivity } from '../composables/usePageActivity.ts';
 // Responsive confirm/content modal on Reka primitives (title/description
 // wired for a11y). While `dismissable` is false no path closes it — Esc,
 // overlay, close button are all suppressed; the owner resolves the busy work.
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from 'reka-ui';
 
+import { settingsPagesKey } from '../composables/settingsPages.ts';
 import Icon from './Icon.vue';
 import DraftActions from './DraftActions.vue';
 import BubbleSurface from './BubbleSurface.vue';
 import { i18n } from '../../core/i18n/index.ts';
-import { useDialogNesting } from '../composables/useDialogNesting.ts';
+import { closeForNavigationKey, useDialogNesting } from '../composables/useDialogNesting.ts';
 import { useDialogLayer } from '../composables/useDialogLayer.ts';
-import { imageLightbox } from '../imageLightbox.ts';
+import { sidebarImage } from '../imageSidebar.ts';
 import { useDialogLifecycle } from '../composables/useDialogLifecycle.ts';
 import { useDialogFocus } from '../composables/useDialogFocus.ts';
 import { prefersReducedMotion } from '../motion/reducedMotion.ts';
 import { useSheetDrag } from '../composables/useSheetDrag.ts';
 import { useBackLayer } from '../composables/useBackLayer.ts';
 import { touchButton } from '../touchButton.ts';
+// An editor opened inside a real dialog stays above that dialog.
+provide(settingsPagesKey, null);
 const focus = useDialogFocus();
 const backTouch = touchButton();
 const pageActive = usePageActivity();
@@ -53,6 +56,11 @@ const { mounted, contentOpen, requestClose, finishClose } = useDialogLifecycle({
   beforeClose: () => props.beforeClose?.(),
   reducedMotion: prefersReducedMotion,
   closed: () => emit('close'),
+});
+const closeParent = inject(closeForNavigationKey, undefined);
+provide(closeForNavigationKey, () => {
+  void requestClose();
+  closeParent?.();
 });
 const hasChildDialog = useDialogNesting(() => mounted.value);
 const layer = useDialogLayer(() => props.layer ?? 60);
@@ -106,14 +114,14 @@ function ownFieldDrag(event: Event) {
 // not the window it was opened from. The viewer is a sibling of the window on the body, so without
 // this the window reads every click on it as a click outside.
 function looking() {
-  return !!imageLightbox.value;
+  return !!sidebarImage.value;
 }
 function outside(event: Event) {
   const target = (event as CustomEvent).detail?.originalEvent?.target as Node | undefined;
   if (
     hasChildDialog.value ||
     looking() ||
-    (target instanceof Element && target.closest('.pwa-update')) ||
+    (target instanceof Element && target.closest('.toast-region')) ||
     !props.dismissable ||
     (target instanceof Element && props.ignoreOutside?.(target))
   )
@@ -203,7 +211,14 @@ defineExpose({ close: requestClose });
         @close-auto-focus="focus.closed"
         class="modal-card"
         :class="[
-          { wide, 'modal-page': page, 'modal-sheet': bottomSheet, 'anchored-modal': bubble, compact: compactCard },
+          {
+            wide,
+            'modal-page': page,
+            'modal-sheet': bottomSheet,
+            'anchored-modal': bubble,
+            'popup-palette': bubble,
+            compact: compactCard,
+          },
           contentClass,
         ]"
         :style="{ ...(bubble ? anchorStyle : {}), zIndex: layer + 1 }"

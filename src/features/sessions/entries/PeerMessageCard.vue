@@ -3,6 +3,7 @@
 import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import Icon from '../../../ui/components/Icon.vue';
+import BlobImage from '../../../domain/media/BlobImage.vue';
 import Markdown from '../../../domain/references/ReferenceMarkdown.vue';
 import PeerMessageDialog from './PeerMessageDialog.vue';
 import { openActivityKey, type PeerMessageDetail } from '../activityDialogs.ts';
@@ -81,7 +82,8 @@ onBeforeUnmount(() => observer?.disconnect());
         <Markdown :text="text" />
       </div>
       <div v-if="images?.length" class="peer-card-images">
-        <img
+        <BlobImage
+          :zoom="false"
           v-for="(src, index) in images.slice(0, 4)"
           :key="index"
           :src="src"
@@ -236,11 +238,13 @@ onBeforeUnmount(() => observer?.disconnect());
   gap: 6px;
   pointer-events: none;
 }
-.peer-card-images img {
+.peer-card-images .image-frame {
   width: 56px;
   height: 56px;
   border: 1px solid var(--line);
   border-radius: 6px;
+}
+.peer-card-images :deep(img) {
   object-fit: cover;
 }
 .peer-card-more {

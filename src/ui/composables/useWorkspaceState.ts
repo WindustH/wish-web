@@ -1,5 +1,5 @@
 import { onBeforeUnmount, ref, watch, type Ref } from 'vue';
-import { getBaseUrl } from '../../core/api/client.ts';
+import { getConnectionScope } from '../../core/api/client.ts';
 import { readWorkspaceState, writeWorkspaceState } from '../../core/util/workspaceState.ts';
 
 export function useWorkspaceState<T extends Record<string, string | number | boolean>>(
@@ -20,7 +20,7 @@ export function useWorkspaceState<T extends Record<string, string | number | boo
   }
   // Server changes reload the application; the base URL is stable for this scope.
   watch(
-    () => JSON.stringify([getBaseUrl(), scope, owner()]),
+    () => JSON.stringify([getConnectionScope(), scope, owner()]),
     (next) => {
       flush();
       key = next;

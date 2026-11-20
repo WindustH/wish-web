@@ -10,6 +10,7 @@ import { canCaptureTabKeys, capturingTabKeys, enterTabCapture } from '../../ui/t
 import Icon from '../../ui/components/Icon.vue';
 import { useRouter } from 'vue-router';
 const router = useRouter();
+defineProps<{ browserPage?: boolean }>();
 
 const browserCommands = computed(() => [
   { id: 'find' as const, label: tr('浏览器查找', 'Browser find') },
@@ -32,43 +33,54 @@ function browserLabel(id: BrowserShortcut) {
 
 <template>
   <div class="shortcut-settings" data-keyboard-boundary>
-    <section class="set-section">
-      <div class="set-card">
-        <div class="set-row inline">
-          <span class="set-label">{{ tr('键位绑定', 'Key bindings') }}</span>
-          <button class="btn open-keymap" @click="router.push('/settings?section=shortcuts&advanced=keymap')">
-            <Icon name="keyboard" />{{ tr('打开键位表', 'Open keymap') }}<Icon name="arrow-up-right" :size="15" />
-          </button>
-        </div>
-      </div>
-    </section>
-    <section class="set-section">
-      <header class="set-section-head">
-        <h3>{{ tr('消息输入', 'Message input') }}</h3>
-      </header>
-      <div class="set-card">
-        <div class="set-row inline shortcut-row">
-          <div class="set-label shortcut-name">
-            <label for="send-on-enter">{{ tr('按 Enter 发送消息', 'Send with Enter') }}</label>
-            <small>{{
-              prefs.sendOnEnter.value
-                ? tr('Shift + Enter 换行', 'Shift + Enter for a new line')
-                : tr('Enter 换行，Ctrl / ⌘ + Enter 发送', 'Enter for a new line; Ctrl / ⌘ + Enter to send')
-            }}</small>
+    <template v-if="!browserPage">
+      <section class="set-section">
+        <div class="set-card">
+          <div class="set-row inline">
+            <span class="settings-link-label"><Icon name="keyboard" />{{ tr('键位绑定', 'Key bindings') }}</span>
+            <button class="btn settings-page-link" @click="router.push('/settings?section=shortcuts&advanced=keymap')">
+              {{ tr('打开键位表', 'Open keymap') }}<Icon name="arrow-up-right" :size="15" />
+            </button>
           </div>
-          <SwitchRoot
-            id="send-on-enter"
-            class="cfg-switch"
-            :model-value="prefs.sendOnEnter.value"
-            @update:model-value="prefs.setSendOnEnter"
-            ><SwitchThumb class="cfg-switch-thumb"
-          /></SwitchRoot>
         </div>
-      </div>
-    </section>
-    <section class="set-section">
+      </section>
+      <section class="set-section">
+        <header class="set-section-head">
+          <h3>{{ tr('消息输入', 'Message input') }}</h3>
+        </header>
+        <div class="set-card">
+          <div class="set-row inline toggle-row shortcut-row">
+            <div class="set-label shortcut-name">
+              <label for="send-on-enter">{{ tr('按 Enter 发送消息', 'Send with Enter') }}</label>
+              <small>{{
+                prefs.sendOnEnter.value
+                  ? tr('Shift + Enter 换行', 'Shift + Enter for a new line')
+                  : tr('Enter 换行，Ctrl / ⌘ + Enter 发送', 'Enter for a new line; Ctrl / ⌘ + Enter to send')
+              }}</small>
+            </div>
+            <SwitchRoot
+              id="send-on-enter"
+              class="cfg-switch"
+              :model-value="prefs.sendOnEnter.value"
+              @update:model-value="prefs.setSendOnEnter"
+              ><SwitchThumb class="cfg-switch-thumb"
+            /></SwitchRoot>
+          </div>
+        </div>
+      </section>
+      <section class="set-section">
+        <div class="set-card">
+          <div class="set-row inline">
+            <span class="settings-link-label"><Icon name="globe" />{{ tr('浏览器快捷键', 'Browser shortcuts') }}</span>
+            <button class="btn settings-page-link" @click="router.push('/settings?section=shortcuts&advanced=browser')">
+              {{ tr('查看快捷键', 'View shortcuts') }}<Icon name="arrow-up-right" :size="15" />
+            </button>
+          </div>
+        </div>
+      </section>
+    </template>
+    <section v-else class="set-section">
       <header class="set-section-head">
-        <h3>{{ tr('浏览器快捷键', 'Browser shortcuts') }}</h3>
         <p>
           {{
             tr(
@@ -79,7 +91,7 @@ function browserLabel(id: BrowserShortcut) {
         </p>
       </header>
       <div class="set-card">
-        <div v-for="command in browserCommands" :key="command.id" class="set-row inline shortcut-row">
+        <div v-for="command in browserCommands" :key="command.id" class="set-row inline toggle-row shortcut-row">
           <div class="set-label shortcut-name">
             <label :for="`browser-${command.id}`">{{ command.label }}</label
             ><small>{{ browserLabel(command.id) }}</small>
@@ -129,9 +141,6 @@ function browserLabel(id: BrowserShortcut) {
 }
 .tab-capture button {
   flex: none;
-}
-.open-keymap {
-  justify-self: end;
 }
 .shortcut-name small {
   overflow-wrap: anywhere;

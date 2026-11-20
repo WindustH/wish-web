@@ -10,14 +10,14 @@ import AskContext from '../../domain/chat/AskContext.vue';
 import { btwSession, clearBtw } from '../../domain/chat/btwSessions.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
-const props = defineProps<{ sessionId: string; mobile: boolean }>();
+const props = defineProps<{ sessionId?: string; mobile: boolean }>();
 const emit = defineEmits<{ focus: []; scroll: [direction: -1 | 1, message: boolean] }>();
 const active = usePageActivity();
 const opened = ref(false);
 const btwOpen = ref(false);
-const btw = computed(() => (btwOpen.value ? btwSession(props.sessionId) : undefined));
+const btw = computed(() => (btwOpen.value && props.sessionId ? btwSession(props.sessionId) : undefined));
 function open() {
-  if (props.sessionId && active.value) opened.value = true;
+  if (active.value) opened.value = true;
 }
 watch([() => props.sessionId, active], () => {
   opened.value = false;
@@ -27,7 +27,6 @@ function keydown(event: KeyboardEvent) {
   const nav = shortcuts.value.value.navigation;
   if (
     !active.value ||
-    !props.sessionId ||
     !nav.enabled ||
     handledShortcut(event) ||
     event.isComposing ||
@@ -41,6 +40,7 @@ function keydown(event: KeyboardEvent) {
     return;
   const action = navigationAction(nav, event.key);
   if (!action || isSidebarCycle(action) || action === 'openItem' || action === 'exit' || action === 'back') return;
+  if (!props.sessionId && (action === 'nextMessage' || action === 'previousMessage')) return;
   const editing = (node: EventTarget | null) =>
     node instanceof HTMLElement &&
     (node.isContentEditable || node.matches('input,textarea,select,[role="textbox"],[role="combobox"]'));
@@ -89,6 +89,7 @@ defineExpose({ open });
     @btw="btwOpen = true"
   />
   <Modal
+    v-if="sessionId"
     :open="btwOpen"
     title="BTW"
     :sheet="mobile"

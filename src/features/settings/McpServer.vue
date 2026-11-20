@@ -3,7 +3,7 @@
 import { computed, ref, watch } from 'vue';
 import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
-import Modal from '../../ui/components/Modal.vue';
+import SettingsPage from '../../ui/components/SettingsPage.vue';
 import SelectField from '../../domain/providers/SelectField.vue';
 import AnimatedDetails from '../../ui/components/AnimatedDetails.vue';
 import KeyValueEditor from '../../domain/settings/KeyValueEditor.vue';
@@ -196,7 +196,7 @@ async function check() {
       </ul>
     </AnimatedDetails>
 
-    <Modal
+    <SettingsPage
       compact
       wide
       :page="isMobile"
@@ -242,7 +242,7 @@ async function check() {
               ><span>{{ tr('命令', 'Command') }}</span
               ><small>{{ tr('不是路径时在 PATH 中查找', 'Looked up on PATH unless it is a path') }}</small></span
             ><input
-              class="input set-mono"
+              class="input"
               v-model.trim="value.command"
               placeholder="npx"
               autocomplete="off"
@@ -254,7 +254,7 @@ async function check() {
               ><span>{{ tr('参数', 'Arguments') }}</span
               ><small>{{ tr('每行一个', 'One per line') }}</small></span
             ><textarea
-              class="input set-mono"
+              class="input"
               rows="3"
               v-model="argsText"
               placeholder="-y&#10;@upstash/context7-mcp"
@@ -270,7 +270,7 @@ async function check() {
                 tr('留空时在会话的工作目录中启动', "Empty starts it in the session's directory")
               }}</small></span
             ><input
-              class="input set-mono"
+              class="input"
               v-model="cwd"
               :placeholder="tr('会话的工作目录', 'The session\'s directory')"
               autocomplete="off"
@@ -297,7 +297,7 @@ async function check() {
               ><span>{{ tr('地址', 'URL') }}</span
               ><small>{{ tr('服务器的 MCP 端点', "The server's MCP endpoint") }}</small></span
             ><input
-              class="input set-mono"
+              class="input"
               v-model.trim="value.url"
               placeholder="https://example.com/mcp"
               autocomplete="off"
@@ -414,7 +414,7 @@ async function check() {
         }}</span
         ><button class="btn primary" @click="editing = false">{{ tr('完成', 'Done') }}</button></template
       >
-    </Modal>
+    </SettingsPage>
   </SettingsItemCard>
 </template>
 
@@ -547,10 +547,6 @@ async function check() {
 .mcp-form {
   display: grid;
   gap: 16px;
-}
-.mcp-form .set-row input::placeholder,
-.mcp-form .set-row textarea::placeholder {
-  font-family: var(--font);
 }
 .mcp-form textarea {
   min-height: 80px;

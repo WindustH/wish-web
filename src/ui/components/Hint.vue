@@ -14,7 +14,9 @@ defineProps<{ text?: string }>();
   <TooltipRoot v-model:open="open" :disabled="!text || !pageActive" ignore-non-keyboard-focus>
     <TooltipTrigger as-child><slot /></TooltipTrigger>
     <TooltipPortal v-if="pageActive">
-      <TooltipContent class="control-tooltip" :side-offset="7" :collision-padding="10">{{ text }}</TooltipContent>
+      <TooltipContent class="control-tooltip popup-palette" :side-offset="7" :collision-padding="10">{{
+        text
+      }}</TooltipContent>
     </TooltipPortal>
   </TooltipRoot>
 </template>

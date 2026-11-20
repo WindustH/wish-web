@@ -184,7 +184,7 @@ function select() {
     </PopoverTrigger>
     <PopoverPortal>
       <PopoverContent
-        class="directory-picker"
+        class="directory-picker popup-palette"
         :style="{ zIndex: layer }"
         :aria-label="label"
         :side="side"
@@ -453,7 +453,7 @@ function select() {
 .directory-path input {
   min-width: 0;
   flex: 1;
-  font: 12px/1.5 var(--mono);
+  font: 13px/1.5 var(--font);
   padding: 2px 4px;
   background: transparent;
   border: 0;

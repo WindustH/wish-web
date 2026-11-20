@@ -29,7 +29,7 @@ backend         wish-core
 
 - **State slices (`core/state/`)**: Module-level Vue `ref` singletons. Folder state hydrates explicitly after `platform()` registration rather than during module evaluation.
 - **Projections (`core/api/projections.ts`)**: Map `wish-core`'s externally tagged enums and `{session, status}` pairs into flat UI models, keeping semantic instruction kinds so labels re-localize dynamically without rewriting history.
-- **Connection switching (`core/connection.ts`)**: Defaults to same-origin `/api` behind `serve.ts`. Signing in directly to another server stores its URL and token in `localStorage`, attaches `Authorization` headers to requests and `ApiImage` loads, clears IndexedDB caches, and reloads cleanly.
+- **Connection switching (`core/connection.ts`)**: Defaults to same-origin `/api` behind `serve.ts`. Signing in directly to another server stores its URL and token in `localStorage`, attaches `Authorization` headers to requests and `ApiImage` loads, and reloads with the selected account’s cache scope. Signing out retains saved accounts and their cached responses on this device.
 - **Hash routing (`src/router.ts`)**: Uses hash paths (`/#/sessions`, `/#/new`, `/#/s/<id>`, `/#/stats`, `/#/data`, `/#/settings`, `/#/account`, `/#/selftest`) so static hosts need no rewrite rules. On desktop, session `info`, `search`, and `settings` open as overlays; below 900 px they push as child routes (`/#/s/<id>/info`, `/search`, `/settings`).
 
 ## Real-time sync and SSE

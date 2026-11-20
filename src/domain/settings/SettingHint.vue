@@ -5,7 +5,7 @@ import { TooltipRoot, TooltipTrigger, TooltipPortal, TooltipContent } from 'reka
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
-defineProps<{ id?: string; text: string }>();
+defineProps<{ id?: string; text: string; iconOnly?: boolean; label?: string }>();
 const open = ref(false);
 const active = usePageActivity();
 watch(active, (value) => {
@@ -14,7 +14,8 @@ watch(active, (value) => {
 </script>
 
 <template>
-  <p :id="id" class="cfg-hint setting-help-text">{{ text }}</p>
+  <span v-if="iconOnly && id" :id="id" class="visually-hidden">{{ text }}</span>
+  <p v-else-if="!iconOnly" :id="id" class="cfg-hint setting-help-text">{{ text }}</p>
   <TooltipRoot
     v-model:open="open"
     :disabled="!active"
@@ -23,13 +24,22 @@ watch(active, (value) => {
     ignore-non-keyboard-focus
   >
     <TooltipTrigger as-child
-      ><button type="button" class="setting-help-icon" :aria-label="tr('说明', 'Help')" @click="open = !open">
+      ><button
+        type="button"
+        class="setting-help-icon"
+        :class="{ 'always-visible': iconOnly }"
+        :aria-label="label || tr('说明', 'Help')"
+        @click="open = !open"
+      >
         <Icon name="info" :size="15" /></button
     ></TooltipTrigger>
     <TooltipPortal v-if="active"
-      ><TooltipContent class="control-tooltip setting-help-popup" :side-offset="6" :collision-padding="12">{{
-        text
-      }}</TooltipContent></TooltipPortal
+      ><TooltipContent
+        class="control-tooltip setting-help-popup popup-palette"
+        :side-offset="6"
+        :collision-padding="12"
+        >{{ text }}</TooltipContent
+      ></TooltipPortal
     >
   </TooltipRoot>
 </template>

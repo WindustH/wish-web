@@ -26,6 +26,23 @@ Deploy `serve.ts` alongside `dist/` (`node_modules` isn't required) at the root 
 
 `serve.ts` validates incoming `Host` headers (`421` on mismatch) and blocks cross-origin `POST`/`PUT`/`PATCH`/`DELETE` mutations (`403`) before forwarding anything. Responses and SSE streams flow unbuffered, and `GET /healthz` checks frontend availability. Because `serve.ts` has no built-in login screen of its own, bind it to loopback or a trusted network, or place authentication in front of it.
 
+## Device-local SSH client
+
+Run Wish Web on the user's device (for example, in a Node.js environment on Android). With dependencies installed and `dist/` built, start it from the checkout:
+
+```sh
+WISH_SSH_CLIENT=1 node serve.ts
+```
+
+Open **http://127.0.0.1:8790** on the same device and enter the backend SSH address, for example `ssh://your-server:2222`. The SSH client requires loopback binding and uses the runtime package `ssh2` and `serve-ssh.ts`. An unpacked static bundle alone does not contain the SSH client.
+
+- **Browser key** — choose **Generate key**, name it, then **Copy public key**. Add the public line to the backend's `ssh.authorized_keys` file. The browser stores the non-exportable Ed25519 private key in IndexedDB and signs the SSH login locally. Reopening the same browser profile and local origin restores the key. Deleting it or clearing site data removes the local credential.
+- **System SSH key** — the local Web server uses `WISH_SSH_IDENTITY` if set, otherwise the SSH agent or a default identity in `~/.ssh`. Load passphrase-protected keys into the agent. If no identity is available, generate a browser key or explicitly set the identity path.
+- **First connection** — compare the displayed SHA256 fingerprint with the one printed by Wish Core. Confirmation pins the host per address and port. A changed fingerprint stops login; after verifying a deliberate replacement, forget the old fingerprint in the login form.
+- **HTTP port and token** — the tunnel targets the backend's loopback API port 9780. Set `WISH_SSH_API_PORT` on the device if the backend uses another port. If the backend also requires a bearer token, enter it in the optional token field. An SSH connection never inherits a different upstream's `WISH_HTTP_TOKEN`.
+
+The remote backend only needs its SSH port exposed. The device's local frontend and its browser do not need a public web server or a certificate. [Backend configuration](https://github.com/WindustH/wish-core/blob/master/docs/user/deployment.md#public-ssh-access-from-a-device-local-wish-web).
+
 ## LAN and HTTPS access
 
 For local LAN testing over plain HTTP:
@@ -76,4 +93,4 @@ Use the absolute path to `node` (`command -v node`) and enable `loginctl enable-
 
 ## Upgrades and caching
 
-Hashed `/assets/*` bundles cache for a year while `index.html`, `sw.js`, and the manifest use `no-cache`. Under HTTPS or `localhost`, open tabs check periodically for new service workers and prompt **Update now** when ready. Keep frontend and backend releases matched, and roll back anytime by swapping `dist/` + `serve.ts` back to an earlier build and restarting.
+Hashed `/assets/*` bundles cache for a year while `index.html`, `sw.js`, and the manifest use `no-cache`. While visible, an open tab checks `/build-info.json` every minute, including on plain HTTP. When the build changes, **Update now** loads the new release after confirmation. On HTTPS and localhost, Wish also prepares the service worker before offering the update. Keep frontend and backend releases matched, and roll back anytime by swapping `dist/` + `serve.ts` back to an earlier build and restarting.

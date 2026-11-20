@@ -6,6 +6,7 @@ These notes cover the `wish-web` toolchain, module layering, state/SSE lifecycle
 
 - **This page**: Local setup, `./pnpmw` wrapper, testing with `wish-test`, directory layout, and coding conventions.
 - [Architecture](architecture.md) — Import boundaries, state slices, API/SSE sync, caching, routing, PWA, and i18n.
+- [UI design guidelines](design-guidelines.md) — Current visual defaults, component choices, historical corrections and review scenarios.
 - [Interactions & UI](interactions-and-ui.md) — Focus-scoped keyboard routing, mobile Back/dialog ownership, streaming Markdown, virtualization, reply quotes, Library previews, patches, and font generation.
 
 ## Local workflow
@@ -31,6 +32,10 @@ Vite serves the dev app at `http://127.0.0.1:5173`, proxying `/api` to `WISH_UPS
 | `./pnpmw selftest:api [url]` | Read-only end-to-end API diagnostics |
 
 Automated unit tests, browser regressions, and fixtures live in the sibling `wish-test/web/` repository (`node web/run.mjs unit`, `typecheck`, `boundaries`, `browser ci`). Browser regressions share Vite's dependency cache and should run sequentially.
+
+## Source assets
+
+Keep Git-visible files in UTF-8 text, including SVG artwork. Store screenshots with review or CI artifacts. The web build renders the PNG installation icons from the SVG, and the native build generates its platform assets. Dependencies, generated fonts, native build products and caches are ignored. Run `python3 tools/check-text-files.py` from the frontend root to check the current source tree, including new untracked files.
 
 ## Project layout
 

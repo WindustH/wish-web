@@ -16,6 +16,7 @@ export interface StreamState {
   reasoning: string;
   toolCalls: Record<string | number, ToolCallData>;
   currentTool: string | null;
+  runningTools?: { id: string; name: string; args: Record<string, unknown> }[];
   usage: any;
   recovery?: { attempt: number; delayMs: number };
   error: any;
@@ -251,6 +252,10 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
           ...current,
           activity: 'tool',
           currentTool: event.name,
+          runningTools: [
+            ...(current.runningTools ?? []).filter((call) => call.id !== event.call_id),
+            { id: event.call_id, name: event.name, args: event.arguments ?? {} },
+          ],
         };
       }
 
@@ -281,13 +286,23 @@ export function createStreamProcessor(callbacks: StreamCallbacks) {
       }
 
       if (kind === 'ContextCompacted') {
-        callbacks.onNotice(i18n.t('notify.contextCompacted', { n: event.removed_entries }));
         return { ...current, standbyPreparing: false };
       }
 
       if (['ResponseAccepted', 'ResponseInterrupted', 'ToolFinished', 'Finished'].includes(kind)) {
         callbacks.onTurnComplete(kind, turnVersion);
         callbacks.onScheduleRefresh();
+      }
+
+      if (kind === 'ToolFinished') {
+        const runningTools = (current.runningTools ?? []).filter((call) => call.id !== event.call?.call_id);
+        const next = runningTools.at(-1);
+        return {
+          ...current,
+          runningTools,
+          currentTool: next?.name ?? null,
+          activity: next ? 'tool' : current.activity === 'tool' ? 'working' : current.activity,
+        };
       }
 
       return current;

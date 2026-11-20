@@ -26,7 +26,7 @@ export async function saveApiFile(url: string, filename: string, signal?: AbortS
     const blob = await response.blob();
     if (!signal?.aborted) saveBlob(blob, filename);
   } catch (error) {
-    if (!signal?.aborted) toast(describeError(error).message);
+    if (!signal?.aborted) toast(describeError(error).message, { tone: 'error' });
   }
 }
 

@@ -11,7 +11,7 @@ const props = defineProps<{
   options: SelectOption[];
   disabled?: boolean;
   searchable?: boolean;
-  segmented?: boolean;
+  segmented?: boolean | 'always';
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 const brand = (value?: string) => props.options.find((option) => option.value === value)?.brand;

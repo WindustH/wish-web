@@ -22,11 +22,15 @@ export function sourceSelection(root: HTMLElement, text: string, range: Range) {
 export function sourceRange(root: HTMLElement, start: number, end: number): Range | undefined {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const range = document.createRange();
+  let last: Node | null = null;
   let offset = 0,
     began = false;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const length = node.textContent?.length ?? 0;
-    if (!began && start <= offset + length) {
+    last = node;
+    // At a row boundary, start in the next row. Chromium includes the
+    // previous grid row’s visual line break when selection starts at its end.
+    if (!began && start < offset + length) {
       range.setStart(node, Math.max(0, start - offset));
       began = true;
     }
@@ -35,5 +39,10 @@ export function sourceRange(root: HTMLElement, start: number, end: number): Rang
       return range;
     }
     offset += length;
+  }
+  if (last && start === offset && end === start) {
+    range.setStart(last, last.textContent?.length ?? 0);
+    range.collapse(true);
+    return range;
   }
 }

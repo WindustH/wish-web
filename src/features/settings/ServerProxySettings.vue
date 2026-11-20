@@ -50,7 +50,7 @@ const modes = computed(() => [
           ><span>{{ tr('代理地址', 'Proxy URL') }}</span
           ><small>{{ tr('http:// 或 https:// 开头', 'Starts with http:// or https://') }}</small></span
         ><input
-          class="input set-mono"
+          class="input"
           v-model.trim="value.url"
           type="url"
           placeholder="http://127.0.0.1:7890"

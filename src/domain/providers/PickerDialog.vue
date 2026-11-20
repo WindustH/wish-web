@@ -2,7 +2,7 @@
 // Choosing one thing from a searchable list in a dialog. On a phone it is a page and a tap chooses
 // at once; on a desktop it is a card, a click marks the choice and Add confirms it.
 import { ref } from 'vue';
-import Modal from '../../ui/components/Modal.vue';
+import SettingsPage from '../../ui/components/SettingsPage.vue';
 import PickerList from './PickerList.vue';
 import type { PickerItem } from './types.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
@@ -10,6 +10,7 @@ import { tr } from '../../core/i18n/tr.ts';
 
 defineProps<{
   title: string;
+  forceDialog?: boolean;
   items: PickerItem[];
   placeholder: string;
 }>();
@@ -19,7 +20,8 @@ const selected = ref('');
 </script>
 
 <template>
-  <Modal
+  <SettingsPage
+    :force-dialog="forceDialog"
     :page="isMobile"
     :open="true"
     body-scroll="content"
@@ -51,7 +53,7 @@ const selected = ref('');
         </template>
       </div>
     </template>
-  </Modal>
+  </SettingsPage>
 </template>
 
 <style scoped>

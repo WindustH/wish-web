@@ -134,6 +134,7 @@ watch(
   color: var(--fg-subtle);
   overflow: hidden;
 }
+.library-thumbnail :deep(.image-frame),
 .library-thumbnail :deep(img),
 video {
   width: 100%;

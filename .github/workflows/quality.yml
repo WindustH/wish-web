@@ -32,6 +32,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: wish-web
+      - name: Check text-only source tree
+        run: python3 tools/check-text-files.py
       - uses: actions/setup-node@v4
         with:
           node-version: '22.19.0'

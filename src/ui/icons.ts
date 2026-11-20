@@ -40,7 +40,9 @@ export const ICONS: Record<string, string> = {
     '<path d="M8 17.5c2.4-2.6 4.4-6.5 3-6.5-1.2 0 .2 6.5 4 6.5 2.8 0 .8-3.4-7 0Z" stroke-width="1.5"/>',
   ),
   video: `${wash('M6 4h12a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z', 'M10 8l6 4-6 4Z')}<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m10 8 6 4-6 4Z"/>`,
-  audio: '<path d="M4 10v4m4-7v10m4-13v16m4-13v10m4-7v4"/>',
+  audio: [4, 10, 16, 10, 4]
+    .map((height, index) => `<path d="M${4 + 4 * index} ${12 - height / 2}v${height}"/>`)
+    .join(''),
   mic: `<rect x="9" y="2" width="6" height="12" rx="3" ${SOFT}/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>`,
 
   instruction: documentIcon('<path d="M8.5 12.5h7M8.5 16.5h7"/>'),
@@ -137,6 +139,7 @@ export const ICONS: Record<string, string> = {
 
   // Signs
   info: `<circle cx="12" cy="12" r="9" ${SOFT}/><path d="M12 11v5.5${dot(12, 7.8)}"/>`,
+  'circle-x': `<circle cx="12" cy="12" r="9" ${SOFT}/><path d="m9 9 6 6m0-6-6 6"/>`,
   'triangle-alert': `<path d="M10.2 4.6a2.1 2.1 0 0 1 3.6 0l7 12.2a2.1 2.1 0 0 1-1.8 3.2H5a2.1 2.1 0 0 1-1.8-3.2Z" ${SOFT}/><path d="M12 9.5v4.5${dot(12, 17)}"/>`,
   clock: `<circle cx="12" cy="12" r="9" ${SOFT}/><path d="M12 7v5l3.5 2"/>`,
   'circle-dot': `<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3" ${SOLID}/>`,
@@ -164,8 +167,8 @@ export const ICONS: Record<string, string> = {
   'check-square': `<rect x="4" y="4" width="16" height="16" rx="4" ${SOFT}/><path d="m8.5 12 2.5 2.5 4.5-5"/>`,
   // Clearing old history: an eraser leaning on the line it clears.
   eraser: `<path d="M7.8 19.5 3.9 15.6a2 2 0 0 1 0-2.8l8.9-8.9a2 2 0 0 1 2.8 0l4.5 4.5a2 2 0 0 1 0 2.8l-8.3 8.3" ${SOFT}/><path d="m8 10 6.5 6.5M7.8 19.5h12.7"/>`,
-  // Account status: a dial with radial ticks, a clear needle and its pivot.
-  account: `<path d="M5.5 18.2a9 9 0 1 1 13 0Z" ${SOFT}/><path d="M12 5v2M5.6 8.1l1.5 1.3M18.4 8.1l-1.5 1.3M4 14h2M20 14h-2M12 14l3.2-4"/><circle cx="12" cy="14" r="1.4" fill="currentColor" stroke="none"/>`,
+  // Account status uses the profile silhouette.
+  account: `<circle cx="12" cy="12" r="9" ${SOFT}/><circle cx="12" cy="9" r="2.8"/><path d="M5.8 18.3a6.9 6.9 0 0 1 12.4 0"/>`,
   // One centre seam, with folds that leave room to breathe at the rail's 16px size.
   thinking: `${wash(BRAIN_LEFT + 'Z' + BRAIN_RIGHT + 'Z')}<path d="${BRAIN_LEFT}${BRAIN_RIGHT}M12 4.6v12.3M6.2 5c0 1 .7 1.8 1.8 2M17.8 5c0 1-.7 1.8-1.8 2M4.3 10.2c1.4 0 2.5.8 2.7 2.3M19.7 10.2c-1.4 0-2.5.8-2.7 2.3M9 16c1.7 0 3-1.3 3-3M15 16c-1.7 0-3-1.3-3-3"/>`,
   // A tool call.

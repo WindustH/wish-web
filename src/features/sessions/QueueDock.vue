@@ -222,7 +222,7 @@ async function remove(item: any) {
   try {
     await chat.cancelQueued(item.id);
   } catch (e: any) {
-    toast(errorDetail(e));
+    toast(errorDetail(e), { tone: 'error' });
   } finally {
     busy.value = false;
   }
@@ -235,7 +235,7 @@ async function edit(item: any) {
     if (cancelled) props.refill(item.text || '', item.attachments);
     else toast(i18n.t('chat.queueConsumed'));
   } catch (e: any) {
-    toast(errorDetail(e));
+    toast(errorDetail(e), { tone: 'error' });
   } finally {
     busy.value = false;
   }
@@ -253,7 +253,7 @@ async function edit(item: any) {
     >
     <PopoverPortal>
       <PopoverContent
-        class="queue-bubble"
+        class="queue-bubble popup-palette"
         :aria-label="label"
         side="top"
         align="start"

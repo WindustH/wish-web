@@ -20,7 +20,7 @@ async function openLink(anchor: HTMLAnchorElement, event: MouseEvent) {
   try {
     await openFile({ ...mention, name: anchor.textContent?.trim() });
   } catch (error) {
-    toast(describeError(error).message);
+    toast(describeError(error).message, { tone: 'error' });
   } finally {
     anchor.removeAttribute('aria-busy');
   }

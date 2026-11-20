@@ -157,14 +157,14 @@ function keyboard(event: KeyboardEvent) {
   <Modal
     :open="open"
     :title="tr('快速切换会话', 'Quick switch sessions')"
-    content-class="session-quick-switch"
+    content-class="session-quick-switch launcher"
     compact
     body-scroll="content"
     :layer="150"
     @close="open = false"
   >
     <template #compact-heading>
-      <div class="quick-search">
+      <div class="quick-search launcher-search">
         <Icon name="search" />
         <input
           ref="input"
@@ -179,13 +179,15 @@ function keyboard(event: KeyboardEvent) {
           @keydown="keyboard"
           autocomplete="off"
         />
-        <button class="quick-close" :aria-label="tr('关闭', 'Close')" @click="open = false"><Icon name="x" /></button>
+        <button class="quick-close launcher-close" :aria-label="tr('关闭', 'Close')" @click="open = false">
+          <Icon name="x" />
+        </button>
       </div>
     </template>
     <div
       ref="results"
       id="quick-session-results"
-      class="quick-results modal-scroll-region"
+      class="quick-results launcher-results modal-scroll-region"
       role="listbox"
       :aria-label="tr('会话', 'Sessions')"
       :aria-busy="loading"
@@ -197,7 +199,7 @@ function keyboard(event: KeyboardEvent) {
         role="option"
         :aria-selected="index === active"
         tabindex="-1"
-        class="quick-result"
+        class="quick-result launcher-row"
         @pointermove="active = index"
         @mousedown.prevent
         @click="choose(row)"
@@ -216,7 +218,7 @@ function keyboard(event: KeyboardEvent) {
         </span>
         <strong>{{ row.name || row.id.slice(0, 8) }}</strong>
         <span v-if="folderPath(row)" class="quick-path" :title="folderPath(row)">{{ folderPath(row) }}</span>
-        <span class="quick-enter" aria-hidden="true">↵</span>
+        <span class="quick-enter launcher-key" aria-hidden="true">↵</span>
       </button>
       <div v-if="!visible.length" class="quick-empty" role="status">
         {{
@@ -231,7 +233,7 @@ function keyboard(event: KeyboardEvent) {
         {{ tr('显示更多', 'Show more') }}
       </button>
     </div>
-    <div class="quick-footer">
+    <div class="quick-footer launcher-footer">
       <span role="status">
         <button v-if="failed" class="quick-retry" @click="load">
           {{ tr('加载失败，重试', 'Loading failed. Retry') }}
@@ -240,7 +242,7 @@ function keyboard(event: KeyboardEvent) {
           loading ? tr('加载中…', 'Loading…') : tr(`${matches.length} 个会话`, `${matches.length} sessions`)
         }}</template>
       </span>
-      <span class="quick-hints"
+      <span class="quick-hints launcher-hints"
         ><span><kbd>↑</kbd><kbd>↓</kbd> {{ tr('选择', 'Select') }}</span
         ><span><kbd>↵</kbd> {{ tr('打开', 'Open') }}</span
         ><span><kbd>esc</kbd> {{ tr('关闭', 'Close') }}</span></span
@@ -249,86 +251,6 @@ function keyboard(event: KeyboardEvent) {
   </Modal>
 </template>
 <style scoped>
-:global(.modal-card.session-quick-switch:not(.modal-page):not(.modal-sheet)) {
-  width: min(600px, calc(100vw - 24px));
-  border-radius: 16px;
-  max-height: min(580px, calc(var(--viewport-height, 100dvh) - 40px));
-}
-:global(.modal-card.session-quick-switch.compact > .modal-body) {
-  padding: 0;
-  line-height: 1.4;
-}
-.quick-search {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px 10px 18px;
-  border-bottom: 1px solid var(--line);
-  min-height: 58px;
-}
-.quick-search > .icon {
-  width: 20px;
-  height: 20px;
-  color: var(--accent);
-  flex: none;
-}
-.quick-search input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  padding: 4px 0;
-  background: transparent;
-  color: var(--fg);
-  font: inherit;
-  font-size: 16px;
-  outline: none !important;
-  box-shadow: none !important;
-}
-.quick-close {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--fg-subtle);
-  cursor: pointer;
-}
-.quick-close:hover {
-  color: var(--fg);
-  background: var(--bg-hover);
-}
-.quick-close .icon {
-  width: 16px;
-  height: 16px;
-}
-.quick-results {
-  overflow: auto;
-  overscroll-behavior: contain;
-  max-height: min(48dvh, 360px);
-  padding: 6px;
-}
-.quick-result {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  min-height: 40px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--fg);
-  text-align: left;
-  padding: 9px 12px;
-  font: inherit;
-  font-size: 14px;
-  cursor: pointer;
-}
-.quick-result[aria-selected='true'] {
-  background: var(--bg-hover);
-}
 .quick-kind {
   display: inline-flex;
   align-items: center;
@@ -378,15 +300,6 @@ function keyboard(event: KeyboardEvent) {
     animation: none;
   }
 }
-.quick-enter {
-  visibility: hidden;
-  color: var(--fg-subtle);
-  flex: none;
-  font-size: 16px;
-}
-.quick-result[aria-selected='true'] .quick-enter {
-  visibility: visible;
-}
 .quick-empty {
   padding: 28px 12px;
   text-align: center;
@@ -409,54 +322,5 @@ function keyboard(event: KeyboardEvent) {
 .quick-more:hover,
 .quick-retry:hover {
   color: var(--accent);
-}
-.quick-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 9px 16px;
-  border-top: 1px solid var(--line);
-  color: var(--fg-subtle);
-  font-size: 11px;
-}
-.quick-hints,
-.quick-hints > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.quick-hints {
-  gap: 12px;
-}
-.quick-hints kbd {
-  font: inherit;
-  font-size: 10px;
-  line-height: 16px;
-  min-width: 17px;
-  padding: 0 3px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  text-align: center;
-}
-@media (pointer: coarse) {
-  .quick-result {
-    min-height: 44px;
-  }
-  .quick-close {
-    width: 40px;
-    height: 40px;
-  }
-}
-@media (max-width: 420px) {
-  .quick-hints {
-    gap: 7px;
-  }
-  .quick-footer {
-    padding-inline: 12px;
-  }
-  .quick-search {
-    padding-left: 14px;
-  }
 }
 </style>

@@ -1,3 +1,4 @@
+import type { InlineImage } from '../../domain/media/useOpenImage.ts';
 import { ApiError } from '../../core/api/client.ts';
 import { directoriesList, linkSessionFile } from '../../core/api/endpoints.ts';
 import type { DirectoryListing } from '../../core/api/types.ts';
@@ -5,7 +6,11 @@ import type { BlobMention, FileMention } from '../../core/blobMentions.ts';
 import type { ReplyReference } from '../../core/replyReferences.ts';
 
 type DirectoryTarget = { owner: string; directory: DirectoryListing };
-export type LibraryTarget = { request: number; target: BlobMention | DirectoryTarget | ReplyReference };
+export type LibraryTarget = {
+  request: number;
+  view?: 'image';
+  target: BlobMention | DirectoryTarget | ReplyReference | { owner: string; image: InlineImage };
+};
 
 export async function openLocalMention(
   owner: string,

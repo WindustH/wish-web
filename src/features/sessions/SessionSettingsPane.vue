@@ -255,7 +255,6 @@ async function act(kind: 'compact' | 'clear') {
   try {
     if (kind === 'compact') {
       await api.sessionCompact(id);
-      toast(tr('已开始压缩上下文。', 'Compaction started.'));
     } else {
       await api.sessionClearContext(id);
       confirmClear.value = false;
@@ -438,7 +437,7 @@ async function act(kind: 'compact' | 'clear') {
           <label class="set-label" for="session-working-directory">{{
             tr('服务器上的目录', 'Directory on the server')
           }}</label
-          ><input id="session-working-directory" v-model="cwd" class="input set-mono" :disabled="busy" />
+          ><input id="session-working-directory" v-model="cwd" class="input" :disabled="busy" />
         </div>
       </div>
     </section>

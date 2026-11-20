@@ -25,16 +25,15 @@ import ProviderIcon from '../../domain/providers/ProviderIcon.vue';
 import { contextGauge } from './contextUsage.ts';
 import { useModelCatalog } from '../../domain/providers/useModelCatalog.ts';
 import { useSessionRequests } from './useSessionRequests.ts';
-import Icon from '../../ui/components/Icon.vue';
 
 const props = withDefaults(
-  defineProps<{ initialSection?: 'overview' | 'search' | 'settings'; sidebar?: boolean; open?: boolean }>(),
+  defineProps<{ initialSection?: 'overview' | 'context' | 'search' | 'settings'; sidebar?: boolean; open?: boolean }>(),
   { initialSection: 'overview', open: true },
 );
 const emit = defineEmits<{
   close: [];
   navigate: [view: 'info' | 'library' | 'tasks'];
-  'update:section': [value: 'overview' | 'search' | 'settings'];
+  'update:section': [value: 'overview' | 'context' | 'search' | 'settings'];
 }>();
 const section = ref(props.initialSection);
 const settingsMounted = ref(false);
@@ -61,13 +60,6 @@ watch(
 );
 
 const GenerationInspector = defineAsyncComponent(() => import('./GenerationInspector.vue'));
-const inspectOpen = ref(false);
-watch(
-  () => props.open,
-  (open) => {
-    if (!open) inspectOpen.value = false;
-  },
-);
 const UsageCharts = defineAsyncComponent(() => import('../usage/UsageCharts.vue'));
 const isMobile = useIsMobile();
 
@@ -156,7 +148,7 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
     :open="open"
     :sidebar="sidebar"
     :back-layer="sidebar || !isMobile"
-    :content-class="`session-window usage-info-window${section === 'search' ? ' history-search-window' : ''}`"
+    :content-class="`${section === 'context' ? 'context-tab-window ' : ''}session-window usage-info-window${section === 'search' ? ' history-search-window' : ''}`"
     :title="i18n.t('info.title')"
     :page="isMobile"
     @close="$emit('close')"
@@ -164,17 +156,22 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
     <template v-if="sidebar" #title><SessionSidebarTitle current="info" @select="emit('navigate', $event)" /></template>
     <div class="info-sections">
       <SelectField
-        segmented
+        segmented="always"
         v-model="section"
         :aria-label="tr('会话信息内容', 'Session information section')"
         :options="[
           { value: 'overview', label: tr('概览', 'Overview') },
+          { value: 'context', label: tr('上下文', 'Context') },
           { value: 'search', label: i18n.t('chatbar.search') },
           { value: 'settings', label: tr('设置', 'Settings') },
         ]"
       />
     </div>
     <SessionSettingsPane v-if="settingsMounted" embedded :open="open && section === 'settings'" />
+    <GenerationInspector
+      v-if="open && section === 'context' && chat.sessionId.value"
+      :session-id="chat.sessionId.value"
+    />
     <SessionHistorySearch v-if="section === 'search'" @close="$emit('close')" />
     <template v-else-if="section === 'overview'">
       <div v-if="err" class="load-error" role="alert">
@@ -231,12 +228,6 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
               <small>{{ gauge.window ? '' : tr('可在模型设置中填写', 'Set it in model settings') }}</small>
             </div>
           </dl>
-          <button class="context-structure-link" @click="inspectOpen = true">
-            <Icon name="instruction" /><span
-              ><strong>{{ tr('查看上下文结构', 'View context structure') }}</strong
-              ><small>{{ tr('当前与历史 Generation', 'Current and historical generations') }}</small></span
-            ><Icon name="chevron-right" />
-          </button>
         </section>
 
         <section class="info-card">
@@ -301,7 +292,6 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
       <UsageCharts v-if="chat.sessionId.value" :session-id="chat.sessionId.value" />
     </template>
   </SessionPanelModal>
-  <GenerationInspector v-if="inspectOpen && snapshot" :session-id="snapshot.id" @close="inspectOpen = false" />
 </template>
 
 <style scoped>
@@ -334,46 +324,6 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
   margin-left: auto;
   font-size: 12px;
   text-align: right;
-}
-
-.context-structure-link {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 0 0;
-  margin-top: 10px;
-  border: 0;
-  border-top: 1px solid var(--line);
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.context-structure-link > span {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 10px;
-}
-.context-structure-link strong {
-  font-size: 13px;
-  font-weight: 500;
-}
-.context-structure-link small {
-  font-size: 12px;
-  color: var(--fg-subtle);
-}
-@media (hover: hover) {
-  .context-structure-link:hover {
-    color: var(--accent);
-  }
-}
-.context-structure-link > .icon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
 }
 
 .info-phase {
@@ -572,6 +522,37 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
   .info-usage div:nth-child(3) {
     padding-left: 0;
     border-left: 0;
+  }
+}
+</style>
+
+<style>
+.context-tab-window.session-sidebar-content,
+.context-tab-window > .modal-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.context-tab-window.modal-card {
+  height: min(75dvh, 640px);
+}
+.info-sections {
+  container: info-tabs / inline-size;
+}
+.info-sections .choice-capsule {
+  flex-wrap: wrap;
+}
+.info-sections .choice-capsule > button {
+  padding-inline: 8px;
+}
+@container info-tabs (max-width: 22rem) {
+  .info-sections .choice-capsule {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  .info-sections .choice-capsule > button {
+    white-space: normal;
   }
 }
 </style>

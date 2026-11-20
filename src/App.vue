@@ -6,34 +6,24 @@ import Modal from './ui/components/Modal.vue';
 import { useMobileBackNavigation } from './features/shell/useMobileBackNavigation.ts';
 import HoverHintHost from './ui/components/HoverHintHost.vue';
 import { defineAsyncComponent, computed, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue';
-import { TooltipProvider, DialogRoot, DialogPortal, DialogContent, DialogTitle } from 'reka-ui';
+import { TooltipProvider } from 'reka-ui';
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
 import { useIsMobile } from './ui/composables/useMedia.ts';
 import AttachmentPreview from './ui/components/AttachmentPreview.vue';
 import ToastHost from './ui/components/ToastHost.vue';
-import ImageLightbox from './ui/components/ImageLightbox.vue';
-import Icon from './ui/components/Icon.vue';
+import ImageSidebar from './domain/media/ImageSidebar.vue';
 import TouchSelection from './ui/components/TouchSelection.vue';
 import ErrorDialogHost from './ui/components/ErrorDialogHost.vue';
-import { onboardingPreview, closeOnboardingPreview } from './features/onboarding/preview.ts';
 import CachedPage from './ui/components/CachedPage.vue';
 import { i18n } from './core/i18n/index.ts';
 import { sync } from './core/state/syncSlice.ts';
-import { needRefresh, refreshApp } from './ui/pwa.ts';
 import { useProviderGate } from './domain/providers/useProviderGate.ts';
 import { tr } from './core/i18n/tr.ts';
 import { isSignedOut } from './core/connection.ts';
 import { accountDialogOpen } from './features/account/accountDialog.ts';
 import SignOutButton from './features/connection/SignOutButton.vue';
 import { closeOverlayKey } from './ui/composables/overlay.ts';
-import { useBackLayer } from './ui/composables/useBackLayer.ts';
 useMobileNavigationMotion();
-useBackLayer(
-  () => onboardingPreview.value,
-  closeOnboardingPreview,
-  () => 55,
-);
-
 const ProviderSetup = defineAsyncComponent(() => import('./features/onboarding/ProviderSetup.vue'));
 const ConnectView = defineAsyncComponent(() => import('./features/connection/ConnectView.vue'));
 const AccountDialog = defineAsyncComponent(() => import('./features/account/AccountDialog.vue'));
@@ -91,7 +81,12 @@ const online = computed(() => sync.online.value);
 
 <template>
   <TooltipProvider :delay-duration="450" :skip-delay-duration="150">
-    <ConnectView v-if="!gate || gate.state.value === 'locked'" />
+    <template v-if="!gate || gate.state.value === 'locked'">
+      <ConnectView v-show="!isMobile || route.name !== 'settings'" @settings="router.push('/settings')" />
+      <RouterView v-if="route.name === 'settings'" v-slot="{ Component }"
+        ><component :is="Component" device-only
+      /></RouterView>
+    </template>
     <ProviderSetup
       v-else-if="gate.state.value === 'required'"
       @complete="
@@ -111,9 +106,9 @@ const online = computed(() => sync.online.value);
         }}
       </p>
       <p v-if="gate.error.value" class="load-error" role="alert">{{ gate.error.value }}</p>
-      <div v-if="gate.state.value === 'error'" class="provider-gate-actions">
-        <button class="btn" @click="gate!.refresh()">{{ tr('重试', 'Retry') }}</button>
-        <SignOutButton button-class="btn ghost icon-only" />
+      <div class="provider-gate-actions">
+        <button v-if="gate.state.value === 'error'" class="btn" @click="gate!.refresh()">{{ tr('重试', 'Retry') }}</button>
+        <SignOutButton button-class="btn ghost">{{ tr('切换账户', 'Switch account') }}</SignOutButton>
       </div>
     </main>
     <div v-else class="shell" :class="isMobile ? 'mobile' : 'desktop'">
@@ -149,41 +144,11 @@ const online = computed(() => sync.online.value);
           </RouterView>
         </div>
       </div>
-      <DialogRoot v-model:open="needRefresh" :modal="false"
-        ><DialogPortal>
-          <DialogContent
-            class="pwa-update"
-            :aria-describedby="undefined"
-            @interact-outside.prevent
-            @open-auto-focus.prevent
-          >
-            <span class="pwa-update-mark" aria-hidden="true"><Icon name="sparkles" /></span>
-            <span class="pwa-update-text"
-              ><DialogTitle as-child
-                ><strong>{{ i18n.t('pwa.updateAvailable') }}</strong></DialogTitle
-              ><small>{{ i18n.t('pwa.reloadHint') }}</small></span
-            >
-            <span class="pwa-update-actions">
-              <button class="btn ghost" @click="needRefresh = false">{{ i18n.t('pwa.later') }}</button>
-              <button class="btn primary" @click="refreshApp()">{{ i18n.t('pwa.reload') }}</button>
-            </span>
-          </DialogContent>
-        </DialogPortal></DialogRoot
-      >
       <AccountDialog v-if="!isMobile" :open="accountDialogOpen" @close="accountDialogOpen = false" />
-      <ToastHost />
+
       <AttachmentPreview />
-      <ImageLightbox />
       <TouchSelection />
     </div>
-    <!-- Above the settings dialog (51), below pickers (80) and error dialogs (200). -->
-    <ProviderSetup
-      v-if="onboardingPreview"
-      preview
-      class="onboarding-preview"
-      @complete="closeOnboardingPreview"
-      @exit="closeOnboardingPreview"
-    />
     <Modal
       v-if="exitRequested"
       compact
@@ -198,6 +163,8 @@ const online = computed(() => sync.online.value);
         <button class="btn primary" @click="confirmExit">{{ tr('退出', 'Leave') }}</button>
       </template>
     </Modal>
+    <ImageSidebar />
+    <ToastHost />
     <HoverHintHost />
     <!-- Outside the shell so onboarding errors are reported too. -->
     <ErrorDialogHost />
@@ -227,11 +194,6 @@ const online = computed(() => sync.online.value);
   display: flex;
   align-items: center;
   gap: 8px;
-}
-.onboarding-preview {
-  position: fixed;
-  inset: var(--viewport-top, 0px) 0 auto;
-  z-index: 55;
 }
 @media (min-width: 900px) {
   .overlay-route-host {

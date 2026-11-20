@@ -131,13 +131,13 @@ async function choose(key: string, selection?: string) {
       for (const target of targets) await replies.bookmark(target);
       if (targets.length) toast(tr('已添加到库的书签中', 'Added to Library bookmarks'));
     } catch (cause) {
-      toast(describeError(cause).message);
+      toast(describeError(cause).message, { tone: 'error' });
     } finally {
       savingBookmark.value = false;
     }
   } else if (key === 'reply') {
     if (!selectedReferences.length) {
-      toast(tr('请选择同一消息中的文本', 'Select text within one message'));
+      toast(tr('请选择同一消息中的文本', 'Select text within one message'), { tone: 'warning' });
       return;
     }
     for (const reference of [...selectedReferences]) await replies?.add(reference);
@@ -176,7 +176,7 @@ async function saveImage() {
     const filename = props.image.filename?.replace(/[\\/]/g, '_') || `image.${ext}`;
     saveBlob(blob, filename);
   } catch (error) {
-    toast(tr('保存图片失败：', 'Could not save image: ') + String(error));
+    toast(tr('保存图片失败：', 'Could not save image: ') + String(error), { tone: 'error' });
   }
 }
 

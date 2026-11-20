@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Statistics open over the page they were opened from: a window on a desktop, a page of their own
 // on a phone.
+import ModelLegend from '../usage/ModelLegend.vue';
 import { pieDistribution } from '../usage/pieDistribution.ts';
 import Hint from '../../ui/components/Hint.vue';
 import { computed, defineAsyncComponent, onActivated, onDeactivated, ref } from 'vue';
@@ -14,7 +15,6 @@ import Spinner from '../../ui/components/Spinner.vue';
 import { modelLabel } from '../../domain/providers/modelLabel.ts';
 import { providerTitlesRead, useProviderTitles } from '../../domain/providers/useProviderTitles.ts';
 import OverlayWindow from '../../ui/components/OverlayWindow.vue';
-import StorageCard from './StorageCard.vue';
 import { tr } from '../../core/i18n/tr.ts';
 
 const UsagePlot = defineAsyncComponent(() => import('../usage/UsagePlot.vue'));
@@ -24,7 +24,7 @@ function refresh() {
   void stats.refresh();
   charts.value?.refresh();
 }
-const { usage, storage, loading, error, updatedAt } = stats;
+const { usage, loading, error, updatedAt } = stats;
 const hiddenModels = ref(new Set<string>());
 function toggleModel(key: string) {
   const next = new Set(hiddenModels.value);
@@ -37,7 +37,9 @@ const providerLabel = (provider: string | null) => (provider ? providerTitle(pro
 const modelKey = (row: { provider: string | null; model: string | null }) => keyOf(row.provider, row.model);
 // Models without usage in the chosen range have nothing to show or toggle.
 const rows = computed(() =>
-  (usage.value?.statistics.by_provider_model ?? []).filter((row) => row.totals.tokens.total_tokens > 0),
+  (usage.value?.statistics.by_provider_model ?? [])
+    .filter((row) => row.totals.tokens.total_tokens > 0)
+    .sort((a, b) => b.totals.tokens.total_tokens - a.totals.tokens.total_tokens),
 );
 // Every chart colors a model by its lasting slot, matching the buttons and the donut.
 const modelColor = (row: { provider: string | null; model: string | null }) => color(modelColorIndex(modelKey(row)));
@@ -72,6 +74,8 @@ const models = computed(() =>
     return [
       {
         name: duplicate ? [label, providerLabel(row.provider)].filter(Boolean).join(' · ') : label,
+        model: label,
+        provider: duplicate ? providerLabel(row.provider) : undefined,
         value: row.totals.tokens.total_tokens,
         colorIndex,
       },
@@ -114,7 +118,7 @@ onDeactivated(stats.stopAuto);
           <p v-if="!rows.length" class="statistics-usage-empty">
             {{ tr('这段时间没有模型调用。', 'No model calls in this period.') }}
           </p>
-          <div class="statistics-models" role="group" :aria-label="tr('用量统计模型', 'Usage model')">
+          <ModelLegend :count="rows.length" :label="tr('用量统计模型', 'Usage model')">
             <button
               v-for="row in rows"
               :key="modelKey(row)"
@@ -136,7 +140,7 @@ onDeactivated(stats.stopAuto);
                 percent(totalTokens > 0 ? row.totals.tokens.total_tokens / totalTokens : 0)
               }}</small>
             </button>
-          </div>
+          </ModelLegend>
           <dl class="statistics-values">
             <div>
               <dt>{{ i18n.t('stats.tokensIn') }} <small>Token</small></dt>
@@ -189,18 +193,17 @@ onDeactivated(stats.stopAuto);
               <li v-for="(item, index) in slices" :key="index" :class="{ active: hovered === index }">
                 <i
                   :style="{ background: item.colorIndex == null ? 'var(--fg-subtle)' : color(item.colorIndex) }"
-                /><span>{{ item.name }}</span
+                /><span class="distribution-label"
+                  >{{ item.model ?? item.name }}<small v-if="item.provider">{{ item.provider }}</small
+                  ><small v-else-if="item.members.length > 1">{{
+                    tr(item.members.length + ' 个模型', item.members.length + ' models')
+                  }}</small></span
                 ><strong>{{ percent(item.share) }}</strong>
               </li>
             </ul>
           </div>
         </section>
       </UsageCharts>
-      <div class="statistics-grid">
-        <div class="statistics-footer">
-          <StorageCard v-if="storage" :storage="storage" :color="color" />
-        </div>
-      </div>
     </div>
   </OverlayWindow>
 </template>
@@ -209,7 +212,6 @@ onDeactivated(stats.stopAuto);
 @media (max-width: 899px) {
   /* The phone's grouped look: cards one step above a sunken page. */
   .statistics-usage,
-  .statistics-panel,
   .statistics-body :deep(.usage-chart-card) {
     border: 0;
     border-radius: 18px;
@@ -224,6 +226,7 @@ onDeactivated(stats.stopAuto);
   padding: 0;
 }
 .statistics-usage {
+  container: usage-summary / inline-size;
   padding: 14px 16px;
   min-width: 0;
   transition: opacity var(--dur-fast);
@@ -235,7 +238,8 @@ onDeactivated(stats.stopAuto);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 6px 12px;
   margin-bottom: 8px;
 }
 .statistics-usage-head h3 {
@@ -246,14 +250,6 @@ onDeactivated(stats.stopAuto);
   margin: 8px 0 16px;
   font-size: 13px;
   color: var(--fg-subtle);
-}
-/* Equal cells keep names, providers and shares aligned however many models there are. */
-.statistics-models {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2px 12px;
-  margin-bottom: 10px;
-  min-width: 0;
 }
 .statistics-model {
   display: flex;
@@ -306,10 +302,6 @@ onDeactivated(stats.stopAuto);
 }
 /* Phones: the share joins the provider line so names keep the full cell width. */
 @media (max-width: 599px) {
-  .statistics-models {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 2px 6px;
-  }
   .statistics-model {
     padding-inline: 6px;
   }
@@ -331,21 +323,6 @@ onDeactivated(stats.stopAuto);
   height: 7px;
   border-radius: 50%;
   flex: none;
-}
-.statistics-grid {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-  margin-top: 12px;
-}
-.statistics-footer {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-h2 {
-  font: 600 16px/1.5 var(--font);
-  margin: 0 0 16px;
 }
 h3 {
   font-size: 14px;
@@ -412,11 +389,16 @@ dd {
   flex: none;
   border-radius: 50%;
 }
-.distribution-legend span {
+.distribution-label {
   flex: 1;
   min-width: 0;
   color: var(--fg-muted);
   overflow-wrap: anywhere;
+}
+.distribution-label small {
+  display: block;
+  font-size: 0.85em;
+  color: var(--fg-subtle);
 }
 .distribution-legend strong {
   font-weight: 500;
@@ -461,25 +443,6 @@ dd {
 .distribution-legend:has(li.active) li:not(.active) {
   opacity: 0.45;
 }
-/* Storage: a card matching the chart cards above. */
-.statistics-panel {
-  min-width: 0;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--bg-raised);
-}
-@media (max-width: 899px) {
-  .statistics-footer {
-    gap: 16px;
-  }
-  .statistics-grid {
-    margin-top: 16px;
-  }
-  .statistics-panel {
-    padding: 16px;
-  }
-}
 .statistics-body :deep(.usage-charts) {
   gap: 12px;
   margin-block: 10px 12px;
@@ -501,21 +464,23 @@ dd {
   .statistics-usage {
     padding: 16px 12px;
   }
+}
+@container usage-summary (max-width: 28em) {
   .model-share {
     grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
+    gap: 8px;
+  }
+  .model-share-chart {
+    width: min(100%, 128px);
+    justify-self: center;
   }
   .model-share :deep(.usage-canvas) {
-    height: 124px;
+    height: 128px;
   }
-}
-@media (max-width: 450px) {
-  .model-share {
-    grid-template-columns: minmax(100px, 130px) minmax(0, 1fr);
-    gap: 10px;
-  }
-  .model-share :deep(.usage-canvas) {
-    height: 140px;
+  .distribution-legend li {
+    padding-block: 6px;
+    gap: 8px;
+    line-height: 1.4;
   }
 }
 </style>

@@ -1,5 +1,5 @@
 import { onScopeDispose, shallowRef } from 'vue';
-import { getBaseUrl } from '../../core/api/client.ts';
+import { getConnectionScope } from '../../core/api/client.ts';
 import { bus } from '../../core/bus.ts';
 import { hasReadyProvider } from '../../core/providerReadiness.ts';
 import { tryPlatform } from '../../platform/index.ts';
@@ -14,14 +14,14 @@ import { ApiError } from '../../core/api/client.ts';
 const REMEMBER = 'wish.providerGate.ready';
 function rememberedReady() {
   try {
-    return tryPlatform('storage')?.get(REMEMBER) === getBaseUrl();
+    return tryPlatform('storage')?.get(REMEMBER) === getConnectionScope();
   } catch {
     return false;
   }
 }
 function remember(ready: boolean) {
   try {
-    if (ready) tryPlatform('storage')?.set(REMEMBER, getBaseUrl());
+    if (ready) tryPlatform('storage')?.set(REMEMBER, getConnectionScope());
     else tryPlatform('storage')?.remove(REMEMBER);
   } catch {
     /* storage unavailable */

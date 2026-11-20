@@ -183,6 +183,11 @@ function input() {
   const text = nodes.map(serialize).join(''),
     selected = selection();
   update(text, true, selected);
+  if (!text && el.value.hasChildNodes()) {
+    el.value.replaceChildren();
+    setSelection(0);
+    return;
+  }
   // Native text/IME edits already changed the correct TextNodes. Rebuild only when an
   // attachment placeholder must become (or cease to be) an atomic token.
   const expected = splitAttachmentText(text, props.attachments)
@@ -492,7 +497,7 @@ defineExpose({
 }
 .composer-input:empty::before {
   content: attr(data-placeholder);
-  color: var(--fg-subtle);
+  color: var(--fg-placeholder);
   pointer-events: none;
 }
 .composer-input :deep(.inline-attachment-token) {

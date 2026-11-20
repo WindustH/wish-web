@@ -268,9 +268,9 @@ export function useRecentsSheet(split: Ref<HTMLElement | null>) {
   }
 
   watch(
-    split,
-    (element, _, cleanup) => {
-      if (!element) return;
+    [split, phone, () => restOf(route.value.name) !== undefined],
+    ([element, mobile, sheetRoute], _, cleanup) => {
+      if (!element || !mobile || !sheetRoute) return;
       element.addEventListener('touchstart', onTouchStart, { passive: true });
       element.addEventListener('touchmove', onTouchMove, { passive: false });
       element.addEventListener('touchend', onTouchFinished, true);

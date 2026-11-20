@@ -325,7 +325,7 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <div
       v-if="popup"
-      class="reply-preview"
+      class="reply-preview popup-palette"
       role="region"
       :aria-label="tr('回复预览', 'Reply preview')"
       :style="{ left: `${popup.x}px`, top: `${popup.y}px`, transform: popup.above ? 'translateY(-100%)' : undefined }"
@@ -383,11 +383,11 @@ onBeforeUnmount(() => {
   max-height: 280px;
   display: flex;
   flex-direction: column;
-  background: var(--bg-raised);
+  background: var(--bg-overlay);
   color: var(--fg);
   border: 1px solid var(--line-strong);
   border-radius: 12px;
-  box-shadow: 0 8px 32px #0004;
+  box-shadow: var(--shadow-menu);
   overflow: hidden;
 }
 .reply-preview-body {

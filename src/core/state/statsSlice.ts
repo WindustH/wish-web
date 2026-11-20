@@ -5,20 +5,18 @@ import { shallowRef } from 'vue';
 import * as api from '../api/endpoints.ts';
 import { peekCached, readCached, writeCached } from '../util/responseCache.ts';
 import { rangeBounds, type TotalsRange } from '../usage/windows.ts';
-import type { StorageSnapshot, UsageSnapshot } from '../api/endpoints.ts';
+import type { UsageSnapshot } from '../api/endpoints.ts';
 export type { StorageSnapshot, UsageSnapshot, UsageTotals } from '../api/endpoints.ts';
 
 // The persisted statistics snapshot; `usageKey` names the window its usage covers.
 export interface StatsSnapshot {
   usage: UsageSnapshot;
   usageKey: string;
-  storage: StorageSnapshot;
   updatedAt: number;
 }
 
 export const stats = (() => {
   const usage = shallowRef<UsageSnapshot | null>(null);
-  const storage = shallowRef<StorageSnapshot | null>(null);
   const loading = shallowRef(false);
   const error = shallowRef<unknown>(null);
   const updatedAt = shallowRef<number | null>(null);
@@ -34,7 +32,6 @@ export const stats = (() => {
 
   function apply(snapshot: StatsSnapshot) {
     if (snapshot.usageKey === usageKey(usageRange.value)) usage.value = snapshot.usage;
-    storage.value = snapshot.storage;
     updatedAt.value = snapshot.updatedAt;
   }
 
@@ -51,11 +48,12 @@ export const stats = (() => {
     loading.value = true;
     error.value = null;
     const range = usageRange.value;
-    pending = Promise.all([api.usageTotals({ ...options, query: rangeBounds(range) }), api.storageStatus(options)])
-      .then(([usage, storage]) => {
+    pending = api
+      .usageTotals({ ...options, query: rangeBounds(range) })
+      .then((usage) => {
         if (own !== epoch) return;
         // A range switched meanwhile has its own read; these totals are for the old one.
-        const snapshot: StatsSnapshot = { usage, usageKey: usageKey(range), storage, updatedAt: Date.now() };
+        const snapshot: StatsSnapshot = { usage, usageKey: usageKey(range), updatedAt: Date.now() };
         apply(snapshot);
         writeCached('stats-snapshot', snapshot);
         writeCached(usageKey(range), usage);
@@ -125,7 +123,6 @@ export const stats = (() => {
     usage,
     usageRange,
     usageSwitching,
-    storage,
     loading,
     error,
     updatedAt,

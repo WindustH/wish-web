@@ -17,7 +17,7 @@ async function show() {
     await open({ kind: 'blob', ...props.mention });
     emit('opened');
   } catch (error) {
-    toast(describeError(error).message);
+    toast(describeError(error).message, { tone: 'error' });
   } finally {
     busy.value = false;
   }

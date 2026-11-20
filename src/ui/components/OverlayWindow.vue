@@ -132,7 +132,7 @@ const close = inject(closeOverlayKey)!;
     flex: 1;
     min-width: 0;
     margin: 0 10px 0 0;
-    font: 600 15px/1.4 var(--font);
+    font: var(--dialog-heading);
   }
   .overlay-window-heading .btn.icon-only {
     width: 32px;

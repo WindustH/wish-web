@@ -34,7 +34,6 @@ export const en = {
     'The browser cannot decode this video track or format (for example, 10-bit H.264). Download the file or open the original in a local player.',
   'library.previewFailed': 'Could not load this preview. Try again or download the file.',
   'library.noPreview': 'Preview is not available for this file type. You can download it above.',
-  'library.truncated': 'Showing the first 256 KiB. Download the file to read all of it.',
   'library.previousPage': 'Previous page',
   'library.nextPage': 'Next page',
   'library.zoomIn': 'Zoom in',
@@ -170,7 +169,6 @@ export const en = {
   'time.older': 'older',
   'a11y.runDone': 'The reply has finished',
   'notify.runFailed': 'Run failed: {name}',
-  'notify.contextCompacted': 'Context compacted ({n} entries trimmed)',
   'notify.compactionTranslationFailed':
     'Encrypted history could not be translated. Some earlier context may be missing.',
   'search.more': 'Load more results',

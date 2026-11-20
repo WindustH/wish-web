@@ -4,7 +4,7 @@ import { shallowRef } from 'vue';
 import { cfg } from '../config.ts';
 import { platform } from '../../platform/index.ts';
 import { shortcuts } from './shortcutsSlice.ts';
-import { getBaseUrl } from '../api/client.ts';
+import { getConnectionScope } from '../api/client.ts';
 import { readWorkspaceState, writeWorkspaceState } from '../util/workspaceState.ts';
 
 // An on/off preference, stored as '1' or '0'; until one is stored it has its default.
@@ -46,7 +46,7 @@ export const prefs = (() => {
       : defaultListCollapsed.value.value;
   }
   function setSessionListOwner(id: string | null) {
-    sessionListKey = id ? JSON.stringify([getBaseUrl(), 'session-list', id]) : null;
+    sessionListKey = id ? JSON.stringify([getConnectionScope(), 'session-list', id]) : null;
     restoreSessionList();
   }
   function setSessionListCollapsed(collapsed: boolean) {

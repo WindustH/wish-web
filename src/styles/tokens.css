@@ -15,6 +15,7 @@
   --fg-muted: #54504b;
   --fg-subtle: #6d6862;
   --fg-faint: #8e8981;
+  --fg-placeholder: #736e69;
   --line: #dfdcd6;
   --line-strong: #c1bcb4;
   --accent: #a64a33;
@@ -47,6 +48,13 @@
   --radius: 8px;
   --prose: var(--font);
   --font: 'Montserrat Variable', 'Sarasa Gothic SC', system-ui, sans-serif;
+  --dialog-heading: 600 15px/1.4 var(--font);
+  /* Text-first directory and name lists. Allow supporting text to grow the row. */
+  --text-list-size: 0.9375rem;
+  --text-list-leading: 1.5;
+  --text-list-secondary: 0.8125rem;
+  --text-list-row-height: 48px;
+  --page-heading: 600 17px/1.4 var(--font);
   --message-size: 17px;
   --message-leading: 1.65;
   --mono: 'Maple Mono NF CN', ui-monospace, monospace;
@@ -83,6 +91,7 @@ html[data-theme='dark'] {
   --fg-muted: #bebebe;
   --fg-subtle: #a5a5a5;
   --fg-faint: #848484;
+  --fg-placeholder: #909090;
   --line: #353535;
   --line-strong: #4a4a4a;
   --accent: #df947a;
@@ -107,6 +116,26 @@ html[data-theme='dark'] {
   --shadow-pop: 0 16px 48px rgb(0 0 0 / 28%), 0 2px 8px rgb(0 0 0 / 15%);
   --shadow-menu: 0 4px 12px rgb(0 0 0 / 18%), 0 1px 2px rgb(0 0 0 / 14%);
   color-scheme: dark;
+}
+
+/* Unscrimmed popups establish their own surface for every nested control and state.
+   Dialogs inherit the same palette as the workspace behind their scrim. */
+.popup-palette {
+  --bg: var(--bg-overlay);
+  --bg-raised: color-mix(in srgb, var(--bg-overlay), var(--fg) 4%);
+  --bg-control: color-mix(in srgb, var(--bg-overlay), var(--fg) 5%);
+  --bg-sunken: color-mix(in srgb, var(--bg-overlay), var(--fg) 7%);
+  --bg-inset: var(--bg-sunken);
+  --bg-group: var(--bg-raised);
+  --bg-group-active: var(--bg-active);
+  --bg-hover: color-mix(in srgb, var(--bg-overlay), var(--fg) 9%);
+  --bg-active: color-mix(in srgb, var(--bg-overlay), var(--fg) 15%);
+  --line: color-mix(in srgb, var(--bg-overlay), var(--fg) 16%);
+  --line-strong: color-mix(in srgb, var(--bg-overlay), var(--fg) 30%);
+  --fg-muted: color-mix(in srgb, var(--bg-overlay), var(--fg) 80%);
+  --fg-subtle: color-mix(in srgb, var(--bg-overlay), var(--fg) 66%);
+  --accent-soft: color-mix(in srgb, var(--bg-overlay), var(--accent) 16%);
+  color: var(--fg);
 }
 
 /* Shared chart palette: distinct series and a sequential daily-usage scale.

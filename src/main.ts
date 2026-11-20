@@ -24,6 +24,7 @@ import { createUnhandledRejectionReporter } from './ui/unhandledErrors.ts';
 import { showError } from './ui/errorDialog.ts';
 import { tr } from './core/i18n/tr.ts';
 import { router } from './router.ts';
+import { isNativeApp, setAndroidSurfaceColor } from './platform/native.ts';
 import { applyConnection, isSignedOut } from './core/connection.ts';
 
 import './generated/fonts/montserrat.css';
@@ -41,9 +42,6 @@ import { installScrollStallLog } from './domain/diagnostics/scrollStalls.ts';
 applyTokens();
 const stopViewport = installViewport();
 registerBrowserPlatform({ namespace: cfg.meta.storageNamespace, version: cfg.meta.storageVersion });
-sessions.hydrate();
-applyConnection();
-prefs.load();
 const stopTextSize = watch(
   prefs.textSize,
   (size) => {
@@ -86,7 +84,9 @@ const stopTheme = watch(
   (r) => {
     document.documentElement.dataset.theme = r;
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) (meta as HTMLMetaElement).content = r === 'dark' ? '#1c1c1c' : '#f6f5f2';
+    const surface = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    if (meta) (meta as HTMLMetaElement).content = surface;
+    setAndroidSurfaceColor(surface);
   },
   { immediate: true },
 );
@@ -108,6 +108,24 @@ const stopLocale = watch(
   { immediate: true },
 );
 
+const sshRecovery = isNativeApp() ? await import('./features/connection/nativeSshRecovery.ts') : null;
+if (sshRecovery && !isSignedOut() && platform('storage').get('ssh.connected') === '1') {
+  const { default: Startup } = await import('./features/connection/SshStartup.vue');
+  let gate: ReturnType<typeof createApp>;
+  await new Promise<void>((resolve) => {
+    gate = createApp(Startup, {
+      restore: (signal: AbortSignal) => applyConnection(() => sshRecovery.restoreSsh(undefined, signal), signal),
+      onReady: resolve,
+    });
+    gate.mount('#app');
+  });
+  gate!.unmount();
+} else {
+  await applyConnection();
+}
+sessions.hydrate();
+prefs.load();
+
 // Background notifier FIRST: its sync.snapshot baseline must be established
 // before the control plane starts streaming.
 // Signed out, the sign-in page picks a server first.
@@ -119,8 +137,9 @@ if (!isSignedOut()) {
 }
 
 // Malformed control-plane frame → one visible toast per occurrence.
+const stopSshRecovery = sshRecovery?.watchNativeConnection();
 const stopProtocolError = watch(sync.protocolError, (err) => {
-  if (err) toast(i18n.t('sync.protocolError'));
+  if (err) toast(i18n.t('sync.protocolError'), { tone: 'error' });
 });
 
 // Keep the screen awake while a run is active, on any supported device.
@@ -142,10 +161,11 @@ app.config.errorHandler = (error, _instance, info) => {
   console.error('Vue error:', info, error);
   showError({ title: tr('界面发生错误', 'Interface error'), error });
 };
-const reportRejection = createUnhandledRejectionReporter(() => toast(i18n.t('errors.background')));
+const reportRejection = createUnhandledRejectionReporter(() => toast(i18n.t('errors.background'), { tone: 'error' }));
 window.addEventListener('unhandledrejection', reportRejection);
 let stopShortcuts = () => {};
 app.onUnmount(() => {
+  stopSshRecovery?.();
   stopBackgroundNotify();
   stopTheme();
   stopLocale();
@@ -172,10 +192,10 @@ void Promise.all([
 
 stopShortcuts = installShortcuts({
   navigateWorkspace,
-  interruptReply: () => {
-    const current = router.currentRoute.value;
-    if (current.meta.section === 'sessions' && typeof current.params.id === 'string')
-      void interruptReply(current.params.id);
+  get interruptReply() {
+    const { meta, params } = router.currentRoute.value;
+    const id = params.id;
+    return meta.section === 'sessions' && typeof id === 'string' ? () => void interruptReply(id) : undefined;
   },
   quickSwitchSessions: () => {
     quickSwitchOpen.value = !quickSwitchOpen.value;
@@ -190,6 +210,6 @@ stopShortcuts = installShortcuts({
   },
 });
 
-initPWA();
+app.onUnmount(initPWA());
 
 if (import.meta.hot) import.meta.hot.dispose(() => app.unmount());
