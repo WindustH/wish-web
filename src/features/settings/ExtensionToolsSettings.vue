@@ -59,7 +59,6 @@ const current = computed(() => extensionSections.value.find((item) => item.id ==
           <ToolSwitchRows
             :extension-rows="extensionSwitchRows"
             v-model="draft.defaults.tools"
-            dropdown
             :delivery-help="
               tr(
                 '此设置用于新会话，已有会话可以单独配置。命令方式需要启用 Shell。',

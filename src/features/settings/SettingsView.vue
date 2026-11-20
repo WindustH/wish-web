@@ -359,13 +359,7 @@ onActivated(() => {
                   :efforts="effortOptions"
                 />
                 <SessionDefaults v-else-if="tab === 'service'" />
-                <ToolSettings
-                  v-else-if="tab === 'tools'"
-                  :config="draft"
-                  :shells="shells"
-                  :busy="busy"
-                  :search-available="searchAvailable"
-                />
+                <ToolSettings v-else-if="tab === 'tools'" :config="draft" :shells="shells" :busy="busy" />
                 <ExtensionToolsSettings
                   v-else-if="tab === 'extensions'"
                   :initial-section="extensionSection"

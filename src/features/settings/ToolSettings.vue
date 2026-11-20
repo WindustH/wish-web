@@ -3,13 +3,13 @@ import type { SettingsConfig } from '../../core/configTypes.ts';
 // The built-in tools new sessions start with, whether they may manage other sessions, and the shell
 // they run commands in.
 import ServerShellSettings from '../../domain/settings/ServerShellSettings.vue';
-import ToolSwitchRows from '../../domain/settings/ToolSwitchRows.vue';
+import BuiltinToolSettings from '../../domain/settings/BuiltinToolSettings.vue';
 import ToolBackgroundRow from '../../domain/settings/ToolBackgroundRow.vue';
 import ToolExecutionRow from '../../domain/settings/ToolExecutionRow.vue';
 import type { ShellCatalog } from '../../core/api/endpoints.ts';
 import { tr } from '../../core/i18n/tr.ts';
 
-defineProps<{ config: SettingsConfig; shells: ShellCatalog | null; busy: boolean; searchAvailable: boolean | null }>();
+defineProps<{ config: SettingsConfig; shells: ShellCatalog | null; busy: boolean }>();
 </script>
 
 <template>
@@ -37,11 +37,7 @@ defineProps<{ config: SettingsConfig; shells: ShellCatalog | null; busy: boolean
           :disabled="busy"
           @update:model-value="config.defaults.run = { ...config.defaults.run, background_tools_on_input: $event }"
         />
-        <ToolSwitchRows
-          v-model="config.defaults.tools"
-          :search-available="searchAvailable"
-          :include="['shell', 'blob', 'sessions', 'history_search', 'ask_user']"
-        />
+        <BuiltinToolSettings v-model="config.defaults.tools" :disabled="busy" />
       </div>
     </section>
     <section v-if="config.shell" class="set-section">

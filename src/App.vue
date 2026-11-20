@@ -107,7 +107,9 @@ const online = computed(() => sync.online.value);
       </p>
       <p v-if="gate.error.value" class="load-error" role="alert">{{ gate.error.value }}</p>
       <div class="provider-gate-actions">
-        <button v-if="gate.state.value === 'error'" class="btn" @click="gate!.refresh()">{{ tr('重试', 'Retry') }}</button>
+        <button v-if="gate.state.value === 'error'" class="btn" @click="gate!.refresh()">
+          {{ tr('重试', 'Retry') }}
+        </button>
         <SignOutButton button-class="btn ghost">{{ tr('切换账户', 'Switch account') }}</SignOutButton>
       </div>
     </main>

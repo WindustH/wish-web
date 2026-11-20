@@ -181,7 +181,10 @@ onBeforeUnmount(() => {
         :alt="alt"
         :style="[style, { opacity: loadedSrc === src ? 1 : 0 }]"
         draggable="false"
-        @load="loadedSrc = src; loaded()"
+        @load="
+          loadedSrc = src;
+          loaded();
+        "
         @error="emit('error')"
       />
     </div>

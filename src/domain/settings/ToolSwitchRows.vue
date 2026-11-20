@@ -9,17 +9,16 @@ import SegmentedControl from '../../ui/components/SegmentedControl.vue';
 import type { ToolDelivery } from '../../core/api/projections.ts';
 import SelectField from '../../ui/components/SelectField.vue';
 import SettingHint from './SettingHint.vue';
-import SwitchRow from './SwitchRow.vue';
 
 const props = defineProps<{
-  searchAvailable: boolean | null;
+  searchAvailable?: boolean | null;
+  disabled?: boolean;
   extensionRows?: readonly {
     key: Exclude<keyof ToolSwitches, 'mcp' | 'skills' | `${string}_delivery`>;
     name: string;
     hint: string;
   }[];
   compact?: boolean;
-  dropdown?: boolean;
   deliveryHelp?: string;
   include?: readonly (keyof ToolSwitches)[];
   /** Said in every row instead of what the tool does, while the switches cannot be saved. */
@@ -62,16 +61,6 @@ const deliveryOptions = computed(() => [
   { value: 'command', icon: 'terminal', label: i18n.t('tools.command'), disabled: !tools.value.shell },
   { value: 'tool', icon: 'tool', label: i18n.t('tools.direct') },
 ]);
-const taskOptions = computed(() => [
-  {
-    value: 'off',
-    icon: 'x',
-    tone: 'danger' as const,
-    label: i18n.t('tools.shellOff'),
-    disabled: true,
-  },
-  ...deliveryOptions.value.map((option) => ({ ...option, disabled: !tools.value.shell })),
-]);
 const capabilityOptions = computed(() => [
   { value: 'off', icon: 'x', tone: 'danger' as const, label: i18n.t('tools.off') },
   ...deliveryOptions.value,
@@ -81,6 +70,11 @@ const deliveryChoices = computed(() => [
   { value: 'command', label: tr('通过命令调用', 'Use as a command'), disabled: !tools.value.shell },
   { value: 'tool', label: tr('作为工具调用', 'Use as a tool') },
 ]);
+const taskChoices = computed(() =>
+  tools.value.shell
+    ? deliveryChoices.value.filter((choice) => choice.value !== 'off')
+    : [{ value: 'off', label: i18n.t('tools.shellOff') }],
+);
 function setCapability(
   key:
     | 'video_generate'
@@ -154,8 +148,12 @@ function capabilityValue(key: Exclude<(typeof rows.value)[number]['key'], 'shell
   <!-- A single-row picker changes the tool in place. Keep its SelectField mounted so
        closing the menu can restore focus instead of dismissing the containing panel. -->
   <template v-for="row in rows" :key="$slots.label && rows.length === 1 ? 'capability-picker' : row.key">
-    <SwitchRow v-if="row.key === 'shell'" v-model="tools.shell" :name="row.name" :hint="note ?? row.hint" />
-    <div v-else class="set-row inline capability-row" :class="{ compact }" :data-tool="row.key">
+    <div
+      v-if="row.key !== 'shell'"
+      class="set-row"
+      :class="{ 'inline capability-row': compact || deliveryHelp || $slots.label, compact }"
+      :data-tool="row.key"
+    >
       <div v-if="$slots.label" class="capability-picker"><slot name="label" :row="row" /></div>
       <div v-else-if="deliveryHelp" class="set-field-heading">
         <span>{{ tr('启用方式', 'Delivery mode') }}</span>
@@ -172,9 +170,10 @@ function capabilityValue(key: Exclude<(typeof rows.value)[number]['key'], 'shell
         >
       </template>
       <SelectField
-        v-if="dropdown"
+        v-if="!compact"
+        :disabled="disabled"
         class="delivery-select"
-        :aria-label="tr('启用方式', 'Delivery mode')"
+        :aria-label="`${row.name} ${i18n.t('tools.delivery')}`"
         :model-value="capabilityValue(row.key)"
         :options="deliveryChoices"
         @update:model-value="setCapability(row.key, $event)"
@@ -188,15 +187,16 @@ function capabilityValue(key: Exclude<(typeof rows.value)[number]['key'], 'shell
         @update:model-value="setCapability(row.key, $event)"
       />
     </div>
-    <div v-if="row.key === 'shell'" class="set-row inline capability-row">
+    <div v-if="row.key === 'shell'" class="set-row" data-tool="task">
       <span class="set-label"
         ><span>Task</span><small>{{ note ?? i18n.t('tools.taskHint') }}</small></span
       >
-      <SegmentedControl
-        class="tool-delivery"
-        :label="i18n.t('tools.taskDelivery')"
+      <SelectField
+        class="delivery-select"
+        :disabled="disabled || !tools.shell"
+        :aria-label="i18n.t('tools.taskDelivery')"
         :model-value="tools.shell ? delivery('shell') : 'off'"
-        :options="taskOptions"
+        :options="taskChoices"
         @update:model-value="tools.shell && $event !== 'off' && (tools.task_delivery = $event as ToolDelivery)"
       />
     </div>

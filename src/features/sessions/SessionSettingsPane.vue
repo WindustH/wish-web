@@ -20,6 +20,7 @@ import ServerShellSettings from '../../domain/settings/ServerShellSettings.vue';
 import type { ShellCatalog } from '../../core/api/endpoints.ts';
 import type { ShellSettings } from '../../core/api/types.ts';
 import '../../domain/settings/settings.css';
+import BuiltinToolSettings from '../../domain/settings/BuiltinToolSettings.vue';
 import ToolSwitchRows from '../../domain/settings/ToolSwitchRows.vue';
 import ExtensionCategoryPicker from '../../domain/settings/ExtensionCategoryPicker.vue';
 import { extensionSections } from '../../extensions/settings.ts';
@@ -366,12 +367,10 @@ async function act(kind: 'compact' | 'clear') {
       <fieldset class="set-card" :disabled="running || busy">
         <ToolExecutionRow v-model="execution" :disabled="running || busy" :note="running ? savedLater() : undefined" />
         <ToolBackgroundRow v-model="backgroundTools" :disabled="running || busy" />
-        <ToolSwitchRows
-          :extension-rows="extensionSwitchRows"
+        <BuiltinToolSettings
           v-if="snapshot"
           v-model="tools"
-          :include="['shell', 'blob', 'sessions', 'history_search', 'ask_user']"
-          :search-available="searchAvailable"
+          :disabled="running || busy"
           :note="running ? savedLater() : undefined"
         />
       </fieldset>
