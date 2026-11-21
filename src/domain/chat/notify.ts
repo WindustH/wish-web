@@ -7,23 +7,25 @@ import { createQuestionWatch } from '../../core/questionWatch.ts';
 import { platform } from '../../platform/index.ts';
 import { toast } from '../../ui/toast.ts';
 
-async function show(sessionId: string, name: string, event: SessionNotice, tag: string) {
-  const { text: title, detail: body, icon, tone } = sessionNotice(name || sessionId.slice(0, 8), event);
-  if (!platform('app').isHidden()) {
-    toast(title, { sessionId, detail: body, icon, tone });
-    return;
+export function installBackgroundNotify(isViewingSession: (id: string) => boolean) {
+  async function show(sessionId: string, name: string, event: SessionNotice, tag: string) {
+    const hidden = platform('app').isHidden();
+    if (!hidden && isViewingSession(sessionId)) return;
+    const { text: title, detail: body, icon, tone } = sessionNotice(name || sessionId.slice(0, 8), event);
+    if (!hidden) {
+      toast(title, { sessionId, detail: body, icon, tone });
+      return;
+    }
+    if (!prefs.notifyOnFailure.value) return;
+    const notify = platform('notify');
+    if (notify.permission() !== 'granted') return;
+    try {
+      await notify.show({ title, body, tag });
+    } catch (error) {
+      console.warn('[notify]', error);
+    }
   }
-  if (!prefs.notifyOnFailure.value) return;
-  const notify = platform('notify');
-  if (notify.permission() !== 'granted') return;
-  try {
-    await notify.show({ title, body, tag });
-  } catch (error) {
-    console.warn('[notify]', error);
-  }
-}
 
-export function installBackgroundNotify() {
   let failures = createRunFailureWatch();
   let questions = createQuestionWatch();
   const working = new Set<string>();

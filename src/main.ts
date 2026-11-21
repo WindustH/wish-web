@@ -132,7 +132,7 @@ prefs.load();
 let stopBackgroundNotify = () => {};
 if (!isSignedOut()) {
   const { installBackgroundNotify } = await import('./domain/chat/notify.ts');
-  stopBackgroundNotify = installBackgroundNotify();
+  stopBackgroundNotify = installBackgroundNotify((id) => router.currentRoute.value.params.id === id);
   sync.start();
 }
 
