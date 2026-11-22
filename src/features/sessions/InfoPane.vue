@@ -171,6 +171,7 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
     <GenerationInspector
       v-if="open && section === 'context' && chat.sessionId.value"
       :session-id="chat.sessionId.value"
+      :working-directory="snapshot?.descriptor?.cwd"
     />
     <SessionHistorySearch v-if="section === 'search'" @close="$emit('close')" />
     <template v-else-if="section === 'overview'">

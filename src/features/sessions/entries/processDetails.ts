@@ -17,9 +17,11 @@ export function toolResult(step: any): any {
   }
 }
 export function toolOutput(step: any): any {
-  const result = toolResult(step);
+  return resultOutput(toolResult(step), stepToolName(step));
+}
+export function resultOutput(result: any, name?: string): any {
   if (result?.output !== undefined) return result.output;
-  if (['shell', 'shell_edit'].includes(step.entry?.payload?.tool_name) && typeof result?.message === 'string') {
+  if ((name === 'shell' || name === 'shell_edit') && typeof result?.message === 'string') {
     try {
       const output = JSON.parse(result.message);
       if (output?.process) return output;
