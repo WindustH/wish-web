@@ -220,7 +220,7 @@ async function remove(item: any) {
   if (busy.value || moving.value) return;
   busy.value = true;
   try {
-    await chat.cancelQueued(item.id);
+    await chat.cancelQueued(item.id, { optimistic: true });
   } catch (e: any) {
     toast(errorDetail(e), { tone: 'error' });
   } finally {

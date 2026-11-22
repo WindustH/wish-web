@@ -14,7 +14,7 @@ import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
 import Menu from '../../ui/components/Menu.vue';
 const props = defineProps<{ revision: number }>();
-const emit = defineEmits<{ changed: [] }>();
+const emit = defineEmits<{ removing: [row: ArchiveRecord, request: Promise<unknown>] }>();
 const query = ref(''),
   order = ref<'time' | 'size'>('time'),
   rows = ref<ArchiveRecord[]>([]),
@@ -22,8 +22,7 @@ const query = ref(''),
 const loading = ref(false),
   error = ref(''),
   confirm = ref<ArchiveRecord>(),
-  deleting = ref(false),
-  deleteError = ref('');
+  deleting = ref<string>();
 const downloading = ref(new Set<string>());
 const labels = computed<Record<ArchiveKind, string>>(() => ({
   session: tr('完整会话', 'Full session'),
@@ -49,7 +48,8 @@ async function load(more = false) {
       { signal: own.signal },
     );
     if (!own.signal.aborted) {
-      rows.value = more ? [...rows.value, ...result.items] : result.items;
+      const items = result.items.filter((row) => row.archive_id !== deleting.value);
+      rows.value = more ? [...rows.value, ...items] : items;
       next.value = result.next;
     }
   } catch (e) {
@@ -90,17 +90,22 @@ async function download(row: ArchiveRecord) {
 async function remove() {
   const row = confirm.value;
   if (!row || deleting.value || loading.value) return;
-  deleting.value = true;
-  deleteError.value = '';
+  const index = rows.value.findIndex((item) => item.archive_id === row.archive_id);
+  const scope = [query.value, order.value, props.revision] as const;
+  deleting.value = row.archive_id;
+  confirm.value = undefined;
+  rows.value = rows.value.filter((r) => r.archive_id !== row.archive_id);
+  const request = archiveDelete(row.archive_id);
+  emit('removing', row, request);
   try {
-    await archiveDelete(row.archive_id);
-    rows.value = rows.value.filter((r) => r.archive_id !== row.archive_id);
-    confirm.value = undefined;
-    emit('changed');
+    await request;
   } catch (e) {
-    deleteError.value = describeError(e).message;
+    toast(nameOf(row) + ' · ' + describeError(e).message, { tone: 'error' });
+    if (scope[0] === query.value && scope[1] === order.value && scope[2] === props.revision && index >= 0)
+      rows.value.splice(index, 0, row);
+    else void load();
   } finally {
-    deleting.value = false;
+    deleting.value = undefined;
   }
 }
 </script>
@@ -154,32 +159,27 @@ async function remove() {
         ><button
           class="btn ghost icon-only"
           :aria-label="tr('删除归档', 'Delete archive') + ' ' + nameOf(r)"
-          :disabled="loading || downloading.has(r.archive_id)"
-          @click="
-            deleteError = '';
-            confirm = r;
-          "
+          :disabled="loading || !!deleting || downloading.has(r.archive_id)"
+          @click="confirm = r"
         >
           <Icon name="trash-2" />
         </button>
       </li>
     </ul>
-    <button v-if="next" class="btn" :disabled="loading || deleting" @click="load(true)">
+    <button v-if="next" class="btn" :disabled="loading || !!deleting" @click="load(true)">
       {{ tr('加载更多', 'Load more') }}
     </button>
     <Modal
       v-if="confirm"
       compact
       :open="true"
-      :dismissable="!deleting"
       :title="tr('永久删除归档？', 'Permanently delete archive?')"
       @close="confirm = undefined"
       ><p>{{ nameOf(confirm) }} · {{ fmtBytes(confirm.archive_bytes) }}</p>
       <p>{{ tr('服务器上的这份 ZIP 将被永久删除。', 'This ZIP will be permanently removed from the server.') }}</p>
-      <p v-if="deleteError" class="load-error" role="alert">{{ deleteError }}</p>
       <template #footer
-        ><button class="btn ghost" :disabled="deleting" @click="confirm = undefined">{{ tr('取消', 'Cancel') }}</button
-        ><button class="btn danger solid" :disabled="deleting || loading" @click="remove">
+        ><button class="btn ghost" @click="confirm = undefined">{{ tr('取消', 'Cancel') }}</button
+        ><button class="btn danger solid" :disabled="!!deleting || loading" @click="remove">
           {{ tr('删除归档', 'Delete archive') }}
         </button></template
       ></Modal

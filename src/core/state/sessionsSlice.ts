@@ -31,6 +31,7 @@ import type { CreateSessionBody, FolderView, Placement, SessionsListParams } fro
 import type { SessionView } from '../api/projections.ts';
 import type { SessionUpsert, SessionTombstone } from './syncSlice.ts';
 import { platform } from '../../platform/index.ts';
+import { createOptimisticRows } from './optimisticRows.ts';
 
 // One list row: the list-facing fields of a session snapshot or a folder, with where it
 // is. Rows fetched from GET /conversations carry the whole snapshot.
@@ -67,6 +68,21 @@ const metaOf = (row: { metadata?: unknown } | null | undefined): Record<string, 
     ? (row.metadata as Record<string, unknown>)
     : {};
 
+const compareText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+const folderNameKey = (name: string) => name.replace(/[A-Z]/g, (c) => c.toLowerCase());
+function placementOrder(a: ListRow, b: ListRow) {
+  if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1;
+  return (
+    Number(b.pinned) - Number(a.pinned) ||
+    (a.kind === 'folder' && b.kind === 'folder'
+      ? compareText(folderNameKey(a.name), folderNameKey(b.name))
+      : a.kind === 'session' && b.kind === 'session'
+        ? b.updated_at - a.updated_at
+        : 0) ||
+    compareText(a.id, b.id)
+  );
+}
+
 // The rows in order, each id once: pages fetched while the list moves can overlap.
 function uniqueById(rows: ListRow[]): ListRow[] {
   const seen = new Set<string>();
@@ -94,11 +110,27 @@ export const sessions = (() => {
     hydrated = true;
   }
   const folders = shallowRef(new Map<string, FolderView>());
+  const edits = createOptimisticRows<ListRow>();
 
   let gen = 0; // request generation
 
-  const list = computed(() => items.value);
   const filtered = computed(() => Boolean(query.value || tagFilter.value));
+  const list = computed(() => {
+    const projected = items.value.map(edits.project);
+    if (tagFilter.value)
+      return projected.filter((row, index) => {
+        if (row === items.value[index]) return true;
+        const tags = row.kind === 'session' ? metaOf(row).tags : undefined;
+        return tags === undefined || (Array.isArray(tags) && tags.includes(tagFilter.value));
+      });
+    return !filtered.value && projected.some((row, index) => row !== items.value[index])
+      ? projected.sort(placementOrder)
+      : projected;
+  });
+  function patchRow(id: string, project: (row: ListRow) => ListRow, reorder = false) {
+    const updated = items.value.map((row) => (row.id === id ? project(row) : row));
+    items.value = reorder && !filtered.value ? updated.sort(placementOrder) : updated;
+  }
   /** The folders from the root down to the one shown. */
   const path = computed<FolderView[]>(() => {
     const out: FolderView[] = [];
@@ -281,9 +313,15 @@ export const sessions = (() => {
   }
 
   async function rename(id: string, name: string): Promise<SessionView> {
-    const snap = await api.sessionRename(id, name);
-    items.value = items.value.map((s) => (s.id === id ? { ...s, name: snap.name, revision: snap.revision } : s));
-    return snap;
+    return edits.run(
+      [id],
+      (row) => ({ ...row, name }),
+      () => api.sessionRename(id, name),
+      (snap) => {
+        patchRow(id, (row) => ({ ...row, name: snap.name, revision: snap.revision }));
+        debouncedRebuild();
+      },
+    );
   }
 
   // Metadata write (decision-json-metadata): `changes` touches only the
@@ -295,9 +333,24 @@ export const sessions = (() => {
     if (!row?.id || row.revision == null) throw new Error('metadata update requires a session snapshot and revision');
     const id = row.id;
     const next = { ...metaOf(row), ...changes };
-    const snap = await api.sessionUpdateMeta(id, next, row.revision);
-    await rebuild();
-    return snap;
+    return edits
+      .run(
+        [id],
+        (item) => (item.kind === 'session' ? { ...item, metadata: next } : item),
+        () => api.sessionUpdateMeta(id, next, row.revision),
+        (snap) => {
+          patchRow(id, (item) =>
+            item.kind === 'session' ? { ...item, metadata: snap.metadata, revision: snap.revision } : item,
+          );
+          const tags = metaOf(snap).tags;
+          if (tagFilter.value && (!Array.isArray(tags) || !tags.includes(tagFilter.value))) dropRow(id);
+          debouncedRebuild();
+        },
+      )
+      .catch((cause) => {
+        debouncedRebuild();
+        throw cause;
+      });
   }
 
   function dropRow(id: string) {
@@ -310,10 +363,15 @@ export const sessions = (() => {
     return made;
   }
   async function renameFolder(id: string, name: string): Promise<FolderView> {
-    const renamed = await api.folderRename(id, name);
-    items.value = items.value.map((s) => (s.id === id ? { ...s, name: renamed.name } : s));
-    void loadFolders();
-    return renamed;
+    return edits.run(
+      [id],
+      (row) => ({ ...row, name }),
+      () => api.folderRename(id, name),
+      (renamed) => {
+        patchRow(id, (row) => ({ ...row, name: renamed.name }), true);
+        void loadFolders();
+      },
+    );
   }
   /** Deletes a folder; what it held goes up to the folder it was in. */
   async function deleteFolder(id: string): Promise<void> {
@@ -339,8 +397,17 @@ export const sessions = (() => {
     }
   }
   async function pin(ids: string[], pinned: boolean): Promise<void> {
-    await api.entriesPin(ids, pinned);
-    await rebuild();
+    const targets = new Set(ids);
+    await edits.run(
+      ids,
+      (row) => ({ ...row, pinned }),
+      () => api.entriesPin(ids, pinned),
+      () => {
+        const updated = items.value.map((row) => (targets.has(row.id) ? { ...row, pinned } : row));
+        items.value = filtered.value ? updated : updated.sort(placementOrder);
+        debouncedRebuild();
+      },
+    );
   }
 
   // Live invalidation from the control-plane stream. Every change can move an entry (its name,
@@ -385,6 +452,8 @@ export const sessions = (() => {
     refresh,
     create,
     rename,
+    displayName: (session: SessionView) =>
+      edits.project({ ...session, kind: 'session', parent: null, pinned: false }).name,
     updateMeta,
     dropRow,
     createFolder,

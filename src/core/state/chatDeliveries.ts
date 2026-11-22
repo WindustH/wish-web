@@ -1,6 +1,7 @@
 // Sending and queued input reconciliation share one session-owned lifecycle.
 import { shallowRef, type ShallowRef } from 'vue';
 import * as api from '../api/endpoints.ts';
+import { ApiError } from '../api/client.ts';
 import type { EndpointOptions, MessageBlock, QueuedDelivery } from '../api/endpoints.ts';
 import { uploadAttachments } from '../attachments.ts';
 import { sessionNaming } from './sessionNaming.ts';
@@ -48,10 +49,12 @@ export function createChatDeliveries({
   let generation = 0;
   let deliveriesVersion = 0;
   let directSending = false;
+  const cancelling = new Set<string>();
   const current = (own: number) => own === generation;
   function reset() {
     generation++;
     deliveriesVersion++;
+    cancelling.clear();
     directSending = false;
     sending.value = false;
     sentRun.value = null;
@@ -123,7 +126,7 @@ export function createChatDeliveries({
     try {
       const page = await requests.deliveriesList(id, { limit: 50 }, options());
       if (current(own) && version === deliveriesVersion && !directSending) {
-        deliveries.value = page.items;
+        deliveries.value = page.items.filter((item) => !cancelling.has(item.id));
       }
     } catch (cause) {
       if (current(own) && version === deliveriesVersion) throw cause;
@@ -141,13 +144,39 @@ export function createChatDeliveries({
     }
   }
 
-  async function cancelQueued(id: string): Promise<boolean> {
+  async function cancelQueued(id: string, { optimistic = false } = {}): Promise<boolean> {
     const own = generation;
     const session = sessionId.value;
-    if (!session) return false;
-    await requests.cancelQueuedInput(session, id);
-    if (current(own)) await refreshDeliveries().catch(scheduleRefresh);
-    return true;
+    if (!session || cancelling.has(id)) return false;
+    const index = deliveries.value.findIndex((item) => item.id === id);
+    const item = deliveries.value[index];
+    if (optimistic) {
+      cancelling.add(id);
+      deliveries.value = deliveries.value.filter((item) => item.id !== id);
+    }
+    let removed = false;
+    try {
+      await requests.cancelQueuedInput(session, id);
+      removed = true;
+      return current(own);
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 409) {
+        removed = true;
+        return false;
+      }
+      throw cause;
+    } finally {
+      if (current(own)) {
+        cancelling.delete(id);
+        deliveriesVersion++;
+        if (removed) deliveries.value = deliveries.value.filter((item) => item.id !== id);
+        else if (optimistic && item && !deliveries.value.some((item) => item.id === id)) {
+          const restored = [...deliveries.value];
+          restored.splice(index, 0, item);
+          deliveries.value = restored;
+        }
+      }
+    }
   }
 
   return { sending, sentRun, deliveries, send, refreshDeliveries, moveQueued, cancelQueued, reset };

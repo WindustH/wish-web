@@ -51,7 +51,8 @@ import ModelSettings from './ModelSettings.vue';
 import ReasoningSettings from './ReasoningSettings.vue';
 import { useResolvedEffort } from './useResolvedEffort.ts';
 import { effortLabel } from './reasoningLabels.ts';
-import { sessionTitle } from '../../core/state/sessionsSlice.ts';
+import { sessions, sessionTitle } from '../../core/state/sessionsSlice.ts';
+import { sessionSelectionChange } from './useSessionSelection.ts';
 import { touchButton } from '../../ui/touchButton.ts';
 import { prefersReducedMotion } from '../../ui/motion/reducedMotion.ts';
 import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
@@ -119,6 +120,8 @@ watch(chat.missingSessionId, (missingId) => {
 });
 
 const snapshot = computed(() => chat.snapshot.value);
+const changingSelection = computed(() => sessionSelectionChange(id.value));
+const shownSelection = computed(() => changingSelection.value ?? snapshot.value);
 const renameTarget = ref<ActionTarget | null>(null);
 const titleActions = computed(() => [
   { key: 'commands', icon: 'command-palette', label: tr('命令面板', 'Command palette') },
@@ -150,9 +153,15 @@ const modelActions = computed(() => [
   {
     key: 'model',
     icon: 'bot',
-    label: modelLabel(snapshot.value?.model || '') || '—',
+    label: modelLabel(shownSelection.value?.model || '') || '—',
+    disabled: !!changingSelection.value,
   },
-  { key: 'reasoning', icon: 'thinking', label: effortLabel(effort.value).toUpperCase() },
+  {
+    key: 'reasoning',
+    icon: 'thinking',
+    label: effortLabel(effort.value).toUpperCase(),
+    disabled: !!changingSelection.value,
+  },
 ]);
 const chatbar = ref<HTMLElement>();
 const toolbarWidth = ref(Infinity);
@@ -384,7 +393,7 @@ provide(replyContextKey, {
 
 const onQueueEdit = (text: string, attachments?: Parameters<InstanceType<typeof Composer>['fill']>[1]) =>
   composerRef.value?.fill(text, attachments);
-const { effort, error: effortError } = useResolvedEffort(snapshot);
+const { effort, error: effortError } = useResolvedEffort(shownSelection);
 const modelOpen = ref(false);
 const reasoningOpen = ref(false);
 // Keep the original storage scope so existing sidebar preferences survive this expansion.
@@ -615,7 +624,7 @@ watch(
             /><Menu v-else :key="snapshot.id" context :items="titleActions" @select="titleAction">
               <FadeText
                 class="name"
-                :text="sessionTitle(snapshot)"
+                :text="sessionTitle({ ...snapshot, name: sessions.displayName(snapshot) })"
                 tabindex="0"
                 aria-haspopup="menu"
                 :aria-label="tr('会话名称菜单', 'Session title menu')"
@@ -627,8 +636,13 @@ watch(
                 class="model-selection"
               >
                 <Hint :text="i18n.t('model.chipTitle')"
-                  ><button class="model-chip" :aria-expanded="modelOpen" @click="modelOpen = true">
-                    <span>{{ modelLabel(snapshot?.model || '') || '—' }}</span>
+                  ><button
+                    class="model-chip"
+                    :aria-expanded="modelOpen"
+                    :disabled="!!changingSelection"
+                    @click="modelOpen = true"
+                  >
+                    <span>{{ modelLabel(shownSelection?.model || '') || '—' }}</span>
                   </button></Hint
                 >
                 <span class="selection-dot" aria-hidden="true">·</span>
@@ -636,6 +650,7 @@ watch(
                   ><button
                     class="reasoning-chip"
                     :aria-expanded="reasoningOpen"
+                    :disabled="!!changingSelection"
                     :aria-label="`${i18n.t('reasoning.title')}: ${effortLabel(effort)}`"
                     @click="reasoningOpen = true"
                   >
@@ -719,7 +734,7 @@ watch(
             @scroll="(direction, message) => logRef?.navigate(direction, message)"
           />
           <ChatLog ref="logRef" :session-id="id" :mobile="isMobile" />
-          <Composer ref="composerRef" :owner="id" :mobile="isMobile">
+          <Composer ref="composerRef" :owner="id" :mobile="isMobile" :disabled="!!changingSelection">
             <template #tools>
               <Transition name="queue-dock" appear>
                 <div v-if="queued.length > 0" class="queue-dock-slot">

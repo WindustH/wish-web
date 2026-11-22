@@ -8,6 +8,7 @@ import type { Conversation, ConversationsPage, FolderView } from '../../core/api
 type SessionRow = Extract<Conversation, { kind: 'session' }>;
 import { tr } from '../../core/i18n/tr.ts';
 import { i18n } from '../../core/i18n/index.ts';
+import { peekCached, writeCached } from '../../core/util/responseCache.ts';
 import { quickSwitchOpen as open, sessionVisits } from './quickSwitch.ts';
 
 const router = useRouter();
@@ -81,6 +82,8 @@ function workLabel(row: SessionRow) {
       : i18n.t(`phase.${state}`);
 }
 const visible = computed(() => matches.value.slice(0, limit.value));
+const cacheKey = 'quick-switch';
+type QuickSwitchSnapshot = { rows: SessionRow[]; folders: FolderView[] };
 let controller: AbortController | undefined;
 async function load() {
   controller?.abort();
@@ -88,7 +91,9 @@ async function load() {
   controller = request;
   loading.value = true;
   failed.value = false;
-  rows.value = [];
+  const cached = peekCached<QuickSwitchSnapshot>(cacheKey);
+  rows.value = cached?.rows ?? [];
+  folders.value = cached?.folders ?? [];
   try {
     let cursor: number | string | null = null;
     const [first, directory] = await Promise.all([
@@ -96,19 +101,29 @@ async function load() {
       foldersList({ signal: request.signal }),
     ]);
     if (request.signal.aborted) return;
-    folders.value = directory;
+    const fresh: SessionRow[] = [];
+    const known = new Set<string>();
+    if (!cached) folders.value = directory;
     do {
       const page: ConversationsPage =
         cursor == null
           ? first
           : await conversationsList({ flat: true, limit: 1000, cursor, order: 'desc' }, { signal: request.signal });
       if (request.signal.aborted) return;
-      const known = new Set(rows.value.map((row) => row.id));
-      rows.value.push(...page.items.filter((row): row is SessionRow => row.kind === 'session' && !known.has(row.id)));
+      for (const row of page.items) {
+        if (row.kind === 'session' && !known.has(row.id)) {
+          fresh.push(row);
+          known.add(row.id);
+        }
+      }
+      if (!cached) rows.value = [...fresh];
       const next = page.next_cursor ?? null;
       if (next === cursor) break;
       cursor = next;
     } while (cursor != null);
+    rows.value = fresh;
+    folders.value = directory;
+    writeCached(cacheKey, { rows: fresh, folders: directory }, { persist: false });
   } catch {
     if (!request.signal.aborted) failed.value = true;
   } finally {

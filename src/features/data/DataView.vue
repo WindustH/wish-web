@@ -24,6 +24,7 @@ import UsageRecords from './UsageRecords.vue';
 import DeleteSessionsDialog from '../sessions/DeleteSessionsDialog.vue';
 import * as api from '../../core/api/endpoints.ts';
 import type { SessionBytes, StorageSnapshot, PruneResult } from '../../core/api/endpoints.ts';
+import type { ArchiveRecord } from '../../core/api/types.ts';
 import { createCachedResource } from '../../core/util/cachedResource.ts';
 import { fmtBytes } from '../../core/util/fmt.ts';
 import { i18n } from '../../core/i18n/index.ts';
@@ -33,12 +34,15 @@ import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 const router = useRouter();
 const view = ref('sessions'),
   archiveCount = ref<number>();
+const removingArchives = ref(new Map<string, number>());
 const archiveRevision = ref(0);
 const views = computed(() => [
   { value: 'sessions', label: tr('活跃会话', 'Active sessions') + ' (' + (snapshot.value?.sessions ?? 0) + ')' },
   {
     value: 'archives',
-    label: tr('已归档', 'Archived') + (archiveCount.value != null ? ' (' + archiveCount.value + ')' : ''),
+    label:
+      tr('已归档', 'Archived') +
+      (archiveCount.value != null ? ' (' + Math.max(0, archiveCount.value - removingArchives.value.size) + ')' : ''),
   },
 ]);
 let active = false;
@@ -86,6 +90,21 @@ const reading = createCachedResource(
   () => ({ key: 'data-sessions-v2', persist: true }),
 );
 const snapshot = computed(() => reading.data.value ?? undefined);
+function withoutArchives(storage: StorageSnapshot, bytes: number): StorageSnapshot {
+  return {
+    ...storage,
+    bytes: {
+      ...storage.bytes,
+      archives: Math.max(0, (storage.bytes.archives ?? 0) - bytes),
+      total: Math.max(0, storage.bytes.total - bytes),
+    },
+  };
+}
+const storageShown = computed(() => {
+  const storage = snapshot.value?.storage;
+  const bytes = [...removingArchives.value.values()].reduce((sum, size) => sum + size, 0);
+  return storage && bytes ? withoutArchives(storage, bytes) : storage;
+});
 const loading = reading.loading;
 const failed = reading.error;
 const estimate = createCachedResource<PruneResult, void>((_, signal) =>
@@ -93,6 +112,20 @@ const estimate = createCachedResource<PruneResult, void>((_, signal) =>
 );
 let generation = 0;
 let archiveCountRequest: AbortController | undefined;
+function archiveRemoving(row: ArchiveRecord, request: Promise<unknown>) {
+  archiveCountRequest?.abort();
+  reading.cancel();
+  removingArchives.value.set(row.archive_id, row.archive_bytes);
+  void request.then(
+    () => {
+      removingArchives.value.delete(row.archive_id);
+      if (archiveCount.value != null) archiveCount.value = Math.max(0, archiveCount.value - 1);
+      const data = reading.data.value;
+      if (data?.storage) reading.data.value = { ...data, storage: withoutArchives(data.storage, row.archive_bytes) };
+    },
+    () => removingArchives.value.delete(row.archive_id),
+  );
+}
 function refreshAll() {
   archiveRevision.value++;
   return refresh();
@@ -303,8 +336,8 @@ function deleted() {
               <small>{{
                 snapshot.storage ? tr('磁盘占用', 'Disk usage') : tr('会话内容合计', 'Session content total')
               }}</small>
-              <Hint :text="(snapshot.storage?.bytes.total ?? snapshot.bytes.total).toLocaleString() + ' B'"
-                ><strong>{{ fmtBytes(snapshot.storage?.bytes.total ?? snapshot.bytes.total) }}</strong></Hint
+              <Hint :text="(storageShown?.bytes.total ?? snapshot.bytes.total).toLocaleString() + ' B'"
+                ><strong>{{ fmtBytes(storageShown?.bytes.total ?? snapshot.bytes.total) }}</strong></Hint
               >
               <span
                 >{{
@@ -319,8 +352,8 @@ function deleted() {
             </div>
           </div>
           <StorageCard
-            v-if="snapshot.storage"
-            :storage="snapshot.storage"
+            v-if="storageShown"
+            :storage="storageShown"
             :selected-bytes="view === 'sessions' && chosen.size ? chosenReclaim : undefined"
             :order="view === 'sessions' ? order : undefined"
             :archives-open="view === 'archives'"
@@ -345,7 +378,7 @@ function deleted() {
         </section>
         <section class="data-ranking" :aria-label="tr('会话占用排行', 'Sessions by storage use')">
           <SelectField v-model="view" :options="views" segmented="always" />
-          <ArchivesList v-if="view === 'archives'" :revision="archiveRevision" @changed="refresh" />
+          <ArchivesList v-if="view === 'archives'" :revision="archiveRevision" @removing="archiveRemoving" />
           <template v-else>
             <div class="data-toolbar">
               <label class="data-search"

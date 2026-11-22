@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // An `ask_user` call: the form while the call waits (or, after a timeout, while it still takes
 // a late answer), and what became of it afterwards.
-import { computed, inject, ref, watch } from 'vue';
+import { computed, inject, ref, shallowReactive, watch } from 'vue';
 import * as api from '../../../core/api/endpoints.ts';
 import { chat } from '../../../core/state/chatSlice.ts';
 import { tr, intlLocale } from '../../../core/i18n/tr.ts';
@@ -48,9 +48,12 @@ watch(
 
 // Answers sent but not yet reflected in the history.
 const sent = ref<AnswerRecord[] | 'skipped' | 'dropped' | null>(null);
-const sending = ref(false);
+const sending = computed(() => sendingAnswers.has(key));
 const answerable = computed(
-  () => !sent.value && (state.value.kind === 'open' || (state.value.kind === 'timed_out' && state.value.open)),
+  () =>
+    !sending.value &&
+    !sent.value &&
+    (state.value.kind === 'open' || (state.value.kind === 'timed_out' && state.value.open)),
 );
 const background = computed(() => snapshot.value?.background_tools?.some((job) => job.call_id === props.item.callId));
 const late = computed(() => state.value.kind === 'timed_out');
@@ -63,12 +66,13 @@ const answeredCount = computed(
 const shownAnswers = computed<AnswerRecord[] | null>(() => {
   const current = state.value;
   if (current.kind === 'answered' || current.kind === 'late') return current.answers;
-  return Array.isArray(sent.value) ? sent.value : null;
+  const answers = sendingAnswers.get(key) ?? sent.value;
+  return Array.isArray(answers) ? answers : null;
 });
 const status = computed(() => {
   const current = state.value;
   if (sent.value === 'dropped') return { tone: 'muted', text: tr('提问已关闭', 'Question closed') };
-  if (sent.value && (current.kind === 'open' || current.kind === 'timed_out'))
+  if ((sending.value || sent.value) && (current.kind === 'open' || current.kind === 'timed_out'))
     return { tone: 'done', text: tr('正在送达…', 'Sending…') };
   switch (current.kind) {
     case 'open':
@@ -173,7 +177,12 @@ function onKey(event: KeyboardEvent, index: number) {
 async function submit(skip = false) {
   if (!props.session || !answerable.value || sending.value || (!skip && !answeredCount.value)) return;
   const answers = draftAnswers(questions.value, drafts.value);
-  sending.value = true;
+  const summary = skip
+    ? 'skipped'
+    : questions.value.map(
+        (question, index) => ({ question: question.question, type: question.type, ...answers[index] }) as AnswerRecord,
+      );
+  sendingAnswers.set(key, summary);
   try {
     const { delivered } = await api.answerQuestion(
       props.session,
@@ -181,14 +190,7 @@ async function submit(skip = false) {
     );
     stored.delete(key);
     // A dropped form just closes; the others wait for the history to show what was sent.
-    if (delivered === 'dropped') sent.value = 'dropped';
-    else
-      sent.value = skip
-        ? 'skipped'
-        : questions.value.map(
-            (question, index) =>
-              ({ question: question.question, type: question.type, ...answers[index] }) as AnswerRecord,
-          );
+    sent.value = delivered === 'dropped' ? 'dropped' : summary;
     if (delivered === 'later')
       toast(tr('回答已作为一条消息发给模型。', 'Your answers went to the model as a message.'));
   } catch (error) {
@@ -199,7 +201,7 @@ async function submit(skip = false) {
       error,
     });
   } finally {
-    sending.value = false;
+    sendingAnswers.delete(key);
   }
 }
 // The history caught up: what it records replaces what was just sent.
@@ -213,6 +215,7 @@ watch(
 
 <script lang="ts">
 const stored = new Map<string, Draft[]>();
+const sendingAnswers = shallowReactive(new Map<string, AnswerRecord[] | 'skipped'>());
 </script>
 
 <template>

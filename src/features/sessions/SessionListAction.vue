@@ -12,6 +12,7 @@ import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import Modal from '../../ui/components/Modal.vue';
 import Icon from '../../ui/components/Icon.vue';
+import { toast } from '../../ui/toast.ts';
 import { deleteSession } from './sessionActions.ts';
 /** A row the dialog acts on: a session, or a folder that can be renamed or deleted. */
 export interface ActionTarget {
@@ -76,20 +77,31 @@ async function save() {
   const id = props.target.id;
   busy.value = true;
   error.value = '';
+  if (props.kind !== 'delete') {
+    const change =
+      props.target.kind === 'folder'
+        ? sessions.renameFolder(id, name.value.trim())
+        : props.kind === 'rename'
+          ? sessions.rename(id, name.value.trim())
+          : sessions.updateMeta(snapshot.value, { tags: draftTags.value });
+    emit('close');
+    try {
+      const updated = await change;
+      if ('revision' in updated) chat.adoptSnapshot(id, updated);
+    } catch (cause) {
+      toast(errorDetail(cause), { tone: 'error' });
+    } finally {
+      busy.value = false;
+    }
+    return;
+  }
   try {
     if (props.target.kind === 'folder') {
-      if (props.kind === 'delete') await sessions.deleteFolder(id);
-      else await sessions.renameFolder(id, name.value.trim());
-    } else if (props.kind === 'delete') {
+      await sessions.deleteFolder(id);
+    } else {
       const open = chat.sessionId.value === id;
       await deleteSession(id);
       if (open) await router.push('/sessions');
-    } else {
-      const snap =
-        props.kind === 'rename'
-          ? await sessions.rename(id, name.value.trim())
-          : await sessions.updateMeta(snapshot.value, { tags: draftTags.value });
-      chat.adoptSnapshot(id, snap);
     }
     emit('close');
   } catch (e: any) {

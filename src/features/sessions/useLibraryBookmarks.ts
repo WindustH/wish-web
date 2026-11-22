@@ -30,7 +30,8 @@ export function useLibraryBookmarks(owner: Readonly<Ref<string>>, active: Readon
     error.value = '';
     try {
       const result = await libraryBookmarks(owner.value, { signal: request.signal });
-      if (!request.signal.aborted) items.value = Array.isArray(result) ? result : [];
+      if (!request.signal.aborted)
+        items.value = Array.isArray(result) ? result.filter((b) => !busy.value.has(b.id)) : [];
     } catch (cause) {
       if (!request.signal.aborted && !(cause instanceof ApiError && cause.status === 404))
         error.value = describeError(cause).message;
@@ -68,14 +69,19 @@ export function useLibraryBookmarks(owner: Readonly<Ref<string>>, active: Readon
     }
     if (key !== 'delete' || busy.value.has(item.id)) return;
     const session = owner.value;
+    const index = items.value.findIndex((b) => b.id === item.id);
     const request = new AbortController();
     removals.add(request);
     busy.value.add(item.id);
+    items.value = items.value.filter((b) => b.id !== item.id);
     try {
       await deleteLibraryBookmark(session, item.id, { signal: request.signal });
-      if (!request.signal.aborted && session === owner.value) items.value = items.value.filter((b) => b.id !== item.id);
+      if (!request.signal.aborted && session === owner.value) controller?.abort();
     } catch (cause) {
-      if (!request.signal.aborted && session === owner.value) toast(describeError(cause).message, { tone: 'error' });
+      if (!request.signal.aborted && session === owner.value && (cause as ApiError)?.status !== 404) {
+        if (index >= 0 && !items.value.some((b) => b.id === item.id)) items.value.splice(index, 0, item);
+        toast(describeError(cause).message, { tone: 'error' });
+      }
     } finally {
       removals.delete(request);
       if (!request.signal.aborted) busy.value.delete(item.id);

@@ -1,6 +1,8 @@
-import { computed, onScopeDispose, ref, shallowRef, watch, type Ref } from 'vue';
+import { computed, onScopeDispose, ref, shallowReactive, shallowRef, watch, type Ref } from 'vue';
 import * as api from '../../core/api/endpoints.ts';
 import { chat } from '../../core/state/chatSlice.ts';
+import { describeError } from '../../core/i18n/errorMessages.ts';
+import { toast } from '../../ui/toast.ts';
 
 export interface ModelSelection {
   provider: string;
@@ -11,6 +13,8 @@ interface SelectionSnapshot extends ModelSelection {
   revision: number;
   running?: boolean;
 }
+const changes = shallowReactive(new Map<string, ModelSelection>());
+export const sessionSelectionChange = (id: string | undefined) => (id ? changes.get(id) : undefined);
 
 // Both selectors share the same revision/ownership rules, but save only their
 // own fields. Late responses cannot update another conversation or dialog.
@@ -20,8 +24,8 @@ export function useSessionSelection(
   select?: (value: ModelSelection) => void,
 ) {
   const snapshot = shallowRef<SelectionSnapshot>();
-  const loading = ref(false),
-    saving = ref(false);
+  const loading = ref(false);
+  const saving = computed(() => !!sessionSelectionChange(sessionId.value));
   const error = shallowRef<unknown>();
   const conflict = computed(
     () =>
@@ -39,7 +43,6 @@ export function useSessionSelection(
     const gen = ++generation,
       id = sessionId.value;
     loading.value = false;
-    saving.value = false;
     error.value = undefined;
     if (local?.value) {
       snapshot.value = { ...local.value, revision: 0 };
@@ -67,21 +70,36 @@ export function useSessionSelection(
       select(next);
       return true;
     }
-    const gen = generation,
-      id = sessionId.value!;
-    saving.value = true;
+    const id = sessionId.value;
+    if (!id || id !== chat.sessionId.value) return false;
+    const { provider, model, reasoning_effort, revision } = snapshot.value;
+    const selection: ModelSelection = {
+      provider,
+      model,
+      reasoning_effort: body.model ? undefined : reasoning_effort,
+      ...body,
+    };
+    changes.set(id, selection);
     error.value = undefined;
+    void commit(id, body, revision);
+    return true;
+  }
+  async function commit(id: string, body: Parameters<typeof api.sessionUpdateModel>[1], revision: number) {
     try {
-      const next = await api.sessionUpdateModel(id, body, snapshot.value.revision);
-      if (!owns(gen, id)) return false;
-      chat.adoptSnapshot(id, next);
-      await chat.reloadCapabilities();
-      return owns(gen, id);
+      const next = await api.sessionUpdateModel(id, body, revision);
+      if (chat.sessionId.value === id) {
+        chat.adoptSnapshot(id, next);
+        await chat.reloadCapabilities();
+      }
     } catch (cause) {
-      if (owns(gen, id)) error.value = cause;
-      return false;
+      toast(describeError(cause).message, { tone: 'error' });
+      if ((cause as { code?: string })?.code === 'state_conflict' && chat.sessionId.value === id)
+        void api
+          .sessionGet(id)
+          .then((current) => chat.adoptSnapshot(id, current))
+          .catch(() => {});
     } finally {
-      if (owns(gen, id)) saving.value = false;
+      changes.delete(id);
     }
   }
   watch(() => [sessionId.value, local?.value], reload, { immediate: true });
