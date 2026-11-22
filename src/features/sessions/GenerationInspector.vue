@@ -488,71 +488,75 @@ onBeforeUnmount(() => {
     <p v-if="error" role="alert">
       {{ error }} <button class="btn ghost sm" @click="retry()">{{ tr('重试', 'Retry') }}</button>
     </p>
-    <div ref="scroll" class="generation-cards" :aria-busy="busy">
-      <p v-if="!busy && !error && !generations.length" class="hint">
-        {{ tr('暂无上下文记录', 'No context recorded yet') }}
-      </p>
-      <p v-else-if="page && page.next == null && !cards.length" class="hint">
-        {{ tr('没有符合条件的条目', 'No matching entries') }}
-      </p>
-      <div class="generation-space" :style="{ height: virtualizer.getTotalSize() + 'px' }">
-        <div
-          v-for="card in visible"
-          :key="String(card.row.key)"
-          :ref="measure"
-          :data-index="card.row.index"
-          class="generation-virtual-row"
-          :style="{ transform: 'translateY(' + card.row.start + 'px)' }"
-        >
+    <div class="generation-card-frame">
+      <div ref="scroll" class="generation-cards" :aria-busy="busy">
+        <p v-if="!busy && !error && !generations.length" class="hint">
+          {{ tr('暂无上下文记录', 'No context recorded yet') }}
+        </p>
+        <p v-else-if="page && page.next == null && !cards.length" class="hint">
+          {{ tr('没有符合条件的条目', 'No matching entries') }}
+        </p>
+        <div class="generation-space" :style="{ height: virtualizer.getTotalSize() + 'px' }">
           <div
-            v-if="page!.generation.compaction_cursor > 0 && card.position === page!.generation.compaction_cursor"
-            class="generation-boundary"
-            :class="{ 'boundary-after': reversed }"
+            v-for="card in visible"
+            :key="String(card.row.key)"
+            :ref="measure"
+            :data-index="card.row.index"
+            class="generation-virtual-row"
+            :style="{ transform: 'translateY(' + card.row.start + 'px)' }"
           >
-            {{ tr('压缩游标', 'Compaction cursor') }}
-          </div>
-          <button
-            type="button"
-            class="generation-entry"
-            :data-role="card.role"
-            :class="{ 'tool-entry': card.tool, 'link-before': card.linkBefore, 'link-after': card.linkAfter }"
-            @click="read(card)"
-          >
-            <span class="generation-role-mark">
-              <Icon
-                class="generation-role-icon"
-                :name="card.tool ? toolIcon(card.tool.name) : (roles[card.role]?.icon ?? 'file')"
-                :size="16"
-              />
-            </span>
-            <span class="generation-entry-body">
-              <span class="generation-entry-head">
-                <strong>{{ roles[card.role]?.label ?? card.role }}</strong>
-                <span v-if="card.tool?.name" class="generation-tool-name">{{ card.tool.name }}</span>
-                <span v-if="!card.tools" class="generation-position">#{{ card.position }}</span>
-                <span
-                  v-if="card.tool?.status"
-                  class="generation-chip tool-status"
-                  :class="{ failed: card.tool.failed }"
-                  >{{ card.tool.status }}</span
-                >
-                <span v-if="card.entry.message[card.role]?.fixed" class="generation-chip">{{
-                  tr('固定指令', 'Pinned')
-                }}</span>
-                <span v-if="card.entry.origin === 'Summary'" class="generation-chip">{{ tr('摘要', 'Summary') }}</span>
+            <div
+              v-if="page!.generation.compaction_cursor > 0 && card.position === page!.generation.compaction_cursor"
+              class="generation-boundary"
+              :class="{ 'boundary-after': reversed }"
+            >
+              {{ tr('压缩游标', 'Compaction cursor') }}
+            </div>
+            <button
+              type="button"
+              class="generation-entry"
+              :data-role="card.role"
+              :class="{ 'tool-entry': card.tool, 'link-before': card.linkBefore, 'link-after': card.linkAfter }"
+              @click="read(card)"
+            >
+              <span class="generation-role-mark">
+                <Icon
+                  class="generation-role-icon"
+                  :name="card.tool ? toolIcon(card.tool.name) : (roles[card.role]?.icon ?? 'file')"
+                  :size="16"
+                />
               </span>
-              <span v-if="card.preview" class="generation-preview">{{ card.preview }}</span>
-            </span>
-            <span class="generation-entry-tail">
-              <span
-                class="generation-size"
-                :class="{ large: card.bytes > 20 * 1024 }"
-                :title="tr('条目估算大小', 'Estimated entry size')"
-                >{{ fmtBytes(card.bytes) }}</span
-              >
-              <Icon name="chevron-right" :size="14" />
-            </span>
-          </button>
+              <span class="generation-entry-body">
+                <span class="generation-entry-head">
+                  <strong>{{ roles[card.role]?.label ?? card.role }}</strong>
+                  <span v-if="card.tool?.name" class="generation-tool-name">{{ card.tool.name }}</span>
+                  <span v-if="!card.tools" class="generation-position">#{{ card.position }}</span>
+                  <span
+                    v-if="card.tool?.status"
+                    class="generation-chip tool-status"
+                    :class="{ failed: card.tool.failed }"
+                    >{{ card.tool.status }}</span
+                  >
+                  <span v-if="card.entry.message[card.role]?.fixed" class="generation-chip">{{
+                    tr('固定指令', 'Pinned')
+                  }}</span>
+                  <span v-if="card.entry.origin === 'Summary'" class="generation-chip">{{
+                    tr('摘要', 'Summary')
+                  }}</span>
+                </span>
+                <span v-if="card.preview" class="generation-preview">{{ card.preview }}</span>
+              </span>
+              <span class="generation-entry-tail">
+                <span
+                  class="generation-size"
+                  :class="{ large: card.bytes > 20 * 1024 }"
+                  :title="tr('条目估算大小', 'Estimated entry size')"
+                  >{{ fmtBytes(card.bytes) }}</span
+                >
+                <Icon name="chevron-right" :size="14" />
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -655,21 +659,35 @@ onBeforeUnmount(() => {
   margin: 6px 0;
   font-variant-numeric: tabular-nums;
 }
+.generation-card-frame {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: clip;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
 .generation-cards {
   flex: 1;
   min-height: 0;
   overflow: hidden auto;
   overscroll-behavior: contain;
   overflow-anchor: none;
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-radius: 14px;
+}
+.generation-cards::-webkit-scrollbar-track:vertical {
+  margin: 8px 0;
+}
+.generation-cards::-webkit-scrollbar-thumb {
+  border-color: transparent;
+  background-clip: padding-box;
 }
 .generation-cards > .hint {
   padding: 8px 12px;
 }
 @media (max-width: 899px) {
-  .generation-cards {
+  .generation-card-frame {
     background: var(--bg-group);
     border: 0;
     border-radius: 16px;
