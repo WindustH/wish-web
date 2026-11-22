@@ -3,7 +3,8 @@ import { shallowRef } from 'vue';
 import { cfg } from '../config.ts';
 import { bus } from '../bus.ts';
 import { platform } from '../../platform/index.ts';
-import { createSse, type SseConnection, type SseError, type SseState } from '../api/sse.ts';
+import { createSse, type SseConnection } from '../api/sse.ts';
+import { errorDetail } from '../errors.ts';
 import { absUrl } from '../api/client.ts';
 import { createChatDeliveries } from './chatDeliveries.ts';
 import * as api from '../api/endpoints.ts';
@@ -26,24 +27,6 @@ export interface CapabilitiesErr {
   error: unknown;
 }
 export type ChatCapabilities = CapabilitiesOk | CapabilitiesErr;
-
-/** Whether a connection event is a failure the reader should be shown. The client reconnects by
- *  itself after an internal cause — a silent heartbeat, a connect timeout, a stream that ended or
- *  overran a frame — so those only move the connection state and schedule the retry: a phone that
- *  slept or a proxy that blinked must not raise an error card. An auth refusal, an HTTP failure or
- *  a network error is a real one. */
-export function shouldSurfaceSseError(state: SseState, err?: SseError | null): boolean {
-  if (state === 'denied') return true;
-  if (state !== 'reconnecting' || !err) return false;
-  return err.internal !== true;
-}
-
-/** A reconciliation poll that fails once is a blink — an offline phone, a proxy hop — and the poll
- *  simply runs again; only a poll that keeps failing is worth a card in the log. */
-export const POLL_FAILURES_BEFORE_CARD = 3;
-export function shouldSurfacePollFailure(failures: number): boolean {
-  return failures >= POLL_FAILURES_BEFORE_CARD;
-}
 
 /** How long a draft waits after the last keystroke before it reaches storage. */
 export const DRAFT_PERSIST_MS = 400;
@@ -116,27 +99,24 @@ export function createChat(deps: ChatDependencies = {}) {
   const snapshot = shallowRef<SessionView | null>(null);
   const missingSessionId = shallowRef<string | null>(null);
   const loadingInitial = shallowRef(false);
-  const error = shallowRef<any>(null);
   const stream = shallowRef(createEmptyStream());
   const capabilities = shallowRef<ChatCapabilities | null>(null);
 
   let epoch = 0;
   let initialized = false;
   let initialTask: Promise<void> | null = null;
-  let initialError: unknown = null;
+  let visible = true;
+  let denied = false;
   let liveVersion = 0;
   let controller: AbortController | null = null;
   let connection: SseConnection | null = null;
   let offSync: (() => void) | null = null;
   const reconciliation = createReconciliation({
     run: refresh,
-    ready: () => !!sessionId.value && !loadingInitial.value,
+    ready: () => visible && !denied && !!sessionId.value && !loadingInitial.value,
     delayMs: cfg.history.reconcileDelayMs,
     pollMs: cfg.sync.pollFallbackMs,
   });
-  let connectionError: unknown = null;
-  let pollError: unknown = null;
-  let pollFailures = 0;
   // The storage adapter is looked up per call: the platform registers its adapters after import.
   const drafts = createDraftWriter({
     get: (key) => platform('storage').get(key),
@@ -150,7 +130,6 @@ export function createChat(deps: ChatDependencies = {}) {
     sessionId,
     snapshot,
     stream,
-    error,
     options,
     requests,
     scheduleRefresh,
@@ -159,7 +138,7 @@ export function createChat(deps: ChatDependencies = {}) {
 
   const history = createChatHistory<EntryView>({
     sessionId,
-    error,
+    onError: reportOperationError,
     options,
     open,
     readPage: requests.historyPage,
@@ -185,7 +164,7 @@ export function createChat(deps: ChatDependencies = {}) {
       markMissing();
     },
     onHistoryPruned() {
-      void reload();
+      void reload(false);
     },
     onNotice(message) {
       bus.emit('notice', { text: message, tone: 'warning' });
@@ -222,13 +201,14 @@ export function createChat(deps: ChatDependencies = {}) {
         });
     },
     onError(cause) {
-      error.value = cause;
+      console.warn('Invalid session event', cause);
     },
   });
 
   function close() {
     epoch++;
     initialized = false;
+    denied = false;
     initialTask = null;
     loadingInitial.value = false;
     history.invalidate();
@@ -270,16 +250,29 @@ export function createChat(deps: ChatDependencies = {}) {
     }
   }
 
-  async function open(id: string): Promise<void> {
+  function deny(cause: unknown) {
+    const status = (cause as { status?: number } | null)?.status;
+    if (status !== 401 && status !== 403) return false;
+    if (!denied) {
+      denied = true;
+      reconciliation.stop();
+      connection?.close();
+      bus.emit('connection.denied');
+    }
+    return true;
+  }
+
+  function reportOperationError(cause: unknown) {
+    if (!deny(cause) && (cause as Error | null)?.name !== 'AbortError')
+      bus.emit('notice', { text: errorDetail(cause), tone: 'error' });
+  }
+
+  async function open(id: string, reportError = false): Promise<void> {
     if (sessionId.value === id) {
       await initialTask?.catch(() => {});
       return;
     }
     drafts.flush(); // leaving the last session: its draft lands before the switch
-    pollFailures = 0;
-    pollError = null;
-    initialError = null;
-    connectionError = null;
     close();
 
     sessionId.value = id;
@@ -295,7 +288,6 @@ export function createChat(deps: ChatDependencies = {}) {
     loadingInitial.value = true;
     locating.value = false;
     sending.value = false;
-    error.value = null;
     sentRun.value = null;
     pendingSeq.value = null;
     capabilities.value = { status: 'ok', data: { input_modalities: null } };
@@ -305,6 +297,7 @@ export function createChat(deps: ChatDependencies = {}) {
     // Subscribe before the initial snapshot: reconciliation covers any racing commit.
     connection = connect({
       url: url(`/sessions/${encodeURIComponent(id)}/events`),
+      paused: !visible,
       onFrame: (f) => {
         if (current(own)) {
           liveVersion++;
@@ -318,17 +311,8 @@ export function createChat(deps: ChatDependencies = {}) {
           markMissing();
           return;
         }
-        // A reconnect after a heartbeat or connect timeout is the client doing its job; only a
-        // real failure takes over the page's error card.
-        if (shouldSurfaceSseError(s, err)) {
-          connectionError = err;
-          error.value = err;
-        }
-        if (s === 'open') {
-          if (error.value === connectionError) error.value = null;
-          connectionError = null;
-          scheduleRefresh();
-        }
+        if (s === 'denied') deny(err);
+        if (s === 'open') scheduleRefresh();
       },
     });
 
@@ -340,10 +324,7 @@ export function createChat(deps: ChatDependencies = {}) {
       initialTask = initialize(id, own);
       await initialTask;
     } catch (cause) {
-      if (current(own)) {
-        initialError = cause;
-        error.value = cause;
-      }
+      if (current(own) && !deny(cause) && reportError) reportOperationError(cause);
     } finally {
       if (current(own)) scheduleRefresh();
     }
@@ -370,11 +351,9 @@ export function createChat(deps: ChatDependencies = {}) {
           phase: snap.running ? 'pending' : 'idle',
         };
       initialized = true;
-      if (error.value === initialError) error.value = null;
-      initialError = null;
       // Queue reads are independent of showing history; a slow queue must not hold
       // the initial-loading gate (and therefore pagination) closed.
-      void refreshDeliveries({ reportError: false }).catch(() => {
+      void refreshDeliveries().catch(() => {
         if (current(own)) scheduleRefresh();
       });
     } finally {
@@ -393,16 +372,16 @@ export function createChat(deps: ChatDependencies = {}) {
     return locateHistory(id, seq);
   }
 
-  async function reload(): Promise<void> {
+  async function reload(reportError = true): Promise<void> {
     const id = sessionId.value;
     if (id) {
       close();
-      await open(id);
+      await open(id, reportError);
     }
   }
 
   async function refresh() {
-    if (!sessionId.value) return;
+    if (!sessionId.value || !visible || denied) return;
     // Initial history may be completing a large album. Reconciliation must not publish a
     // separate partial window (from sequence zero) while that atomic read is still pending.
     if (loadingInitial.value) {
@@ -416,12 +395,7 @@ export function createChat(deps: ChatDependencies = {}) {
       if (!initialized) {
         initialTask = initialize(id, own);
         await initialTask;
-        if (current(own)) {
-          pollFailures = 0;
-          if (error.value === pollError) error.value = null;
-          pollError = null;
-          scheduleRefresh();
-        }
+        if (current(own)) scheduleRefresh();
         return;
       }
       const version = liveVersion;
@@ -432,7 +406,7 @@ export function createChat(deps: ChatDependencies = {}) {
       const result = history.viewingPast() ? { ok: false, drained: false } : await fetchNewer({ reportError: false });
       if (!current(own)) return;
 
-      await refreshDeliveries({ reportError: false });
+      await refreshDeliveries();
       if (!current(own)) return;
 
       if (liveVersion !== version || (snapshot.value?.revision ?? 0) > snap.revision) {
@@ -446,21 +420,20 @@ export function createChat(deps: ChatDependencies = {}) {
       }
 
       if (result.ok && !result.drained) scheduleRefresh();
-      pollFailures = 0;
-      if (error.value === pollError) {
-        error.value = null;
-        pollError = null;
-      }
     } catch (cause) {
-      // A failed poll is not a failed run: the stream is the source of truth for the reader, and
-      // the poll asks again on its own. Only a poll that keeps failing takes the card.
-      if (!current(own)) return;
-      pollFailures++;
-      if (shouldSurfacePollFailure(pollFailures)) {
-        pollError = cause;
-        error.value = cause;
-      }
+      if (current(own)) deny(cause);
     }
+  }
+
+  function setVisible(next: boolean) {
+    visible = next;
+    if (!visible) connection?.pause();
+  }
+
+  function reconnectNow() {
+    if (!visible || denied) return;
+    connection?.reconnectNow();
+    scheduleRefresh();
   }
 
   function scheduleRefresh() {
@@ -482,12 +455,7 @@ export function createChat(deps: ChatDependencies = {}) {
   async function interrupt(): Promise<void> {
     if (sessionId.value) {
       const own = epoch;
-      try {
-        await requests.sessionInterrupt(sessionId.value);
-      } catch (cause) {
-        if (current(own)) error.value = cause;
-        throw cause;
-      }
+      await requests.sessionInterrupt(sessionId.value);
       if (current(own)) scheduleRefresh();
     }
   }
@@ -534,7 +502,6 @@ export function createChat(deps: ChatDependencies = {}) {
     loadingOlder,
     loadingNewer,
     loadingInitial,
-    error,
     stream,
     sending,
     sentRun,
@@ -543,6 +510,8 @@ export function createChat(deps: ChatDependencies = {}) {
     open,
     close,
     reload,
+    setVisible,
+    reconnectNow,
     loadOlder,
     fetchNewer,
     locate,

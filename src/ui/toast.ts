@@ -10,7 +10,7 @@ export interface ToastItem {
   text: string;
   sessionId?: string;
   persistent?: boolean;
-  action?: { label: string; run: () => void };
+  action?: { label: string; run: () => void; keepOpen?: boolean };
   tone?: ToastTone;
   icon?: string;
   detail?: string;

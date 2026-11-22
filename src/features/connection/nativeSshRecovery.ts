@@ -28,7 +28,7 @@ export async function restoreSsh(resumeBase?: string, signal?: AbortSignal) {
   if (!result.ok) throw new Error('SSH reconnect failed');
 }
 
-export function watchNativeConnection() {
+export function watchNativeConnection(onRestored: () => void) {
   if (isSignedOut() || platform('storage').get('ssh.connected') !== '1') return;
   let busy = false;
   let disposed = false;
@@ -50,17 +50,14 @@ export function watchNativeConnection() {
           headers: authHeaders(),
           signal: AbortSignal.timeout(4000),
         }).catch(() => null);
-        if (response && response.status !== 502 && response.status !== 504) {
+        if (response && ![502, 503, 504].includes(response.status)) {
           delay = 1000;
           return;
         }
       }
       if (!active()) return;
       await restoreSsh(base);
-      if (active()) {
-        sync.stop();
-        sync.start();
-      }
+      if (active()) onRestored();
       delay = 1000;
     } catch {
       if (active()) {
@@ -71,18 +68,19 @@ export function watchNativeConnection() {
       busy = false;
     }
   }
-  document.addEventListener('visibilitychange', check);
-  window.addEventListener('pageshow', check);
-  window.addEventListener('online', check);
-  const stop = watch(sync.online, (online) => {
-    if (!online) void check();
+  const stop = watch(sync.state, (state) => {
+    if (state !== 'online' && !sync.authorizationDenied.value) void check();
   });
-  return () => {
-    disposed = true;
-    clearTimeout(retry);
-    stop();
-    document.removeEventListener('visibilitychange', check);
-    window.removeEventListener('pageshow', check);
-    window.removeEventListener('online', check);
+  return {
+    checkNow() {
+      delay = 1000;
+      clearTimeout(retry);
+      void check();
+    },
+    dispose() {
+      disposed = true;
+      clearTimeout(retry);
+      stop();
+    },
   };
 }

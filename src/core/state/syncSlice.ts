@@ -18,35 +18,58 @@ export interface SessionTombstone {
 }
 
 interface SyncDependencies {
-  connect?: (options: SseOptions) => Pick<SseConnection, 'close'>;
+  connect?: (options: SseOptions) => Pick<SseConnection, 'close' | 'pause' | 'reconnectNow'>;
   readSession?: (id: string, signal: AbortSignal) => Promise<SessionView>;
   url?: (path: string) => string;
   emit?: typeof bus.emit;
 }
+const DISCONNECT_DELAY_MS = 8_000;
+const DISCONNECT_FAILURES = 3;
+
 export function createSync({
   connect = createSse,
   readSession = (id, signal) => sessionGet(id, { signal }),
   url = absUrl,
   emit = bus.emit,
 }: SyncDependencies = {}) {
-  const online = shallowRef(true);
+  const state = shallowRef<'online' | 'reconnecting' | 'disconnected'>('reconnecting');
+  const authorizationDenied = shallowRef(false);
   /** Bumped on every sync.snapshot frame; 1 = initial, >1 = reconnect/reset. */
   const snapshotRevision = shallowRef(0);
-  // Report each failure category once per signed-in sync lifecycle. Background
-  // invalidations can arrive for many sessions during a single outage.
   const protocolError = shallowRef<unknown>(null);
-  const refreshError = shallowRef<unknown>(null);
-  let connection: Pick<SseConnection, 'close'> | undefined;
+  let connection: ReturnType<NonNullable<SyncDependencies['connect']>> | undefined;
   let generation = 0;
+  let visible = true;
+  let failures = 0;
+  let lostAt = 0;
+  let noticeTimer: ReturnType<typeof setTimeout> | undefined;
   const sessions = createKeyedRefresh(
     (id: string, signal: AbortSignal): Promise<SessionView> => readSession(id, signal),
     (id: string, body: SessionView) => emit('upsert.session', { id, body }),
     (id: string, error: unknown) => {
-      if (error && typeof error === 'object' && 'status' in error && error.status === 404)
-        emit('tombstone.session', { id });
-      else refreshError.value ??= error;
+      const status = (error as { status?: number } | null)?.status;
+      if (status === 404 || status === 410) emit('tombstone.session', { id });
     },
   );
+
+  function resetLoss() {
+    clearTimeout(noticeTimer);
+    noticeTimer = undefined;
+    failures = 0;
+    lostAt = Date.now();
+  }
+
+  function reportIfDisconnected() {
+    if (!visible || state.value !== 'reconnecting' || failures < DISCONNECT_FAILURES) return;
+    const remaining = DISCONNECT_DELAY_MS - (Date.now() - lostAt);
+    if (remaining <= 0) state.value = 'disconnected';
+    else if (noticeTimer === undefined) {
+      noticeTimer = setTimeout(() => {
+        noticeTimer = undefined;
+        reportIfDisconnected();
+      }, remaining);
+    }
+  }
 
   function frame(frame: SseFrame) {
     if (!frame.data) return;
@@ -89,13 +112,33 @@ export function createSync({
   function start() {
     if (connection) return;
     const started = ++generation;
+    resetLoss();
     connection = connect({
       url: url('/events'),
+      paused: !visible,
       onFrame: (event) => {
         if (started === generation) frame(event);
       },
-      onState: ({ state: next }) => {
-        if (started === generation) online.value = next === 'open';
+      onState: ({ state: next, err }) => {
+        if (started !== generation || !visible) return;
+        if (next === 'open') {
+          resetLoss();
+          state.value = 'online';
+        } else if (next === 'denied' || next === 'gone') {
+          resetLoss();
+          state.value = 'reconnecting';
+          if (next === 'denied') {
+            authorizationDenied.value = true;
+            emit('connection.denied');
+          } else protocolError.value ??= err;
+        } else if (next === 'connecting' || next === 'reconnecting') {
+          if (state.value === 'online') {
+            resetLoss();
+            state.value = 'reconnecting';
+          }
+          if (err) failures++;
+          reportIfDisconnected();
+        }
       },
     });
   }
@@ -104,11 +147,25 @@ export function createSync({
     connection?.close();
     connection = undefined;
     sessions.clear();
-    online.value = false;
+    resetLoss();
+    state.value = 'reconnecting';
+    authorizationDenied.value = false;
     snapshotRevision.value = 0;
     protocolError.value = null;
-    refreshError.value = null;
   }
-  return { online, snapshotRevision, protocolError, refreshError, start, stop };
+  function setVisible(next: boolean) {
+    if (visible === next) return;
+    visible = next;
+    resetLoss();
+    if (!visible) {
+      connection?.pause();
+      sessions.clear();
+      state.value = 'reconnecting';
+    }
+  }
+  function reconnectNow() {
+    if (visible) connection?.reconnectNow();
+  }
+  return { state, authorizationDenied, snapshotRevision, protocolError, start, stop, setVisible, reconnectNow };
 }
 export const sync = createSync();

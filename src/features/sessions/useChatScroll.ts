@@ -73,7 +73,7 @@ export function useChatScroll(options: UseChatScrollOptions) {
       pausedFill = null;
       // A folded page may have no scroll range at all. Upward intent must still reach
       // older history: the browser cannot emit a scroll event when scrollTop is already 0.
-      if (scrollEl.value?.scrollTop === 0) void loadOlderAnchored();
+      if (scrollEl.value?.scrollTop === 0) void loadOlderAnchored(true);
     }
   }
 
@@ -235,7 +235,7 @@ export function useChatScroll(options: UseChatScrollOptions) {
     { flush: 'sync' },
   );
 
-  async function loadOlderAnchored() {
+  async function loadOlderAnchored(reportError = false) {
     if (
       loadingOlderBusy ||
       scrollbarHeld.value ||
@@ -252,6 +252,7 @@ export function useChatScroll(options: UseChatScrollOptions) {
     const anchor: { value: { top: number; height: number } | null } = { value: null };
     try {
       const added = await chat.loadOlder({
+        reportError,
         beforeMerge: async () => {
           await beforeHistoryMerge();
           const el = scrollEl.value;
@@ -300,7 +301,7 @@ export function useChatScroll(options: UseChatScrollOptions) {
     const gen = getEpoch();
     await nextTick();
     if (!owns(gen) || !pageActive.value) return;
-    // Error cards and unchanged pages can also resize the log. They must not start
+    // Unchanged pages must not start
     // an automatic retry loop; a fresh upward gesture explicitly retries this cursor.
     if (pausedFill?.session === sessionId.value && pausedFill.oldest === chat.entries.value[0]?.seq) return;
     const el = scrollEl.value;
@@ -322,7 +323,7 @@ export function useChatScroll(options: UseChatScrollOptions) {
   async function fetchNewerBelow() {
     if (chat.loadingNewer.value || scrollbarHeld.value || !pageActive.value) return;
     const gen = getEpoch();
-    await chat.fetchNewer({ beforeMerge: beforeHistoryMerge });
+    await chat.fetchNewer({ beforeMerge: beforeHistoryMerge, reportError: direction === 'latest' }).catch(() => {});
     await nextTick();
     if (owns(gen)) measureScroll();
   }
@@ -340,7 +341,7 @@ export function useChatScroll(options: UseChatScrollOptions) {
     measureScroll();
     if (!nearTop.value) chained = 0;
     if (nearTop.value && chat.hasMoreBefore.value && !chat.loadingOlder.value) {
-      loadOlderAnchored();
+      void loadOlderAnchored(direction === 'history');
     }
     if (nearBottom.value && chat.hasMoreAfter.value && !chat.loadingNewer.value) {
       fetchNewerBelow();

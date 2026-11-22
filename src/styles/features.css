@@ -1620,21 +1620,6 @@ button.sl-row {
     flex: 1;
   }
 }
-.offline-banner {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 40;
-  background: var(--accent-soft);
-  color: var(--accent);
-  border: 1px solid var(--line-strong);
-  border-top: 0;
-  border-radius: 0 0 6px 6px;
-  text-align: center;
-  font-size: 12px;
-  padding: 6px 20px;
-}
 @media (max-width: 899px) {
   .sl-masthead {
     padding: 12px 16px 6px;

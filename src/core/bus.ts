@@ -11,6 +11,7 @@ export interface BusEvents {
   'tombstone.session': { id: string };
   'list.changed': Record<string, never> | undefined;
   'sync.snapshot': { sessionFailures?: boolean };
+  'connection.denied': undefined;
   'session.retry': { id: string; name: string; retry: UpstreamRetry };
   'session.recovery': { id: string; name: string; attempt: number };
   'session.failed': { id: string; name: string; failure: DisplayFailure };

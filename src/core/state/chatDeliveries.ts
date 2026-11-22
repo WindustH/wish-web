@@ -20,7 +20,6 @@ export interface ChatDeliveriesDeps {
   sessionId: ShallowRef<string | null>;
   snapshot: ShallowRef<{ phase?: string } | null>;
   stream: ShallowRef<{ active: boolean }>;
-  error: ShallowRef<unknown>;
   options: () => EndpointOptions;
   scheduleRefresh: () => void;
   requests?: DeliveryRequests;
@@ -36,7 +35,6 @@ export function createChatDeliveries({
   sessionId,
   snapshot,
   stream,
-  error,
   options,
   scheduleRefresh,
   requests = api,
@@ -111,12 +109,12 @@ export function createChatDeliveries({
       if (current(own)) {
         sending.value = false;
         directSending = false;
-        void refreshDeliveries();
+        void refreshDeliveries().catch(scheduleRefresh);
       }
     }
   }
 
-  async function refreshDeliveries({ reportError = true }: { reportError?: boolean } = {}): Promise<void> {
+  async function refreshDeliveries(): Promise<void> {
     const own = generation;
     const version = ++deliveriesVersion;
     const id = sessionId.value;
@@ -128,10 +126,7 @@ export function createChatDeliveries({
         deliveries.value = page.items;
       }
     } catch (cause) {
-      if (current(own) && version === deliveriesVersion) {
-        if (!reportError) throw cause;
-        error.value = cause;
-      }
+      if (current(own) && version === deliveriesVersion) throw cause;
     }
   }
 
@@ -141,11 +136,8 @@ export function createChatDeliveries({
     if (!session) return;
     try {
       await requests.moveQueuedInput(session, id, before);
-    } catch (cause) {
-      if (current(own)) error.value = cause;
-      throw cause;
     } finally {
-      if (current(own)) await refreshDeliveries();
+      if (current(own)) await refreshDeliveries().catch(scheduleRefresh);
     }
   }
 
@@ -153,13 +145,8 @@ export function createChatDeliveries({
     const own = generation;
     const session = sessionId.value;
     if (!session) return false;
-    try {
-      await requests.cancelQueuedInput(session, id);
-    } catch (cause) {
-      if (current(own)) error.value = cause;
-      throw cause;
-    }
-    if (current(own)) await refreshDeliveries();
+    await requests.cancelQueuedInput(session, id);
+    if (current(own)) await refreshDeliveries().catch(scheduleRefresh);
     return true;
   }
 

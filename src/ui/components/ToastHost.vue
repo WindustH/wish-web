@@ -26,7 +26,7 @@ const items = useToasts();
           class="btn ghost"
           @click="
             item.action.run();
-            dismissToast(item.id);
+            if (!item.action.keepOpen) dismissToast(item.id);
           "
         >
           {{ item.action.label }}

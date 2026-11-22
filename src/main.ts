@@ -9,6 +9,7 @@ import { i18n } from './core/i18n/index.ts';
 import { prefs } from './core/state/prefsSlice.ts';
 import { sessions } from './core/state/sessionsSlice.ts';
 import { sync } from './core/state/syncSlice.ts';
+import { chat } from './core/state/chatSlice.ts';
 import { toast } from './ui/toast.ts';
 import { applyTokens } from './ui/applyTokens.ts';
 import { installViewport } from './ui/viewport.ts';
@@ -26,6 +27,7 @@ import { tr } from './core/i18n/tr.ts';
 import { router } from './router.ts';
 import { isNativeApp, setAndroidSurfaceColor } from './platform/native.ts';
 import { applyConnection, isSignedOut } from './core/connection.ts';
+import { installConnectionLifecycle, reconnectStreams } from './features/connection/connectionLifecycle.ts';
 
 import './generated/fonts/montserrat.css';
 import './generated/fonts/bitter.css';
@@ -130,26 +132,22 @@ prefs.load();
 // before the control plane starts streaming.
 // Signed out, the sign-in page picks a server first.
 let stopBackgroundNotify = () => {};
+const nativeRecovery = sshRecovery?.watchNativeConnection(reconnectStreams);
+const stopConnectionLifecycle = installConnectionLifecycle(nativeRecovery?.checkNow);
 if (!isSignedOut()) {
   const { installBackgroundNotify } = await import('./domain/chat/notify.ts');
   stopBackgroundNotify = installBackgroundNotify((id) => router.currentRoute.value.params.id === id);
   sync.start();
+  nativeRecovery?.checkNow();
 }
 
-// Stream decoding and background detail reads have different failure modes.
-const stopSshRecovery = sshRecovery?.watchNativeConnection();
 const stopProtocolError = watch(sync.protocolError, (err) => {
   if (err) toast(i18n.t('sync.protocolError'), { tone: 'error' });
-});
-
-const stopRefreshError = watch(sync.refreshError, (err) => {
-  if (err) toast(tr('部分会话状态暂时无法同步', 'Some session updates could not be loaded'), { tone: 'warning' });
 });
 
 // Keep the screen awake while a run is active, on any supported device.
 let stopKeepAwake = () => {};
 {
-  const { chat } = await import('./core/state/chatSlice.ts');
   const app = platform('app');
   const stop = watch([() => chat.stream.value.active, prefs.keepAwake], ([active, enabled]) => {
     void app.keepAwake(active && enabled);
@@ -169,12 +167,12 @@ const reportRejection = createUnhandledRejectionReporter(() => toast(i18n.t('err
 window.addEventListener('unhandledrejection', reportRejection);
 let stopShortcuts = () => {};
 app.onUnmount(() => {
-  stopSshRecovery?.();
+  nativeRecovery?.dispose();
+  stopConnectionLifecycle();
   stopBackgroundNotify();
   stopTheme();
   stopLocale();
   stopProtocolError();
-  stopRefreshError();
   stopKeepAwake();
   stopShortcuts();
   stopSystemListeners.forEach((stop) => stop());

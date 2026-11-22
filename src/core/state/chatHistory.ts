@@ -26,7 +26,7 @@ export interface HistoryMergeOptions {
 
 export interface ChatHistoryDeps<E> {
   sessionId: ShallowRef<string | null>;
-  error: ShallowRef<unknown>;
+  onError?: (cause: unknown) => void;
   options: () => HistoryRequestOptions;
   open: (id: string) => Promise<void>;
   readPage: (
@@ -38,7 +38,7 @@ export interface ChatHistoryDeps<E> {
 
 export function createChatHistory<E extends { seq: number }>({
   sessionId,
-  error,
+  onError,
   options,
   open,
   readPage,
@@ -111,7 +111,7 @@ export function createChatHistory<E extends { seq: number }>({
     historyVersion.value++;
   }
 
-  async function loadOlder({ beforeMerge }: HistoryMergeOptions = {}): Promise<boolean> {
+  async function loadOlder({ beforeMerge, reportError = true }: HistoryMergeOptions = {}): Promise<boolean> {
     if (locating.value || loadingOlder.value || !hasMoreBefore.value || !sessionId.value) return false;
 
     const own = generation;
@@ -133,7 +133,7 @@ export function createChatHistory<E extends { seq: number }>({
       hasMoreBefore.value = page.has_more;
       return true;
     } catch (cause) {
-      if (current(own)) error.value = cause;
+      if (current(own) && reportError) onError?.(cause);
       return false;
     } finally {
       if (current(own)) loadingOlder.value = false;
@@ -182,7 +182,7 @@ export function createChatHistory<E extends { seq: number }>({
     } catch (cause) {
       if (current(own)) {
         if (!reportError) throw cause;
-        error.value = cause;
+        onError?.(cause);
       }
       return { ok: false, drained: false, added };
     } finally {
@@ -226,7 +226,7 @@ export function createChatHistory<E extends { seq: number }>({
       pendingSeq.value = seq;
       return entries.value.some((e) => e.seq === seq);
     } catch (cause) {
-      if (current(own)) error.value = cause;
+      if (current(own)) onError?.(cause);
       return false;
     } finally {
       if (current(own)) locating.value = false;
@@ -253,7 +253,7 @@ export function createChatHistory<E extends { seq: number }>({
       pendingSeq.value = null;
       return true;
     } catch (cause) {
-      if (current(own)) error.value = cause;
+      if (current(own)) onError?.(cause);
       return false;
     } finally {
       if (current(own)) locating.value = false;

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { TranscriptRow } from '../../domain/chat/transcript.ts';
 import RunFailureCard from '../../domain/chat/RunFailureCard.vue';
-import { displayFailure } from '../../core/api/failures.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Hint from '../../ui/components/Hint.vue';
 import { useRailProximity } from './useRailProximity.ts';
@@ -82,26 +81,23 @@ const runFailure = computed(() => {
   if (last?.kind === 'run_error') return null;
   return streamState.value?.error || chat.snapshot.value?.last_error;
 });
-const requestFailure = computed(() => displayFailure(chat.error.value));
 // Keep status cards inside the measured list so its size matches the scroll
 // container's actual content height.
-// History rows, then a closing row for a failed request or run.
+// History rows, then a closing row for a failed run.
 type ChatRow =
   | GroupItem<EntryView>
   | TextItem<EntryView>
   | ChipsItem<EntryView>
   | ImageAlbumItem<EntryView>
-  | { type: 'status_request_error'; key: string }
   | { type: 'status_run_error'; key: string };
 const groups = computed(() => {
   const items: ChatRow[] = imageAlbums(inlineChips(groupEntries(chat.entries.value)));
-  if (requestFailure.value) items.push({ type: 'status_request_error', key: `request-error:${props.sessionId}` });
   if (runFailure.value) items.push({ type: 'status_run_error', key: `run-error:${props.sessionId}` });
   return items;
 });
 const transcriptAt = (index: number): TranscriptRow<EntryView> | undefined => {
   const row = groups.value[index];
-  return row && row.type !== 'status_request_error' && row.type !== 'status_run_error' ? row : undefined;
+  return row && row.type !== 'status_run_error' ? row : undefined;
 };
 
 // A call's result may come in a later run than the call, past a question or a notice.
@@ -511,14 +507,6 @@ watch(
               :session="sessionId"
               :locate-seq="chat.pendingSeq.value ?? undefined"
             />
-            <RunFailureCard
-              v-else-if="groups[v.index]?.type === 'status_request_error' && requestFailure"
-              :failure="requestFailure"
-              :heading="i18n.t('chat.requestFailed')"
-            >
-              <button class="btn ghost sm" @click="chat.reload()">{{ i18n.t('chat.reload') }}</button>
-              <button class="btn ghost sm" @click="chat.error.value = null">{{ i18n.t('common.close') }}</button>
-            </RunFailureCard>
             <RunFailureCard
               v-else-if="groups[v.index]?.type === 'status_run_error' && runFailure"
               :failure="runFailure"

@@ -43,10 +43,11 @@ export interface SseOptions {
   onState?: (event: SseStateEvent) => void;
   connectTimeoutMs?: number;
   headers?: Record<string, string>;
+  paused?: boolean;
 }
 export type SseConnection = ReturnType<typeof createSse>;
 
-export function createSse({ url, onFrame, onState, connectTimeoutMs, headers: extraHeaders }: SseOptions) {
+export function createSse({ url, onFrame, onState, connectTimeoutMs, headers: extraHeaders, paused }: SseOptions) {
   const stateListeners = new Set<(event: SseStateEvent) => void>();
   if (onState) stateListeners.add(onState); // constructor-level listener
   let lastEventId = '';
@@ -80,8 +81,8 @@ export function createSse({ url, onFrame, onState, connectTimeoutMs, headers: ex
     const base = Math.min(cfg.sse.reconnectBaseMs * 2 ** attempt, cfg.sse.reconnectMaxMs);
     const delay = base / 2 + Math.random() * (base / 2);
     attempt += 1;
-    emitState('reconnecting', err);
     reconnectTimer = setTimeout(connect, delay);
+    emitState('reconnecting', err);
   }
 
   // Liveness = any bytes within heartbeatTimeoutMs. Comment keepalives
@@ -98,19 +99,25 @@ export function createSse({ url, onFrame, onState, connectTimeoutMs, headers: ex
   async function connect() {
     if (aborted || terminal) return;
     internalAbort = null;
-    controller = new AbortController();
+    const active = (controller = new AbortController());
+    const current = () => controller === active;
     const headers: Record<string, string> = { accept: 'text/event-stream', ...authHeaders(), ...(extraHeaders || {}) };
     if (lastEventId) headers['last-event-id'] = lastEventId;
     emitState(attempt ? 'reconnecting' : 'connecting');
+    if (!current()) return;
     // Connect timeout: headers must arrive within this window or we abort
     // and retry (covers black-holed connections, not just refused ones).
     const connectDeadline = connectTimeoutMs ?? cfg.sse.connectTimeoutMs;
     connectTimer = setTimeout(() => {
       internalAbort = new SseInternalError('connect timeout');
-      controller!.abort(internalAbort);
+      active.abort(internalAbort);
     }, connectDeadline);
     try {
-      const res = await fetch(url, { headers, signal: controller.signal });
+      const res = await fetch(url, { headers, signal: active.signal });
+      if (!current()) {
+        void res.body?.cancel().catch(() => {});
+        return;
+      }
       clearTimeout(connectTimer);
       if (GONE_STATUSES.has(res.status) || DENIED_STATUSES.has(res.status)) {
         // The stream resource is gone (404/410) or auth failed (401/403).
@@ -123,6 +130,7 @@ export function createSse({ url, onFrame, onState, connectTimeoutMs, headers: ex
       }
       if (res.status === 409) {
         const problem = await res.json().catch(() => null);
+        if (!current()) return;
         if (problem?.title === 'run_not_streaming') {
           terminal = true;
           emitState('disabled');
@@ -132,6 +140,7 @@ export function createSse({ url, onFrame, onState, connectTimeoutMs, headers: ex
       if (!res.ok || !res.body) throw Object.assign(new Error(`SSE ${res.status}`), { status: res.status });
       attempt = 0;
       emitState('open');
+      if (!current()) return;
       armHeartbeat();
 
       const reader = res.body.getReader();
@@ -140,29 +149,35 @@ export function createSse({ url, onFrame, onState, connectTimeoutMs, headers: ex
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done || !current()) break;
         armHeartbeat(); // bytes = alive (frames, partials, comments)
         for (const frame of splitter.push(dec.decode(value, { stream: true }))) {
+          if (!current()) break;
           if (frame.id) lastEventId = frame.id;
-          if (!aborted && !terminal) onFrame?.(frame);
+          onFrame?.(frame);
         }
-        if (aborted || terminal) {
+        if (!current()) {
           reader.cancel().catch(() => {});
           return;
         }
       }
-      if (aborted || terminal) return;
+      if (!current()) return;
       // Server closed the stream cleanly: reconnect (durable tails end).
       scheduleReconnect(new SseInternalError('stream ended'));
     } catch (err) {
-      clearTimeout(connectTimer);
-      if (aborted) return; // close(): zero callbacks after
-      if (terminal) return;
+      if (!current() || terminal) return;
       scheduleReconnect((internalAbort ?? err) as SseError);
     }
   }
 
-  connect();
+  function pause() {
+    clearTimers();
+    const active = controller;
+    controller = null;
+    active?.abort();
+  }
+
+  if (!paused) void connect();
 
   return {
     onState(fn: (event: SseStateEvent) => void) {
@@ -171,9 +186,15 @@ export function createSse({ url, onFrame, onState, connectTimeoutMs, headers: ex
     },
     close() {
       aborted = true;
-      clearTimers();
-      controller?.abort(new Error('closed'));
+      pause();
       emitState('closed');
+    },
+    pause,
+    reconnectNow() {
+      if (aborted || terminal) return;
+      pause();
+      attempt = 0;
+      void connect();
     },
     getLastEventId: () => lastEventId,
     isTerminal: () => terminal,
