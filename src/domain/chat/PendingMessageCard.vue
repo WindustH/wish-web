@@ -5,8 +5,8 @@ import { describeError } from '../../core/i18n/errorMessages.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import Icon from '../../ui/components/Icon.vue';
 
-const props = defineProps<{ message: PendingMessage; compact?: boolean }>();
-const emit = defineEmits<{ edit: [id: string]; remove: [id: string]; check: [] }>();
+const props = defineProps<{ message: PendingMessage; compact?: boolean; busy?: boolean }>();
+const emit = defineEmits<{ edit: [id: string]; remove: [id: string]; retry: [id: string]; check: [] }>();
 const text = computed(() => {
   let value = props.message.draft.text;
   for (const item of props.message.draft.attachments)
@@ -46,13 +46,16 @@ const label = computed(
       {{ label }}<template v-if="message.error"> · {{ describeError(message.error).message }}</template>
     </div>
     <div v-if="message.state === 'failed'" class="pending-actions">
-      <button v-if="message.uncertain" class="btn ghost sm" @click="emit('check')">
+      <button v-if="message.retryable" class="btn sm" :disabled="busy" @click="emit('retry', message.id)">
+        {{ tr('重试发送', 'Retry sending') }}
+      </button>
+      <button v-if="message.uncertain" class="btn ghost sm" :disabled="busy" @click="emit('check')">
         {{ tr('核对送达状态', 'Check delivery') }}
       </button>
-      <button v-if="!message.uncertain" class="btn ghost sm" @click="emit('edit', message.id)">
+      <button class="btn ghost sm" :disabled="busy" @click="emit('edit', message.id)">
         {{ tr('退回输入框', 'Return to composer') }}
       </button>
-      <button class="btn ghost sm" @click="emit('remove', message.id)">
+      <button class="btn ghost sm" :disabled="busy" @click="emit('remove', message.id)">
         {{ tr('移除此提示', 'Dismiss this item') }}
       </button>
     </div>

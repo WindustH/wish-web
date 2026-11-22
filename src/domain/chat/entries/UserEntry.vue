@@ -5,8 +5,9 @@ import UserBubble from './UserBubble.vue';
 import ImageGrid from './ImageGrid.vue';
 import { imageParts } from '../imageAlbums.ts';
 // A history item's message, or message blocks shown elsewhere through `content`.
-const props = defineProps<{ item?: any; content?: ContentBlock[] }>();
-const bubbles = computed(() => userBubbles(props.content ?? props.item.entry?.payload?.content));
+const props = defineProps<{ item?: any; content?: ContentBlock[]; seq?: number }>();
+const bubbles = computed(() => userBubbles(props.content ?? props.item?.entry?.payload?.content));
+const position = computed(() => props.seq ?? props.item?.entry?.seq);
 const groups = computed(() => {
   const result: { files?: any[]; images?: ContentBlock[]; block?: any }[] = [];
   for (const part of imageParts(bubbles.value)) {
@@ -33,14 +34,14 @@ const groups = computed(() => {
             v-for="(image, imageIndex) in group.images.slice(start, limit)"
             :key="start + imageIndex"
             :block="image"
-            :seq="item?.entry?.seq"
+            :seq="position"
           />
         </ImageGrid>
       </div>
       <div v-else-if="group.files" class="file-group">
-        <UserBubble v-for="(file, fileIndex) in group.files" :key="fileIndex" :block="file" :seq="item?.entry?.seq" />
+        <UserBubble v-for="(file, fileIndex) in group.files" :key="fileIndex" :block="file" :seq="position" />
       </div>
-      <UserBubble v-else :block="group.block" :seq="item?.entry?.seq" :block-index="bubbles.indexOf(group.block)" />
+      <UserBubble v-else :block="group.block" :seq="position" :block-index="bubbles.indexOf(group.block)" />
     </template>
   </div>
 </template>

@@ -25,14 +25,26 @@ import { awaitsAnswer } from '../../core/questionWatch.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
 
-import type { PendingMessage } from '../../core/state/pendingMessages.ts';
-import PendingMessageCard from '../../domain/chat/PendingMessageCard.vue';
+import { pendingUserContent, type PendingMessage } from '../../core/state/pendingMessages.ts';
 const props = defineProps<{
   items: any[];
   pending?: PendingMessage[];
   refill: (text: string, attachments?: QueuedAttachment[]) => void;
 }>();
-const count = computed(() => props.items.length + (props.pending?.length ?? 0));
+const queueKey = (item: { id: string; client_request_id?: string }) => item.client_request_id ?? item.id;
+const pendingRows = computed(() => {
+  const delivered = new Set(props.items.map(queueKey));
+  return (props.pending ?? [])
+    .filter((item) => !delivered.has(item.id))
+    .map((item) => ({
+      id: item.id,
+      text: pendingUserContent(item.owner, item.draft)
+        .flatMap((block) => (block.type === 'text' ? [block.text] : []))
+        .join(' '),
+      attachments: item.draft.attachments,
+    }));
+});
+const count = computed(() => props.items.length + pendingRows.value.length);
 
 // Attachment indicator: queued rows carry per-item references from the
 // control-plane projection; the dock only consumes "has an image" (files do
@@ -101,7 +113,7 @@ async function scrollLatest() {
   }
 }
 watch(
-  () => [...props.items.map((item) => item.id), ...(props.pending ?? []).map((item) => item.id)],
+  () => [...props.items.map(queueKey), ...pendingRows.value.map((item) => item.id)],
   (ids, previous) => {
     if (previous && ids.some((id) => !previous.includes(id))) {
       pendingScroll = true;
@@ -287,7 +299,7 @@ async function edit(item: any) {
             <AnimatePresence v-if="placed" mode="popLayout">
               <ReorderItem
                 v-for="(item, index) in ordered"
-                :key="item.id"
+                :key="queueKey(item)"
                 :value="item.id"
                 as="div"
                 class="queue-item"
@@ -296,7 +308,7 @@ async function edit(item: any) {
                 tabindex="0"
                 :drag-listener="false"
                 :drag-controls="controlsOf(item.id)"
-                :initial="reduced ? false : { opacity: 0 }"
+                :initial="reduced || item.client_request_id ? false : { opacity: 0 }"
                 :animate="{ opacity: 1 }"
                 :exit="reduced ? undefined : { opacity: 0 }"
                 @pointerdown="press($event, item)"
@@ -329,8 +341,22 @@ async function edit(item: any) {
                 ></Hint>
               </ReorderItem>
             </AnimatePresence>
+            <div
+              v-for="(item, index) in pendingRows"
+              v-show="placed"
+              :key="item.id"
+              class="queue-item queue-pending"
+              role="listitem"
+            >
+              <span class="queue-position">{{ ordered.length + index + 1 }}</span>
+              <span v-if="hasImages(item)" class="queue-images" role="img" :aria-label="i18n.t('chat.hasImages')"
+                ><Icon name="image"
+              /></span>
+              <span class="queue-text" :data-hint="item.text">{{ item.text || i18n.t('chat.queueUntitled') }}</span>
+              <span class="btn ghost icon-only" aria-hidden="true"><Icon name="pencil" /></span>
+              <span class="btn ghost icon-only" aria-hidden="true"><Icon name="x" /></span>
+            </div>
           </ReorderGroup>
-          <PendingMessageCard v-for="message in pending" v-show="placed" :key="message.id" :message="message" compact />
         </div>
         <PopoverArrow as-child :width="30" :height="9"
           ><span data-bubble-anchor class="queue-tail-anchor" aria-hidden="true"
@@ -342,6 +368,12 @@ async function edit(item: any) {
 </template>
 
 <style>
+.queue-item.queue-pending {
+  cursor: default;
+}
+.queue-pending .btn {
+  visibility: hidden;
+}
 /* A message bubble with a count on its corner: what is waiting, and how much. */
 .composer-queue {
   position: relative;

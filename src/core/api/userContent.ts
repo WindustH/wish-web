@@ -18,6 +18,12 @@ export interface AttachmentContent {
   placeholder?: string;
   mime_type?: string;
   data_base64?: string;
+  localPreview?: Blob;
+}
+
+export function userInputRequestId(metadata: any): string | undefined {
+  const id = metadata?.input_request_id ?? metadata?.custom?.wish_client_submission;
+  return typeof id === 'string' ? id : undefined;
 }
 
 // Use persisted display parts when available; native history remains readable.
@@ -45,6 +51,7 @@ export function orderedUserContent(message: any, sessionId: string, fallback: Co
               blob_id: `${sessionId}/${file.id}`,
               filename: file.name,
               dimensions: file.dimensions,
+              byte_count: file.byte_count,
               placeholder: file.placeholder,
             },
           ]

@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { ApiError } from '../../core/api/client.ts';
+import { ApiError, getConnectionScope } from '../../core/api/client.ts';
 import { chat } from '../../core/state/chatSlice.ts';
 import {
   captureMessageDraft,
+  pendingUserContent,
   releaseMessageDraft,
   type MessageDraft,
   type PendingMessage,
 } from '../../core/state/pendingMessages.ts';
 import { requestId } from '../../core/util/requestId.ts';
 import PendingMessageCard from '../../domain/chat/PendingMessageCard.vue';
+import UserEntry from '../../domain/chat/entries/UserEntry.vue';
 import { sessionNaming } from '../../core/state/sessionNaming.ts';
 import { modelLabel as formatModelLabel } from '../../domain/providers/modelLabel.ts';
 import { resolvedEffort, effortLabel } from './reasoningLabels.ts';
@@ -154,12 +156,16 @@ const effectiveEffort = computed(() => {
 });
 const modelLabel = computed(() => formatModelLabel(selection.value.model));
 const preview = ref<PendingMessage>();
+const previewContent = computed(() =>
+  preview.value ? pendingUserContent(preview.value.owner, preview.value.draft) : [],
+);
 let creation:
   | {
       request: api.CreateSessionBody;
       text: string;
       attachments: AttachmentInput[];
       route: string;
+      scope: string;
       attempted: boolean;
       uncertain: boolean;
     }
@@ -189,6 +195,7 @@ function send(text: string, attachments: AttachmentInput[], draft: MessageDraft)
     text,
     attachments,
     route: route.fullPath,
+    scope: getConnectionScope(),
     attempted: false,
     uncertain: false,
   };
@@ -201,24 +208,33 @@ async function createPendingSession() {
   const message = preview.value;
   if (!owner || !message || busy.value) return;
   busy.value = true;
-  preview.value = { ...message, error: undefined, state: owner.attachments.length ? 'uploading' : 'sending' };
+  preview.value = {
+    ...message,
+    error: undefined,
+    state: !owner.request.first_input && owner.attachments.length ? 'uploading' : 'sending',
+  };
   try {
+    if (getConnectionScope() !== owner.scope) throw new DOMException('Connection changed', 'AbortError');
     if (!owner.request.first_input) {
-      owner.request.first_input = await initialInput(owner.text, owner.attachments, message.id);
-      try {
-        await uploadAttachments(message.id, owner.attachments, { upload: api.uploadDraftBlob });
-      } catch (cause) {
-        owner.request.first_input = undefined;
-        throw cause;
-      }
+      const first = await initialInput(owner.text, owner.attachments, message.id);
+      if (getConnectionScope() !== owner.scope) throw new DOMException('Connection changed', 'AbortError');
+      await uploadAttachments(message.id, owner.attachments, { upload: api.uploadDraftBlob });
+      owner.request.first_input = first;
     }
+    if (getConnectionScope() !== owner.scope) throw new DOMException('Connection changed', 'AbortError');
     preview.value = { ...message, error: undefined, state: 'sending' };
     owner.attempted = true;
     await finishSession(owner, message, await api.sessionCreate(owner.request));
   } catch (error) {
     const rejected = error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 408;
     owner.uncertain ||= owner.attempted && !rejected;
-    preview.value = { ...message, state: 'failed', error, uncertain: owner.uncertain };
+    preview.value = {
+      ...message,
+      state: 'failed',
+      error,
+      uncertain: owner.uncertain,
+      retryable: getConnectionScope() === owner.scope,
+    };
   } finally {
     busy.value = false;
   }
@@ -258,13 +274,13 @@ async function finishSession(
 async function checkPendingSession() {
   const message = preview.value,
     owner = creation;
-  if (!message || !owner || busy.value || !message.uncertain) return;
+  if (!message || !owner || busy.value || !message.uncertain || getConnectionScope() !== owner.scope) return;
   busy.value = true;
   try {
     const session = await api.sessionGet(message.id);
     if (creation === owner) await finishSession(owner, message, session);
   } catch (cause) {
-    if (!(cause instanceof ApiError && cause.status === 404)) defaultError.value = cause;
+    if (creation === owner) preview.value = { ...message, error: cause };
   } finally {
     busy.value = false;
   }
@@ -305,12 +321,7 @@ onScopeDispose(() => {
       <header>
         <Icon name="chat" :size="17" /><strong>{{ creation?.request.name }}</strong>
       </header>
-      <PendingMessageCard
-        :message="preview"
-        @edit="clearPreview(true)"
-        @check="checkPendingSession"
-        @remove="clearPreview()"
-      />
+      <UserEntry :content="previewContent" />
     </section>
     <div v-show="!preview || preview.state === 'failed'" class="start-surface">
       <div class="start-brand" aria-hidden="true">
@@ -319,9 +330,11 @@ onScopeDispose(() => {
       <PendingMessageCard
         v-if="preview?.state === 'failed'"
         :message="preview"
+        :busy="busy"
         compact
         @edit="clearPreview(true)"
         @check="checkPendingSession"
+        @retry="createPendingSession"
         @remove="clearPreview()"
       />
       <Composer
@@ -417,16 +430,15 @@ onScopeDispose(() => {
   align-items: flex-start;
 }
 .start-preview {
-  width: min(100%, 760px);
+  width: min(100%, var(--max-content));
   padding-top: 16px;
 }
 .start-preview > header {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-bottom: 10px;
+  margin-bottom: 18px;
   color: var(--fg-muted);
-  border-bottom: 1px solid var(--line);
 }
 .start-preview > header strong {
   min-width: 0;

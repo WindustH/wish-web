@@ -48,7 +48,10 @@ export interface ImageAlbumItem<E extends GroupEntry = GroupEntry> {
 }
 
 /** A display projection only: original messages, identities and attachment blocks stay intact. */
-export function imageAlbums<E extends GroupEntry>(rows: readonly Row<E>[]): (Row<E> | ImageAlbumItem<E>)[] {
+export function imageAlbums<E extends GroupEntry>(
+  rows: readonly Row<E>[],
+  standalone?: (row: TextItem<E>) => boolean,
+): (Row<E> | ImageAlbumItem<E>)[] {
   const result: (Row<E> | ImageAlbumItem<E>)[] = [];
   let pending: TextItem<E>[] = [];
   let originals: Row<E>[] = [];
@@ -75,6 +78,7 @@ export function imageAlbums<E extends GroupEntry>(rows: readonly Row<E>[]): (Row
       row.type === 'entry' ? row.blocks.filter((block) => block.type !== 'text' || block.text?.trim()) : [];
     const imagesOnly =
       row.type === 'entry' &&
+      !standalone?.(row) &&
       (row.entry.kind === 'user_message' || row.entry.kind === 'assistant_message') &&
       blocks.length > 0 &&
       blocks.every((b: GroupBlock) => b.type === 'image');

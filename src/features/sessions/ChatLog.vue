@@ -8,8 +8,9 @@ import { computed, inject, nextTick, onUnmounted, provide, ref, watch } from 'vu
 import { replyContextKey } from '../../domain/references/context.ts';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { chat } from '../../core/state/chatSlice.ts';
-import type { PendingMessage } from '../../core/state/pendingMessages.ts';
-import PendingMessageCard from '../../domain/chat/PendingMessageCard.vue';
+import { pendingUserContent } from '../../core/state/pendingMessages.ts';
+import { userInputRequestId, type ContentBlock } from '../../core/api/userContent.ts';
+import UserEntry from '../../domain/chat/entries/UserEntry.vue';
 import WorkStatus from './WorkStatus.vue';
 import { workActivity } from './workActivity.ts';
 import { chatWorkIndicator } from './phaseIndicator.ts';
@@ -91,14 +92,28 @@ type ChatRow =
   | TextItem<EntryView>
   | ChipsItem<EntryView>
   | ImageAlbumItem<EntryView>
-  | { type: 'pending_message'; key: string; message: PendingMessage }
+  | { type: 'pending_message'; key: string; blocks: ContentBlock[] }
   | { type: 'status_run_error'; key: string };
 const groups = computed(() => {
-  const items: ChatRow[] = imageAlbums(inlineChips(groupEntries(chat.entries.value)));
+  const shown = new Set<string>();
+  const items: ChatRow[] = imageAlbums(
+    inlineChips(groupEntries(chat.entries.value)).map((row) => {
+      if (row.type !== 'entry' || row.entry.kind !== 'user_message') return row;
+      const id = userInputRequestId(row.entry.payload.metadata);
+      if (!id) return row;
+      shown.add(id);
+      return { ...row, key: `user-input:${id}` };
+    }),
+    (row) => row.key.startsWith('user-input:'),
+  );
   if (runFailure.value) items.push({ type: 'status_run_error', key: `run-error:${props.sessionId}` });
   for (const message of chat.pendingMessages.value) {
-    if (message.owner === props.sessionId && !message.queued && message.state !== 'failed')
-      items.push({ type: 'pending_message', key: message.id, message });
+    if (message.owner === props.sessionId && !message.queued && message.state !== 'failed' && !shown.has(message.id))
+      items.push({
+        type: 'pending_message',
+        key: `user-input:${message.id}`,
+        blocks: pendingUserContent(message.owner, message.draft),
+      });
   }
   return items;
 });
@@ -106,9 +121,11 @@ const transcriptAt = (index: number): TranscriptRow<EntryView> | undefined => {
   const row = groups.value[index];
   return row && row.type !== 'status_run_error' && row.type !== 'pending_message' ? row : undefined;
 };
-function pendingAt(index: number) {
+function userMessageAt(index: number) {
   const row = groups.value[index];
-  return row?.type === 'pending_message' ? row.message : undefined;
+  if (row?.type === 'pending_message') return { content: row.blocks };
+  if (row?.type === 'entry' && row.entry.kind === 'user_message' && row.key.startsWith('user-input:'))
+    return { content: row.entry.payload.content, seq: row.entry.seq };
 }
 
 // A call's result may come in a later run than the call, past a question or a notice.
@@ -511,8 +528,16 @@ watch(
             }"
             :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }"
           >
+            <div
+              v-if="userMessageAt(v.index)"
+              class="entry-anchor"
+              :data-seq="userMessageAt(v.index)?.seq"
+              :data-pending-input="userMessageAt(v.index)?.seq == null ? '' : undefined"
+            >
+              <UserEntry v-bind="userMessageAt(v.index)" />
+            </div>
             <HistoryItem
-              v-if="transcriptAt(v.index)"
+              v-else-if="transcriptAt(v.index)"
               :item="transcriptAt(v.index)!"
               :forced-keys="forcedOpen"
               :session="sessionId"
@@ -524,7 +549,6 @@ watch(
             >
               <RetryRunButton :session="sessionId" />
             </RunFailureCard>
-            <PendingMessageCard v-else-if="pendingAt(v.index)" :message="pendingAt(v.index)!" />
           </div>
         </div>
         <Transition name="live-work">

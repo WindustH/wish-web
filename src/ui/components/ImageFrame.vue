@@ -10,6 +10,7 @@ const props = defineProps<{
   alt: string;
   dimensions?: readonly number[];
   failed?: boolean;
+  placeholder?: string;
 }>();
 const emit = defineEmits<{ load: [event: Event]; error: [] }>();
 const loaded = ref('');
@@ -27,6 +28,7 @@ function finish(event: Event) {
 </script>
 <template>
   <span class="image-frame" :style="style" :class="{ 'image-ready': url && loaded === url }">
+    <img v-if="placeholder && (!url || loaded !== url)" class="image-placeholder" :src="placeholder" alt="" />
     <img
       v-if="url"
       :key="url"
@@ -40,7 +42,7 @@ function finish(event: Event) {
       "
     />
     <span
-      v-if="failed || (url && broken === url)"
+      v-if="!placeholder && (failed || (url && broken === url))"
       class="image-failed"
       role="img"
       :aria-label="tr('图片加载失败', 'Image unavailable')"
@@ -48,3 +50,9 @@ function finish(event: Event) {
     /></span>
   </span>
 </template>
+
+<style scoped>
+.image-frame > .image-placeholder {
+  opacity: 1;
+}
+</style>

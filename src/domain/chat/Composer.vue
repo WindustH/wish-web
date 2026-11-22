@@ -172,7 +172,7 @@ function restoreDraft(draft: MessageDraft) {
   void nextTick(() => ta.value?.focus());
 }
 function restorePending(id: string) {
-  const draft = chat.discardPendingMessage(id, true);
+  const draft = chat.discardPendingMessage(id);
   if (draft) restoreDraft(draft);
 }
 defineExpose({ focus: () => ta.value?.focus(), fill, mention, reference, restoreDraft });
@@ -554,6 +554,7 @@ function onKeydown(e: KeyboardEvent) {
         :message="message"
         compact
         @edit="restorePending"
+        @retry="chat.retryPendingMessage"
         @remove="chat.discardPendingMessage"
         @check="chat.checkPendingMessage"
       />

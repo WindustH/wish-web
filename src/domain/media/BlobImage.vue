@@ -12,13 +12,20 @@ import { previewCache } from '../../core/util/previewCache.ts';
 import { useOpenImage } from './useOpenImage.ts';
 
 const props = withDefaults(
-  defineProps<{ src: string; dimensions?: readonly number[]; zoom?: boolean; previewWidth?: 384 | 768 | 1536 }>(),
+  defineProps<{
+    src: string;
+    dimensions?: readonly number[];
+    placeholder?: string;
+    zoom?: boolean;
+    previewWidth?: 384 | 768 | 1536;
+  }>(),
   {
     zoom: true,
     previewWidth: 768,
   },
 );
 const attrs = useAttrs();
+const emit = defineEmits<{ load: [event: Event] }>();
 const element = ref<InstanceType<typeof ImageFrame>>();
 const failed = ref(false);
 const visible = ref(attrs.loading !== 'lazy');
@@ -109,6 +116,7 @@ onBeforeUnmount(() => {
     :source="src"
     :url="url"
     :dimensions="dimensions"
+    :placeholder="placeholder"
     :failed="failed"
     :alt="String(attrs.alt ?? '')"
     :aria-label="zoom ? String(attrs.alt || i18n.t('chat.image')) : undefined"
@@ -116,6 +124,7 @@ onBeforeUnmount(() => {
     :tabindex="zoom ? 0 : undefined"
     :role="zoom ? 'button' : undefined"
     @click="onOpen"
+    @load="emit('load', $event)"
     @keydown.enter.prevent="onOpen"
     @keydown.space.prevent="onOpen"
   />

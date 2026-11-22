@@ -9,6 +9,7 @@ import { absUrl, getConnectionScope } from '../api/client.ts';
 import { createBoundedCache } from '../util/boundedCache.ts';
 import { createChatDeliveries } from './chatDeliveries.ts';
 import { createPendingMessages, type MessageDraft } from './pendingMessages.ts';
+import { userInputRequestId } from '../api/userContent.ts';
 import type { AttachmentInput } from '../attachments.ts';
 import { sessionNaming } from './sessionNaming.ts';
 import * as api from '../api/endpoints.ts';
@@ -188,9 +189,8 @@ ${id}`;
     for (const entry of entries.value) {
       if (entry.kind !== 'user_message') continue;
       echoed.add(String(entry.id));
-      const request =
-        entry.payload.metadata?.input_request_id ?? entry.payload.metadata?.custom?.wish_client_submission;
-      if (typeof request === 'string') requestIds.add(request);
+      const request = userInputRequestId(entry.payload.metadata);
+      if (request) requestIds.add(request);
     }
     pending.reconcile(owner, echoed, requestIds);
   });
@@ -202,13 +202,23 @@ ${id}`;
     metadata?: unknown,
   ) {
     if (sessionId.value !== owner) return null;
-    const queued =
-      stream.value.active ||
-      snapshot.value?.phase === 'queued' ||
-      pending.messages.value.some((item) => item.owner === owner && !item.queued && item.state !== 'failed');
+    const queued = shouldQueue(owner);
     const id = pending.enqueue(owner, { text, attachments, metadata }, draft, queued);
     if (!queued) sentRun.value = { sessionId: owner, deliveryId: id };
     return id;
+  }
+  function shouldQueue(owner: string) {
+    return (
+      stream.value.active ||
+      snapshot.value?.phase === 'queued' ||
+      pending.messages.value.some((item) => item.owner === owner && !item.queued && item.state !== 'failed')
+    );
+  }
+  function retryPendingMessage(id: string) {
+    const owner = sessionId.value;
+    if (!owner || !pending.messages.value.some((item) => item.id === id && item.owner === owner)) return;
+    const queued = shouldQueue(owner);
+    if (pending.retry(id, queued) && !queued) sentRun.value = { sessionId: owner, deliveryId: id };
   }
 
   const streamProcessor = createStreamProcessor({
@@ -601,6 +611,7 @@ ${id}`;
     stageMessage,
     acceptInitialMessage: pending.acceptInitial,
     discardPendingMessage: pending.discard,
+    retryPendingMessage,
     forgetConversation,
     checkPendingMessage: scheduleRefresh,
     open,

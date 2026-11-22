@@ -10,12 +10,35 @@ import Icon from '../../../ui/components/Icon.vue';
 import BlobImage from '../../../domain/media/BlobImage.vue';
 import { downloadApiFile } from '../../../ui/download.ts';
 import { blobMetadata, blobUrl } from '../../../core/api/endpoints.ts';
-import { ref, watch } from 'vue';
+import { onScopeDispose, ref, watch } from 'vue';
 import { fmtBytes } from '../../../core/util/fmt.ts';
 import { i18n } from '../../../core/i18n/index.ts';
 import { tr } from '../../../core/i18n/tr.ts';
 const props = defineProps<{ block: ContentBlock; seq?: number; blockIndex?: number }>();
 const replies = inject(replyContextKey, undefined);
+const localImage = ref('');
+const localDimensions = ref<readonly number[]>();
+function releaseLocalImage() {
+  if (localImage.value) URL.revokeObjectURL(localImage.value);
+  localImage.value = '';
+}
+watch(
+  () => (props.block.type === 'image' ? props.block.localPreview : undefined),
+  (blob) => {
+    if (!blob) return;
+    releaseLocalImage();
+    localDimensions.value = undefined;
+    localImage.value = URL.createObjectURL(blob);
+  },
+  { immediate: true },
+);
+onScopeDispose(releaseLocalImage);
+function imageLoaded(event: Event) {
+  if (props.block.type === 'image' && props.block.localPreview) {
+    const image = event.target as HTMLImageElement;
+    localDimensions.value = [image.naturalWidth, image.naturalHeight];
+  } else releaseLocalImage();
+}
 const fileBytes = ref<number | null>(null);
 watch(
   () => (props.block.type === 'file' ? [props.block.blob_id, props.block.byte_count] : []),
@@ -48,9 +71,11 @@ const copyText = () =>
 const imageSrc = () =>
   props.block.type !== 'image'
     ? ''
-    : props.block.blob_id
-      ? blobUrl(props.block.blob_id)
-      : `data:${props.block.mime_type};base64,${props.block.data_base64}`;
+    : props.block.localPreview
+      ? localImage.value
+      : props.block.blob_id
+        ? blobUrl(props.block.blob_id)
+        : `data:${props.block.mime_type};base64,${props.block.data_base64}`;
 </script>
 <template>
   <MessageContext
@@ -78,21 +103,25 @@ const imageSrc = () =>
         <figure v-else-if="block.type === 'image'" class="message-image">
           <BlobImage
             :src="imageSrc()"
-            :dimensions="block.dimensions"
+            :placeholder="block.localPreview ? undefined : localImage"
+            :dimensions="localDimensions ?? block.dimensions"
             :alt="block.filename || block.placeholder || ''"
             loading="lazy"
+            @load="imageLoaded"
           />
           <figcaption v-if="block.filename">{{ block.filename }}</figcaption>
         </figure>
-        <div v-else-if="block.type === 'file' && block.blob_id" class="attachment-file message-file">
+        <div v-else-if="block.type === 'file'" class="attachment-file message-file">
           <button
             type="button"
             class="message-file-preview"
             :aria-label="`${tr('预览', 'Preview')} ${block.filename || i18n.t('chat.attachment')}`"
             aria-haspopup="dialog"
-            :aria-expanded="attachmentPreview?.anchor?.dataset.blobId === block.blob_id"
+            :aria-expanded="!!block.blob_id && attachmentPreview?.anchor?.dataset.blobId === block.blob_id"
             :data-blob-id="block.blob_id"
+            :disabled="!block.blob_id"
             @click="
+              block.blob_id &&
               previewAttachment(
                 { kind: 'file', name: block.filename ?? undefined, url: blobUrl(block.blob_id) },
                 $event,
@@ -107,10 +136,12 @@ const imageSrc = () =>
           <Hint :text="tr('下载文件', 'Download file')"
             ><a
               class="message-file-download"
-              :href="blobUrl(block.blob_id)"
+              :href="block.blob_id ? blobUrl(block.blob_id) : undefined"
               :download="block.filename || block.blob_id"
               :aria-label="tr('下载文件', 'Download file')"
-              @click.stop="downloadApiFile($event, blobUrl(block.blob_id), block.filename || block.blob_id)"
+              @click.stop="
+                block.blob_id && downloadApiFile($event, blobUrl(block.blob_id), block.filename || block.blob_id)
+              "
               ><Icon name="download" /></a
           ></Hint>
         </div>
@@ -142,6 +173,9 @@ const imageSrc = () =>
 .message-file-preview > .icon {
   flex: none;
   color: var(--fg-subtle);
+}
+.message-file-preview:disabled {
+  cursor: default;
 }
 .message-file-preview .attachment-file-label > span {
   display: block;

@@ -2,6 +2,9 @@ import { shallowRef } from 'vue';
 import { ApiError, getConnectionScope } from '../api/client.ts';
 import { messageSend, supportsInputRequestId } from '../api/endpoints.ts';
 import { uploadAttachments, type AttachmentInput } from '../attachments.ts';
+import { splitAttachmentText } from '../attachmentPlaceholders.ts';
+import { expandPastedText } from '../pastedText.ts';
+import type { ContentBlock } from '../api/userContent.ts';
 import { requestId } from '../util/requestId.ts';
 
 export interface MessageDraft {
@@ -18,6 +21,7 @@ export interface PendingMessage {
   entry?: number;
   error?: unknown;
   uncertain?: boolean;
+  retryable?: boolean;
 }
 
 type Submission = {
@@ -28,16 +32,17 @@ type Submission = {
 type Job = Submission & {
   scope: string;
   controller: AbortController;
-  attempted: boolean;
+  body?: Parameters<typeof messageSend>[1];
 };
 
 function preview(item: AttachmentInput): AttachmentInput {
+  const previewBlob =
+    item.previewBlob ??
+    (item.kind === 'image' && item.bytes.byteLength ? new Blob([item.bytes], { type: item.mime }) : undefined);
   return {
     ...item,
-    localUrl:
-      item.kind === 'image' && (item.previewBlob || item.bytes.byteLength)
-        ? URL.createObjectURL(item.previewBlob ?? new Blob([item.bytes], { type: item.mime }))
-        : '',
+    previewBlob,
+    localUrl: previewBlob ? URL.createObjectURL(previewBlob) : '',
   };
 }
 export const captureMessageDraft = (draft: MessageDraft): MessageDraft => ({
@@ -46,6 +51,26 @@ export const captureMessageDraft = (draft: MessageDraft): MessageDraft => ({
 });
 export function releaseMessageDraft(draft: MessageDraft) {
   for (const attachment of draft.attachments) if (attachment.localUrl) URL.revokeObjectURL(attachment.localUrl);
+}
+
+export function pendingUserContent(owner: string, draft: MessageDraft): ContentBlock[] {
+  const { text, attachments } = expandPastedText(draft.text, draft.attachments);
+  const block = (item: AttachmentInput): ContentBlock =>
+    item.reply
+      ? { type: 'reply', reference: item.reply }
+      : {
+          type: item.kind,
+          filename: item.name,
+          byte_count: item.size ?? item.bytes.byteLength,
+          ...(item.stored?.owner === owner ? { blob_id: `${owner}/${item.stored.id}` } : {}),
+          ...(item.kind === 'image' && item.previewBlob ? { localPreview: item.previewBlob } : {}),
+        };
+  return [
+    ...splitAttachmentText(text, attachments).map((part): ContentBlock =>
+      part.type === 'text' ? { type: 'text', text: part.text } : block(part.attachment),
+    ),
+    ...attachments.filter((item) => !item.placeholder).map(block),
+  ];
 }
 
 export function createPendingMessages({
@@ -91,20 +116,19 @@ export function createPendingMessages({
   async function submit(item: PendingMessage, job: Job) {
     const options = { signal: job.controller.signal };
     if (scope() !== job.scope) throw new DOMException('Connection changed', 'AbortError');
-    const supportsId =
-      server?.scope === job.scope && Date.now() - server.checkedAt < (server.supportsId ? 300_000 : 10_000)
-        ? server.supportsId
-        : await supportsRequestId(options).catch(() => false);
-    server = { scope: job.scope, supportsId, checkedAt: Date.now() };
-    update(item.id, { state: job.attachments.length ? 'uploading' : 'sending' });
-    const blocks = job.attachments.length ? (await upload(item.owner, job.attachments, options)).blocks : [];
-    options.signal.throwIfAborted();
-    if (scope() !== job.scope) throw new DOMException('Connection changed', 'AbortError');
-    update(item.id, { state: 'sending' });
-    job.attempted = true;
-    const receipt = await send(
-      item.owner,
-      {
+    if (!job.body) {
+      const supportsId =
+        server?.scope === job.scope && Date.now() - server.checkedAt < (server.supportsId ? 300_000 : 10_000)
+          ? server.supportsId
+          : await supportsRequestId(options).catch(() => false);
+      server = { scope: job.scope, supportsId, checkedAt: Date.now() };
+      options.signal.throwIfAborted();
+      if (scope() !== job.scope) throw new DOMException('Connection changed', 'AbortError');
+      update(item.id, { state: job.attachments.length ? 'uploading' : 'sending' });
+      const blocks = job.attachments.length ? (await upload(item.owner, job.attachments, options)).blocks : [];
+      options.signal.throwIfAborted();
+      if (scope() !== job.scope) throw new DOMException('Connection changed', 'AbortError');
+      job.body = {
         content: job.text,
         blocks,
         ...(supportsId
@@ -112,10 +136,11 @@ export function createPendingMessages({
           : {
               metadata: { ...(job.metadata as Record<string, unknown> | undefined), wish_client_submission: item.id },
             }),
-      },
-      options,
-    );
-    if (supportsId && receipt.request_id !== item.id)
+      };
+    }
+    update(item.id, { state: 'sending' });
+    const receipt = await send(item.owner, job.body, options);
+    if (job.body.request_id && receipt.request_id !== item.id)
       throw new Error('Input receipt did not match the submitted message');
     return receipt;
   }
@@ -125,8 +150,8 @@ export function createPendingMessages({
     draining.add(owner);
     try {
       while (true) {
-        const item = messages.value.find((value) => value.owner === owner && value.state !== 'acked');
-        if (!item || item.state === 'failed') return;
+        const item = messages.value.find((value) => value.owner === owner && value.state === 'waiting');
+        if (!item) return;
         const job = jobs.get(item.id)!;
         let receipt: Awaited<ReturnType<typeof send>>;
         try {
@@ -135,13 +160,15 @@ export function createPendingMessages({
           if (!jobs.has(item.id)) continue;
           const rejected =
             error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 408;
-          const uncertain = job.attempted && !rejected;
-          update(item.id, { state: 'failed', error, uncertain });
+          const uncertain = Boolean(item.uncertain || (job.body && !rejected));
+          if (rejected && !uncertain) job.body = undefined;
+          const retryable = scope() === job.scope && (!uncertain || !!job.body?.request_id);
+          update(item.id, { state: 'failed', error, uncertain, retryable });
           settled?.(owner);
-          return;
+          continue;
         }
         if (!jobs.has(item.id)) continue;
-        update(item.id, { state: 'acked', entry: receipt.entry });
+        update(item.id, { state: 'acked', entry: receipt.entry, uncertain: false });
         expirePreview(item.id);
         accepted(owner, receipt);
       }
@@ -153,22 +180,31 @@ export function createPendingMessages({
     const id = requestId();
     const retained = captureMessageDraft(draft);
     const controller = new AbortController();
-    jobs.set(id, { ...submission, scope: scope(), controller, attempted: false });
+    jobs.set(id, { ...submission, scope: scope(), controller });
     messages.value = [...messages.value, { id, owner, queued, draft: retained, state: 'waiting' }];
     void drain(owner);
     return id;
   }
   function acceptInitial(owner: string, draft: MessageDraft, entry: number) {
-    const id = requestId();
+    const id = owner;
     messages.value = [
       ...messages.value,
       { id, owner, queued: false, draft: captureMessageDraft(draft), state: 'acked', entry },
     ];
     expirePreview(id);
   }
-  function discard(id: string, edit = false): MessageDraft | undefined {
+  function retry(id: string, queued: boolean): boolean {
     const item = messages.value.find((value) => value.id === id);
-    if (item?.state !== 'failed' || (edit && item.uncertain)) return;
+    const job = jobs.get(id);
+    if (!item?.retryable || item.state !== 'failed' || !job || job.scope !== scope()) return false;
+    job.controller = new AbortController();
+    update(id, { state: 'waiting', queued, error: undefined, retryable: false });
+    void drain(item.owner);
+    return true;
+  }
+  function discard(id: string): MessageDraft | undefined {
+    const item = messages.value.find((value) => value.id === id);
+    if (item?.state !== 'failed') return;
     release(id);
     void drain(item.owner);
     return item.draft;
@@ -177,7 +213,7 @@ export function createPendingMessages({
     for (const item of messages.value) {
       if (item.owner !== owner) continue;
       if (item.entry !== undefined && entries.has(String(item.entry))) release(item.id);
-      else if (requests.has(item.id) && (item.state === 'failed' || item.state === 'sending')) {
+      else if (requests.has(item.id)) {
         jobs.get(item.id)?.controller.abort();
         release(item.id);
         void drain(owner);
@@ -191,5 +227,5 @@ export function createPendingMessages({
       release(item.id);
     }
   }
-  return { messages, enqueue, acceptInitial, discard, reconcile, forget };
+  return { messages, enqueue, acceptInitial, retry, discard, reconcile, forget };
 }

@@ -51,11 +51,13 @@ const mediaHeight = (blocks: readonly GroupBlock[], width: number) =>
   );
 
 /** `width` is the conversation column's; below 600px the phone layout's sizes apply. */
-export function estimateRow(row: GroupItem | ImageAlbumItem | { type: string }, width: number): number {
+type EstimatedRow = GroupItem | ImageAlbumItem | { type: string; blocks?: readonly GroupBlock[] };
+
+export function estimateRow(row: EstimatedRow, width: number): number {
   const mentions = rowBlobMentions(row);
   return fileCardsHeight(row) + (mentions.length ? 18 + mentions.length * 58 : 0) + estimateContent(row, width);
 }
-function estimateContent(row: GroupItem | ImageAlbumItem | { type: string }, width: number): number {
+function estimateContent(row: EstimatedRow, width: number): number {
   const compact = width < 600;
   if (row.type === 'process') return compact ? 62 : 53;
   // A process-only row is an unseen host: its events ride the rail that floats beside the log,
@@ -76,20 +78,24 @@ function estimateContent(row: GroupItem | ImageAlbumItem | { type: string }, wid
     const questions = (row as { arguments?: { questions?: unknown[] } }).arguments?.questions?.length ?? 1;
     return 110 + 80 * questions;
   }
+  if (row.type === 'pending_message') return estimateUser('blocks' in row ? (row.blocks ?? []) : [], width);
   if (row.type !== 'entry') return 110;
   const { entry, blocks } = row as Extract<GroupItem, { type: 'entry' }>;
-  const media = mediaHeight(blocks, entry.kind === 'user_message' && !compact ? width * 0.92 : width);
   if (entry.kind === 'assistant_message') {
     const text = textOf(blocks);
     // The rail floats in the margin beside the log: the words keep the whole column, and no
     // reply is taller or narrower for the events that came with it.
     const { wrapped, source } = textLines(text, width);
-    return 20 + LINE * wrapped + PARAGRAPH * Math.max(0, source - 1) + media;
+    return 20 + LINE * wrapped + PARAGRAPH * Math.max(0, source - 1) + mediaHeight(blocks, width);
   }
   if (entry.kind === 'user_message') {
-    // The bubble: at most 92% of the column, 16px padding each side, 12px above and below.
-    const { wrapped } = textLines(textOf(blocks), width * 0.92 - 32);
-    return 48 + LINE * Math.max(1, wrapped) + media;
+    return estimateUser(blocks, width);
   }
   return compact ? 62 : 53;
+}
+function estimateUser(blocks: readonly GroupBlock[], width: number) {
+  const available = width < 600 ? width : width * 0.92;
+  const { wrapped } = textLines(textOf(blocks), available - 32);
+  const references = blocks.filter((block) => block.type === 'reply').length;
+  return 48 + LINE * wrapped + references * 34 + mediaHeight(blocks, available);
 }
