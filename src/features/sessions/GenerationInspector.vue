@@ -29,6 +29,7 @@ const detail = ref<{
   result?: NonNullable<ReturnType<typeof generationToolResult>>;
 } | null>(null);
 const resultView = ref('text');
+const emptyModelResult = computed(() => tr('模型可见结果为空', 'The model-visible result is empty'));
 const detailText = computed(() => {
   const value = detail.value;
   if (!value) return '';
@@ -36,28 +37,17 @@ const detailText = computed(() => {
   if (value.result) return resultView.value === 'model' ? value.result.model : value.result.execution;
   return value.text;
 });
-const roleNames = computed<Record<string, string>>(() => ({
-  Tools: tr('工具定义', 'Tool definitions'),
-  System: tr('系统', 'System'),
-  Developer: tr('开发者', 'Developer'),
-  User: tr('用户', 'User'),
-  Assistant: tr('助手', 'Assistant'),
-  Reasoning: tr('思考', 'Reasoning'),
-  ToolUse: tr('工具调用', 'Tool call'),
-  ToolResult: tr('工具结果', 'Tool result'),
-  UpstreamCompaction: tr('上游压缩', 'Upstream compaction'),
+const roles = computed<Record<string, { label: string; icon: string }>>(() => ({
+  Tools: { label: tr('工具定义', 'Tool definitions'), icon: 'extensions' },
+  System: { label: tr('系统', 'System'), icon: 'settings' },
+  Developer: { label: tr('开发者', 'Developer'), icon: 'instruction' },
+  User: { label: tr('用户', 'User'), icon: 'account' },
+  Assistant: { label: tr('助手', 'Assistant'), icon: 'bot' },
+  Reasoning: { label: tr('思考', 'Reasoning'), icon: 'thinking' },
+  ToolUse: { label: tr('工具调用', 'Tool call'), icon: 'tool' },
+  ToolResult: { label: tr('工具结果', 'Tool result'), icon: 'terminal' },
+  UpstreamCompaction: { label: tr('上游压缩', 'Upstream compaction'), icon: 'archive' },
 }));
-const kinds = [
-  'Tools',
-  'System',
-  'Developer',
-  'User',
-  'Assistant',
-  'Reasoning',
-  'ToolUse',
-  'ToolResult',
-  'UpstreamCompaction',
-];
 const origins = ['Imported', 'Input', 'Model', 'Tool', 'Interrupted', 'Context', 'Summary'];
 let controller = new AbortController(),
   version = 0;
@@ -74,7 +64,7 @@ const generationOptions = computed(() =>
 );
 const kindOptions = computed(() => [
   { value: 'all', label: tr('全部类型', 'All types') },
-  ...kinds.map((value) => ({ value, label: roleNames.value[value] ?? value })),
+  ...Object.entries(roles.value).map(([value, { label }]) => ({ value, label })),
 ]);
 const originOptions = computed(() => [
   { value: 'all', label: tr('全部来源', 'All origins') },
@@ -126,18 +116,35 @@ const virtualizer = useVirtualizer(
 const visible = computed(() =>
   virtualizer.value.getVirtualItems().map((row) => {
     const card = cards.value[row.index]!;
+    const message = card.entry.message;
+    const result = generationToolResult(message);
+    const tool = message.ToolUse ?? message.ToolResult;
+    const text = result ? '' : generationText(message);
+    let preview = text;
+    if (card.tools && Array.isArray(message.Tools)) {
+      const count = message.Tools.length;
+      preview = tr(`${count} 个工具`, `${count} tools`);
+    } else if (result) {
+      preview = result.model.trim() ? result.model : emptyModelResult.value;
+    } else if (message.ToolUse) {
+      const args = tool.arguments;
+      preview = typeof args?.command === 'string' ? args.command : (JSON.stringify(args) ?? '');
+    }
     return {
       ...card,
       row,
-      result: generationToolResult(card.entry.message),
-      text: card.tools ? JSON.stringify(card.entry.message.Tools, null, 2) : generationText(card.entry.message),
+      result,
+      text,
+      preview: preview.slice(0, 320),
+      toolName: typeof tool?.name === 'string' ? tool.name : '',
     };
   }),
 );
 function read(card: (typeof visible.value)[number]) {
-  resultView.value = card.result ? 'execution' : card.tools ? 'json' : 'text';
+  const label = roles.value[card.role]?.label ?? card.role;
+  resultView.value = card.result ? 'model' : card.tools ? 'json' : 'text';
   detail.value = {
-    title: card.tools ? roleNames.value.Tools! : (roleNames.value[card.role] ?? card.role) + ' · #' + card.entry.id,
+    title: card.tools ? label : `${label} · #${card.position}`,
     text: card.text,
     json: JSON.stringify(card.tools ? card.entry.message.Tools : card.entry, null, 2),
     result: card.result ?? undefined,
@@ -395,21 +402,21 @@ onBeforeUnmount(() => {
           :style="{ transform: 'translateY(' + card.row.start + 'px)' }"
         >
           <button type="button" class="generation-entry" :data-role="card.role" @click="read(card)">
-            <span class="generation-entry-head"
-              ><strong>{{ roleNames[card.role] ?? card.role }}</strong>
-              <span v-if="!card.tools">#{{ card.position }}</span>
-              <span v-if="card.entry.message[card.role]?.fixed">{{ tr('固定指令', 'Pinned') }}</span>
-              <span v-if="card.entry.origin === 'Summary'">{{ tr('摘要', 'Summary') }}</span>
-              <span v-if="card.position === page!.generation.compaction_cursor">{{
-                tr('压缩游标', 'Compaction cursor')
-              }}</span>
-              <Icon name="chevron-right" :size="14" />
+            <Icon class="generation-role-icon" :name="roles[card.role]?.icon ?? 'file'" :size="18" />
+            <span class="generation-entry-body">
+              <span class="generation-entry-head">
+                <strong>{{ roles[card.role]?.label ?? card.role }}</strong>
+                <span v-if="card.toolName" class="generation-tool-name">{{ card.toolName }}</span>
+                <span v-if="!card.tools" class="generation-position">#{{ card.position }}</span>
+                <span v-if="card.entry.message[card.role]?.fixed">{{ tr('固定指令', 'Pinned') }}</span>
+                <span v-if="card.entry.origin === 'Summary'">{{ tr('摘要', 'Summary') }}</span>
+                <span v-if="card.position === page!.generation.compaction_cursor">{{
+                  tr('压缩游标', 'Compaction cursor')
+                }}</span>
+              </span>
+              <span v-if="card.preview" class="generation-preview">{{ card.preview }}</span>
             </span>
-            <span class="generation-preview">{{
-              card.tools && Array.isArray(card.entry.message.Tools)
-                ? tr(card.entry.message.Tools.length + ' 个工具', card.entry.message.Tools.length + ' tools')
-                : (card.result?.execution ?? card.text).slice(0, 320)
-            }}</span>
+            <Icon class="generation-entry-chevron" name="chevron-right" :size="14" />
           </button>
         </div>
       </div>
@@ -428,8 +435,8 @@ onBeforeUnmount(() => {
         :options="
           detail.result
             ? [
-                { value: 'execution', label: tr('完整执行结果', 'Execution result') },
                 { value: 'model', label: tr('模型可见结果', 'Model-visible result') },
+                { value: 'execution', label: tr('执行数据', 'Execution data') },
                 { value: 'json', label: 'JSON' },
               ]
             : [
@@ -439,7 +446,8 @@ onBeforeUnmount(() => {
         "
       />
     </div>
-    <pre class="generation-full-text" :class="{ code: resultView !== 'text' }">{{ detailText }}</pre>
+    <p v-if="resultView === 'model' && !detailText.trim()" class="hint">{{ emptyModelResult }}</p>
+    <pre v-else class="generation-full-text" :class="{ code: resultView !== 'text' }">{{ detailText }}</pre>
   </Modal>
 </template>
 <style scoped>
@@ -499,7 +507,10 @@ onBeforeUnmount(() => {
   inset: 0 0 auto;
 }
 .generation-entry {
-  display: block;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 10px;
   width: 100%;
   padding: 12px 6px;
   text-align: start;
@@ -523,8 +534,25 @@ onBeforeUnmount(() => {
   color: var(--fg);
   font-weight: 600;
 }
-.generation-entry-head .icon {
-  margin-inline-start: auto;
+.generation-entry-head {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+.generation-role-icon,
+.generation-entry-chevron {
+  margin-top: 2px;
+  color: var(--fg-subtle);
+}
+.generation-tool-name {
+  min-width: 0;
+  max-width: 60%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--mono);
+}
+.generation-position {
+  font-variant-numeric: tabular-nums;
 }
 .generation-preview {
   display: -webkit-box;
