@@ -250,11 +250,16 @@ function dragged(row: SessionRow | FolderRow) {
   return { ids, from: parents.size === 1 ? [...parents][0] : undefined, label };
 }
 function startDrag(row: SessionRow | FolderRow, event: DragEvent) {
+  if (row.kind === 'folder' && row.pending) {
+    event.preventDefault();
+    return;
+  }
   const { ids, from } = dragged(row);
   const link = row.kind === 'folder' ? undefined : new URL(router.resolve(`/s/${row.id}`).href, location.href).href;
   drag.start(event, ids, from, link);
 }
 function pressRow(row: SessionRow | FolderRow, event: TouchEvent) {
+  if (row.kind === 'folder' && row.pending) return;
   if (selecting.value) return;
   const { ids, from, label } = dragged(row);
   drag.press(event, ids, from, label);
@@ -568,19 +573,19 @@ onMounted(() => {
                   paddingBottom: `${cfg.design.sessionRowGap}px`,
                   transform: `translateY(${v.start}px)`,
                 }"
-                :draggable="canDrag"
+                :draggable="canDrag && !(line.row.kind === 'folder' && line.row.pending)"
                 :class="{
                   'sl-drop': drag.over.value === line.row.id,
                   'sl-dragged': drag.dragging.value?.ids.includes(line.row.id),
                 }"
-                :data-drop-place="line.row.kind === 'folder' ? line.row.id : undefined"
-                :data-drop-opens="line.row.kind === 'folder' ? '' : undefined"
+                :data-drop-place="line.row.kind === 'folder' && !line.row.pending ? line.row.id : undefined"
+                :data-drop-opens="line.row.kind === 'folder' && !line.row.pending ? '' : undefined"
                 @touchstart.passive="pressRow(line.row, $event)"
                 @dragstart="startDrag(line.row, $event)"
-                @dragenter="line.row.kind === 'folder' && drag.hover($event, line.row.id, true)"
-                @dragover="line.row.kind === 'folder' && drag.hover($event, line.row.id)"
-                @dragleave="line.row.kind === 'folder' && drag.leave($event, line.row.id)"
-                @drop="line.row.kind === 'folder' && drag.drop($event, line.row.id)"
+                @dragenter="line.row.kind === 'folder' && !line.row.pending && drag.hover($event, line.row.id, true)"
+                @dragover="line.row.kind === 'folder' && !line.row.pending && drag.hover($event, line.row.id)"
+                @dragleave="line.row.kind === 'folder' && !line.row.pending && drag.leave($event, line.row.id)"
+                @drop="line.row.kind === 'folder' && !line.row.pending && drag.drop($event, line.row.id)"
               >
                 <FolderListRow
                   v-if="line.row.kind === 'folder'"

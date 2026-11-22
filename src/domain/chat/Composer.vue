@@ -32,6 +32,7 @@ import { fmtBytes } from '../../core/util/fmt.ts';
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { i18n } from '../../core/i18n/index.ts';
 import { chat } from '../../core/state/chatSlice.ts';
+import type { MessageDraft } from '../../core/state/pendingMessages.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import { toast } from '../../ui/toast.ts';
 import Icon from '../../ui/components/Icon.vue';
@@ -42,6 +43,7 @@ import ComposerSendButtons from './ComposerSendButtons.vue';
 import Menu from '../../ui/components/Menu.vue';
 import type { MenuItem } from '../../ui/components/menuTypes.ts';
 import ComposerAttachmentTray from './ComposerAttachmentTray.vue';
+import PendingMessageCard from './PendingMessageCard.vue';
 import { useAutoGrow } from './useAutoGrow.ts';
 import './composerIsland.css';
 
@@ -54,7 +56,7 @@ const props = defineProps<{
   start?: boolean;
   disabled?: boolean;
   /** Where the message goes when starting a new session. */
-  sendMessage?: (text: string, attachments: AttachmentInput[]) => Promise<string>;
+  sendMessage?: (text: string, attachments: AttachmentInput[], draft: MessageDraft) => Promise<string> | string;
 }>();
 
 const emit = defineEmits<{ mobileAction: [key: string] }>();
@@ -72,6 +74,11 @@ function mobileAction(key: string) {
 
 // Writing to the open session: the composer follows its run, can stop it and ask it aside.
 const live = computed(() => !props.sendMessage);
+const failedDrafts = computed(() =>
+  live.value
+    ? chat.pendingMessages.value.filter((message) => message.owner === props.owner && message.state === 'failed')
+    : [],
+);
 const submitting = ref(false);
 const stream = computed(() => (live.value ? chat.stream.value : null));
 const sending = computed(() => submitting.value || (live.value && chat.sending.value));
@@ -153,7 +160,22 @@ function locateReference(token: string) {
   const ref = attachments.value.find((a) => a.placeholder === token)?.reply;
   if (ref) replies?.locate(ref);
 }
-defineExpose({ focus: () => ta.value?.focus(), fill, mention, reference });
+function restoreDraft(draft: MessageDraft) {
+  const textToRestore = [draft.text, text.value].filter(Boolean).join('\n\n');
+  const known = new Set(attachments.value.map((item) => item.placeholder).filter(Boolean));
+  replaceAttachments([
+    ...attachments.value,
+    ...draft.attachments.filter((item) => !item.placeholder || !known.has(item.placeholder)),
+  ]);
+  resetPromptHistory();
+  setTextOwned(textToRestore);
+  void nextTick(() => ta.value?.focus());
+}
+function restorePending(id: string) {
+  const draft = chat.discardPendingMessage(id, true);
+  if (draft) restoreDraft(draft);
+}
+defineExpose({ focus: () => ta.value?.focus(), fill, mention, reference, restoreDraft });
 
 const capsFailed = computed(() => caps.value?.status === 'error');
 const capsData = computed(() => (caps.value?.status === 'ok' ? caps.value.data : null));
@@ -378,9 +400,9 @@ async function submit() {
   }
   submitting.value = true;
   try {
-    const receipt = await (props.sendMessage
-      ? props.sendMessage(sent.text, sent.attachments)
-      : chat.send(sent.text, sent.attachments, metadata));
+    const receipt = props.sendMessage
+      ? await props.sendMessage(sent.text, sent.attachments, { text: payload, attachments: chosen })
+      : chat.stageMessage(owner, sent.text, sent.attachments, { text: payload, attachments: chosen }, metadata);
     if (!receipt) return;
     if (attachmentsOwnerId.value !== owner) {
       chat.setDraft('', owner);
@@ -525,6 +547,17 @@ function onKeydown(e: KeyboardEvent) {
       { 'composer-start': start, 'composer-empty': !editorText && !attachments.length },
     ]"
   >
+    <div v-if="failedDrafts.length" class="composer-recovery" :aria-label="tr('待处理草稿', 'Drafts to review')">
+      <PendingMessageCard
+        v-for="message in failedDrafts"
+        :key="message.id"
+        :message="message"
+        compact
+        @edit="restorePending"
+        @remove="chat.discardPendingMessage"
+        @check="chat.checkPendingMessage"
+      />
+    </div>
     <div v-if="!mobile" class="composer-toolbar">
       <Hint :text="i18n.t('chat.image')"
         ><button
@@ -665,6 +698,11 @@ function onKeydown(e: KeyboardEvent) {
   </div>
 </template>
 <style scoped>
+.composer-recovery {
+  max-height: 12rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
 .reply-card {
   font: inherit;
   font-size: 12px;

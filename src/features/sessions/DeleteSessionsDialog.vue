@@ -25,17 +25,16 @@ const deleting = ref(false);
 async function remove() {
   deleting.value = true;
   const failures: string[] = [];
-  let shown = false;
-  for (const item of props.targets) {
+  const targets = [...props.targets];
+  if (targets.some((item) => route.params.id === item.id)) void router.push('/sessions');
+  for (const item of targets) {
     try {
       await deleteSession(item.id);
-      shown ||= route.params.id === item.id;
     } catch (error) {
       failures.push(`${item.name}: ${errorText(error)}`);
     }
   }
   deleting.value = false;
-  if (shown) await router.push('/sessions');
   emit('deleted');
   if (failures.length) showError({ title: tr('有些没有删除', 'Some were not deleted'), error: failures.join('\n') });
 }

@@ -27,9 +27,9 @@ const act = (key: string) => emit('action', key as FolderAction);
 </script>
 
 <template>
-  <Menu context :disabled="selecting" :items="actions" @select="act">
+  <Menu context :disabled="selecting || row.pending" :items="actions" @select="act">
     <div class="sl-item sl-folder" :data-folder-id="row.id">
-      <button type="button" class="sl-row" @click="emit('open')">
+      <button type="button" class="sl-row" :disabled="row.pending" :aria-busy="row.pending" @click="emit('open')">
         <Icon name="folder" class="sl-folder-icon" />
         <span class="sl-main">
           <FadeText class="sl-name" :text="row.name" />
@@ -38,9 +38,10 @@ const act = (key: string) => emit('action', key as FolderAction);
         <span v-if="row.items" class="sl-count" :aria-label="tr(`${row.items} 项`, `${row.items} items`)">{{
           row.items
         }}</span>
-        <Icon name="chevron-right" class="sl-enter" />
+        <Icon v-if="row.pending" name="loader-circle" class="sl-enter spin" />
+        <Icon v-else name="chevron-right" class="sl-enter" />
       </button>
-      <Menu v-if="withButton && !selecting" :items="actions" @select="act">
+      <Menu v-if="withButton && !selecting && !row.pending" :items="actions" @select="act">
         <template #trigger
           ><button type="button" class="sl-menu-trigger" :aria-label="`${i18n.t('manage.title')} · ${row.name}`">
             <Icon name="ellipsis-vertical" /></button

@@ -6,21 +6,21 @@ import { tr } from '../../core/i18n/tr.ts';
 import { sessions } from '../../core/state/sessionsSlice.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
+import { toast } from '../../ui/toast.ts';
 
 const props = defineProps<{ parent: string | null }>();
 const emit = defineEmits<{ close: [] }>();
 const name = ref('');
 const busy = ref(false);
-const failed = ref('');
 async function create() {
   if (!name.value.trim() || busy.value) return;
   busy.value = true;
-  failed.value = '';
+  const request = sessions.createFolder(name.value.trim(), props.parent);
+  emit('close');
   try {
-    await sessions.createFolder(name.value.trim(), props.parent);
-    emit('close');
+    await request;
   } catch (error) {
-    failed.value = errorDetail(error);
+    toast(errorDetail(error), { tone: 'error' });
   } finally {
     busy.value = false;
   }
@@ -44,7 +44,6 @@ async function create() {
         :aria-label="tr('文件夹名称', 'Folder name')"
         :disabled="busy"
       />
-      <p v-if="failed" class="new-folder-error" role="alert">{{ failed }}</p>
     </form>
     <template #footer>
       <button class="btn ghost" :disabled="busy" @click="emit('close')">{{ tr('取消', 'Cancel') }}</button>
@@ -59,10 +58,5 @@ async function create() {
 .new-folder {
   display: grid;
   gap: 8px;
-}
-.new-folder-error {
-  margin: 0;
-  color: var(--danger);
-  font-size: 12.5px;
 }
 </style>

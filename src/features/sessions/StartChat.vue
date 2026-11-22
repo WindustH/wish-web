@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { attachmentDigest } from '../../core/attachmentDigest.ts';
+import { ApiError } from '../../core/api/client.ts';
+import { chat } from '../../core/state/chatSlice.ts';
+import {
+  captureMessageDraft,
+  releaseMessageDraft,
+  type MessageDraft,
+  type PendingMessage,
+} from '../../core/state/pendingMessages.ts';
+import { requestId } from '../../core/util/requestId.ts';
+import PendingMessageCard from '../../domain/chat/PendingMessageCard.vue';
 import { sessionNaming } from '../../core/state/sessionNaming.ts';
 import { modelLabel as formatModelLabel } from '../../domain/providers/modelLabel.ts';
 import { resolvedEffort, effortLabel } from './reasoningLabels.ts';
@@ -60,7 +69,6 @@ const modelOpen = ref(false),
   reasoningOpen = ref(false),
   busy = ref(false);
 
-const failed = ref(false);
 const defaultModel = ref<ModelSelection>();
 const defaultReady = ref(false);
 // Whether the defaults have been read once: until then the model and the folder say nothing,
@@ -145,68 +153,125 @@ const effectiveEffort = computed(() => {
   );
 });
 const modelLabel = computed(() => formatModelLabel(selection.value.model));
-let pendingSubmission: { digest: string; requestId: string } | undefined;
-async function send(text: string, attachments: AttachmentInput[]) {
-  busy.value = true;
-  failed.value = false;
-  try {
-    const { provider, model, reasoning_effort } = selection.value;
-    const remembered = { provider, model, reasoning_effort: reasoning_effort ?? effectiveEffort.value };
-    const firstInput = await initialInput(text, attachments, '');
-    const digest = await attachmentDigest(
-      new TextEncoder().encode(JSON.stringify([remembered, cwd.value, folder.value, firstInput])).buffer,
-    );
-    if (pendingSubmission?.digest !== digest) {
-      const bytes = crypto.getRandomValues(new Uint8Array(16));
-      bytes[6] = (bytes[6]! & 15) | 64;
-      bytes[8] = (bytes[8]! & 63) | 128;
-      pendingSubmission = {
-        digest,
-        requestId: Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(''),
-      };
+const preview = ref<PendingMessage>();
+let creation:
+  | {
+      request: api.CreateSessionBody;
+      text: string;
+      attachments: AttachmentInput[];
+      route: string;
+      attempted: boolean;
+      uncertain: boolean;
     }
-    firstInput.request_id = pendingSubmission.requestId;
-    await uploadAttachments(firstInput.request_id, attachments, { upload: api.uploadDraftBlob });
-    const session = await api.sessionCreate({
-      ...remembered,
-      name: initialSessionName(text, attachments),
+  | undefined;
+function clearPreview(edit = false) {
+  const message = preview.value;
+  if (!message) return;
+  if (edit) composer.value?.restoreDraft(message.draft);
+  releaseMessageDraft(message.draft);
+  preview.value = undefined;
+  creation = undefined;
+}
+function send(text: string, attachments: AttachmentInput[], draft: MessageDraft) {
+  if (creation) return '';
+  const { provider, model, reasoning_effort } = selection.value;
+  const id = requestId();
+  const name = initialSessionName(text, attachments);
+  creation = {
+    request: {
+      provider,
+      model,
+      reasoning_effort: reasoning_effort ?? effectiveEffort.value,
+      name,
       cwd: cwd.value.trim(),
       folder: folder.value,
-      first_input: firstInput,
-    });
-    const id = session.id;
-    pendingSubmission = undefined;
-    bus.emit('list.changed');
-    if (session.first_input_entry != null) void sessionNaming.generate(id, session.first_input_entry);
-    // Preference persistence cannot turn an accepted message into a failed submission.
-    void api
-      .rememberDefaultModel(remembered)
-      .then(() => {
-        ++defaultGeneration;
-        defaultModel.value = remembered;
-      })
-      .catch((error) => {
-        defaultError.value = error;
-      });
-    manuallySelected.value = false;
-    manuallySetCwd.value = false;
-    cwd.value = defaultCwd.value;
-    // Completion can arrive after navigation; do not take over another page.
-    if (visible.value && ['sessions', 'new-chat'].includes(String(route.name))) {
+    },
+    text,
+    attachments,
+    route: route.fullPath,
+    attempted: false,
+    uncertain: false,
+  };
+  preview.value = { id, owner: 'new-session', queued: false, draft: captureMessageDraft(draft), state: 'waiting' };
+  void createPendingSession();
+  return id;
+}
+async function createPendingSession() {
+  const owner = creation;
+  const message = preview.value;
+  if (!owner || !message || busy.value) return;
+  busy.value = true;
+  preview.value = { ...message, error: undefined, state: owner.attachments.length ? 'uploading' : 'sending' };
+  try {
+    if (!owner.request.first_input) {
+      owner.request.first_input = await initialInput(owner.text, owner.attachments, message.id);
       try {
-        await router.push('/s/' + id);
-      } catch (error) {
-        defaultError.value = error;
+        await uploadAttachments(message.id, owner.attachments, { upload: api.uploadDraftBlob });
+      } catch (cause) {
+        owner.request.first_input = undefined;
+        throw cause;
       }
     }
-    return id;
+    preview.value = { ...message, error: undefined, state: 'sending' };
+    owner.attempted = true;
+    await finishSession(owner, message, await api.sessionCreate(owner.request));
   } catch (error) {
-    failed.value = true;
-    throw error;
+    const rejected = error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 408;
+    owner.uncertain ||= owner.attempted && !rejected;
+    preview.value = { ...message, state: 'failed', error, uncertain: owner.uncertain };
   } finally {
     busy.value = false;
   }
 }
+async function finishSession(
+  owner: NonNullable<typeof creation>,
+  message: PendingMessage,
+  session: { id: string; first_input_entry?: number },
+) {
+  const id = session.id;
+  bus.emit('list.changed');
+  if (session.first_input_entry != null) void sessionNaming.generate(id, session.first_input_entry);
+  const { provider, model, reasoning_effort } = owner.request;
+  const remembered = { provider, model, reasoning_effort };
+  void api
+    .rememberDefaultModel(remembered)
+    .then(() => {
+      ++defaultGeneration;
+      defaultModel.value = remembered;
+    })
+    .catch((error) => {
+      defaultError.value = error;
+    });
+  manuallySelected.value = false;
+  manuallySetCwd.value = false;
+  cwd.value = defaultCwd.value;
+  if (visible.value && route.fullPath === owner.route) {
+    if (session.first_input_entry != null) chat.acceptInitialMessage(id, message.draft, session.first_input_entry);
+    try {
+      await router.replace('/s/' + id);
+    } catch (error) {
+      defaultError.value = error;
+    }
+  }
+  clearPreview();
+}
+async function checkPendingSession() {
+  const message = preview.value,
+    owner = creation;
+  if (!message || !owner || busy.value || !message.uncertain) return;
+  busy.value = true;
+  try {
+    const session = await api.sessionGet(message.id);
+    if (creation === owner) await finishSession(owner, message, session);
+  } catch (cause) {
+    if (!(cause instanceof ApiError && cause.status === 404)) defaultError.value = cause;
+  } finally {
+    busy.value = false;
+  }
+}
+onScopeDispose(() => {
+  if (preview.value) releaseMessageDraft(preview.value.draft);
+});
 </script>
 
 <template>
@@ -215,7 +280,7 @@ async function send(text: string, attachments: AttachmentInput[]) {
     class="start-chat"
     tabindex="-1"
     :data-workspace-region="route.name !== 'all-sessions' ? 'chat' : undefined"
-    :class="{ 'mobile-home': mobile && home }"
+    :class="{ 'mobile-home': mobile && home, forming: preview }"
   >
     <SessionCommands
       v-if="route.name !== 'all-sessions'"
@@ -232,17 +297,40 @@ async function send(text: string, attachments: AttachmentInput[]) {
       <Icon name="arrow-left" />
     </button>
     <div v-if="mobile && home" class="home-actions"><AppMenu placement="header" /></div>
-    <div class="start-surface">
+    <section
+      v-if="preview && preview.state !== 'failed'"
+      class="start-preview"
+      :aria-label="tr('新会话', 'New conversation')"
+    >
+      <header>
+        <Icon name="chat" :size="17" /><strong>{{ creation?.request.name }}</strong>
+      </header>
+      <PendingMessageCard
+        :message="preview"
+        @edit="clearPreview(true)"
+        @check="checkPendingSession"
+        @remove="clearPreview()"
+      />
+    </section>
+    <div v-show="!preview || preview.state === 'failed'" class="start-surface">
       <div class="start-brand" aria-hidden="true">
         <img class="start-mark" src="/app-icons/mark.svg" alt="" /><Wordmark class="start-wordmark" />
       </div>
+      <PendingMessageCard
+        v-if="preview?.state === 'failed'"
+        :message="preview"
+        compact
+        @edit="clearPreview(true)"
+        @check="checkPendingSession"
+        @remove="clearPreview()"
+      />
       <Composer
         ref="composer"
         owner="new-session"
         :mobile="mobile"
         start
         :send-message="send"
-        :disabled="!selection.model || !cwd.trim() || busy || (!manuallySelected && !defaultReady)"
+        :disabled="!selection.model || !cwd.trim() || !!preview || busy || (!manuallySelected && !defaultReady)"
       >
         <template #selection>
           <div
@@ -312,7 +400,6 @@ async function send(text: string, attachments: AttachmentInput[]) {
           <RouterLink class="btn ghost sm" to="/settings">{{ i18n.t('nav.settings') }}</RouterLink>
         </div>
       </template>
-      <p v-if="failed" class="hint" role="status">{{ i18n.t('new.retryMessage') }}</p>
       <RecentSessions v-if="mobile && home" />
     </div>
     <ModelSettings v-if="modelOpen" :selection="selection" @select="selectModel" @close="modelOpen = false" />
@@ -326,6 +413,27 @@ async function send(text: string, attachments: AttachmentInput[]) {
 </template>
 
 <style scoped>
+.start-chat.forming {
+  align-items: flex-start;
+}
+.start-preview {
+  width: min(100%, 760px);
+  padding-top: 16px;
+}
+.start-preview > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  color: var(--fg-muted);
+  border-bottom: 1px solid var(--line);
+}
+.start-preview > header strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .start-chat {
   height: 100%;
   min-height: 0;

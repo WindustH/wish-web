@@ -4,7 +4,8 @@ import { drawerWorkspaceWidth } from '../../ui/composables/useSidebarResize.ts';
 import { hasDeviceBrowser, sidebarViews } from './sidebarViews.ts';
 import { replyContextKey } from '../../domain/references/context.ts';
 import { validReference, type ReplyReference, type ReplyLink } from '../../core/replyReferences.ts';
-import { addLibraryBookmark, replyLinks, replyMessage, sessionEnvironment } from '../../core/api/endpoints.ts';
+import { replyLinks, replyMessage, sessionEnvironment } from '../../core/api/endpoints.ts';
+import { addBookmarkPreview } from './useLibraryBookmarks.ts';
 import { resolveEnvironmentMention } from '../../core/blobMentions.ts';
 import { inlineImageKey } from '../../domain/media/useOpenImage.ts';
 import { fileMentionKey } from '../../domain/references/useFileMention.ts';
@@ -18,7 +19,6 @@ import { modelLabel } from '../../domain/providers/modelLabel.ts';
 import { sessionParent } from '../shell/sessionNavigation.ts';
 import { sessionPanelCloseKey, sessionPanelElementsKey } from '../../domain/chat/sessionPanel.ts';
 import Hint from '../../ui/components/Hint.vue';
-import { bus } from '../../core/bus.ts';
 import { useShortcutHint } from '../../ui/composables/useShortcutHint.ts';
 // Chat surface: top bar (desktop information/settings / mobile back+menu), log,
 // composer, and a shared sidebar for session actions. Opening session
@@ -193,6 +193,11 @@ function headerAction(key: string) {
   else if (['library', 'tasks', 'info', 'settings', 'browser'].includes(key)) openSidebar(key as SidebarView);
 }
 const queued = computed(() => chat.deliveries.value);
+const pendingQueue = computed(() =>
+  chat.pendingMessages.value.filter(
+    (message) => message.owner === id.value && message.queued && message.state !== 'failed',
+  ),
+);
 const composerRef = ref<{
   focus: () => void;
   fill: InstanceType<typeof Composer>['fill'];
@@ -309,8 +314,13 @@ provide(replyContextKey, {
   },
   async bookmark(target) {
     const session = id.value;
-    await addLibraryBookmark(session, target);
-    bus.emit('library.bookmarks.changed', { session });
+    const blocks = chat.entries.value.find((entry) => entry.seq === target.seq)?.payload.content ?? [];
+    const block = target.block == null ? undefined : blocks[target.block];
+    const text =
+      target.block == null
+        ? blocks.map((part) => (part.type === 'text' ? part.text : '')).join('\n')
+        : (block?.type === 'text' ? block.text : '').slice(target.start, target.end);
+    await addBookmarkPreview(session, target, text);
   },
   async locate(reference) {
     if (reference.session !== id.value) return;
@@ -737,8 +747,8 @@ watch(
           <Composer ref="composerRef" :owner="id" :mobile="isMobile" :disabled="!!changingSelection">
             <template #tools>
               <Transition name="queue-dock" appear>
-                <div v-if="queued.length > 0" class="queue-dock-slot">
-                  <QueueDock :items="queued" :refill="onQueueEdit" />
+                <div v-if="queued.length || pendingQueue.length" class="queue-dock-slot">
+                  <QueueDock :items="queued" :pending="pendingQueue" :refill="onQueueEdit" />
                 </div>
               </Transition>
             </template>

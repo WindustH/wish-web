@@ -95,17 +95,15 @@ async function save() {
     }
     return;
   }
+  const folder = props.target.kind === 'folder';
+  const open = !folder && chat.sessionId.value === id;
+  const pending = folder ? sessions.deleteFolder(id) : deleteSession(id);
+  emit('close');
+  if (open) void router.push('/sessions');
   try {
-    if (props.target.kind === 'folder') {
-      await sessions.deleteFolder(id);
-    } else {
-      const open = chat.sessionId.value === id;
-      await deleteSession(id);
-      if (open) await router.push('/sessions');
-    }
-    emit('close');
+    await pending;
   } catch (e: any) {
-    error.value = errorDetail(e);
+    toast(errorDetail(e), { tone: 'error' });
   } finally {
     busy.value = false;
   }

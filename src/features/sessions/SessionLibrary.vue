@@ -34,6 +34,7 @@ import { i18n } from '../../core/i18n/index.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import { ApiError } from '../../core/api/client.ts';
 import { fmtBytes, fmtDateTime } from '../../core/util/fmt.ts';
+import { requestId } from '../../core/util/requestId.ts';
 import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
 import { pageActivityKey, usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { saveApiFile } from '../../ui/download.ts';
@@ -144,6 +145,44 @@ const next = ref<number | null>(null),
   total = ref(0),
   loading = ref(false),
   error = ref('');
+type BlobEdit = { owner: string; value: Partial<LibraryBlob> | null };
+const blobEdits = shallowRef(new Map<string, BlobEdit>());
+function setBlobEdit(id: string, owner: string, value: BlobEdit['value']) {
+  const edit = { owner, value };
+  blobEdits.value = new Map(blobEdits.value).set(id, edit);
+  return () => {
+    if (blobEdits.value.get(id) !== edit) return;
+    const next = new Map(blobEdits.value);
+    next.delete(id);
+    blobEdits.value = next;
+  };
+}
+function inFolder(blob: LibraryBlob) {
+  return (
+    (!supportsFolders.value || (blob.folder ?? null) === folder.value) &&
+    (includeHidden.value || blob.visible !== false)
+  );
+}
+function replaceBlob(owner: string, id: string, changed: Partial<LibraryBlob> | null) {
+  if (owner !== props.session) return;
+  controller?.abort();
+  const existing = items.value.find((item) => item.id === id);
+  if (existing) {
+    const updated = changed ? { ...existing, ...changed } : null;
+    if (!updated || !inFolder(updated)) {
+      items.value = items.value.filter((item) => item.id !== id);
+      if (next.value !== null) next.value = Math.max(0, next.value - 1);
+      total.value = Math.max(0, total.value - 1);
+    } else {
+      items.value = items.value.map((item) => (item.id === id ? updated : item));
+      if (updated.pinned !== existing.pinned) {
+        items.value.sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.modified_at - a.modified_at);
+        if (next.value !== null) next.value = Math.max(0, next.value - 1);
+      }
+    }
+  }
+  if (selected.value?.id === id && changed) selected.value = { ...selected.value, ...changed };
+}
 const saved = useWorkspaceState('library', () => props.session, {
   filter: 'all',
   selected: '',
@@ -171,10 +210,21 @@ async function renameFile(name: string, signal: AbortSignal) {
     await renameLinkedFolderChild(owner, child.folder, child.path, name, { signal });
     linkedRevision.value++;
   }
-  const state = await updateBlobLibrary(`${owner}/${blob.id}`, { display_name: name }, { signal });
   if (signal.aborted || owner !== props.session) return;
-  if (selected.value?.id === blob.id) selected.value = { ...selected.value, ...state };
-  items.value = items.value.map((item) => (item.id === blob.id ? { ...item, ...state } : item));
+  const previous = selected.value?.id === blob.id ? selected.value : null;
+  const clear = setBlobEdit(blob.id, owner, { display_name: name });
+  updating.value.add(blob.id);
+  if (previous) selected.value = { ...previous, display_name: name };
+  void updateBlobLibrary(`${owner}/${blob.id}`, { display_name: name })
+    .then((state) => replaceBlob(owner, blob.id, state))
+    .catch((cause) => {
+      if (previous && owner === props.session && selected.value?.id === blob.id) selected.value = previous;
+      toast(describeError(cause).message, { tone: 'error' });
+    })
+    .finally(() => {
+      clear();
+      updating.value.delete(blob.id);
+    });
 }
 async function openLinkedChild(child: LinkedFolderChild) {
   const folderId = linkedFolder.value?.id;
@@ -224,15 +274,17 @@ async function moveFiles(ids: string[], into: string | null) {
   const request = new AbortController();
   moveController = request;
   batchBusy.value = true;
+  const clears = ids.map((id) => setBlobEdit(id, owner, { folder: into }));
   try {
     await moveLibraryItems(owner, ids, into, { signal: request.signal });
     if (!request.signal.aborted && props.session === owner && folder.value === origin) {
       stopSelecting();
-      await reload();
+      for (const id of ids) replaceBlob(owner, id, { folder: into });
     }
   } catch (cause) {
     if (!request.signal.aborted) toast(describeError(cause).message, { tone: 'error' });
   } finally {
+    clears.forEach((clear) => clear());
     if (moveController === request) {
       moveController = undefined;
       batchBusy.value = false;
@@ -383,7 +435,24 @@ async function addLink() {
 }
 
 let uploadController: AbortController | undefined;
-onBeforeUnmount(() => uploadController?.abort());
+type UploadPlaceholder = {
+  upload: true;
+  id: string;
+  owner: string;
+  folder: string | null;
+  name: string;
+  mime: string;
+  preview?: string;
+};
+const pendingUploads = ref<UploadPlaceholder[]>([]);
+function removeUpload(item: UploadPlaceholder) {
+  if (item.preview) URL.revokeObjectURL(item.preview);
+  pendingUploads.value = pendingUploads.value.filter((row) => row.id !== item.id);
+}
+onBeforeUnmount(() => {
+  uploadController?.abort();
+  pendingUploads.value.forEach(removeUpload);
+});
 function cancelOperations() {
   linkedOpenController?.abort();
   linkedOpenController = undefined;
@@ -401,22 +470,59 @@ async function upload() {
   uploading.value = true;
   try {
     const files = await platform('fs').pickFiles({ multiple: true });
+    if (request.signal.aborted || owner !== props.session) return;
+    const staged = files.map((file): UploadPlaceholder => ({
+      upload: true,
+      id: requestId(),
+      owner,
+      folder: destination,
+      name: file.name,
+      mime: file.mime,
+      preview: file.body && file.mime.startsWith('image/') ? URL.createObjectURL(file.body) : undefined,
+    }));
+    pendingUploads.value = [...pendingUploads.value, ...staged];
     const failures: string[] = [];
-    for (const file of files) {
-      try {
-        if (request.signal.aborted || props.session !== owner) return;
-        const limit = file.mime.startsWith('image/') ? cfg.composer.maxImageBytes : cfg.composer.maxAttachmentBytes;
-        if (file.size > limit) throw new Error(i18n.t('library.tooLarge', { size: fmtBytes(limit) }));
-        const bytes = file.body ?? (await file.read());
-        if (request.signal.aborted || props.session !== owner) return;
-        const blob = await uploadSessionBlob(owner, bytes, { signal: request.signal, query: { name: file.name } });
-        if (destination) await moveLibraryItems(owner, [blob.id], destination, { signal: request.signal });
-        if (request.signal.aborted || props.session !== owner) return;
-        if (file.name) uploadedNames.value.set(blob.id, file.name);
-      } catch (cause) {
-        if (request.signal.aborted || props.session !== owner) return;
-        failures.push(`${file.name}: ${describeError(cause).message}`);
+    try {
+      for (const [index, file] of files.entries()) {
+        const stagedFile = staged[index]!;
+        try {
+          if (request.signal.aborted || props.session !== owner) return;
+          const limit = file.mime.startsWith('image/') ? cfg.composer.maxImageBytes : cfg.composer.maxAttachmentBytes;
+          if (file.size > limit) throw new Error(i18n.t('library.tooLarge', { size: fmtBytes(limit) }));
+          const bytes = file.body ?? (await file.read());
+          if (request.signal.aborted || props.session !== owner) return;
+          const blob = await uploadSessionBlob(owner, bytes, { signal: request.signal, query: { name: file.name } });
+          if (destination) await moveLibraryItems(owner, [blob.id], destination, { signal: request.signal });
+          if (request.signal.aborted || props.session !== owner) return;
+          if (file.name) uploadedNames.value.set(blob.id, file.name);
+          if (folder.value === destination) {
+            controller?.abort();
+            const existing = items.value.find((item) => item.id === blob.id);
+            const saved: LibraryBlob = {
+              ...existing,
+              ...blob,
+              name: existing?.name ?? file.name,
+              folder: destination,
+              modified_at: Date.now(),
+              visible: existing?.visible ?? true,
+            };
+            items.value = [...items.value.filter((item) => item.id !== blob.id), saved].sort(
+              (a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.modified_at - a.modified_at,
+            );
+            if (!existing) {
+              total.value++;
+              if (next.value !== null) next.value++;
+            }
+          }
+        } catch (cause) {
+          if (request.signal.aborted || props.session !== owner) return;
+          failures.push(`${file.name}: ${describeError(cause).message}`);
+        } finally {
+          removeUpload(stagedFile);
+        }
       }
+    } finally {
+      for (const item of staged) if (pendingUploads.value.some((row) => row.id === item.id)) removeUpload(item);
     }
     if (failures.length) toast(failures.join('\n'), { tone: 'error' });
   } catch (cause) {
@@ -425,10 +531,6 @@ async function upload() {
     if (uploadController === request) {
       uploadController = undefined;
       uploading.value = false;
-    }
-    if (!request.signal.aborted && owner === props.session) {
-      // Replace an in-flight stale catalog response after the upload completes.
-      await reload();
     }
   }
 }
@@ -627,16 +729,25 @@ function previewAction(key: string) {
 }
 type LibraryAction = 'pin' | 'unpin' | 'show' | 'hide' | 'delete';
 async function changeBlob(key: LibraryAction, blob: LibraryBlob, owner: string, signal?: AbortSignal) {
-  if (key === 'delete') {
-    await deleteBlob(`${owner}/${blob.id}`, { signal });
-    if (owner === props.session && selected.value?.id === blob.id) selectBlob(null);
-  } else {
-    const state = await updateBlobLibrary(
-      `${owner}/${blob.id}`,
-      key === 'pin' || key === 'unpin' ? { pinned: key === 'pin' } : { visible: key === 'show' },
-      { signal },
-    );
-    if (owner === props.session && selected.value?.id === blob.id) selected.value = { ...selected.value, ...state };
+  const change =
+    key === 'delete'
+      ? null
+      : key === 'pin' || key === 'unpin'
+        ? { pinned: key === 'pin' }
+        : { visible: key === 'show' };
+  const clear = setBlobEdit(blob.id, owner, change);
+  const preview = !change && owner === props.session && selected.value?.id === blob.id ? selected.value : null;
+  if (preview) selectBlob(null);
+  try {
+    const updated = change
+      ? await updateBlobLibrary(`${owner}/${blob.id}`, change, { signal })
+      : (await deleteBlob(`${owner}/${blob.id}`, { signal }), null);
+    if (!signal?.aborted) replaceBlob(owner, blob.id, updated);
+  } catch (cause) {
+    if (preview && !signal?.aborted && owner === props.session && !selected.value) selectBlob(preview);
+    throw cause;
+  } finally {
+    clear();
   }
 }
 async function act(key: string, blob: LibraryBlob) {
@@ -662,8 +773,6 @@ async function act(key: string, blob: LibraryBlob) {
   updating.value.add(blob.id);
   try {
     await changeBlob(key as LibraryAction, blob, owner);
-    if (owner !== props.session) return;
-    await reload(true);
   } catch (cause) {
     toast(describeError(cause).message, { tone: 'error' });
   } finally {
@@ -684,8 +793,25 @@ const title = computed(() =>
       ? filename(selected.value)
       : i18n.t('library.title'),
 );
-const shown = computed(() => items.value.filter((blob) => filter.value === 'all' || blobKind(blob) === filter.value));
-type LibraryItem = LibraryBlob | LibraryBookmark;
+const shown = computed(() => {
+  const visible: LibraryBlob[] = [];
+  let reordered = false;
+  for (const item of items.value) {
+    const edit = blobEdits.value.get(item.id);
+    const change = edit?.owner === props.session ? edit.value : undefined;
+    if (change === null) continue;
+    const blob = change ? { ...item, ...change } : item;
+    if (inFolder(blob) && (filter.value === 'all' || blobKind(blob) === filter.value)) visible.push(blob);
+    reordered ||= blob.pinned !== item.pinned;
+  }
+  return reordered
+    ? visible.sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.modified_at - a.modified_at)
+    : visible;
+});
+type LibraryItem = LibraryBlob | LibraryBookmark | UploadPlaceholder;
+function isUpload(item: LibraryItem): item is UploadPlaceholder {
+  return 'upload' in item;
+}
 function isBookmark(item: LibraryItem): item is LibraryBookmark {
   return 'seq' in item;
 }
@@ -703,7 +829,11 @@ const catalogItems = computed<LibraryItem[]>(() => {
       while (index < saved.length && saved[index]!.created_at >= blob.modified_at) combined.push(saved[index++]!);
     combined.push(blob);
   }
-  return combined.concat(saved.slice(index));
+  const uploading =
+    filter.value === 'bookmarks'
+      ? []
+      : pendingUploads.value.filter((row) => row.owner === props.session && row.folder === folder.value);
+  return [...uploading, ...combined, ...saved.slice(index)];
 });
 const chosenFiles = computed(() => shown.value.filter((blob) => chosen.value.has(blob.id)));
 const allChosen = computed(() => shown.value.length > 0 && shown.value.every((blob) => chosen.value.has(blob.id)));
@@ -751,11 +881,11 @@ async function actOnChosen(key: LibraryAction, targets = [...chosenFiles.value])
   if (batchBusy.value || !targets.length) return;
   const owner = props.session;
   const origin = folder.value;
-  const loaded = items.value.length;
   const request = new AbortController();
   const current = () => !request.signal.aborted && owner === props.session && origin === folder.value && active.value;
   batchController = request;
   batchBusy.value = true;
+  if (key === 'delete') deleteTargets.value = [];
   const failures: { id: string; message: string }[] = [];
   try {
     for (const [index, blob] of targets.entries()) {
@@ -770,13 +900,6 @@ async function actOnChosen(key: LibraryAction, targets = [...chosenFiles.value])
     }
     if (!current()) return;
     deleteTargets.value = [];
-    await reload(true);
-    while (current() && next.value !== null && items.value.length < loaded) {
-      const before = items.value.length;
-      await load(true, true);
-      if (items.value.length === before) break;
-    }
-    if (!current()) return;
     if (failures.length) {
       if (selecting.value) chosen.value = new Set(failures.map((failure) => failure.id));
       toast(failures.map((failure) => failure.message).join('\n'), { tone: 'error' });
@@ -1330,11 +1453,19 @@ watch(
             </div>
           </Menu>
           <template v-for="blob in visibleItems" :key="blob.id">
+            <div v-if="isUpload(blob)" class="library-card library-uploading" role="status">
+              <div class="library-item">
+                <img v-if="blob.preview && view === 'icons'" :src="blob.preview" alt="" />
+                <Icon v-else name="loader-circle" class="library-file-icon spin" />
+                <span class="library-filename">{{ blob.name }}</span>
+                <span class="library-filesize">{{ tr('正在上传…', 'Uploading…') }}</span>
+              </div>
+            </div>
             <Menu
-              v-if="isBookmark(blob)"
+              v-else-if="isBookmark(blob)"
               context
               :items="bookmarks.actions()"
-              :disabled="selecting || batchBusy || bookmarks.busy.value.has(blob.id)"
+              :disabled="selecting || batchBusy || bookmarks.busy.value.has(blob.id) || bookmarks.pending(blob.id)"
               @select="bookmarks.action($event, blob)"
             >
               <div class="library-card library-bookmark">
@@ -1343,7 +1474,7 @@ watch(
                   class="library-item bookmark-open"
                   :data-bookmark-id="blob.id"
                   :aria-label="blob.name"
-                  :disabled="selecting || batchBusy || bookmarks.busy.value.has(blob.id)"
+                  :disabled="selecting || batchBusy || bookmarks.busy.value.has(blob.id) || bookmarks.pending(blob.id)"
                   @click="bookmarks.locate(blob)"
                 >
                   <LibraryDocumentThumbnail v-if="view === 'icons'" :text="blob.text" bookmark />
@@ -1351,11 +1482,15 @@ watch(
                   <span class="library-filename" :title="blob.name">{{ blob.name }}</span>
                   <span v-if="view === 'details'" class="library-file-details">{{ fmtDateTime(blob.created_at) }}</span>
                   <span class="library-filesize">{{
-                    blob.block == null ? tr('消息书签', 'Message bookmark') : tr('片段书签', 'Excerpt bookmark')
+                    bookmarks.pending(blob.id)
+                      ? tr('正在添加…', 'Adding…')
+                      : blob.block == null
+                        ? tr('消息书签', 'Message bookmark')
+                        : tr('片段书签', 'Excerpt bookmark')
                   }}</span>
                 </button>
                 <Menu
-                  v-if="!selecting"
+                  v-if="!selecting && !bookmarks.pending(blob.id)"
                   :items="bookmarks.actions()"
                   :disabled="batchBusy || bookmarks.busy.value.has(blob.id)"
                   @select="bookmarks.action($event, blob)"
@@ -1556,6 +1691,11 @@ watch(
     :parent="folder"
     :folders="folders"
     :action="folderAction"
+    :move-files="
+      folderAction?.kind === 'move' && folderAction.ids.every((id) => items.some((item) => item.id === id))
+        ? moveFiles
+        : undefined
+    "
     @close="folderAction = undefined"
     @changed="folderChanged"
   />
@@ -1674,6 +1814,11 @@ watch(
 </template>
 
 <style scoped>
+.library-uploading img {
+  width: 100%;
+  max-height: 88px;
+  object-fit: contain;
+}
 .local-directory button {
   display: flex;
   width: 100%;

@@ -314,20 +314,28 @@ const inputAttachments = (blocks: readonly MessageBlock[] = []) =>
   }));
 export const messageSend = async (
   id: string,
-  body: { content?: string; blocks?: readonly MessageBlock[]; metadata?: unknown },
+  body: { content?: string; blocks?: readonly MessageBlock[]; metadata?: unknown; request_id?: string },
   opts?: EndpointOptions,
-): Promise<{ id: string; entry: number; first_user_message?: boolean }> => {
+): Promise<{ id: string; entry: number; first_user_message?: boolean; request_id?: string }> => {
   const result = await post(
     `${path(id)}/input`,
     {
       text: body.content ?? '',
       attachments: inputAttachments(body.blocks),
+      ...(body.request_id ? { request_id: body.request_id } : {}),
       ...(body.metadata ? { metadata: body.metadata } : {}),
     },
     opts,
   );
-  return { id: String(result.entry), entry: result.entry, first_user_message: result.first_user_message === true };
+  return {
+    id: String(result.entry),
+    entry: result.entry,
+    first_user_message: result.first_user_message === true,
+    ...(typeof result.request_id === 'string' ? { request_id: result.request_id } : {}),
+  };
 };
+export const supportsInputRequestId = async (opts?: EndpointOptions): Promise<boolean> =>
+  (await get('/version', { timeoutMs: 2000, ...opts })).input_request_id === true;
 // Combines requests: the queue holds entry positions, and each input is read from its entry.
 export async function deliveriesList(
   id: string,
@@ -359,7 +367,13 @@ export async function deliveriesList(
   const items: (QueuedDelivery | null)[] = page.items.map((entry: number): QueuedDelivery | null => {
     const message = messages.get(entry) as
       | {
-          metadata?: { source?: string; input_text?: string; attachments?: any[] };
+          metadata?: {
+            input_request_id?: string;
+            source?: string;
+            input_text?: string;
+            attachments?: any[];
+            custom?: { wish_client_submission?: string };
+          };
           content: { Text?: { text: string } }[];
         }
       | undefined;
@@ -378,7 +392,14 @@ export async function deliveriesList(
       byte_count: a.byte_count,
       placeholder: a.placeholder,
     }));
-    return { id: String(entry), state: 'queued', text, attachments };
+    const request = message.metadata?.input_request_id ?? message.metadata?.custom?.wish_client_submission;
+    return {
+      id: String(entry),
+      state: 'queued',
+      text,
+      attachments,
+      ...(typeof request === 'string' ? { client_request_id: request } : {}),
+    };
   });
   return { items: items.filter((item) => item !== null), has_more: page.next != null };
 }

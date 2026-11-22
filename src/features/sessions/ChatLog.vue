@@ -8,6 +8,8 @@ import { computed, inject, nextTick, onUnmounted, provide, ref, watch } from 'vu
 import { replyContextKey } from '../../domain/references/context.ts';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { chat } from '../../core/state/chatSlice.ts';
+import type { PendingMessage } from '../../core/state/pendingMessages.ts';
+import PendingMessageCard from '../../domain/chat/PendingMessageCard.vue';
 import WorkStatus from './WorkStatus.vue';
 import { workActivity } from './workActivity.ts';
 import { chatWorkIndicator } from './phaseIndicator.ts';
@@ -89,16 +91,25 @@ type ChatRow =
   | TextItem<EntryView>
   | ChipsItem<EntryView>
   | ImageAlbumItem<EntryView>
+  | { type: 'pending_message'; key: string; message: PendingMessage }
   | { type: 'status_run_error'; key: string };
 const groups = computed(() => {
   const items: ChatRow[] = imageAlbums(inlineChips(groupEntries(chat.entries.value)));
   if (runFailure.value) items.push({ type: 'status_run_error', key: `run-error:${props.sessionId}` });
+  for (const message of chat.pendingMessages.value) {
+    if (message.owner === props.sessionId && !message.queued && message.state !== 'failed')
+      items.push({ type: 'pending_message', key: message.id, message });
+  }
   return items;
 });
 const transcriptAt = (index: number): TranscriptRow<EntryView> | undefined => {
   const row = groups.value[index];
-  return row && row.type !== 'status_run_error' ? row : undefined;
+  return row && row.type !== 'status_run_error' && row.type !== 'pending_message' ? row : undefined;
 };
+function pendingAt(index: number) {
+  const row = groups.value[index];
+  return row?.type === 'pending_message' ? row.message : undefined;
+}
 
 // A call's result may come in a later run than the call, past a question or a notice.
 const toolResults = computed(
@@ -513,6 +524,7 @@ watch(
             >
               <RetryRunButton :session="sessionId" />
             </RunFailureCard>
+            <PendingMessageCard v-else-if="pendingAt(v.index)" :message="pendingAt(v.index)!" />
           </div>
         </div>
         <Transition name="live-work">

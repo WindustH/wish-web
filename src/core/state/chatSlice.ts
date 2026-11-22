@@ -1,12 +1,16 @@
 // Session-owned execution. Live deltas are transient; paged history is authoritative.
-import { shallowRef } from 'vue';
+import { shallowRef, watch } from 'vue';
 import { cfg } from '../config.ts';
 import { bus } from '../bus.ts';
 import { platform } from '../../platform/index.ts';
 import { createSse, type SseConnection } from '../api/sse.ts';
 import { errorDetail } from '../errors.ts';
-import { absUrl } from '../api/client.ts';
+import { absUrl, getConnectionScope } from '../api/client.ts';
+import { createBoundedCache } from '../util/boundedCache.ts';
 import { createChatDeliveries } from './chatDeliveries.ts';
+import { createPendingMessages, type MessageDraft } from './pendingMessages.ts';
+import type { AttachmentInput } from '../attachments.ts';
+import { sessionNaming } from './sessionNaming.ts';
 import * as api from '../api/endpoints.ts';
 import { createReconciliation } from './reconciliation.ts';
 import { createChatHistory } from './chatHistory.ts';
@@ -102,6 +106,10 @@ export function createChat(deps: ChatDependencies = {}) {
   const stream = shallowRef(createEmptyStream());
   const capabilities = shallowRef<ChatCapabilities | null>(null);
 
+  const windows = createBoundedCache(8, 2_000_000);
+  const windowKey = (id: string) => `${getConnectionScope()}
+${id}`;
+  let cachedSnapshot: SessionView | null = null;
   let epoch = 0;
   let initialized = false;
   let initialTask: Promise<void> | null = null;
@@ -159,6 +167,50 @@ export function createChat(deps: ChatDependencies = {}) {
     clearPendingSeq,
   } = history;
 
+  const pending = createPendingMessages({
+    send: requests.messageSend,
+    supportsRequestId: requests.supportsInputRequestId,
+    settled: (owner) => {
+      if (sessionId.value === owner) scheduleRefresh();
+    },
+    accepted(owner, receipt) {
+      if (receipt.first_user_message) void sessionNaming.generate(owner, receipt.entry);
+      if (sessionId.value === owner) scheduleRefresh();
+    },
+  });
+  watch([entries, deliveries, pending.messages], () => {
+    const owner = sessionId.value;
+    if (!owner || !pending.messages.value.some((item) => item.owner === owner)) return;
+    const echoed = new Set(deliveries.value.map((item) => item.id));
+    const requestIds = new Set(
+      deliveries.value.flatMap((item) => (item.client_request_id ? [item.client_request_id] : [])),
+    );
+    for (const entry of entries.value) {
+      if (entry.kind !== 'user_message') continue;
+      echoed.add(String(entry.id));
+      const request =
+        entry.payload.metadata?.input_request_id ?? entry.payload.metadata?.custom?.wish_client_submission;
+      if (typeof request === 'string') requestIds.add(request);
+    }
+    pending.reconcile(owner, echoed, requestIds);
+  });
+  function stageMessage(
+    owner: string,
+    text: string,
+    attachments: AttachmentInput[],
+    draft: MessageDraft,
+    metadata?: unknown,
+  ) {
+    if (sessionId.value !== owner) return null;
+    const queued =
+      stream.value.active ||
+      snapshot.value?.phase === 'queued' ||
+      pending.messages.value.some((item) => item.owner === owner && !item.queued && item.state !== 'failed');
+    const id = pending.enqueue(owner, { text, attachments, metadata }, draft, queued);
+    if (!queued) sentRun.value = { sessionId: owner, deliveryId: id };
+    return id;
+  }
+
   const streamProcessor = createStreamProcessor({
     onClose() {
       markMissing();
@@ -205,7 +257,27 @@ export function createChat(deps: ChatDependencies = {}) {
     },
   });
 
-  function close() {
+  function close(keepWindow = true) {
+    const owner = sessionId.value;
+    if (
+      keepWindow &&
+      owner &&
+      initialized &&
+      snapshot.value?.id === owner &&
+      !history.viewingPast() &&
+      !locating.value
+    ) {
+      const tail = entries.value.slice(-cfg.history.pageSize);
+      windows.set(
+        windowKey(owner),
+        JSON.stringify({
+          snapshot: snapshot.value,
+          entries: tail,
+          hasMoreBefore: hasMoreBefore.value || tail.length < entries.value.length,
+        }),
+      );
+    }
+    cachedSnapshot = null;
     epoch++;
     initialized = false;
     denied = false;
@@ -232,9 +304,15 @@ export function createChat(deps: ChatDependencies = {}) {
     loadingNewer.value = false;
   }
 
+  function forgetConversation(id: string) {
+    windows.set(windowKey(id), '');
+    pending.forget(id);
+  }
+
   function markMissing() {
     const id = sessionId.value;
-    close();
+    if (id) forgetConversation(id);
+    close(false);
     clearView();
     loadingInitial.value = false;
     missingSessionId.value = id;
@@ -267,7 +345,7 @@ export function createChat(deps: ChatDependencies = {}) {
       bus.emit('notice', { text: errorDetail(cause), tone: 'error' });
   }
 
-  async function open(id: string, reportError = false): Promise<void> {
+  async function open(id: string, reportError = false, useCache = true): Promise<void> {
     if (sessionId.value === id) {
       await initialTask?.catch(() => {});
       return;
@@ -291,6 +369,16 @@ export function createChat(deps: ChatDependencies = {}) {
     sentRun.value = null;
     pendingSeq.value = null;
     capabilities.value = { status: 'ok', data: { input_modalities: null } };
+
+    const cached = useCache ? windows.get(windowKey(id)) : undefined;
+    if (cached) {
+      const saved = JSON.parse(cached) as { snapshot: SessionView; entries: EntryView[]; hasMoreBefore: boolean };
+      cachedSnapshot = saved.snapshot;
+      snapshot.value = saved.snapshot;
+      entries.value = saved.entries;
+      hasMoreBefore.value = saved.hasMoreBefore;
+      bounds();
+    }
 
     reconciliation.start();
 
@@ -339,7 +427,9 @@ export function createChat(deps: ChatDependencies = {}) {
         requests.historyPage(id, { limit: cfg.history.pageSize, order: 'desc' }, options()),
       ]);
       if (!current(own)) return;
-      adoptSnapshot(id, snap);
+      if (snapshot.value === cachedSnapshot) snapshot.value = snap;
+      else adoptSnapshot(id, snap);
+      cachedSnapshot = null;
       entries.value = page.items.slice().reverse();
       bounds();
       hasMoreBefore.value = page.has_more;
@@ -375,8 +465,8 @@ export function createChat(deps: ChatDependencies = {}) {
   async function reload(reportError = true): Promise<void> {
     const id = sessionId.value;
     if (id) {
-      close();
-      await open(id, reportError);
+      close(false);
+      await open(id, reportError, false);
     }
   }
 
@@ -507,6 +597,12 @@ export function createChat(deps: ChatDependencies = {}) {
     sentRun,
     capabilities,
     deliveries,
+    pendingMessages: pending.messages,
+    stageMessage,
+    acceptInitialMessage: pending.acceptInitial,
+    discardPendingMessage: pending.discard,
+    forgetConversation,
+    checkPendingMessage: scheduleRefresh,
     open,
     close,
     reload,

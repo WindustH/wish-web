@@ -469,7 +469,7 @@ onBeforeUnmount(() => {
               <button
                 type="button"
                 class="btn ghost icon-only generation-order"
-                :disabled="busy || selected == null"
+                :disabled="selected == null"
                 :aria-pressed="reversed"
                 :aria-label="tr('倒序', 'Reverse order')"
                 :data-hint="reversed ? tr('当前从新到旧', 'Newest first') : tr('倒序显示', 'Show newest first')"

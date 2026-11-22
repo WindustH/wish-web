@@ -111,6 +111,7 @@ export interface QueuedAttachment {
 }
 export interface QueuedDelivery {
   id: string;
+  client_request_id?: string;
   state: 'queued';
   text: string;
   attachments: QueuedAttachment[];

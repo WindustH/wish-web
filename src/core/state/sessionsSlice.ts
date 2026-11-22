@@ -32,12 +32,13 @@ import type { SessionView } from '../api/projections.ts';
 import type { SessionUpsert, SessionTombstone } from './syncSlice.ts';
 import { platform } from '../../platform/index.ts';
 import { createOptimisticRows } from './optimisticRows.ts';
+import { requestId } from '../util/requestId.ts';
 
 // One list row: the list-facing fields of a session snapshot or a folder, with where it
 // is. Rows fetched from GET /conversations carry the whole snapshot.
 export type SessionRow = { kind: 'session' } & Placement &
   Pick<SessionView, 'id' | 'name' | 'phase' | 'updated_at' | 'revision' | 'metadata'>;
-export type FolderRow = { kind: 'folder' } & FolderView;
+export type FolderRow = { kind: 'folder'; pending?: boolean } & FolderView;
 export type ListRow = SessionRow | FolderRow;
 // Opaque server pagination token, bound to the current folder, filter and sort.
 type SessionsCursor = NonNullable<SessionsListParams['cursor']>;
@@ -111,20 +112,25 @@ export const sessions = (() => {
   }
   const folders = shallowRef(new Map<string, FolderView>());
   const edits = createOptimisticRows<ListRow>();
+  const removing = shallowRef(new Set<string>());
+  const pendingFolders = shallowRef<FolderRow[]>([]);
 
   let gen = 0; // request generation
 
   const filtered = computed(() => Boolean(query.value || tagFilter.value));
   const list = computed(() => {
-    const projected = items.value.map(edits.project);
+    const authoritative = items.value.filter((row) => !removing.value.has(row.id));
+    const projected = authoritative.map(edits.project);
     if (tagFilter.value)
       return projected.filter((row, index) => {
-        if (row === items.value[index]) return true;
+        if (row === authoritative[index]) return true;
         const tags = row.kind === 'session' ? metaOf(row).tags : undefined;
         return tags === undefined || (Array.isArray(tags) && tags.includes(tagFilter.value));
       });
-    return !filtered.value && projected.some((row, index) => row !== items.value[index])
-      ? projected.sort(placementOrder)
+    if (filtered.value) return projected;
+    const creating = pendingFolders.value.filter((row) => row.parent === folder.value);
+    return creating.length || projected.some((row, index) => row !== authoritative[index])
+      ? [...projected, ...creating].sort(placementOrder)
       : projected;
   });
   function patchRow(id: string, project: (row: ListRow) => ListRow, reorder = false) {
@@ -357,10 +363,47 @@ export const sessions = (() => {
     items.value = items.value.filter((s) => s.id !== id);
   }
 
+  const deletions = new Map<string, Promise<unknown>>();
+  function removeRow(id: string, write: () => Promise<unknown>) {
+    const existing = deletions.get(id);
+    if (existing) return existing;
+    removing.value = new Set([...removing.value, id]);
+    const request = Promise.resolve()
+      .then(write)
+      .then(() => {
+        dropRow(id);
+        debouncedRebuild();
+      })
+      .finally(() => {
+        deletions.delete(id);
+        removing.value = new Set([...removing.value].filter((value) => value !== id));
+      });
+    deletions.set(id, request);
+    return request;
+  }
   async function createFolder(name: string, parent: string | null): Promise<FolderView> {
-    const made = await api.folderCreate(name, parent);
-    await rebuild();
-    return made;
+    const draft: FolderRow = {
+      kind: 'folder',
+      pending: true,
+      id: requestId(),
+      name,
+      parent,
+      pinned: false,
+      created_at: Date.now(),
+    };
+    pendingFolders.value = [...pendingFolders.value, draft];
+    try {
+      const made = await api.folderCreate(name, parent);
+      const updated = new Map(folders.value);
+      updated.set(made.id, made);
+      folders.value = updated;
+      if (!filtered.value && folder.value === parent)
+        items.value = uniqueById([...items.value, { kind: 'folder', ...made }]).sort(placementOrder);
+      debouncedRebuild();
+      return made;
+    } finally {
+      pendingFolders.value = pendingFolders.value.filter((row) => row !== draft);
+    }
   }
   async function renameFolder(id: string, name: string): Promise<FolderView> {
     return edits.run(
@@ -375,8 +418,7 @@ export const sessions = (() => {
   }
   /** Deletes a folder; what it held goes up to the folder it was in. */
   async function deleteFolder(id: string): Promise<void> {
-    await api.folderDelete(id);
-    await rebuild();
+    await removeRow(id, () => api.folderDelete(id));
   }
   /** Moves sessions and folders into `into` (null for the root). What leaves the folder
    *  shown leaves the list at once, and the folder it goes into counts it; the server's reading
@@ -457,6 +499,8 @@ export const sessions = (() => {
     updateMeta,
     dropRow,
     createFolder,
+    removeRow,
+    removing,
     renameFolder,
     deleteFolder,
     move,

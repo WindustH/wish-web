@@ -17,6 +17,7 @@ const props = defineProps<{
   parent: string | null;
   folders: LibraryFolder[];
   action?: LibraryFolderAction;
+  moveFiles?: (ids: string[], into: string | null) => void;
 }>();
 const emit = defineEmits<{ close: []; changed: [] }>();
 const formId = useId();
@@ -73,6 +74,11 @@ const options = computed(() => [
 async function submit() {
   const action = props.action;
   if (!action || busy.value || unchangedMove.value) return;
+  if (action.kind === 'move' && props.moveFiles) {
+    props.moveFiles(action.ids, destination.value === '/' ? null : destination.value);
+    emit('close');
+    return;
+  }
   const request = new AbortController();
   controller = request;
   busy.value = true;

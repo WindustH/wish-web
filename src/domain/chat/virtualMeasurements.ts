@@ -22,10 +22,26 @@ export function refreshChatViewport(instance: ChatVirtualizer, reset = false) {
 // ResizeObserver records can describe the hidden/detached layout from before activation.
 // Read the box now; a late zero record must not erase a visible viewport's range.
 export function observeChatRect(instance: ChatVirtualizer, notify: (rect: { width: number; height: number }) => void) {
-  return observeElementRect(instance, () => {
+  const window = instance.targetWindow;
+  let frame = 0;
+  let initial = true;
+  const publish = () => {
     const rect = chatViewportRect(instance.scrollElement);
     if (rect) notify(rect);
+  };
+  const disconnect = observeElementRect(instance, () => {
+    if (initial || !window?.requestAnimationFrame) publish();
+    else if (!frame)
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        publish();
+      });
   });
+  initial = false;
+  return () => {
+    disconnect?.();
+    if (frame) window?.cancelAnimationFrame(frame);
+  };
 }
 
 // The default measurer reuses a cached size when no observer entry is supplied. Once a

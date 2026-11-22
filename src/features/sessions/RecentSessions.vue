@@ -11,7 +11,7 @@ import SessionListRow, { type RowAction } from './SessionListRow.vue';
 import type { ActionTarget } from './SessionListAction.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
-import { sessionTitle, type ListRow, type SessionRow } from '../../core/state/sessionsSlice.ts';
+import { sessions, sessionTitle, type ListRow, type SessionRow } from '../../core/state/sessionsSlice.ts';
 const SessionListAction = defineAsyncComponent(() => import('./SessionListAction.vue'));
 const PruneDialog = defineAsyncComponent(() => import('./PruneDialog.vue'));
 const active = usePageActivity();
@@ -24,7 +24,7 @@ const recent = createCachedResource(
     ),
   () => ({ key: 'recent-sessions', persist: true }),
 );
-const rows = computed(() => recent.data.value ?? []);
+const rows = computed(() => (recent.data.value ?? []).filter((row) => !sessions.removing.value.has(row.id)));
 const action = ref<{ target: ActionTarget; kind: 'rename' | 'tags' | 'delete' }>();
 const clearing = ref<{ id: string; name: string }>();
 function onRowAction(row: ListRow, kind: RowAction) {
@@ -44,6 +44,11 @@ function refresh() {
 }
 const off = (['upsert.session', 'tombstone.session', 'list.changed', 'sync.snapshot'] as const).map((topic) =>
   bus.on(topic, refresh),
+);
+off.push(
+  bus.on('tombstone.session', ({ id }) => {
+    if (recent.data.value) recent.data.value = recent.data.value.filter((row) => row.id !== id);
+  }),
 );
 watch(
   active,

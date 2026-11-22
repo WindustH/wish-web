@@ -25,7 +25,14 @@ import { awaitsAnswer } from '../../core/questionWatch.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
 
-const props = defineProps<{ items: any[]; refill: (text: string, attachments?: QueuedAttachment[]) => void }>();
+import type { PendingMessage } from '../../core/state/pendingMessages.ts';
+import PendingMessageCard from '../../domain/chat/PendingMessageCard.vue';
+const props = defineProps<{
+  items: any[];
+  pending?: PendingMessage[];
+  refill: (text: string, attachments?: QueuedAttachment[]) => void;
+}>();
+const count = computed(() => props.items.length + (props.pending?.length ?? 0));
 
 // Attachment indicator: queued rows carry per-item references from the
 // control-plane projection; the dock only consumes "has an image" (files do
@@ -54,15 +61,12 @@ watch(usePageActivity(), (active) => {
 });
 // The last queued message can disappear while the bubble is open. Let it close
 // before the toolbar's leave transition removes its trigger.
-watch(
-  () => props.items.length,
-  (count) => {
-    if (!count) open.value = false;
-  },
-);
-const label = computed(() => tr(`待发送消息（${props.items.length} 条）`, `Queued messages (${props.items.length})`));
+watch(count, (count) => {
+  if (!count) open.value = false;
+});
+const label = computed(() => tr(`待发送消息（${count.value} 条）`, `Queued messages (${count.value})`));
 function closedFocus(event: Event) {
-  if (props.items.length) return;
+  if (count.value) return;
   // The trigger is about to leave the toolbar; do not return keyboard focus
   // to a button that no longer exists. Leave focus elsewhere untouched.
   event.preventDefault();
@@ -97,7 +101,7 @@ async function scrollLatest() {
   }
 }
 watch(
-  () => props.items.map((item) => item.id),
+  () => [...props.items.map((item) => item.id), ...(props.pending ?? []).map((item) => item.id)],
   (ids, previous) => {
     if (previous && ids.some((id) => !previous.includes(id))) {
       pendingScroll = true;
@@ -248,7 +252,7 @@ async function edit(item: any) {
     <PopoverTrigger as-child
       ><button ref="trigger" type="button" class="btn ghost composer-queue" :aria-label="label" :data-hint="label">
         <Icon name="queue" class="queue-glyph" />
-        <span class="queue-badge">{{ items.length }}</span>
+        <span class="queue-badge">{{ count }}</span>
       </button></PopoverTrigger
     >
     <PopoverPortal>
@@ -266,7 +270,7 @@ async function edit(item: any) {
         <BubbleSurface />
         <header class="queue-heading">
           <span
-            >{{ tr('待发送', 'Queued') }} <small>{{ items.length }}</small></span
+            >{{ tr('待发送', 'Queued') }} <small>{{ count }}</small></span
           ><span v-if="awaitingAnswer" class="queue-note">{{
             tr('回答上面的问题后送达', 'Goes in once the questions above are answered')
           }}</span>
@@ -326,6 +330,7 @@ async function edit(item: any) {
               </ReorderItem>
             </AnimatePresence>
           </ReorderGroup>
+          <PendingMessageCard v-for="message in pending" v-show="placed" :key="message.id" :message="message" compact />
         </div>
         <PopoverArrow as-child :width="30" :height="9"
           ><span data-bubble-anchor class="queue-tail-anchor" aria-hidden="true"

@@ -1,12 +1,50 @@
-import { inject, onBeforeUnmount, ref, watch, type Ref } from 'vue';
+import { computed, inject, onBeforeUnmount, ref, shallowReactive, watch, type Ref } from 'vue';
 import type { LibraryBookmark } from '../../core/api/types.ts';
-import { libraryBookmarks, renameLibraryBookmark, deleteLibraryBookmark } from '../../core/api/endpoints.ts';
+import {
+  addLibraryBookmark,
+  libraryBookmarks,
+  renameLibraryBookmark,
+  deleteLibraryBookmark,
+} from '../../core/api/endpoints.ts';
 import { bus } from '../../core/bus.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
 import { replyContextKey } from '../../domain/references/context.ts';
 import { ApiError } from '../../core/api/client.ts';
 import { toast } from '../../ui/toast.ts';
+import { requestId } from '../../core/util/requestId.ts';
+
+const additions = shallowReactive(
+  new Map<string, { session: string; bookmark: LibraryBookmark & { pending: true } }>(),
+);
+export async function addBookmarkPreview(
+  session: string,
+  target: Parameters<typeof addLibraryBookmark>[1],
+  text: string,
+) {
+  const id = requestId();
+  const { seq, block, start, end } = target;
+  additions.set(id, {
+    session,
+    bookmark: {
+      id,
+      seq,
+      block: block ?? null,
+      start: start ?? null,
+      end: end ?? null,
+      created_at: Date.now(),
+      pending: true,
+      name: [...text.trim().replace(/\s+/g, ' ')].slice(0, 60).join('') || tr('书签', 'Bookmark'),
+      text: text.slice(0, 600),
+    },
+  });
+  try {
+    const bookmark = await addLibraryBookmark(session, target);
+    bus.emit('library.bookmarks.changed', { session, bookmark });
+  } finally {
+    additions.delete(id);
+  }
+}
 export function useLibraryBookmarks(owner: Readonly<Ref<string>>, active: Readonly<Ref<boolean>>) {
   const replies = inject(replyContextKey, undefined);
   const items = ref<LibraryBookmark[]>([]),
@@ -54,8 +92,14 @@ export function useLibraryBookmarks(owner: Readonly<Ref<string>>, active: Readon
     cancelRemovals();
   });
   onBeforeUnmount(
-    bus.on('library.bookmarks.changed', ({ session }) => {
-      if (session === owner.value) void load();
+    bus.on('library.bookmarks.changed', ({ session, bookmark }) => {
+      if (session !== owner.value || !active.value) return;
+      if (!bookmark) {
+        void load();
+        return;
+      }
+      controller?.abort();
+      items.value = [bookmark, ...items.value.filter((item) => item.id !== bookmark.id)];
     }),
   );
   const actions = () => [
@@ -104,5 +148,10 @@ export function useLibraryBookmarks(owner: Readonly<Ref<string>>, active: Readon
     if (editing.value) await renameLibraryBookmark(owner.value, editing.value.id, name, { signal });
   }
 
-  return { items, error, loading, editing, busy, load, actions, action, locate, rename };
+  const listed = computed(() => [
+    ...[...additions.values()].filter((item) => item.session === owner.value).map((item) => item.bookmark),
+    ...items.value,
+  ]);
+  const pending = (id: string) => additions.has(id);
+  return { items: listed, error, loading, editing, busy, pending, load, actions, action, locate, rename };
 }

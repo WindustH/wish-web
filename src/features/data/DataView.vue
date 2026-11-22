@@ -29,7 +29,7 @@ import { createCachedResource } from '../../core/util/cachedResource.ts';
 import { fmtBytes } from '../../core/util/fmt.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
-import { sessionTitle } from '../../core/state/sessionsSlice.ts';
+import { sessions, sessionTitle } from '../../core/state/sessionsSlice.ts';
 
 const router = useRouter();
 const view = ref('sessions'),
@@ -90,6 +90,13 @@ const reading = createCachedResource(
   () => ({ key: 'data-sessions-v2', persist: true }),
 );
 const snapshot = computed(() => reading.data.value ?? undefined);
+onBeforeUnmount(
+  bus.on('tombstone.session', ({ id }) => {
+    const data = reading.data.value;
+    if (!data || !data.items.some((item) => item.id === id)) return;
+    reading.data.value = { ...data, items: data.items.filter((item) => item.id !== id), sessions: data.sessions - 1 };
+  }),
+);
 function withoutArchives(storage: StorageSnapshot, bytes: number): StorageSnapshot {
   return {
     ...storage,
@@ -173,6 +180,7 @@ const orderLabel = computed(() => orders.value.find((item) => item.checked)?.lab
 const shown = computed(() => {
   const terms = query.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   const list = (snapshot.value?.items ?? []).filter((item) => {
+    if (sessions.removing.value.has(item.id)) return false;
     const text =
       `${item.name} ${item.id} ${(item.kind === 'session' ? (item.tags ?? []) : []).join(' ')}`.toLocaleLowerCase();
     return terms.every((term) => text.includes(term));
