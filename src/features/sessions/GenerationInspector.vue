@@ -6,6 +6,7 @@ import { tr } from '../../core/i18n/tr.ts';
 import { fmtBytes, fmtDateTime } from '../../core/util/fmt.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Modal from '../../ui/components/Modal.vue';
+import Menu from '../../ui/components/Menu.vue';
 import Markdown from '../../ui/components/Markdown.vue';
 import { highlightCode } from '../../ui/codeHighlight.ts';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
@@ -33,6 +34,31 @@ const quick = ref('all');
 const busy = ref(false),
   error = ref(''),
   scroll = ref<HTMLElement>();
+const desktopToolbar = ref<HTMLElement>();
+const toolbar = ref<HTMLElement>();
+const scrollMargin = ref(0);
+watch(
+  [toolbar, isMobile],
+  ([element, mobile], _, onCleanup) => {
+    if (!element || !mobile) {
+      scrollMargin.value = 0;
+      return;
+    }
+    const measureToolbar = () => (scrollMargin.value = element.offsetHeight);
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measureToolbar);
+    });
+    measureToolbar();
+    observer.observe(element);
+    onCleanup(() => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    });
+  },
+  { flush: 'post' },
+);
 const detail = ref<{
   title: string;
   text: string;
@@ -84,7 +110,9 @@ const status = (value: string) =>
 const generationOptions = computed(() =>
   generations.value.map((generation) => ({
     value: String(generation.id),
-    label: `#${generation.id} · ${status(generation.status)}`,
+    label:
+      `#${generation.id} · ${status(generation.status)}` +
+      (isMobile.value && page.value?.generation.id === generation.id ? ` (${page.value.count})` : ''),
   })),
 );
 const kindOptions = computed(() => [
@@ -141,6 +169,7 @@ const virtualizer = useVirtualizer(
     getScrollElement: () => scroll.value ?? null,
     getItemKey: (index: number) => `${page.value?.generation.id}:${cards.value[index]!.position}`,
     estimateSize: () => 84,
+    scrollMargin: scrollMargin.value,
     overscan: 3,
     observeElementRect: observeChatRect,
     measureElement: measureChatElement,
@@ -272,6 +301,7 @@ async function replace(keepPosition = false) {
     offset = scroll.value?.scrollTop ?? 0,
     id = selected.value,
     signal = controller.signal;
+  if (!keepPosition && scroll.value) scroll.value.scrollTop = 0;
   const target = keepPosition && kind.value !== 'Tools' ? page.value?.positions.at(-1) : undefined;
   retry = () => {
     void replace(keepPosition);
@@ -409,87 +439,105 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="generation-inspector" :aria-label="tr('上下文', 'Context')">
-    <div class="generation-filters">
-      <SelectField
-        :model-value="String(selected ?? '')"
-        :options="generationOptions"
-        :disabled="busy"
-        aria-label="Generation"
-        :placeholder="tr('选择代次', 'Select generation')"
-        @update:model-value="selectGeneration"
-      />
-      <button
-        class="btn ghost icon-only generation-filter-toggle"
-        :aria-label="tr('筛选', 'Filter')"
-        :data-hint="tr('筛选', 'Filter')"
-        :aria-expanded="filtersOpen"
-        :data-filtered="!!(kind || origin)"
-        @click="filtersOpen = !filtersOpen"
-      >
-        <Icon name="filter" :size="16" />
-      </button>
-      <button
-        type="button"
-        class="btn ghost icon-only generation-order"
-        :disabled="busy || selected == null"
-        :aria-pressed="reversed"
-        :aria-label="tr('倒序', 'Reverse order')"
-        :data-hint="reversed ? tr('当前从新到旧', 'Newest first') : tr('倒序显示', 'Show newest first')"
-        @click="toggleOrder"
-      >
-        <Icon name="arrow-down" :size="16" />
-      </button>
-      <button
-        class="btn ghost icon-only"
-        :disabled="!page"
-        :aria-label="tr('查看配置', 'View configuration')"
-        :data-hint="tr('查看配置', 'View configuration')"
-        @click="readConfig"
-      >
-        <Icon name="tune" :size="16" />
-      </button>
-      <button
-        class="btn ghost icon-only generation-refresh"
-        :disabled="busy"
-        :aria-label="tr('刷新', 'Refresh')"
-        :data-hint="tr('刷新', 'Refresh')"
-        @click="refresh"
-      >
-        <Icon name="refresh-cw" :size="16" />
-      </button>
-      <div v-if="filtersOpen" class="generation-filter-fields">
-        <SelectField
-          :model-value="kind || 'all'"
-          :options="kindOptions"
-          :disabled="busy"
-          :aria-label="tr('消息类型', 'Message type')"
-          @update:model-value="selectKind"
-        />
-        <SelectField
-          :model-value="origin || 'all'"
-          :options="originOptions"
-          :disabled="busy"
-          :aria-label="tr('来源', 'Origin')"
-          @update:model-value="selectOrigin"
-        />
-      </div>
-    </div>
-    <div v-if="page" class="generation-meta">
-      <span>{{ tr(`${page.count} 条`, `${page.count} entries`) }}</span>
-      <SelectField
-        segmented="always"
-        :model-value="kind ? '' : quick"
-        :options="quickOptions"
-        :aria-label="tr('快捷筛选', 'Quick filters')"
-        :disabled="busy"
-        @update:model-value="selectQuick"
-      />
-    </div>
+    <div v-if="!isMobile" ref="desktopToolbar"></div>
     <p v-if="error" role="alert">
       {{ error }} <button class="btn ghost sm" @click="retry()">{{ tr('重试', 'Retry') }}</button>
     </p>
     <div class="generation-card-frame">
       <div ref="scroll" class="generation-cards" :aria-busy="busy">
+        <Teleport :to="desktopToolbar" :disabled="isMobile || !desktopToolbar">
+          <div ref="toolbar" class="generation-toolbar">
+            <div class="generation-filters">
+              <SelectField
+                :model-value="String(selected ?? '')"
+                :options="generationOptions"
+                :disabled="busy"
+                aria-label="Generation"
+                :placeholder="tr('选择代次', 'Select generation')"
+                @update:model-value="selectGeneration"
+              />
+              <button
+                class="btn ghost icon-only generation-filter-toggle"
+                :aria-label="tr('筛选', 'Filter')"
+                :data-hint="tr('筛选', 'Filter')"
+                :aria-expanded="filtersOpen"
+                :data-filtered="!!(kind || origin || quick !== 'all')"
+                @click="filtersOpen = !filtersOpen"
+              >
+                <Icon name="filter" :size="16" />
+              </button>
+              <button
+                type="button"
+                class="btn ghost icon-only generation-order"
+                :disabled="busy || selected == null"
+                :aria-pressed="reversed"
+                :aria-label="tr('倒序', 'Reverse order')"
+                :data-hint="reversed ? tr('当前从新到旧', 'Newest first') : tr('倒序显示', 'Show newest first')"
+                @click="toggleOrder"
+              >
+                <Icon name="arrow-down" :size="16" />
+              </button>
+              <Menu
+                v-if="isMobile"
+                :items="[
+                  { key: 'config', label: tr('查看配置', 'View configuration'), icon: 'tune', disabled: !page },
+                  { key: 'refresh', label: tr('刷新', 'Refresh'), icon: 'refresh-cw', disabled: busy },
+                ]"
+                :label="tr('更多操作', 'More actions')"
+                @select="(key) => (key === 'config' ? readConfig() : refresh())"
+              >
+                <Icon name="ellipsis-vertical" :size="16" />
+              </Menu>
+              <button
+                v-if="!isMobile"
+                class="btn ghost icon-only"
+                :disabled="!page"
+                :aria-label="tr('查看配置', 'View configuration')"
+                :data-hint="tr('查看配置', 'View configuration')"
+                @click="readConfig"
+              >
+                <Icon name="tune" :size="16" />
+              </button>
+              <button
+                v-if="!isMobile"
+                class="btn ghost icon-only generation-refresh"
+                :disabled="busy"
+                :aria-label="tr('刷新', 'Refresh')"
+                :data-hint="tr('刷新', 'Refresh')"
+                @click="refresh"
+              >
+                <Icon name="refresh-cw" :size="16" />
+              </button>
+              <div v-if="filtersOpen" class="generation-filter-fields">
+                <SelectField
+                  :model-value="kind || 'all'"
+                  :options="kindOptions"
+                  :disabled="busy"
+                  :aria-label="tr('消息类型', 'Message type')"
+                  @update:model-value="selectKind"
+                />
+                <SelectField
+                  :model-value="origin || 'all'"
+                  :options="originOptions"
+                  :disabled="busy"
+                  :aria-label="tr('来源', 'Origin')"
+                  @update:model-value="selectOrigin"
+                />
+              </div>
+            </div>
+            <div v-if="page && (!isMobile || filtersOpen)" class="generation-meta">
+              <span v-if="!isMobile">{{ tr(`${page.count} 条`, `${page.count} entries`) }}</span>
+              <SelectField
+                segmented="always"
+                :model-value="kind ? '' : quick"
+                :options="quickOptions"
+                :aria-label="tr('快捷筛选', 'Quick filters')"
+                :disabled="busy"
+                @update:model-value="selectQuick"
+              />
+            </div>
+          </div>
+        </Teleport>
         <p v-if="!busy && !error && !generations.length" class="hint">
           {{ tr('暂无上下文记录', 'No context recorded yet') }}
         </p>
@@ -503,7 +551,7 @@ onBeforeUnmount(() => {
             :ref="measure"
             :data-index="card.row.index"
             class="generation-virtual-row"
-            :style="{ transform: 'translateY(' + card.row.start + 'px)' }"
+            :style="{ transform: 'translateY(' + (card.row.start - scrollMargin) + 'px)' }"
           >
             <div
               v-if="page!.generation.compaction_cursor > 0 && card.position === page!.generation.compaction_cursor"
@@ -691,6 +739,36 @@ onBeforeUnmount(() => {
     background: var(--bg-group);
     border: 0;
     border-radius: 16px;
+  }
+  .generation-cards {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  .generation-toolbar {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .generation-filters {
+    grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+    gap: 4px;
+  }
+  .generation-filters :deep(.control-select) {
+    height: 36px;
+    min-height: 36px;
+    padding: 4px 8px;
+    line-height: 1.2;
+  }
+  .generation-filters :deep(.icon-only) {
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+  }
+  .generation-meta {
+    min-height: 0;
+    margin: 6px 0 0;
+  }
+  .generation-meta :deep(.choice-capsule > button) {
+    min-height: 30px;
+    padding-block: 4px;
   }
 }
 .generation-space {

@@ -162,7 +162,7 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
         :options="[
           { value: 'overview', label: tr('概览', 'Overview') },
           { value: 'context', label: tr('上下文', 'Context') },
-          { value: 'search', label: i18n.t('chatbar.search') },
+          { value: 'search', label: tr('搜索', 'Search') },
           { value: 'settings', label: tr('设置', 'Settings') },
         ]"
       />
@@ -300,6 +300,25 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
   display: flex;
   flex: none;
   margin-bottom: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.info-sections :deep(.choice-capsule) {
+  flex: none;
+  flex-wrap: nowrap;
+}
+.info-sections :deep(.choice-capsule > button) {
+  padding-inline: 8px;
+  white-space: nowrap;
+}
+@media (max-width: 899px) {
+  .info-sections {
+    margin-bottom: 8px;
+  }
+  .info-sections :deep(.choice-capsule > button) {
+    min-height: 32px;
+    padding-block: 4px;
+  }
 }
 .info-card {
   padding: 12px;
@@ -536,24 +555,5 @@ const phase = computed(() => snapshot.value?.phase || 'idle');
 }
 .context-tab-window.modal-card {
   height: min(75dvh, 640px);
-}
-.info-sections {
-  container: info-tabs / inline-size;
-}
-.info-sections .choice-capsule {
-  flex-wrap: wrap;
-}
-.info-sections .choice-capsule > button {
-  padding-inline: 8px;
-}
-@container info-tabs (max-width: 22rem) {
-  .info-sections .choice-capsule {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-  }
-  .info-sections .choice-capsule > button {
-    white-space: normal;
-  }
 }
 </style>
