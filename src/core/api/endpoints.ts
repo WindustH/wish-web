@@ -93,7 +93,7 @@ export async function sessionsList(params: SessionsListParams = {}, opts?: Endpo
   return { items: page.items.map(sessionView), next_cursor: page.next, has_more: page.next != null };
 }
 // Combines requests: the defaults and the provider decide the new session's configuration.
-export async function sessionCreate(body: CreateSessionBody) {
+export async function prepareSessionCreate(body: CreateSessionBody) {
   const [{ defaults, session_config }, providers] = await Promise.all([get('/defaults'), get('/providers')]);
   const provider = providers.items.find((p: { id: string }) => p.id === body.provider);
   const model = await requireAvailableModel(provider, body.model);
@@ -105,7 +105,7 @@ export async function sessionCreate(body: CreateSessionBody) {
     max_output_tokens: model.max_output_tokens ?? provider?.max_output_tokens ?? session_config.max_output_tokens,
     reasoning: effort ? { ...session_config.reasoning, effort } : session_config.reasoning,
   };
-  const value = await post('/sessions', {
+  return {
     provider: body.provider,
     name: body.name ?? '',
     cwd: body.cwd ?? defaults.cwd,
@@ -115,8 +115,14 @@ export async function sessionCreate(body: CreateSessionBody) {
     metadata: { agent_custom: instructions },
     folder: body.folder ?? null,
     initial_messages: instructions ? [{ System: { content: [{ Text: { text: instructions } }] } }] : [],
-  });
+  };
+}
+export async function submitSessionCreate(body: Awaited<ReturnType<typeof prepareSessionCreate>>) {
+  const value = await post('/sessions', body);
   return { ...sessionView(value), first_input_entry: value.first_input_entry as number | undefined };
+}
+export async function sessionCreate(body: CreateSessionBody) {
+  return submitSessionCreate(await prepareSessionCreate(body));
 }
 export const sessionRename = async (id: string, name: string, revision?: number) =>
   sessionView(await patch(path(id), { name }, revisionOptions(revision)));

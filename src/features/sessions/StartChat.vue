@@ -166,7 +166,7 @@ let creation:
       attachments: AttachmentInput[];
       route: string;
       scope: string;
-      attempted: boolean;
+      prepared?: Awaited<ReturnType<typeof api.prepareSessionCreate>>;
       uncertain: boolean;
     }
   | undefined;
@@ -196,7 +196,6 @@ function send(text: string, attachments: AttachmentInput[], draft: MessageDraft)
     attachments,
     route: route.fullPath,
     scope: getConnectionScope(),
-    attempted: false,
     uncertain: false,
   };
   preview.value = { id, owner: 'new-session', queued: false, draft: captureMessageDraft(draft), state: 'waiting' };
@@ -208,6 +207,7 @@ async function createPendingSession() {
   const message = preview.value;
   if (!owner || !message || busy.value) return;
   busy.value = true;
+  let posted = false;
   preview.value = {
     ...message,
     error: undefined,
@@ -222,12 +222,18 @@ async function createPendingSession() {
       owner.request.first_input = first;
     }
     if (getConnectionScope() !== owner.scope) throw new DOMException('Connection changed', 'AbortError');
+    owner.prepared ??= await api.prepareSessionCreate(owner.request);
+    if (getConnectionScope() !== owner.scope) throw new DOMException('Connection changed', 'AbortError');
     preview.value = { ...message, error: undefined, state: 'sending' };
-    owner.attempted = true;
-    await finishSession(owner, message, await api.sessionCreate(owner.request));
+    posted = true;
+    await finishSession(owner, message, await api.submitSessionCreate(owner.prepared));
   } catch (error) {
     const rejected = error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 408;
-    owner.uncertain ||= owner.attempted && !rejected;
+    owner.uncertain ||= posted && !rejected;
+    if (rejected && !owner.uncertain) {
+      owner.prepared = undefined;
+      if (error.status === 400) owner.request.first_input = undefined;
+    }
     preview.value = {
       ...message,
       state: 'failed',
