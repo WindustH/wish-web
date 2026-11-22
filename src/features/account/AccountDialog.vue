@@ -12,12 +12,13 @@ import { useAccountStates } from './useAccountStates.ts';
 const isMobile = useIsMobile();
 const props = defineProps<{ open: boolean }>();
 defineEmits<{ close: [] }>();
-const { rows, loading, error, checkedAt, refresh } = useAccountStates();
+const { rows, loading, error, checkedAt, refresh, retry, cancel } = useAccountStates();
 // Each opening reads again; the last readings stay on screen meanwhile.
 watch(
   () => props.open,
   (open) => {
     if (open) void refresh();
+    else cancel();
   },
   { immediate: true },
 );
@@ -28,7 +29,7 @@ watch(
     compact
     :open="open"
     :sheet="isMobile"
-    content-class="account-window"
+    :content-class="rows.length >= 3 ? 'account-window account-many' : 'account-window'"
     :title="tr('账户状态', 'Account status')"
     @close="$emit('close')"
   >
@@ -49,13 +50,16 @@ watch(
         </div>
       </div>
     </template>
-    <AccountStatus :rows="rows" :loading="loading" :error="error" />
+    <AccountStatus :rows="rows" :loading="loading" :error="error" @retry="retry" @settings="$emit('close')" />
   </Modal>
 </template>
 
 <style>
 .modal-card.account-window:not(.modal-page):not(.modal-sheet) {
   width: min(92vw, 34rem);
+}
+.modal-card.account-window.account-many:not(.modal-page):not(.modal-sheet) {
+  width: min(92vw, 44rem);
 }
 .modal-card.account-window.compact .modal-body {
   padding-bottom: 16px;

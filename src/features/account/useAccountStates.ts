@@ -29,7 +29,13 @@ export function useAccountStates() {
   const loading = shallowRef(false);
   const error = shallowRef('');
   let controller: AbortController | undefined;
-  onScopeDispose(() => controller?.abort());
+  function cancel() {
+    controller?.abort();
+    controller = undefined;
+    loading.value = false;
+    for (const row of rows.value) row.loading = false;
+  }
+  onScopeDispose(cancel);
 
   function show(providers: ProviderSummary[]) {
     const previous = new Map(rows.value.map((row) => [row.id, row]));
@@ -76,27 +82,34 @@ export function useAccountStates() {
       for (const row of rows.value) row.loading = false;
       return;
     }
-    await Promise.all(
-      rows.value.map(async (row) => {
-        try {
-          const state = (await providerAccount(row.id, { signal: own.signal })) as AccountState;
-          if (own.signal.aborted) return;
-          const reading: CachedReading = { state, checkedAt: Date.now() };
-          writeCached(cacheKey(row.id), reading);
-          Object.assign(row, reading, { error: undefined });
-        } catch (cause) {
-          if (own.signal.aborted) return;
-          row.error = describeError(cause).message;
-        } finally {
-          if (!own.signal.aborted) row.loading = false;
-        }
-      }),
-    );
+    await Promise.all(rows.value.map((row) => readRow(row, own.signal)));
     if (!own.signal.aborted) loading.value = false;
+  }
+
+  async function readRow(row: AccountRow, signal: AbortSignal) {
+    row.loading = true;
+    try {
+      const state = (await providerAccount(row.id, { signal })) as AccountState;
+      if (signal.aborted) return;
+      const reading: CachedReading = { state, checkedAt: Date.now() };
+      writeCached(cacheKey(row.id), reading);
+      Object.assign(row, reading, { error: undefined });
+    } catch (cause) {
+      if (signal.aborted) return;
+      row.error = describeError(cause).message;
+    } finally {
+      if (!signal.aborted) row.loading = false;
+    }
+  }
+  function retry(id: string) {
+    const row = rows.value.find((item) => item.id === id);
+    if (!row || row.loading) return;
+    controller ??= new AbortController();
+    return readRow(row, controller.signal);
   }
 
   // When the freshest reading was taken, for the "updated" note.
   const checkedAt = computed(() => Math.max(0, ...rows.value.map((row) => row.checkedAt ?? 0)) || null);
 
-  return { rows, loading, error, checkedAt, refresh };
+  return { rows, loading, error, checkedAt, refresh, retry, cancel };
 }

@@ -3,6 +3,7 @@ import type { SessionView } from './api/projections.ts';
 import type { UpstreamRetry } from './upstreamRetry.ts';
 import type { DisplayFailure } from './api/failures.ts';
 export interface BusEvents {
+  'archives.changed': undefined;
   'library.files.changed': { session: string };
   'library.bookmarks.changed': { session: string };
   notice: string | { text: string; tone: 'warning' | 'success' | 'error' };

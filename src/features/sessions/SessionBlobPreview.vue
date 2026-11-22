@@ -5,6 +5,7 @@ import LoadingState from '../../ui/components/LoadingState.vue';
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import type { BlobMetadata, LibraryBlob } from '../../core/api/types.ts';
 import { blobMetadata, blobUrl } from '../../core/api/endpoints.ts';
+import WebsitePreview from './WebsitePreview.vue';
 import { absUrl } from '../../core/api/client.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
@@ -52,12 +53,14 @@ function savePlayback() {
 }
 window.addEventListener('pagehide', savePlayback);
 const metadata = shallowRef<BlobMetadata>();
-const sourceMode = ref('source');
+const sourceMode = ref<string>();
 const sourcePreview = ref<InstanceType<typeof SourcePreview>>();
 const kind = computed(() =>
-  sourcePreviewKind(props.blob.name || props.name, metadata.value?.mime_type ?? props.blob.mime_type)
-    ? 'text'
-    : blobKind({ ...props.blob, ...metadata.value }),
+  (metadata.value?.mime_type ?? props.blob.mime_type) === 'application/vnd.wish.website'
+    ? 'website'
+    : sourcePreviewKind(props.blob.name || props.name, metadata.value?.mime_type ?? props.blob.mime_type)
+      ? 'text'
+      : blobKind({ ...props.blob, ...metadata.value }),
 );
 const player = ref<HTMLMediaElement | null>(null);
 onBeforeUnmount(() => {
@@ -94,7 +97,7 @@ defineExpose({
   loading,
   canCopy: computed(() => kind.value === 'text'),
   copy: async () => (await sourcePreview.value?.copyAll()) ?? false,
-  canWrap: computed(() => kind.value === 'text' && sourceMode.value === 'source'),
+  canWrap: computed(() => kind.value === 'text' && !!sourcePreview.value?.showingSource),
   locate: (reference: import('../../core/replyReferences.ts').ReplyReference) => {
     focusReference.value = { ...reference };
   },
@@ -110,7 +113,7 @@ defineExpose({
 watch(
   [() => props.session, () => props.blob.id, revision],
   async ([owner, id], previous, onCleanup) => {
-    if (owner !== previous?.[0] || id !== previous?.[1]) sourceMode.value = 'source';
+    if (owner !== previous?.[0] || id !== previous?.[1]) sourceMode.value = undefined;
     const controller = new AbortController();
     loadController = controller;
     checking = false;
@@ -130,11 +133,18 @@ watch(
         if (metadata.value.byte_count === 0) return;
         const url = blobUrl(`${props.session}/${props.blob.id}`);
         const document = new SourcePages(url, info.byte_count, info.version, controller.signal);
+        if (
+          info.byte_count > sourcePageBytes &&
+          sourcePreviewKind(props.blob.name || props.name, info.mime_type) === 'html'
+        ) {
+          pages.value = document;
+          return;
+        }
         await document.next();
         if (controller.signal.aborted) return;
         if (info.byte_count <= sourcePageBytes && document.blocks.length <= 6) text.value = document.cache.get(0) ?? '';
         else pages.value = document;
-      } else if (kind.value !== 'file' && kind.value !== 'pdf') {
+      } else if (kind.value !== 'website' && kind.value !== 'file' && kind.value !== 'pdf') {
         const grant = await mediaPlayback(props.session, props.blob.id, { signal: controller.signal }, info.version);
         if (!controller.signal.aborted) source.value = absUrl(grant.path);
       }
@@ -149,9 +159,9 @@ watch(
 // Only the open, visible preview checks for changes. Unchanged files never
 // download again; serialized probes and the load identity reject stale results.
 watch(
-  [() => props.session, () => props.blob.id, active, visible],
-  ([owner, id, open, shown], _, cleanup) => {
-    if (!open || !shown) return;
+  [() => props.session, () => props.blob.id, active, visible, () => props.blob.linked],
+  ([owner, id, open, shown, linked], _, cleanup) => {
+    if (!open || !shown || !linked) return;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     cleanup(() => {
@@ -224,8 +234,16 @@ async function handleLoadFailure(cause?: unknown) {
       <button class="btn sm" @click="refresh">{{ i18n.t('common.retry') }}</button>
     </div>
     <template v-else>
+      <WebsitePreview
+        v-if="kind === 'website'"
+        :key="revision"
+        :session="session"
+        :blob="blob.id"
+        :name="name"
+        :toolbar="toolbar"
+      />
       <ImagePreview
-        v-if="kind === 'image' && source"
+        v-else-if="kind === 'image' && source"
         :src="source"
         :alt="name"
         :state-key="`${session}/${blob.id}`"
@@ -313,6 +331,7 @@ async function handleLoadFailure(cause?: unknown) {
 .blob-preview-pdf {
   padding: 0 6px 6px;
 }
+.blob-preview-website,
 .blob-preview-text {
   overflow: hidden;
   padding: 0;

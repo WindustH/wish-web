@@ -1,6 +1,6 @@
 {
   "identifier": "main",
   "description": "Local Wish interface",
-  "windows": ["main"],
+  "webviews": ["main"],
   "permissions": ["core:default", "core:app:allow-exit"]
 }

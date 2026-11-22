@@ -46,6 +46,7 @@ markdown.validateLink = (href) => !!parseFileMention(href) || validateLink(href)
 const fileIcon =
   '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>';
 markdown.renderer.rules.link_open = (tokens, index, options, _env, renderer) => {
+  if (tokens[index]!.tag === 'span') return '<span>';
   const href = String(tokens[index]!.attrGet('href') ?? '');
   if (parseFileMention(href))
     return `<a href="#" class="file-mention" data-file-mention="${markdown.utils.escapeHtml(href)}">${fileIcon}`;
@@ -63,6 +64,7 @@ markdown.renderer.rules.image = (tokens, index, options, env, renderer) => {
     return `<span class="image-frame markdown-image">${renderImage(tokens, index, options, env, renderer)}</span>`;
   }
   const label = renderer.renderInlineAsText(token.children ?? [], options, env) || href.split(/[\\/]/).at(-1)!;
+  if (env?.plainFileMentions) return markdown.utils.escapeHtml(label);
   return `<a href="#" class="file-mention" data-file-mention="${markdown.utils.escapeHtml(href)}">${fileIcon}${markdown.utils.escapeHtml(label)}</a>`;
 };
 const fence = markdown.renderer.rules.fence!;
@@ -74,6 +76,29 @@ markdown.renderer.rules.fence = (tokens, index, options, env, renderer) => {
 };
 
 markdown.use(markdownSourceMap);
+// A message has no document base URL. Resolving project-relative links against
+// the chat route would turn a filename into a new Wish tab.
+markdown.core.ruler.after('linkify', 'message_relative_links', ({ tokens, env }) => {
+  for (const block of tokens) {
+    if (!block.children) continue;
+    let relative = false;
+    for (const token of block.children) {
+      if (token.type === 'link_open') {
+        const href = String(token.attrGet('href') ?? '');
+        relative = parseFileMention(href)
+          ? !!env.plainFileMentions
+          : !/^(?:[a-z][a-z0-9+.-]*:|\/\/|\/api\/)/i.test(href);
+        if (relative) {
+          token.tag = 'span';
+          token.attrs = null;
+        }
+      } else if (token.type === 'link_close' && relative) {
+        token.tag = 'span';
+        relative = false;
+      }
+    }
+  }
+});
 sourceRenderer(markdown);
 
 // Large/streaming answers must not retain 500 full intermediate renderings.
@@ -99,7 +124,7 @@ interface CachedBlock {
   children: (Token[] | null)[];
   block: MarkdownBlock;
 }
-export function createMarkdownBlocks() {
+export function createMarkdownBlocks(plainFileMentions = false) {
   const sourceCache: SourceCache = { previous: new Map(), next: new Map() };
   let previous = new Map<string, CachedBlock>();
   const origins = new WeakMap<MarkdownBlock, { line: number; normalized: number }>();
@@ -128,6 +153,7 @@ export function createMarkdownBlocks() {
     sourceCache.next = new Map();
     const environment = {
       copyLabel,
+      plainFileMentions,
       originalAt,
       sourceOffset: normalizedOffset,
       sourceCache,

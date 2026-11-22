@@ -14,33 +14,32 @@ use std::{
   sync::{Arc, RwLock},
   time::Duration,
 };
-use tokio::{
-  io::{AsyncRead, AsyncWrite},
-  net::{TcpListener, TcpStream},
-};
+use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-trait Stream: AsyncRead + AsyncWrite + Send + Unpin {}
-impl<T: AsyncRead + AsyncWrite + Send + Unpin> Stream for T {}
+use crate::device_proxy;
 pub enum Target {
   Ssh(SshHandle, u16),
   Http(url::Url),
 }
 struct Session {
   secret: String,
+  views: RwLock<std::collections::HashMap<String, std::time::Instant>>,
   target: Target,
   stop: CancellationToken,
 }
 #[derive(Clone)]
 pub struct Bridge {
   authority: String,
+  pub proxy: Option<url::Url>,
   current: Arc<RwLock<Option<Arc<Session>>>>,
 }
 impl Bridge {
-  pub async fn start() -> Result<Self> {
+  pub async fn start(proxy: Option<url::Url>) -> Result<Self> {
     let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
     let bridge = Self {
+      proxy,
       authority: listener.local_addr()?.to_string(),
       current: Default::default(),
     };
@@ -72,9 +71,11 @@ impl Bridge {
         && format!("http://{}/{}/api", self.authority, old.secret) == expected,
       "SSH session changed"
     );
+    let views = old.views.read().unwrap().clone();
     old.stop.cancel();
     *current = Some(Arc::new(Session {
       secret: old.secret.clone(),
+      views: RwLock::new(views),
       target: Target::Ssh(handle, port),
       stop: CancellationToken::new(),
     }));
@@ -88,6 +89,7 @@ impl Bridge {
   pub fn install(&self, target: Target) {
     let session = Arc::new(Session {
       secret: Uuid::new_v4().to_string(),
+      views: Default::default(),
       target,
       stop: CancellationToken::new(),
     });
@@ -103,6 +105,47 @@ fn app_origin(s: &str) -> bool {
   )
 }
 async fn dispatch(State(bridge): State<Bridge>, req: Request) -> Response {
+  let request_host = req
+    .headers()
+    .get(header::HOST)
+    .and_then(|h| h.to_str().ok())
+    .unwrap_or("");
+  let preview = request_host
+    .split_once(".localhost:")
+    .is_some_and(|(label, port)| {
+      label
+        .strip_prefix("ws-")
+        .is_some_and(|id| id.len() == 32 && id.bytes().all(|c| c.is_ascii_hexdigit()))
+        && bridge
+          .authority
+          .rsplit_once(':')
+          .is_some_and(|(_, p)| p == port)
+    });
+  if preview {
+    let Some(session) = bridge.current.read().unwrap().clone() else {
+      return StatusCode::UNAUTHORIZED.into_response();
+    };
+    let granted = request_host.split('.').next().is_some_and(|label| {
+      session
+        .views
+        .read()
+        .unwrap()
+        .get(label)
+        .is_some_and(|end| *end > std::time::Instant::now())
+    });
+    if !granted {
+      return StatusCode::GONE.into_response();
+    }
+    let path = req
+      .uri()
+      .path_and_query()
+      .map_or("/", |p| p.as_str())
+      .to_string();
+    return match forward(&session, req, path, bridge.proxy.as_ref(), true).await {
+      Ok(res) => res,
+      Err(_) => StatusCode::BAD_GATEWAY.into_response(),
+    };
+  }
   if req
     .headers()
     .get(header::HOST)
@@ -132,14 +175,45 @@ async fn dispatch(State(bridge): State<Bridge>, req: Request) -> Response {
     Some(q) => format!("{suffix}?{q}"),
     None => suffix.to_owned(),
   };
+  let opening_view = req.method() == Method::POST
+    && suffix.starts_with("/sessions/")
+    && suffix.ends_with("/website")
+    && suffix.contains("/blobs/");
+  let closing_view = (req.method() == Method::DELETE)
+    .then(|| {
+      suffix
+        .rsplit_once("/website/")
+        .map(|(_, label)| label.to_owned())
+    })
+    .flatten();
   let mut res = if req.method() == Method::OPTIONS {
     StatusCode::NO_CONTENT.into_response()
   } else {
-    match forward(&session, req, path).await {
+    match forward(&session, req, path, bridge.proxy.as_ref(), false).await {
       Ok(res) => res,
       Err(_) => StatusCode::BAD_GATEWAY.into_response(),
     }
   };
+  if opening_view
+    && res.status().is_success()
+    && let Some(label) = res
+      .headers()
+      .get("x-wish-site")
+      .and_then(|v| v.to_str().ok())
+    && label
+      .strip_prefix("ws-")
+      .is_some_and(|id| id.len() == 32 && id.bytes().all(|c| c.is_ascii_hexdigit()))
+  {
+    let now = std::time::Instant::now();
+    let mut views = session.views.write().unwrap();
+    views.retain(|_, until| *until > now);
+    views.insert(label.to_owned(), now + Duration::from_secs(3600));
+  }
+  if res.status().is_success()
+    && let Some(label) = closing_view
+  {
+    session.views.write().unwrap().remove(&label);
+  }
   let h = res.headers_mut();
   // The backend cannot grant browser access to the local bridge.
   for name in [
@@ -166,7 +240,11 @@ async fn dispatch(State(bridge): State<Bridge>, req: Request) -> Response {
   }
   res
 }
-async fn transport(target: &Target) -> Result<Box<dyn Stream>> {
+async fn transport(
+  target: &Target,
+  preview_origin: Option<&url::Url>,
+  proxy: Option<&url::Url>,
+) -> Result<device_proxy::Socket> {
   match target {
     Target::Ssh(h, port) => Ok(Box::new(
       h.channel_open_direct_tcpip("localhost", u32::from(*port), "127.0.0.1", 0)
@@ -174,12 +252,17 @@ async fn transport(target: &Target) -> Result<Box<dyn Stream>> {
         .into_stream(),
     )),
     Target::Http(url) => {
+      let url = preview_origin.unwrap_or(url);
       let host = url
         .host_str()
         .context("missing host")?
         .trim_matches(['[', ']']);
-      let tcp =
-        TcpStream::connect((host, url.port_or_known_default().context("missing port")?)).await?;
+      let tcp = device_proxy::connect(
+        proxy,
+        host,
+        url.port_or_known_default().context("missing port")?,
+      )
+      .await?;
       if url.scheme() == "https" {
         let roots =
           rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
@@ -193,12 +276,18 @@ async fn transport(target: &Target) -> Result<Box<dyn Stream>> {
             .await?,
         ))
       } else {
-        Ok(Box::new(tcp))
+        Ok(tcp)
       }
     }
   }
 }
-async fn forward(session: &Session, mut req: Request, path: String) -> Result<Response> {
+async fn forward(
+  session: &Session,
+  mut req: Request,
+  path: String,
+  proxy: Option<&url::Url>,
+  preview: bool,
+) -> Result<Response> {
   let (host, base) = match &session.target {
     Target::Ssh(_, port) => (format!("localhost:{port}"), "/api"),
     Target::Http(url) => (
@@ -206,12 +295,17 @@ async fn forward(session: &Session, mut req: Request, path: String) -> Result<Re
       url.path().trim_end_matches('/'),
     ),
   };
-  *req.uri_mut() = format!("{base}{path}").parse()?;
+  *req.uri_mut() = if preview {
+    path.parse()?
+  } else {
+    format!("{base}{path}").parse()?
+  };
   let upgrade = req
     .headers()
     .get(header::UPGRADE)
     .is_some_and(|v| v.as_bytes().eq_ignore_ascii_case(b"websocket"));
   let downstream = upgrade.then(|| hyper::upgrade::on(&mut req));
+  let req_bootstrap = req.uri().path().starts_with("/.wish-open/");
   let h = req.headers_mut();
   for name in [
     "origin",
@@ -224,10 +318,53 @@ async fn forward(session: &Session, mut req: Request, path: String) -> Result<Re
     "x-forwarded-for",
     "x-forwarded-host",
   ] {
-    h.remove(name);
+    if !preview || !matches!(name, "origin" | "cookie") {
+      h.remove(name);
+    }
   }
-  h.insert(header::HOST, host.parse()?);
-  let stream = tokio::time::timeout(Duration::from_secs(20), transport(&session.target)).await??;
+  let mut preview_origin = None;
+  if preview
+    && let Target::Http(url) = &session.target
+    && let Some(url::Host::Domain(domain)) = url.host()
+    && !domain.eq_ignore_ascii_case("localhost")
+  {
+    let local = h
+      .get(header::HOST)
+      .context("missing preview host")?
+      .to_str()?;
+    let label = local.split_once('.').context("invalid preview host")?.0;
+    let mut upstream = url.clone();
+    upstream.set_host(Some(&format!("{label}.{domain}")))?;
+    let authority =
+      HeaderValue::from_str(&upstream[url::Position::BeforeHost..url::Position::AfterPort])?;
+    // The client-facing origin remains HTTP loopback even when the remote
+    // gateway uses TLS. Preserve the cookie options appropriate for that hop.
+    if let Some(origin) = h.get(header::ORIGIN) {
+      ensure!(
+        origin == format!("http://{local}").as_str(),
+        "invalid preview origin"
+      );
+      h.insert(
+        header::ORIGIN,
+        upstream.origin().ascii_serialization().parse()?,
+      );
+    }
+    if req_bootstrap {
+      h.insert("x-wish-preview-loopback", HeaderValue::from_static("1"));
+    }
+    h.insert(header::HOST, authority);
+    preview_origin = Some(upstream);
+  }
+  if !preview {
+    h.insert(header::HOST, host.parse()?);
+  } else {
+    h.remove(header::AUTHORIZATION);
+  }
+  let stream = tokio::time::timeout(
+    Duration::from_secs(20),
+    transport(&session.target, preview_origin.as_ref(), proxy),
+  )
+  .await??;
   let (mut sender, connection) =
     hyper::client::conn::http1::handshake(TokioIo::new(stream)).await?;
   let stop = session.stop.clone();
@@ -270,6 +407,7 @@ pub fn http_target(address: &str) -> Result<Target> {
 mod tests {
   use super::*;
   use tokio::io::{AsyncReadExt, AsyncWriteExt};
+  use tokio::net::TcpStream;
 
   async fn call(host: &str, path: &str, origin: &str) -> String {
     let mut tcp = TcpStream::connect(host).await.unwrap();
@@ -283,7 +421,7 @@ mod tests {
   async fn only_the_current_local_app_session_reaches_the_configured_backend() {
     let api = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
     let target = format!("http://{}/mount", api.local_addr().unwrap());
-    let bridge = Bridge::start().await.unwrap();
+    let bridge = Bridge::start(None).await.unwrap();
     bridge.install(http_target(&target).unwrap());
     let first = bridge.base().unwrap();
     bridge.install(http_target(&target).unwrap());
@@ -333,7 +471,7 @@ mod tests {
   #[tokio::test]
   async fn streams_events_and_relays_upgraded_bytes_in_both_directions() {
     let api = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
-    let bridge = Bridge::start().await.unwrap();
+    let bridge = Bridge::start(None).await.unwrap();
     bridge.install(http_target(&format!("http://{}", api.local_addr().unwrap())).unwrap());
     let base = url::Url::parse(&bridge.base().unwrap()).unwrap();
     let (release, wait) = tokio::sync::oneshot::channel();
@@ -380,5 +518,61 @@ mod tests {
       bytes.push(socket.read_u8().await.unwrap());
     }
     String::from_utf8(bytes).unwrap()
+  }
+}
+
+#[cfg(test)]
+mod preview_tests {
+  use super::*;
+
+  #[tokio::test]
+  async fn http_preview_uses_remote_virtual_host_and_origin() {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let upstream = tokio::spawn(async move {
+      let (io, _) = listener.accept().await.unwrap();
+      let service = hyper::service::service_fn(
+        move |req: hyper::Request<hyper::body::Incoming>| async move {
+          let observed = format!(
+            "{} {} {}",
+            req.headers()[header::HOST].to_str().unwrap(),
+            req.headers()[header::ORIGIN].to_str().unwrap(),
+            req.uri()
+          );
+          Ok::<_, std::convert::Infallible>(Response::new(Body::from(observed)))
+        },
+      );
+      let _ = tx.send(());
+      let _ = hyper::server::conn::http1::Builder::new()
+        .serve_connection(TokioIo::new(io), service)
+        .await;
+    });
+    let label = "ws-0123456789abcdef0123456789abcdef";
+    let session = Session {
+      secret: String::new(),
+      views: Default::default(),
+      stop: CancellationToken::new(),
+      target: http_target(&format!("http://wish.localhost:{port}/base/api")).unwrap(),
+    };
+    let req = Request::builder()
+      .header(header::HOST, format!("{label}.localhost:8888"))
+      .header(header::ORIGIN, format!("http://{label}.localhost:8888"))
+      .body(Body::empty())
+      .unwrap();
+    let result = forward(&session, req, "/assets/page".into(), None, true)
+      .await
+      .unwrap();
+    let body = axum::body::to_bytes(result.into_body(), 1024)
+      .await
+      .unwrap();
+    let target = format!("{label}.wish.localhost:{port}");
+    assert_eq!(
+      &body[..],
+      format!("{target} http://{target} /assets/page").as_bytes()
+    );
+    rx.await.unwrap();
+    session.stop.cancel();
+    upstream.await.unwrap();
   }
 }

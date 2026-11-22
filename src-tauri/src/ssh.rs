@@ -178,15 +178,11 @@ async fn connect(
     },
     ..Default::default()
   };
-  let result = client::connect(
+  let host = url.host_str().context("Missing SSH host")?.trim_matches(['[', ']']);
+  let socket = crate::device_proxy::connect(bridge.proxy.as_ref(), host, url.port().unwrap_or(2222)).await?;
+  let result = client::connect_stream(
     Arc::new(config),
-    (
-      url
-        .host_str()
-        .context("Missing SSH host")?
-        .trim_matches(['[', ']']),
-      url.port().unwrap_or(2222),
-    ),
+    socket,
     Host {
       pin: input.fingerprint.clone(),
       observed: observed.clone(),
@@ -246,11 +242,13 @@ async fn connect(
 }
 #[tauri::command]
 pub async fn ssh_login(
+  proxy: tauri::State<'_,crate::device_proxy::DeviceProxy>,
   bridge: tauri::State<'_, Bridge>,
   login: tauri::State<'_, Login>,
   input: Input,
   events: tauri::ipc::Channel<Challenge>,
 ) -> Result<serde_json::Value, String> {
+  proxy.require_valid()?;
   let cancellation = login.cancellation.lock().unwrap().clone();
   let _guard = login.busy.try_lock().map_err(|_| "SSH login in progress")?;
   let attempt = tokio::time::timeout(

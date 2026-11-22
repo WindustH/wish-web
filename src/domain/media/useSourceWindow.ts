@@ -24,8 +24,12 @@ export function useSourceWindow(
   watch(
     [pages, items, active],
     async ([doc, rows, visible]) => {
-      if (!visible || !doc || !rows.length) return;
+      if (!visible || !doc) return;
       try {
+        if (!rows.length) {
+          if (!doc.blocks.length && !doc.complete) await doc.next();
+          return;
+        }
         await Promise.all(rows.map((row) => doc.read(doc.blocks[row.index]!.page)));
         if (rows.at(-1)!.index >= doc.blocks.length - 1 && !doc.complete) await doc.next();
       } catch (error) {

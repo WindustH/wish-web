@@ -32,7 +32,7 @@ const props = withDefaults(
 );
 const emit = defineEmits<{
   close: [];
-  navigate: [view: 'info' | 'library' | 'tasks'];
+  navigate: [view: 'info' | 'library' | 'tasks' | 'browser'];
   'update:section': [value: 'overview' | 'context' | 'search' | 'settings'];
 }>();
 const section = ref(props.initialSection);

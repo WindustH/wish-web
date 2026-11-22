@@ -1,8 +1,6 @@
 <script setup lang="ts">
-// One session in the data panel, as a wide row: its icon, its name, what it
-// is made of, its size - with a bar against the largest one shown - and when it last changed. A
-// click chooses it; its menu acts on it alone.
 import { computed } from 'vue';
+import DataCheckbox from './DataCheckbox.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
 import type { MenuItem } from '../../ui/components/menuTypes.ts';
@@ -18,284 +16,196 @@ const props = defineProps<{
   item: DataItem;
   // What the bytes can be made of, with the legend's colors.
   parts: { key: keyof SessionBytes; label: string; color: string }[];
-  // The largest size shown, which the bar is measured against.
-  scale: number;
+  maxBytes?: number;
   actions: MenuItem[];
   chosen: boolean;
 }>();
-const emit = defineEmits<{ toggle: []; act: [key: string] }>();
+const emit = defineEmits<{ toggle: [shift: boolean]; act: [key: string] }>();
 const shownParts = computed(() => props.parts.filter((part) => props.item.bytes[part.key] > 0));
+const largest = computed(() =>
+  shownParts.value.reduce<(typeof props.parts)[number] | undefined>(
+    (best, part) => (!best || props.item.bytes[part.key] > props.item.bytes[best.key] ? part : best),
+    undefined,
+  ),
+);
+const breakdown = computed(() =>
+  props.parts.map((part) => part.label + ' ' + fmtBytes(props.item.bytes[part.key] ?? 0)).join(' · '),
+);
 // Show the session's model before its stored parts.
 const about = computed(() => modelLabel(props.item.model ?? '') || props.item.model || '');
 const tags = computed(() => (props.item.kind === 'session' ? (props.item.tags ?? []) : []));
+const meterWidth = computed(() => {
+  const total = props.item.bytes.total;
+  return total ? Math.max(2, 100 * Math.sqrt(total / Math.max(total, props.maxBytes ?? total))) : 0;
+});
 </script>
 
 <template>
-  <article class="data-row" :class="{ chosen }">
-    <button
-      type="button"
+  <article class="data-row" :class="{ chosen }" @click="emit('toggle', $event.shiftKey)">
+    <DataCheckbox
       class="data-row-select"
-      :aria-label="tr('选择会话', 'Select session') + ' · ' + sessionTitle(item)"
-      :aria-pressed="chosen"
-      @click="emit('toggle')"
+      :checked="chosen"
+      :label="tr('选择会话', 'Select session') + ' · ' + sessionTitle(item)"
+      @toggle="(shift) => emit('toggle', shift)"
     />
-    <span class="data-check" aria-hidden="true"><Icon v-if="chosen" name="check" /></span>
-    <span class="data-kind" :class="item.kind" :aria-label="tr('会话', 'Session')" role="img">
-      <Icon name="chat" />
-    </span>
     <div class="data-main">
       <div class="data-title">
-        <h3 :title="sessionTitle(item)">{{ sessionTitle(item) }}</h3>
-        <span
-          v-if="item.kind === 'session' && item.running"
-          class="data-running"
-          :data-hint="tr('运行中', 'Running')"
-        />
-        <span v-for="tag in tags" :key="tag" class="tag-chip">{{ tag }}</span>
+        <button type="button" :aria-pressed="chosen" @click.stop="emit('toggle', $event.shiftKey)">
+          {{ sessionTitle(item) }}
+        </button>
+        <span v-if="item.running" class="data-running">{{ tr('运行中', 'Running') }}</span>
       </div>
-      <p class="data-sub">
-        <span v-if="about" class="data-about">{{ about }}</span>
-        <span v-for="part in shownParts" :key="part.key" class="data-part"
-          ><i :style="{ background: part.color }" />{{ part.label }} {{ fmtBytes(item.bytes[part.key]) }}</span
+      <div class="data-meta">
+        <small class="data-about"
+          >{{ about }}<span v-if="about"> · </span
+          ><time :title="fmtDateTime(item.updated_at)">{{ relTime(item.updated_at, i18n.t) }}</time></small
         >
-        <span v-if="!shownParts.length" class="data-part">{{ tr('没有内容', 'Nothing stored') }}</span>
-      </p>
+        <span v-for="tag in tags.slice(0, 2)" :key="tag" class="tag-chip">{{ tag }}</span>
+        <span v-if="tags.length > 2" class="tag-chip" :data-hint="tags.slice(2).join(' · ')"
+          >+{{ tags.length - 2 }}</span
+        >
+      </div>
     </div>
-    <span class="data-meter" aria-hidden="true">
-      <template v-for="part in shownParts" :key="part.key"
-        ><i :style="{ width: `${scale ? (item.bytes[part.key] / scale) * 100 : 0}%`, background: part.color }"
-      /></template>
-    </span>
-    <span class="data-figure">
-      <strong>{{ fmtBytes(item.bytes.total) }}</strong>
-      <small :title="fmtDateTime(item.updated_at)">{{ relTime(item.updated_at, i18n.t) }}</small>
-    </span>
-    <span class="data-row-menu" @click.stop @keydown.stop
+    <div class="composition" :data-hint="breakdown">
+      <span class="data-meter" :style="{ width: meterWidth + '%' }" role="img" :aria-label="breakdown"
+        ><i
+          v-for="part in shownParts"
+          :key="part.key"
+          :style="{ flexGrow: item.bytes[part.key], background: part.color }"
+      /></span>
+      <small>{{
+        largest ? largest.label + ' ' + fmtBytes(item.bytes[largest.key]) : tr('没有内容', 'Nothing stored')
+      }}</small>
+    </div>
+    <strong class="data-figure">{{ fmtBytes(item.bytes.total) }}</strong>
+    <span class="data-row-menu" @click.stop
       ><Menu :items="actions" :label="tr('更多操作', 'More actions')" @select="(key) => emit('act', key)"
         ><Icon name="ellipsis-vertical" /></Menu
     ></span>
   </article>
 </template>
-
 <style scoped>
 .data-row {
-  position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: var(--check-column, 28px) minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 12px;
-  min-width: 0;
-  padding: 10px 8px 10px 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--bg-raised);
   cursor: pointer;
-  outline: none;
-  transition:
-    border-color var(--dur-fast),
-    background var(--dur-fast),
-    box-shadow var(--dur-fast);
+  gap: 3px 9px;
+  padding: 9px 8px;
+  border-top: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
 }
 @media (hover: hover) {
   .data-row:hover {
-    border-color: var(--line-strong);
+    background: var(--bg-hover);
   }
-}
-.data-row-select {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  border: 0;
-  border-radius: inherit;
-  padding: 0;
-  background: transparent;
-  cursor: pointer;
-}
-.data-row-menu {
-  position: relative;
-  z-index: 2;
 }
 .data-row.chosen {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 7%, var(--bg-raised));
+  background: var(--accent-soft);
 }
-.data-check {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 18px;
-  height: 18px;
-  border: 1.5px solid var(--line-strong);
-  border-radius: 5px;
-  color: var(--accent-fg);
-  transition:
-    background var(--dur-fast),
-    border-color var(--dur-fast);
+.data-title button {
+  background: none;
+  color: inherit;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
 }
-@media (hover: hover) {
-  .data-row:hover .data-check {
-    border-color: var(--fg-subtle);
-  }
+.data-row-select {
+  height: 40px;
 }
-.data-row.chosen .data-check {
-  border-color: var(--accent);
-  background: var(--accent);
-}
-.data-check .icon {
-  width: 13px;
-  height: 13px;
-  stroke-width: 3;
-}
-/* A session's bubble on a tinted tile. */
-.data-kind {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  background: var(--bg-sunken);
-  color: var(--fg-muted);
-}
-.data-kind .icon {
-  width: 18px;
-  height: 18px;
-}
-.data-main {
+.data-meta {
   display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
   min-width: 0;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+.data-meta .tag-chip {
+  flex: none;
+  white-space: nowrap;
+  max-width: 8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .data-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
-}
-.data-title h3 {
-  min-width: 0;
-  margin: 0;
   overflow: hidden;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.45;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.data-title .tag-chip {
-  flex: none;
-  font-size: 11px;
+.data-title button {
+  text-align: start;
+  padding: 0;
+  font-weight: 550;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.data-title button:focus-visible {
+  outline-offset: -2px;
 }
 .data-running {
-  flex: none;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  color: var(--ok);
+  white-space: nowrap;
+  font-size: 11px;
 }
-.data-sub {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 14px;
-  margin: 0;
+.data-about,
+.composition small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--fg-subtle);
   font-size: 12px;
-  line-height: 1.5;
-  font-variant-numeric: tabular-nums;
 }
-.data-about {
-  color: var(--fg-muted);
-}
-.data-part {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-.data-part i {
-  width: 6px;
-  height: 6px;
-  border-radius: 2px;
-}
-/* Its size against the largest shown, in its parts' colours. */
 .data-meter {
   display: flex;
-  flex: none;
-  gap: 1px;
-  width: 120px;
-  height: 6px;
   overflow: hidden;
-  border-radius: 999px;
+  height: 4px;
+  border-radius: 4px;
   background: var(--bg-sunken);
+  margin-top: 4px;
 }
 .data-meter i {
-  display: block;
-  height: 100%;
-  min-width: 2px;
+  flex-basis: 0;
 }
 .data-figure {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 1px;
-  min-width: 76px;
-  font-variant-numeric: tabular-nums;
+  text-align: end;
+  font-size: 14px;
   white-space: nowrap;
 }
-.data-figure strong {
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+.data-row-select {
+  grid-area: 1/1 / span 2;
 }
-.data-figure small {
-  color: var(--fg-subtle);
-  font-size: 12px;
+.data-main {
+  grid-area: 1/2;
+  min-width: 0;
 }
-.data-row-menu :deep(.btn.icon-only) {
-  width: 30px;
-  height: 30px;
-  min-height: 30px;
-  color: var(--fg-subtle);
+.data-figure {
+  grid-area: 1/3;
 }
-.data-row-menu :deep(.btn.icon-only .icon) {
-  width: 16px;
-  height: 16px;
+.data-row-menu {
+  grid-area: 1/4 / span 2;
 }
-@media (max-width: 899px) {
+.composition {
+  grid-area: 2/2/3/4;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+}
+.data-meter {
+  margin: 0;
+}
+@media (max-width: 599px) {
   .data-row {
-    gap: 10px;
-    padding: 10px 4px 10px 12px;
-    border: 0;
-    border-radius: 14px;
-    background: var(--bg-group);
-  }
-  .data-row.chosen {
-    box-shadow: inset 0 0 0 2px var(--accent);
+    --check-column: 24px;
+    gap: 3px 7px;
   }
   .data-meter {
-    display: none;
-  }
-  .data-figure {
-    min-width: 0;
-  }
-}
-/* A phone's row keeps one line under the name: the model, or the members, beside the size. */
-@media (max-width: 599px) {
-  .data-sub {
-    flex-wrap: nowrap;
-    overflow: hidden;
-  }
-  .data-sub:has(.data-about) .data-part {
-    display: none;
-  }
-  .data-about {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    height: 3px;
   }
 }
 </style>

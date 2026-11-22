@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { dismissToast, useToasts } from '../toast.ts';
+import { dismissAllToasts, dismissToast, useToasts } from '../toast.ts';
 import { needRefresh, refreshApp } from '../pwa.ts';
 import { i18n } from '../../core/i18n/index.ts';
 import { tr } from '../../core/i18n/tr.ts';
@@ -18,9 +18,21 @@ const items = useToasts();
       :detail="item.detail"
       :icon="item.icon"
       :tone="item.tone"
+      :persistent="item.persistent"
       @dismiss="dismissToast(item.id)"
     >
-      <template v-if="item.sessionId" #default>
+      <template v-if="item.action" #default
+        ><button
+          class="btn ghost"
+          @click="
+            item.action.run();
+            dismissToast(item.id);
+          "
+        >
+          {{ item.action.label }}
+        </button></template
+      >
+      <template v-else-if="item.sessionId" #default>
         <RouterLink
           class="btn ghost"
           :to="{ name: 'chat', params: { id: item.sessionId } }"
@@ -29,6 +41,15 @@ const items = useToasts();
         >
       </template>
     </ToastCard>
+    <button
+      v-if="items.length > 1"
+      key="clear-toasts"
+      type="button"
+      class="btn toast-clear popup-palette"
+      @click="dismissAllToasts"
+    >
+      {{ tr('全部清除', 'Clear all') }} ({{ items.length }})
+    </button>
     <ToastCard
       v-if="needRefresh"
       key="update"
@@ -44,3 +65,11 @@ const items = useToasts();
     </ToastCard>
   </ToastStack>
 </template>
+
+<style scoped>
+.toast-clear {
+  pointer-events: auto;
+  justify-self: end;
+  background: var(--bg-overlay);
+}
+</style>

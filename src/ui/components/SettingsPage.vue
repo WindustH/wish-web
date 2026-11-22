@@ -82,7 +82,7 @@ defineExpose({ close });
         :aria-label="title"
         data-keyboard-boundary
       >
-        <header class="settings-subpage-heading">
+        <header class="settings-subpage-heading settings-detail-heading">
           <button class="btn ghost icon-only" :aria-label="tr('返回', 'Back')" :disabled="!dismissable" @click="back">
             <Icon name="arrow-left" />
           </button>
@@ -131,20 +131,19 @@ defineExpose({ close });
   background: var(--bg);
   color: var(--fg);
 }
-.settings-subpage-heading,
 .settings-subpage-footer {
   display: flex;
   flex: none;
   align-items: center;
   gap: 8px;
   padding: 14px 20px;
-  border-bottom: 1px solid var(--line);
+  justify-content: flex-end;
+  border-top: 1px solid var(--line);
 }
 .settings-subpage-heading h2 {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font: var(--page-heading);
   overflow-wrap: anywhere;
 }
 .settings-subpage-heading h2:focus {
@@ -155,11 +154,6 @@ defineExpose({ close });
   min-height: 0;
   overflow: auto;
   padding: 22px 28px 28px;
-}
-.settings-subpage-footer {
-  justify-content: flex-end;
-  border: 0;
-  border-top: 1px solid var(--line);
 }
 .settings-subpage-content:has(> .picker) {
   display: flex;

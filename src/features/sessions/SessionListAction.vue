@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { confirmArchive } from './sessionPackages.ts';
 // The dialog is owned by the list, outside recycled virtual rows. Its target
 // never follows the currently open chat; writes belong to the captured ID.
 import { errorDetail } from '../../core/errors.ts';
@@ -17,6 +18,9 @@ export interface ActionTarget {
   id: string;
   name?: string;
   kind: ListRow['kind'];
+  running?: boolean;
+  phase?: string;
+  bytes?: { total: number };
 }
 const props = defineProps<{ target: ActionTarget; kind: 'rename' | 'tags' | 'delete' }>();
 const emit = defineEmits<{ close: [] }>();
@@ -163,6 +167,17 @@ async function save() {
       </button>
     </form>
     <template #footer>
+      <button
+        v-if="kind === 'delete' && target.kind === 'session'"
+        class="btn ghost"
+        :disabled="busy"
+        @click="
+          confirmArchive([target]);
+          emit('close');
+        "
+      >
+        {{ tr('改为归档', 'Archive instead') }}
+      </button>
       <button class="btn ghost" :disabled="busy" @click="emit('close')">{{ i18n.t('manage.cancel') }}</button>
       <button
         form="session-list-action"

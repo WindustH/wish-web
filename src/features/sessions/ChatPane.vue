@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { sessionPackageActions } from './sessionPackages.ts';
 import { drawerWorkspaceWidth } from '../../ui/composables/useSidebarResize.ts';
-import { sidebarViews } from './sidebarViews.ts';
+import { hasDeviceBrowser, sidebarViews } from './sidebarViews.ts';
 import { replyContextKey } from '../../domain/references/context.ts';
 import { validReference, type ReplyReference, type ReplyLink } from '../../core/replyReferences.ts';
 import { addLibraryBookmark, replyLinks, replyMessage, sessionEnvironment } from '../../core/api/endpoints.ts';
@@ -54,6 +55,7 @@ import { sessionTitle } from '../../core/state/sessionsSlice.ts';
 import { touchButton } from '../../ui/touchButton.ts';
 import { prefersReducedMotion } from '../../ui/motion/reducedMotion.ts';
 import { useWorkspaceState } from '../../ui/composables/useWorkspaceState.ts';
+import SessionBrowser from './SessionBrowser.vue';
 import SessionTasks from './SessionTasks.vue';
 import { useBackgroundTaskCount } from './useBackgroundTaskCount.ts';
 import SessionLibrary from './SessionLibrary.vue';
@@ -85,7 +87,7 @@ const backgroundTaskLabel = computed(
   () => tr('终端', 'Terminal') + (backgroundTaskCount.value ? ` (${backgroundTaskCount.value})` : ''),
 );
 type SessionTab = 'info' | 'settings';
-type SidebarView = SessionTab | 'library' | 'tasks';
+type SidebarView = SessionTab | 'library' | 'tasks' | 'browser';
 const routeTab = computed<SessionTab | null>(() => {
   const n = route.name as string;
   return n === 'chat-info' || n === 'chat-search' ? 'info' : n === 'chat-settings' ? 'settings' : null;
@@ -122,11 +124,14 @@ const titleActions = computed(() => [
   { key: 'commands', icon: 'command-palette', label: tr('命令面板', 'Command palette') },
   { key: 'rename', icon: 'pencil', label: i18n.t('manage.rename') },
   { key: 'generate-name', icon: 'sparkles', label: tr('自动重命名', 'Auto rename') },
+  { key: 'export', icon: 'download', label: tr('导出会话', 'Export session'), separator: true },
+  { key: 'archive', icon: 'archive', label: tr('归档会话…', 'Archive session…') },
 ]);
 function titleAction(key: string) {
   const session = snapshot.value;
   if (!session || session.id !== id.value) return;
-  if (key === 'commands') commandsRef.value?.open();
+  if (key === 'archive' || key === 'export') sessionPackageActions[key]([session]);
+  else if (key === 'commands') commandsRef.value?.open();
   else if (key === 'generate-name') void sessionNaming.generate(session.id);
   else if (key === 'rename') renameTarget.value = { id: session.id, name: session.name, kind: 'session' };
 }
@@ -139,6 +144,7 @@ const mobileActions = computed(() => [
   ...tabs.value,
   { key: 'library', icon: 'library', label: i18n.t('library.title') },
   { key: 'tasks', icon: 'terminal', label: backgroundTaskLabel.value },
+  ...sidebarViews.value.filter((view) => view.key === 'browser'),
 ]);
 const modelActions = computed(() => [
   {
@@ -175,7 +181,7 @@ function headerAction(key: string) {
   if (key === 'commands') commandsRef.value?.open();
   else if (key === 'model') modelOpen.value = true;
   else if (key === 'reasoning') reasoningOpen.value = true;
-  else if (['library', 'tasks', 'info', 'settings'].includes(key)) openSidebar(key as SidebarView);
+  else if (['library', 'tasks', 'info', 'settings', 'browser'].includes(key)) openSidebar(key as SidebarView);
 }
 const queued = computed(() => chat.deliveries.value);
 const composerRef = ref<{
@@ -317,6 +323,15 @@ provide(replyContextKey, {
       }
       return;
     }
+    if (reference.source === 'webpage' && reference.imageId) {
+      await openSidebar('library');
+      if (request === locating && session === id.value)
+        libraryTarget.value = {
+          request: ++openingFile,
+          target: { owner: session, id: reference.imageId, name: reference.label },
+        };
+      return;
+    }
     if (reference.blob) {
       focusedReference.value = undefined;
       await openSidebar('library');
@@ -399,7 +414,7 @@ const infoInitialSection = computed({
   },
 });
 const sidebarKind = computed(() =>
-  ['info', 'tasks'].includes(sidebarState.value.view) ? sidebarState.value.view : 'library',
+  sidebarViews.value.some((view) => view.key === sidebarState.value.view) ? sidebarState.value.view : 'library',
 );
 const sidebarOpen = computed({
   get: () => sidebarState.value.open,
@@ -509,6 +524,7 @@ function cycleSidebar(direction: number) {
   openSidebar(views[(index + direction + views.length) % views.length].key);
 }
 function openSidebar(kind: SidebarView) {
+  if (kind === 'browser' && !hasDeviceBrowser) return;
   if (kind === 'settings') {
     infoInitialSection.value = 'settings';
     kind = 'info';
@@ -680,6 +696,19 @@ watch(
               }}</span>
             </button>
           </Hint>
+          <Hint v-if="hasDeviceBrowser && !compactActions" :text="tr('浏览器', 'Browser')">
+            <button
+              class="btn ghost icon-only"
+              data-session-panel="browser"
+              :aria-label="tr('浏览器', 'Browser')"
+              aria-controls="session-sidebar"
+              :aria-expanded="sidebarOpen && sidebarKind === 'browser'"
+              :class="{ selected: sidebarOpen && sidebarKind === 'browser' }"
+              @click="openSidebar('browser')"
+            >
+              <Icon name="globe" />
+            </button>
+          </Hint>
         </div>
         <div class="chat-pane" ref="paneEl">
           <SessionCommands
@@ -712,6 +741,16 @@ watch(
         :open="sidebarOpen && sidebarDisplayedKind === 'info'"
         @update:section="infoInitialSection = $event"
         :initial-section="infoInitialSection"
+        @close="sidebarOpen = false"
+      />
+      <SessionBrowser
+        v-if="id && hasDeviceBrowser"
+        :open="sidebarOpen && sidebarDisplayedKind === 'browser'"
+        :key="id"
+        :session="id"
+        :enabled="snapshot?.id === id && !!snapshot?.descriptor?.tools.browser"
+        :mobile="isMobile"
+        @navigate="openSidebar"
         @close="sidebarOpen = false"
       />
       <SessionTasks

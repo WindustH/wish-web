@@ -14,17 +14,9 @@ import { clearCached } from '../../core/util/responseCache.ts';
 import { keepConnection } from '../../core/connection.ts';
 import { tr } from '../../core/i18n/tr.ts';
 import SettingHint from '../../domain/settings/SettingHint.vue';
-import SettingsSections from './SettingsSections.vue';
 import SelectField from '../../domain/providers/SelectField.vue';
 import Modal from '../../ui/components/Modal.vue';
 
-const sections = computed(() =>
-  [
-    { id: 'appearance', zh: '外观与语言', en: 'Appearance and language' },
-    { id: 'input', zh: '输入与通知', en: 'Input and notifications' },
-    { id: 'local', zh: '应用与本地数据', en: 'Application and local data' },
-  ].map((item) => ({ id: item.id, label: tr(item.zh, item.en) })),
-);
 const keepAwakeSupported = platform('app').supportsWakeLock !== false;
 const { mode } = theme;
 const { choice: localeChoice } = i18n;
@@ -121,155 +113,195 @@ async function clearPreferences() {
 
 <template>
   <div class="ui-settings">
-    <SettingsSections prefix="ui" :sections="sections">
-      <template #default="{ section }">
-        <template v-if="section === 'appearance'">
-          <div class="setting-row">
-            <div>
-              <label for="original-images">{{ tr('总是使用原图', 'Always use original images') }}</label>
-            </div>
-            <SettingHint
-              id="original-images-hint"
-              :text="
-                tr(
-                  '关闭时，对话和库使用较小的预览图，查看详情时加载原图。',
-                  'When off, chat and Library use smaller previews; opening details loads the original.',
-                )
-              "
-            />
-            <SwitchRoot
-              id="original-images"
-              aria-describedby="original-images-hint"
-              :model-value="originalImages"
-              class="cfg-switch"
-              @update:model-value="prefs.setOriginalImages"
-              ><SwitchThumb class="cfg-switch-thumb"
-            /></SwitchRoot>
-          </div>
-          <div class="setting-row">
-            <div>
+    <section id="settings-ui-appearance" class="set-section" aria-labelledby="settings-ui-appearance-heading">
+      <header class="set-section-head">
+        <h3 id="settings-ui-appearance-heading">{{ tr('外观与语言', 'Appearance and language') }}</h3>
+      </header>
+      <div class="set-card">
+        <div class="set-row inline toggle-row">
+          <div class="set-label">
+            <span class="set-field-heading">
               <label for="ui-theme">{{ tr('主题', 'Theme') }}</label>
-            </div>
-            <SelectField
-              mobile-page
-              segmented
-              id="ui-theme"
-              :model-value="mode"
-              :options="[
-                { value: 'auto', icon: 'monitor', label: tr('跟随系统', 'Follow system') },
-                { value: 'light', icon: 'sun', label: tr('浅色', 'Light') },
-                { value: 'dark', icon: 'moon', label: tr('深色', 'Dark') },
-              ]"
-              @update:model-value="theme.setMode"
-            />
+            </span>
           </div>
-          <div class="setting-row">
-            <div>
+          <SelectField
+            :aria-label="tr('主题', 'Theme')"
+            mobile-page
+            segmented
+            id="ui-theme"
+            :model-value="mode"
+            :options="[
+              { value: 'auto', icon: 'monitor', label: tr('跟随系统', 'Follow system') },
+              { value: 'light', icon: 'sun', label: tr('浅色', 'Light') },
+              { value: 'dark', icon: 'moon', label: tr('深色', 'Dark') },
+            ]"
+            @update:model-value="theme.setMode"
+          />
+        </div>
+        <div class="set-row inline toggle-row">
+          <div class="set-label">
+            <span class="set-field-heading">
               <label for="ui-text-size">{{ tr('字体大小', 'Text size') }}</label>
-            </div>
-            <SelectField
-              mobile-page
-              segmented
-              id="ui-text-size"
-              :model-value="String(textSize)"
-              :options="textSizes"
-              @update:model-value="(value) => prefs.setTextSize(Number(value))"
-            />
+            </span>
           </div>
-          <div class="setting-row">
-            <div>
+          <SelectField
+            :aria-label="tr('字体大小', 'Text size')"
+            mobile-page
+            segmented="always"
+            id="ui-text-size"
+            :model-value="String(textSize)"
+            :options="textSizes"
+            @update:model-value="(value) => prefs.setTextSize(Number(value))"
+          />
+        </div>
+        <div class="set-row">
+          <div class="set-label">
+            <span class="set-field-heading">
               <label for="ui-language">{{ tr('界面语言', 'Language') }}</label>
-            </div>
-            <SelectField
-              mobile-page
-              id="ui-language"
-              :model-value="localeChoice"
-              :options="[
-                { value: 'auto', label: tr('跟随系统', 'Follow system') },
-                { value: 'zh', label: '中文' },
-                { value: 'en', label: 'English' },
-              ]"
-              @update:model-value="i18n.setChoice"
-            />
+            </span>
           </div>
-        </template>
-        <template v-if="section === 'input'">
-          <div v-if="keepAwakeSupported" class="setting-row">
-            <div>
-              <label for="keep-awake">{{ tr('运行时保持屏幕唤醒', 'Keep screen awake while running') }}</label>
-            </div>
-            <SwitchRoot
-              id="keep-awake"
-              :model-value="keepAwake"
-              class="cfg-switch"
-              @update:model-value="prefs.setKeepAwake"
-              ><SwitchThumb class="cfg-switch-thumb"
-            /></SwitchRoot>
+          <SelectField
+            :aria-label="tr('界面语言', 'Language')"
+            mobile-page
+            id="ui-language"
+            :model-value="localeChoice"
+            :options="[
+              { value: 'auto', label: tr('跟随系统', 'Follow system') },
+              { value: 'zh', label: '中文' },
+              { value: 'en', label: 'English' },
+            ]"
+            @update:model-value="i18n.setChoice"
+          />
+        </div>
+      </div>
+    </section>
+    <section id="settings-ui-input" class="set-section" aria-labelledby="settings-ui-input-heading">
+      <header class="set-section-head">
+        <h3 id="settings-ui-input-heading">{{ tr('显示与体验', 'Display and behavior') }}</h3>
+      </header>
+      <div class="set-card">
+        <div class="set-row inline toggle-row">
+          <div class="set-label">
+            <span class="set-field-heading">
+              <label for="original-images">{{ tr('总是使用原图', 'Always use original images') }}</label>
+
+              <SettingHint
+                icon-only
+                id="original-images-hint"
+                :text="
+                  tr(
+                    '关闭时，对话和库使用较小的预览图，查看详情时加载原图。',
+                    'When off, chat and Library use smaller previews; opening details loads the original.',
+                  )
+                "
+              />
+            </span>
           </div>
-          <div class="setting-row">
-            <div>
+          <SwitchRoot
+            id="original-images"
+            aria-describedby="original-images-hint"
+            :model-value="originalImages"
+            class="cfg-switch"
+            @update:model-value="prefs.setOriginalImages"
+            ><SwitchThumb class="cfg-switch-thumb"
+          /></SwitchRoot>
+        </div>
+        <div class="set-row inline toggle-row">
+          <div class="set-label">
+            <span class="set-field-heading">
               <label for="failure-notifications">{{ tr('后台会话通知', 'Background session notifications') }}</label>
-            </div>
-            <SettingHint
-              id="failure-notifications-hint"
-              :text="
-                tr(
-                  '页面在后台时，会话转为空闲、运行失败或模型提问都会触发系统通知。',
-                  'Show a system notification when a session becomes idle, a run fails, or the model asks a question while the page is in the background.',
-                )
-              "
-            /><SwitchRoot
-              id="failure-notifications"
-              aria-describedby="failure-notifications-hint"
-              :model-value="notifyOnFailure"
-              class="cfg-switch"
-              @update:model-value="setNotifications"
-              ><SwitchThumb class="cfg-switch-thumb"
-            /></SwitchRoot>
+
+              <SettingHint
+                icon-only
+                id="failure-notifications-hint"
+                :text="
+                  tr(
+                    '页面在后台时，会话转为空闲、运行失败或模型提问都会触发系统通知。',
+                    'Show a system notification when a session becomes idle, a run fails, or the model asks a question while the page is in the background.',
+                  )
+                "
+            /></span>
           </div>
-        </template>
-        <template v-if="section === 'local'">
-          <div v-if="!isNativeApp()" class="setting-row">
-            <div>
+          <SwitchRoot
+            id="failure-notifications"
+            aria-describedby="failure-notifications-hint"
+            :model-value="notifyOnFailure"
+            class="cfg-switch"
+            @update:model-value="setNotifications"
+            ><SwitchThumb class="cfg-switch-thumb"
+          /></SwitchRoot>
+        </div>
+        <div v-if="keepAwakeSupported" class="set-row inline toggle-row">
+          <div class="set-label">
+            <span class="set-field-heading">
+              <label for="keep-awake">{{ tr('运行时保持屏幕唤醒', 'Keep screen awake while running') }}</label>
+            </span>
+          </div>
+          <SwitchRoot
+            id="keep-awake"
+            :model-value="keepAwake"
+            class="cfg-switch"
+            @update:model-value="prefs.setKeepAwake"
+            ><SwitchThumb class="cfg-switch-thumb"
+          /></SwitchRoot>
+        </div>
+      </div>
+    </section>
+    <section id="settings-ui-local" class="set-section" aria-labelledby="settings-ui-local-heading">
+      <header class="set-section-head">
+        <h3 id="settings-ui-local-heading">{{ tr('应用与本地数据', 'App and local data') }}</h3>
+      </header>
+      <div class="set-card">
+        <div v-if="!isNativeApp()" class="set-row inline toggle-row">
+          <div class="set-label">
+            <span class="set-field-heading">
               <span>{{ tr('Web 更新', 'Web updates') }}</span>
-            </div>
-            <SettingHint
-              :text="
-                tr(
-                  '向服务器检查当前 Web 界面是否有新版本。更新前会征求确认；局域网 HTTP 也能使用。',
-                  'Check the server for a new Web build. You will be asked before reloading; also works over LAN HTTP.',
-                )
-              "
-            /><button id="ui-check-update" type="button" class="btn" :disabled="checkingUpdate" @click="checkUpdate">
-              {{ checkingUpdate ? tr('正在检查…', 'Checking…') : tr('检查更新', 'Check for updates') }}
-            </button>
+
+              <SettingHint
+                icon-only
+                :text="
+                  tr(
+                    '向服务器检查当前 Web 界面是否有新版本。更新前会征求确认；局域网 HTTP 也能使用。',
+                    'Check the server for a new Web build. You will be asked before reloading; also works over LAN HTTP.',
+                  )
+                "
+            /></span>
           </div>
-          <div v-if="!isNativeApp()" class="setting-row">
-            <div>
+          <button id="ui-check-update" type="button" class="btn" :disabled="checkingUpdate" @click="checkUpdate">
+            {{ checkingUpdate ? tr('正在检查…', 'Checking…') : tr('检查更新', 'Check for updates') }}
+          </button>
+        </div>
+        <div v-if="!isNativeApp()" class="set-row inline toggle-row">
+          <div class="set-label">
+            <span class="set-field-heading">
               <span>{{ tr('安装 Wish', 'Install Wish') }}</span>
-            </div>
-            <button id="ui-install" class="btn" @click="install">
-              <Icon name="download" :size="16" />{{ tr('安装', 'Install') }}
-            </button>
+            </span>
           </div>
-          <div class="setting-row">
-            <div>
+          <button id="ui-install" class="btn" @click="install">
+            <Icon name="download" :size="16" />{{ tr('安装', 'Install') }}
+          </button>
+        </div>
+        <div class="set-row inline toggle-row">
+          <div class="set-label">
+            <span class="set-field-heading">
               <span>{{ tr('本地设置', 'Local preferences') }}</span>
-            </div>
-            <SettingHint
-              :text="
-                tr(
-                  '清除浏览器保存的偏好、输入草稿和缓存的模型列表与统计。后端会话不受影响。',
-                  'Clear preferences, drafts and cached model lists and statistics stored in this browser. Server sessions remain available.',
-                )
-              "
-            /><button id="ui-clear-local" class="btn danger" @click="clearOpen = true">
-              {{ tr('清除本地数据', 'Clear local data') }}
-            </button>
+
+              <SettingHint
+                icon-only
+                :text="
+                  tr(
+                    '清除浏览器保存的偏好、输入草稿和缓存的模型列表与统计。后端会话不受影响。',
+                    'Clear preferences, drafts and cached model lists and statistics stored in this browser. Server sessions remain available.',
+                  )
+                "
+            /></span>
           </div>
-        </template>
-      </template>
-    </SettingsSections>
+          <button id="ui-clear-local" class="btn danger" @click="clearOpen = true">
+            {{ tr('清除本地数据', 'Clear local data') }}
+          </button>
+        </div>
+      </div>
+    </section>
     <Modal compact :open="clearOpen" :title="tr('清除本地数据？', 'Clear local data?')" @close="clearOpen = false"
       ><p>
         {{
@@ -288,3 +320,15 @@ async function clearPreferences() {
     >
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 599px) {
+  .set-row:has(#ui-text-size) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #ui-text-size {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+}
+</style>

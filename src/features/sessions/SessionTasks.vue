@@ -19,7 +19,11 @@ const SessionTerminal = defineAsyncComponent(() => import('./SessionTerminal.vue
 const props = withDefaults(defineProps<{ session: string; open: boolean; active?: boolean; mobile: boolean }>(), {
   active: undefined,
 });
-const emit = defineEmits<{ close: []; navigate: [view: 'info' | 'library' | 'tasks']; count: [count: number] }>();
+const emit = defineEmits<{
+  close: [];
+  navigate: [view: 'info' | 'library' | 'tasks' | 'browser'];
+  count: [count: number];
+}>();
 const parentActive = usePageActivity();
 const visible = useDocumentVisible();
 const active = computed(() => props.open && parentActive.value && visible.value);

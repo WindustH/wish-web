@@ -41,6 +41,8 @@ export interface ToolSwitches {
   task_delivery?: ToolDelivery;
   web_fetch_delivery?: ToolDelivery;
   web_search_delivery?: ToolDelivery;
+  browser?: boolean;
+  browser_delivery?: ToolDelivery;
   ask_user_delivery?: ToolDelivery;
   shell: boolean;
   ask_user: boolean;

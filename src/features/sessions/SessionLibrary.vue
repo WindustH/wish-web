@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LibraryWebsiteDialog from './LibraryWebsiteDialog.vue';
 import SessionSidebarTitle from './SessionSidebarTitle.vue';
 import { bus } from '../../core/bus.ts';
 import type { LibraryTarget } from './libraryTarget.ts';
@@ -133,7 +134,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
   close: [];
-  navigate: [view: 'info' | 'library' | 'tasks'];
+  navigate: [view: 'info' | 'library' | 'tasks' | 'browser'];
   targetHandled: [request: number];
   mention: [files: StoredAttachmentReference[]];
 }>();
@@ -326,6 +327,7 @@ watch(active, (visible) => {
 const uploadedNames = ref(new Map<string, string>());
 const names = computed(() => new Map([...attachmentNames(props.entries), ...uploadedNames.value]));
 const uploading = ref(false);
+const addingWebsite = ref(false);
 const linkOpen = ref(false),
   localPath = ref(''),
   linking = ref(false),
@@ -487,11 +489,16 @@ const libraryActions = computed<MenuItem[]>(() =>
         ...(selecting.value
           ? []
           : [
-              { key: 'link', label: i18n.t('library.linkFile'), icon: 'link', disabled: linking.value },
-              { key: 'upload', label: i18n.t('library.upload'), icon: 'upload', disabled: uploading.value },
-              ...(supportsFolders.value
-                ? [{ key: 'new-folder', label: tr('新建文件夹', 'New folder'), icon: 'folder-plus' }]
-                : []),
+              ...(linkedFolder.value
+                ? []
+                : [
+                    { key: 'link', label: i18n.t('library.linkFile'), icon: 'link', disabled: linking.value },
+                    { key: 'website', label: tr('添加本地网站', 'Add local website'), icon: 'globe' },
+                    { key: 'upload', label: i18n.t('library.upload'), icon: 'upload', disabled: uploading.value },
+                    ...(supportsFolders.value
+                      ? [{ key: 'new-folder', label: tr('新建文件夹', 'New folder'), icon: 'folder-plus' }]
+                      : []),
+                  ]),
               {
                 key: 'refresh',
                 label: i18n.t('library.refresh'),
@@ -534,6 +541,7 @@ function libraryAction(key: string) {
   }
   if (key === 'select') selecting.value ? stopSelecting() : (selecting.value = true);
   else if (key === 'include-hidden') includeHidden.value = !includeHidden.value;
+  else if (key === 'website') addingWebsite.value = true;
   else if (key === 'link') {
     linkError.value = '';
     linkOpen.value = true;
@@ -571,7 +579,9 @@ const previewActions = computed(() =>
         ...(previewRef.value?.canWrap
           ? [{ key: 'wrap', label: tr('自动换行', 'Wrap lines'), icon: 'wrap-text', checked: prefs.sourceWrap.value }]
           : []),
-        { key: 'download', label: i18n.t('library.download'), icon: 'download' },
+        ...(blobKind(selected.value) === 'website'
+          ? []
+          : [{ key: 'download', label: i18n.t('library.download'), icon: 'download' }]),
         ...menuItems(selected.value).filter((item) => item.key !== 'select'),
       ]
     : [],
@@ -830,7 +840,7 @@ function restoreGrid() {
   }
 }
 watch(gridViewport, restoreGrid, { flush: 'post' });
-const filters = ['all', 'bookmarks', 'image', 'video', 'audio', 'pdf', 'text', 'file'] as const;
+const filters = ['all', 'bookmarks', 'image', 'video', 'audio', 'pdf', 'text', 'website', 'file'] as const;
 const filterOptions = computed(() =>
   filters.map((kind) => ({
     value: kind,
@@ -1407,7 +1417,11 @@ watch(
                   >
                   <span class="library-filesize"
                     ><Icon v-if="blob.linked" name="link" :size="12" />{{
-                      blob.available === false ? i18n.t('library.unavailable') : fmtBytes(blob.byte_count)
+                      blobKind(blob) === 'website'
+                        ? tr('本地网站', 'Local website')
+                        : blob.available === false
+                          ? i18n.t('library.unavailable')
+                          : fmtBytes(blob.byte_count)
                     }}</span
                   >
                 </button>
@@ -1544,6 +1558,17 @@ watch(
     :action="folderAction"
     @close="folderAction = undefined"
     @changed="folderChanged"
+  />
+  <LibraryWebsiteDialog
+    v-if="addingWebsite"
+    :key="session"
+    :session="session"
+    :parent="folder"
+    @close="addingWebsite = false"
+    @saved="
+      addingWebsite = false;
+      reload();
+    "
   />
   <LibraryCleanupDialog :session="session" :open="cleanupOpen" @close="cleanupOpen = false" @cleaned="folderChanged" />
   <Teleport to="body">

@@ -10,19 +10,21 @@ import { showError } from '../../ui/errorDialog.ts';
 import { draftActionsKey } from '../../ui/composables/draftActions.ts';
 import { settingsReturnKey, type ReturnChange } from './settingsReturn.ts';
 
+import type { useDeviceProxyDraft } from './useDeviceProxyDraft.ts';
+
 export interface SettingsGuardOptions {
+  deviceProxy: ReturnType<typeof useDeviceProxyDraft>;
   isMobile: Ref<boolean>;
   busy: Ref<boolean>;
   serverDirty: ComputedRef<boolean>;
   source: Ref<string>;
   revision: Ref<string>;
   accept: (value: any) => void;
-  load: () => Promise<void>;
   saveConfig: () => Promise<boolean>;
 }
 
 export function useSettingsGuard(options: SettingsGuardOptions) {
-  const { isMobile, serverDirty, source, revision, accept, load, saveConfig } = options;
+  const { isMobile, serverDirty, source, revision, accept, saveConfig } = options;
 
   const preferenceValue = () => ({
     mode: theme.mode.value,
@@ -53,7 +55,10 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
   );
 
   const dirty = computed(
-    () => serverDirty.value || (isMobile.value && JSON.stringify(preferenceValue()) !== preferenceSource.value),
+    () =>
+      options.deviceProxy.dirty.value ||
+      serverDirty.value ||
+      (isMobile.value && JSON.stringify(preferenceValue()) !== preferenceSource.value),
   );
 
   function restorePreferences() {
@@ -73,6 +78,7 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
     if (saving.value || options.busy.value) return false;
     saving.value = true;
     try {
+      if (options.deviceProxy.dirty.value && !(await options.deviceProxy.save())) return false;
       if (serverDirty.value && !(await saveConfig())) return false;
       preferenceSource.value = JSON.stringify(preferenceValue());
       return true;
@@ -82,6 +88,7 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
   }
 
   function discardDraft() {
+    options.deviceProxy.restore();
     if (source.value) accept({ config: JSON.parse(source.value), revision: revision.value });
     if (isMobile.value) restorePreferences();
   }
@@ -94,9 +101,9 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
   });
 
   const discard = ref(false);
-  async function discardChanges() {
+  function discardChanges() {
     discard.value = false;
-    await load();
+    discardDraft();
   }
 
   const leave = ref(false);
@@ -129,12 +136,7 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
       if (pendingChange?.discard) {
         pendingChange.discard();
       } else {
-        if (source.value) {
-          accept({ config: JSON.parse(source.value), revision: revision.value });
-        }
-        if (isMobile.value) {
-          restorePreferences();
-        }
+        discardDraft();
       }
     }
     finishReturn(value);
@@ -154,7 +156,7 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
   }
 
   provide(settingsReturnKey, {
-    // Nested pages keep the shared draft; only returning to the settings home prompts.
+    // Navigation inside mobile settings preserves the shared draft.
     confirm: (change) => (isMobile.value ? Promise.resolve(true) : confirmReturn(change)),
     save,
     register: (key, back) => {
@@ -172,9 +174,16 @@ export function useSettingsGuard(options: SettingsGuardOptions) {
   }
 
   onBeforeRouteLeave(guardReturn);
-  onBeforeRouteUpdate((to, from) => (isMobile.value && from.query.section && !to.query.section ? guardReturn() : true));
+  onBeforeRouteUpdate(async (to, from) => {
+    if (isMobile.value && from.query.section && !to.query.section && nestedReturns.size) {
+      await [...nestedReturns.values()].at(-1)!();
+      return false;
+    }
+    return true;
+  });
 
   return {
+    saving,
     dirty,
     save,
     discard,

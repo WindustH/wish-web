@@ -2,6 +2,9 @@
 import { useMobileNavigationMotion } from './features/shell/useMobileNavigationMotion.ts';
 import SessionQuickSwitch from './features/shell/SessionQuickSwitch.vue';
 import { rememberSessionVisit } from './features/shell/quickSwitch.ts';
+import { archiveRequest, exportRequest } from './features/sessions/sessionPackages.ts';
+const ArchiveSessionsDialog = defineAsyncComponent(() => import('./features/sessions/ArchiveSessionsDialog.vue'));
+const ExportSessionsDialog = defineAsyncComponent(() => import('./features/sessions/ExportSessionsDialog.vue'));
 import Modal from './ui/components/Modal.vue';
 import { useMobileBackNavigation } from './features/shell/useMobileBackNavigation.ts';
 import HoverHintHost from './ui/components/HoverHintHost.vue';
@@ -165,6 +168,8 @@ const online = computed(() => sync.online.value);
         <button class="btn primary" @click="confirmExit">{{ tr('退出', 'Leave') }}</button>
       </template>
     </Modal>
+    <ArchiveSessionsDialog v-if="archiveRequest" :request="archiveRequest" @close="archiveRequest = null" />
+    <ExportSessionsDialog v-if="exportRequest" :request="exportRequest" @close="exportRequest = null" />
     <ImageSidebar />
     <ToastHost />
     <HoverHintHost />

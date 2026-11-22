@@ -2,6 +2,7 @@ import { isNativeApp } from '../../platform/native.ts';
 import { apiFetch } from '../../core/api/client.ts';
 import { shallowReactive, shallowRef } from 'vue';
 
+export const wholeSourceBytes = 32 * 1024 * 1024;
 export const sourcePageBytes = 32 * 1024;
 
 type Page = { start: number; end: number };
@@ -68,7 +69,11 @@ export class SourcePages {
 
   read(page: Page): Promise<string> {
     const cached = this.cache.get(page.start);
-    if (cached !== undefined) return Promise.resolve(cached);
+    if (cached !== undefined) {
+      this.cache.delete(page.start);
+      this.cache.set(page.start, cached);
+      return Promise.resolve(cached);
+    }
     let request = this.pending.get(page.start);
     if (!request) {
       request = this.bytes(page.start, page.end)
@@ -93,7 +98,8 @@ export class SourcePages {
     if (end < this.size) {
       // Leave the last scalar (and any CR before it) for the next request.
       cut--;
-      while ((bytes[cut]! & 0xc0) === 0x80) cut--;
+      while (cut > 0 && (bytes[cut]! & 0xc0) === 0x80) cut--;
+      if (!cut) throw new Error('Invalid UTF-8 in file');
       if (bytes[cut - 1] === 13) cut--;
       for (let i = cut - 1; i >= bytes.length / 2; i--) {
         if (bytes[i] === 10 || bytes[i] === 13) {
@@ -142,11 +148,33 @@ export class SourcePages {
     this.count.value = this.blocks.length;
   }
   async all(signal = this.signal) {
+    if (this.size > wholeSourceBytes) throw new Error('File too large for whole-document preview');
     const response = await apiFetch(this.url, { signal, cache: 'no-cache' });
     if (!response.ok || (response.headers.get('etag') && response.headers.get('etag') !== this.version)) {
       await response.body?.cancel();
       throw new Error(`File unavailable (HTTP ${response.status})`);
     }
-    return response.text();
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('File unavailable');
+    const decoder = new TextDecoder();
+    const parts: string[] = [];
+    let bytes = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (bytes > this.size) {
+          await reader.cancel();
+          throw new Error('File changed during download');
+        }
+        parts.push(decoder.decode(value, { stream: true }));
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    if (bytes !== this.size) throw new Error('Incomplete file');
+    parts.push(decoder.decode());
+    return parts.join('');
   }
 }

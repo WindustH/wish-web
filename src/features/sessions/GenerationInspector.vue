@@ -18,6 +18,7 @@ const generations = shallowRef<api.StoredGeneration[]>([]),
 const selected = ref<number>(),
   kind = ref(''),
   origin = ref('');
+const reversed = ref(false);
 const busy = ref(false),
   error = ref(''),
   scroll = ref<HTMLElement>();
@@ -90,8 +91,8 @@ const cards = computed(() => {
           role: Object.keys(entry.message)[0] ?? '',
           tools: false,
         }));
-  if ((!kind.value || kind.value === 'Tools') && !origin.value)
-    entries.unshift({
+  if ((!kind.value || kind.value === 'Tools') && !origin.value) {
+    const definitions = {
       entry: {
         id: -1,
         origin: 'Generation',
@@ -102,7 +103,10 @@ const cards = computed(() => {
       position: -1,
       role: 'Tools',
       tools: true,
-    });
+    };
+    if (!reversed.value) entries.unshift(definitions);
+    else if (page.value.next == null || kind.value === 'Tools') entries.push(definitions);
+  }
   return entries;
 });
 const virtualizer = useVirtualizer(
@@ -162,9 +166,12 @@ async function fetchPage(id: number, start: number, signal: AbortSignal) {
   return api.sessionGenerationStructure(
     props.sessionId,
     id,
-    start,
-    kind.value === 'Tools' ? '' : kind.value,
-    origin.value,
+    {
+      start,
+      kind: kind.value && kind.value !== 'Tools' ? kind.value : undefined,
+      origin: origin.value || undefined,
+      order: reversed.value ? 'desc' : undefined,
+    },
     { signal },
   );
 }
@@ -182,15 +189,20 @@ function merge(first: api.GenerationStructure, next: api.GenerationStructure) {
 async function replace(keepPosition = false) {
   if (selected.value == null) return;
   const own = begin(),
-    offset = scroll.value?.scrollTop ?? 0;
-  const target = keepPosition ? (page.value?.positions.at(-1) ?? 0) : 0;
+    offset = scroll.value?.scrollTop ?? 0,
+    id = selected.value,
+    signal = controller.signal;
+  const target = keepPosition && kind.value !== 'Tools' ? page.value?.positions.at(-1) : undefined;
   retry = () => {
     void replace(keepPosition);
   };
   try {
-    let result = await fetchPage(selected.value, 0, controller.signal);
-    while (keepPosition && kind.value !== 'Tools' && result.next != null && (result.positions.at(-1) ?? -1) < target)
-      result = merge(result, await fetchPage(selected.value, result.next, controller.signal));
+    let result = await fetchPage(id, 0, signal);
+    while (own === version && target != null && result.next != null) {
+      const last = result.positions.at(-1);
+      if (last != null && (reversed.value ? last <= target : last >= target)) break;
+      result = merge(result, await fetchPage(id, result.next, signal));
+    }
     if (own !== version) return;
     page.value = result;
     generations.value = generations.value.map((g) => (g.id === result.generation.id ? result.generation : g));
@@ -243,7 +255,8 @@ async function more() {
   try {
     const result = await fetchPage(previous.generation.id, previous.next!, controller.signal);
     if (own !== version) return;
-    if (result.next != null && result.next <= previous.next!) throw new Error('Non-advancing generation cursor');
+    if (result.next != null && (reversed.value ? result.next >= previous.next! : result.next <= previous.next!))
+      throw new Error('Non-advancing generation cursor');
     page.value = merge(previous, result);
   } catch (e) {
     if (own === version) error.value = String(e);
@@ -277,6 +290,12 @@ function selectOrigin(value: string) {
   page.value = undefined;
   void replace();
 }
+function toggleOrder() {
+  reversed.value = !reversed.value;
+  detail.value = null;
+  page.value = undefined;
+  void replace();
+}
 watch(
   () => props.sessionId,
   () => {
@@ -287,6 +306,7 @@ watch(
     selected.value = undefined;
     kind.value = '';
     origin.value = '';
+    reversed.value = false;
     detail.value = null;
     void refresh();
   },
@@ -312,6 +332,17 @@ onBeforeUnmount(() => {
       <button class="btn ghost sm" :aria-expanded="filtersOpen" @click="filtersOpen = !filtersOpen">
         <Icon name="filter" :size="16" />{{ tr('筛选', 'Filter')
         }}<span v-if="kind || origin">{{ Number(!!kind) + Number(!!origin) }}</span>
+      </button>
+      <button
+        type="button"
+        class="btn ghost sm generation-order"
+        :disabled="busy || selected == null"
+        :aria-pressed="reversed"
+        :aria-label="tr('倒序', 'Reverse order')"
+        :data-hint="reversed ? tr('当前从新到旧', 'Newest first') : tr('倒序显示', 'Show newest first')"
+        @click="toggleOrder"
+      >
+        <Icon name="arrow-down" :size="16" /><span>{{ tr('倒序', 'Reverse') }}</span>
       </button>
       <button
         class="btn ghost icon-only generation-refresh"
@@ -421,9 +452,19 @@ onBeforeUnmount(() => {
 }
 .generation-filters {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 8px;
+  container-type: inline-size;
+}
+.generation-order[aria-pressed='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+@container (max-width: 340px) {
+  .generation-order span {
+    display: none;
+  }
 }
 .generation-filter-fields {
   grid-column: 1/-1;

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 // Balances and plan allowances of every provider with an account reading. The
 // window or page around it owns loading and the refresh control.
-import { onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
+import Hint from '../../ui/components/Hint.vue';
+import { fmtDateTime } from '../../core/util/fmt.ts';
 import Icon from '../../ui/components/Icon.vue';
 import ProviderIcon from '../../domain/providers/ProviderIcon.vue';
 import Spinner from '../../ui/components/Spinner.vue';
@@ -11,6 +13,8 @@ import {
   failureLabel,
   formatAmount,
   quotaAmounts,
+  quotaParts,
+  parseInstant,
   quotaLevel,
   quotaRemainingPercent,
   quotaTitle,
@@ -20,7 +24,33 @@ import {
 import type { AccountRow } from './useAccountStates.ts';
 import { useProviderTitles } from '../../domain/providers/useProviderTitles.ts';
 
-defineProps<{ rows: AccountRow[]; loading: boolean; error: string }>();
+const props = defineProps<{ rows: AccountRow[]; loading: boolean; error: string }>();
+const emit = defineEmits<{ retry: [id: string]; settings: [] }>();
+const cards = new Map<string, HTMLElement>();
+function register(id: string, node: unknown) {
+  if (node instanceof HTMLElement) cards.set(id, node);
+  else cards.delete(id);
+}
+function locate(id: string) {
+  const card = cards.get(id);
+  card?.scrollIntoView({ block: 'nearest' });
+  card?.focus({ preventScroll: true });
+}
+const issues = computed(() =>
+  props.rows.flatMap((row) => {
+    const state = row.state;
+    const problem = row.error || state?.failure || (state && availability(state));
+    const low = state?.quotas.find((quota) => !quota.unlimited && quotaLevel(quota) === 'high');
+    const label = problem
+      ? tr('异常', 'Issue')
+      : low
+        ? tr('额度紧张', 'Low allowance')
+        : state?.warnings?.length
+          ? tr('有提醒', 'Warning')
+          : '';
+    return label ? [{ id: row.id, label, problem: !!problem }] : [];
+  }),
+);
 
 // Relative times tick while the list stays open.
 const now = ref(Date.now());
@@ -30,7 +60,21 @@ const timer = setInterval(() => {
 onBeforeUnmount(() => clearInterval(timer));
 const availability = (state: AccountState) => {
   if (!state.availability) return '';
-  return state.availability === 'available' ? tr('可用', 'Available') : state.availability;
+  switch (state.availability.toLowerCase()) {
+    case 'available':
+      return '';
+    case 'degraded':
+      return tr('服务降级', 'Degraded');
+    case 'unavailable':
+      return tr('不可用', 'Unavailable');
+    case 'limited':
+    case 'restricted':
+      return tr('受限', 'Restricted');
+    case 'maintenance':
+      return tr('维护中', 'Under maintenance');
+    default:
+      return state.availability;
+  }
 };
 // The same names as everywhere else: two instances of one vendor keep their IDs apart.
 const providerTitle = useProviderTitles();
@@ -38,15 +82,28 @@ const title = (item: { id: string }) => providerTitle(item.id);
 const plan = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 const empty = (state: AccountState) => !state.balances.length && !state.quotas.length && !state.failure;
 const percentText = (value: number | null) => (value == null ? '' : `${Math.round(value)}%`);
-const quotaNote = (quota: AccountState['quotas'][number]) =>
-  [quotaAmounts(quota), resetLabel(quota.resets_at, now.value)].filter(Boolean).join(' · ');
 </script>
 
 <template>
   <div class="account-status" :aria-busy="loading">
     <p v-if="error" class="account-problem" role="alert"><Icon name="triangle-alert" />{{ error }}</p>
 
-    <article v-for="row in rows" :key="row.id" class="account-card">
+    <nav
+      v-if="rows.length > 1 && issues.length"
+      class="account-summary"
+      :aria-label="tr('需留意的账户', 'Accounts needing attention')"
+    >
+      <button v-for="issue in issues" :key="issue.id" class="btn sm ghost" @click="locate(issue.id)">
+        <i aria-hidden="true" :class="{ problem: issue.problem }" />{{ title(issue) }} · {{ issue.label }}
+      </button>
+    </nav>
+    <article
+      v-for="row in rows"
+      :key="row.id"
+      :ref="(node) => register(row.id, node)"
+      tabindex="-1"
+      class="account-card"
+    >
       <header class="account-card-head">
         <span class="account-mark"><ProviderIcon :brand="row.brand ?? undefined" /></span>
         <div class="account-card-title">
@@ -57,7 +114,12 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
         <Spinner v-if="row.loading" class="account-spinner" />
       </header>
 
-      <p v-if="row.error" class="account-problem"><Icon name="triangle-alert" />{{ row.error }}</p>
+      <p v-if="row.error" class="account-problem">
+        <Icon name="triangle-alert" /><span>{{ row.error }}</span
+        ><button class="btn ghost sm" :disabled="row.loading" @click="emit('retry', row.id)">
+          {{ tr('重试', 'Retry') }}
+        </button>
+      </p>
       <template v-if="row.state">
         <p v-if="row.state.failure" class="account-problem">
           <Icon name="triangle-alert" />
@@ -68,7 +130,20 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
               }}<template v-if="row.state.failure.code"> ({{ row.state.failure.code }})</template></small
             ></span
           >
+          <RouterLink
+            v-if="row.state.failure.kind === 'Unauthorized'"
+            class="btn ghost sm"
+            to="/settings?section=accounts"
+            @click="emit('settings')"
+            >{{ tr('检查凭据', 'Check credentials') }}</RouterLink
+          >
+          <button v-if="!row.error" class="btn ghost sm" :disabled="row.loading" @click="emit('retry', row.id)">
+            {{ tr('重试', 'Retry') }}
+          </button>
         </p>
+        <ul v-if="row.state.warnings?.length" class="account-warnings">
+          <li v-for="(warning, index) in row.state.warnings" :key="index">{{ warning }}</li>
+        </ul>
         <div v-for="(balance, index) in row.state.balances" :key="`balance-${index}`" class="account-balance">
           <span class="account-label">{{
             balance.available != null ? tr('可用余额', 'Available balance') : tr('余额', 'Balance')
@@ -104,7 +179,18 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
           >
             <i :style="{ width: `${quotaRemainingPercent(quota)}%` }" />
           </div>
-          <small v-if="quotaNote(quota)">{{ quotaNote(quota) }}</small>
+          <small class="quota-note"
+            ><span v-if="quotaAmounts(quota)">{{ quotaAmounts(quota) }}</span>
+            <span v-else-if="!quota.unlimited && quotaRemainingPercent(quota) == null">{{
+              tr('未提供', 'Not reported')
+            }}</span>
+            <Hint v-if="parseInstant(quota.resets_at)" :text="fmtDateTime(parseInstant(quota.resets_at))"
+              ><time :datetime="parseInstant(quota.resets_at)?.toISOString()">{{
+                resetLabel(quota.resets_at, now)
+              }}</time></Hint
+            >
+          </small>
+          <small v-if="quotaParts(quota)" class="quota-parts">{{ quotaParts(quota) }}</small>
         </div>
         <p v-if="empty(row.state)" class="account-note">
           {{ tr('服务没有报告余额或额度。', 'The service reported no balance or allowance.') }}
@@ -128,8 +214,8 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
 .account-card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px;
+  gap: 10px;
+  padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--bg-raised);
@@ -179,7 +265,7 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
 }
 .account-card-title small {
   font-size: 12px;
-  color: var(--ok);
+  color: var(--warn);
 }
 .account-plan {
   flex: none;
@@ -278,6 +364,23 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
   font-size: 13px;
   line-height: 1.55;
 }
+.account-summary i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+}
+.account-summary i.problem {
+  background: var(--err);
+}
+.account-problem > span {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.account-problem .btn {
+  flex: none;
+}
 .account-problem .icon {
   flex: none;
   width: 15px;
@@ -318,5 +421,33 @@ const quotaNote = (quota: AccountState['quotas'][number]) =>
     border-radius: 14px;
     padding: 14px;
   }
+}
+.account-summary,
+.quota-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.account-warnings {
+  list-style: none;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 9%, transparent);
+  font-size: 13px;
+}
+.account-balance + .account-quota,
+.account-quota + .account-quota {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.account-problem .btn {
+  margin-inline-start: auto;
+  flex: none;
+}
+.quota-parts {
+  color: var(--fg-subtle);
+  font-size: 11.5px;
 }
 </style>

@@ -3,7 +3,11 @@ import { ref, useId } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 import Icon from '../../ui/components/Icon.vue';
 
-defineProps<{ count: number; label: string }>();
+const props = defineProps<{ count: number; label: string; hiddenKeys?: boolean[] }>();
+function hiddenNote(visible: number) {
+  const count = props.hiddenKeys?.slice(visible).filter(Boolean).length;
+  return count ? tr('（含 ' + count + ' 个已隐藏）', ' (' + count + ' hidden)') : '';
+}
 const expanded = ref(false);
 const id = useId();
 </script>
@@ -25,10 +29,15 @@ const id = useId();
       <Icon :name="expanded ? 'chevron-up' : 'chevron-down'" :size="14" />
       <span v-if="expanded">{{ tr('收起', 'Show less') }}</span>
       <template v-else>
-        <span class="wide-count">{{ tr(`展开其余 ${count - 4} 个模型`, `Show ${count - 4} more models`) }}</span>
-        <span class="narrow-count">{{ tr(`展开其余 ${count - 2} 个模型`, `Show ${count - 2} more models`) }}</span>
+        <span class="wide-count"
+          >{{ tr(`展开其余 ${count - 4} 个模型`, `Show ${count - 4} more models`) }}{{ hiddenNote(4) }}</span
+        >
+        <span class="narrow-count"
+          >{{ tr(`展开其余 ${count - 2} 个模型`, `Show ${count - 2} more models`) }}{{ hiddenNote(2) }}</span
+        >
       </template>
     </button>
+    <slot name="actions" />
   </div>
 </template>
 <style scoped>

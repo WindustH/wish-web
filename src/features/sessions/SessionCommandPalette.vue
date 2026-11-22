@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { sessionPackageActions } from './sessionPackages.ts';
 import { isNavigationFailure, NavigationFailureType, useRouter } from 'vue-router';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { accountDialogOpen } from '../account/accountDialog.ts';
@@ -59,6 +60,8 @@ const commands = computed(() =>
         },
         { value: 'rename ', label: 'rename <name>', hint: tr('重命名当前会话', 'Rename this session') },
         { value: 'clear', label: 'clear', hint: tr('清空当前上下文，保留历史', 'Clear context, keep history') },
+        { value: 'export', label: 'export', hint: tr('导出会话', 'Export session') },
+        { value: 'archive', label: 'archive', hint: tr('归档会话', 'Archive session') },
         { value: 'compact', label: 'compact', hint: tr('压缩当前上下文', 'Compact context') },
         {
           value: 'model ',
@@ -86,6 +89,8 @@ const commandIcons: Record<string, string> = {
   stats: 'stats',
   btw: 'question',
   rename: 'pencil',
+  export: 'download',
+  archive: 'archive',
   clear: 'eraser',
   compact: 'wrap-text',
   model: 'model',
@@ -230,6 +235,13 @@ async function execute() {
       return;
     }
     if (!owner) return;
+    if (name === 'export' || name === 'archive') {
+      if (args.length) throw new Error(tr('此命令不接受参数。', 'This command does not accept arguments.'));
+      const item = chat.snapshot.value;
+      emit('close');
+      sessionPackageActions[name]([item?.id === owner ? item : { id: owner }]);
+      return;
+    }
     if (name === 'btw') {
       if (question && !askBtw(owner, question))
         throw new Error(tr('BTW 正在回答，请先等待或停止回答。', 'BTW is answering. Wait or stop the response first.'));

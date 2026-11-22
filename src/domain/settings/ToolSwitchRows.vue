@@ -5,29 +5,34 @@ import { i18n } from '../../core/i18n/index.ts';
 import { computed } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
 import type { ToolSwitches } from '../../core/api/projections.ts';
-import SegmentedControl from '../../ui/components/SegmentedControl.vue';
 import type { ToolDelivery } from '../../core/api/projections.ts';
 import SelectField from '../../ui/components/SelectField.vue';
+import Icon from '../../ui/components/Icon.vue';
 import SettingHint from './SettingHint.vue';
 
+type ToolRow = {
+  key: Exclude<keyof ToolSwitches, 'mcp' | 'skills' | `${string}_delivery`>;
+  name: string;
+  hint: string;
+  icon?: string;
+};
 const props = defineProps<{
   searchAvailable?: boolean | null;
   disabled?: boolean;
-  extensionRows?: readonly {
-    key: Exclude<keyof ToolSwitches, 'mcp' | 'skills' | `${string}_delivery`>;
-    name: string;
-    hint: string;
-  }[];
-  compact?: boolean;
+  extensionRows?: readonly ToolRow[];
+  shortLabels?: boolean;
   deliveryHelp?: string;
   include?: readonly (keyof ToolSwitches)[];
-  /** Said in every row instead of what the tool does, while the switches cannot be saved. */
-  note?: string;
 }>();
 const tools = defineModel<ToolSwitches>({ required: true });
-const rows = computed(() =>
-  [
+const rows = computed(() => {
+  const candidates: readonly ToolRow[] = props.extensionRows ?? [
     { key: 'shell' as const, name: 'Shell', hint: i18n.t('tools.shell.hint') },
+    {
+      key: 'browser' as const,
+      name: tr('浏览器', 'Browser'),
+      hint: tr('与会话侧栏共用浏览器', 'Share a browser with the session sidebar'),
+    },
     { key: 'blob' as const, name: 'Blob', hint: i18n.t('tools.blob.hint') },
     {
       key: 'sessions' as const,
@@ -44,7 +49,10 @@ const rows = computed(() =>
       name: 'Ask User',
       hint: i18n.t('tools.ask.hint'),
     },
-    ...(props.extensionRows ?? []).map((row) =>
+  ];
+  return candidates
+    .filter((row) => !props.include || props.include.includes(row.key))
+    .map((row) =>
       row.key === 'web_search' && props.searchAvailable === false
         ? {
             ...row,
@@ -54,21 +62,16 @@ const rows = computed(() =>
             ),
           }
         : row,
-    ),
-  ].filter((row) => !props.include || props.include.includes(row.key)),
-);
-const deliveryOptions = computed(() => [
-  { value: 'command', icon: 'terminal', label: i18n.t('tools.command'), disabled: !tools.value.shell },
-  { value: 'tool', icon: 'tool', label: i18n.t('tools.direct') },
-]);
-const capabilityOptions = computed(() => [
-  { value: 'off', icon: 'x', tone: 'danger' as const, label: i18n.t('tools.off') },
-  ...deliveryOptions.value,
-]);
+    );
+});
 const deliveryChoices = computed(() => [
   { value: 'off', label: tr('停用', 'Off') },
-  { value: 'command', label: tr('通过命令调用', 'Use as a command'), disabled: !tools.value.shell },
-  { value: 'tool', label: tr('作为工具调用', 'Use as a tool') },
+  {
+    value: 'command',
+    label: props.shortLabels ? tr('命令', 'Command') : tr('通过命令调用', 'Use as a command'),
+    disabled: !tools.value.shell,
+  },
+  { value: 'tool', label: props.shortLabels ? tr('工具', 'Tool') : tr('作为工具调用', 'Use as a tool') },
 ]);
 const taskChoices = computed(() =>
   tools.value.shell
@@ -81,6 +84,7 @@ function setCapability(
     | 'audio_generate'
     | 'audio_transcribe'
     | 'image_generate'
+    | 'browser'
     | 'ask_user'
     | 'web_fetch'
     | 'web_search'
@@ -99,6 +103,7 @@ function deliveryKey(
     | 'audio_generate'
     | 'audio_transcribe'
     | 'image_generate'
+    | 'browser'
     | 'ask_user'
     | 'web_fetch'
     | 'web_search'
@@ -113,6 +118,7 @@ function deliveryKey(
         | 'audio_generate_delivery'
         | 'audio_transcribe_delivery'
         | 'image_generate_delivery'
+        | 'browser_delivery'
         | 'ask_user_delivery'
         | 'web_fetch_delivery'
         | 'web_search_delivery'
@@ -127,6 +133,7 @@ function delivery(
     | 'audio_generate'
     | 'audio_transcribe'
     | 'image_generate'
+    | 'browser'
     | 'ask_user'
     | 'web_fetch'
     | 'web_search'
@@ -135,7 +142,8 @@ function delivery(
     | 'sessions',
 ): ToolDelivery {
   return (
-    tools.value[deliveryKey(key)] ?? (key === 'shell' || key === 'sessions' || key === 'blob' ? 'command' : 'tool')
+    tools.value[deliveryKey(key)] ??
+    (key === 'shell' || key === 'sessions' || key === 'browser' || key === 'blob' ? 'command' : 'tool')
   );
 }
 function capabilityValue(key: Exclude<(typeof rows.value)[number]['key'], 'shell'>) {
@@ -145,17 +153,14 @@ function capabilityValue(key: Exclude<(typeof rows.value)[number]['key'], 'shell
 </script>
 
 <template>
-  <!-- A single-row picker changes the tool in place. Keep its SelectField mounted so
-       closing the menu can restore focus instead of dismissing the containing panel. -->
-  <template v-for="row in rows" :key="$slots.label && rows.length === 1 ? 'capability-picker' : row.key">
+  <template v-for="row in rows" :key="row.key">
     <div
       v-if="row.key !== 'shell'"
       class="set-row"
-      :class="{ 'inline capability-row': compact || deliveryHelp || $slots.label, compact }"
+      :class="{ 'inline capability-row': deliveryHelp }"
       :data-tool="row.key"
     >
-      <div v-if="$slots.label" class="capability-picker"><slot name="label" :row="row" /></div>
-      <div v-else-if="deliveryHelp" class="set-field-heading">
+      <div v-if="deliveryHelp" class="set-field-heading">
         <span>{{ tr('启用方式', 'Delivery mode') }}</span>
         <SettingHint
           icon-only
@@ -163,14 +168,14 @@ function capabilityValue(key: Exclude<(typeof rows.value)[number]['key'], 'shell
           :label="tr('启用方式说明', 'About delivery modes')"
         />
       </div>
-      <template v-else>
+      <div v-else class="tool-row-label">
+        <Icon v-if="row.icon" :name="row.icon" />
         <span class="set-label"
           ><span>{{ row.name }}</span
-          ><small v-if="!compact || note">{{ note ?? row.hint }}</small></span
+          ><small>{{ row.hint }}</small></span
         >
-      </template>
+      </div>
       <SelectField
-        v-if="!compact"
         :disabled="disabled"
         class="delivery-select"
         :aria-label="`${row.name} ${i18n.t('tools.delivery')}`"
@@ -178,18 +183,10 @@ function capabilityValue(key: Exclude<(typeof rows.value)[number]['key'], 'shell
         :options="deliveryChoices"
         @update:model-value="setCapability(row.key, $event)"
       />
-      <SegmentedControl
-        v-else
-        class="tool-delivery"
-        :label="`${row.name} ${i18n.t('tools.delivery')}`"
-        :model-value="capabilityValue(row.key)"
-        :options="capabilityOptions"
-        @update:model-value="setCapability(row.key, $event)"
-      />
     </div>
     <div v-if="row.key === 'shell'" class="set-row" data-tool="task">
       <span class="set-label"
-        ><span>Task</span><small>{{ note ?? i18n.t('tools.taskHint') }}</small></span
+        ><span>Task</span><small>{{ i18n.t('tools.taskHint') }}</small></span
       >
       <SelectField
         class="delivery-select"
@@ -204,12 +201,17 @@ function capabilityValue(key: Exclude<(typeof rows.value)[number]['key'], 'shell
 </template>
 
 <style scoped>
-.tool-delivery {
-  width: 144px;
-  max-width: 100%;
-  flex-shrink: 0;
-  justify-self: end;
-  margin-inline-start: auto;
+.tool-row-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.tool-row-label .icon {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  color: var(--fg-muted);
 }
 .delivery-select {
   justify-self: end;
@@ -219,25 +221,7 @@ function capabilityValue(key: Exclude<(typeof rows.value)[number]['key'], 'shell
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
 }
-.capability-picker,
 .capability-row .set-label {
-  min-width: 0;
-}
-.capability-row.compact {
-  min-height: 52px;
-  padding: 6px 12px;
-  gap: 8px;
-}
-.compact .tool-delivery {
-  width: 132px;
-}
-.capability-row.compact:has(.capability-picker) {
-  padding: 4px;
-  gap: 4px;
-}
-.compact .capability-picker :deep(.control-select) {
-  border-color: transparent;
-  background: transparent;
   min-width: 0;
 }
 @media (min-width: 900px) {
@@ -250,9 +234,6 @@ function capabilityValue(key: Exclude<(typeof rows.value)[number]['key'], 'shell
   .capability-row {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 12px;
-  }
-  .tool-delivery {
-    align-self: flex-end;
   }
 }
 </style>

@@ -59,6 +59,7 @@ export interface SettingsConfig {
   providers: Record<string, ProviderConfig>;
   accounts: Record<string, AccountConfig>;
   proxy: { mode: 'environment' | 'manual' | 'direct'; url: string; username: string; password: string };
+  browser_executable?: string;
   shell: ShellSettings;
   mcp: { servers: Record<string, McpServerConfig> };
   search: { order: string[]; providers: Record<string, WebProviderConfig> };

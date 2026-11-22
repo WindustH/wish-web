@@ -60,19 +60,21 @@ async function saveLimit() {
   }
 }
 
+const archive = ref(false);
 const clearing = ref(false);
 const pruning = ref(false);
 async function clearLeftover() {
   pruning.value = true;
   failed.value = '';
   try {
-    const result = await api.storagePruneUsage();
+    const result = await api.storagePruneUsage(undefined, archive.value);
+    if (result.archive) bus.emit('archives.changed');
     clearing.value = false;
+    const size = fmtBytes(Math.max(0, result.database.before - result.database.after));
     toast(
-      tr(
-        `已清除，释放了 ${fmtBytes(Math.max(0, result.database.before - result.database.after))}`,
-        `Cleared, ${fmtBytes(Math.max(0, result.database.before - result.database.after))} freed`,
-      ),
+      result.archive
+        ? tr(`已归档并清除用量记录，释放了 ${size}`, `Usage records archived and cleared, ${size} freed`)
+        : tr(`已清除，释放了 ${size}`, `Cleared, ${size} freed`),
     );
     emit('changed');
   } catch (error) {
@@ -85,73 +87,37 @@ async function clearLeftover() {
 
 <template>
   <section class="usage-records">
-    <header class="usage-records-head">
-      <h2>{{ tr('用量记录', 'Usage records') }}</h2>
-      <p>
-        {{
-          tr(
-            '每次模型调用的 Token 用量和速度采样点，统计页的数字都来自这里',
-            "Each model call's tokens and speed samples, which the statistics are made of",
-          )
-        }}
-      </p>
-    </header>
-    <div class="usage-records-grid">
-      <div class="usage-record">
-        <div class="usage-record-head">
-          <span>{{ tr('速度采样点', 'Speed samples') }}</span>
-          <button type="button" class="btn sm" @click="editLimit">{{ tr('设置上限', 'Set limit') }}</button>
-        </div>
-        <strong class="usage-record-figure"
-          >{{ number(samples.count)
-          }}<small>{{
-            samples.limit == null
-              ? tr(' 个，不限数量', ', no limit')
-              : tr(` / ${number(samples.limit)} 个`, ` of ${number(samples.limit)}`)
-          }}</small></strong
-        >
-        <span
-          v-if="samples.limit != null"
-          class="usage-record-meter"
-          role="meter"
-          :aria-valuenow="samples.count"
-          aria-valuemin="0"
-          :aria-valuemax="samples.limit"
-        >
-          <i :style="{ width: `${Math.min(100, (samples.count / samples.limit) * 100)}%` }" />
-        </span>
-      </div>
-      <div class="usage-record">
-        <div class="usage-record-head">
-          <span>{{ tr('已删除会话的记录', 'Records of deleted sessions') }}</span>
-          <button
-            v-if="hasLeftover"
-            type="button"
-            class="btn sm danger"
-            @click="
-              failed = '';
-              clearing = true;
-            "
-          >
-            {{ tr('清除', 'Clear') }}
-          </button>
-        </div>
-        <template v-if="hasLeftover">
-          <strong class="usage-record-figure"
-            >{{ number(leftover.calls) }}<small>{{ tr(' 次调用 · ', ' calls · ') }}</small
-            >{{ number(leftover.stream_samples) }}<small>{{ tr(' 个采样点', ' samples') }}</small></strong
-          >
-          <small class="usage-record-note">{{
-            tr('仍计入统计，清除后不再计入', 'Still counted, until cleared')
-          }}</small>
-        </template>
-        <template v-else>
-          <strong class="usage-record-figure">0</strong>
-          <small class="usage-record-note">{{ tr('没有遗留记录', 'Nothing left behind') }}</small>
-        </template>
-      </div>
+    <div v-if="hasLeftover" class="usage-record">
+      <span
+        >{{ tr('已删会话遗留', 'Deleted sessions') }}
+        <b
+          >{{ tr(number(leftover.calls) + ' 次调用', number(leftover.calls) + ' calls')
+          }}<template v-if="leftover.stream_samples">
+            ·
+            {{
+              tr(number(leftover.stream_samples) + ' 个采样点', number(leftover.stream_samples) + ' samples')
+            }}</template
+          ></b
+        ></span
+      >
+      <button
+        class="btn ghost sm"
+        @click="
+          failed = '';
+          archive = false;
+          clearing = true;
+        "
+      >
+        {{ tr('清除', 'Clear') }}
+      </button>
     </div>
-
+    <div class="usage-record">
+      <span
+        >{{ tr('速度采样点', 'Speed samples') }}
+        <b>{{ number(samples.count) }} / {{ samples.limit == null ? '∞' : number(samples.limit) }}</b></span
+      >
+      <button class="btn ghost sm" @click="editLimit">{{ tr('设置上限', 'Set limit') }}</button>
+    </div>
     <Modal
       compact
       :open="editing"
@@ -215,13 +181,19 @@ async function clearLeftover() {
             )
           }}
         </p>
-        <p class="usage-records-note">{{ tr('清除后无法恢复。', 'This cannot be undone.') }}</p>
+        <label class="usage-records-row"
+          ><span>{{ tr('清除前归档用量记录', 'Archive usage records before clearing') }}</span
+          ><SwitchRoot v-model="archive" class="cfg-switch" :disabled="pruning"
+            ><SwitchThumb class="cfg-switch-thumb" /></SwitchRoot
+        ></label>
+        <p v-if="!archive" class="usage-records-note">{{ tr('清除后无法恢复。', 'This cannot be undone.') }}</p>
         <p v-if="failed" class="usage-records-error" role="alert">{{ failed }}</p>
       </div>
       <template #footer>
         <button class="btn ghost" :disabled="pruning" @click="clearing = false">{{ tr('取消', 'Cancel') }}</button>
-        <button class="btn danger solid" :disabled="pruning" @click="clearLeftover">
-          <Icon v-if="pruning" name="loader-circle" class="spin" />{{ tr('清除', 'Clear') }}
+        <button class="btn" :class="archive ? 'primary' : 'danger solid'" :disabled="pruning" @click="clearLeftover">
+          <Icon v-if="pruning" name="loader-circle" class="spin" /><Icon v-else-if="archive" name="archive" />
+          {{ archive ? tr('归档并清除', 'Archive and clear') : tr('清除', 'Clear') }}
         </button>
       </template>
     </Modal>
@@ -230,104 +202,30 @@ async function clearLeftover() {
 
 <style scoped>
 .usage-records {
-  min-width: 0;
-  padding: 16px 18px 18px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--bg-raised);
-}
-@media (max-width: 899px) {
-  .usage-records {
-    border: 0;
-    border-radius: 18px;
-    background: var(--bg-group);
-  }
-}
-.usage-records-head {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-}
-.usage-records-head h2 {
-  margin: 0;
-  font: 600 14px/1.5 var(--font);
-}
-.usage-records-head p {
-  margin: 0;
-  color: var(--fg-subtle);
-  font-size: 12.5px;
-}
-/* Two cells alike: a name with its action, a figure, and a line under it. */
-.usage-records-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+  gap: 4px 20px;
 }
 .usage-record {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-.usage-record + .usage-record {
-  padding-left: 20px;
-  margin-left: 20px;
-  border-left: 1px solid var(--line);
-}
-.usage-record-head {
-  display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  min-height: 32px;
-  color: var(--fg-muted);
-  font-size: 13px;
-}
-.usage-record-head .btn {
-  flex: none;
-}
-.usage-record-figure {
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.3;
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-}
-.usage-record-figure small {
-  color: var(--fg-subtle);
-  font-size: 13px;
-  font-weight: 400;
-  letter-spacing: 0;
-}
-.usage-record-note {
+  gap: 6px;
   color: var(--fg-subtle);
   font-size: 12px;
 }
-.usage-record-meter {
-  display: block;
-  height: 4px;
-  margin-top: 4px;
-  border-radius: 999px;
-  background: var(--bg-sunken);
-  overflow: hidden;
+.usage-record b {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
-.usage-record-meter i {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent);
+.usage-record button {
+  flex: none;
 }
 @media (max-width: 699px) {
-  .usage-records-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
-  }
-  .usage-record + .usage-record {
-    padding: 16px 0 0;
-    margin: 0;
-    border-left: 0;
-    border-top: 1px solid var(--line);
+  .usage-records {
+    grid-template-columns: 1fr;
   }
 }
 .usage-records-dialog {

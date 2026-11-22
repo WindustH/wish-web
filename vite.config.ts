@@ -80,7 +80,10 @@ export default defineConfig({
       workbox: {
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
-        globIgnores: ['pdfjs/**', 'assets/{restty,wraith*,dist,worker,replay-worker,pdf,xterm,UsagePlot}-*.js'],
+        globIgnores: [
+          'pdfjs/**',
+          'assets/{restty,wraith*,dist,html-to-image,html2canvas*,worker,replay-worker,pdf,xterm,UsagePlot}-*.js',
+        ],
         // Requests the auth proxy in front of the app must answer itself: the service worker's
         // shell would otherwise stand in for a login page (and for a logout that redirects).
         navigateFallbackDenylist: [/^\/api(?:\/|$)/, /^\/healthz$/, /^\/login(?:\/|\?|$)/, /^\/logout(?:\/|\?|$)/],
@@ -111,6 +114,7 @@ export default defineConfig({
   define: { __BUILD_ID__: JSON.stringify(buildId), __WEB_BUILD_ID__: JSON.stringify(webBuildId) },
   build: { target: 'es2022' },
   server: {
+    watch: { ignored: ['**/src-tauri/gen/android/**/build/**', '**/src-tauri/target/**'] },
     proxy: {
       '/api': {
         ws: true,

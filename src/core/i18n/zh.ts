@@ -24,6 +24,7 @@ export const zh = {
   'library.kind.audio': '音频',
   'library.kind.pdf': 'PDF',
   'library.kind.text': '文本',
+  'library.kind.website': '本地网站',
   'library.kind.file': '其他',
   'library.empty': '在当前会话上传或生成的文件会显示在这里。',
   'library.noMatches': '本页没有此类型文件，可以继续加载更多文件。',

@@ -13,7 +13,8 @@ import { tr } from '../../core/i18n/tr.ts';
 import { relTime } from '../../core/util/fmt.ts';
 import { useMedia } from '../../ui/composables/useMedia.ts';
 import { sessionTitle, type SessionRow } from '../../core/state/sessionsSlice.ts';
-export type RowAction = 'generate-name' | 'rename' | 'tags' | 'prune' | 'select' | 'pin' | 'unpin' | 'move' | 'delete';
+export type RowAction =
+  'generate-name' | 'rename' | 'tags' | 'prune' | 'archive' | 'export' | 'select' | 'pin' | 'unpin' | 'move' | 'delete';
 // A list that can choose several (`selectable`) offers it in a row's menu; while it is choosing,
 // every row is a box to tick instead of a link, and has no menu. A list arranged in folders
 // (`arranged`) lets a row be pinned and moved; where no heading says a row is pinned, as among
@@ -45,14 +46,14 @@ const actions = computed<MenuItem[]>(() => [
         { key: 'move', icon: 'folder', label: tr('移动到…', 'Move to…') },
       ]
     : []),
-  { key: 'rename', icon: 'pencil', label: i18n.t('manage.rename'), separator: props.arranged },
+  { key: 'rename', icon: 'pencil', label: i18n.t('manage.rename') },
   { key: 'generate-name', icon: 'sparkles', label: tr('自动重命名', 'Auto rename') },
   { key: 'tags', icon: 'tag', label: i18n.t('sessions.editTags') },
+  { key: 'export', icon: 'download', label: tr('导出会话', 'Export session'), separator: true },
   { key: 'prune', icon: 'eraser', label: tr('清理历史', 'Clear history') },
-  ...(props.selectable
-    ? [{ key: 'select', icon: 'check-square', label: tr('多选', 'Select several'), separator: true }]
-    : []),
-  { key: 'delete', icon: 'trash-2', label: i18n.t('sessions.delete'), danger: true, separator: true },
+  ...(props.selectable ? [{ key: 'select', icon: 'check-square', label: tr('多选', 'Select several') }] : []),
+  { key: 'archive', icon: 'archive', label: tr('归档会话…', 'Archive session…'), separator: true },
+  { key: 'delete', icon: 'trash-2', label: i18n.t('sessions.delete'), danger: true },
 ]);
 function activate(event: MouseEvent) {
   if (props.selectable && event.target instanceof Element && event.target.closest('.sl-row')) emit('activate', event);

@@ -13,7 +13,13 @@ import Hint from '../../ui/components/Hint.vue';
 import Icon from '../../ui/components/Icon.vue';
 import Spinner from '../../ui/components/Spinner.vue';
 
-const props = defineProps<{ storage: StorageSnapshot }>();
+const props = defineProps<{
+  storage: StorageSnapshot;
+  selectedBytes?: number;
+  order?: string;
+  archivesOpen: boolean;
+}>();
+const emit = defineEmits<{ sort: [key: 'attachments' | 'shell']; archives: [] }>();
 const number = computed(() => new Intl.NumberFormat(i18n.locale.value).format);
 const percent = computed(
   () => new Intl.NumberFormat(i18n.locale.value, { style: 'percent', maximumFractionDigits: 1 }).format,
@@ -31,12 +37,14 @@ const parts = computed(() =>
     },
     {
       key: 'blobs',
+      sort: 'attachments' as const,
       name: tr('资源文件', 'Resource files'),
       what: tr('发给会话的图片与文件', 'Images and files sent to sessions'),
       bytes: props.storage.bytes.blobs,
     },
     {
       key: 'executions',
+      sort: 'shell' as const,
       name: tr('执行输出', 'Execution output'),
       what: tr('Shell 命令留下的输出', 'What shell commands printed'),
       bytes: props.storage.bytes.executions,
@@ -48,10 +56,29 @@ const parts = computed(() =>
       bytes: props.storage.bytes.service_data,
       database: 'service_data' as Database,
     },
+    ...(props.storage.bytes.archives != null
+      ? [
+          {
+            key: 'archives',
+            name: tr('归档文件', 'Archives'),
+            what: tr('保存的归档包', 'Retained ZIP packages'),
+            bytes: props.storage.bytes.archives,
+          },
+        ]
+      : []),
   ].map((part, index) => ({ ...part, color: `var(--chart-${index + 1})` })),
 );
 const total = computed(() => props.storage.bytes.total);
+const archivePart = computed(() => parts.value.find((part) => part.key === 'archives' && part.bytes > 0));
+const activeParts = computed(() => parts.value.filter((part) => part.key !== 'archives' && part.bytes > 0));
+const activeBytes = computed(() => activeParts.value.reduce((sum, part) => sum + part.bytes, 0));
 
+const selectedShare = computed(() =>
+  total.value && props.selectedBytes != null ? Math.min(1, props.selectedBytes / total.value) : 0,
+);
+const reclaimWidth = computed(() =>
+  activeBytes.value ? Math.min(100, ((props.selectedBytes ?? 0) / activeBytes.value) * 100) : 0,
+);
 const LABELS: Record<string, [string, string]> = {
   sessions: ['会话记录', 'Session records'],
   history_index: ['历史索引', 'History index'],
@@ -113,49 +140,46 @@ async function toggle(database: Database) {
 
 <template>
   <section class="storage-card">
-    <header class="storage-head">
-      <h2>{{ i18n.t('stats.storage') }}</h2>
-      <Hint :text="`${number(total)} B`"
-        ><strong class="storage-total">{{ fmtBytes(total) }}</strong></Hint
-      >
-    </header>
     <div
       class="storage-bar"
       role="img"
       :aria-label="parts.map((part) => `${part.name}: ${fmtBytes(part.bytes)}`).join(', ')"
     >
-      <template v-for="part in parts" :key="part.key"
-        ><span v-if="part.bytes > 0" :style="{ flexGrow: part.bytes, background: part.color }"
-      /></template>
+      <div v-if="activeParts.length" class="storage-active-bar" :style="{ flexGrow: activeBytes }">
+        <span v-for="part in activeParts" :key="part.key" :style="{ flexGrow: part.bytes, background: part.color }" />
+        <i v-if="reclaimWidth" class="reclaim-mark" :style="{ width: reclaimWidth + '%' }" aria-hidden="true" />
+      </div>
+      <span v-if="archivePart" :style="{ flexGrow: archivePart.bytes, background: archivePart.color }" />
     </div>
+    <p v-if="selectedBytes != null" class="reclaim-value" role="status">
+      {{ tr('所选历史预计释放 ', 'Selected history could free ') }}<strong>{{ fmtBytes(selectedBytes) }}</strong> ·
+      {{ percent(selectedShare) }}
+    </p>
     <ul class="storage-parts">
       <li v-for="part in parts" :key="part.key" :style="{ '--part-color': part.color }">
-        <component
-          :is="part.database ? 'button' : 'div'"
+        <button
+          type="button"
           class="storage-part"
-          :type="part.database ? 'button' : undefined"
+          :data-hint="part.what"
+          :aria-pressed="part.key === 'archives' ? archivesOpen : part.sort ? order === part.sort : undefined"
           :aria-expanded="part.database ? opened === part.database : undefined"
-          @click="part.database && toggle(part.database)"
+          @click="part.database ? toggle(part.database) : part.sort ? emit('sort', part.sort) : emit('archives')"
         >
           <i class="storage-dot" aria-hidden="true" />
-          <span class="storage-part-text"
-            ><span>{{ part.name }}</span
-            ><small>{{ part.what }}</small></span
-          >
+          <span class="storage-part-text">{{ part.name }}</span>
           <Hint :text="`${number(part.bytes)} B`"
             ><span class="storage-figure"
-              ><strong>{{ fmtBytes(part.bytes) }}</strong
-              ><small>{{ percent(total ? part.bytes / total : 0) }}</small></span
+              ><strong>{{ fmtBytes(part.bytes) }}</strong></span
             ></Hint
           >
-          <Icon v-if="part.database" name="chevron-right" class="storage-chevron" />
-          <span v-else class="storage-chevron" aria-hidden="true" />
-        </component>
-        <div v-if="part.database && opened === part.database" class="storage-kinds">
+          <Icon v-if="part.database || part.key === 'archives'" name="chevron-right" class="storage-chevron" />
+          <Icon v-else name="arrow-down" class="storage-chevron" />
+        </button>
+        <div v-if="opened && part.database === opened" class="storage-kinds">
           <p v-if="failed" class="storage-kinds-state" role="alert">{{ errorDetail(failed) }}</p>
           <p v-else-if="!detail" class="storage-kinds-state" role="status"><Spinner /></p>
           <ul v-else>
-            <template v-for="kind in databaseKinds[part.database]" :key="kind.kind">
+            <template v-for="kind in databaseKinds[opened]" :key="kind.kind">
               <li v-if="showSmall || kind.share >= SMALL">
                 <span class="storage-kind-name">{{ kind.name }}</span>
                 <span class="storage-kind-bar" aria-hidden="true"
@@ -167,12 +191,12 @@ async function toggle(database: Database) {
                 >
               </li>
             </template>
-            <li v-if="!showSmall && databaseKinds[part.database].some((kind) => kind.share < SMALL)">
+            <li v-if="!showSmall && databaseKinds[opened].some((kind) => kind.share < SMALL)">
               <button type="button" class="storage-more" @click="showSmall = true">
                 {{
                   tr(
-                    `还有 ${databaseKinds[part.database].filter((kind) => kind.share < SMALL).length} 项，各占不到 1%`,
-                    `${databaseKinds[part.database].filter((kind) => kind.share < SMALL).length} more, each under 1%`,
+                    `还有 ${databaseKinds[opened].filter((kind) => kind.share < SMALL).length} 项，各占不到 1%`,
+                    `${databaseKinds[opened].filter((kind) => kind.share < SMALL).length} more, each under 1%`,
                   )
                 }}
               </button>
@@ -185,119 +209,91 @@ async function toggle(database: Database) {
 </template>
 
 <style scoped>
-.storage-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+.reclaim-value {
+  font-size: 12px;
+  color: var(--fg-muted);
+  margin: 6px 0;
 }
-.storage-head h2 {
-  margin: 0;
-  font: 600 14px/1.5 var(--font);
-}
-.storage-total {
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+.reclaim-mark {
+  position: absolute;
+  inset: 0 0 0 auto;
+  background: repeating-linear-gradient(-45deg, transparent 0 2px, var(--fg) 2px 3px);
+  border-left: 1px solid var(--bg);
 }
 .storage-bar {
   display: flex;
   gap: 2px;
   height: 6px;
-  margin: 10px 0 4px;
+  margin: 0 0 6px;
   overflow: hidden;
   border-radius: 999px;
   background: var(--bg-sunken);
+}
+.storage-active-bar {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  flex: 0 1 0;
 }
 .storage-bar span {
   flex: 0 1 0;
   min-width: 4px;
 }
 .storage-parts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  list-style: none;
   margin: 0;
   padding: 0;
-  list-style: none;
 }
-.storage-parts > li + li {
-  border-top: 1px solid var(--line);
-}
-/* A part's row: what it is, then its share and size; a database's opens to what it holds. */
 .storage-part {
-  display: flex;
+  display: grid;
   align-items: center;
-  gap: 12px;
+  grid-template-columns: 8px minmax(0, 1fr) auto 15px;
+  gap: 3px 6px;
   width: 100%;
-  min-width: 0;
-  padding: 6px 0;
-  line-height: 1.35;
-  border: 0;
+  padding: 7px 0;
   background: none;
-  color: inherit;
+  border: 0;
   font: inherit;
-  text-align: left;
+  color: var(--fg-muted);
+  text-align: start;
 }
 button.storage-part {
   cursor: pointer;
-  border-radius: 6px;
 }
-@media (hover: hover) {
-  button.storage-part:hover .storage-part-text > span {
-    color: var(--fg);
-  }
-  button.storage-part:hover .storage-chevron {
-    color: var(--fg-muted);
-  }
-}
-button.storage-part:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+button.storage-part:hover {
+  color: var(--fg);
 }
 .storage-dot {
-  width: 8px;
   height: 8px;
-  flex: none;
-  border-radius: 50%;
+  width: 8px;
   background: var(--part-color);
+  border-radius: 50%;
 }
 .storage-part-text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-  gap: 1px;
-}
-.storage-part-text > span {
-  color: var(--fg);
-  font-size: 13.5px;
-  transition: color var(--dur-fast);
-}
-.storage-part-text small {
-  color: var(--fg-subtle);
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 13px;
 }
 .storage-figure {
+  grid-column: 3;
   display: flex;
-  flex: none;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 1px;
-  min-width: 64px;
+  gap: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 .storage-figure strong {
-  font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 550;
+  color: var(--fg);
+  font-size: 14px;
 }
-.storage-figure small {
-  color: var(--fg-subtle);
-  font-size: 12px;
+.storage-part[aria-pressed='true'] {
+  color: var(--accent);
+}
+.storage-chevron {
+  grid-row: 1;
+  grid-column: 4;
 }
 .storage-share {
   flex: none;
@@ -331,7 +327,7 @@ button.storage-part:focus-visible {
 }
 /* What a database holds, under its row and in from its dot. */
 .storage-kinds {
-  margin: -2px 27px 10px 20px;
+  margin: 8px;
   padding: 2px 0 2px 12px;
   border-left: 2px solid color-mix(in srgb, var(--part-color) 45%, transparent);
 }
@@ -394,29 +390,20 @@ button.storage-part:focus-visible {
   color: var(--fg-subtle);
   font-size: 12.5px;
 }
-@media (min-width: 600px) {
-  .storage-figure {
-    flex-direction: row;
-    align-items: baseline;
-    gap: 12px;
-  }
-  .storage-figure small {
-    width: 42px;
-    text-align: right;
-  }
-}
 @media (max-width: 599px) {
-  .storage-part {
-    gap: 10px;
-  }
-  .storage-part-text small {
-    white-space: normal;
-  }
-  .storage-kinds {
-    margin-right: 25px;
-  }
   .storage-kind-bar {
     display: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .storage-kinds {
+    animation: detail-in 140ms ease-out;
+  }
+  @keyframes detail-in {
+    from {
+      opacity: 0;
+      transform: translateY(-3px);
+    }
   }
 }
 @media (prefers-reduced-motion: reduce) {

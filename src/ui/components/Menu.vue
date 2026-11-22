@@ -68,11 +68,12 @@ const props = withDefaults(
 // How long a finger rests on the element before its context menu opens.
 const LONG_PRESS_MS = 500;
 // `selection` is the selected text a menu of `selectionItems` was opened for.
-const emit = defineEmits<{ select: [key: string, selection?: string] }>();
+const emit = defineEmits<{ select: [key: string, selection?: string]; openChange: [open: boolean] }>();
 const pageActive = usePageActivity();
 const open = ref(false);
 function setOpen(value: boolean) {
   open.value = value;
+  emit('openChange', value);
 }
 const close = () => {
   cancelPress();

@@ -53,7 +53,7 @@ export function validReference(value: unknown): value is ReplyReference {
 export function referenceDescription(ref: ReplyReference) {
   if (ref.region)
     return (
-      `[Reference: ${ref.label}; file=${ref.blob}${ref.page ? `; page=${ref.page}` : ''}${ref.time === undefined ? '' : `; time=${ref.time}s`}; ` +
+      `[Reference: ${ref.label}; ${ref.blob ? `file=${ref.blob}` : 'browser viewport'}${ref.page ? `; page=${ref.page}` : ''}${ref.time === undefined ? '' : `; time=${ref.time}s`}; ` +
       `coordinates(top-left, ${ref.region.unit})=${JSON.stringify(ref.region)}; the following image is the selected region.]`
     );
   const header = ref.blob

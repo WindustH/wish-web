@@ -1,6 +1,8 @@
 import { apiFetch, needsAccessToken } from '../core/api/client.ts';
+import { isNativeApp, saveNativePackage } from '../platform/native.ts';
 import { toast } from './toast.ts';
 import { describeError } from '../core/i18n/errorMessages.ts';
+import { tr } from '../core/i18n/tr.ts';
 
 /**
  * Click handler for a download link to the backend. A backend reached directly
@@ -42,4 +44,23 @@ function saveUrl(url: string, filename: string) {
   document.body.append(link);
   link.click();
   link.remove();
+}
+
+/** The signed HTTPS or loopback URL lets the download manager stream the file directly. */
+export async function savePackage(url: string, filename: string) {
+  if (
+    isNativeApp() &&
+    !(
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    )
+  ) {
+    const location = await saveNativePackage(url, filename);
+    if (!location) return null;
+    toast(tr('已保存 ZIP', 'ZIP saved'), { detail: location, tone: 'success', icon: 'download' });
+    return 'saved' as const;
+  }
+  saveUrl(url, filename);
+  toast(tr('已开始下载 ZIP', 'ZIP download started'), { detail: filename, icon: 'download' });
+  return 'started' as const;
 }

@@ -52,8 +52,14 @@ export function codeLanguage(filename: string, mime = ''): string | undefined {
 }
 
 export function sourcePreviewKind(filename: string, mime = ''): 'html' | 'markdown' | 'svg' | undefined {
+  const type = mime.split(';')[0]?.trim().toLowerCase();
+  if (type === 'image/svg+xml') return 'svg';
+  if (type === 'text/html' || type === 'application/xhtml+xml') return 'html';
+  if (type === 'text/markdown') return 'markdown';
+  // A captured region can keep its source's filename even when its bytes are JPEG.
+  if (type && !type.startsWith('text/') && type !== 'application/octet-stream' && type !== 'application/xml') return;
   const extension = filename.split('.').at(-1)?.toLowerCase();
-  if (extension === 'svg' || mime === 'image/svg+xml') return 'svg';
-  if (['html', 'htm', 'xhtml'].includes(extension ?? '') || mime === 'text/html') return 'html';
-  if (['md', 'markdown', 'mdx'].includes(extension ?? '') || mime === 'text/markdown') return 'markdown';
+  if (extension === 'svg') return 'svg';
+  if (['html', 'htm', 'xhtml'].includes(extension ?? '')) return 'html';
+  if (['md', 'markdown', 'mdx'].includes(extension ?? '')) return 'markdown';
 }

@@ -3,7 +3,6 @@ import { ref, computed, inject, onActivated, onScopeDispose, provide, watch, def
 import { useRoute, useRouter } from 'vue-router';
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui';
 import Icon from '../../ui/components/Icon.vue';
-import DraftActions from '../../ui/components/DraftActions.vue';
 import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { useDialogNesting } from '../../ui/composables/useDialogNesting.ts';
@@ -27,9 +26,12 @@ import '../../domain/settings/settings.css';
 import { configDraftKey, useConfigDraft } from './useConfigDraft.ts';
 import SessionDefaults from './SessionDefaults.vue';
 const ProviderSettings = defineAsyncComponent(() => import('./ProviderSettings.vue'));
+import { isNativeApp } from '../../platform/native.ts';
+import { deviceProxyDraftKey, useDeviceProxyDraft } from './useDeviceProxyDraft.ts';
 import NetworkSettings from './NetworkSettings.vue';
 import ShellProxyDialog from './ShellProxyDialog.vue';
 import { searchSettings } from './settingsSearch.ts';
+import MatchText from '../../ui/components/MatchText.vue';
 import Wordmark from '../../ui/components/Wordmark.vue';
 import { cfg } from '../../core/config.ts';
 import { useSettingsGuard } from './useSettingsGuard.ts';
@@ -53,15 +55,25 @@ function setPageHost(element: unknown) {
   settingsPageHost.value = element instanceof HTMLElement ? element : undefined;
 }
 
-import { sections as allSections, extensionSections } from './settingsSections.ts';
+import { sections as allSections, extensionSections, sectionGroups } from './settingsSections.ts';
 const props = defineProps<{ deviceOnly?: boolean }>();
 const sections = computed(() =>
   props.deviceOnly
-    ? allSections.value.filter((item) => ['ui', 'shortcuts', 'debug'].includes(item.id))
+    ? allSections.value.filter(
+        (item) => ['ui', 'shortcuts', 'debug'].includes(item.id) || (item.id === 'network' && isNativeApp()),
+      )
     : allSections.value,
 );
 const searchQuery = ref('');
 const visibleSections = computed(() => searchSettings(sections.value, searchQuery.value));
+const visibleGroups = computed(() =>
+  sectionGroups.value
+    .map((group) => ({
+      ...group,
+      items: visibleSections.value.filter((item) => item.group === group.id),
+    }))
+    .filter((group) => group.items.length),
+);
 function openFirstResult() {
   const first = visibleSections.value[0];
   if (first) selectSection(first.id);
@@ -191,16 +203,34 @@ const {
 const search = props.deviceOnly ? null : useStatuses(searchProviders, (reply) => reply.providers, revision);
 const searchAvailable = computed(() => search?.reply.value?.available ?? null);
 
-const { dirty, save, discard, discardChanges, leave, leaveBusy, resolveLeave, saveAndReturn } = useSettingsGuard({
-  isMobile,
-  busy,
-  serverDirty,
-  source,
-  revision,
-  accept,
-  load,
-  saveConfig,
-});
+const deviceProxy = useDeviceProxyDraft();
+provide(deviceProxyDraftKey, deviceProxy);
+const { dirty, saving, save, discard, discardChanges, leave, leaveBusy, resolveLeave, saveAndReturn } =
+  useSettingsGuard({
+    deviceProxy,
+    isMobile,
+    busy,
+    serverDirty,
+    source,
+    revision,
+    accept,
+    saveConfig,
+  });
+
+function saveShortcut(event: KeyboardEvent) {
+  if (
+    hasChildDialog.value ||
+    event.isComposing ||
+    event.altKey ||
+    event.shiftKey ||
+    !(event.ctrlKey || event.metaKey) ||
+    event.key.toLowerCase() !== 's'
+  )
+    return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (!editorPage.value && dirty.value && !event.repeat) void save();
+}
 
 onActivated(() => {
   if (!props.deviceOnly && !serverDirty.value && !busy.value) void load();
@@ -240,7 +270,7 @@ onActivated(() => {
           }
         "
       >
-        <div class="page native-settings" data-navigation-page>
+        <div class="page native-settings" data-navigation-page @keydown="saveShortcut">
           <aside v-show="!isMobile || !mobileSection" class="settings-sidebar">
             <header class="settings-heading settings-home-heading page-bar">
               <button
@@ -252,55 +282,66 @@ onActivated(() => {
                 <Icon name="arrow-left" />
               </button>
               <DialogTitle class="settings-title page-bar-title">{{ tr('设置', 'Settings') }}</DialogTitle>
-              <DraftActions v-if="isMobile" />
             </header>
             <div
               class="settings-sidebar-body"
               :class="{ scrolling: sidebarScrolling }"
               @scroll.passive="showSidebarScrollbar"
             >
-              <div class="settings-search" role="search">
-                <Icon name="search" />
-                <input
-                  v-model="searchQuery"
-                  type="search"
-                  :aria-label="tr('搜索配置', 'Search settings')"
-                  :placeholder="tr('搜索配置…', 'Search settings…')"
-                  autocomplete="off"
-                  @keydown.enter.prevent="openFirstResult"
-                  @keydown.esc.stop.prevent="searchQuery = ''"
-                />
-                <button
-                  v-if="searchQuery"
-                  class="btn ghost icon-only"
-                  :aria-label="tr('清除搜索', 'Clear search')"
-                  @click="searchQuery = ''"
-                >
-                  <Icon name="x" />
-                </button>
-              </div>
-              <p v-if="searchQuery.trim() && !visibleSections.length" class="settings-search-empty" role="status">
-                {{ tr('没有匹配的配置', 'No matching settings') }}
-              </p>
-              <nav :aria-label="tr('设置分类', 'Settings categories')">
-                <button
-                  v-for="item in visibleSections"
-                  :key="item.id"
-                  class="settings-section"
-                  :class="{ selected: !isMobile && tab === item.id }"
-                  :aria-current="tab === item.id ? 'page' : undefined"
-                  @click="selectSection(item.id)"
-                >
-                  <span class="settings-section-icon"><Icon :name="item.icon" /></span>
-                  <span class="settings-section-text"
-                    >{{ item.label
-                    }}<small v-if="searchQuery.trim() || (isMobile && item.showSummary)" class="category-description">{{
-                      searchQuery.trim() ? item.searchHint : item.summary
-                    }}</small></span
+              <div class="settings-nav-scroll" @scroll.passive="showSidebarScrollbar">
+                <div class="settings-search" role="search">
+                  <Icon name="search" />
+                  <input
+                    v-model="searchQuery"
+                    type="search"
+                    :aria-label="tr('搜索配置', 'Search settings')"
+                    :placeholder="tr('搜索配置…', 'Search settings…')"
+                    autocomplete="off"
+                    @keydown.enter.prevent="openFirstResult"
+                    @keydown.esc.stop.prevent="searchQuery = ''"
+                  />
+                  <button
+                    v-if="searchQuery"
+                    class="btn ghost icon-only"
+                    :aria-label="tr('清除搜索', 'Clear search')"
+                    @click="searchQuery = ''"
                   >
-                  <Icon v-if="isMobile" name="chevron-right" class="section-chevron" />
-                </button>
-              </nav>
+                    <Icon name="x" />
+                  </button>
+                </div>
+                <p v-if="searchQuery.trim() && !visibleSections.length" class="settings-search-empty" role="status">
+                  {{ tr('没有匹配的配置', 'No matching settings') }}
+                </p>
+                <nav :aria-label="tr('设置分类', 'Settings categories')">
+                  <section
+                    v-for="group in visibleGroups"
+                    :key="group.id"
+                    class="settings-nav-group"
+                    :aria-label="group.label"
+                  >
+                    <h3>{{ group.label }}</h3>
+                    <div class="settings-group-rows">
+                      <button
+                        v-for="item in group.items"
+                        :key="item.id"
+                        class="settings-section"
+                        :class="{ selected: !isMobile && tab === item.id }"
+                        :aria-current="tab === item.id ? 'page' : undefined"
+                        @click="selectSection(item.id)"
+                      >
+                        <span class="settings-section-icon"><Icon :name="item.icon" /></span>
+                        <span class="settings-section-text"
+                          ><MatchText :text="item.label" :query="searchQuery" /><small
+                            v-if="searchQuery.trim()"
+                            class="category-description"
+                            ><MatchText :text="item.searchHint" :query="searchQuery" /></small
+                        ></span>
+                        <Icon v-if="isMobile" name="chevron-right" class="section-chevron" />
+                      </button>
+                    </div>
+                  </section>
+                </nav>
+              </div>
               <footer class="settings-brand" aria-hidden="true">
                 <img src="/app-icons/mark.svg" alt="" /><Wordmark class="settings-brand-word" /><span>{{
                   cfg.meta.appVersion
@@ -308,12 +349,8 @@ onActivated(() => {
               </footer>
             </div>
           </aside>
-          <section
-            v-show="!isMobile || mobileSection"
-            :key="isMobile ? mobileSection : 'desktop'"
-            class="settings-detail"
-          >
-            <header v-show="!editorPage" class="settings-heading page-bar">
+          <section v-show="!isMobile || mobileSection" class="settings-detail">
+            <header v-show="!editorPage" class="settings-heading settings-detail-heading page-bar">
               <button
                 v-if="
                   isMobile ||
@@ -336,7 +373,6 @@ onActivated(() => {
                   {{ detailTitle }}
                 </h2>
               </div>
-              <DraftActions v-if="isMobile" />
               <button
                 v-if="!isMobile"
                 class="btn ghost icon-only"
@@ -351,6 +387,10 @@ onActivated(() => {
               <KeymapEditor v-else-if="keymapOpen" />
               <ShortcutSettings v-else-if="tab === 'shortcuts'" :browser-page="browserShortcutsOpen" />
               <DebugSettings v-else-if="tab === 'debug'" :device-only="deviceOnly" />
+              <NetworkSettings
+                v-else-if="tab === 'network' && (isNativeApp() || ready)"
+                :server="!deviceOnly && ready"
+              />
               <template v-else-if="ready">
                 <MobileSessionSettings
                   v-if="isMobile && tab === 'service'"
@@ -387,9 +427,8 @@ onActivated(() => {
                   :revision="revision"
                 />
                 <AccountSettings v-else-if="tab === 'accounts'" />
-                <TerminalSettings v-else-if="tab === 'terminal'" /><NetworkSettings
-                  v-else-if="tab === 'network'"
-                /><ProviderSettings v-else :save="save" />
+                <TerminalSettings v-else-if="tab === 'terminal'" />
+                <ProviderSettings v-else :save="save" />
               </template>
               <div v-else-if="!busy && !deviceOnly" class="settings-empty">
                 <p>{{ tr('设置尚未载入。', 'Settings are not loaded.') }}</p>
@@ -397,27 +436,22 @@ onActivated(() => {
               </div>
             </div>
             <div :ref="setPageHost" class="settings-page-host" />
-            <footer
-              v-show="!editorPage"
-              v-if="ready && !['ui', 'debug', 'shortcuts'].includes(tab) && !isMobile"
-              class="settings-footer"
-            >
-              <span class="settings-status" :class="{ dirty }"
-                ><i aria-hidden="true" />{{
-                  dirty ? tr('有未保存的修改', 'Unsaved changes') : tr('所有修改已保存', 'All changes saved')
-                }}</span
+          </section>
+          <Transition name="settings-save">
+            <footer v-if="(dirty || saving) && !editorPage" class="settings-footer">
+              <span class="settings-status" role="status"
+                ><i aria-hidden="true" />{{ tr('有未保存的修改', 'Unsaved changes') }}</span
               >
-              <button class="btn ghost" :disabled="busy || !dirty" @click="discard = true">
+              <button type="button" class="btn ghost" :disabled="busy || saving" @click="discard = true">
                 {{ tr('放弃修改', 'Discard') }}
               </button>
-              <button class="btn primary" :disabled="busy || !dirty" @click="save">
-                <Icon :name="busy ? 'loader-circle' : 'save'" :class="{ spin: busy }" />{{
-                  busy ? tr('保存中…', 'Saving…') : tr('保存', 'Save')
+              <button type="button" class="btn primary" :disabled="busy || saving" @click="save">
+                <Icon :name="saving ? 'loader-circle' : 'save'" :class="{ spin: saving }" />{{
+                  saving ? tr('保存中…', 'Saving…') : tr('保存', 'Save')
                 }}
               </button>
             </footer>
-          </section>
-
+          </Transition>
           <ShellProxyDialog :open="shellProxyPrompt" @answer="resolveShellProxy" />
           <Modal compact :open="discard" :title="tr('放弃修改？', 'Discard changes?')" @close="discard = false"
             ><p>
@@ -566,6 +600,14 @@ onActivated(() => {
   flex-direction: column;
   gap: 2px;
 }
+.settings-nav-group + .settings-nav-group {
+  margin-top: 14px;
+}
+.settings-nav-group h3 {
+  margin: 0 8px 5px;
+  font: 500 12px/1.5 var(--font);
+  color: var(--fg-subtle);
+}
 .settings-section {
   display: flex;
   align-items: center;
@@ -711,19 +753,26 @@ onActivated(() => {
   color: var(--fg-subtle);
 }
 .settings-status i {
+  flex: none;
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--ok);
-  opacity: 0.8;
-}
-.settings-status.dirty {
-  color: var(--fg-muted);
-}
-.settings-status.dirty i {
   background: var(--accent);
-  opacity: 1;
   box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.settings-save-enter-active {
+  transition:
+    transform 140ms var(--ease-out),
+    opacity 140ms ease;
+}
+.settings-save-enter-from {
+  opacity: 0;
+  transform: translateY(4px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .settings-save-enter-active {
+    transition: none;
+  }
 }
 .settings-footer .btn {
   display: inline-flex;
@@ -750,8 +799,9 @@ onActivated(() => {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: 224px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
     width: min(980px, 92vw);
     height: min(740px, 88dvh);
     max-width: none;
@@ -771,7 +821,8 @@ onActivated(() => {
     pointer-events: none;
   }
   .settings-sidebar {
-    width: 216px;
+    grid-row: 1/3;
+    overflow: hidden;
     padding: 20px 0 16px;
     border-right: 1px solid var(--line);
     background: var(--bg-sunken);
@@ -784,29 +835,30 @@ onActivated(() => {
     font-size: 16px;
     font-weight: 600;
   }
-  .settings-heading h2 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    line-height: 1.4;
-  }
+
   .settings-sidebar-body {
+    overflow: hidden;
+    scrollbar-gutter: auto;
+  }
+  .settings-nav-scroll {
+    overflow-y: auto;
+    min-height: 0;
     padding: 0 12px;
+    scrollbar-width: thin;
   }
   .settings-home-heading {
     padding: 0 20px 16px;
   }
   .settings-brand {
-    padding: 12px 8px 0;
+    padding: 12px 20px 0;
+    flex: none;
   }
-  .settings-detail > .settings-heading {
-    padding: 18px 20px 14px 28px;
-    border-bottom: 1px solid var(--line);
-  }
+
   .settings-content {
     padding: 22px 28px 28px;
   }
   .settings-footer {
+    grid-column: 2;
     padding: 12px 20px 12px 28px;
     background: var(--bg);
   }
@@ -819,7 +871,7 @@ onActivated(() => {
   /* Tablets keep the phone layout, centered at a readable width. */
   .settings-sidebar {
     width: 100%;
-    height: 100%;
+    flex: 1;
   }
   .settings-search {
     min-height: 44px;
@@ -831,18 +883,18 @@ onActivated(() => {
     overflow: auto;
     padding: 20px max(16px, calc((100% - 640px) / 2)) max(20px, env(safe-area-inset-bottom));
   }
-  /* A grouped list: rows one step above the page, parted by a sliver of it. It keeps its own height,
-     since clipped for its corners it would otherwise shrink to the screen. */
-  .settings-sidebar nav {
-    flex: none;
-    gap: 0;
-    border: 0;
-    border-radius: 18px;
-    background: var(--bg-sunken);
+  .settings-group-rows {
+    border-radius: 16px;
     overflow: hidden;
+    background: var(--bg-group);
+  }
+  .settings-footer {
+    padding: 8px 14px max(8px, env(safe-area-inset-bottom));
+    background: var(--bg-group);
+    gap: 6px;
   }
   .settings-section {
-    min-height: 66px;
+    min-height: 52px;
     padding: 12px 14px;
     gap: 14px;
     border-radius: 0;
@@ -853,7 +905,7 @@ onActivated(() => {
     font-weight: 500;
   }
   .settings-section + .settings-section {
-    border-top: 2px solid transparent;
+    border-top: 1px solid var(--line);
   }
   .settings-section:active {
     background-color: var(--bg-group-active);

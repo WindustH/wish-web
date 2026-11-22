@@ -1,5 +1,4 @@
 import { FALLBACK_EFFORT_LEVELS, type ModelInfo, type ProviderInfo } from '../../core/provider-catalog.ts';
-export const sessionCommandNames = ['new', 'status', 'btw', 'clear', 'compact', 'rename', 'model', 'effort'] as const;
 export interface CommandModel {
   provider: ProviderInfo;
   model: ModelInfo;

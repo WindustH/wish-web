@@ -1,38 +1,49 @@
 <script setup lang="ts">
 import { i18n } from '../../core/i18n/index.ts';
-import { computed } from 'vue';
 import Icon from '../../ui/components/Icon.vue';
-import SelectField from '../providers/SelectField.vue';
-const props = defineProps<{
-  modelValue?: string;
-  pages?: boolean;
-  categories: readonly { id: string; label: string; icon: string; summary: string }[];
+import { tr } from '../../core/i18n/tr.ts';
+import { useIsMobile } from '../../ui/composables/useMedia.ts';
+defineProps<{
+  categories: readonly { id: string; label: string; icon: string; status?: string }[];
 }>();
-const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
-const options = computed(() =>
-  props.categories.map((item) => ({ value: item.id, label: item.label, icon: item.icon })),
-);
+const emit = defineEmits<{ selected: [value: string] }>();
+const mobile = useIsMobile();
 </script>
 <template>
-  <nav v-if="pages" class="extension-categories extension-pages" :aria-label="i18n.t('extension.categories')">
-    <button v-for="item in categories" :key="item.id" type="button" @click="emit('update:modelValue', item.id)">
+  <nav v-if="mobile" class="extension-categories extension-pages" :aria-label="i18n.t('extension.categories')">
+    <button v-for="item in categories" :key="item.id" type="button" @click="emit('selected', item.id)">
       <Icon :name="item.icon" />
-      <span class="extension-category-text">{{ item.label }}</span>
+      <span class="extension-category-text"
+        >{{ item.label }}<small v-if="item.status">{{ item.status }}</small></span
+      >
       <Icon name="chevron-right" class="section-chevron" />
     </button>
   </nav>
-  <SelectField
-    v-else
-    class="extension-category-select"
-    :aria-label="i18n.t('extension.categories')"
-    :model-value="modelValue ?? categories[0]?.id ?? ''"
-    :options="options"
-    @update:model-value="emit('update:modelValue', $event)"
-  />
+  <nav v-else class="extension-categories settings-link-list" :aria-label="i18n.t('extension.categories')">
+    <div v-for="item in categories" :key="item.id" class="set-card">
+      <div class="set-row inline">
+        <span class="settings-link-label">
+          <Icon :name="item.icon" />{{ item.label }}<small v-if="item.status">{{ item.status }}</small>
+        </span>
+        <button
+          class="btn settings-page-link"
+          type="button"
+          :aria-label="tr('配置', 'Configure') + ' ' + item.label"
+          @click="emit('selected', item.id)"
+        >
+          {{ tr('配置', 'Configure') }}<Icon name="arrow-up-right" :size="15" />
+        </button>
+      </div>
+    </div>
+  </nav>
 </template>
 <style scoped>
-.extension-category-select {
-  width: 100%;
+.settings-link-label {
+  flex-wrap: wrap;
+}
+.settings-link-label small {
+  color: var(--fg-subtle);
+  font-weight: 400;
 }
 .extension-pages {
   display: flex;
@@ -73,6 +84,11 @@ const options = computed(() =>
 .extension-category-text {
   flex: 1;
   min-width: 0;
+}
+.extension-category-text small {
+  display: block;
+  font-weight: 400;
+  color: var(--fg-subtle);
 }
 .extension-pages .section-chevron {
   width: 16px;

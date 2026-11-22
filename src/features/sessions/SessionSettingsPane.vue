@@ -22,8 +22,8 @@ import type { ShellSettings } from '../../core/api/types.ts';
 import '../../domain/settings/settings.css';
 import BuiltinToolSettings from '../../domain/settings/BuiltinToolSettings.vue';
 import ToolSwitchRows from '../../domain/settings/ToolSwitchRows.vue';
-import ExtensionCategoryPicker from '../../domain/settings/ExtensionCategoryPicker.vue';
-import { extensionSections } from '../../extensions/settings.ts';
+import ToolSettingsDialog from '../../domain/settings/ToolSettingsDialog.vue';
+import ToolSettingsEntry from '../../domain/settings/ToolSettingsEntry.vue';
 import SwitchRow from '../../domain/settings/SwitchRow.vue';
 import ToolBackgroundRow from '../../domain/settings/ToolBackgroundRow.vue';
 import ToolExecutionRow from '../../domain/settings/ToolExecutionRow.vue';
@@ -31,8 +31,7 @@ import ToolExecutionRow from '../../domain/settings/ToolExecutionRow.vue';
 const props = withDefaults(defineProps<{ sidebar?: boolean; open?: boolean; embedded?: boolean }>(), { open: true });
 defineEmits<{ close: [] }>();
 const isMobile = useIsMobile();
-const extensionSelection = ref('image_generation');
-const extension = computed(() => extensionSections.value.find((item) => item.id === extensionSelection.value)!);
+const extensionsOpen = ref(false);
 const snapshot = computed(() => chat.snapshot.value);
 const running = computed(() => !!snapshot.value && ['running', 'compacting', 'queued'].includes(snapshot.value.phase));
 
@@ -133,8 +132,8 @@ onMounted(async () => {
     api.searchProviders(),
   ]);
   if (!alive) return;
-  if (search.status === 'fulfilled') searchAvailable.value = search.value.available;
   if (base.status === 'fulfilled') defaults.value = base.value.session_config?.compaction ?? null;
+  if (search.status === 'fulfilled') searchAvailable.value = search.value.available;
   if (shells.status === 'fulfilled') catalog.value = shells.value;
   if (config.status === 'fulfilled') globalShell.value = config.value.config.shell ?? null;
 });
@@ -246,7 +245,10 @@ const confirmClear = ref(false);
 watch(
   () => props.open,
   (open) => {
-    if (!open) confirmClear.value = false;
+    if (!open) {
+      confirmClear.value = false;
+      extensionsOpen.value = false;
+    }
   },
 );
 async function act(kind: 'compact' | 'clear') {
@@ -308,25 +310,27 @@ async function act(kind: 'compact' | 'clear') {
           }}
         </p>
       </header>
-      <fieldset class="set-card" :disabled="running || busy">
-        <div class="set-row inline toggle-row">
-          <span class="set-label"
-            ><span>{{ tr('自动压缩', 'Compact automatically') }}</span
-            ><small v-if="running">{{
-              tr('运行结束后才能保存这项修改', 'Can be saved once the current run ends')
-            }}</small></span
-          ><SwitchRoot
-            :model-value="!!compaction"
-            :disabled="running || busy"
-            class="cfg-switch"
-            :aria-label="tr('自动压缩', 'Compact automatically')"
-            @update:model-value="setCompaction"
-            ><SwitchThumb class="cfg-switch-thumb"
-          /></SwitchRoot>
+      <fieldset class="settings-form" :disabled="running || busy">
+        <div class="set-card">
+          <div class="set-row inline toggle-row">
+            <span class="set-label"
+              ><span>{{ tr('自动压缩', 'Compact automatically') }}</span
+              ><small v-if="running">{{
+                tr('运行结束后才能保存这项修改', 'Can be saved once the current run ends')
+              }}</small></span
+            ><SwitchRoot
+              :model-value="!!compaction"
+              :disabled="running || busy"
+              class="cfg-switch"
+              :aria-label="tr('自动压缩', 'Compact automatically')"
+              @update:model-value="setCompaction"
+              ><SwitchThumb class="cfg-switch-thumb"
+            /></SwitchRoot>
+          </div>
+          <template v-if="compaction">
+            <CompactionRows :value="compaction" inline show-compact />
+          </template>
         </div>
-        <template v-if="compaction">
-          <CompactionRows :value="compaction" inline show-compact />
-        </template>
       </fieldset>
       <button
         v-if="compaction && differsFromDefaults"
@@ -362,38 +366,47 @@ async function act(kind: 'compact' | 'clear') {
     <section class="set-section">
       <header class="set-section-head">
         <h3>{{ tr('工具', 'Tools') }}</h3>
-        <p>{{ tr('模型在这个会话里可以使用的内置工具。', 'Built-in tools the model can use in this session.') }}</p>
+        <p>
+          {{ tr('配置模型在这个会话里可以使用的工具。', 'Configure the tools the model can use in this session.') }}
+        </p>
       </header>
-      <fieldset class="set-card" :disabled="running || busy">
-        <ToolExecutionRow v-model="execution" :disabled="running || busy" :note="running ? savedLater() : undefined" />
-        <ToolBackgroundRow v-model="backgroundTools" :disabled="running || busy" />
-        <BuiltinToolSettings
-          v-if="snapshot"
-          v-model="tools"
-          :disabled="running || busy"
-          :note="running ? savedLater() : undefined"
-        />
+      <fieldset class="settings-form" :disabled="running || busy">
+        <div class="set-card">
+          <ToolExecutionRow
+            v-model="execution"
+            :disabled="running || busy"
+            :note="running ? savedLater() : undefined"
+          />
+          <ToolBackgroundRow v-model="backgroundTools" :disabled="running || busy" />
+          <BuiltinToolSettings
+            v-if="snapshot"
+            v-model="tools"
+            :disabled="running || busy"
+            :note="running ? savedLater() : undefined"
+          />
+          <ToolSettingsEntry
+            v-if="snapshot && extensionSwitchRows.length"
+            :title="tr('扩展工具', 'Extension tools')"
+            icon="tune"
+            :disabled="running || busy"
+            @click="extensionsOpen = true"
+          />
+        </div>
       </fieldset>
-    </section>
-
-    <section class="set-section">
-      <header class="set-section-head">
-        <h3>{{ tr('扩展工具', 'Extension tools') }}</h3>
-      </header>
-      <fieldset class="set-card session-extension-switch" :disabled="running || busy">
+      <ToolSettingsDialog
+        :open="extensionsOpen"
+        :title="tr('扩展工具', 'Extension tools')"
+        :disabled="running || busy"
+        @close="extensionsOpen = false"
+      >
         <ToolSwitchRows
-          :extension-rows="extensionSwitchRows"
           v-model="tools"
-          compact
-          :include="[extension.toolKey]"
+          :extension-rows="extensionSwitchRows"
           :search-available="searchAvailable"
-          :note="running ? savedLater() : undefined"
-        >
-          <template #label
-            ><ExtensionCategoryPicker :categories="extensionSections" v-model="extensionSelection"
-          /></template>
-        </ToolSwitchRows>
-      </fieldset>
+          :disabled="running || busy"
+          short-labels
+        />
+      </ToolSettingsDialog>
     </section>
 
     <section class="set-section">
@@ -520,27 +533,6 @@ async function act(kind: 'compact' | 'clear') {
 .modal-card.session-settings-window:not(.modal-page):not(.modal-sheet) {
   width: min(92vw, 30rem);
 }
-/* Mobile palette overrides must not replace the desktop settings rules. */
-@media (max-width: 899px) {
-  .modal-card.session-settings-window.modal-page {
-    background: var(--bg);
-  }
-  .session-settings-window .set-card {
-    background: var(--bg-raised);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-  }
-  .session-settings-window .set-row {
-    background: transparent;
-    background-clip: border-box;
-  }
-  .session-settings-window .set-row + .set-row {
-    border-top: 1px solid var(--line);
-  }
-}
-.session-settings-window.modal-page > .modal-head {
-  background: var(--bg);
-}
 .btn.ghost.settings-save-pending {
   color: var(--accent);
 }
@@ -549,14 +541,6 @@ async function act(kind: 'compact' | 'clear') {
   font-size: 12px;
   line-height: 1.6;
   color: var(--fg-subtle);
-}
-.session-settings-window fieldset.set-card {
-  margin: 0;
-  padding: 0;
-  min-inline-size: 0;
-}
-.session-settings-window .set-row.inline {
-  grid-template-columns: minmax(0, 1fr) auto;
 }
 .session-settings-window .set-number input {
   width: 11ch;

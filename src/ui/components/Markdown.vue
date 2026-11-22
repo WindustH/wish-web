@@ -8,14 +8,14 @@ import { registerMarkdownSource } from '../markdownSelection.ts';
 import { toast } from '../toast.ts';
 import { copyText } from '../clipboard.ts';
 
-const props = defineProps<{ text: string; streaming?: boolean }>();
+const props = defineProps<{ text: string; streaming?: boolean; plainFileMentions?: boolean }>();
 const emit = defineEmits<{ linkClick: [anchor: HTMLAnchorElement, event: MouseEvent] }>();
 const root = ref<HTMLElement>();
 watchEffect(() => {
   if (root.value) registerMarkdownSource(root.value, props.text, blocks.value);
 });
-const renderBlocks = createMarkdownBlocks();
-const blocks = computed(() => renderBlocks(props.text, i18n.t('common.copy'), props.streaming));
+const renderBlocks = computed(() => createMarkdownBlocks(props.plainFileMentions));
+const blocks = computed(() => renderBlocks.value(props.text, i18n.t('common.copy'), props.streaming));
 function imageState(event: Event) {
   const img = event.target;
   if (!(img instanceof HTMLImageElement) || !img.parentElement?.classList.contains('markdown-image')) return;

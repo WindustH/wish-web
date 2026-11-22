@@ -34,6 +34,14 @@ const mcpReason = (reason: string) => {
 };
 
 const zh: Rule[] = [
+  [/^two packages are already being prepared$/, () => '已有两个打包任务，请稍后重试。'],
+  [
+    /^close the terminal or browser and wait for running tools before archiving$/,
+    () => '请先关闭该会话的终端和浏览器，并等待后台工具结束。',
+  ],
+  [/^files are being added to this session$/, () => '文件正在写入，请稍后重试。'],
+  [/^interrupt and wait for the session before deleting or packaging$/, () => '请先等待会话结束，或中止后再试。'],
+  [/^export exceeds 4 GiB$/, () => '导出包超过 4 GiB 上限。'],
   [/^terminal\.font_size must be between 8 and 32$/, () => '终端字号需要在 8 到 32 之间。'],
   [/^terminal\.session_name must be at most 128 bytes.*$/, () => '终端会话名不能超过 128 字节，也不能包含控制字符。'],
   [/^terminal\.session_name cannot start.*$/, () => '终端会话名不能以短横线开头，也不能使用复用器命令名。'],
@@ -91,8 +99,20 @@ const zh: Rule[] = [
     /^redacted shell env value `(.+)` has no stored value$/,
     (name) => `变量 ${name} 没有可保留的已存值，请重新填写；若修改了变量名，也需要填写对应的值。`,
   ],
+  [/^Too many active website previews$/, () => '打开的网站预览过多，请先关闭一些预览。'],
+  [/^Enter a local HTTP or HTTPS URL$/, () => '请输入本机 HTTP 或 HTTPS 网址。'],
+  [
+    /^Use an HTTP\(S\) URL on localhost or a loopback address$/,
+    () => '请输入使用 localhost 或回环地址的 HTTP 或 HTTPS 网址。',
+  ],
+  [/^Invalid website name$/, () => '网站名称无效。'],
+  [/^browser_executable must be an absolute executable path$/, () => '请输入浏览器可执行文件的绝对路径。'],
   [/^manual proxy requires a URL$/, () => '手动代理需要填写代理地址。'],
   [/^proxy URL must be valid$/, () => '代理地址格式不正确。'],
+  [
+    /^manual proxy URL must use http:\/\/, https:\/\/, socks5:\/\/ or socks5h:\/\/$/,
+    () => '代理地址必须以 HTTP、HTTPS、SOCKS5 或 SOCKS5H 开头。',
+  ],
   [/^manual proxy URL must use http:\/\/ or https:\/\/$/, () => '代理地址必须以 http:// 或 https:// 开头。'],
   [
     /^put proxy credentials in the username and password fields, not the URL$/,

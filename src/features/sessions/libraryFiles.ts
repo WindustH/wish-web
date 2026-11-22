@@ -2,7 +2,7 @@ import type { LibraryBlob } from '../../core/api/types.ts';
 import type { EntryView } from '../../core/api/projections.ts';
 import { codeLanguage } from '../../ui/codeLanguage.ts';
 
-export type BlobKind = 'image' | 'video' | 'audio' | 'pdf' | 'text' | 'file';
+export type BlobKind = 'image' | 'video' | 'audio' | 'pdf' | 'text' | 'website' | 'file';
 /** Linked directory listings provide filenames without opening files to sniff their contents. */
 export function linkedFileKind(name: string): BlobKind {
   const extension = name.split('.').at(-1)?.toLowerCase() ?? '';
@@ -30,15 +30,22 @@ const extensions: Record<string, string> = {
   'application/zip': 'zip',
 };
 export function blobKind(blob: LibraryBlob): BlobKind {
+  if (blob.mime_type === 'application/vnd.wish.website') return 'website';
   for (const kind of ['image', 'video', 'audio', 'text'] as const)
     if (blob.mime_type.startsWith(`${kind}/`)) return kind;
   if (blob.mime_type === 'application/pdf') return 'pdf';
   return codeLanguage(blob.name ?? blob.local_path ?? '', blob.mime_type) ? 'text' : 'file';
 }
 export const blobIcon = (kind: BlobKind) =>
-  ({ image: 'image', video: 'video', audio: 'music', pdf: 'instruction', text: 'instruction', file: 'paperclip' })[
-    kind
-  ];
+  ({
+    website: 'globe',
+    image: 'image',
+    video: 'video',
+    audio: 'music',
+    pdf: 'instruction',
+    text: 'instruction',
+    file: 'paperclip',
+  })[kind];
 export function blobName(blob: LibraryBlob, names: ReadonlyMap<string, string>) {
   return (
     blob.display_name ||

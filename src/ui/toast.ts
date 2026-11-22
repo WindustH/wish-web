@@ -9,6 +9,8 @@ export interface ToastItem {
   id: number;
   text: string;
   sessionId?: string;
+  persistent?: boolean;
+  action?: { label: string; run: () => void };
   tone?: ToastTone;
   icon?: string;
   detail?: string;
@@ -18,7 +20,13 @@ const items = shallowRef<ToastItem[]>([]);
 let seq = 0;
 
 export function toast(text: string, options: Omit<ToastItem, 'id' | 'text'> = {}) {
-  items.value = [...items.value, { id: ++seq, text, ...options }];
+  const id = ++seq;
+  items.value = [...items.value, { id, text, ...options }];
+  return id;
+}
+
+export function dismissAllToasts() {
+  items.value = [];
 }
 
 export function dismissToast(id: number) {

@@ -1,20 +1,28 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, ref, watch } from 'vue';
+import { modelKey } from './modelColors.ts';
 import UsageChartPanel from './UsageChartPanel.vue';
 import { usePageActivity } from '../../ui/composables/usePageActivity.ts';
 import { createCachedResource } from '../../core/util/cachedResource.ts';
 import { chartData } from '../../core/usage/normalize.ts';
-import { usageQueries, offsetLabel, type RangeSelection } from '../../core/usage/windows.ts';
+import {
+  usageQueries,
+  rangeBounds,
+  offsetLabel,
+  type RangeSelection,
+  type TotalsRange,
+} from '../../core/usage/windows.ts';
 import { usageDaily, usageSeries } from '../../core/api/endpoints.ts';
 import { cfg } from '../../core/config.ts';
 import type { SeriesQuery, DailyQuery } from '../../core/usage/types.ts';
-const props = defineProps<{ sessionId?: string }>();
+const props = defineProps<{ sessionId?: string; sharedRange?: TotalsRange; hiddenModels?: Set<string> }>();
 const active = usePageActivity();
-const range = ref<RangeSelection>({ period: 'week' });
+const localRange = ref<RangeSelection>({ period: 'week' });
+const range = computed(() => props.sharedRange ?? localRange.value);
 const rangeSwitching = ref(false);
 const calendarSwitching = ref(false);
 const calendarColumns = ref(44);
-const calendarRange = ref<RangeSelection>({ period: 'week' });
+const calendarRange = ref<RangeSelection>({ period: props.sharedRange ? 'quarter' : 'week' });
 const timezone = ref(offsetLabel(-new Date().getTimezoneOffset()));
 // The last response per query opens instantly; per-session charts stay in memory only.
 const cacheKey = (kind: string) => (input: { sessionId?: string; query: object }) => ({
@@ -30,6 +38,9 @@ const calendar = createCachedResource(
   cacheKey('daily'),
 );
 const data = computed(() => series.data.value && chartData(series.data.value, timezone.value));
+const speeds = computed(
+  () => new Map(data.value?.models.map((model) => [modelKey(model.provider, model.model), model.tps])),
+);
 const days = computed(
   () => calendar.data.value?.days.map((day) => [day.date, day.total_tokens] as [string, number]) ?? null,
 );
@@ -46,7 +57,13 @@ const heat = computed(() =>
 let timer: ReturnType<typeof setInterval> | undefined;
 let calendarReadAt = 0;
 function readSeries(clear = false) {
-  return series.load({ sessionId: props.sessionId, query: usageQueries(range.value).series }, clear);
+  if (range.value.period === 'all') {
+    series.reset();
+    return Promise.resolve();
+  }
+  const query = usageQueries(range.value).series;
+  if (props.sharedRange && range.value.period === 'custom') Object.assign(query, rangeBounds(range.value));
+  return series.load({ sessionId: props.sessionId, query }, clear);
 }
 function readCalendar(clear = false) {
   const now = Date.now();
@@ -85,8 +102,7 @@ function start() {
   }, cfg.stats.refreshMs);
 }
 function changeRange(value: RangeSelection) {
-  range.value = value;
-  rangeSwitching.value = true;
+  localRange.value = value;
 }
 function changeCalendarRange(value: RangeSelection) {
   calendarRange.value = value;
@@ -104,6 +120,7 @@ watch(calendarRange, () => {
     });
 });
 watch(range, () => {
+  rangeSwitching.value = true;
   if (active.value)
     void readSeries().finally(() => {
       if (!series.loading.value) rangeSwitching.value = false;
@@ -134,7 +151,10 @@ defineExpose({ refresh });
     :error="series.error.value"
     :calendar-error="calendar.error.value"
     :range="range"
+    :shared="!!sharedRange"
+    :hidden="hiddenModels"
     :calendar-range="calendarRange"
+    :timezone="timezone"
     :range-switching="rangeSwitching"
     :calendar-switching="calendarSwitching"
     @calendar-columns="calendarColumns = $event"
@@ -142,6 +162,6 @@ defineExpose({ refresh });
     @calendar-range="changeCalendarRange"
     @refresh="refresh"
     @retry-calendar="readCalendar()"
-    ><template #between><slot /></template
+    ><template #between><slot :speeds="speeds" /></template
   ></UsageChartPanel>
 </template>

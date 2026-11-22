@@ -19,6 +19,7 @@ const id = () => randomBytes(32).toString('hex');
 const cookieId = (req: IncomingMessage) =>
   /(?:^|;\s*)wish_ssh_session=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1] || '';
 export const proxyAgent = (req: IncomingMessage) => sessions.get(cookieId(req))?.agent;
+export const closedAgents = new EventTarget();
 const cookie = (value: string) =>
   `${cookieName}=${value}; HttpOnly; SameSite=Strict; Path=/${value ? '' : '; Max-Age=0'}`;
 
@@ -127,6 +128,7 @@ async function login(input: Record<string, string>, response: ServerResponse): P
   }, 30000);
   client.on('error', () => ready.resolve({ error: 'SSH authentication or connection failed' }));
   client.once('close', () => {
+    closedAgents.dispatchEvent(new CustomEvent('close', { detail: agent }));
     clearTimeout(idle);
     clearTimeout(timeout);
     pending.delete(loginId);

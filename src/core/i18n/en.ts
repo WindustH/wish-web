@@ -24,6 +24,7 @@ export const en = {
   'library.kind.audio': 'Audio',
   'library.kind.pdf': 'PDF',
   'library.kind.text': 'Text',
+  'library.kind.website': 'Local websites',
   'library.kind.file': 'Other',
   'library.empty': 'Files uploaded or generated in this session will appear here.',
   'library.noMatches': 'No files of this type on this page. Load more files to continue.',

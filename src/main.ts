@@ -136,10 +136,14 @@ if (!isSignedOut()) {
   sync.start();
 }
 
-// Malformed control-plane frame → one visible toast per occurrence.
+// Stream decoding and background detail reads have different failure modes.
 const stopSshRecovery = sshRecovery?.watchNativeConnection();
 const stopProtocolError = watch(sync.protocolError, (err) => {
   if (err) toast(i18n.t('sync.protocolError'), { tone: 'error' });
+});
+
+const stopRefreshError = watch(sync.refreshError, (err) => {
+  if (err) toast(tr('部分会话状态暂时无法同步', 'Some session updates could not be loaded'), { tone: 'warning' });
 });
 
 // Keep the screen awake while a run is active, on any supported device.
@@ -170,6 +174,7 @@ app.onUnmount(() => {
   stopTheme();
   stopLocale();
   stopProtocolError();
+  stopRefreshError();
   stopKeepAwake();
   stopShortcuts();
   stopSystemListeners.forEach((stop) => stop());

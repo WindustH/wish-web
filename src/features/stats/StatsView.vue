@@ -55,7 +55,7 @@ const totals = computed(() =>
     { tokens: { input_tokens: 0, output_tokens: 0 }, cache: { read_input_tokens: 0 } },
   ),
 );
-const totalTokens = computed(() => usage.value?.statistics.totals.tokens.total_tokens ?? 0);
+
 const usageRange = stats.usageRange;
 const usageSwitching = stats.usageSwitching;
 const errorMessage = computed(() => (error.value instanceof Error ? error.value.message : String(error.value)));
@@ -73,6 +73,7 @@ const models = computed(() =>
     const duplicate = rows.value.some((other) => other !== row && other.model === row.model);
     return [
       {
+        key: modelKey(row),
         name: duplicate ? [label, providerLabel(row.provider)].filter(Boolean).join(' · ') : label,
         model: label,
         provider: duplicate ? providerLabel(row.provider) : undefined,
@@ -85,6 +86,13 @@ const models = computed(() =>
 const slices = computed(() => pieDistribution(models.value, tr('其他', 'Other')));
 const showPie = computed(() => models.value.filter((item) => item.value > 0).length > 1);
 const pieTotal = computed(() => models.value.reduce((sum, item) => sum + item.value, 0));
+function modelShare(row: (typeof rows.value)[number]) {
+  if (hiddenModels.value.has(modelKey(row))) return tr('已隐藏', 'Hidden');
+  return percent(pieTotal.value ? row.totals.tokens.total_tokens / pieTotal.value : null);
+}
+function showModels() {
+  for (const row of rows.value) hiddenModels.value.delete(modelKey(row));
+}
 // The hovered slice takes over the donut's hole instead of a floating tooltip.
 const hovered = ref<number | null>(null);
 const hoveredSlice = computed(() => (hovered.value == null ? null : (slices.value[hovered.value] ?? null)));
@@ -96,7 +104,7 @@ onDeactivated(stats.stopAuto);
   <OverlayWindow
     :title="i18n.t('nav.stats')"
     :close-label="tr('关闭统计', 'Close statistics')"
-    max-width="680px"
+    max-width="880px"
     gutter="24px"
     mobile-padding="0 20px 32px"
   >
@@ -109,39 +117,22 @@ onDeactivated(stats.stopAuto);
         }}</span>
       </p>
       <Spinner v-if="loading && !updatedAt" />
-      <UsageCharts ref="charts">
+      <UsageCharts ref="charts" :shared-range="usageRange" :hidden-models="hiddenModels" v-slot="{ speeds }">
         <section v-if="totals && usage" class="card statistics-usage" :class="{ switching: usageSwitching }">
           <header class="statistics-usage-head">
-            <h3>{{ tr('模型用量', 'Usage by model') }}</h3>
+            <h3>{{ tr('用量概览', 'Usage overview') }}</h3>
             <UsageRangePicker allow-all :model-value="usageRange" @update:model-value="stats.setUsageRange" />
           </header>
           <p v-if="!rows.length" class="statistics-usage-empty">
             {{ tr('这段时间没有模型调用。', 'No model calls in this period.') }}
           </p>
-          <ModelLegend :count="rows.length" :label="tr('用量统计模型', 'Usage model')">
-            <button
-              v-for="row in rows"
-              :key="modelKey(row)"
-              class="statistics-model"
-              :aria-pressed="!hiddenModels.has(modelKey(row))"
-              @click="toggleModel(modelKey(row))"
-            >
-              <i class="statistics-model-dot" :style="{ background: modelColor(row) }" />
-              <span
-                >{{ modelName(row.model)
-                }}<small :class="{ unread: !providerTitlesRead }"
-                  >{{ providerLabel(row.provider)
-                  }}<em class="statistics-model-share-inline">
-                    · {{ percent(totalTokens > 0 ? row.totals.tokens.total_tokens / totalTokens : 0) }}</em
-                  ></small
-                ></span
-              >
-              <small class="statistics-model-share">{{
-                percent(totalTokens > 0 ? row.totals.tokens.total_tokens / totalTokens : 0)
-              }}</small>
-            </button>
-          </ModelLegend>
           <dl class="statistics-values">
+            <div>
+              <dt>{{ tr('总计 Token', 'Total tokens') }}</dt>
+              <Hint :text="number(pieTotal)"
+                ><dd data-stat="total">{{ fmtTokens(pieTotal) }}</dd></Hint
+              >
+            </div>
             <div>
               <dt>{{ i18n.t('stats.tokensIn') }} <small>Token</small></dt>
               <Hint :text="number(totals.tokens.input_tokens)"
@@ -168,12 +159,18 @@ onDeactivated(stats.stopAuto);
                     totals.tokens.input_tokens > 0 ? totals.cache.read_input_tokens / totals.tokens.input_tokens : null,
                   )
                 }}
+                <span v-if="totals.tokens.input_tokens" class="cache-meter" aria-hidden="true"
+                  ><i
+                    :style="{
+                      width: Math.min(100, (100 * totals.cache.read_input_tokens) / totals.tokens.input_tokens) + '%',
+                    }"
+                /></span>
               </dd>
             </div>
           </dl>
-          <h3 v-if="showPie">{{ tr('模型 Token 占比', 'Token share by model') }}</h3>
-          <div v-if="showPie" class="model-share">
-            <div class="model-share-chart">
+
+          <div v-if="rows.length" class="model-share" :class="{ solo: !showPie }">
+            <div v-if="showPie" class="model-share-chart">
               <UsagePlot
                 :pie="slices"
                 :label="tr('各模型总 Token 消耗占比', 'Total Token consumption by model')"
@@ -189,18 +186,53 @@ onDeactivated(stats.stopAuto);
                 ><span>Token</span>
               </div>
             </div>
-            <ul class="distribution-legend">
-              <li v-for="(item, index) in slices" :key="index" :class="{ active: hovered === index }">
-                <i
-                  :style="{ background: item.colorIndex == null ? 'var(--fg-subtle)' : color(item.colorIndex) }"
-                /><span class="distribution-label"
-                  >{{ item.model ?? item.name }}<small v-if="item.provider">{{ item.provider }}</small
-                  ><small v-else-if="item.members.length > 1">{{
-                    tr(item.members.length + ' 个模型', item.members.length + ' models')
-                  }}</small></span
-                ><strong>{{ percent(item.share) }}</strong>
-              </li>
-            </ul>
+            <ModelLegend
+              :count="rows.length"
+              :hidden-keys="rows.map((row) => hiddenModels.has(modelKey(row)))"
+              :label="tr('用量统计模型', 'Usage model')"
+            >
+              <template #actions
+                ><button
+                  v-if="selectedRows.length < rows.length"
+                  type="button"
+                  class="btn ghost sm"
+                  @click="showModels"
+                >
+                  {{ tr('全部显示', 'Show all') }}
+                </button></template
+              >
+              <button
+                v-for="row in rows"
+                :key="modelKey(row)"
+                class="statistics-model"
+                :aria-pressed="!hiddenModels.has(modelKey(row))"
+                :class="{ active: hoveredSlice?.members.some((member) => member.key === modelKey(row)) }"
+                @mouseenter="
+                  hovered = slices.findIndex((slice) => slice.members.some((member) => member.key === modelKey(row)))
+                "
+                @mouseleave="hovered = null"
+                @click="
+                  toggleModel(modelKey(row));
+                  hovered = null;
+                "
+              >
+                <i class="statistics-model-dot" :style="{ background: modelColor(row) }" />
+                <span
+                  >{{ modelName(row.model)
+                  }}<small :class="{ unread: !providerTitlesRead }"
+                    >{{ providerLabel(row.provider)
+                    }}<template v-if="speeds.get(modelKey(row)) != null">
+                      · {{ number(speeds.get(modelKey(row))!) }} TPS</template
+                    ><em class="statistics-model-share-inline">
+                      ·
+                      {{ modelShare(row) }}</em
+                    ></small
+                  ></span
+                >
+                <b>{{ fmtTokens(row.totals.tokens.total_tokens) }}</b>
+                <small class="statistics-model-share">{{ modelShare(row) }}</small>
+              </button>
+            </ModelLegend>
           </div>
         </section>
       </UsageCharts>
@@ -220,7 +252,7 @@ onDeactivated(stats.stopAuto);
 }
 .statistics-body {
   width: 100%;
-  max-width: 640px;
+  max-width: 100%;
   min-width: 0;
   margin-inline: auto;
   padding: 0;
@@ -367,43 +399,26 @@ dd {
 .model-share :deep(.usage-canvas) {
   height: 124px;
 }
-.distribution-legend {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-size: 13px;
+.model-share {
+  margin-top: 12px;
 }
-.distribution-legend li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 5px 0;
+.model-share.solo {
+  grid-template-columns: minmax(0, 1fr);
 }
-.distribution-legend li + li {
-  border-top: 1px solid var(--line);
+.statistics-model.active {
+  background: var(--bg-hover);
 }
-.distribution-legend i {
-  width: 8px;
-  height: 8px;
-  flex: none;
-  border-radius: 50%;
-}
-.distribution-label {
-  flex: 1;
-  min-width: 0;
-  color: var(--fg-muted);
-  overflow-wrap: anywhere;
-}
-.distribution-label small {
+.cache-meter {
   display: block;
-  font-size: 0.85em;
-  color: var(--fg-subtle);
+  height: 3px;
+  background: var(--bg-sunken);
+  border-radius: 3px;
+  overflow: hidden;
 }
-.distribution-legend strong {
-  font-weight: 500;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+.cache-meter i {
+  display: block;
+  height: 100%;
+  background: var(--chart-1);
 }
 .model-share-chart {
   position: relative;
@@ -437,19 +452,13 @@ dd {
   font-size: 10px;
   color: var(--fg-muted);
 }
-.distribution-legend li {
-  transition: opacity var(--dur-fast);
-}
-.distribution-legend:has(li.active) li:not(.active) {
-  opacity: 0.45;
-}
 .statistics-body :deep(.usage-charts) {
   gap: 12px;
   margin-block: 10px 12px;
 }
 @media (min-width: 600px) {
   .statistics-values {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
   .statistics-values > div + div {
     border-left: 1px solid var(--line);
@@ -461,6 +470,9 @@ dd {
   }
 }
 @media (max-width: 599px) {
+  .statistics-values > div:last-child {
+    grid-column: 1 / -1;
+  }
   .statistics-usage {
     padding: 16px 12px;
   }
@@ -476,11 +488,6 @@ dd {
   }
   .model-share :deep(.usage-canvas) {
     height: 128px;
-  }
-  .distribution-legend li {
-    padding-block: 6px;
-    gap: 8px;
-    line-height: 1.4;
   }
 }
 </style>

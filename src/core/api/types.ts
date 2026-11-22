@@ -155,6 +155,7 @@ export interface BlobPage {
   folders?: LibraryFolder[];
 }
 export interface LibraryCleanup {
+  archive?: ArchiveRecord | null;
   unreadable_jobs?: number;
   stale_entries?: number;
   missing_links: number;
@@ -346,8 +347,33 @@ export interface UsageSnapshot {
     by_provider_model: { provider: string | null; model: string | null; totals: UsageTotals }[];
   };
 }
+export type ArchiveKind = 'session' | 'history_prune' | 'library_cleanup' | 'usage_prune';
+export interface ArchiveRecord {
+  archive_id: string;
+  kind: ArchiveKind;
+  session_id: string | null;
+  batch_id: string | null;
+  name: string;
+  archived_at: number;
+  archive_bytes: number;
+  original_bytes: number;
+}
+export interface ExportTicket {
+  export_id: string;
+  filename: string;
+  bytes: number;
+  download_url: string;
+  expires_at: number;
+}
 export interface StorageSnapshot {
-  bytes: { session_data: number; blobs: number; executions: number; service_data: number; total: number };
+  bytes: {
+    session_data: number;
+    blobs: number;
+    executions: number;
+    service_data: number;
+    archives?: number;
+    total: number;
+  };
   counts: { executions: number; blobs: number; image_jobs: number; context_generations: number };
   /** The streaming-speed samples kept, against the configured limit; null keeps every one. */
   stream_samples: { count: number; limit: number | null };
@@ -396,6 +422,8 @@ export interface PruneCounts {
   bytes: { history: number; files: number; total: number };
 }
 export interface PruneResult extends PruneCounts {
+  archives?: ArchiveRecord[];
+  batch_id?: string;
   sessions: (PruneCounts & { id: string })[];
   skipped: { id: string; reason: string }[];
   // Present once applied: the database's size before and after it was compacted.

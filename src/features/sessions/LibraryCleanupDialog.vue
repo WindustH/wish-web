@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { bus } from '../../core/bus.ts';
 import { cleanupLibrary } from '../../core/api/endpoints.ts';
 import type { LibraryCleanup } from '../../core/api/types.ts';
 import { describeError } from '../../core/i18n/errorMessages.ts';
@@ -13,6 +14,7 @@ const props = defineProps<{ session: string; open: boolean }>();
 const emit = defineEmits<{ close: []; cleaned: [] }>();
 const missingLinks = ref(true),
   unusedHidden = ref(true);
+const archive = ref(false);
 const preview = ref<LibraryCleanup>();
 const measuring = ref(false),
   cleaning = ref(false),
@@ -23,7 +25,8 @@ const count = computed(() => preview.value?.ids.length ?? 0);
 const options = () => ({ missing_links: missingLinks.value, unused_hidden: unusedHidden.value });
 watch(
   [() => props.open, () => props.session, missingLinks, unusedHidden, revision],
-  async ([open], _, cleanup) => {
+  async ([open, session], previous, cleanup) => {
+    if (open && (!previous?.[0] || session !== previous[1])) archive.value = false;
     controller?.abort();
     const request = new AbortController();
     controller = request;
@@ -55,7 +58,7 @@ async function clean() {
   try {
     const result = await cleanupLibrary(
       props.session,
-      { ...options(), dry_run: false, ids: preview.value.ids },
+      { ...options(), dry_run: false, ids: preview.value.ids, ...(archive.value ? { archive: true } : {}) },
       { signal: request.signal },
     );
     if (request.signal.aborted) return;
@@ -65,11 +68,15 @@ async function clean() {
     }
     const removed = result.missing_links + result.unused_hidden;
     const stale = result.stale_entries ?? 0;
+    if (result.archive) bus.emit('archives.changed');
+    const summary = tr(
+      `已清理 ${removed} 个文件${stale ? `、${stale} 条失效记录` : ''}，释放 ${fmtBytes(result.bytes)}。`,
+      `Removed ${removed} file${removed === 1 ? '' : 's'}${stale ? ` and ${stale} stale entr${stale === 1 ? 'y' : 'ies'}` : ''}, freed ${fmtBytes(result.bytes)}.`,
+    );
     toast(
-      tr(
-        `已清理 ${removed} 个文件${stale ? `、${stale} 条失效记录` : ''}，释放 ${fmtBytes(result.bytes)}`,
-        `Removed ${removed} file${removed === 1 ? '' : 's'}${stale ? ` and ${stale} stale entr${stale === 1 ? 'y' : 'ies'}` : ''}, freed ${fmtBytes(result.bytes)}`,
-      ),
+      result.archive
+        ? summary + tr('归档包可在「存储 → 已归档」查看。', ' Find the ZIP in Storage → Archived.')
+        : summary,
     );
     emit('cleaned');
     emit('close');
@@ -106,6 +113,11 @@ async function clean() {
         ><input v-model="unusedHidden" type="checkbox" :disabled="cleaning" />
         {{
           tr('清除当前上下文不再引用的隐藏文件', 'Remove hidden files no longer referenced by the current context')
+        }}</label
+      >
+      <label
+        ><input v-model="archive" type="checkbox" :disabled="cleaning" />{{
+          tr('清理前归档文件', 'Archive files before cleanup')
         }}</label
       >
       <p class="library-cleanup-note">
@@ -163,11 +175,13 @@ async function clean() {
       </button>
       <button
         type="button"
-        class="btn danger solid library-confirm-cleanup"
+        class="btn library-confirm-cleanup"
+        :class="archive ? 'primary' : 'danger solid'"
         :disabled="cleaning || measuring || !count || !!error"
         @click="clean"
       >
-        <Icon v-if="cleaning" name="loader-circle" class="spin" />{{ tr('清理', 'Clean up') }}
+        <Icon v-if="cleaning" name="loader-circle" class="spin" /><Icon v-else-if="archive" name="archive" />
+        {{ archive ? tr('归档并清理', 'Archive and clean up') : tr('清理', 'Clean up') }}
       </button>
     </template>
   </Modal>

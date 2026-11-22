@@ -40,6 +40,20 @@ defineProps<{ config: SettingsConfig; shells: ShellCatalog | null; busy: boolean
         <BuiltinToolSettings v-model="config.defaults.tools" :disabled="busy" />
       </div>
     </section>
+    <section class="set-section">
+      <div class="set-card">
+        <label class="set-row">
+          <span class="set-label"
+            ><span>{{ tr('服务器浏览器可执行文件', 'Server browser executable') }}</span></span
+          >
+          <input
+            v-model="config.browser_executable"
+            class="input"
+            :placeholder="tr('自动检测 Chromium', 'Detect Chromium automatically')"
+          />
+        </label>
+      </div>
+    </section>
     <section v-if="config.shell" class="set-section">
       <header class="set-section-head">
         <h3>Shell</h3>

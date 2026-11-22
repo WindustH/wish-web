@@ -1,4 +1,5 @@
 export interface PieItem {
+  key?: string;
   name: string;
   model?: string;
   provider?: string;

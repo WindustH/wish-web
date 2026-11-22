@@ -2,13 +2,17 @@
 import { inject } from 'vue';
 import { configDraftKey } from './useConfigDraft.ts';
 import { tr } from '../../core/i18n/tr.ts';
+import DeviceProxySettings from './DeviceProxySettings.vue';
+import { isNativeApp } from '../../platform/native.ts';
+defineProps<{ server: boolean }>();
 import ServerProxySettings from './ServerProxySettings.vue';
 const { draft, proxyEnvironment } = inject(configDraftKey)!;
 </script>
 <template>
-  <section v-if="draft.proxy" class="set-section">
+  <DeviceProxySettings v-if="isNativeApp()" />
+  <section v-if="server && draft.proxy" class="set-section">
     <header class="set-section-head">
-      <h3>{{ tr('网络代理', 'Network proxy') }}</h3>
+      <h3>{{ tr('服务器代理', 'Server proxy') }}</h3>
       <p>
         {{
           tr(

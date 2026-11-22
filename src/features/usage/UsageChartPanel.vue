@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { chartColor, modelColorIndex, modelKey } from './modelColors.ts';
+import SelectField from '../../ui/components/SelectField.vue';
 import ModelLegend from './ModelLegend.vue';
 import UsageRangePicker from './UsageRangePicker.vue';
-import type { RangeSelection } from '../../core/usage/windows.ts';
+import type { RangeSelection, TotalsRange } from '../../core/usage/windows.ts';
 import UsagePlot from './UsagePlot.vue';
 import type { HeatData } from './chartOptions.ts';
 import InfoHint from '../../ui/components/InfoHint.vue';
@@ -21,8 +22,11 @@ const props = defineProps<{
   calendarLoading: boolean;
   error: string;
   calendarError: string;
-  range: RangeSelection;
+  range: TotalsRange;
+  shared?: boolean;
+  hidden?: Set<string>;
   calendarRange: RangeSelection;
+  timezone?: string;
   rangeSwitching?: boolean;
   calendarSwitching?: boolean;
 }>();
@@ -66,7 +70,7 @@ const models = computed(() =>
 );
 const series = computed(() =>
   models.value
-    .filter((model) => !hiddenModels.value.has(model.key))
+    .filter((model) => !(props.hidden ?? hiddenModels.value).has(model.key))
     .map((model) => ({
       key: model.key,
       label: model.label,
@@ -88,79 +92,23 @@ const activeDays = computed(() => props.days?.filter((day) => day[1] > 0).length
 </script>
 <template>
   <div class="usage-charts">
-    <section class="usage-chart-card">
-      <div v-if="calendarError" class="load-error" role="alert">
-        {{ calendarError
-        }}<button class="btn ghost sm" @click="emit('retryCalendar')">{{ i18n.t('common.retry') }}</button>
-      </div>
-      <div v-if="calendarLoading && !days" class="usage-empty" role="status">
-        {{ tr('正在读取用量…', 'Loading usage…') }}
-      </div>
-      <template v-if="days">
-        <div class="usage-calendar-summary">
-          <div class="calendar-summary-text">
-            <span class="calendar-total"
-              ><strong>{{ fmtTokens(dailyTotal) }}</strong> Token</span
-            >
-            <span class="calendar-days">{{ tr(`${activeDays} 天有用量记录`, `${activeDays} days with usage`) }}</span>
-          </div>
-          <UsageRangePicker :model-value="calendarRange" @update:model-value="emit('calendarRange', $event)" />
-        </div>
-        <UsagePlot
-          v-if="heat"
-          :heat="heat"
-          :refreshing="calendarSwitching"
-          @columns="emit('calendarColumns', $event)"
-          :label="
-            tr(
-              `所选日期共消耗 ${num(dailyTotal)} Token，${activeDays} 天有用量记录。`,
-              `${num(dailyTotal)} tokens over ${activeDays} active days in the selected range.`,
-            )
-          "
-        />
-        <footer class="usage-chart-meta usage-calendar-meta">
-          <span class="usage-calendar-meta-info"
-            ><span>{{ data?.timezone }}</span
-            ><button class="btn ghost sm" :aria-expanded="dailyTable" @click="dailyTable = !dailyTable">
-              {{ tr('每日数据', 'Daily data') }}
-            </button></span
-          >
-          <div class="usage-heat-legend">
-            <span>{{ tr('少', 'Less') }}</span
-            ><i v-for="index in [0, 1, 2, 3, 4]" :key="index" :style="{ background: `var(--heat-${index})` }" /><span>{{
-              tr('多', 'More')
-            }}</span>
-          </div>
-        </footer>
-        <div v-if="dailyTable" class="usage-data-table">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>{{ tr('日期', 'Date') }}</th>
-                <th>Token</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="day in [...days].reverse()" :key="day[0]">
-                <td>{{ day[0] }}</td>
-                <td>{{ num(day[1]) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </template>
-      <UsageRangePicker v-if="!days" :model-value="calendarRange" @update:model-value="emit('calendarRange', $event)" />
-    </section>
     <slot name="between" />
-    <section class="usage-chart-card usage-performance-card">
+    <p v-if="range.period === 'all'" class="card usage-period-note">
+      {{ tr('选择一年以内的时间范围可查看趋势曲线。', 'Select a range of up to one year to view trends.') }}
+    </p>
+    <section v-else class="usage-chart-card usage-performance-card">
       <header class="usage-chart-header">
         <div class="usage-metrics" :aria-label="tr('统计指标', 'Metric')">
-          <button class="btn ghost sm" :aria-pressed="metric === 'tps'" @click="metric = 'tps'">
-            {{ tr('估算 TPS', 'Estimated TPS') }}
-          </button>
-          <button class="btn ghost sm" :aria-pressed="metric === 'tokens'" @click="metric = 'tokens'">
-            {{ tr('Token 消耗', 'Token usage') }}
-          </button>
+          <SelectField
+            :model-value="metric"
+            segmented="always"
+            :options="[
+              { value: 'tps', label: tr('估算 TPS', 'Estimated TPS') },
+              { value: 'tokens', label: tr('Token 消耗', 'Token usage') },
+            ]"
+            :aria-label="tr('统计指标', 'Metric')"
+            @update:model-value="metric = $event === 'tokens' ? 'tokens' : 'tps'"
+          />
           <InfoHint
             :label="tr('计算方式', 'Calculation')"
             :text="
@@ -171,7 +119,7 @@ const activeDays = computed(() => props.days?.filter((day) => day[1] > 0).length
             "
           />
         </div>
-        <div class="usage-range">
+        <div v-if="!shared" class="usage-range">
           <UsageRangePicker :model-value="range" @update:model-value="emit('range', $event)" />
         </div>
       </header>
@@ -180,7 +128,7 @@ const activeDays = computed(() => props.days?.filter((day) => day[1] > 0).length
       </div>
       <div v-if="loading && !data" class="usage-empty" role="status">{{ tr('正在读取用量…', 'Loading usage…') }}</div>
       <template v-if="data">
-        <ModelLegend v-if="models.length" :count="models.length" :label="tr('模型图例', 'Model legend')">
+        <ModelLegend v-if="models.length && !shared" :count="models.length" :label="tr('模型图例', 'Model legend')">
           <button
             v-for="model in models"
             :key="model.key"
@@ -224,6 +172,69 @@ const activeDays = computed(() => props.days?.filter((day) => day[1] > 0).length
           <span>{{ tr('包含失败请求已报告的用量', 'Includes reported usage from failed requests') }}</span>
         </footer>
       </template>
+    </section>
+    <section class="usage-chart-card">
+      <div v-if="calendarError" class="load-error" role="alert">
+        {{ calendarError
+        }}<button class="btn ghost sm" @click="emit('retryCalendar')">{{ i18n.t('common.retry') }}</button>
+      </div>
+      <div v-if="calendarLoading && !days" class="usage-empty" role="status">
+        {{ tr('正在读取用量…', 'Loading usage…') }}
+      </div>
+      <template v-if="days">
+        <div class="usage-calendar-summary">
+          <div class="calendar-summary-text">
+            <span class="calendar-total"
+              ><strong>{{ fmtTokens(dailyTotal) }}</strong> Token</span
+            >
+            <span class="calendar-days">{{ tr(`${activeDays} 天有用量记录`, `${activeDays} days with usage`) }}</span>
+          </div>
+          <UsageRangePicker :model-value="calendarRange" @update:model-value="emit('calendarRange', $event)" />
+        </div>
+        <UsagePlot
+          v-if="heat"
+          :heat="heat"
+          :refreshing="calendarSwitching"
+          @columns="emit('calendarColumns', $event)"
+          :label="
+            tr(
+              `所选日期共消耗 ${num(dailyTotal)} Token，${activeDays} 天有用量记录。`,
+              `${num(dailyTotal)} tokens over ${activeDays} active days in the selected range.`,
+            )
+          "
+        />
+        <footer class="usage-chart-meta usage-calendar-meta">
+          <span class="usage-calendar-meta-info"
+            ><span>{{ timezone }}</span
+            ><button class="btn ghost sm" :aria-expanded="dailyTable" @click="dailyTable = !dailyTable">
+              {{ tr('每日数据', 'Daily data') }}
+            </button></span
+          >
+          <div class="usage-heat-legend">
+            <span>{{ tr('少', 'Less') }}</span
+            ><i v-for="index in [0, 1, 2, 3, 4]" :key="index" :style="{ background: `var(--heat-${index})` }" /><span>{{
+              tr('多', 'More')
+            }}</span>
+          </div>
+        </footer>
+        <div v-if="dailyTable" class="usage-data-table">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>{{ tr('日期', 'Date') }}</th>
+                <th>Token</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="day in days.filter((day) => day[1] > 0).reverse()" :key="day[0]">
+                <td>{{ day[0] }}</td>
+                <td>{{ num(day[1]) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+      <UsageRangePicker v-if="!days" :model-value="calendarRange" @update:model-value="emit('calendarRange', $event)" />
     </section>
   </div>
 </template>
@@ -363,6 +374,11 @@ const activeDays = computed(() => props.days?.filter((day) => day[1] > 0).length
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+.usage-period-note {
+  margin: 0;
+  padding: 14px 16px;
+  color: var(--fg-subtle);
+}
 .usage-empty {
   min-height: 160px;
   display: grid;
@@ -455,7 +471,7 @@ const activeDays = computed(() => props.days?.filter((day) => day[1] > 0).length
   opacity: 0;
 }
 .usage-data-table {
-  max-height: 320px;
+  max-height: 260px;
   overflow: auto;
   font-size: 12px;
 }
@@ -473,5 +489,10 @@ const activeDays = computed(() => props.days?.filter((day) => day[1] > 0).length
   .usage-chart-meta {
     font-size: 10px;
   }
+}
+.usage-data-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-raised);
 }
 </style>

@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { extensionSwitchRows } from '../../extensions/settings.ts';
+import { extensionModeLabel, extensionSwitchRows } from '../../extensions/settings.ts';
 
 import { computed, inject } from 'vue';
 import type { SearchProviderStatus } from '../../core/api/endpoints.ts';
-import Icon from '../../ui/components/Icon.vue';
 import { tr } from '../../core/i18n/tr.ts';
 import ExtensionCategoryPicker from '../../domain/settings/ExtensionCategoryPicker.vue';
-import { useIsMobile } from '../../ui/composables/useMedia.ts';
 import ToolSwitchRows from '../../domain/settings/ToolSwitchRows.vue';
 import { configDraftKey } from './useConfigDraft.ts';
 import { extensionSections } from './settingsSections.ts';
@@ -24,35 +22,26 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ checked: []; selected: [section: string] }>();
 const { draft, busy, serverDirty, providerOptions, searchCatalog } = inject(configDraftKey)!;
-const mobile = useIsMobile();
+const categories = computed(() =>
+  extensionSections.value.map((item) => {
+    const mode = extensionModeLabel(draft.value.defaults.tools, item.toolKey);
+    const services = Object.values(draft.value[item.id]?.providers ?? {});
+    const enabled = services.filter((service) => service.enabled).length;
+    return {
+      ...item,
+      status:
+        mode +
+        ' · ' +
+        tr(`${enabled}/${services.length} 个服务已启用`, `${enabled}/${services.length} services enabled`),
+    };
+  }),
+);
 const current = computed(() => extensionSections.value.find((item) => item.id === props.initialSection));
 </script>
 
 <template>
   <div class="extension-tools-settings">
-    <template v-if="!current">
-      <ExtensionCategoryPicker
-        v-if="mobile"
-        :categories="extensionSections"
-        pages
-        @update:model-value="emit('selected', $event)"
-      />
-      <nav v-else class="extension-categories settings-link-list" :aria-label="tr('扩展工具', 'Extension tools')">
-        <div v-for="item in extensionSections" :key="item.id" class="set-card">
-          <div class="set-row inline">
-            <span class="settings-link-label"><Icon :name="item.icon" />{{ item.label }}</span>
-            <button
-              class="btn settings-page-link"
-              type="button"
-              :aria-label="tr('配置', 'Configure') + ' ' + item.label"
-              @click="emit('selected', item.id)"
-            >
-              {{ tr('配置', 'Configure') }}<Icon name="arrow-up-right" :size="15" />
-            </button>
-          </div>
-        </div>
-      </nav>
-    </template>
+    <ExtensionCategoryPicker v-if="!current" :categories="categories" @selected="emit('selected', $event)" />
     <template v-else>
       <fieldset v-if="draft.defaults.tools" class="settings-form extension-defaults" :disabled="busy">
         <div class="set-card">

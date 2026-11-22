@@ -4,7 +4,7 @@ import { computed, inject, ref, shallowRef, watch } from 'vue';
 import DOMPurify from 'dompurify';
 import { tr } from '../../core/i18n/tr.ts';
 import { useSourceWindow } from './useSourceWindow.ts';
-import type { SourcePages, SourceBlock } from './sourcePages.ts';
+import { wholeSourceBytes, type SourcePages, type SourceBlock } from './sourcePages.ts';
 import { prefs } from '../../core/state/prefsSlice.ts';
 import { replyReferenceId, type ReplyReference } from '../../core/replyReferences.ts';
 import { replyContextKey } from '../references/context.ts';
@@ -23,6 +23,9 @@ import Hint from '../../ui/components/Hint.vue';
 import CopyButton from '../../ui/components/CopyButton.vue';
 import SegmentedControl from '../../ui/components/SegmentedControl.vue';
 import Markdown from '../references/ReferenceMarkdown.vue';
+import LoadingState from '../../ui/components/LoadingState.vue';
+import PageRegion from './PageRegion.vue';
+import embeddedCapture from './embeddedCapture.js?raw';
 import ImagePreview from './ImagePreview.vue';
 
 const props = defineProps<{
@@ -43,11 +46,14 @@ const active = usePageActivity();
 const mobile = useIsMobile();
 const separateToolbar = usePreviewToolbar(() => props.toolbar);
 const replies = inject(replyContextKey, undefined);
-const mode = defineModel<string>('mode', { default: 'source' });
-watch([() => props.session, () => props.blob], () => {
-  mode.value = 'source';
-});
+const selectedMode = defineModel<string>('mode');
 const previewKind = computed(() => sourcePreviewKind(props.name, props.mime));
+const mode = computed({
+  get: () => selectedMode.value ?? (previewKind.value === 'html' ? 'preview' : 'source'),
+  set: (value: string) => {
+    selectedMode.value = value;
+  },
+});
 const compactToolbar = computed(() => mobile.value && !!props.toolbar);
 // On phones, a single view toggle shares the filename row. File actions live in its menu.
 const localToolbar = computed(
@@ -69,17 +75,31 @@ const { items, before, after, measure, restore } = useSourceWindow(
   () => active.value && mode.value === 'source',
   (cause) => emit('error', cause),
 );
+// Retain markup only for recently visible blocks, even when the file index grows.
+const renderedBlocks = new Map<SourceBlock, { language: string; last: boolean; html: string }>();
 function blockHtml(block: SourceBlock) {
   const doc = props.pages!;
   const text = doc.cache.get(block.page.start)?.slice(block.from, block.to);
   if (text === undefined) return '';
-  return sourceLines(
-    highlightCode(text, language.value) || escape(text),
-    block.line,
-    doc.complete && block.offset + text.length === doc.length,
-  );
+  const last = doc.complete && block.offset + text.length === doc.length;
+  const cached = renderedBlocks.get(block);
+  if (cached?.language === language.value && cached.last === last) return cached.html;
+  const html = sourceLines(highlightCode(text, language.value) || escape(text), block.line, last);
+  renderedBlocks.set(block, { language: language.value, last, html });
+  if (renderedBlocks.size > 96) renderedBlocks.delete(renderedBlocks.keys().next().value!);
+  return html;
 }
+const oversized = computed(() => (props.pages?.size ?? 0) > wholeSourceBytes);
+const largeFileHint = () =>
+  tr(
+    '文件超过 32 MiB，可分页查看源码，或下载完整文件。',
+    'This file exceeds 32 MiB. Read the paged source or download the full file.',
+  );
 async function copyAll() {
+  if (oversized.value) {
+    toast(largeFileHint(), { tone: 'warning' });
+    return false;
+  }
   const pages = props.pages;
   try {
     const text = pages ? await pages.all() : props.text;
@@ -98,7 +118,7 @@ watch(
     cleanup(() => request.abort());
     richReady.value = false;
     richText.value = '';
-    if (view !== 'preview' || !pages) return;
+    if (view !== 'preview' || !pages || oversized.value) return;
     try {
       const text = await pages.all(request.signal);
       if (!request.signal.aborted) {
@@ -114,6 +134,7 @@ watch(
 const formattedText = computed(() => (props.pages ? richText.value : props.text));
 defineExpose({
   copyAll,
+  showingSource: computed(() => mode.value === 'source'),
   rememberScroll: () => {
     if (viewport.value && mode.value === 'source') emit('scroll', viewport.value.scrollTop);
     if (previewViewport.value) emit('previewScroll', previewViewport.value.scrollTop);
@@ -216,7 +237,7 @@ async function quote() {
 watch(
   () => props.focus,
   (focus) => {
-    if (focus) mode.value = focus.region && previewKind.value === 'svg' ? 'preview' : 'source';
+    if (focus) mode.value = focus.region && ['html', 'svg'].includes(previewKind.value ?? '') ? 'preview' : 'source';
   },
   { immediate: true },
 );
@@ -247,18 +268,20 @@ watch(
   { flush: 'post' },
 );
 
-const documentHtml = computed(() => {
-  if (mode.value !== 'preview' || previewKind.value !== 'html') return '';
-  const clean = DOMPurify.sanitize(formattedText.value, {
-    WHOLE_DOCUMENT: true,
-    ADD_TAGS: ['style'],
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'base', 'meta', 'link', 'form'],
-  });
-  const policy =
-    "default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; form-action 'none'; base-uri 'none'";
-  const meta = `<meta http-equiv="Content-Security-Policy" content="${policy}">`;
-  // DOMPurify may preserve attributes on <head>; the policy must always be its first child.
-  return /<head\b[^>]*>/i.test(clean) ? clean.replace(/<head\b[^>]*>/i, (head) => head + meta) : meta + clean;
+// Put the policy ahead of every byte supplied by the file. The iframe has
+// an opaque origin; inline modules can render bundled content and read data URLs.
+// Resolve fragment links against the preview document so they scroll within the frame.
+const htmlPolicy =
+  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data: blob:; media-src data: blob:; connect-src data: blob:; form-action 'none'; base-uri about:";
+const documentHtml = computed(() =>
+  mode.value === 'preview' && previewKind.value === 'html'
+    ? `<!doctype html><meta http-equiv="Content-Security-Policy" content="${htmlPolicy}"><meta name="referrer" content="no-referrer"><base href="about:srcdoc"><script>${embeddedCapture}<\/script>${formattedText.value}`
+    : '',
+);
+const frameLoaded = ref(false);
+const htmlFrame = ref<HTMLIFrameElement>();
+watch(documentHtml, () => {
+  frameLoaded.value = false;
 });
 const svgUrl = ref('');
 watch(
@@ -351,7 +374,11 @@ watch(
         </Menu>
       </div>
     </div>
-    <div v-else-if="pages && !richReady" role="status">{{ tr('正在加载…', 'Loading…') }}</div>
+    <div v-else-if="oversized" class="large-preview">
+      <p>{{ largeFileHint() }}</p>
+      <button class="btn sm" @click="mode = 'source'">{{ tr('查看源码', 'View source') }}</button>
+    </div>
+    <LoadingState v-else-if="pages && !richReady" :label="tr('正在加载预览…', 'Loading preview…')" />
     <ImagePreview
       v-else-if="previewKind === 'svg' && svgUrl"
       :src="svgUrl"
@@ -360,14 +387,28 @@ watch(
       :reference="{ session, blob }"
       :focus="focus"
     />
-    <iframe
-      v-else-if="previewKind === 'html'"
-      class="source-html"
-      :srcdoc="documentHtml"
-      sandbox=""
-      referrerpolicy="no-referrer"
-      :title="name"
-    />
+    <div v-else-if="previewKind === 'html'" class="html-stage" :aria-busy="!frameLoaded">
+      <iframe
+        ref="htmlFrame"
+        class="source-html"
+        :class="{ pending: !frameLoaded }"
+        :srcdoc="documentHtml"
+        sandbox="allow-scripts allow-pointer-lock"
+        referrerpolicy="no-referrer"
+        :title="name"
+        @load="frameLoaded = true"
+      />
+      <PageRegion
+        v-if="htmlFrame && frameLoaded"
+        :element="htmlFrame"
+        embedded
+        :blob="blob"
+        :session="session"
+        :name="name"
+        :toolbar="toolbar"
+      />
+      <LoadingState v-if="!frameLoaded" class="html-loading" :label="tr('正在渲染页面…', 'Rendering page…')" />
+    </div>
     <div
       v-else-if="previewKind === 'markdown'"
       ref="previewViewport"
@@ -380,6 +421,10 @@ watch(
 </template>
 
 <style scoped>
+.large-preview {
+  padding: 12px;
+  color: var(--muted);
+}
 .source-preview {
   container-type: inline-size;
   display: flex;
@@ -486,9 +531,23 @@ watch(
   padding: 8px 12px;
   user-select: text;
 }
-.source-html {
-  width: 100%;
+.html-stage {
+  position: relative;
+  display: grid;
   flex: 1;
+  min-height: 0;
+}
+.html-loading,
+.source-html {
+  grid-area: 1 / 1;
+}
+.source-html.pending {
+  visibility: hidden;
+}
+.source-html {
+  isolation: isolate;
+  width: 100%;
+  height: 100%;
   min-height: 0;
   border: 0;
   background: white;

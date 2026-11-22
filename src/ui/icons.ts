@@ -96,6 +96,7 @@ export const ICONS: Record<string, string> = {
   // the fold between them.
   send: `${wash('M21 3.25 11 13.25l3 7.5Z')}<path d="M21 3.25 3.5 10.25l7.5 3Z" ${SOLID}/><path d="M21 3.25 3.5 10.25l7.5 3 3 7.5ZM11 13.25l10-10"/>`,
   square: `<rect x="6" y="6" width="12" height="12" rx="3" ${SOFT}/>`,
+  archive: `<path d="M4.5 9.5h15v9A2.5 2.5 0 0 1 17 21H7a2.5 2.5 0 0 1-2.5-2.5Z" ${SOFT}/><rect x="2.5" y="3" width="19" height="6.5" rx="2"/><path d="M9.5 14h5"/>`,
   download: `<path d="M4 15.5V17a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1.5" ${SOFT}/><path d="M12 3.5v11m-5-4.5 5 5 5-5"/>`,
 
   // Things

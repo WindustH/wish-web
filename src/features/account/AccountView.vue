@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Account status as a page of its own, opened from the phone home screen.
-import { onActivated, onMounted } from 'vue';
+import { onActivated, onDeactivated, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { tr } from '../../core/i18n/tr.ts';
 import Icon from '../../ui/components/Icon.vue';
@@ -11,13 +11,17 @@ import { useAccountStates } from './useAccountStates.ts';
 const router = useRouter();
 // Opened from within the app, go back there; opened directly, go home.
 const leave = () => (window.history.state?.back ? router.back() : router.push('/sessions'));
-const { rows, loading, error, checkedAt, refresh } = useAccountStates();
+const { rows, loading, error, checkedAt, refresh, retry, cancel } = useAccountStates();
 let lastRefresh = 0;
 const load = () => {
   lastRefresh = Date.now();
   void refresh();
 };
 onMounted(load);
+onDeactivated(() => {
+  if (loading.value || rows.value.some((row) => row.loading)) lastRefresh = 0;
+  cancel();
+});
 // A kept-alive page reads again when shown after a while.
 onActivated(() => {
   if (Date.now() - lastRefresh > 30_000) load();
@@ -34,7 +38,7 @@ onActivated(() => {
       <div class="account-page-actions"><RefreshStamp :at="checkedAt" :loading="loading" @refresh="load" /></div>
     </header>
     <div class="account-page-body">
-      <AccountStatus :rows="rows" :loading="loading" :error="error" />
+      <AccountStatus :rows="rows" :loading="loading" :error="error" @retry="retry" />
     </div>
   </div>
 </template>

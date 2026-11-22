@@ -8,9 +8,11 @@ import Icon from '../../ui/components/Icon.vue';
 import { replyReferenceId, type ReplyReference } from '../../core/replyReferences.ts';
 const props = withDefaults(
   defineProps<{
-    target?: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement;
+    target?: HTMLElement;
+    capture?: () => Promise<HTMLImageElement | HTMLCanvasElement>;
     session: string;
-    blob: string;
+    blob?: string;
+    webpage?: boolean;
     name: string;
     page?: number;
     dimensions?: { width: number; height: number };
@@ -240,6 +242,10 @@ function outside(e: PointerEvent) {
   if (e.pointerType === 'touch' && !e.isPrimary) clear();
   if (!dragging.value && selection.value && !(e.target as Element)?.closest('.region-reply-menu')) clear();
 }
+function blur() {
+  // The browser's tab-sharing chooser can temporarily take focus during capture.
+  if (!busy.value || !props.capture) clear();
+}
 async function reply() {
   const s = selection.value,
     target = props.target;
@@ -249,18 +255,26 @@ async function reply() {
   const time = props.time;
   busy.value = true;
   try {
+    const source = props.capture ? await props.capture() : target;
+    if (at !== revision || !enabled.value) return;
+    if (!(
+      source instanceof HTMLImageElement ||
+      source instanceof HTMLVideoElement ||
+      source instanceof HTMLCanvasElement
+    ))
+      throw new Error('Image is unavailable');
     const width =
-      target instanceof HTMLImageElement
-        ? target.naturalWidth
-        : target instanceof HTMLVideoElement
-          ? target.videoWidth
-          : target.width;
+      source instanceof HTMLImageElement
+        ? source.naturalWidth
+        : source instanceof HTMLVideoElement
+          ? source.videoWidth
+          : source.width;
     const height =
-      target instanceof HTMLImageElement
-        ? target.naturalHeight
-        : target instanceof HTMLVideoElement
-          ? target.videoHeight
-          : target.height;
+      source instanceof HTMLImageElement
+        ? source.naturalHeight
+        : source instanceof HTMLVideoElement
+          ? source.videoHeight
+          : source.height;
     const sw = s.width * width,
       sh = s.height * height,
       ratio = Math.min(1, 2048 / Math.max(sw, sh));
@@ -271,7 +285,7 @@ async function reply() {
     if (!ctx) throw new Error('Canvas unavailable');
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(target, s.x * width, s.y * height, sw, sh, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(source, s.x * width, s.y * height, sw, sh, 0, 0, canvas.width, canvas.height);
     const image = await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Image encoding failed'))), 'image/jpeg', 0.9),
     );
@@ -280,7 +294,7 @@ async function reply() {
     const reference: ReplyReference = {
       id: replyReferenceId(),
       session: owner,
-      source: `blob_${props.blob}`,
+      source: props.webpage ? 'webpage' : `blob_${props.blob}`,
       blob: props.blob,
       fileName: props.name,
       page: props.page,
@@ -306,7 +320,10 @@ async function reply() {
       if (props.once) emit('complete');
     }
   } catch (error) {
-    toast(tr('无法引用选区：', 'Could not reference selection: ') + String(error), { tone: 'error' });
+    if (at === revision && enabled.value) {
+      if (props.capture) clear();
+      toast(tr('无法引用选区：', 'Could not reference selection: ') + String(error), { tone: 'error' });
+    }
   } finally {
     busy.value = false;
   }
@@ -379,14 +396,14 @@ watch(
     window.addEventListener('pointerdown', outside, true);
     window.addEventListener('scroll', scroll, true);
     window.addEventListener('resize', scheduleGeometry);
-    window.addEventListener('blur', clear);
+    window.addEventListener('blur', blur);
     window.addEventListener('wheel', wheel, { passive: true });
     cleanup(() => {
       window.removeEventListener('keydown', key, true);
       window.removeEventListener('pointerdown', outside, true);
       window.removeEventListener('scroll', scroll, true);
       window.removeEventListener('resize', scheduleGeometry);
-      window.removeEventListener('blur', clear);
+      window.removeEventListener('blur', blur);
       window.removeEventListener('wheel', wheel);
     });
   },

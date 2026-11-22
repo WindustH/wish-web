@@ -94,3 +94,11 @@ Use the absolute path to `node` (`command -v node`) and enable `loginctl enable-
 ## Upgrades and caching
 
 Hashed `/assets/*` bundles cache for a year while `index.html`, `sw.js`, and the manifest use `no-cache`. While visible, an open tab checks `/build-info.json` every minute, including on plain HTTP. When the build changes, **Update now** loads the new release after confirmation. On HTTPS and localhost, Wish also prepares the service worker before offering the update. Keep frontend and backend releases matched, and roll back anytime by swapping `dist/` + `serve.ts` back to an earlier build and restarting.
+
+## Live websites in the session Library
+
+Start your development server on the Wish backend machine. In the session Library menu choose **Add local website** and enter its loopback URL, including the port and starting path. A session shell can also run `wish blob website http://localhost:5173/demo --name Demo`. The Library stores the address. Opening it forwards HTTP requests and WebSockets to the running site and renders it in the sidebar.
+
+A device-local gateway uses temporary `ws-….localhost` hosts on the gateway's existing port. For a hosted interface at `wish.example.com`, route `*.wish.example.com` to the same Wish server, preserve the incoming Host, and forward WebSocket upgrades. Use a certificate covering that wildcard for HTTPS. The reverse proxy should send preview hosts to Wish on all paths, including paths such as `/assets` and `/api`. Direct LAN access by a bare IP requires a hostname for this deployment mode. The development port itself can remain bound to loopback. Applications should use relative or origin-relative URLs for their own resources and sockets.
+
+An embedded preview uses a host-only, HTTP-only grant cookie. A browser that blocks cookies for embedded sites can accept the bootstrap page and still refuse the website itself. Wish reports that condition in the sidebar. For a hosted installation, serve Wish and its preview subdomains under the same HTTPS site. Changing an HTTP cookie flag alone cannot override the browser’s tracking protection.

@@ -21,3 +21,23 @@ The Android project targets SDK 36. Set ANDROID_HOME, NDK_HOME and JAVA_HOME, an
 Linux uses the distribution's GTK 3 and WebKitGTK 4.1. Build on the oldest Linux distribution you plan to support, since binaries inherit the build host's glibc and system library requirements.
 
 After signing out, select a saved account card to reconnect with its address and credentials, or use the **+** tile to add an account. The settings gear opens the device’s Interface, Keyboard shortcuts and Debug preferences even while signed out. These preferences apply to every backend account on the device. Each account retains its own response cache. Removing a card forgets its saved login. SSH keys are managed separately in the connection form.
+
+## Session browsers
+
+On desktop and Android, enabling the browser tool in a Tauri session makes
+the current device available to the agent while that session is open. Ask the
+agent to open a website on this device directly from chat. Its first navigation
+creates a local page. Open **Browser** to view or interact with the page. Closing
+the sidebar keeps the page and its connection alive.
+
+Leaving the session or disabling its browser tool releases the connection and closes its page. Each session accepts one connected device. Desktop guests use a private
+browsing session. Android guests use the app’s WebView cookie and website storage on that device.
+
+The agent can also use independent Chromium on the server from any Wish client.
+Use the browser tool’s `targets` action to discover the available targets.
+
+### Device proxy
+
+In Settings → Network, enter an HTTP or SOCKS5 proxy under **Device proxy**. This address belongs to the device running Wish. For example, loopback on Android refers to the phone. The embedded browser uses the proxy after restarting Wish. Enable **Also proxy connections to the Wish server** to send HTTP, streaming, WebSocket and SSH connections through it as well. An HTTP proxy used for server connections must allow CONNECT to the server port. Device proxy endpoints take a host and port without credentials. Clear the address to restore the default. The same settings are available from the account chooser before connecting.
+
+**Server proxy** controls outgoing service requests made by wish-core and is shared across clients.

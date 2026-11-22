@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { confirmArchive, exportSessions, sessionPackageActions } from './sessionPackages.ts';
 import { useTouchRangeSelection } from './useTouchRangeSelection.ts';
 import { useSearchFocus } from './searchFocus.ts';
 import { useBackLayer } from '../../ui/composables/useBackLayer.ts';
@@ -124,6 +125,14 @@ function stopSelecting() {
   selectionAnchor = null;
   chosen.value = new Set();
 }
+function archived(ids: string[]) {
+  const remaining = new Set(chosen.value);
+  for (const id of ids) remaining.delete(id);
+  if (remaining.size) {
+    chosen.value = remaining;
+    selectionAnchor = null;
+  } else stopSelecting();
+}
 useKeyboardScope(keyboardRoot, (event) => {
   if (event.key !== 'Escape' || !selecting.value) return false;
   stopSelecting();
@@ -135,8 +144,13 @@ function actOnChosen(kind: 'prune' | 'delete') {
   const targets = kind === 'prune' ? chosenSessions.value : chosenRows.value;
   batch.value = {
     kind,
-    targets: targets.map((row) => ({ id: row.id, name: sessionTitle(row) })),
+    targets: targets.map((row) => ({ ...row, name: sessionTitle(row) })),
   };
+}
+function archiveInstead() {
+  if (!batch.value) return;
+  confirmArchive(batch.value.targets, archived);
+  batch.value = null;
 }
 function batchDone() {
   const ended = !!batch.value && selecting.value;
@@ -144,6 +158,10 @@ function batchDone() {
   if (ended) stopSelecting();
 }
 function onRowAction(row: SessionRow, kind: RowAction) {
+  if (kind === 'archive' || kind === 'export') {
+    sessionPackageActions[kind]([row]);
+    return;
+  }
   if (kind === 'generate-name') {
     void sessionNaming.generate(row.id);
   } else if (kind === 'select') {
@@ -158,7 +176,7 @@ function onRowAction(row: SessionRow, kind: RowAction) {
       title: tr(`移动「${sessionTitle(row)}」`, `Move “${sessionTitle(row)}”`),
       from: row.parent,
     };
-  else action.value = { target: { id: row.id, name: row.name, kind: row.kind }, kind };
+  else action.value = { target: row, kind };
 }
 function onFolderAction(row: FolderRow, kind: FolderAction) {
   if (kind === 'pin' || kind === 'unpin') pin([row.id], kind === 'pin');
@@ -609,6 +627,15 @@ onMounted(() => {
               tr(`已选 ${chosenRows.length} 个`, `${chosenRows.length} chosen`)
             }}</span></span
           >
+          <button
+            class="btn ghost icon-only"
+            :aria-label="tr('导出所选会话', 'Export selected sessions')"
+            :data-hint="tr('导出所选会话', 'Export selected sessions')"
+            :disabled="!chosenSessions.length"
+            @click="exportSessions(chosenSessions)"
+          >
+            <Icon name="download" />
+          </button>
           <button type="button" class="btn ghost" :disabled="!entries.length" @click="chooseAll">
             {{ allChosen ? tr('取消全选', 'Clear all') : tr('全选', 'Choose all') }}
           </button>
@@ -634,6 +661,17 @@ onMounted(() => {
               @click="actOnChosen('prune')"
             >
               <Icon name="eraser" /><span class="sl-action-label">{{ tr('清理历史', 'Clear history') }}</span>
+            </button></Hint
+          >
+          <Hint :text="tr('归档会话', 'Archive sessions')"
+            ><button
+              type="button"
+              class="btn"
+              :aria-label="tr('归档会话', 'Archive sessions')"
+              :disabled="!chosenSessions.length"
+              @click="confirmArchive(chosenRows, archived)"
+            >
+              <Icon name="archive" /><span class="sl-action-label">{{ tr('归档', 'Archive') }}</span>
             </button></Hint
           >
           <Hint :text="tr('删除', 'Delete')"
@@ -670,6 +708,7 @@ onMounted(() => {
       :targets="batch.targets"
       @close="batch = null"
       @deleted="batchDone"
+      @archive="archiveInstead"
     />
     <div
       v-if="drag.ghost.value"
@@ -828,7 +867,7 @@ onMounted(() => {
     display: inline;
   }
 }
-@container (max-width: 300px) {
+@container (max-width: 460px) {
   .sl-action-label {
     display: none;
   }
@@ -862,7 +901,7 @@ onMounted(() => {
 }
 .sl-select-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 .sl-select-actions .btn {

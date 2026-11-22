@@ -13,11 +13,11 @@ import { showError } from '../../ui/errorDialog.ts';
 import { deleteSession } from './sessionActions.ts';
 
 const props = defineProps<{
-  targets: { id: string; name: string }[];
+  targets: { id: string; name: string; running?: boolean; phase?: string }[];
   // What they keep, when the caller knows it.
   bytes?: number;
 }>();
-const emit = defineEmits<{ close: []; deleted: [] }>();
+const emit = defineEmits<{ close: []; deleted: []; archive: [] }>();
 const route = useRoute();
 const router = useRouter();
 const deleting = ref(false);
@@ -63,6 +63,9 @@ const title = computed(() =>
       }}
     </p>
     <template #footer>
+      <button class="btn ghost" :disabled="deleting" @click="emit('archive')">
+        {{ tr('改为归档', 'Archive instead') }}
+      </button>
       <button class="btn ghost" :disabled="deleting" @click="emit('close')">{{ tr('取消', 'Cancel') }}</button>
       <button class="btn danger solid" :disabled="deleting" @click="remove">
         <Icon v-if="deleting" name="loader-circle" class="spin" />{{ tr('删除', 'Delete') }}

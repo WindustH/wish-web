@@ -52,3 +52,51 @@ export async function nativeSshLogin(
     throw new Error(String(signingError || e));
   }
 }
+
+export interface DeviceProxySettings {
+  url: string;
+  backend: boolean;
+}
+export async function deviceProxySettings(settings?: DeviceProxySettings): Promise<DeviceProxySettings> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('device_proxy_settings', { settings });
+}
+export async function deviceBrowserProxy(): Promise<string | null> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('device_browser_proxy');
+}
+
+type DownloadBridge = { postMessage(data: string): void; onmessage: ((event: MessageEvent<string>) => void) | null };
+let pendingDownload: Promise<void> = Promise.resolve();
+let downloadId = 0;
+export function saveNativePackage(url: string, filename: string): Promise<string | null> {
+  const android = (window as Window & { wishPackageDownload?: DownloadBridge }).wishPackageDownload;
+  if (android) {
+    const result = pendingDownload.then(
+      () =>
+        new Promise<string | null>((resolve, reject) => {
+          const id = String(++downloadId);
+          android.onmessage = (e) => {
+            const response = JSON.parse(e.data) as {
+              id: string;
+              location?: string;
+              error?: string;
+              cancelled?: boolean;
+            };
+            if (response.id !== id) return;
+            android.onmessage = null;
+            if (response.error) reject(new Error(response.error));
+            else resolve(response.location ?? null);
+          };
+          android.postMessage(JSON.stringify({ id, url, filename }));
+        }),
+    );
+    pendingDownload = result.then(
+      () => {},
+      () => {},
+    );
+    return result;
+  }
+  if (/Android/.test(navigator.userAgent)) return Promise.reject(new Error('Android ZIP saving is unavailable'));
+  return import('@tauri-apps/api/core').then(({ invoke }) => invoke<string>('save_session_package', { url }));
+}

@@ -16,6 +16,14 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 
 class MainActivity : TauriActivity() {
+  private var browser: DeviceBrowser? = null
+  private val packageDownloads = PackageDownloads(this)
+
+  override fun onDestroy() {
+    browser?.close()
+    super.onDestroy()
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     val transparent = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT)
     enableEdgeToEdge(statusBarStyle = transparent, navigationBarStyle = transparent)
@@ -42,6 +50,8 @@ class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
     if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return
+    packageDownloads.install(webView)
+    browser = DeviceBrowser(this, webView).also { it.install(); it.resetOnHostReload() }
     WebViewCompat.addWebMessageListener(
       webView, "wishSystemBars", setOf("http://tauri.localhost", "https://tauri.localhost")
     ) { _, message, _, mainFrame, _ ->

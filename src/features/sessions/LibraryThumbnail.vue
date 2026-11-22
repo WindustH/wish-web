@@ -6,6 +6,7 @@ import { previewCache } from '../../core/util/previewCache.ts';
 import { thumbnail, thumbnailKey } from '../../domain/media/thumbnail.ts';
 import { textThumbnail, textThumbnailKey } from '../../domain/media/textThumbnail.ts';
 import LibraryDocumentThumbnail from './LibraryDocumentThumbnail.vue';
+import LibraryWebsiteThumbnail from './LibraryWebsiteThumbnail.vue';
 import BlobImage from '../../domain/media/BlobImage.vue';
 import Icon from '../../ui/components/Icon.vue';
 import { blobIcon, blobKind } from './libraryFiles.ts';
@@ -51,8 +52,8 @@ watch(
   async (_, __, onCleanup) => {
     const controller = new AbortController();
     onCleanup(() => controller.abort());
-    const key =
-      kind.value === 'text' ? textThumbnailKey(props.session, props.blob.id) : thumbnailKey(props.session, props.blob);
+    const readsText = kind.value === 'text' || kind.value === 'website';
+    const key = readsText ? textThumbnailKey(props.session, props.blob.id) : thumbnailKey(props.session, props.blob);
     if (currentKey !== key) {
       currentKey = key;
       display(undefined);
@@ -64,7 +65,7 @@ watch(
       return;
     }
     const cached = previewCache.get(key);
-    if (kind.value === 'text') {
+    if (readsText) {
       if (cached) {
         const prefix = await cached.text();
         if (controller.signal.aborted) return;
@@ -94,8 +95,13 @@ watch(
 
 <template>
   <span ref="surface" class="library-thumbnail" :class="[kind, { 'has-document': kind === 'text' && text }]">
+    <LibraryWebsiteThumbnail
+      v-if="kind === 'website'"
+      :descriptor="text"
+      :name="blob.display_name || blob.name || undefined"
+    />
     <LibraryDocumentThumbnail
-      v-if="kind === 'text' && text"
+      v-else-if="kind === 'text' && text"
       :text="text"
       :name="blob.name || blob.local_path || ''"
       :mime="blob.mime_type"

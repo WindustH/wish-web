@@ -5,9 +5,9 @@ import { sidebarViews as choices } from './sidebarViews.ts';
 import Icon from '../../ui/components/Icon.vue';
 import Menu from '../../ui/components/Menu.vue';
 
-const props = defineProps<{ current: 'info' | 'library' | 'tasks' }>();
-const emit = defineEmits<{ select: [view: 'info' | 'library' | 'tasks'] }>();
-const current = computed(() => choices.value.find((choice) => choice.key === props.current)!);
+const props = defineProps<{ current: 'info' | 'library' | 'tasks' | 'browser' }>();
+const emit = defineEmits<{ openChange: [open: boolean]; select: [view: 'info' | 'library' | 'tasks' | 'browser'] }>();
+const current = computed(() => choices.value.find((choice) => choice.key === props.current) ?? choices.value[0]);
 const items = computed(() => choices.value.map((choice) => ({ ...choice, checked: choice.key === props.current })));
 function select(key: string) {
   const choice = choices.value.find((choice) => choice.key === key);
@@ -16,7 +16,7 @@ function select(key: string) {
 </script>
 
 <template>
-  <Menu :items="items" align="start" @select="select">
+  <Menu :items="items" align="start" @select="select" @open-change="emit('openChange', $event)">
     <template #trigger>
       <button
         type="button"

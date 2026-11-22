@@ -82,10 +82,20 @@ function reject(res: ServerResponse, status: number, why: string): void {
   res.end(JSON.stringify({ error: 'rejected', detail: why }));
 }
 
+// Labels come only from successful authenticated opens. In SSH mode each one keeps
+// the exact session agent, never the credentials of another connected browser.
+const views = new Map<string, { agent: ReturnType<NonNullable<typeof ssh>['proxyAgent']>; until: number }>();
+ssh?.closedAgents.addEventListener('close', (event) => {
+  for (const [label, view] of views) if (view.agent === (event as CustomEvent).detail) views.delete(label);
+});
+const viewLabel = (host: string) => /^(ws-[a-f0-9]{32})\./.exec(host)?.[1];
 const server = createServer(async (req, res) => {
   try {
     // ── boundary checks (before any proxying / token injection) ──────────
     const host = String(req.headers.host || '').toLowerCase();
+    if (req.headers['x-wish-site-hop']) return reject(res, 403, 'recursive website preview');
+    if (viewLabel(host))
+      return proxyApi(req, res, new URL(req.url || '/', 'http://preview.invalid'), BACKENDS[0]!, host);
     if (!HOSTS.has(host)) return reject(res, 421, 'unexpected host');
 
     const origin = req.headers.origin ? String(req.headers.origin) : null;
@@ -152,20 +162,26 @@ const server = createServer(async (req, res) => {
   }
 });
 
-function proxyApi(req: IncomingMessage, res: ServerResponse, url: URL, backend: Backend): void {
-  const agent = ssh?.proxyAgent(req);
+function proxyApi(req: IncomingMessage, res: ServerResponse, url: URL, backend: Backend, previewHost?: string): void {
+  const label = previewHost && viewLabel(previewHost);
+  const view = label ? views.get(label) : undefined;
+  if (previewHost && (!view || view.until < Date.now())) return reject(res, 410, 'Website preview expired');
+  const agent = view?.agent ?? ssh?.proxyAgent(req);
   if (ssh && !agent) return reject(res, 401, 'SSH login required');
   const up = backend.url;
-  const target = backend.path + url.pathname.slice(backend.prefix.length) + url.search;
-  const headers: OutgoingHttpHeaders = { ...req.headers, host: up.host };
+  const target = previewHost
+    ? url.pathname + url.search
+    : backend.path + url.pathname.slice(backend.prefix.length) + url.search;
+  const headers: OutgoingHttpHeaders = { ...req.headers, host: previewHost || up.host };
   delete headers['accept-encoding']; // avoid compressed SSE buffering
-  if (ssh) delete headers.cookie;
+  if (ssh && !previewHost) delete headers.cookie;
   delete headers.referer;
-  delete headers.origin;
+  if (!previewHost) delete headers.origin;
   delete headers['sec-fetch-site'];
   delete headers['sec-fetch-mode'];
-  delete headers['sec-fetch-dest'];
-  if (backend.token) headers.authorization = `Bearer ${backend.token}`;
+  if (!previewHost) delete headers['sec-fetch-dest'];
+  if (previewHost) delete headers.authorization;
+  else if (backend.token) headers.authorization = `Bearer ${backend.token}`;
 
   const doRequest = up.protocol === 'https:' ? httpsRequest : httpRequest;
   const prox = doRequest(
@@ -179,7 +195,25 @@ function proxyApi(req: IncomingMessage, res: ServerResponse, url: URL, backend: 
     },
     (pr) => {
       const h = { ...pr.headers };
-      if (ssh) delete h['set-cookie'];
+      if (
+        !previewHost &&
+        req.method === 'POST' &&
+        /^\/api\/sessions\/[^/]+\/blobs\/[a-f0-9]{64}\/website$/.test(url.pathname) &&
+        pr.statusCode === 200
+      ) {
+        const key = h['x-wish-site'];
+        if (typeof key === 'string' && /^ws-[a-f0-9]{32}$/.test(key)) {
+          for (const [id, view] of views) if (view.until < Date.now()) views.delete(id);
+          views.set(key, { agent, until: Date.now() + 3600000 });
+        }
+      }
+      if (!previewHost && req.method === 'DELETE' && pr.statusCode === 204) {
+        const closed = /^\/api\/sessions\/[^/]+\/blobs\/[a-f0-9]{64}\/website\/(ws-[a-f0-9]{32})$/.exec(
+          url.pathname,
+        )?.[1];
+        if (closed && views.get(closed)?.agent === agent) views.delete(closed);
+      }
+      if (ssh && !previewHost) delete h['set-cookie'];
       res.writeHead(pr.statusCode || 502, h);
       pr.pipe(res); // streams SSE frames unbuffered
     },
@@ -206,7 +240,10 @@ function proxyApi(req: IncomingMessage, res: ServerResponse, url: URL, backend: 
 server.on('upgrade', (req, socket, head) => {
   const refuse = (status: number) => socket.end(`HTTP/1.1 ${status} Rejected\r\nConnection: close\r\n\r\n`);
   const host = String(req.headers.host || '').toLowerCase();
-  if (!HOSTS.has(host)) return refuse(421);
+  const label = viewLabel(host),
+    view = label ? views.get(label) : undefined;
+  if (req.headers['x-wish-site-hop'] || (label ? !view || view.until < Date.now() : !HOSTS.has(host)))
+    return refuse(421);
   const origin = req.headers.origin;
   const site = req.headers['sec-fetch-site'];
   if (
@@ -220,20 +257,20 @@ server.on('upgrade', (req, socket, head) => {
   } catch {
     return refuse(400);
   }
-  if (!/^\/api\/sessions\/[^/]+\/terminal\/socket$/.test(url.pathname)) return refuse(404);
-  const backend = BACKENDS.find((item) => url.pathname.startsWith(item.prefix + '/'));
+  if (!view && !/^\/api\/sessions\/[^/]+\/(?:terminal|browser)\/socket$/.test(url.pathname)) return refuse(404);
+  const backend = view ? BACKENDS[0] : BACKENDS.find((item) => url.pathname.startsWith(item.prefix + '/'));
   if (!backend) return refuse(404);
-  const agent = ssh?.proxyAgent(req);
+  const agent = view?.agent ?? ssh?.proxyAgent(req);
   if (ssh && !agent) return refuse(401);
-  const headers = { ...req.headers, host: backend.url.host };
-  if (ssh) delete headers.cookie;
-  delete headers.origin;
+  const headers = { ...req.headers, host: view ? host : backend.url.host };
+  if (ssh && !view) delete headers.cookie;
+  if (!view) delete headers.origin;
   delete headers['sec-fetch-site'];
   const request = (backend.url.protocol === 'https:' ? httpsRequest : httpRequest)({
     agent,
     hostname: backend.url.hostname,
     port: backend.url.port || (backend.url.protocol === 'https:' ? 443 : 80),
-    path: backend.path + url.pathname.slice(backend.prefix.length) + url.search,
+    path: view ? url.pathname + url.search : backend.path + url.pathname.slice(backend.prefix.length) + url.search,
     headers,
   });
   const upgradeTimeout = setTimeout(() => request.destroy(), 10000);

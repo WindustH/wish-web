@@ -29,5 +29,6 @@ function dismiss(event: PointerEvent | MouseEvent) {
   inset: 0;
   z-index: 69;
   touch-action: none;
+  pointer-events: auto;
 }
 </style>

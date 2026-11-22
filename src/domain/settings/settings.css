@@ -1,50 +1,4 @@
 /* Settings use the same reading grid, type and controls as the conversation. */
-.settings-sidebar {
-  width: 196px;
-  flex: none;
-  overflow-y: auto;
-  padding-bottom: 20px;
-}
-
-.cfg-section h2 {
-  font: 600 15px/1.5 var(--font);
-  margin: 0 0 8px;
-}
-.cfg-section + .cfg-section {
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
-}
-.cfg-section:focus {
-  outline: none;
-}
-.ui-settings .setting-row {
-  display: grid;
-  grid-template-columns: fit-content(260px) minmax(0, 1fr);
-  gap: 4px 24px;
-  padding: 10px 0;
-}
-.ui-settings .setting-row + .setting-row {
-  border-top: 1px solid var(--line);
-}
-.ui-settings .setting-row > :is(.control-select, .choice-capsule, .btn) {
-  justify-self: start;
-}
-.ui-settings .setting-row > .control-select {
-  width: auto;
-  max-width: 100%;
-}
-.ui-settings .setting-row > .cfg-hint {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.ui-settings .setting-row label {
-  font-weight: 500;
-}
 .cfg-switch:focus-visible {
   outline: none;
   border-color: var(--accent);
@@ -55,20 +9,6 @@
   line-height: 1.7;
   margin: 6px 0 0;
   overflow-wrap: anywhere;
-}
-.cfg-layout {
-  min-width: 0;
-}
-
-.cfg-content {
-  min-width: 0;
-  max-width: 720px;
-}
-.cfg-content fieldset {
-  border: 0;
-  padding: 0;
-  margin: 0;
-  min-width: 0;
 }
 /* The tabs' forms: a fieldset only so saving can disable them at once. */
 .settings-form {
@@ -122,20 +62,6 @@
     font-size: 16px;
     min-height: 44px;
   }
-  .settings-sidebar {
-    display: contents;
-  }
-  .ui-settings .setting-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 9px;
-  }
-  .ui-settings .setting-row:has(> [role='switch']) {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .cfg-layout {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   .cfg-switch-thumb {
@@ -158,15 +84,18 @@
     backdrop-filter: blur(3px);
     animation: fade-in 180ms ease-out;
   }
-  .settings-sidebar {
+  .native-settings .settings-detail-heading {
     display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    width: 228px;
-    --settings-rail-pad: 14px;
-    padding: 20px var(--settings-rail-pad);
-    border-right: 1px solid var(--line);
-    background: var(--bg);
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    min-height: 56px;
+    padding: 0 20px 0 28px;
+    border-bottom: 1px solid var(--line);
+  }
+  .native-settings .settings-detail-heading h2 {
+    margin: 0;
+    font: 600 16px/1.4 var(--font);
   }
 }
 @keyframes settings-enter {
@@ -219,37 +148,6 @@
   }
   .setting-help-icon {
     display: inline-flex;
-  }
-  .ui-settings .setting-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 12px;
-  }
-  .ui-settings .setting-row > div:first-child {
-    flex: 1 1 85px;
-    min-width: 0;
-  }
-  .ui-settings .setting-row > .control-select {
-    flex: 0.8 1 75px;
-    min-width: min(75px, 100%);
-    max-width: 100%;
-    width: auto;
-  }
-  .ui-settings .setting-row > .cfg-switch {
-    flex: none;
-    margin-left: auto;
-  }
-  .ui-settings .setting-row > .choice-capsule {
-    flex: none;
-    margin-left: auto;
-  }
-  /* The hint icon stays beside its label instead of drifting to the row end. */
-  .ui-settings .setting-row:has(> .setting-help-icon) > div:first-child {
-    flex: 0 1 auto;
-  }
-  .ui-settings .setting-row:has(> .setting-help-icon) > .btn {
-    margin-left: auto;
   }
 }
 
@@ -612,114 +510,6 @@
   }
   .set-row.inline .set-number input {
     width: 11ch;
-  }
-}
-
-/* The interface tab keeps its rows but sits in the same cards. */
-.native-settings .ui-settings .cfg-content {
-  max-width: none;
-}
-.native-settings .ui-settings .cfg-section {
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-.native-settings .ui-settings .cfg-section + .cfg-section {
-  margin-top: 28px;
-  padding: 0;
-  border: 0;
-}
-.native-settings .ui-settings .cfg-section h2 {
-  margin: 0 4px 10px;
-  font: 600 13px/1.4 var(--font);
-  color: var(--fg);
-}
-.native-settings .ui-settings .setting-row {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  min-height: 58px;
-  margin: 0;
-  padding: 12px 16px;
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-top-width: 0;
-}
-.native-settings .ui-settings h2 + .setting-row {
-  border-top-width: 1px;
-  border-radius: 12px 12px 0 0;
-}
-.native-settings .ui-settings .setting-row:last-child {
-  border-radius: 0 0 12px 12px;
-}
-.native-settings .ui-settings h2 + .setting-row:last-child {
-  border-radius: 12px;
-}
-.native-settings .ui-settings .setting-row + .setting-row {
-  border-top-width: 0;
-}
-.native-settings .ui-settings .setting-row label,
-.native-settings .ui-settings .setting-row > div > span {
-  font: 500 13.5px/1.45 var(--font);
-}
-.native-settings .ui-settings .setting-row > :is(.control-select, .choice-capsule, .btn, .cfg-switch) {
-  justify-self: end;
-}
-.native-settings .ui-settings .setting-row .cfg-hint {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--fg-subtle);
-}
-@media (max-width: 899px) {
-  .native-settings .ui-settings .cfg-section + .cfg-section {
-    margin-top: 24px;
-  }
-  .native-settings .ui-settings .cfg-section h2 {
-    margin: 0 14px 8px;
-    font-weight: 500;
-    color: var(--fg-muted);
-  }
-  .native-settings .ui-settings .setting-row {
-    min-height: 54px;
-    padding: 12px 14px;
-    gap: 8px;
-    border: 0;
-    background: var(--bg-group);
-  }
-  .native-settings .ui-settings .setting-row + .setting-row {
-    margin-top: 2px;
-  }
-  .native-settings .ui-settings h2 + .setting-row {
-    border-radius: 18px 18px 0 0;
-  }
-  .native-settings .ui-settings .setting-row:last-child {
-    border-radius: 0 0 18px 18px;
-  }
-  .native-settings .ui-settings h2 + .setting-row:last-child {
-    border-radius: 18px;
-  }
-  .native-settings .ui-settings .setting-row > div:first-child {
-    flex: 1;
-  }
-  .native-settings .ui-settings .setting-row .setting-help-icon {
-    display: none;
-  }
-  /* Pickers read as the row's value, like navigation rows elsewhere. */
-  .native-settings .ui-settings .setting-row > .control-select {
-    flex: none;
-    width: auto;
-    min-height: 36px;
-    margin-left: auto;
-    padding: 0 0 0 8px;
-    border: 0;
-    background: transparent;
-    color: var(--fg-subtle);
-    font-size: 15px;
-    gap: 6px;
-  }
-  .native-settings .ui-settings .setting-row > .control-select svg {
-    width: 16px;
-    color: var(--fg-faint);
   }
 }
 

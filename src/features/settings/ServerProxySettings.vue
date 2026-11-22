@@ -48,7 +48,9 @@ const modes = computed(() => [
       <label class="set-row"
         ><span class="set-label"
           ><span>{{ tr('代理地址', 'Proxy URL') }}</span
-          ><small>{{ tr('http:// 或 https:// 开头', 'Starts with http:// or https://') }}</small></span
+          ><small>{{
+            tr('支持 HTTP、HTTPS、SOCKS5 和 SOCKS5H', 'Supports HTTP, HTTPS, SOCKS5 and SOCKS5H')
+          }}</small></span
         ><input
           class="input"
           v-model.trim="value.url"

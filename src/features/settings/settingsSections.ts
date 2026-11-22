@@ -1,11 +1,17 @@
 import { computed } from 'vue';
 import { tr } from '../../core/i18n/tr.ts';
+export const sectionGroups = computed(() => [
+  { id: 'conversation', label: tr('对话与模型', 'Conversations and models') },
+  { id: 'capabilities', label: tr('能力与扩展', 'Tools and extensions') },
+  { id: 'environment', label: tr('环境与本机', 'Environment and device') },
+]);
+
 export const sections = computed(() => [
   {
     id: 'service',
+    group: 'conversation',
     icon: 'service',
     label: tr('会话', 'Sessions'),
-    showSummary: true,
     summary: tr('默认模型、提示词与上下文', 'Model, instructions and context'),
     description: tr(
       '新会话的默认模型、工作目录、提示词和上下文压缩。',
@@ -14,9 +20,9 @@ export const sections = computed(() => [
   },
   {
     id: 'accounts',
+    group: 'conversation',
     icon: 'key',
     label: tr('账户', 'Accounts'),
-    showSummary: true,
     summary: tr('凭据与订阅登录', 'Credentials and sign-in'),
     description: tr(
       '模型、搜索、网页读取、媒体生成与语音转写服务使用的账户。',
@@ -25,6 +31,7 @@ export const sections = computed(() => [
   },
   {
     id: 'providers',
+    group: 'conversation',
     icon: 'bot',
     label: tr('模型', 'Models'),
     summary: tr('连接、认证与模型管理', 'Connections, credentials and models'),
@@ -35,6 +42,7 @@ export const sections = computed(() => [
   },
   {
     id: 'tools',
+    group: 'capabilities',
     icon: 'tool',
     label: tr('工具', 'Tools'),
     summary: tr('内置工具与 Shell', 'Built-in tools and the shell'),
@@ -45,9 +53,9 @@ export const sections = computed(() => [
   },
   {
     id: 'extensions',
+    group: 'capabilities',
     icon: 'extensions',
     label: tr('扩展工具', 'Extension tools'),
-    showSummary: true,
     summary: tr('媒体生成、语音转写与联网服务', 'Media generation, transcription and web services'),
     description: tr(
       '管理扩展工具的默认启用方式、服务与账户。',
@@ -56,6 +64,7 @@ export const sections = computed(() => [
   },
   {
     id: 'mcp',
+    group: 'capabilities',
     icon: 'mcp',
     label: 'MCP',
     summary: tr('会话可以调用的 MCP 服务器', 'MCP servers sessions can call'),
@@ -66,6 +75,7 @@ export const sections = computed(() => [
   },
   {
     id: 'skills',
+    group: 'capabilities',
     icon: 'skill',
     label: tr('Skill', 'Skills'),
     summary: tr('智能体按需查找和读取的 Skill', 'Skills the agent finds and reads as needed'),
@@ -76,6 +86,7 @@ export const sections = computed(() => [
   },
   {
     id: 'terminal',
+    group: 'environment',
     icon: 'terminal',
     label: tr('终端', 'Terminal'),
     summary: tr('Shell、持久化、字号与配色', 'Shell, persistence, font and colors'),
@@ -83,6 +94,7 @@ export const sections = computed(() => [
   },
   {
     id: 'network',
+    group: 'environment',
     icon: 'network',
     label: tr('网络', 'Network'),
     summary: tr('各服务共用的网络代理', 'Shared network proxy'),
@@ -93,6 +105,7 @@ export const sections = computed(() => [
   },
   {
     id: 'ui',
+    group: 'environment',
     icon: 'appearance',
     label: tr('界面', 'Interface'),
     summary: tr('外观、通知与本地偏好', 'Appearance, notifications and preferences'),
@@ -103,6 +116,7 @@ export const sections = computed(() => [
   },
   {
     id: 'shortcuts',
+    group: 'environment',
     icon: 'keyboard',
     label: tr('快捷键', 'Keyboard shortcuts'),
     summary: tr('按键绑定、发送方式与浏览器快捷键', 'Bindings, sending and browser shortcuts'),
@@ -110,6 +124,7 @@ export const sections = computed(() => [
   },
   {
     id: 'debug',
+    group: 'environment',
     icon: 'diagnostics',
     label: tr('调试', 'Debug'),
     summary: tr('连接诊断与引导预览', 'Diagnostics and setup preview'),

@@ -44,6 +44,8 @@ import type {
   ModelCatalogSource,
   ModelChange,
   PruneResult,
+  ArchiveRecord,
+  ExportTicket,
   QuestionAnswer,
   QueuedDelivery,
   SearchHit,
@@ -128,6 +130,18 @@ export const sessionUpdateMeta = async (
   revision?: number | null,
   opts?: EndpointOptions,
 ) => sessionView(await patch(path(id), { metadata }, revisionOptions(revision, opts)));
+const packageTimeout = 10 * 60_000;
+export const sessionArchive = (id: string, opts?: EndpointOptions): Promise<ArchiveRecord> =>
+  post(path(id) + '/archive', undefined, { timeoutMs: packageTimeout, ...opts });
+export const sessionExport = (id: string, opts?: EndpointOptions): Promise<ExportTicket> =>
+  post(path(id) + '/export', undefined, { timeoutMs: packageTimeout, ...opts });
+export const archivesList = (
+  query: { q?: string; cursor?: string; order?: 'time' | 'size'; limit?: number },
+  opts?: EndpointOptions,
+): Promise<{ items: ArchiveRecord[]; next: string | null; total?: number }> => get('/archives', { query, ...opts });
+export const archiveDelete = (id: string) => del('/archives/' + encodeURIComponent(id));
+export const archiveDownloadGrant = (id: string): Promise<{ download_url: string }> =>
+  post('/archives/' + encodeURIComponent(id) + '/download-grant');
 export const sessionDelete = (id: string, opts?: EndpointOptions) => del(path(id), opts);
 /** What a user browses: one folder's listing (the root without `folder`), or, with words or a
  *  tag to look for or `flat`, every session that matches, wherever it is. */
@@ -494,11 +508,23 @@ export const deleteLibraryBookmark = (session: string, id: string, opts?: Endpoi
   del(`${path(session)}/library/bookmarks/${encodeURIComponent(id)}`, opts);
 export const cleanupLibrary = (
   session: string,
-  body: { missing_links: boolean; unused_hidden: boolean; dry_run: boolean; ids?: string[] },
+  body: { missing_links: boolean; unused_hidden: boolean; dry_run: boolean; ids?: string[]; archive?: boolean },
   opts?: EndpointOptions,
 ): Promise<import('./types.ts').LibraryCleanup> =>
-  post(`${path(session)}/library/cleanup`, body, { timeoutMs: 120_000, ...opts });
+  post(`${path(session)}/library/cleanup`, body, { timeoutMs: body.archive ? packageTimeout : 120_000, ...opts });
 export const blobUrl = (reference: string) => `${getBaseUrl()}${blobPath(reference)}`;
+export const createWebsite = (
+  session: string,
+  website: { url: string; name?: string; parent: string | null },
+  opts?: EndpointOptions,
+) => post(`${path(session)}/websites`, website, opts);
+export const openWebsite = (
+  session: string,
+  blob: string,
+  opts?: EndpointOptions,
+): Promise<{ label: string; secret: string }> => post(`${blobPath(session + '/' + blob)}/website`, {}, opts);
+export const closeWebsite = (session: string, blob: string, label: string) =>
+  del(`${blobPath(session + '/' + blob)}/website/${encodeURIComponent(label)}`);
 export const deleteBlob = (reference: string, opts?: EndpointOptions) => del(blobPath(reference), opts);
 
 // Providers.
@@ -667,18 +693,36 @@ export const usageDaily = (
 export const storageStatus = (opts?: EndpointOptions): Promise<StorageSnapshot> => get('/storage', opts);
 /** Each database by what it holds; it reads every page of both, so it is asked for when shown. */
 export const storageDetail = (opts?: EndpointOptions): Promise<StorageDetail> => get('/storage/detail', opts);
+export interface SessionExcerpt {
+  seq: number;
+  role: 'user' | 'assistant';
+  at: number;
+  text: string;
+}
+export const storageSessionPreview = (id: string, opts?: EndpointOptions): Promise<{ messages: SessionExcerpt[] }> =>
+  get('/storage/sessions/' + encodeURIComponent(id) + '/preview', opts);
 export const sessionsStorage = (opts?: EndpointOptions): Promise<{ sessions: SessionStorage[]; bytes: SessionBytes }> =>
   get('/storage/sessions', opts);
 // `sessions` absent prunes every session; `before` (Unix ms) keeps what was recorded since.
 export const storagePrune = (
-  body: { sessions?: string[]; before?: number | null; dry_run?: boolean },
+  body: { sessions?: string[]; before?: number | null; dry_run?: boolean; archive?: boolean },
   opts?: EndpointOptions,
-): Promise<PruneResult> => post('/storage/prune', body, { timeoutMs: 120_000, ...opts });
+): Promise<PruneResult> =>
+  post('/storage/prune', body, { timeoutMs: body.archive ? packageTimeout : 120_000, ...opts });
 /** Clears the usage records deleted sessions left, and shrinks the file they were in. */
 export const storagePruneUsage = (
   opts?: EndpointOptions,
-): Promise<{ calls: number; stream_samples: number; database: { before: number; after: number } }> =>
-  post('/storage/prune-usage', undefined, { timeoutMs: 120_000, ...opts });
+  archive = false,
+): Promise<{
+  archive?: ArchiveRecord | null;
+  calls: number;
+  stream_samples: number;
+  database: { before: number; after: number };
+}> =>
+  post('/storage/prune-usage', archive ? { archive: true } : undefined, {
+    timeoutMs: archive ? packageTimeout : 120_000,
+    ...opts,
+  });
 
 export interface ContextInspection {
   provider: string;
@@ -742,14 +786,12 @@ export const sessionGenerations = (
 export const sessionGenerationStructure = (
   id: string,
   generation: number,
-  start: number,
-  kind: string,
-  origin: string,
+  query: { start: number; kind?: string; origin?: string; order?: 'asc' | 'desc' },
   opts?: EndpointOptions,
 ): Promise<GenerationStructure> =>
   get(`${path(id)}/generations/${generation}/structure`, {
     ...opts,
-    query: { start, limit: 20, ...(kind ? { kind } : {}), ...(origin ? { origin } : {}) },
+    query: { ...query, limit: 20 },
   });
 
 export const imagePresets = (): Promise<{ presets: import('../imageGeneration.ts').ImagePreset[] }> =>

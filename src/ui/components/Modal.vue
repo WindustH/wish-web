@@ -256,7 +256,6 @@ defineExpose({ close: requestClose });
           <DialogTitle class="modal-title">{{ title }}</DialogTitle>
           <div class="modal-head-actions">
             <slot name="actions" />
-            <DraftActions v-if="page" />
             <button
               v-if="!page"
               type="button"
@@ -284,6 +283,7 @@ defineExpose({ close: requestClose });
           /></DialogDescription>
           <slot name="footer" />
         </div>
+        <DraftActions v-else-if="page" />
       </DialogContent>
     </DialogPortal>
   </DialogRoot>
